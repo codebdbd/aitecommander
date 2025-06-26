@@ -1,0 +1,14 @@
+{
+  "themes": [
+    {
+      "name": "light",
+      "file": "app/views/resources/qss/light.qss",
+      "display": "Светлая"
+    },
+    {
+      "name": "dark",
+      "file": "app/views/resources/qss/dark.qss",
+      "display": "Тёмная"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+/* Светлая тема */
+
+QWidget {
+    background-color: #ffffff;
+    color: #000000;
+    font-family: "Segoe UI", sans-serif;
+}
+
+/* Кнопки */
+QPushButton {
+    background-color: #f0f0f0;
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+QPushButton:hover {
+    background-color: #e6e6e6;
+}
+
+/* Поля ввода */
+QLineEdit, QTextEdit {
+    background-color: #ffffff;
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+/* Заголовки таблицы */
+QHeaderView::section {
+    background-color: #f0f0f0;
+    padding: 4px;
+    border: 1px solid #d0d0d0;
+}
+
+/* Дерево */
+QTreeWidget {
+    background-color: #ffffff;
+    border: 1px solid #c0c0c0;
+}
+
+/* Таблица */
+QTableWidget {
+    background-color: #ffffff;
+    gridline-color: #d0d0d0;
+}
+
+/* Статус-бар, тулбары и т.д. оставьте в дефолте */
