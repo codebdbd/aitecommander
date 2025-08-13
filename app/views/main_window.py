@@ -1,441 +1,586 @@
 # app/views/main_window.py
 
+from __future__ import annotations
+
 import sys
-import json
-from pathlib import Path
+from typing import TYPE_CHECKING, Optional
 
+from PyQt6 import QtCore
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QAction, QFont, QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget,
-    QVBoxLayout, QHBoxLayout, QTreeWidgetItem,
-    QTableWidget, QLineEdit, QToolButton, QPushButton,
-    QScrollArea, QStackedLayout, QFileDialog, QMessageBox,
-    QDialog, QDialogButtonBox, QStatusBar, QButtonGroup
+    QApplication,
+    QButtonGroup,
+    QFrame,
+    QHBoxLayout,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QSplitter,
+    QStackedLayout,
+    QStatusBar,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtGui import QIcon, QKeySequence, QShortcut
-from PyQt6.QtCore import Qt, QSize, QTimer
 
-from app.controllers.structure import StructureController
-from app.controllers.links import LinksController
-from app.controllers.ui import FavoritesWidget, ThemeController
-from app.settings import AppSettings
+if TYPE_CHECKING:  # Только для аннотаций типов, без зависимости во время выполнения
+    from app.controllers.ui.theme_controller import ThemeController
+
+from app.config_data import app_config
 from app.models.db import Database
-from app.views.category_tiles import CategoryTiles
-from app.views.link_dialog import LinkDialog
-from app.views.dialogs import SectionDialog, CategoryDialog
-from app.config import UI_ICONS_DIR, LINK_ICONS_DIR
-from app.views.custom_widgets import StructureTreeWidget, LinksTableWidget
+from app.settings import AppSettings
+
+# NOTE: Если clear_icon_cache переедет в qicon_cache, обновим импорт ниже
+from app.utils.ui.icon.cache_manager import clear_icon_cache
+from app.utils.ui.icon.icon_operations.creators import create_icon_from_path, themed_icon
+from app.utils.ui.icon.path_service import get_current_theme, icon_path_service
+from app.utils.db.synchronization import get_signal_guard, signal_guard
+from app.utils.system.task_scheduler import LimitedThreadPool, get_task_scheduler
+from app.utils.ui_state.ui_state_manager import UIStateManager
 
 
 class MainWindow(QMainWindow):
+    shown: pyqtSignal = pyqtSignal()  # Сигнал отображения окна
+    
+    # === СВОЙСТВА ДЛЯ ОПТИМИЗАЦИИ ПРОВЕРОК АТРИБУТОВ ===
+    
+    @property
+    def has_structure(self) -> bool:
+        """Проверка наличия и валидности структуры."""
+        return hasattr(self, 'structure') and self.structure is not None
+    
+    @property
+    def has_links(self) -> bool:
+        """Проверка наличия и валидности контроллера ссылок."""
+        return hasattr(self, 'links') and self.links is not None
+    
+    @property
+    def has_tiles(self) -> bool:
+        """Проверка наличия и валидности плиток."""
+        return hasattr(self, 'tiles') and self.tiles is not None
+    
+    @property
+    def has_table(self) -> bool:
+        """Проверка наличия и валидности таблицы."""
+        return hasattr(self, 'table') and self.table is not None
+    
+    @property
+    def has_stack(self) -> bool:
+        """Проверка наличия и валидности стека."""
+        return hasattr(self, 'stack') and self.stack is not None
+    
+    @property
+    def has_structure_business(self) -> bool:
+        """Проверка наличия и валидности бизнес-логики структуры."""
+        return hasattr(self, 'structure_business') and self.structure_business is not None
+    
+    @property
+    def has_theme_ctrl(self) -> bool:
+        """Проверка наличия и валидности контроллера тем."""
+        return hasattr(self, 'theme_ctrl') and self.theme_ctrl is not None
+    
+    @property
+    def has_undo_stack(self) -> bool:
+        """Проверка наличия и валидности undo stack."""
+        return hasattr(self, 'undo_stack') and self.undo_stack is not None
+    
+    @property
+    def has_left_panel(self) -> bool:
+        """Проверка наличия и валидности левой панели."""
+        return hasattr(self, 'left_panel') and self.left_panel is not None
+    
+    @property
+    def has_fav_widget(self) -> bool:
+        """Проверка наличия и валидности виджета избранного."""
+        return hasattr(self, 'fav_widget') and self.fav_widget is not None
+    
+    @property
+    def has_db(self) -> bool:
+        """Проверка наличия и валидности базы данных."""
+        return hasattr(self, 'db') and self.db is not None
+    
+    def handle_import_browser_bookmarks(self):
+        self.system_dialogs.handle_import_browser_bookmarks()
+
+    
+    def get_current_category_id(self) -> Optional[int]:
+        """Определяет ID текущей категории по приоритету (плитки → сохранённый → дерево → фолбэк)."""
+        tiles_stack_index = app_config.get('ui.stack_indices.tiles', 0)
+        if (self.has_tiles and self.has_stack and 
+            self.stack.currentIndex() == tiles_stack_index and 
+            hasattr(self.tiles, '_current_item_id') and self.tiles._current_item_id is not None):
+            return self.tiles._current_item_id
+        
+        if hasattr(self, 'current_category_id') and self.current_category_id:
+            return self.current_category_id
+        
+        if self.has_structure and hasattr(self.structure, 'tree'):
+            current_item = self.structure.tree.currentItem()
+            if current_item:
+                from app.utils.ui.qt.roles import get_tree_tuple
+                t = get_tree_tuple(current_item, 0)
+                if t:
+                    item_type, item_id = t
+                    if item_type == 'category' and isinstance(item_id, int):
+                        return item_id
+        
+        if self.has_structure_business:
+            return self.structure_business.get_first_category_id()
+        
+        return None
+    
+    # === ПУБЛИЧНЫЕ МЕТОДЫ ДЛЯ ДЕЛЕГИРОВАНИЯ ===
+    
+    def edit_structure_item(self, item):
+        """Публичный метод для редактирования элемента структуры."""
+        if self.has_structure:
+            self.structure.edit_item(item)
+    
+    def add_new_category(self):
+        """Публичный метод для добавления новой категории."""
+        if self.has_structure:
+            self.structure.add_new_category()
+    
+    def show_link_dialog_for_category(self, category_id: int = None, link=None) -> bool:
+        """Публичный метод для показа диалога ссылки."""
+        return self.link_operations.show_link_dialog(link=link, category_id=category_id)
+    
+    def reload_structure(self) -> None:
+        """Публичный метод для перезагрузки структуры."""
+        if self.has_structure:
+            self.structure.load()
+    
+    def reload_current_category(self) -> None:
+        """Публичный метод для перезагрузки текущей категории.
+        ЦЕНТРАЛИЗОВАНО: Использует UIStateManager вместо DEPRECATED load_category.
+        """
+        category_id = self.get_current_category_id()
+        if category_id:
+            if hasattr(self, 'ui_state') and self.ui_state:
+                self.ui_state.load_category(category_id, source="reload_current_category")
+            else:
+                # Fallback для совместимости
+                self.load_category(category_id)
+    
+    # === ПУБЛИЧНЫЕ МЕТОДЫ ДЛЯ РАБОТЫ С ССЫЛКАМИ ===
+    
+    def get_link_at_row(self, row: int):
+        """Публичный метод для получения ссылки по номеру строки."""
+        if self.has_links:
+            return self.links.get_link_at(row)
+        return None
+    
+    def open_link(self, link):
+        """Публичный метод для открытия ссылки."""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"MainWindow.open_link called with link: {link}")
+        if self.has_links:
+            self.links.open_link(link)
+    
+    def toggle_link_favorite(self, link):
+        """Публичный метод для переключения статуса избранного."""
+        if self.has_links:
+            self.links.toggle_favorite(link)
+    
+    def copy_selected_links(self):
+        """Публичный метод для копирования выбранных ссылок."""
+        if self.has_links:
+            self.links.copy_selected_links()
+    
+    def paste_links(self):
+        """Публичный метод для вставки ссылок."""
+        if self.has_links:
+            self.links.paste_links()
+    
+    def cut_selected_links(self):
+        """Публичный метод для вырезания выбранных ссылок."""
+        if self.has_links:
+            self.links.cut_selected_links()
+    
+    def show_note_dialog_for_link(self, link):
+        """Публичный метод для показа диалога заметки."""
+        if self.has_links:
+            self.links.show_note_dialog(link)
+    
+    def delete_selected_links(self):
+        """Публичный метод для удаления выбранных ссылок."""
+        if self.has_links:
+            self.links.delete_selected_links()
+    
+    def select_all_links(self):
+        """Публичный метод для выделения всех ссылок."""
+        if self.has_table:
+            self.table.selectAll()
+    
+    def get_selected_rows(self):
+        """Публичный метод для получения выбранных строк."""
+        if self.has_table and hasattr(self.table, 'selectionModel'):
+            # Извлекаем номера строк из QModelIndex объектов
+            selected_indexes = self.table.selectionModel().selectedRows()
+            return [index.row() for index in selected_indexes if index.isValid()]
+        return []
+    
+    # === ПУБЛИЧНЫЕ МЕТОДЫ ДЛЯ ТЕМ И UNDO/REDO ===
+    
+    def get_available_themes(self):
+        """Публичный метод для получения доступных тем."""
+        if self.has_theme_ctrl:
+            return self.theme_ctrl.available()
+        return []
+    
+    def apply_theme(self, theme_name: str):
+        """Публичный метод для применения темы."""
+        if self.has_theme_ctrl:
+            self.theme_ctrl.apply(theme_name)
+    
+    def get_undo_stack(self):
+        """Публичный метод для получения undo stack."""
+        return getattr(self, 'undo_stack', None)
+    
+    def create_undo_redo_actions(self):
+        """Публичный метод для создания undo/redo действий."""
+        if not self.has_undo_stack:
+            return None, None
+            
+        undo_action = self.undo_stack.createUndoAction(self)
+        undo_action.setText("&Отменить")
+        undo_action.setShortcut(QKeySequence.StandardKey.Undo)
+        
+        redo_action = self.undo_stack.createRedoAction(self)
+        redo_action.setText("&Повторить")
+        redo_action.setShortcut(QKeySequence.StandardKey.Redo)
+        
+        self.undo_stack.undoTextChanged.connect(
+            lambda *_: undo_action.setText("&Отменить")
+        )
+        self.undo_stack.redoTextChanged.connect(
+            lambda *_: redo_action.setText("&Повторить")
+        )
+        
+        self.undo_action = undo_action
+        self.redo_action = redo_action
+        
+        return undo_action, redo_action
+
     def __init__(self, db: Database, settings: AppSettings, theme_ctrl: ThemeController):
         super().__init__()
-        self.setWindowTitle("Link Manager")
-        self.resize(1000, 600)
+        
+        from app.views.main_components import WindowInitializer
+        initializer = WindowInitializer(self, db, settings, theme_ctrl)
+        initializer.initialize_window()
 
-        self.db = db
-        self.settings = settings
-        self.theme_ctrl = theme_ctrl
-        self.current_sphere_id = None
-        self.current_category_id = None
+    def _init_spheres_ui(self):
+        """Инициализация UI для сфер (асинхронная версия)."""
+        self.structure_business.spheres_loaded.connect(self._on_spheres_loaded_ui)
+        
+        self.structure_business.load_spheres_async()
+    
+    def _on_spheres_loaded_ui(self, spheres: list):
+        """Обработчик завершения асинхронной загрузки сфер для UI."""
+        # Блокируем обновления во время реконструкции
+        self.spheres_bar.setUpdatesEnabled(False)
+        
+        try:
+            for button in self.sphere_group.buttons():
+                self.sphere_group.removeButton(button)
+            
+            s_layout = self.spheres_bar.layout()
+            
+            for i in reversed(range(s_layout.count())): 
+                widget = s_layout.itemAt(i).widget()
+                if widget:
+                    widget.setParent(None)
+                    widget.deleteLater()
+            self.sphere_buttons.clear()
+            
+            self.sphere_group.setExclusive(True)
+            
+            for sp in spheres:
+                btn = QToolButton()
+                sphere_id = sp["id"]
+                btn.setCheckable(True)
+                icon_name = sp["icon_path"] if "icon_path" in sp.keys() else None
+                if icon_name:
+                    icon_path = icon_path_service.get_ui_icons_dir() / icon_name
+                    if icon_path.exists():
+                        btn.setIcon(create_icon_from_path(str(icon_path)))
+                    else:
+                        btn.setIcon(QIcon())
+                else:
+                    btn.setIcon(QIcon())
+                btn.setIconSize(app_config.get_sphere_button_icon_size())
+                btn.setToolTip(sp["name"])
+                self.sphere_group.addButton(btn, sphere_id)
+                btn.clicked.connect(lambda _, sid=sphere_id: self._switch_sphere(sid))
+                self.sphere_buttons[sphere_id] = btn
+                s_layout.addWidget(btn)
 
-        menubar = self.menuBar()
-        file_menu = menubar.addMenu("&Файл")
-        file_menu.addAction("Импорт JSON...", self.import_json)
-        file_menu.addAction("Экспорт JSON...", self.export_json)
-        file_menu.addSeparator()
-        file_menu.addAction("Настройки...", self.show_settings_dialog)
-        file_menu.addSeparator()
-        file_menu.addAction("Выход", self.close)
-
-        edit_menu = menubar.addMenu("&Правка")
-        edit_menu.addAction("Отменить", self.undo)
-        edit_menu.addAction("Повторить", self.redo)
-
-        view_menu = menubar.addMenu("&Вид")
-        for name, disp in self.theme_ctrl.available():
-            act = view_menu.addAction(disp)
-            act.triggered.connect(lambda _, n=name: self.theme_ctrl.apply(n))
-
-        help_menu = menubar.addMenu("&Справка")
-        help_menu.addAction("О программе", self.show_about_dialog)
-
-        central = QWidget()
-        self.setCentralWidget(central)
-        main_layout = QVBoxLayout(central)
-
-        top_bar = QHBoxLayout()
-        self.fav_widget = FavoritesWidget(self, self.db)
-        top_bar.addWidget(self.fav_widget)
-
-        # Панель быстрых кнопок добавления ссылок разных типов
-        quick_types = [
-            ("web",       "web_icon.png",       "Веб-ссылка"),
-            ("file",      "documents_icon.png", "Файл"),
-            ("program",   "program_icon.png",   "Программа"),
-            ("script",    "script_icon.png",    "Скрипт"),
-            ("chromeapp", "chrome_icon.png",    "Chrome App"),
-        ]
-        for code, icon_name, tooltip in quick_types:
-            btn = QToolButton()
-            icon_path = UI_ICONS_DIR / icon_name
-            if icon_path.exists():
-                btn.setIcon(QIcon(str(icon_path)))
-            btn.setToolTip(f"Добавить {tooltip}")
-            btn.clicked.connect(lambda _, ct=code: self.quick_add_link(ct))
-            top_bar.addWidget(btn)
-
-        top_bar.addStretch()
-
-        self.search = QLineEdit()
-        self.search.setPlaceholderText("Поиск… (Ctrl+F)")
-        self.search.textChanged.connect(self.on_search)
-        top_bar.addWidget(self.search)
-
-        main_layout.addLayout(top_bar)
-
-        mid = QHBoxLayout()
-
-        left_panel = QWidget()
-        left_layout = QVBoxLayout(left_panel)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.tree = StructureTreeWidget(self.db)
-        self.tree.setHeaderHidden(True)
-        self.tree.setIconSize(QSize(24, 24))
-        left_layout.addWidget(self.tree)
-
-        self.spheres_bar = QWidget()
-        s_layout = QHBoxLayout(self.spheres_bar)
-        s_layout.setContentsMargins(0, 0, 0, 0)
-        s_layout.setSpacing(5)
-        self.sphere_group = QButtonGroup(self)
-        for sp in self.db.get_spheres():
-            btn = QToolButton()
-            btn.setCheckable(True)
-            icon_path = UI_ICONS_DIR / (sp["icon_path"] or "")
-            btn.setIcon(QIcon(str(icon_path)))
-            btn.setIconSize(QSize(24, 24))
-            btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
-            btn.setToolTip(sp["name"])
-            self.sphere_group.addButton(btn, sp["id"])
-            btn.clicked.connect(lambda _, sid=sp["id"]: self.switch_sphere(sid))
-            s_layout.addWidget(btn)
-        left_layout.addWidget(self.spheres_bar)
-
-        mid.addWidget(left_panel, 1)
-
-        self.tiles = CategoryTiles(self)
-        self.tiles_scroll = QScrollArea()
-        self.tiles_scroll.setWidgetResizable(True)
-        self.tiles_scroll.setWidget(self.tiles)
-        # Use custom LinksTableWidget for drag support
-        self.table = LinksTableWidget()
-
-        self.stack = QStackedLayout()
-        self.stack.addWidget(self.tiles_scroll)
-        self.stack.addWidget(self.table)
-        mid.addLayout(self.stack, 3)
-
-        main_layout.addLayout(mid)
-
-        self.structure = StructureController(self.tree, self.db, self)
-        self.links = LinksController(self.table, self.db, self)
-
-        bot = QHBoxLayout()
-        actions = [
-            ("Добавить раздел (F3)",     self.show_section_dialog),
-            ("Добавить категорию (F4)", self.show_category_dialog),
-            ("Добавить ссылку (F1)",    self.show_link_dialog),
-            ("Редактировать (F2)",      self.edit_current),
-            ("Удалить (Del)",           self.delete_current),
-        ]
-        for text, fn in actions:
-            btn = QPushButton(text)
-            btn.clicked.connect(fn)
-            bot.addWidget(btn)
-        main_layout.addLayout(bot)
-
-        status = QStatusBar(self)
-        self.setStatusBar(status)
-        status.showMessage("Готово")
-
-        self._setup_shortcuts()
-
-        timer = QTimer(self)
-        timer.timeout.connect(self.db.backup)
-        timer.start(self.settings.get_autosave_interval() * 60 * 1000)
-
-        spheres = self.db.get_spheres()
+        finally:
+            # Включаем обновления и делаем одно финальное обновление
+            self.spheres_bar.setUpdatesEnabled(True)
+            self.spheres_bar.update()
+        
         if spheres:
-            self.switch_sphere(spheres[0]["id"])
+            self._switch_sphere(spheres[0]["id"])
 
-    def switch_sphere(self, sphere_id: int):
-        """Переключить сферу и автоматически выбрать первый раздел."""
-        self.current_sphere_id = sphere_id
-        # Отметить радиокнопку сферы
-        for btn in self.sphere_group.buttons():
-            btn.setChecked(self.sphere_group.id(btn) == sphere_id)
+    @signal_guard("_update_active_sphere_button")
+    def _update_active_sphere_button(self, sphere_id: int):
+        """Обновляет состояние кнопок сфер, выделяя активную и устанавливая фокус."""
+        for button in self.sphere_buttons.values():
+            button.setChecked(False)
 
-        self.tree.clear()
-        first_section_item = None
-        first_section_id = None
+        button = self.sphere_buttons.get(sphere_id)
+        if button:
+            button.setChecked(True)
+            button.setFocus()
 
-        for sec in self.db.get_sections(sphere_id):
-            sec_item = QTreeWidgetItem([sec["name"]])
-            sec_item.setData(0, Qt.ItemDataRole.UserRole, ("section", sec["id"]))
-            sec_item.setSizeHint(0, QSize(0, 28))
-            icon_name = sec["icon_path"] or "section.ico"
-            icon_path = LINK_ICONS_DIR / icon_name if (LINK_ICONS_DIR / icon_name).exists() else UI_ICONS_DIR / icon_name
-            sec_item.setIcon(0, QIcon(str(icon_path)))
-            self.tree.addTopLevelItem(sec_item)
-
-            # Запомнить первый раздел
-            if first_section_item is None:
-                first_section_item = sec_item
-                first_section_id = sec["id"]
-
-            for cat in self.db.get_categories(sec["id"]):
-                cat_item = QTreeWidgetItem([cat["name"]])
-                cat_item.setData(0, Qt.ItemDataRole.UserRole, ("category", cat["id"]))
-                cat_item.setSizeHint(0, QSize(0, 28))
-                icon_name = cat["icon_path"] or "category.ico"
-                icon_path = LINK_ICONS_DIR / icon_name if (LINK_ICONS_DIR / icon_name).exists() else UI_ICONS_DIR / icon_name
-                cat_item.setIcon(0, QIcon(str(icon_path)))
-                sec_item.addChild(cat_item)
-            sec_item.setExpanded(True)
-
-        # Выбрать первый раздел по умолчанию
-        if first_section_item is not None:
-            self.tree.setCurrentItem(first_section_item)
-            self.tree.setFocus()
-            self.load_section(first_section_id)
-
-    def on_search(self, text: str):
-        for r in range(self.table.rowCount()):
-            name = self.table.item(r, 1).text().lower()
-            notes = self.table.item(r, 3).text().lower()
-            self.table.setRowHidden(r, text.lower() not in name and text.lower() not in notes)
-
-    def show_section_dialog(self):
-        dlg = SectionDialog(self.db, default_sphere_id=self.current_sphere_id, parent=self)
-        if dlg.exec() == QDialog.DialogCode.Accepted:
-            data = dlg.get_result()
-            if data:
-                if dlg.section_id:
-                    self.db.update_section(dlg.section_id, data)
-                else:
-                    self.db.insert_section(data)
-                self.switch_sphere(self.current_sphere_id)
-
-    def show_category_dialog(self):
-        """Открыть диалог категории для текущего или первого раздела текущей сферы."""
-        # Определяем раздел, куда добавлять/редактировать
-        target_section_id = None
-        item = self.tree.currentItem()
-        if item is not None:
-            typ, id_ = item.data(0, Qt.ItemDataRole.UserRole)
-            if typ == "section":
-                target_section_id = id_
-            elif typ == "category":
-                parent = item.parent()
-                if parent:
-                    target_section_id = parent.data(0, Qt.ItemDataRole.UserRole)[1]
-
-        if target_section_id is None:
-            sections = self.db.get_sections(self.current_sphere_id)
-            if sections:
-                target_section_id = sections[0]["id"]
-            else:
-                # Нет разделов — предложить создать
-                reply = QMessageBox.question(
-                    self, "Нет разделов",
-                    "В текущей сфере нет разделов. Создать новый раздел?",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-                )
-                if reply == QMessageBox.StandardButton.Yes:
-                    self.show_section_dialog()
-                return
-
-        dlg = CategoryDialog(self.db, parent=self)
-        dlg.set_result({"section_id": target_section_id})
-        if dlg.exec() == QDialog.DialogCode.Accepted:
-            data = dlg.get_result()
-            if data:
-                if dlg.category_id:
-                    self.db.update_category(dlg.category_id, data)
-                else:
-                    self.db.insert_category(data)
-                self.switch_sphere(self.current_sphere_id)
 
     def show_link_dialog(self, link=None, category_id=None):
-        dlg = LinkDialog(
-            self.db,
-            link=link,
-            category_id=category_id or self.current_category_id,
-            parent=self
-        )
-        if dlg.exec() == QDialog.DialogCode.Accepted:
-            self.load_category(self.current_category_id)
-            self.fav_widget.update_favorites()
+        """Показать диалог создания/редактирования ссылки."""
+        selected_link_id = link.get('id') if link else None
+        
+        result = self.link_operations.show_link_dialog(link, category_id)
+        self.update_statusbar()
+        
+        if result and selected_link_id:
+            from app.utils.system.task_scheduler import schedule_selection_restore
+            schedule_selection_restore(
+                lambda: self._restore_table_selection(selected_link_id),
+                f"table_selection_{selected_link_id}"
+            )
 
-    def edit_current(self):
-        """Редактировать выбранный элемент (ссылку, категорию или раздел)."""
-        # Сначала пробуем ссылку
-        link = self.links.get_link_at(self.table.currentRow())
+    def _get_selected_links(self):
+        """Получить список выбранных ссылок."""
+        selected_rows = self.links.get_selected_rows()
+        if not selected_rows:
+            return []
+        
+        links = [self.links.get_link_at(r) for r in selected_rows]
+        return [ln for ln in links if ln]
+    
+    def _edit_selected_link(self):
+        """Редактировать выбранную ссылку."""
+        link = self.links.get_link_by_row(self.links.current_row())
         if link:
             self.show_link_dialog(link=link)
-            return
+            self.update_statusbar()
+            return True
+        return False
 
-        item = self.tree.currentItem()
-        if item is None:
-            return
-        typ, id_ = item.data(0, Qt.ItemDataRole.UserRole)
-        if typ == "category":
-            dlg = CategoryDialog(self.db, category_id=id_, parent=self)
-            if dlg.exec() == QDialog.DialogCode.Accepted:
-                data = dlg.get_result()
-                if data:
-                    self.db.update_category(id_, data)
-                    self.switch_sphere(self.current_sphere_id)
-        elif typ == "section":
-            dlg = SectionDialog(self.db, section_id=id_, parent=self)
-            if dlg.exec() == QDialog.DialogCode.Accepted:
-                data = dlg.get_result()
-                if data:
-                    self.db.update_section(id_, data)
-                    self.switch_sphere(self.current_sphere_id)
+    def edit_current(self):
+        """Редактировать текущий выбранный элемент."""
+        if hasattr(self, 'action_controller') and self.action_controller:
+            self.action_controller.edit_current()
+        else:
+            # Fallback для совместимости (если контроллер не инициализирован)
+            self._edit_current_fallback()
 
     def delete_current(self):
-        """Удалить выбранный элемент (ссылка, категория или раздел) с подтверждением."""
-        # Проверяем, выбрано ли несколько ссылок в таблице
-        selected_rows = sorted({idx.row() for idx in self.table.selectionModel().selectedRows()})
-        if selected_rows:
-            links = [self.links.get_link_at(r) for r in selected_rows]
-            links = [ln for ln in links if ln]
-            if links:
-                msg = ("Удалить выбранную ссылку?" if len(links) == 1
-                       else f"Удалить {len(links)} выбранных ссылок?")
-                if QMessageBox.question(self, "Удалить ссылки", msg,
-                                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
-                    for ln in links:
-                        self.db.delete_link(ln["id"])
-                    self.load_category(self.current_category_id)
-                    self.fav_widget.update_favorites()
-                    return
+        """Удалить выбранный элемент (ссылку или структурный элемент)."""
+        if hasattr(self, 'action_controller') and self.action_controller:
+            self.action_controller.delete_current()
+        else:
+            # Fallback для совместимости (если контроллер не инициализирован)
+            self._delete_current_fallback()
 
-        item = self.tree.currentItem()
-        if item is None:
-            return
-        typ, id_ = item.data(0, Qt.ItemDataRole.UserRole)
-        if typ == "category":
-            if QMessageBox.question(self, "Удалить категорию", "Удалить эту категорию и все её ссылки?",
-                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
-                self.db.delete_category(id_)
-                self.switch_sphere(self.current_sphere_id)
-        elif typ == "section":
-            if QMessageBox.question(self, "Удалить раздел", "Удалить этот раздел и все его категории?",
-                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
-                self.db.delete_section(id_)
-                self.switch_sphere(self.current_sphere_id)
+    def show_section_dialog(self):
+        self.structure.add_new_section()
 
-    def load_section(self, section_id: int):
-        cats = self.db.get_categories(section_id)
-        tiles = []
-        for cat in cats:
-            tiles.append({
-                "id": cat["id"],
-                "name": cat["name"],
-                "icon_path": cat["icon_path"] if "icon_path" in cat.keys() else ""
-            })
-        self.tiles.set_categories(tiles)
-        self.stack.setCurrentIndex(0)
+    def show_category_dialog(self):
+        self.structure.add_new_category()
 
-    def load_category(self, category_id: int):
-        self.links.load_links(category_id)
-        self.stack.setCurrentIndex(1)
-        self.current_category_id = category_id
 
-    def _on_table_cell_double_clicked(self, row, column):
-        # Открывать NoteDialog только если клик по колонке заметок (обычно 3)
-        if column == 3:
-            link = self.links.get_link_at(row)
-            if link:
-                from app.views.dialogs import NoteDialog
-                dlg = NoteDialog(link, self.db, self)
-                if dlg.exec() == dlg.Accepted:
-                    # После сохранения обновить данные
-                    self.load_category(self.current_category_id)
+    def update_statusbar(self):
+        if self.has_links:
+            self.links_count_label.setText(f"Ссылок: {self.links.get_row_count()}")
+        else:
+            self.links_count_label.setText("Ссылок: 0")
+        
+        # Проверяем реальное состояние соединения с базой данных
+        if self.has_db and self.db.is_connected():
+            self.db_status_label.setText(app_config.get_db_connected_text())
+        else:
+            self.db_status_label.setText(app_config.get_db_disconnected_text())
+        try:
+            item = self.tree.currentItem()
+            if item:
+                parts = []
+                node = item
+                while node:
+                    text = node.text(0)
+                    if text:
+                        parts.insert(0, text)
+                    node = node.parent()
+                if self.has_structure_business and self.structure_business.current_sphere_id:
+                    sphere_data = self.structure_business.get_sphere_by_id(self.structure_business.current_sphere_id)
+                    if sphere_data:
+                        parts.insert(0, sphere_data['name'])
+                self.path_label.setText(" > ".join(parts))
+        except Exception as e:
+            import logging
+            logging.error(f"Error updating status bar: {e}")
+            self.path_label.clear()
 
-    def _setup_shortcuts(self):
-        mappings = [
-            ("F1",   self.show_link_dialog),
-            ("F2",   self.edit_current),
-            ("F3",   self.show_section_dialog),
-            ("F4",   self.show_category_dialog),
-            ("Del",  self.delete_current),
-            ("Ctrl+X", self.links.cut_link),
-            ("Ctrl+C", self.links.copy_link),
-            ("Ctrl+V", self.links.paste_link),
-            ("Ctrl+N", lambda: self.links.show_note_dialog(self.links.get_link_at(self.table.currentRow()))),
-            ("Ctrl+A", lambda: self.table.selectAll()),
-            ("Ctrl+F", self.search.setFocus),
-            ("Escape", self.search.clear),
-        ]
-        for seq, fn in mappings:
-            QShortcut(QKeySequence(seq), self).activated.connect(fn)
+    def on_structure_item_added(self, item_type: str, parent_id: int, data: dict):
+        self.structure.on_structure_item_added(item_type, parent_id, data)
 
-    def import_json(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Импорт из JSON", "", "JSON Files (*.json)")
-        if not path:
-            return
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        # TODO: десериализация
-
-    def export_json(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Экспорт в JSON", "", "JSON Files (*.json)")
-        if not path:
-            return
-        data = []  # TODO: собрать структуру
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-
-    def undo(self):
-        pass
-
-    def redo(self):
-        pass
-
-    def show_settings_dialog(self):
-        self.menuBar().actions()[0].menu().actions()[2].trigger()
+    @signal_guard("on_structure_item_changed")
+    def on_structure_item_changed(self, item_type: str, item_id: int, data: dict):
+        self.structure.on_structure_item_changed(item_type, item_id, data)
 
     def show_about_dialog(self):
-         QMessageBox.about(self, "О программе", "Link Manager\nВерсия 1.0\n© MyCompany")
+        self.system_dialogs.show_about_dialog()
 
-    def quick_add_link(self, link_type: str):
-        """Открыть диалог добавления ссылки с уже выбранным типом."""
-        dlg = LinkDialog(self.db, category_id=self.current_category_id, parent=self)
-        # Отметить нужную кнопку типа до показа окна
-        for btn in dlg.type_group.buttons():
-            if btn.property("link_type") == link_type:
-                btn.setChecked(True)
-                break
-        # Явно вызвать обработку, чтобы UI обновился под тип
-        dlg._on_type_changed(link_type)
+    def show_settings_dialog(self):
+        self.system_dialogs.show_settings_dialog()
 
-        if dlg.exec() == QDialog.DialogCode.Accepted:
-            # Обновить текущую категорию и избранное после добавления
-            if self.current_category_id is not None:
-                self.load_category(self.current_category_id)
+    def show_file_search_dialog(self):
+        self.system_dialogs.show_file_search_dialog()
+
+    def update_theme(self):
+        clear_icon_cache()
+        old_menu = self.menuBar()
+        if old_menu is not None:
+            old_menu.deleteLater()
+        self.menu_controller.clear_cache()
+        self.setMenuBar(self.menu_controller.create_main_menu())
+        self.structure.reload_icons()
+        if self.has_fav_widget:
             self.fav_widget.update_favorites()
+        else:
+            def _try_update_fav():
+                if self.has_fav_widget:
+                    self.fav_widget.update_favorites()
+            QTimer.singleShot(150, _try_update_fav)
+        if self.has_structure_business and self.structure_business.current_sphere_id:
+            self._switch_sphere(self.structure_business.current_sphere_id)
 
+    def _switch_sphere(self, sphere_id: int) -> None:
+        # Убираем дублирующий вызов - structure.switch_sphere() уже устанавливает сферу
+        self.structure.switch_sphere(sphere_id)
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    settings = AppSettings()
-    theme_ctrl = ThemeController(settings)
-    theme_ctrl.apply(settings.get_theme())
-    db = Database()
-    win = MainWindow(db, settings, theme_ctrl)
-    win.show()
-    sys.exit(app.exec())
+    def _show_note_for_current(self):
+        """Показать диалог заметки для текущей выбранной ссылки."""
+        row = self.links.current_row()
+        if row >= 0:
+            link = self.links.get_link_by_row(row)
+            if link:
+                self.links.show_note_dialog(link)
+
+    @signal_guard("_update_left_panel_style")
+    def _update_left_panel_style(self, sphere_id: int):
+        """Обновляет стиль левой панели при смене сферы."""
+        if self.has_left_panel:
+            # Проверяем, нужно ли обновлять стиль
+            current_sphere = self.left_panel.property("sphere")
+            if current_sphere == str(sphere_id):
+                return
+                
+            # Блокируем обновления во время смены стиля
+            self.left_panel.setUpdatesEnabled(False)
+            try:
+                self.left_panel.setProperty("sphere", str(sphere_id))
+                self.left_panel.style().unpolish(self.left_panel)
+                self.left_panel.style().polish(self.left_panel)
+            finally:
+                self.left_panel.setUpdatesEnabled(True)
+                self.left_panel.update()
+
+    def on_search(self, text: str):
+        self.links.on_search(text)
+
+    def _restore_table_selection(self, link_id: int):
+        """Восстановить выбор ссылки в таблице по ID."""
+        if not self.has_table:
+            return
+            
+        for row in range(self.links.get_row_count()):
+            link = self.links.get_link_by_row(row)
+            if link and link.get('id') == link_id:
+                self.links.select_row(row)
+                self.links.set_current_cell(row, 0)
+                self.links.scroll_to_row(row)
+                if self.has_table:
+                    self.table.setFocus()
+                break
+    
+    def showEvent(self, event):
+        """Переопределяем showEvent для эмита сигнала shown при первом показе окна."""
+        super().showEvent(event)
+        if not hasattr(self, '_shown_emitted'):
+            self._shown_emitted = True
+            # Увеличиваем задержку для стабилизации UI
+            QTimer.singleShot(200, self.shown.emit)
+
+    # --- fallback methods for compatibility ----------------------------------
+    def _edit_current_fallback(self):
+        """Fallback метод для редактирования (для обратной совместимости)."""
+        tiles_stack_index = app_config.get('ui.stack_indices.tiles', 0)
+        if (self.has_tiles and self.has_stack and 
+            self.stack.currentIndex() == tiles_stack_index and 
+            hasattr(self.tiles, '_current_item_id') and self.tiles._current_item_id is not None):
+            
+            self.structure.handle_edit_category(self.tiles._current_item_id)
+            return
+        
+        table_stack_index = app_config.get('ui.stack_indices.table', 1)
+        if (self.has_stack and self.stack.currentIndex() == table_stack_index and 
+            self.links.has_selection()):
+            self._edit_selected_link()
+            return
+        
+        if self.tree.hasFocus() and self.tree.currentItem():
+            self.structure.edit_selected_item()
+            return
+        
+        if self.table.hasFocus() and self.links.has_selection():
+            self._edit_selected_link()
+            return
+        
+        if self.tree.currentItem():
+            self.structure.edit_selected_item()
+            return
+        
+        if self.links.has_selection():
+            self._edit_selected_link()
+    
+    def _delete_current_fallback(self):
+        """Fallback метод для удаления (для обратной совместимости)."""
+        if (self.table.hasFocus() or self.table.isAncestorOf(self.focusWidget())) and self.links.has_selection():
+            links = self._get_selected_links()
+            if links:
+                self.link_operations.delete_links_with_confirmation(links)
+                self.update_statusbar()
+            return
+
+        if (self.tree.hasFocus() or self.tree.isAncestorOf(self.focusWidget())) and self.tree.currentItem():
+            self.structure.delete_selected_item()
+            self.update_statusbar()
+            return
+
+        if self.links.has_selection():
+            links = self._get_selected_links()
+            if links:
+                self.link_operations.delete_links_with_confirmation(links)
+                self.update_statusbar()
+            return
+
+        if self.tree.currentItem():
+            self.structure.delete_selected_item()
+            self.update_statusbar()
+
+    # --- graceful shutdown --------------------------------------------------
+    def closeEvent(self, event):
+        """Корректно завершаем фоновые задачи, делаем бэкап и закрываем ресурсы."""
+        # Используем контроллер из слоя controllers, если он инициализирован
+        if hasattr(self, 'app_shutdown') and self.app_shutdown:
+            self.app_shutdown.perform_shutdown(event)
+            return
+        # В противном случае — стандартное закрытие
+        super().closeEvent(event)
+
