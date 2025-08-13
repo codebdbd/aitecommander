@@ -1,5 +1,0 @@
-PyQt6
-requests
-beautifulsoup4
-pywin32
-Pillow

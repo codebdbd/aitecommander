@@ -1,0 +1,68 @@
+{
+  "ps1": {
+    "args": [
+      "-NoProfile",
+      "-NoLogo",
+      "-NonInteractive",
+      "-Mta",
+      "-Sta",
+      "-Version",
+      "-Help",
+      "-h",
+      "-NoExit"
+    ],
+    "args_with_value": [
+      "-ExecutionPolicy",
+      "-WindowStyle",
+      "-InputFormat",
+      "-OutputFormat",
+      "-File",
+      "-Command",
+      "-EncodedCommand",
+      "-WorkingDirectory",
+      "-ConfigurationName"
+    ]
+  },
+  "python": {
+    "args": [
+      "-B",
+      "-b",
+      "-bb",
+      "-d",
+      "-E",
+      "-i",
+      "-I",
+      "-O",
+      "-OO",
+      "-q",
+      "-s",
+      "-S",
+      "-u",
+      "-v",
+      "-V",
+      "-x",
+      "--version",
+      "--check-hash-based-pycs",
+      "--utf8",
+      "--help"
+    ],
+    "args_with_value": [
+      "-W",
+      "-X",
+      "-c",
+      "-m",
+      "-Q",
+      "--warn-default-encoding",
+      "--pycache-prefix",
+      "--check-hash-based-pycs"
+    ]
+  },
+  "bat": {
+    "args": [],
+    "args_with_value": []
+  },
+  "cmd": {
+    "args": [],
+    "args_with_value": []
+  }
+}

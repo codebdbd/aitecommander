@@ -1,7 +1,10 @@
 # app/settings.py
 
 from PyQt6.QtCore import QSettings
-from app.config import ORG_NAME, APP_NAME
+
+from .config_data import app_config
+from .config_data.config_loader import AppConfig
+
 
 class AppSettings:
     def __init__(self):
@@ -9,27 +12,31 @@ class AppSettings:
         self._qs = QSettings(
             QSettings.Format.IniFormat,
             QSettings.Scope.UserScope,
-            ORG_NAME,
-            APP_NAME
+            app_config.get_org_name(),
+            app_config.get_app_name()
         )
-
+        self.theme = self.get_theme()
     def get_theme(self) -> str:
         return self._qs.value("Appearance/Theme", "light")
 
     def set_theme(self, theme: str):
         self._qs.setValue("Appearance/Theme", theme)
+        self.theme = theme
 
-    def get_autosave_interval(self) -> int:
-        return int(self._qs.value("Backup/Interval", 5))
-
-    def set_autosave_interval(self, minutes: int):
-        self._qs.setValue("Backup/Interval", minutes)
 
     def get_max_backups(self) -> int:
-        return int(self._qs.value("Backup/MaxCopies", 1))
+        default_value = app_config.get_max_backups()
+        return int(self._qs.value("Backup/MaxCopies", default_value))
 
     def set_max_backups(self, count: int):
         self._qs.setValue("Backup/MaxCopies", count)
+
+    def get_font_size(self) -> int:
+        default_value = app_config.get_default_font_size()
+        return int(self._qs.value("UI/FontSize", default_value))
+
+    def set_font_size(self, size: int):
+        self._qs.setValue("UI/FontSize", size)
 
     def get_dpi_scale(self) -> int:
         return int(self._qs.value("UI/DPIScale", 100))
