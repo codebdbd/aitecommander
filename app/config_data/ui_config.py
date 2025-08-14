@@ -353,6 +353,21 @@ class UIConfig(BaseConfig):
         margins = self.get("ui.spheres_layout_margins", [5, 5, 5, 5])
         return tuple(margins)
     
+    def get_spheres_bar_margins(self) -> tuple[int, int, int, int]:
+        """Отступы панели сфер с возможной подменой левого/правого значений.
+        Источники:
+        - База: ui.spheres_layout_margins: [L, T, R, B] (по умолчанию [5,5,5,5])
+        - Переопределения: ui.spheres_bar_margin_left, ui.spheres_bar_margin_right
+        """
+        base = list(self.get_spheres_layout_margins())
+        left_override = self.get("ui.spheres_bar_margin_left")
+        right_override = self.get("ui.spheres_bar_margin_right")
+        if isinstance(left_override, int):
+            base[0] = left_override
+        if isinstance(right_override, int):
+            base[2] = right_override
+        return tuple(base)
+    
     # === Поиск и интерфейс ===
 
     def get_search_placeholder(self) -> str:

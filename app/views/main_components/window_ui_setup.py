@@ -26,7 +26,7 @@ from PyQt6.QtWidgets import (
 
 from app.config_data import app_config
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.utils.system.task_scheduler import LimitedThreadPool
+from app.utils.system.task_scheduler import get_task_scheduler
 from app.utils.system.undo.stack import UndoManager
 from app.views.category_tiles import CategoryTiles
 from app.views.custom_widgets import StructureTreeWidget
@@ -55,7 +55,8 @@ class WindowUISetup:
         self.window.settings = self.window_initializer.settings
         self.window.theme_ctrl = self.window_initializer.theme_ctrl
         self.window.current_category_id = None
-        self.window.thread_pool = LimitedThreadPool(max_threads=2)
+        # Используем единый глобальный пул потоков из TaskScheduler
+        self.window.thread_pool = get_task_scheduler().get_thread_pool()
         self.window.undo_stack = UndoManager(self.window)
         self.window.sphere_buttons = {}
     
@@ -220,11 +221,14 @@ class WindowUISetup:
         """Настройка панели сфер."""
         self.window.spheres_bar = QWidget()
         self.window.spheres_bar.setObjectName("spheres_bar")
-        self.window.spheres_bar.setMinimumHeight(app_config.get('ui.layout.spheres_bar.min_height', 40))
+        # Фиксированная высота берется из конфигурации (spheres_bar_height)
+        self.window.spheres_bar.setFixedHeight(app_config.get_spheres_bar_height())
         
         s_layout = QHBoxLayout(self.window.spheres_bar)
-        s_layout.setContentsMargins(*app_config.get_layout_margins('spheres'))
-        s_layout.setSpacing(app_config.get('ui.layout.spacing.spheres_bar', 4))
+        # Отступы панели сфер: поддержка левого/правого через ui.spheres_bar_margin_left/right
+        s_layout.setContentsMargins(*app_config.get_spheres_bar_margins())
+        # Расстояние между элементами панели сфер
+        s_layout.setSpacing(app_config.get_spheres_bar_spacing())
         self.window.sphere_group = QButtonGroup(self.window)
         
         left_layout.addWidget(self.window.spheres_bar)

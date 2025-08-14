@@ -183,6 +183,10 @@ class AppConfig:
         """Получение расстояния между элементами на панели сфер."""
         return self.ui.get_spheres_bar_spacing()
 
+    def get_spheres_bar_margins(self) -> tuple:
+        """Получение отступов панели сфер (с учётом переопределений слева/справа)."""
+        return self.ui.get_spheres_bar_margins()
+
     def get_tiles_layout_margins(self) -> list:
         """Получение отступов в layout плиток."""
         return self.ui.get_tiles_layout_margins()

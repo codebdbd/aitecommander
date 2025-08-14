@@ -1,5 +1,6 @@
 # app/controllers/structure/item_operations.py
 
+import logging
 from PyQt6.QtCore import Qt  # Импорт Qt из QtCore
 
 from app.controllers.domain.structure.commands import (
@@ -13,6 +14,9 @@ from app.controllers.domain.structure.commands import (
 from app.utils.ui.dialog_manager import DialogManager
 from app.utils.ui.qt.roles import get_tree_tuple
 from app.views.dialogs.entity_dialogs import CategoryDialog, SectionDialog
+
+
+logger = logging.getLogger(__name__)
 
 
 class ItemOperations:
@@ -51,6 +55,7 @@ class ItemOperations:
                 if cmd:
                     self.undo_stack.push(cmd)
         except Exception as e:
+            logger.exception("Ошибка добавления раздела")
             DialogManager.show_error(
                 self.main,
                 "Ошибка добавления раздела",
@@ -76,6 +81,7 @@ class ItemOperations:
                 if cmd:
                     self.undo_stack.push(cmd)
         except Exception as e:
+            logger.exception("Ошибка добавления категории")
             DialogManager.show_error(
                 self.main,
                 "Ошибка добавления категории",
@@ -139,6 +145,7 @@ class ItemOperations:
                 if cmd:
                     self.undo_stack.push(cmd)
         except Exception as e:
+            logger.exception("Ошибка редактирования раздела")
             DialogManager.show_error(
                 self.main,
                 "Ошибка редактирования раздела",
@@ -158,12 +165,12 @@ class ItemOperations:
                 new_data['id'] = category_id
                 if 'position' not in new_data and 'position' in old_data:
                     new_data['position'] = old_data['position']
-                if self.business.update_category(category_id, new_data):
-                    self.controller.tree_manager._update_category_display(category_id, new_data)
-                    cmd = SaveCategoryCommand(new_data, self.main, old_data=old_data, skip_reload=True)
-                    if cmd:
-                        self.undo_stack.push(cmd)
+                # Не изменяем модель заранее — изменение выполнит команда и сама эмитит сигналы
+                cmd = SaveCategoryCommand(new_data, self.main, old_data=old_data, skip_reload=False)
+                if cmd:
+                    self.undo_stack.push(cmd)
         except Exception as e:
+            logger.exception("Ошибка редактирования категории")
             DialogManager.show_error(
                 self.main,
                 "Ошибка редактирования категории",
@@ -173,18 +180,24 @@ class ItemOperations:
             )
     
     def _delete_section(self, section_id: int) -> None:
-        success, section_data, cats_count, links_count = self.business.delete_section(section_id)
-        if not success:
+        # Предпросмотр данных для подтверждения, без удаления в бизнес-слое
+        section_data = self.business.get_section_data(section_id)
+        if not section_data:
             return
+        categories = self.business.get_categories(section_id) or []
+        cats_count = len(categories)
+        links_count = 0  # При необходимости можно заменить на реальный подсчет ссылок
         if self._confirm_section_deletion(section_data, cats_count, links_count):
             cmd = DeleteSectionCommand(section_data, self.main)
             if cmd:
                 self.undo_stack.push(cmd)
     
     def _delete_category(self, category_id: int) -> None:
-        success, category_data, links_count = self.business.delete_category(category_id)
-        if not success:
+        # Предпросмотр данных для подтверждения, без удаления в бизнес-слое
+        category_data = self.business.get_category_data(category_id)
+        if not category_data:
             return
+        links_count = 0  # При необходимости заменить на реальный подсчет
         if self._confirm_category_deletion(category_data, links_count):
             cmd = DeleteCategoryCommand(category_data, self.main)
             if cmd:

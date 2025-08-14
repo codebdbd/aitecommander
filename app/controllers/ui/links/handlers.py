@@ -53,10 +53,24 @@ class LinksUIHandlers(BaseLinksUIComponent):
     
     def _complete_toggle_fav(self, fav_count: int, links: List[Dict], link: Optional[Dict]):
         """Завершить переключение избранного."""
+        # 1) Если нам передали конкретную ссылку — обновляем строку таблицы
         if link is not None:
-            current_favorite_status = link.get("is_favorite", False)
+            try:
+                # Обновить отображение строки, если таблица поддерживает точечное обновление
+                if hasattr(self.table, 'update_link_by_id'):
+                    self.table.update_link_by_id(link)
+            except Exception as e:
+                self.logger.warning(f"Failed to update table row for toggled favorite: {e}")
         else:
-            logging.warning("_complete_toggle_fav called without specific link, skipping to prevent infinite loop")
+            # Бывают случаи вызова без конкретной ссылки — не выходим молча
+            self.logger.warning("_complete_toggle_fav called without specific link; proceeding with favorites refresh only")
+
+        # 2) В любом случае обновляем панель избранного, чтобы пересчитать список/счетчик
+        try:
+            if hasattr(self.main, 'fav_widget') and self.main.fav_widget:
+                self.main.fav_widget.update_favorites()
+        except Exception as e:
+            self.logger.warning(f"Failed to refresh favorites widget after toggle: {e}")
     
     def _handle_error(self, error_msg: str):
         """Обработать ошибку."""

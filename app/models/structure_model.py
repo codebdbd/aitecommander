@@ -100,6 +100,47 @@ class StructureModel:
     def upsert_category(self, data: Dict[str, Any]) -> int:
         """Вставляет или обновляет категорию. Возвращает ID записи."""
         return self.db.categories.upsert_category(data)
+
+    # ---------------------------------------------------------------------
+    # Обертки для совместимости с бизнес-логикой (ожидаемые методы)
+    # ---------------------------------------------------------------------
+    def create_section(self, data: Dict[str, Any]) -> Optional[int]:
+        """Создает новый раздел (обертка для upsert_section)."""
+        try:
+            return self.db.sections.upsert_section(data)
+        except Exception as e:
+            self.logger.error(f"Ошибка создания раздела: {e}")
+            return None
+
+    def update_section(self, section_id: int, data: Dict[str, Any]) -> bool:
+        """Обновляет раздел по ID (обертка для upsert_section)."""
+        try:
+            payload = dict(data) if data else {}
+            payload['id'] = section_id
+            self.db.sections.upsert_section(payload)
+            return True
+        except Exception as e:
+            self.logger.error(f"Ошибка обновления раздела {section_id}: {e}")
+            return False
+
+    def update_category(self, category_id: int, data: Dict[str, Any]) -> bool:
+        """Обновляет категорию по ID (обертка для upsert_category)."""
+        try:
+            payload = dict(data) if data else {}
+            payload['id'] = category_id
+            self.db.categories.upsert_category(payload)
+            return True
+        except Exception as e:
+            self.logger.error(f"Ошибка обновления категории {category_id}: {e}")
+            return False
+
+    def get_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
+        """Возвращает данные раздела (алиас get_section_by_id)."""
+        return self.get_section_by_id(section_id)
+
+    def get_category_data(self, category_id: int) -> Optional[Dict[str, Any]]:
+        """Возвращает данные категории (алиас get_category_by_id)."""
+        return self.get_category_by_id(category_id)
     
     def delete_section(self, section_id: int) -> bool:
         """Удаляет раздел по его ID."""

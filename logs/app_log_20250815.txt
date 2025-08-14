@@ -1,0 +1,102 @@
+2025-08-15 00:01:13 - root - INFO - main - _setup_logging:136 - Логирование настроено из файла: B:\osteen path\app\config_data\logging_config.json
+2025-08-15 00:01:13 - root - INFO - main - main:426 - ============================================================
+2025-08-15 00:01:13 - root - INFO - main - main:427 - ЗАПУСК ПРИЛОЖЕНИЯ
+2025-08-15 00:01:13 - root - INFO - main - main:428 - ============================================================
+2025-08-15 00:01:13 - root - INFO - main - create_application:415 - QApplication создан: MyPyQtApp v1.0.0
+2025-08-15 00:01:13 - root - INFO - main - _log_system_info:390 - Операционная система: Windows-11-10.0.26100-SP0
+2025-08-15 00:01:13 - root - INFO - main - _log_system_info:391 - Версия Python: 3.13.5 (tags/v3.13.5:6cb20a2, Jun 11 2025, 16:15:46) [MSC v.1943 64 bit (AMD64)]
+2025-08-15 00:01:13 - root - INFO - main - _log_system_info:392 - Архитектура Python: ('64bit', 'WindowsPE')
+2025-08-15 00:01:13 - root - INFO - main - _log_system_info:393 - Версия PyQt6: 6.9.0
+2025-08-15 00:01:13 - root - INFO - main - _log_system_info:394 - Путь запуска: B:\osteen path\app\main.py
+2025-08-15 00:01:13 - root - INFO - main - _log_system_info:395 - Рабочая директория: B:\osteen path
+2025-08-15 00:01:13 - root - INFO - main - _log_system_info:401 - Дисплей 0: 1920x1080 @ 1.0x
+2025-08-15 00:01:13 - root - INFO - main - main:444 - PID процесса: 18452
+2025-08-15 00:01:13 - root - INFO - main - main:445 - Количество аргументов командной строки: 1
+2025-08-15 00:01:13 - root - INFO - main - initialize_all:373 - Инициализация настроек...
+2025-08-15 00:01:13 - root - INFO - main - initialize_settings:298 - Используются переданные настройки приложения
+2025-08-15 00:01:13 - root - INFO - main - initialize_settings:299 - Настройки успешно загружены
+2025-08-15 00:01:13 - root - INFO - main - initialize_all:373 - Инициализация базы данных...
+2025-08-15 00:01:13 - root - INFO - main - initialize_database:308 - Подключение к базе данных...
+2025-08-15 00:01:13 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-15 00:01:13 - root - INFO - main - initialize_database:310 - База данных успешно инициализирована
+2025-08-15 00:01:13 - root - INFO - main - initialize_all:373 - Инициализация контроллера темы...
+2025-08-15 00:01:13 - root - INFO - main - initialize_theme_controller:319 - Создание контроллера темы...
+2025-08-15 00:01:13 - ThemeController - INFO - theme_controller - _load_themes_manifest:113 - Манифест тем не найден, используются значения по умолчанию
+2025-08-15 00:01:13 - root - INFO - main - initialize_theme_controller:321 - Контроллер темы создан
+2025-08-15 00:01:13 - root - INFO - main - initialize_all:373 - Инициализация главного окна...
+2025-08-15 00:01:13 - root - INFO - main - initialize_main_window:330 - Создание главного окна...
+2025-08-15 00:01:14 - app.utils.system.task_scheduler - INFO - task_scheduler - get_task_scheduler:250 - Создан глобальный TaskScheduler
+2025-08-15 00:01:14 - app.utils.ui.icon.path_service - INFO - path_service - _maybe_log_metrics:53 - Icon metrics: hits=0 misses=0 hit_rate=0.00% disk_loads=1 not_found=0 avg_load_time=0.0000s load_count=0 uptime=0.55s
+2025-08-15 00:01:14 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-15 00:01:14 - app.utils.browser.browser_profiles.firefox_profile_finder - INFO - firefox_profile_finder - find_profiles:64 - Найдено 2 профилей Firefox
+2025-08-15 00:01:15 - app.controllers.domain.structure.structure_business - INFO - structure_business - _initialize_system:115 - Инициализация StructureBusinessLogic
+2025-08-15 00:01:15 - app.controllers.domain.structure.structure_business - INFO - structure_business - __init__:108 - [BL] Handlers connected for business id=2506698738096
+2025-08-15 00:01:15 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 23 профилей Microsoft Edge
+2025-08-15 00:01:15 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Brave
+2025-08-15 00:01:15 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Opera
+2025-08-15 00:01:15 - root - INFO - main - run:461 - Профили браузеров предзагружены
+2025-08-15 00:01:15 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - _log_setup_results:483 - Setup completed: 5 successful, 0 failed
+2025-08-15 00:01:15 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-15 00:01:15 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #14
+2025-08-15 00:01:15 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 16 categories
+2025-08-15 00:01:15 - root - INFO - main - initialize_main_window:344 - Главное окно создано
+2025-08-15 00:01:15 - root - INFO - main - initialize_all:373 - Инициализация темы оформления...
+2025-08-15 00:01:15 - root - INFO - main - apply_initial_theme:354 - Применение начальной темы: dark
+2025-08-15 00:01:15 - ThemeController - INFO - theme_controller - apply:348 - Применена тема: dark
+2025-08-15 00:01:15 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-15 00:01:15 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 0 categories
+2025-08-15 00:01:15 - root - INFO - main - apply_initial_theme:356 - Тема успешно применена
+2025-08-15 00:01:15 - root - INFO - main - initialize_all:378 - Все компоненты успешно инициализированы
+2025-08-15 00:01:15 - root - INFO - main - main:478 - Отображение главного окна...
+2025-08-15 00:01:15 - root - INFO - main - main:480 - Главное окно отображено
+2025-08-15 00:01:15 - root - INFO - main - main:486 - Запуск главного цикла событий...
+2025-08-15 00:01:15 - category_tiles - INFO - category_tiles - inject_dependencies:269 - CategoryTiles: Menu builder инициализирован после инъекции зависимостей
+2025-08-15 00:01:15 - root - INFO - main - <lambda>:483 - Приложение успешно запущено
+2025-08-15 00:01:19 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 2
+2025-08-15 00:01:19 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 0 categories
+2025-08-15 00:01:19 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 3
+2025-08-15 00:01:19 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #24
+2025-08-15 00:01:19 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 0 categories
+2025-08-15 00:01:20 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-15 00:01:20 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 0 categories
+2025-08-15 00:01:40 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #23
+2025-08-15 00:01:40 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 2 categories
+2025-08-15 00:01:41 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #23
+2025-08-15 00:01:41 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 2 categories
+2025-08-15 00:01:41 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: category #305
+2025-08-15 00:01:41 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: category #305
+2025-08-15 00:02:58 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #14
+2025-08-15 00:02:58 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 16 categories
+2025-08-15 00:02:59 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #14
+2025-08-15 00:02:59 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 16 categories
+2025-08-15 00:02:59 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #39
+2025-08-15 00:02:59 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 1 categories
+2025-08-15 00:02:59 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #39
+2025-08-15 00:02:59 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 1 categories
+2025-08-15 00:03:01 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #39
+2025-08-15 00:03:01 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 1 categories
+2025-08-15 00:03:02 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #39
+2025-08-15 00:03:02 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 1 categories
+2025-08-15 00:03:03 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #27
+2025-08-15 00:03:03 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 0 categories
+2025-08-15 00:03:03 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #27
+2025-08-15 00:03:03 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 0 categories
+2025-08-15 00:03:03 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #22
+2025-08-15 00:03:03 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 1 categories
+2025-08-15 00:03:03 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #22
+2025-08-15 00:03:03 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 1 categories
+2025-08-15 00:03:04 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #23
+2025-08-15 00:03:04 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 2 categories
+2025-08-15 00:03:04 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #23
+2025-08-15 00:03:04 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 2 categories
+2025-08-15 00:03:05 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: category #315
+2025-08-15 00:03:05 - app.utils.ui.icon.path_service - INFO - path_service - _maybe_log_metrics:53 - Icon metrics: hits=2 misses=2 hit_rate=50.00% disk_loads=56 not_found=3 avg_load_time=0.0017s load_count=28 uptime=111.57s
+2025-08-15 00:03:05 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: category #315
+2025-08-15 00:03:05 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #39
+2025-08-15 00:03:05 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 1 categories
+2025-08-15 00:03:05 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #39
+2025-08-15 00:03:05 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 1 categories
+2025-08-15 00:03:06 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #14
+2025-08-15 00:03:06 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 16 categories
+2025-08-15 00:03:06 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:96 - Handling selection: section #14
+2025-08-15 00:03:06 - category_tiles - INFO - category_tiles - set_categories:193 - Loading 16 categories

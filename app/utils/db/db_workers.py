@@ -1,59 +1,76 @@
 """
 Унифицированные асинхронные воркеры для операций с базой данных.
 
-Объединяет функциональность workers.py и structure_workers.py в единый модуль
-с общими паттернами:
-- QRunnable + сигналы
-- db_lock для синхронизации
-- handle_db_error для обработки ошибок
+ВНИМАНИЕ: модуль устаревает. Используйте современный фасад
+`app.utils.db.api.run_db`. Этот модуль остаётся как совместимый shim.
 """
 
 import logging
+import os
+import warnings
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal
+
+# Современные реализации и фасад
+from app.utils.db.api import run_db as run_db  # re-export
+from app.utils.db.executors.pool import get_thread_pool
+from app.utils.db.tasks.base import DatabaseTask as _NewDatabaseTask
+from app.utils.db.tasks.base import TaskSignals as _NewTaskSignals
 
 from app.utils.db.db_error_handler import handle_db_error
 from app.utils.db.synchronization import db_lock
 
 logger = logging.getLogger(__name__)
 
+# Строгий режим для utils-db: отключает легаси-слой
+_STRICT_DB = os.getenv("OSTEEN_STRICT_DB_UTILS", "0") == "1"
+_WARNED = False
+
+if _STRICT_DB:  # pragma: no cover
+    raise ImportError(
+        "Legacy module 'app.utils.db.db_workers' is disabled in strict mode. "
+        "Use 'app.utils.db.api.run_db' and new modular API instead."
+    )
+
+def _warn_once():  # pragma: no cover
+    global _WARNED
+    if not _WARNED:
+        warnings.warn(
+            "Module 'app.utils.db.db_workers' is deprecated. Use 'app.utils.db.api.run_db' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _WARNED = True
+
 # Глобальный пул потоков для всех задач
 _db_pool = QThreadPool.globalInstance()
 
 
-class TaskSignals(QObject):
-    """Сигналы для фоновых задач."""
-    finished = pyqtSignal(object)
-    error = pyqtSignal(Exception)
+class TaskSignals(_NewTaskSignals):  # type: ignore[misc]
+    """Совместимый алиас для сигналов задач (устаревший).
+
+    Используйте TaskSignals из app.utils.db.tasks.base.
+    """
+    pass
 
 
-class DatabaseTask(QRunnable):
-    """Обёртка QRunnable для выполнения функции в глобальном пуле потоков."""
+class DatabaseTask(_NewDatabaseTask):  # type: ignore[misc]
+    """Совместимый воркер (устаревший), обёртка над новой реализацией.
+
+    Принимает func и произвольные args/kwargs, как раньше.
+    """
     def __init__(self, func, *args, **kwargs):
-        super().__init__()
-        self.func = func
-        self.args = args
-        self.kwargs = kwargs
-        self.signals = TaskSignals()
-        self.setAutoDelete(True)
-
-    def run(self):
-        logger.debug("Task start: %s", self.func.__name__)
-        try:
-            result = self.func(*self.args, **self.kwargs)
-            self.signals.finished.emit(result)
-        except Exception as exc:
-            logger.error("Task error: %s", exc, exc_info=True)
-            self.signals.error.emit(exc)
-        finally:
-            logger.debug("Task end: %s", self.func.__name__)
+        _warn_once()
+        # Заворачиваем в нулераргументный callable, как ожидает новая реализация
+        super().__init__(lambda: func(*args, **kwargs), description=getattr(func, "__name__", None))
 
 
 class AsyncTaskMixin:
     """Помощник для запуска функции в пуле потоков."""
     def run_async(self, func, on_success=None, on_error=None, *args, **kwargs):
+        _warn_once()
         task = DatabaseTask(func, *args, **kwargs)
         if on_success:
             task.signals.finished.connect(on_success)
@@ -61,7 +78,8 @@ class AsyncTaskMixin:
             task.signals.error.connect(on_error)
         else:
             task.signals.error.connect(lambda e: logger.error("Unhandled async error: %s", e, exc_info=True))
-        _db_pool.start(task)
+        # Используем общий API для пула (подменяемый в тестах)
+        get_thread_pool().start(task)
         return task
 
 
