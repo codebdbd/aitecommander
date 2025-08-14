@@ -66,9 +66,8 @@ class LinksUILinkOperations(BaseLinksUIComponent):
         if dlg.exec() == QDialog.DialogCode.Accepted:
             # Обновляем ссылку через бизнес-логику
             try:
+                # Бизнес-слой сам эмитит link_updated внутри save_link()
                 self.business.save_link(link_copy)
-                # Отправляем сигнал об обновлении
-                self.business.link_updated.emit(link_copy)
                 self.logger.debug(f"Note saved for link: {link_copy.get('name')}")
             except DatabaseError as e:
                 self.logger.error(f"Database error saving note: {e}")

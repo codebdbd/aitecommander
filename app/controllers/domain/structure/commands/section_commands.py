@@ -15,6 +15,31 @@ class SaveSectionCommand(BaseCommand):
 
     def redo(self):
         try:
+            # Предчек дубликатов имен в пределах сферы для улучшения UX
+            name = (self.new_data.get('name') or '').strip()
+            sphere_id = self.new_data.get('sphere_id')
+            if name and sphere_id:
+                try:
+                    existing = self.db.sections.get_sections(sphere_id) or []
+                    def is_dup(row):
+                        same_name = str(row['name']).strip().lower() == name.lower()
+                        same_scope = int(row['sphere_id']) == int(sphere_id)
+                        if self.is_new:
+                            return same_name and same_scope
+                        # при редактировании исключаем сам элемент
+                        return same_name and same_scope and int(row['id']) != int(self.new_id)
+                    if any(is_dup(row) for row in existing):
+                        self.show_error(
+                            f"Раздел с именем '{name}' уже существует в выбранной сфере.",
+                            "Ошибка добавления раздела"
+                        )
+                        # Не бросаем исключение, помечаем команду устаревшей
+                        self.setObsolete(True)
+                        return
+                except Exception as e:
+                    # Предчек не должен ломать выполнение — просто логируем и продолжаем
+                    self.logger.warning(f"Не удалось выполнить предчек дубликатов раздела: {e}")
+
             if self.is_new:
                 if self.new_id is None:
                     self.new_id = self.db.sections.upsert_section(self.new_data)
@@ -24,6 +49,21 @@ class SaveSectionCommand(BaseCommand):
             else:
                 self.db.sections.upsert_section(self.new_data)
             self.update_structure_tree(item_to_select=('section', self.new_id))
+            # Эмитим бизнес-сигналы и инициируем асинхронную перезагрузку структуры,
+            # чтобы UI гарантированно обновился через единый канал сигналов
+            try:
+                if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                    business = self.main.structure_business
+                    self.logger.info(f"[CMD:Section] Emitting to business id={id(business)} is_new={self.is_new}")
+                    if self.is_new:
+                        business.item_added.emit("section", self.new_id, self.new_data)
+                    else:
+                        business.item_updated.emit("section", self.new_id, self.new_data)
+                    # Триггерим асинхронную загрузку структуры текущей сферы
+                    business.load_structure()
+            except Exception as e:
+                # Логируем, но не прерываем UX
+                self.logger.warning(f"SaveSectionCommand: не удалось инициировать бизнес-обновление структуры: {e}")
         except Exception as e:
             # Используем централизованный обработчик ошибок
             # Для дубликатов и других ожидаемых ошибок не выбрасываем исключение
@@ -35,9 +75,25 @@ class SaveSectionCommand(BaseCommand):
         if self.is_new:
             self.db.sections.delete_section(self.new_id)
             self.update_structure_tree()
+            try:
+                if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                    business = self.main.structure_business
+                    self.logger.info(f"[CMD:Section.undo-del] Emitting to business id={id(business)}")
+                    business.item_deleted.emit("section", self.new_id)
+                    business.load_structure()
+            except Exception as e:
+                self.logger.warning(f"SaveSectionCommand.undo: не удалось инициировать бизнес-обновление после удаления: {e}")
         else:
             self.db.sections.upsert_section(self.old_data)
             self.update_structure_tree(item_to_select=('section', self.old_data['id']))
+            try:
+                if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                    business = self.main.structure_business
+                    self.logger.info(f"[CMD:Section.undo-restore] Emitting to business id={id(business)}")
+                    business.item_updated.emit("section", self.old_data['id'], self.old_data)
+                    business.load_structure()
+            except Exception as e:
+                self.logger.warning(f"SaveSectionCommand.undo: не удалось инициировать бизнес-обновление после восстановления: {e}")
 
 
 class DeleteSectionCommand(BaseCommand):
@@ -52,6 +108,13 @@ class DeleteSectionCommand(BaseCommand):
         self.db.sections.delete_section(self.section_data['id'])
         self.update_structure_tree()
         self.main.structure.switch_sphere(self.main.structure_business.current_sphere_id)
+        try:
+            if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                business = self.main.structure_business
+                business.item_deleted.emit("section", self.section_data['id'])
+                business.load_structure()
+        except Exception as e:
+            self.logger.warning(f"DeleteSectionCommand.redo: не удалось инициировать бизнес-обновление после удаления: {e}")
 
     def undo(self):
         # Восстанавливаем полное дерево раздела (раздел + категории + ссылки)
@@ -61,6 +124,13 @@ class DeleteSectionCommand(BaseCommand):
             section_id = self._backup_tree['section']['id']
             self.logger.info(f"Восстановлено полное дерево раздела с ID {section_id}: {section_name}")
             self.update_structure_tree(item_to_select=('section', section_id))
+            try:
+                if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                    business = self.main.structure_business
+                    business.item_added.emit("section", section_id, self._backup_tree['section'])
+                    business.load_structure()
+            except Exception as e:
+                self.logger.warning(f"DeleteSectionCommand.undo: не удалось инициировать бизнес-обновление после восстановления: {e}")
         except Exception as e:
             section_name = self._backup_tree.get('section', {}).get('name', 'неизвестный')
             self.logger.error(f"Ошибка восстановления дерева раздела: {e}")

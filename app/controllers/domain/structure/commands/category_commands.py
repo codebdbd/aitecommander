@@ -7,12 +7,23 @@ class SaveCategoryCommand(BaseCommand):
     """Команда для сохранения (добавления/редактирования) категории."""
     def __init__(self, data, main_window, old_data=None, skip_reload=False):
         self.is_new = 'id' not in data or data['id'] is None
-        title = "Добавление категории" if self.is_new else f"Редактирование категории '{data['name']}'"
+        # Безопасно формируем заголовок (на случай частичных данных из диалога)
+        safe_name = None
+        if not self.is_new:
+            safe_name = (data.get('name') if isinstance(data, dict) else None) or ((old_data or {}).get('name'))
+        title = "Добавление категории" if self.is_new else f"Редактирование категории '{safe_name or ''}'"
         super().__init__(title, main_window)
         self.new_data = data
         self.old_data = old_data
-        self.new_id = None if self.is_new else data['id']
+        self.new_id = None if self.is_new else data.get('id')
         self.skip_reload = skip_reload
+        # Для редактирования готовим слитые данные, чтобы не потерять обязательные поля
+        self._merged_update = None
+        if not self.is_new and isinstance(self.old_data, dict):
+            merged = dict(self.old_data)
+            if isinstance(self.new_data, dict):
+                merged.update(self.new_data)
+            self._merged_update = merged
 
     def redo(self):
         try:
@@ -23,7 +34,31 @@ class SaveCategoryCommand(BaseCommand):
                 else:
                     self.db.categories.upsert_category(self.new_data)
             else:
-                self.db.categories.upsert_category(self.new_data)
+                payload = self._merged_update or self.new_data
+                # гарантируем id в полезной нагрузке
+                if isinstance(payload, dict) and payload.get('id') is None:
+                    payload['id'] = self.new_id
+                # Валидация обязательных полей
+                name = payload.get('name') if isinstance(payload, dict) else None
+                section_id = payload.get('section_id') if isinstance(payload, dict) else None
+                if not name or section_id is None:
+                    self.show_info(
+                        "Некорректные данные",
+                        "Не указаны обязательные поля категории: имя или раздел.")
+                    self.setObsolete(True)
+                    return
+                # Проверка дубликатов в рамках раздела (исключая текущую категорию)
+                try:
+                    if self.db.categories.has_duplicate_category(section_id, name, exclude_id=payload.get('id')):
+                        self.show_info(
+                            "Дубликат категории",
+                            f"Категория с именем '{name}' уже существует в этом разделе.")
+                        self.setObsolete(True)
+                        return
+                except Exception as e:
+                    # На случай ошибки в проверке дубликатов — не падаем, а логируем и продолжаем с апдейтом
+                    self.logger.warning(f"SaveCategoryCommand.duplicate-check failed: {e}")
+                self.db.categories.upsert_category(payload)
             
             if not self.skip_reload:
                 self.update_structure_tree(item_to_select=('category', self.new_id))
@@ -36,6 +71,18 @@ class SaveCategoryCommand(BaseCommand):
                         TimerType.TABLE_UPDATE,
                         operation_id=f"update_links_table_{self.new_id}"
                     )
+            # Синхронизация через бизнес-сигналы + асинхронная перезагрузка структуры
+            try:
+                if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                    business = self.main.structure_business
+                    self.logger.info(f"[CMD:Category] Emitting to business id={id(business)} is_new={self.is_new}")
+                    if self.is_new:
+                        business.item_added.emit("category", self.new_id, self.new_data)
+                    else:
+                        business.item_updated.emit("category", self.new_id, (self._merged_update or self.new_data))
+                    business.load_structure()
+            except Exception as e:
+                self.logger.warning(f"SaveCategoryCommand: не удалось инициировать бизнес-обновление структуры: {e}")
         except ValueError as e:
             self.show_info("Информация", str(e))
             self.setObsolete(True)
@@ -52,6 +99,14 @@ class SaveCategoryCommand(BaseCommand):
             self.db.categories.delete_category(self.new_id)
             if not self.skip_reload:
                 self.update_structure_tree(item_to_select=('section', section_id))
+            try:
+                if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                    business = self.main.structure_business
+                    self.logger.info(f"[CMD:Category.undo-del] Emitting to business id={id(business)}")
+                    business.item_deleted.emit("category", self.new_id)
+                    business.load_structure()
+            except Exception as e:
+                self.logger.warning(f"SaveCategoryCommand.undo: не удалось инициировать бизнес-обновление после удаления: {e}")
         else:
             self.db.categories.upsert_category(self.old_data)
             if not self.skip_reload:
@@ -59,6 +114,14 @@ class SaveCategoryCommand(BaseCommand):
             else:
                 if hasattr(self.structure, '_update_category_display'):
                     self.structure._update_category_display(self.old_data['id'], self.old_data)
+            try:
+                if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                    business = self.main.structure_business
+                    self.logger.info(f"[CMD:Category.undo-restore] Emitting to business id={id(business)}")
+                    business.item_updated.emit("category", self.old_data['id'], self.old_data)
+                    business.load_structure()
+            except Exception as e:
+                self.logger.warning(f"SaveCategoryCommand.undo: не удалось инициировать бизнес-обновление после восстановления: {e}")
 
 
 class DeleteCategoryCommand(BaseCommand):
@@ -77,6 +140,10 @@ class DeleteCategoryCommand(BaseCommand):
         # (TreeManagement автоматически выберет родительский раздел)
         if hasattr(self.main, 'structure_business') and self.main.structure_business:
             self.main.structure_business.item_deleted.emit("category", self.category_data['id'])
+            try:
+                self.main.structure_business.load_structure()
+            except Exception as e:
+                self.logger.warning(f"DeleteCategoryCommand.redo: не удалось инициировать бизнес-обновление структуры: {e}")
 
     def undo(self):
         # Восстанавливаем полное дерево категории
@@ -84,3 +151,10 @@ class DeleteCategoryCommand(BaseCommand):
         # Обновляем таблицу ссылок для восстановленной категории
         self.update_links_table(self.category_data['id'])
         self.update_structure_tree(item_to_select=('category', self.category_data['id']))
+        try:
+            if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                business = self.main.structure_business
+                business.item_added.emit("category", self.category_data['id'], self._backup_tree['category'])
+                business.load_structure()
+        except Exception as e:
+            self.logger.warning(f"DeleteCategoryCommand.undo: не удалось инициировать бизнес-обновление структуры: {e}")

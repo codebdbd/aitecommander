@@ -1,148 +1,148 @@
 # app/controllers/domain/structure/structure_business.py
 
-"""Рефакторированная бизнес-логика для управления структурой (сферы, разделы, категории)."""
+"""
+Полностью рефакторированная бизнес-логика для управления структурой (сферы, разделы, категории).
+Совместима с существующей программой, сохраняет все необходимые интерфейсы и сигналы.
+"""
 
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable
+from dataclasses import dataclass
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from app.models.db import Database
 from app.models.structure_model import StructureModel
+from app.controllers.domain.structure.services.exporter import ExportService
+from app.controllers.domain.structure.services.integrity import IntegrityService
+from app.controllers.domain.structure.services.loader import LoaderService
+from app.controllers.domain.structure.services.selection import SelectionService
+from app.controllers.domain.structure.services.validation import ValidationService
+from app.controllers.domain.structure.services.crud import CrudService
+from app.controllers.domain.structure.services.importer import ImportService
+from app.controllers.domain.structure.services.utilities import UtilityService
+from app.controllers.domain.structure.infrastructure.cache import CacheManager
+from app.controllers.domain.structure.infrastructure.exceptions import handle_exceptions
+from app.controllers.domain.structure.compat.types import ItemTypes, ItemTypeStr, StructureItemType
+from app.controllers.domain.structure.compat.async_wrappers import AsyncWrappers
+from app.controllers.structure_modules.async_operations import AsyncOperations, AsyncSignalHandlers
+from app.controllers.domain.structure.facade_mixins.utilities_mixin import UtilitiesMixin
+from app.controllers.domain.structure.facade_mixins.async_compat_mixin import AsyncCompatMixin
+from app.controllers.domain.structure.facade_mixins.sections_mixin import SectionsMixin
+from app.controllers.domain.structure.facade_mixins.categories_mixin import CategoriesMixin
+from app.controllers.domain.structure.facade_mixins.export_integrity_mixin import ExportIntegrityMixin
+from app.controllers.domain.structure.facade_mixins.diagnostics_mixin import DiagnosticsMixin
+from app.controllers.domain.structure.validation.result import ValidationResult
 
-# Импорты модульной архитектуры
-from app.controllers.structure_modules import (
-    AsyncOperations,
-    AsyncSignalHandlers,
-    CacheManager,
-    CategoryOperations,
-    ItemTypes,
-    ItemTypeStr,
-    SectionOperations,
-    SphereOperations,
-    StructureBusinessLogicLegacy,
-    StructureItemType,
-)
-from app.controllers.structure_modules.coordination import OperationCoordinator
-from app.controllers.structure_modules.positioning_operations import PositioningOperations
+# Типы совместимости импортируются из compat/types.py
+# ValidationResult вынесен в validation/result.py
+# CacheManager вынесен в infrastructure/cache.py
+# handle_exceptions вынесен в infrastructure/exceptions.py
 
 
-class StructureBusinessLogic(QObject):
-    """Рефакторированная бизнес-логика для управления структурой.
+class StructureBusinessLogic(AsyncCompatMixin, UtilitiesMixin, SectionsMixin, CategoriesMixin, ExportIntegrityMixin, DiagnosticsMixin, QObject):
+    """
+    Полностью рефакторированная бизнес-логика для управления структурой.
     
-    Управляет сферами, разделами и категориями через модульную архитектуру.
-    Также поддерживает создание ссылок через методы импорта для интеграции с LinksBusinessLogic.
+    Сохраняет полную совместимость с существующим кодом программы,
+    но с улучшенной внутренней архитектурой и обработкой ошибок.
     """
     
-    # Сигналы для уведомления UI о изменениях
+    # Основные сигналы (сохранены для совместимости)
     structure_loaded = pyqtSignal(list)  # List[Dict[str, Any]] - разделы с категориями
     active_sphere_changed = pyqtSignal(int)  # int - ID новой активной сферы
     
-    # Сигналы изменения элементов
-    # item_added(item_type: ItemTypeStr, parent_id: int, item_data: Dict[str, Any])
-    # Где:
-    # - item_type: "section" | "category" (ссылки обрабатываются LinksBusinessLogic)
-    # - parent_id: для "section" = sphere_id, для "category" = section_id
-    # - item_data: Dict с полями элемента включая 'id'
+    # Сигналы изменения элементов (совместимость)
     item_added = pyqtSignal(str, int, dict)  # str, int, Dict - тип элемента, ID родителя, данные
-    
-    # item_updated(item_type: ItemTypeStr, item_id: int, item_data: Dict[str, Any])
-    # Где:
-    # - item_type: "section" | "category" (ссылки обрабатываются LinksBusinessLogic)
-    # - item_id: ID обновленного элемента
-    # - item_data: Dict с обновленными полями включая 'id'
     item_updated = pyqtSignal(str, int, dict)  # str, int, Dict - тип элемента, ID элемента, данные
+    item_deleted = pyqtSignal(str, int)  # str, int - тип элемента, ID элемента
     
-    # item_deleted(item_type: ItemTypeStr, item_id: int)
-    # Где:
-    # - item_type: "section" | "category" (ссылки обрабатываются LinksBusinessLogic)
-    # - item_id: ID удаленного элемента
-    item_deleted: pyqtSignal = pyqtSignal(str, int)  # str, int - тип элемента, ID элемента
+    # Сигналы выбора
+    section_selected = pyqtSignal(int, list)  # int, List[Dict] - ID раздела, категории
+    category_selected = pyqtSignal(int)  # int - ID категории
     
-    section_selected: pyqtSignal = pyqtSignal(int, list)  # int, List[Dict] - ID раздела, категории
-    category_selected: pyqtSignal = pyqtSignal(int)  # int - ID категории
-    error_occurred: pyqtSignal = pyqtSignal(str, str)  # str, str - заголовок, сообщение
-    spheres_loaded: pyqtSignal = pyqtSignal(list)  # List[Dict] - список сфер
+    # Служебные сигналы
+    error_occurred = pyqtSignal(str, str)  # str, str - заголовок, сообщение
+    spheres_loaded = pyqtSignal(list)  # List[Dict] - список сфер
 
     def __init__(self, db: Database, logger: Optional[logging.Logger] = None):
+        """Инициализация бизнес-логики."""
         super().__init__()
+        
         self.db = db
         self.structure_model = StructureModel(db)
         self.logger = logger or logging.getLogger(__name__)
-        self.current_sphere_id: Optional[int] = None
         
-        # Инициализация модульной архитектуры
-        self._init_modules()
-        self._setup_async_signals()
-    
-    def _init_modules(self):
-        """Инициализирует все модули."""
-        # Координатор операций
-        self.coordinator = OperationCoordinator(self.structure_model, self.logger)
+        # Состояние
+        self.current_sphere_id: Optional[int] = None
         
         # Кэш-менеджер
         self.cache_manager = CacheManager(self.logger)
         
-        # Операции со сферами
-        self.sphere_operations = SphereOperations(
-            self.structure_model, self.logger, self.coordinator.execute_with_error_handling
-        )
+        # Сервисы
+        self.export_service = ExportService()
+        self.integrity_service = IntegrityService()
+        self.loader_service = LoaderService()
+        self.selection_service = SelectionService()
+        self.validation_service = ValidationService()
+        self.crud_service = CrudService()
+        self.import_service = ImportService()
+        self.async_wrappers = AsyncWrappers()
+        self.utility_service = UtilityService()
         
-        # Операции с разделами
-        self.section_operations = SectionOperations(
-            self.structure_model, self.logger,
-            self.coordinator.execute_with_error_handling, self.coordinator.execute_with_validation,
-            self._emit_signal
-        )
-        
-        # Операции с категориями
-        self.category_operations = CategoryOperations(
-            self.structure_model, self.logger,
-            self.coordinator.execute_with_error_handling, self.coordinator.execute_with_validation,
-            self._emit_signal, self.cache_manager
-        )
-        
-        # Операции со ссылками удалены - используйте LinksBusinessLogic
-        
-        # Операции с позиционированием
-        self.positioning_operations = PositioningOperations(
-            self.structure_model, self.logger,
-            self.coordinator.execute_with_error_handling
-        )
-        
-        # Асинхронные операции
+        # Реальный асинхронный слой для операций структуры (через TaskScheduler)
         self.async_operations = AsyncOperations(self.db, self.logger)
-    
-    def _setup_async_signals(self):
-        """Настраивает подключения сигналов от асинхронных воркеров."""
-        self.async_signal_handlers = AsyncSignalHandlers(self)
-        worker_signals = self.async_operations.get_worker_signals()
+        self._async_handlers = AsyncSignalHandlers(self)
+        self.async_operations.connect_signal_handlers(self._async_handlers)
         
-        # Подключаем сигналы
-        worker_signals.spheres_loaded.connect(self.async_signal_handlers.on_spheres_loaded)
-        worker_signals.structure_loaded.connect(self.async_signal_handlers.on_structure_loaded)
-        worker_signals.sections_loaded.connect(self.async_signal_handlers.on_sections_loaded)
-        worker_signals.categories_loaded.connect(self.async_signal_handlers.on_categories_loaded)
+        # Инициализация
+        self._initialize_system()
+
+        # Подключаем внутренние обработчики к бизнес-сигналам, чтобы
+        # изменения, пришедшие не через воркеры, тоже приводили к
+        # инвалидизации кэша и асинхронной перезагрузке UI
+        try:
+            self.item_added.connect(self._on_item_added)
+            self.item_updated.connect(self._on_item_updated)
+            self.item_deleted.connect(self._on_item_deleted)
+            self.logger.info(f"[BL] Handlers connected for business id={id(self)}")
+        except Exception:
+            # Защита от ошибок подключения сигналов, не ломаем инициализацию
+            self.logger.warning("Не удалось подключить внутренние обработчики бизнес-сигналов", exc_info=True)
     
-    def _emit_signal(self, signal_type: str, *args):
-        """Callback для эмиссии сигналов из операций."""
-        if signal_type == "item_added":
-            self.item_added.emit(*args)
-        elif signal_type == "item_updated":
-            self.item_updated.emit(*args)
-        elif signal_type == "item_deleted":
-            self.item_deleted.emit(*args)
+    def _initialize_system(self) -> None:
+        """Инициализация системы."""
+        self.logger.info("Инициализация StructureBusinessLogic")
+        
+        # Настройка таймеров и дополнительных компонентов
+        self._setup_periodic_tasks()
+    
+    def _setup_periodic_tasks(self) -> None:
+        """Настройка периодических задач."""
+        # Можно добавить периодические задачи если нужно
+        pass
     
     # =============================================================================
-    # ОСНОВНЫЕ МЕТОДЫ КОНТРОЛЛЕРА
+    # ОСНОВНЫЕ МЕТОДЫ КОНТРОЛЛЕРА (СОВМЕСТИМОСТЬ)
     # =============================================================================
     
     def set_current_sphere(self, sphere_id: int) -> None:
         """Устанавливает текущую сферу."""
-        self.current_sphere_id = sphere_id
-        self.logger.info(f"Установлена текущая сфера: {sphere_id}")
-        self.active_sphere_changed.emit(sphere_id)
+        try:
+            old_sphere_id = self.current_sphere_id
+            self.current_sphere_id = sphere_id
+            
+            # Очищаем кэш при смене сферы
+            if old_sphere_id != sphere_id:
+                self.cache_manager.invalidate(f"sphere_{old_sphere_id}")
+            
+            self.logger.info(f"Установлена текущая сфера: {sphere_id}")
+            self.active_sphere_changed.emit(sphere_id)
+            
+        except Exception as e:
+            self._handle_error("Ошибка установки текущей сферы", e)
     
+    @handle_exceptions(default_return=[])
     def load_structure(self, sphere_id: Optional[int] = None) -> None:
         """Загружает структуру для указанной сферы с оптимизированными запросами."""
         if sphere_id is not None:
@@ -152,224 +152,301 @@ class StructureBusinessLogic(QObject):
             self.structure_loaded.emit([])
             return
         
-        result = self.coordinator.load_structure_with_categories(
-            self.current_sphere_id, self.category_operations, self._emit_error
+        # Проверяем кэш
+        cache_key = f"structure_{self.current_sphere_id}"
+        cached_structure = self.cache_manager.get(cache_key)
+        
+        if cached_structure is not None:
+            self.structure_loaded.emit(cached_structure)
+            return
+        
+        # Загружаем из базы данных
+        structure_data = self._load_structure_from_db(self.current_sphere_id)
+        
+        # Кэшируем результат
+        self.cache_manager.set(cache_key, structure_data)
+        
+        self.structure_loaded.emit(structure_data)
+        self.logger.debug(f"Загружена структура для сферы {self.current_sphere_id}")
+    
+    def _load_structure_from_db(self, sphere_id: int) -> List[Dict[str, Any]]:
+        """Загружает структуру из базы данных (делегировано в сервис)."""
+        return self.loader_service.load_structure_from_db(
+            structure_model=self.structure_model,
+            sphere_id=sphere_id,
+            logger=self.logger,
         )
-        self.structure_loaded.emit(result)
+
+    # =============================================================================
+    # ВНУТРЕННИЕ ОБРАБОТЧИКИ БИЗНЕС-СИГНАЛОВ (от команд UI и проч.)
+    # =============================================================================
+    def _on_item_added(self, item_type: str, parent_id: int, item_data: Dict[str, Any]) -> None:
+        """Элемент добавлен: инвалидируем кэш и запускаем асинхронную перезагрузку."""
+        try:
+            self.logger.info(f"[BL] item_added: type={item_type}, parent_id={parent_id}")
+            if item_type == 'category':
+                # parent_id здесь — это section_id для категории
+                section_id = parent_id or (item_data.get('section_id') if isinstance(item_data, dict) else None)
+                self._invalidate_categories_cache(section_id)
+                if isinstance(section_id, int) and section_id > 0:
+                    self.async_operations.load_categories_async(section_id)
+            # Для надёжности всегда инвалидируем общую структуру
+            self._invalidate_structure_cache()
+            sphere_id = self.current_sphere_id
+            if isinstance(sphere_id, int) and sphere_id > 0:
+                self.async_operations.load_structure_async(sphere_id)
+        except Exception as e:
+            self.logger.error(f"Ошибка в обработчике _on_item_added: {e}", exc_info=True)
+
+    def _on_item_updated(self, item_type: str, item_id: int, item_data: Dict[str, Any]) -> None:
+        """Элемент обновлён: инвалидируем кэш и запускаем асинхронную перезагрузку."""
+        try:
+            self.logger.info(f"[BL] item_updated: type={item_type}, id={item_id}")
+            if item_type == 'category':
+                section_id = (item_data.get('section_id') if isinstance(item_data, dict) else None)
+                self._invalidate_categories_cache(section_id)
+                if isinstance(section_id, int) and section_id > 0:
+                    self.async_operations.load_categories_async(section_id)
+            self._invalidate_structure_cache()
+            sphere_id = self.current_sphere_id
+            if isinstance(sphere_id, int) and sphere_id > 0:
+                self.async_operations.load_structure_async(sphere_id)
+        except Exception as e:
+            self.logger.error(f"Ошибка в обработчике _on_item_updated: {e}", exc_info=True)
+
+    def _on_item_deleted(self, item_type: str, item_id: int) -> None:
+        """Элемент удалён: инвалидируем кэш и запускаем асинхронную перезагрузку.
+
+        Примечание: данная сигнатура не содержит старых данных (section_id для категорий),
+        поэтому для надёжности перезагружаем всю структуру текущей сферы.
+        """
+        try:
+            self.logger.info(f"[BL] item_deleted: type={item_type}, id={item_id}")
+            self._invalidate_structure_cache()
+            sphere_id = self.current_sphere_id
+            if isinstance(sphere_id, int) and sphere_id > 0:
+                self.async_operations.load_structure_async(sphere_id)
+        except Exception as e:
+            self.logger.error(f"Ошибка в обработчике _on_item_deleted: {e}", exc_info=True)
     
+    @handle_exceptions()
     def select_section(self, section_id: int) -> None:
-        """Выбирает раздел и загружает его категории (асинхронная версия)."""
-        self.async_operations.load_categories_async(section_id)
-        self.logger.debug(f"Запущена асинхронная загрузка категорий для раздела {section_id}")
-        # Defensive check to prevent 'NoneType' iterable error
-        categories = self.category_operations.get_categories(section_id) or []
+        """Выбирает раздел и загружает его категории."""
+        categories = self.get_categories(section_id)
         self.section_selected.emit(section_id, categories)
+        self.logger.debug(f"Выбран раздел {section_id} с {len(categories)} категориями")
     
+    @handle_exceptions()
     def select_category(self, category_id: int) -> None:
         """Выбирает категорию."""
         self.category_selected.emit(category_id)
         self.logger.debug(f"Выбрана категория {category_id}")
     
     # =============================================================================
-    # ДЕЛЕГИРОВАНИЕ К МОДУЛЯМ ОПЕРАЦИЙ
+    # ОПЕРАЦИИ СО СФЕРАМИ (СОВМЕСТИМОСТЬ)
     # =============================================================================
     
-    # Операции со сферами
+    @handle_exceptions(default_return=[])
     def get_spheres(self) -> List[Dict[str, Any]]:
-        """Получает список всех сфер."""
-        return self.sphere_operations.get_spheres()
+        """Получает список всех сфер (с кэшированием, чтение через сервис)."""
+        cache_key = "all_spheres"
+        cached_spheres = self.cache_manager.get(cache_key)
+        if cached_spheres is not None:
+            return cached_spheres
+        spheres = self.selection_service.get_spheres(self.structure_model, self.logger)
+        self.cache_manager.set(cache_key, spheres)
+        return spheres or []
     
+    @handle_exceptions()
     def get_sphere_by_id(self, sphere_id: int) -> Optional[Dict[str, Any]]:
         """Получает данные сферы по ID."""
-        return self.sphere_operations.get_sphere_by_id(sphere_id)
+        spheres = self.get_spheres()
+        return next((sphere for sphere in spheres if sphere['id'] == sphere_id), None)
     
+    @handle_exceptions()
     def get_next_sphere_id(self) -> Optional[int]:
         """Определяет и возвращает ID следующей сферы в списке (циклически)."""
-        return self.sphere_operations.get_next_sphere_id(self.current_sphere_id)
+        spheres = self.get_spheres()
+        if not spheres:
+            return None
+        
+        if self.current_sphere_id is None:
+            return spheres[0]['id']
+        
+        current_index = next(
+            (i for i, sphere in enumerate(spheres) if sphere['id'] == self.current_sphere_id), 
+            -1
+        )
+        
+        if current_index == -1:
+            return spheres[0]['id']
+        
+        next_index = (current_index + 1) % len(spheres)
+        return spheres[next_index]['id']
     
-    def get_target_section_id(self) -> Optional[int]:
-        """Получает ID первого доступного раздела в текущей сфере."""
-        return self.sphere_operations.get_target_section_id(self.current_sphere_id)
-    
-    # Операции с разделами
-    def create_section(self, data: Dict[str, Any]) -> bool:
-        """Создает новый раздел."""
-        return self.section_operations.create_section(data)
-    
-    def update_section(self, section_id: int, data: Dict[str, Any]) -> bool:
-        """Обновляет существующий раздел."""
-        return self.section_operations.update_section(section_id, data)
-    
-    def delete_section(self, section_id: int) -> Tuple[bool, Dict[str, Any], int, int]:
-        """Удаляет раздел."""
-        return self.section_operations.delete_section(section_id)
-    
-    def confirm_delete_section(self, section_id: int) -> bool:
-        """Подтверждает и выполняет удаление раздела."""
-        return self.section_operations.confirm_delete_section(section_id)
-    
-    def get_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
-        """Получает данные раздела."""
-        return self.section_operations.get_section_data(section_id)
-    
-    def get_sections(self, sphere_id: int) -> List[Dict[str, Any]]:
-        """Получает список разделов для указанной сферы."""
-        return self.section_operations.get_sections(sphere_id)
-    
-    # Операции с категориями
-    def create_category(self, data: Dict[str, Any]) -> bool:
-        """Создает новую категорию."""
-        return self.category_operations.create_category(data)
-    
-    def update_category(self, category_id: int, data: Dict[str, Any]) -> bool:
-        """Обновляет существующую категорию."""
-        return self.category_operations.update_category(category_id, data)
-    
-    def delete_category(self, category_id: int) -> Tuple[bool, Dict[str, Any], int]:
-        """Удаляет категорию."""
-        return self.category_operations.delete_category(category_id)
-    
-    def confirm_delete_category(self, category_id: int) -> bool:
-        """Подтверждает и выполняет удаление категории."""
-        return self.category_operations.confirm_delete_category(category_id)
-    
-    def get_category_data(self, category_id: int) -> Optional[Dict[str, Any]]:
-        """Получает данные категории."""
-        return self.category_operations.get_category_data(category_id)
-    
-    def get_categories(self, section_id: int) -> List[Dict[str, Any]]:
-        """Получает список категорий для указанного раздела."""
-        return self.category_operations.get_categories(section_id)
-    
-    def get_first_category_id(self) -> Optional[int]:
-        """Получает ID первой категории с кэшированием."""
-        return self.category_operations.get_first_category_id()
-    
-    def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, Any]]:
-        """Получает иерархию для категории."""
-        return self.category_operations.get_category_hierarchy(category_id)
-    
+    @handle_exceptions(default_return=False)
     def has_duplicate_category(self, section_id: int, category_name: str, exclude_id: Optional[int] = None) -> bool:
         """Проверяет наличие дубликата категории в разделе."""
-        return self.category_operations.has_duplicate_category(section_id, category_name, exclude_id)
+        categories = self.get_categories(section_id)
+        
+        for category in categories:
+            if (category['name'].lower() == category_name.lower().strip() and 
+                category['id'] != exclude_id):
+                return True
+        
+        return False
     
     # =============================================================================
-    # АСИНХРОННЫЕ МЕТОДЫ
-    # =============================================================================
-    
-    def load_spheres_async(self) -> None:
-        """Асинхронная загрузка всех сфер."""
-        self.async_operations.load_spheres_async()
-
-    def load_structure_async(self, sphere_id: Optional[int] = None) -> None:
-        """Асинхронная загрузка структуры для сферы."""
-        if sphere_id is not None:
-            self.current_sphere_id = sphere_id
-
-        if self.current_sphere_id is None:
-            self.structure_loaded.emit([])
-            return
-
-        self.async_operations.load_structure_async(self.current_sphere_id)
-
-    def load_sections_async(self, sphere_id: int) -> None:
-        """Асинхронная загрузка разделов для сферы."""
-        self.async_operations.load_sections_async(sphere_id)
-
-    def load_categories_async(self, section_id: int) -> None:
-        """Асинхронная загрузка категорий для раздела."""
-        self.async_operations.load_categories_async(section_id)
-
-    def create_section_async(self, data: Dict[str, Any]) -> None:
-        """Асинхронное создание раздела."""
-        self.async_operations.create_section_async(data)
-
-    def create_category_async(self, data: Dict[str, Any]) -> None:
-        """Асинхронное создание категории."""
-        self.async_operations.create_category_async(data)
-
-    def update_section_async(self, section_id: int, data: Dict[str, Any]) -> None:
-        """Асинхронное обновление раздела."""
-        self.async_operations.update_section_async(section_id, data)
-
-    def update_category_async(self, category_id: int, data: Dict[str, Any]) -> None:
-        """Асинхронное обновление категории."""
-        self.async_operations.update_category_async(category_id, data)
-
-    def delete_section_async(self, section_id: int) -> None:
-        """Асинхронное удаление раздела."""
-        self.async_operations.delete_section_async(section_id)
-
-    def delete_category_async(self, category_id: int) -> None:
-        """Асинхронное удаление категории."""
-        self.async_operations.delete_category_async(category_id)
-
-    def count_nested_objects_async(self, section_id: int) -> None:
-        """Асинхронный подсчет вложенных объектов."""
-        self.async_operations.count_nested_objects_async(section_id)
-    
-    # =============================================================================
-    # ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+    # ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ (СОВМЕСТИМОСТЬ)
     # =============================================================================
     
     def get_current_sphere_id(self) -> Optional[int]:
         """Возвращает ID текущей активной сферы."""
         return self.current_sphere_id
     
-    def get_first_category_id_async(self) -> None:
-        """Асинхронно получает ID первой категории."""
-        category_id = self.get_first_category_id()
-        self.logger.debug(f"Получена первая категория асинхронно: {category_id}")
-    
-    def update_item_positions(self, table_name: str, ids_in_order: List[int]) -> bool:
-        """Обновляет позиции элементов в указанной таблице."""
-        return self.positioning_operations.update_item_positions(table_name, ids_in_order)
-    
-    def get_item_for_editing(self, item_id: int, item_type: StructureItemType) -> Optional[Dict[str, Any]]:
-        """Универсальный метод получения данных элемента для редактирования."""
-        if item_type == StructureItemType.SECTION:
-            return self.section_operations.get_section_data(item_id)
-        else:
-            return self.category_operations.get_category_data(item_id)
-    
     def get_section_for_editing(self, section_id: int) -> Optional[Dict[str, Any]]:
         """Получает данные раздела для редактирования в диалоге."""
-        return self.get_item_for_editing(section_id, StructureItemType.SECTION)
+        return self.get_item_for_editing(section_id, "section")
 
-    def get_category_for_editing(self, category_id: int) -> Optional[Dict[str, Any]]:
-        """Получает данные категории для редактирования в диалоге."""
-        return self.get_item_for_editing(category_id, StructureItemType.CATEGORY)
-    
     # =============================================================================
-    # МЕТОДЫ ДЛЯ ИМПОРТА И ИНТЕГРАЦИИ
+    # МЕТОДЫ ДЛЯ ИМПОРТА И ИНТЕГРАЦИИ (СОВМЕСТИМОСТЬ)
     # =============================================================================
     
+    @handle_exceptions()
     def create_category_for_import(self, category_data: Dict[str, Any]) -> Optional[int]:
-        """Создает новую категорию для импорта."""
-        return self.category_operations.create_category_for_import(category_data)
-    
-    def get_links(self, category_id: int) -> List[Dict[str, Any]]:
-        """Получает список ссылок для указанной категории.
+        """Создает новую категорию для импорта (делегировано в сервис)."""
+        category_id = self.import_service.create_category_for_import(
+            self.structure_model, category_data, self.logger
+        )
+        if category_id:
+            # Инвалидируем кэш для раздела
+            section_id = category_data.get('section_id')
+            if section_id:
+                self._invalidate_categories_cache(section_id)
+        return category_id
         
-        DEPRECATED: Используйте LinksBusinessLogic.get_links_for_category() вместо этого метода.
-        Этот метод сохранен только для обратной совместимости.
-        """
-        # Прямой вызов модели для обратной совместимости
-        try:
-            return self.structure_model.get_links(category_id) or []
-        except Exception as e:
-            self.logger.error(f"Ошибка получения ссылок для категории {category_id}: {e}")
-            return []
-    
     # =============================================================================
-    # ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ КОНТРОЛЛЕРА
+    # ВНУТРЕННИЕ МЕТОДЫ - ВАЛИДАЦИЯ
     # =============================================================================
     
-    def _emit_error(self, title: str, message: str, exc_info: bool = False) -> None:
-        """Отправляет сигнал об ошибке с опциональным трейсбеком."""
+    def _validate_section_data(self, data: Dict[str, Any], section_id: Optional[int] = None) -> ValidationResult:
+        """Валидирует данные раздела (делегировано в ValidationService)."""
+        return self.validation_service.validate_section_data(
+            data=data,
+            section_id=section_id,
+            get_sections=self.get_sections,
+        )
+    
+    def _validate_category_data(self, data: Dict[str, Any], category_id: Optional[int] = None) -> ValidationResult:
+        """Валидирует данные категории (делегировано в ValidationService)."""
+        return self.validation_service.validate_category_data(
+            data=data,
+            category_id=category_id,
+            has_duplicate_category=self.has_duplicate_category,
+        )
+    
+    # =============================================================================
+    # ВНУТРЕННИЕ МЕТОДЫ - УПРАВЛЕНИЕ КЭШЕМ
+    # =============================================================================
+    
+    def _invalidate_structure_cache(self) -> None:
+        """Инвалидирует кэш структуры."""
+        if self.current_sphere_id:
+            # Инвалидируем кэш структуры и разделов для текущей сферы
+            self.cache_manager.invalidate(f"structure_{self.current_sphere_id}")
+            self.cache_manager.invalidate(f"sections_{self.current_sphere_id}")
+            self.cache_manager.invalidate(f"first_category_{self.current_sphere_id}")
+    
+    def _invalidate_categories_cache(self, section_id: Optional[int]) -> None:
+        """Инвалидирует кэш категорий для раздела."""
+        if section_id:
+            self.cache_manager.invalidate(f"categories_{section_id}")
+        
+        # Также инвалидируем структуру, так как она содержит категории
+        self._invalidate_structure_cache()
+    
+    # =============================================================================
+    # ВНУТРЕННИЕ МЕТОДЫ - ОБРАБОТКА ОШИБОК
+    # =============================================================================
+    
+    def _handle_error(self, title: str, error: Exception) -> None:
+        """Обрабатывает ошибки с полным логированием."""
+        error_msg = str(error)
+        self.logger.error(f"{title}: {error_msg}", exc_info=True)
+        self._emit_error(title, error_msg)
+    
+    def _emit_error(self, title: str, message: str) -> None:
+        """Отправляет сигнал об ошибке."""
         self.error_occurred.emit(title, message)
-        self.logger.error(f"{title}: {message}", exc_info=exc_info)
-
-
-# Backward compatibility aliases (устаревшие методы)
-StructureBusinessLogicLegacy = StructureBusinessLogicLegacy
+        self.logger.error(f"{title}: {message}")
+    
+    # =============================================================================
+    # ДОПОЛНИТЕЛЬНЫЕ СЛУЖЕБНЫЕ МЕТОДЫ
+    # =============================================================================
+    
+    def get_statistics(self) -> Dict[str, Any]:
+        """Получает статистику по структуре (делегировано в сервис)."""
+        return self.integrity_service.get_statistics(
+            get_spheres=self.get_spheres,
+            get_sections=self.get_sections,
+            get_categories=self.get_categories,
+            current_sphere_id=self.current_sphere_id,
+            logger=self.logger,
+        )
+    
+    def clear_all_cache(self) -> None:
+        """Полностью очищает весь кэш."""
+        self.cache_manager.invalidate()
+        self.logger.info("Кэш полностью очищен")
+    
+    # =============================================================================
+    # ВНУТРЕННИЕ МЕТОДЫ - ВАЛИДАЦИЯ
+    # =============================================================================
+    def _validate_section_data(self, data: Dict[str, Any], section_id: Optional[int] = None) -> ValidationResult:
+        """Валидирует данные раздела (делегировано в ValidationService)."""
+        return self.validation_service.validate_section_data(
+            data=data,
+            section_id=section_id,
+            get_sections=self.get_sections,
+        )
+    
+    def _validate_category_data(self, data: Dict[str, Any], category_id: Optional[int] = None) -> ValidationResult:
+        """Валидирует данные категории (делегировано в ValidationService)."""
+        return self.validation_service.validate_category_data(
+            data=data,
+            category_id=category_id,
+            has_duplicate_category=self.has_duplicate_category,
+        )
+    
+    # =============================================================================
+    # ВНУТРЕННИЕ МЕТОДЫ - УПРАВЛЕНИЕ КЭШЕМ
+    # =============================================================================
+    def _invalidate_structure_cache(self) -> None:
+        """Инвалидирует кэш структуры."""
+        if self.current_sphere_id:
+            # Инвалидируем кэш структуры и разделов для текущей сферы
+            self.cache_manager.invalidate(f"structure_{self.current_sphere_id}")
+            self.cache_manager.invalidate(f"sections_{self.current_sphere_id}")
+            self.cache_manager.invalidate(f"first_category_{self.current_sphere_id}")
+    
+    def _invalidate_categories_cache(self, section_id: Optional[int]) -> None:
+        """Инвалидирует кэш категорий для раздела."""
+        if section_id:
+            self.cache_manager.invalidate(f"categories_{section_id}")
+        
+        # Также инвалидируем структуру, так как она содержит категории
+        self._invalidate_structure_cache()
+    
+    # =============================================================================
+    # ВНУТРЕННИЕ МЕТОДЫ - ОБРАБОТКА ОШИБОК
+    # =============================================================================
+    def _handle_error(self, title: str, error: Exception) -> None:
+        """Обрабатывает ошибки с полным логированием."""
+        error_msg = str(error)
+        self.logger.error(f"{title}: {error_msg}", exc_info=True)
+        self._emit_error(title, error_msg)
+    
+    def _emit_error(self, title: str, message: str) -> None:
+        """Отправляет сигнал об ошибке."""
+        self.error_occurred.emit(title, message)
+        self.logger.error(f"{title}: {message}")

@@ -31,6 +31,21 @@ class SaveLinkCommand(BaseCommand):
 
             if not self.defer_ui_update:
                 self._update_ui()
+            # Бизнес-сигналы для унифицированного обновления UI
+            try:
+                if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                    business = self.main.structure_business
+                    logger.info(f"[CMD:Link] Emitting to business id={id(business)} is_update={self.is_update}")
+                    link_id = self.created_id or returned_id
+                    if self.is_update:
+                        business.item_updated.emit("link", link_id, self.new_data)
+                    else:
+                        business.item_added.emit("link", link_id, self.new_data)
+                    # Обновление структуры может быть необходимо для плиток счетчиков/бейджей
+                    # (вес незначительный, но повышает консистентность отображения)
+                    business.load_structure()
+            except Exception as e:
+                logger.warning(f"SaveLinkCommand: не удалось инициировать бизнес-обновление: {e}")
                 
             # Простое решение: фокус на ссылку после сохранения
             focus_id = self.created_id or returned_id
@@ -55,6 +70,18 @@ class SaveLinkCommand(BaseCommand):
                 self.db.links.delete_link(self.created_id)
 
             self.refresh_all_views(self.new_data['category_id'] if not self.is_update else self.old_data['category_id'])
+            # Сигнализируем бизнес-слою для консистентного обновления UI
+            try:
+                if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                    business = self.main.structure_business
+                    self.logger.info(f"[CMD:Link.undo] Emitting to business id={id(business)} is_update={self.is_update}")
+                    if self.is_update:
+                        business.item_updated.emit("link", self.old_data['id'], self.old_data)
+                    else:
+                        business.item_deleted.emit("link", self.created_id)
+                    business.load_structure()
+            except Exception as e:
+                self.logger.warning(f"SaveLinkCommand.undo: не удалось инициировать бизнес-обновление: {e}")
         except Exception as e:
             logger.error(f"SaveLinkCommand.undo: exception during undo: {e}")
             # Используем централизованный обработчик ошибок для undo операций
@@ -127,6 +154,12 @@ class BatchSaveLinksCommand(BaseCommand):
                 
                 if link_data.get("_action") == "delete":
                     self.db.links.delete_link(link_data["id"])
+                    # Бизнес-сигнал удаления
+                    try:
+                        if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                            self.main.structure_business.item_deleted.emit("link", link_data["id"])
+                    except Exception as e:
+                        logger.warning(f"BatchSaveLinksCommand: failed to emit item_deleted for link {link_data['id']}: {e}")
                     continue
                     
                 returned_id = self.db.links.upsert_link(link_data)
@@ -135,9 +168,24 @@ class BatchSaveLinksCommand(BaseCommand):
                 if not self.is_update:
                     self.created_ids.append(returned_id)
                     link_data['id'] = returned_id
+                # Бизнес-сигналы добавления/обновления
+                try:
+                    if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                        if self.is_update:
+                            self.main.structure_business.item_updated.emit("link", link_data['id'], link_data)
+                        else:
+                            self.main.structure_business.item_added.emit("link", returned_id, link_data)
+                except Exception as e:
+                    logger.warning(f"BatchSaveLinksCommand: failed to emit business signal for link: {e}")
             
             if self.category_id:
                 self.refresh_all_views(self.category_id)
+            try:
+                if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                    self.logger.info(f"[CMD:BatchLinks] Emitting load_structure to business id={id(self.main.structure_business)}")
+                    self.main.structure_business.load_structure()
+            except Exception as e:
+                logger.warning(f"BatchSaveLinksCommand: не удалось инициировать бизнес-обновление структуры: {e}")
         except Exception as e:
             # Используем централизованный обработчик ошибок
             # Для дубликатов и других ожидаемых ошибок не выбрасываем исключение
@@ -173,6 +221,14 @@ class DeleteLinkCommand(BaseCommand):
         try:
             self.db.links.delete_link(self.link_id)
             self.refresh_all_views(self.deleted_link_data['category_id'])
+            try:
+                if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                    business = self.main.structure_business
+                    self.logger.info(f"[CMD:DeleteLink] Emitting to business id={id(business)}")
+                    business.item_deleted.emit("link", self.link_id)
+                    business.load_structure()
+            except Exception as e:
+                self.logger.warning(f"DeleteLinkCommand.redo: не удалось инициировать бизнес-обновление структуры: {e}")
         except Exception as e:
             # Используем централизованный обработчик ошибок
             if not self.handle_db_error(e):
@@ -183,6 +239,14 @@ class DeleteLinkCommand(BaseCommand):
         try:
             self.db.links.upsert_link(self.deleted_link_data)
             self.refresh_all_views(self.deleted_link_data['category_id'])
+            try:
+                if hasattr(self.main, 'structure_business') and self.main.structure_business:
+                    business = self.main.structure_business
+                    self.logger.info(f"[CMD:DeleteLink.undo] Emitting to business id={id(business)}")
+                    business.item_added.emit("link", self.deleted_link_data['id'], self.deleted_link_data)
+                    business.load_structure()
+            except Exception as e:
+                self.logger.warning(f"DeleteLinkCommand.undo: не удалось инициировать бизнес-обновление структуры: {e}")
         except Exception as e:
             # Используем централизованный обработчик ошибок
             if not self.handle_db_error(e):

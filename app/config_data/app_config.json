@@ -36,7 +36,7 @@
       "warning_title": "Предупреждение",
       "error_title": "Ошибка"
     },
-    "max_favorites": 20,
+    "max_favorites": 10,
     "top_panel_container_height": 48,
     "stack_index_tiles": 0,
     "stack_index_table": 1,
@@ -59,7 +59,10 @@
     "tile_border_radius": 8,
     "tile_border_width": 2,
     "tile_border_margin": 2,
-    "spheres_bar_height": 64,
+    "spheres_bar_height":78,
+    "spheres_layout_margins": [5, 5, 5, 5],
+    "spheres_bar_margin_left": 16,
+    "spheres_bar_margin_right": 16,
     "default_font_size": 12,
     "search_placeholder": "Поиск… (Ctrl+F)",
     "central_frame_shape": "StyledPanel",
@@ -101,7 +104,7 @@
     "link_dialog_margins": 20,
     "link_dialog_spacing": 10,
     "tree_icon_size": 28,
-    "top_panel_icon_size": 32,
+    "top_panel_icon_size": 24,
     "splitter_handle_width": 1,
     "splitter_stretch_factors": [
       1,
@@ -125,7 +128,7 @@
       "min_height": 600
     },
     "menu_font_size": 12,
-    "menubar_font_size": 9,
+    "menubar_font_size": 12,
     "menubar_item_height": 24,
     "menu_icon_size": 20,
     "menu_indicator_size": 16,
@@ -133,7 +136,7 @@
     "scrollbar_height": 12,
     "tree_item_height": 32,
     "table_item_height": 28,
-    "separator_height": 24
+    "separator_height": 28
   },
   "paths": {
     "link_icons_dir": "resources/link_icons",
@@ -164,7 +167,8 @@
     "negative_cache_ttl": 30,
     "abs_icon_cache_ttl": 30,
     "column_data": 0,
-    "max_backups": 10
+    "max_backups": 10,
+    "slow_update_positions_threshold_sec": 1.0
   },
   "settings": {
     "link_types": [

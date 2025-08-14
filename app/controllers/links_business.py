@@ -1,13 +1,11 @@
 # app/controllers/links_business.py
 
 import logging
-import threading
 from typing import Any, Dict, List, Optional
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from app.models.db import Database
-from app.models.link_model import LinkModel
 from app.utils.db.db_error_handler import handle_db_error
 from app.utils.db.db_workers import (
     CountFavoritesWorker,
@@ -18,9 +16,8 @@ from app.utils.db.db_workers import StructureWorkerSignals as CountFavoritesWork
 from app.utils.db.db_workers import StructureWorkerSignals as LoadLinksWorkerSignals
 from app.utils.db.db_workers import StructureWorkerSignals as SearchLinksWorkerSignals
 from app.utils.db.db_workers import StructureWorkerSignals as UpdateLinkWorkerSignals
-from app.utils.db.db_workers import UpdateLinkWorker
 from app.utils.db.synchronization import tasks_lock
-from app.utils.system.task_scheduler import LimitedThreadPool
+from app.utils.system.task_scheduler import get_task_scheduler
 
 
 class LinksBusinessLogic(QObject):
@@ -38,7 +35,8 @@ class LinksBusinessLogic(QObject):
         self.db = db
         # Используем унифицированную LinkModel напрямую из database
         self.links_model = db.links
-        self.thread_pool = LimitedThreadPool(max_threads=2)
+        # Единый глобальный планировщик задач
+        self.scheduler = get_task_scheduler()
         self.pending_tasks = set()
         self.task_counter = 0
         self.logger = logger or logging.getLogger(self.__class__.__name__)
@@ -69,7 +67,8 @@ class LinksBusinessLogic(QObject):
     def shutdown(self, timeout: int = 2000):
         """Корректное завершение работы."""
         try:
-            self.thread_pool.waitForDone(timeout)
+            # Ждём завершения задач через единый пул
+            self.scheduler.get_thread_pool().waitForDone(timeout)
             self.logger.debug("LinksBusinessLogic shutdown completed")
         except Exception as e:
             self.logger.error(f"Error during LinksBusinessLogic shutdown: {e}")
@@ -90,7 +89,7 @@ class LinksBusinessLogic(QObject):
             self.load_signals,
             task_id
         )
-        self.thread_pool.start(worker)
+        self.scheduler.submit_task(worker)
     
     def search_links(self, query: str):
         """Поиск ссылок по запросу."""
@@ -104,98 +103,120 @@ class LinksBusinessLogic(QObject):
             query,
             self.search_signals
         )
-        self.thread_pool.start(worker)
+        self.scheduler.submit_task(worker)
     
     def update_link_order(self, link_ids: list):
         """Обновить порядок ссылок."""
         if not link_ids:
             return
         
-        # UpdateLinkWorker ожидает link, но мы передаем link_ids
-        self.logger.debug(f"Updating link order: {link_ids}")
-        # Нужно создать отдельный воркер для обновления порядка
-        # Пока просто обновляем синхронно
+        self.logger.debug(f"Updating order for {len(link_ids)} links")
+        
         try:
             self.links_model.update_link_order(link_ids)
-            logging.debug(f"Updated order for {len(link_ids)} links")
+            self.logger.debug(f"Updated order for {len(link_ids)} links")
         except Exception as e:
-            logging.error(f"Error updating link order: {e}")
+            self.logger.error(f"Error updating link order: {e}")
+            if not handle_db_error(e, self):
+                raise
     
     def count_favorites(self, link: Optional[Dict] = None):
         """Подсчитать количество избранных ссылок."""
-        # CountFavoritesWorker ожидает (db, links, link, signals)
-        # Получаем список всех ссылок
-        all_links = self.links_model.get_all_links()
+        # Получаем список всех ссылок для CountFavoritesWorker
+        all_links = self._get_all_links_safe()
+        
         worker = CountFavoritesWorker(
             self.db,
             all_links,
             link,
             self.count_signals
         )
-        self.thread_pool.start(worker)
+        # Используем единый планировщик задач, как и в других операциях
+        self.scheduler.submit_task(worker)
     
     def get_links_for_category(self, category_id: int) -> List[Dict]:
         """Получить ссылки для категории синхронно."""
-        return self.links_model.get_links(category_id)
+        try:
+            return self.links_model.get_links_for_category(category_id)
+        except Exception as e:
+            self.logger.error(f"Ошибка получения ссылок для категории {category_id}: {e}")
+            if not handle_db_error(e, self):
+                raise
+            return []
     
     def delete_link(self, link_id: int):
         """Удалить ссылку."""
+        if not self._validate_link_id(link_id):
+            return
+            
         try:
             self.links_model.delete_link(link_id)
             self.logger.info(f"Link deleted: {link_id}")
         except Exception as e:
-            # Используем централизованный обработчик ошибок
             self.logger.error(f"Ошибка удаления ссылки {link_id}: {e}")
             if not handle_db_error(e, self):
                 raise
     
     def save_link(self, link_data: Dict) -> int:
         """Сохранить ссылку."""
+        if not self._validate_link_data(link_data):
+            raise ValueError("Invalid link data provided")
+            
         try:
             result = self.links_model.upsert_link(link_data)
+            # Гарантируем, что в link_data есть актуальный id (для новых ссылок)
+            if result and not link_data.get('id'):
+                link_data['id'] = result
+
             self.logger.info(f"Link saved: {link_data.get('id', '[new]')}")
+
+            # Уведомляем UI о том, что ссылка сохранена/обновлена
+            try:
+                self.link_updated.emit(link_data)
+            except Exception as emit_err:
+                # Не прерываем основной поток, просто логируем
+                self.logger.warning(f"Failed to emit link_updated: {emit_err}")
+
             return result
         except Exception as e:
-            # Используем централизованный обработчик ошибок
             self.logger.error(f"Ошибка сохранения ссылки {link_data.get('id', '[new]')}: {e}")
             if not handle_db_error(e, self):
                 raise
 
     def update_link_last_used(self, link_id: int):
         """Обновить время последнего использования ссылки."""
+        if not self._validate_link_id(link_id):
+            return
+            
         try:
             self.links_model.update_link_last_used(link_id)
             self.logger.debug(f"Link last_used updated: {link_id}")
         except Exception as e:
-            # Используем централизованный обработчик ошибок
             self.logger.error(f"Ошибка обновления времени использования ссылки {link_id}: {e}")
             if not handle_db_error(e, self):
+                # Не прерываем выполнение для этой операции
                 pass
-
     
     def toggle_favorite(self, link: Dict):
         """Переключить статус избранного для ссылки."""
+        if not self._validate_link_data(link, check_required_fields=False):
+            raise ValueError("Invalid link data for toggle_favorite")
+            
         old_status = link.get("is_favorite", False)
         new_status = not old_status
         link_id = link.get('id')
-        link_name = link.get('name', 'Без названия')
         
-        self.logger.info(f"Бизнес-логика toggle_favorite:")
-        self.logger.info(f"  - ID ссылки: {link_id}")
-        self.logger.info(f"  - Название: '{link_name}'")
-        self.logger.info(f"  - Старый статус: {old_status}")
-        self.logger.info(f"  - Новый статус: {new_status}")
+        self.logger.debug(f"Toggle favorite for link {link_id}: {old_status} -> {new_status}")
         
         link_data = link.copy()
         link_data["is_favorite"] = new_status
         
         try:
             result = self.save_link(link_data)
-            self.logger.info(f"Сохранение в БД успешно, ID результата: {result}")
+            self.logger.info(f"Favorite status updated successfully, result ID: {result}")
             
             # Отправляем сигнал об обновлении ссылки
             self.link_updated.emit(link_data)
-            self.logger.info(f"Сигнал link_updated отправлен")
             
             # Обновляем счетчик избранного
             self.count_favorites(link_data)
@@ -204,33 +225,12 @@ class LinksBusinessLogic(QObject):
             self.logger.error(f"Ошибка при сохранении избранного: {e}")
             raise
     
-    # Слоты для обработки результатов воркеров
-    def _on_links_loaded(self, links: List[Dict], category_id: int, task_id: int):
-        """Обработка загруженных ссылок."""
-        with tasks_lock:
-            if task_id in self.pending_tasks:
-                self.pending_tasks.remove(task_id)
-                self.links_loaded.emit(links, category_id, task_id)
-    
-    def _on_search_finished(self, search_results: List[Dict]):
-        """Обработка результатов поиска."""
-        self.search_results_ready.emit(search_results)
-    
-    def _on_update_finished(self, category_id: int):
-        """Обработка завершения обновления."""
-        self.logger.debug(f"Links order updated successfully for category {category_id}")
-    
-    def _on_favorites_counted(self, fav_count: int, links: List[Dict], link: Optional[Dict]):
-        """Обработка подсчета избранного."""
-        self.favorites_counted.emit(fav_count, links, link)
-    
-    def _on_worker_error(self, error_msg: str):
-        """Обработка ошибок воркеров."""
-        self.logger.error(f"Worker error: {error_msg}")
-        self.error_occurred.emit(error_msg)
-    
     def get_recent_links(self, limit: int = 10) -> List[Dict]:
         """Получить недавние ссылки."""
+        if limit <= 0:
+            self.logger.warning(f"Invalid limit for recent links: {limit}")
+            return []
+            
         try:
             return self.links_model.get_recent_links(limit)
         except Exception as e:
@@ -263,6 +263,9 @@ class LinksBusinessLogic(QObject):
     
     def get_link_by_id(self, link_id: int) -> Optional[Dict]:
         """Получает ссылку по ID."""
+        if not self._validate_link_id(link_id):
+            return None
+            
         try:
             return self.links_model.get_link_by_id(link_id)
         except Exception as e:
@@ -273,6 +276,10 @@ class LinksBusinessLogic(QObject):
     
     def get_next_position(self, category_id: int) -> int:
         """Получает следующую позицию для новой ссылки в категории."""
+        if not isinstance(category_id, int) or category_id <= 0:
+            self.logger.warning(f"Invalid category_id for get_next_position: {category_id}")
+            return 0
+            
         try:
             return self.links_model.get_next_position(category_id)
         except Exception as e:
@@ -281,18 +288,18 @@ class LinksBusinessLogic(QObject):
                 raise
             return 0
     
-    def get_links_for_category(self, category_id: int) -> List[Dict]:
-        """Получает все ссылки для категории."""
-        try:
-            return self.links_model.get_links_for_category(category_id)
-        except Exception as e:
-            self.logger.error(f"Ошибка получения ссылок для категории {category_id}: {e}")
-            if not handle_db_error(e, self):
-                raise
-            return []
-    
     def batch_update_links(self, links_data: List[Dict]) -> bool:
         """Выполняет пакетное обновление ссылок в транзакции."""
+        if not links_data:
+            self.logger.warning("Empty links_data for batch_update_links")
+            return True
+            
+        # Валидация всех ссылок перед обновлением
+        for i, link_data in enumerate(links_data):
+            if not self._validate_link_data(link_data, check_required_fields=False):
+                self.logger.error(f"Invalid link data at index {i}: {link_data}")
+                return False
+                
         try:
             return self.links_model.batch_update_links(links_data)
         except Exception as e:
@@ -313,10 +320,14 @@ class LinksBusinessLogic(QObject):
         Returns:
             ID созданной ссылки или None при ошибке
         """
+        if not self._validate_link_data(link_data):
+            self.logger.warning(f"Invalid link data for import: {link_data}")
+            return None
+            
         try:
             result_id = self.links_model.upsert_link(link_data)
             if result_id:
-                self.logger.info(f"Создана ссылка для импорта: {link_data.get('name', 'без имени')}")
+                self.logger.debug(f"Создана ссылка для импорта: {link_data.get('name', 'без имени')}")
                 return result_id
             else:
                 self.logger.warning("Не удалось создать ссылку для импорта")
@@ -326,3 +337,63 @@ class LinksBusinessLogic(QObject):
             if not handle_db_error(e, self):
                 raise
             return None
+    
+    # Приватные методы для валидации и вспомогательных операций
+    
+    def _validate_link_id(self, link_id: int) -> bool:
+        """Валидация ID ссылки."""
+        if not isinstance(link_id, int) or link_id <= 0:
+            self.logger.warning(f"Invalid link_id: {link_id}")
+            return False
+        return True
+    
+    def _validate_link_data(self, link_data: Dict, check_required_fields: bool = True) -> bool:
+        """Валидация данных ссылки."""
+        if not isinstance(link_data, dict):
+            return False
+            
+        if not link_data:
+            return False
+            
+        if check_required_fields:
+            required_fields = ['name', 'url', 'category_id']
+            missing_fields = [field for field in required_fields if field not in link_data or not link_data[field]]
+            if missing_fields:
+                self.logger.warning(f"Missing required fields: {missing_fields}")
+                return False
+                
+        return True
+    
+    def _get_all_links_safe(self) -> List[Dict]:
+        """Безопасное получение всех ссылок для внутреннего использования."""
+        try:
+            return self.links_model.get_all_links()
+        except Exception as e:
+            self.logger.error(f"Error getting all links: {e}")
+            return []
+    
+    # Слоты для обработки результатов воркеров
+    
+    def _on_links_loaded(self, links: List[Dict], category_id: int, task_id: int):
+        """Обработка загруженных ссылок."""
+        with tasks_lock:
+            if task_id in self.pending_tasks:
+                self.pending_tasks.remove(task_id)
+                self.links_loaded.emit(links, category_id, task_id)
+    
+    def _on_search_finished(self, search_results: List[Dict]):
+        """Обработка результатов поиска."""
+        self.search_results_ready.emit(search_results)
+    
+    def _on_update_finished(self, category_id: int):
+        """Обработка завершения обновления."""
+        self.logger.debug(f"Links order updated successfully for category {category_id}")
+    
+    def _on_favorites_counted(self, fav_count: int, links: List[Dict], link: Optional[Dict]):
+        """Обработка подсчета избранного."""
+        self.favorites_counted.emit(fav_count, links, link)
+    
+    def _on_worker_error(self, error_msg: str):
+        """Обработка ошибок воркеров."""
+        self.logger.error(f"Worker error: {error_msg}")
+        self.error_occurred.emit(str(error_msg))

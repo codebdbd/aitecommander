@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data import app_config
-from app.controllers.domain.structure.business import StructureBusinessLogic
+from app.controllers.domain.structure.structure_business import StructureBusinessLogic
 from app.controllers.ui.theme_controller import ThemeController
 from app.utils.ui.dialog_manager import DialogManager
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
