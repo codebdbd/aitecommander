@@ -68,6 +68,7 @@ class UtilityService:
             "category": category_data,
             "section": section_data,
             "sphere": sphere_data,
+            "sphere_id": sphere_id,
         }
 
     def get_target_section_id(
