@@ -54,7 +54,7 @@
     "tile_spacing": 12,
     "tile_padding": 10,
     "tile_icon_text_gap": 5,
-    "tile_text_font_size": 10,
+    "tile_text_font_size": 11,
     "tile_text_max_lines": 4,
     "tile_border_radius": 8,
     "tile_border_width": 2,
@@ -121,6 +121,11 @@
       0
     ],
     "main_layout_spacing": 0,
+    "layout": {
+      "margins": {
+        "bottom": [16, 4, 16, 4]
+      }
+    },
     "window": {
       "width": 1000,
       "height": 600,

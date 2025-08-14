@@ -110,17 +110,34 @@ class SaveLinkCommand(BaseCommand):
 
             from PyQt6.QtCore import QTimer
             logger = logging.getLogger(__name__)
-            
+
             logger.info(f"Focusing on new link ID {link_id}")
-            
-            # Получаем таблицу ссылок
-            links_table = getattr(self.main, 'table', None)
-            if links_table and hasattr(links_table, 'focus_on_link_id'):
-                # Отложенная фокусировка для корректного обновления UI
-                QTimer.singleShot(100, lambda: links_table.focus_on_link_id(link_id))
-            else:
-                logger.warning("Links table or focus method not available")
-                
+
+            # Надёжная фокусировка с повторными попытками, чтобы дождаться,
+            # когда таблица завершит перезаполнение после load_category()
+            def try_focus(remaining: int, interval_ms: int = 120):
+                links_table = getattr(self.main, 'table', None)
+                if not links_table or not hasattr(links_table, 'focus_on_link_id'):
+                    logger.warning("Links table or focus method not available")
+                    return
+
+                try:
+                    success = links_table.focus_on_link_id(link_id)
+                except Exception as e:
+                    logger.warning(f"focus_on_link_id raised: {e}")
+                    success = False
+
+                if success:
+                    logger.info(f"Focus set on link ID {link_id}")
+                elif remaining > 0:
+                    logger.debug(f"Link ID {link_id} not yet in table, retry in {interval_ms}ms (left={remaining})")
+                    QTimer.singleShot(interval_ms, lambda: try_focus(remaining - 1, interval_ms))
+                else:
+                    logger.warning(f"Failed to focus link ID {link_id} after retries")
+
+            # Первая попытка — чуть позже, чтобы дать UI обновиться
+            QTimer.singleShot(120, lambda: try_focus(remaining=10))
+
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Error focusing on new link: {e}")

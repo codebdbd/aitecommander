@@ -308,6 +308,10 @@ class StructureBusinessLogic(AsyncCompatMixin, UtilitiesMixin, SectionsMixin, Ca
         """Получает данные раздела для редактирования в диалоге."""
         return self.get_item_for_editing(section_id, "section")
 
+    def get_category_for_editing(self, category_id: int) -> Optional[Dict[str, Any]]:
+        """Получает данные категории для редактирования в диалоге."""
+        return self.get_item_for_editing(category_id, "category")
+
     # =============================================================================
     # МЕТОДЫ ДЛЯ ИМПОРТА И ИНТЕГРАЦИИ (СОВМЕСТИМОСТЬ)
     # =============================================================================

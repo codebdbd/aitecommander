@@ -82,8 +82,19 @@ class UIStateManager:
     def _switch_to_table_view(self) -> None:
         """Переключить UI на таблицу ссылок."""
         if hasattr(self.main, 'stack'):
-            table_index = app_config.get('ui.stack_indices.table', 1)
+            # Используем согласованный геттер конфигурации
+            table_index = app_config.get_stack_index_table()
+            count = self.main.stack.count() if hasattr(self.main.stack, 'count') else None
+            if count is not None and (table_index < 0 or table_index >= count):
+                self.logger.warning(f"Table index {table_index} out of range (count={count}). Forcing index=0.")
+                table_index = 0
+            self.logger.info(f"[UI] Switch to TABLE view: index={table_index}, stack_count={count}")
             self.main.stack.setCurrentIndex(table_index)
+            try:
+                cur = self.main.stack.currentIndex()
+                self.logger.info(f"[UI] Stack currentIndex after switch_to_table_view: {cur}")
+            except Exception:
+                pass
     
     def _handle_load_error(self) -> None:
         """Обработка ошибок загрузки категорий."""
@@ -98,10 +109,22 @@ class UIStateManager:
             if hasattr(self.main, 'tiles') and self.main.tiles:
                 self.main.tiles.set_categories(categories_data)
             
-            # 2. Переключаем стек на плитки категорий
-            if hasattr(self.main, 'stack'):
-                tiles_index = app_config.get('ui.stack_indices.tiles', 0)
+            # 2. Переключаем стек на плитки категорий ТОЛЬКО когда есть что показывать
+            #    Это предотвращает "пустой экран" при временном отсутствии выбора во время перезагрузки дерева
+            if hasattr(self.main, 'stack') and categories_data:
+                # Используем согласованный геттер конфигурации
+                tiles_index = app_config.get_stack_index_tiles()
+                count = self.main.stack.count() if hasattr(self.main.stack, 'count') else None
+                if count is not None and (tiles_index < 0 or tiles_index >= count):
+                    self.logger.warning(f"Tiles index {tiles_index} out of range (count={count}). Forcing index=0.")
+                    tiles_index = 0
+                self.logger.info(f"[UI] Switch to TILES view: index={tiles_index}, stack_count={count}, categories={len(categories_data)}")
                 self.main.stack.setCurrentIndex(tiles_index)
+                try:
+                    cur = self.main.stack.currentIndex()
+                    self.logger.info(f"[UI] Stack currentIndex after switch_to_category_tiles: {cur}")
+                except Exception:
+                    pass
                 
         except Exception as e:
             self.logger.exception(f"Ошибка при переключении на плитки категорий: {e}")
