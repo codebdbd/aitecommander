@@ -106,15 +106,21 @@
     "tree_icon_size": 28,
     "top_panel_icon_size": 24,
     "top_panel_search_width": 320,
-    "top_bar_margins": [8, 4, 16, 4],
+    "top_panel_search_min_width": 160,
+    "top_bar_margins": [
+      0,
+      4,
+      0,
+      4
+    ],
     "splitter_handle_width": 1,
     "splitter_stretch_factors": [
-      1,
-      3
+      0,
+      1
     ],
     "splitter_sizes": [
-      250,
-      750
+      280,
+      744
     ],
     "main_layout_margins": [
       0,
@@ -125,16 +131,23 @@
     "main_layout_spacing": 0,
     "layout": {
       "margins": {
-        "bottom": [16, 4, 16, 4]
+        "bottom": [
+          16,
+          4,
+          16,
+          4
+        ]
       },
       "spacing": {
-        "top_bar": 6
+        "top_bar": 8,
+        "top_bar_buttons": 8,
+        "top_bar_widgets_side": 8
       }
     },
     "window": {
-      "width": 1000,
-      "height": 600,
-      "min_width": 800,
+      "width": 1024,
+      "height": 768,
+      "min_width": 330,
       "min_height": 600
     },
     "menu_font_size": 12,
@@ -147,11 +160,20 @@
     "tree_item_height": 32,
     "table_item_height": 28,
     "separator_width": 1,
-    "separator_height": 28
+    "separator_height": 28,
+    "topbar": {
+      "throttle_ms": 0,
+      "log_info": false,
+      "min_visible": {
+        "recent": 0,
+        "fav": 0,
+        "quick": 1
+      }
+    }
   },
   "paths": {
     "link_icons_dir": "resources/link_icons",
-    "qss_dir": "app/views/resources/qss",
+    "qss_dir": "views/resources/qss",
     "themes_manifest": "resources/themes/manifest.json",
     "chrome_profiles_dir": "resources/browser_profiles/chrome",
     "firefox_profiles_dir": "resources/browser_profiles/firefox",
@@ -160,7 +182,7 @@
     "vivaldi_profiles_dir": "resources/browser_profiles/vivaldi",
     "opera_profiles_dir": "resources/browser_profiles/opera",
     "yandex_profiles_dir": "resources/browser_profiles/yandex",
-    "ui_icons_dir": "app/resources/icons",
+    "ui_icons_dir": "views/resources/ui_icons",
     "user_icons_dir": "icons",
     "config_dir": "config",
     "logs_dir": "logs",

@@ -18,7 +18,8 @@ class QuickAddWidget(BasePanelWidget):
     
     def __init__(self, main_window=None, links_controller=None, category_provider=None):
         super().__init__()
-        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        # Единая политика размеров, как у Favorites/Recent — не растягиваемся по горизонтали
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.setObjectName("quickAddPanel")
         self.bg_frame.setObjectName("quickAddPanelBg")
         
@@ -41,6 +42,9 @@ class QuickAddWidget(BasePanelWidget):
             btn.setObjectName("quickButton")  # Для CSS стилизации
             btn.setFixedSize(button_size, button_size)
             btn.setIconSize(icon_size)
+            # Не позволяем сжимать кнопку в лейауте
+            from PyQt6.QtWidgets import QSizePolicy
+            btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
             icon_path = icon_path_service.get_ui_icons_dir() / icon_name
             if icon_path.exists():
                 btn.setIcon(create_icon_from_path(str(icon_path)))

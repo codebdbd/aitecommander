@@ -27,10 +27,12 @@ class RecentLinksWidget(BaseLinksPanelWidget):
     def __init__(self, main_window):
         # Больше не передаем links_business/db в базовый класс
         super().__init__(main_window)
-        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        # Фиксируем ширину панели, чтобы кнопки не сжимались — ширина определяется числом видимых кнопок
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.setObjectName("recentPanel")
         self.bg_frame.setObjectName("recentPanelBg")
         self._default_icon_path = self._get_default_icon_path()
+
 
         # Первичное обновление выполняется после подключения сигналов
 

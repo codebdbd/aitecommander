@@ -319,6 +319,14 @@ class AppConfig:
         """Получение расстояния между элементами верхней панели."""
         return self.ui.get_top_bar_spacing()
 
+    def get_top_bar_buttons_spacing(self) -> int:
+        """Внутренний spacing между кнопками в панелях топ-бара."""
+        return self.ui.get_top_bar_buttons_spacing()
+
+    def get_top_bar_widgets_side_spacing(self) -> int:
+        """Боковой отступ с каждой стороны для виджетов топ-бара (между соседями = 2*side)."""
+        return self.ui.get_top_bar_widgets_side_spacing()
+
     def get_link_dialog_width(self) -> int:
         """Получение ширины диалога добавления/редактирования ссылки."""
         return self.ui.get_link_dialog_width()

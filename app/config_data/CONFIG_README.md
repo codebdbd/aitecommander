@@ -40,9 +40,12 @@
 - **`ui.panel_button_spacing`** (5) - расстояние между кнопками в панели в пикселях
 
 ## Параметры путей
-- **`paths.icons_cache`** - путь к кэшу иконок
-- **`paths.icons_custom`** - путь к пользовательским иконкам
-- **`paths.icons_default`** - путь к стандартным иконкам
+- **`paths.qss_dir`** - директория с QSS-ресурсами (ранее `settings.paths.qss`)
+- **`paths.themes_manifest`** - путь к манифесту тем
+- **`paths.ui_icons_dir`** - директория стандартных UI-иконок (ранее `settings.paths.ui_icons`)
+- **`paths.user_icons_dir`** - директория пользовательских иконок (по умолчанию `%APPDATA%/Org/App/icons`)
+- **`paths.logs_dir`** - директория логов пользователя (по умолчанию `%APPDATA%/Org/App/logs`)
+- **`paths.config_dir`** - директория пользовательской конфигурации (по умолчанию `%APPDATA%/Org/App/config`)
 
 ## Параметры лимитов
 - **`limits.max_links_per_category`** (1000) - максимальное количество ссылок в одной категории
@@ -91,3 +94,31 @@
 - Размеры шрифтов указываются в пунктах
 - Изменения вступают в силу после перезапуска приложения
 - Некоторые параметры требуют перезапуска для применения
+
+## Изменения и обратная совместимость
+
+- UI:
+  - `ui.main_window_title` — актуальный ключ для заголовка окна.
+    - Обратная совместимость: при отсутствии читается `ui.window.title`.
+  - Размеры окна берутся из `ui.window.width` и `ui.window.height`.
+    - Обратная совместимость: при отсутствии используется `ui.main_window_size` [w, h].
+  - Размер плитки определяется ключами `ui.tile_width` и `ui.tile_height`.
+    - Обратная совместимость: при отсутствии поддерживается устаревший `ui.tile_size` (int или [w, h]).
+
+- Пути:
+  - `paths.qss_dir` заменяет устаревший `settings.paths.qss`.
+  - `paths.ui_icons_dir` заменяет устаревший `settings.paths.ui_icons`.
+  - Можно переопределять пользовательские директории через `paths.user_icons_dir`, `paths.logs_dir`, `paths.config_dir`.
+
+- Приложение:
+  - Используйте `app.version`, `app.about_title`, `app.about_text`.
+    - Обратная совместимость: поддерживаются устаревшие ключи `application.version`, `application.about_title`, `application.about_text`.
+  - Ключи `application.debug` и `application.log_level` пока остаются как есть (могут быть перенесены в будущем).
+
+- Лимиты и БД:
+  - `limits.max_backups` — актуальный ключ количества резервных копий.
+    - Обратная совместимость: `database.max_backups` (устаревший).
+
+- MIME-типы:
+  - Предпочтительно использовать `settings.mime_types.link` и `settings.mime_types.category`.
+  - Ключи `paths.mime_type_link` и `paths.mime_type_category` считаются устаревшими и не используются кодом.

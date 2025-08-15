@@ -14,6 +14,8 @@ from PyQt6.QtWidgets import (
     QAbstractItemView,
     QFrame,
     QHBoxLayout,
+    QLayout,
+    QSizePolicy,
     QTableWidget,
     QToolButton,
     QVBoxLayout,
@@ -37,7 +39,11 @@ class BasePanelWidget(QWidget):
         self.layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.layout.setContentsMargins(0, 0, 0, 0)
         # Унификация spacing панелей с верхним тулбаром
-        self.layout.setSpacing(app_config.get('ui.layout.spacing.top_bar', 6))
+        self.layout.setSpacing(app_config.get_top_bar_buttons_spacing())
+        # ВАЖНО: фиксируем размер по содержимому, чтобы spacing между кнопками никогда не менялся
+        self.layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
+        # По умолчанию панель не растягивается, размеры определяются содержимым
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self.bg_frame)
@@ -85,6 +91,9 @@ class BaseLinksPanelWidget(BasePanelWidget):
         icon_size = app_config.get_top_panel_icon_size()
         button.setFixedSize(button_size, button_size)
         button.setIconSize(icon_size)
+        # Не позволяем лейаутам сжимать кнопку — она фиксированная
+        from PyQt6.QtWidgets import QSizePolicy
+        button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         
         # Находим и создаем иконку
         icon_path = self._find_icon(link_data.get("icon_path", ""))

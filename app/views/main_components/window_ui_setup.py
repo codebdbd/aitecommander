@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QObject, QEvent
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -35,8 +35,111 @@ from app.views.favorites_widget import FavoritesWidget
 from app.views.link import LinksTableView
 from app.views.quick_add_widget import QuickAddWidget
 from app.views.recent_links_widget import RecentLinksWidget
+from app.views.main_components.top_bar_layout_manager import TopBarLayoutManager
 from .common import create_font
 from app.views.effects.neon_effect import NeonEventFilter
+
+
+class _AutoHideTreeFilter(QObject):
+    """Фильтр событий адаптации UI при узком окне.
+    При ширине окна <= threshold:
+      - сворачивает левую панель (splitter: left=0)
+      - скрывает панели топ-бара (QuickAdd, Favorites, Recent), оставляя только поиск
+      - переключает правую область на таблицу (table-only)
+    При расширении окна восстанавливает предыдущее состояние.
+    """
+
+    def __init__(self, window, threshold_width: int, default_sizes: list[int]):
+        super().__init__(window)
+        self.window = window
+        self.threshold = int(threshold_width)
+        self.default_sizes = default_sizes[:] if isinstance(default_sizes, (list, tuple)) else [250, 750]
+        self._is_collapsed = False
+        self._saved_splitter_sizes = None
+        self._prev_stack_index = None
+
+    def _apply(self):
+        w = self.window.width()
+        splitter = getattr(self.window, 'splitter', None)
+        stack = getattr(self.window, 'stack', None)
+        table = getattr(self.window, 'table', None)
+
+        if w <= self.threshold:
+            # Если ещё не сворачивали — сохранить состояние и свернуть левую панель, переключить стек на таблицу
+            if not self._is_collapsed:
+                try:
+                    if splitter is not None:
+                        self._saved_splitter_sizes = splitter.sizes()
+                except Exception:
+                    self._saved_splitter_sizes = None
+                try:
+                    if stack is not None:
+                        self._prev_stack_index = stack.currentIndex()
+                except Exception:
+                    self._prev_stack_index = None
+
+                if splitter is not None:
+                    try:
+                        splitter.setCollapsible(0, True)
+                        splitter.setSizes([0, max(1, w)])
+                    except Exception:
+                        pass
+
+                if stack is not None and table is not None:
+                    try:
+                        for i in range(stack.count()):
+                            wgt = stack.widget(i)
+                            if wgt is table:
+                                stack.setCurrentIndex(i)
+                                break
+                    except Exception:
+                        pass
+                self._is_collapsed = True
+
+            # Независимо от состояния — скрыть панели топ-бара на каждом вызове (на случай добавления новых)
+            for attr in ('quick_add_widget', 'fav_widget', 'recent_links_widget'):
+                try:
+                    panel = getattr(self.window, attr, None)
+                    if panel is not None:
+                        panel.setVisible(False)
+                except Exception:
+                    pass
+
+        elif w > self.threshold and self._is_collapsed:
+            # Восстановить размеры сплиттера
+            if splitter is not None:
+                try:
+                    if self._saved_splitter_sizes and len(self._saved_splitter_sizes) == 2:
+                        splitter.setSizes(self._saved_splitter_sizes)
+                    else:
+                        sizes = [int(x) for x in self.default_sizes]
+                        splitter.setSizes(sizes)
+                except Exception:
+                    pass
+
+            # Показать панели топ-бара обратно
+            for attr in ('quick_add_widget', 'fav_widget', 'recent_links_widget'):
+                try:
+                    panel = getattr(self.window, attr, None)
+                    if panel is not None:
+                        panel.setVisible(True)
+                except Exception:
+                    pass
+
+            # Восстановить предыдущий вид правой области (если был сохранён)
+            if stack is not None and self._prev_stack_index is not None:
+                try:
+                    if 0 <= self._prev_stack_index < stack.count():
+                        stack.setCurrentIndex(self._prev_stack_index)
+                except Exception:
+                    pass
+
+            self._is_collapsed = False
+
+    def eventFilter(self, obj, event):
+        if obj is self.window and event.type() == QEvent.Type.Resize:
+            self._apply()
+        return super().eventFilter(obj, event)
 
 
 class WindowUISetup:
@@ -98,11 +201,14 @@ class WindowUISetup:
         h_line_top.setProperty("class", "separator")
         container_layout.addWidget(h_line_top)
         
-        # Создание top_bar
+        # Создание top_bar: без разделителей, только spacing и внешние маргины по side
         top_bar = QHBoxLayout()
-        top_bar.setContentsMargins(*app_config.get_top_bar_margins())
-        # Фиксированное расстояние между виджетами тулбара для консистентности
-        top_bar.setSpacing(app_config.get_top_bar_spacing())
+        try:
+            side = int(app_config.get_top_bar_widgets_side_spacing())
+        except Exception:
+            side = 8
+        top_bar.setContentsMargins(side, 0, side, 0)
+        top_bar.setSpacing(side * 2)
         top_bar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         
         self.setup_top_bar_widgets(top_bar)
@@ -127,6 +233,13 @@ class WindowUISetup:
         # Проактивно навесим фильтр на уже созданные дочерние элементы
         for w in top_panel_container.findChildren((QPushButton, QToolButton, QLineEdit)):
             w.installEventFilter(self.window._neon_top_filter)
+
+        # Адаптивный менеджер верхней панели
+        try:
+            self.window._topbar_manager = TopBarLayoutManager(self.window)
+        except Exception:
+            # Не блокируем инициализацию UI при ошибке менеджера
+            self.window._topbar_manager = None
     
     def setup_top_bar_widgets(self, top_bar):
         """Настройка виджетов верхней панели."""
@@ -142,20 +255,8 @@ class WindowUISetup:
         self.window.recent_links_widget = None
         self.window.db_for_delayed_init = self.window_initializer.db
         
-        # Разделители
-        fav_quick_separator_before = QWidget()
-        fav_quick_separator_before.setObjectName("favQuickSeparatorBefore")
-        fav_quick_separator_before.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
-        # Геометрия разделителя из конфига
-        try:
-            sep_w = int(app_config.get_separator_width())
-            sep_h = int(app_config.get_separator_height())
-        except Exception:
-            sep_w, sep_h = 1, 28
-        fav_quick_separator_before.setFixedWidth(sep_w)
-        fav_quick_separator_before.setMinimumHeight(sep_h)
-        top_bar.addWidget(fav_quick_separator_before)
-        
+        # Без разделителей: первый виджет идёт сразу слева, отступы заданы маргинами и spacing
+
         self.window.fav_widget = None
         def initialize_delayed_widgets():
             from .delayed_widgets_initializer import DelayedWidgetsInitializer
@@ -164,19 +265,13 @@ class WindowUISetup:
         
         self.window.shown.connect(initialize_delayed_widgets)
         
-        fav_quick_separator = QWidget()
-        fav_quick_separator.setObjectName("favQuickSeparatorAfter")
-        fav_quick_separator.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
-        fav_quick_separator.setFixedWidth(sep_w)
-        fav_quick_separator.setMinimumHeight(sep_h)
-        top_bar.addWidget(fav_quick_separator)
-        
         # Панель быстрых кнопок - создается позже в WindowControllersSetup после создания контроллеров
         # Оставляем место для QuickAddWidget
         self.window.quick_add_widget = None
         
         # Поле поиска
         self.setup_search_widget(top_bar)
+
     
     def setup_search_widget(self, top_bar):
         """Настройка поля поиска."""
@@ -184,8 +279,8 @@ class WindowUISetup:
         self.window.search.setPlaceholderText(app_config.get_search_placeholder())
         self.window.search.setClearButtonEnabled(True)
         self.window.search.setMinimumHeight(28)
-        # Ширина поиска из конфига
-        self.window.search.setFixedWidth(app_config.get_top_panel_search_width())
+        # Разрешаем горизонтальное сжатие/растяжение
+        self.window.search.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.window.search.setObjectName('mainSearch')
         
         self.window.search.setFont(create_font(11))
@@ -303,6 +398,11 @@ class WindowUISetup:
             self.window.splitter.setHandleWidth(int(app_config.get_splitter_handle_width()))
         except Exception:
             self.window.splitter.setHandleWidth(1)
+        # Разрешаем сворачивание левой панели
+        try:
+            self.window.splitter.setCollapsible(0, True)
+        except Exception:
+            pass
         self.window.splitter.addWidget(self.window.left_panel)
         self.window.splitter.addWidget(right_panel)
         
@@ -315,6 +415,22 @@ class WindowUISetup:
         splitter_sizes = app_config.get_splitter_sizes()
         self.window.splitter.setSizes(splitter_sizes)
         self.window._first_structure_load = True
+
+        # Установка фильтра авто-скрытия дерева при узком окне
+        try:
+            min_w = int(app_config.get_window_min_width())
+        except Exception:
+            min_w = 280
+        try:
+            self.window._auto_hide_tree_filter = _AutoHideTreeFilter(
+                self.window, threshold_width=min_w, default_sizes=splitter_sizes
+            )
+            self.window.installEventFilter(self.window._auto_hide_tree_filter)
+            # Один раз применим после инициализации
+            self.window._auto_hide_tree_filter._apply()
+        except Exception:
+            # Не блокируем UI, если что-то пойдёт не так
+            pass
         
         # QStackedLayout ломает стандартную Tab-навигацию Qt
         # Используем кастомную обработку через NavigationKeyHandler
@@ -385,6 +501,14 @@ class WindowUISetup:
         """Настройка базовых свойств окна."""
         self.window.setWindowTitle(app_config.get_main_window_title())
         self.window.resize(*app_config.get_main_window_size())
+        # Применяем минимальные размеры окна из конфига, чтобы окно могло сжиматься
+        try:
+            min_w = int(app_config.get_window_min_width())
+            min_h = int(app_config.get_window_min_height())
+            self.window.setMinimumSize(min_w, min_h)
+        except Exception:
+            # В случае некорректных значений не блокируем инициализацию
+            pass
         
         # Настройка иконки
         if hasattr(sys, '_MEIPASS'):
