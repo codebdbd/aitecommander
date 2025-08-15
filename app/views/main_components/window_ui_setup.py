@@ -144,7 +144,7 @@ class _AutoHideTreeFilter(QObject):
 
 class WindowUISetup:
     """Компонент для настройки UI-элементов главного окна."""
-    
+
     def __init__(self, window_initializer):
         self.window_initializer = window_initializer
         self.window = window_initializer.window
@@ -332,7 +332,7 @@ class WindowUISetup:
         if hasattr(self.window.tree, 'update_font_size'):
             self.window.tree.update_font_size(font_size)
         left_layout.addWidget(self.window.tree)
-        
+    
         # Панель сфер
         self.setup_spheres_bar(left_layout)
     

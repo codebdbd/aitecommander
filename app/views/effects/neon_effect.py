@@ -11,6 +11,15 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QToolButton,
     QLineEdit,
+    QAbstractItemView,
+    QTextEdit,
+    QPlainTextEdit,
+    QComboBox,
+    QSpinBox,
+    QDoubleSpinBox,
+    QDateEdit,
+    QTimeEdit,
+    QDateTimeEdit,
 )
 
 
@@ -43,8 +52,24 @@ class NeonEventFilter(QObject):
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         et = event.type()
 
-        # Интересуют только кнопки и поле ввода
-        if isinstance(watched, (QPushButton, QToolButton, QLineEdit)):
+        # Интересуют кнопки, поля ввода и представления списков/таблиц
+        if isinstance(
+            watched,
+            (
+                QPushButton,
+                QToolButton,
+                QLineEdit,
+                QTextEdit,
+                QPlainTextEdit,
+                QComboBox,
+                QSpinBox,
+                QDoubleSpinBox,
+                QDateEdit,
+                QTimeEdit,
+                QDateTimeEdit,
+                QAbstractItemView,
+            ),
+        ):
             # Наведение / фокус
             if et in (QEvent.Type.Enter, QEvent.Type.FocusIn):
                 self._apply_effect(watched)
@@ -70,7 +95,21 @@ class NeonEventFilter(QObject):
 
     # ---- helpers ---------------------------------------------------------
     def _attach_to_tree(self, w: QWidget) -> None:
-        if isinstance(w, (QPushButton, QToolButton, QLineEdit)):
+        eligible = (
+            QPushButton,
+            QToolButton,
+            QLineEdit,
+            QTextEdit,
+            QPlainTextEdit,
+            QComboBox,
+            QSpinBox,
+            QDoubleSpinBox,
+            QDateEdit,
+            QTimeEdit,
+            QDateTimeEdit,
+            QAbstractItemView,
+        )
+        if isinstance(w, eligible):
             w.installEventFilter(self)
             self._maybe_connect_toggled(w)
             # Синхронизируем эффект с текущим состоянием checked
@@ -78,7 +117,7 @@ class NeonEventFilter(QObject):
                 self._apply_effect(w)
         # Рекурсивно обходим текущих потомков
         for child in w.findChildren(QWidget):
-            if isinstance(child, (QPushButton, QToolButton, QLineEdit)):
+            if isinstance(child, eligible):
                 child.installEventFilter(self)
                 self._maybe_connect_toggled(child)
                 if self._is_active_checked_button(child):
