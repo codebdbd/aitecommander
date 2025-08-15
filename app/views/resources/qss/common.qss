@@ -1,17 +1,57 @@
+/* ===============================================================
+   COMMON.QSS — Общие стили для всех тем (dark/light)
+   Здесь задаются нейтральные (без цветов) базовые параметры:
+   - геометрия (отступы, ширины, высоты, радиусы)
+   - видимость рамок (но не их цвет)
+   - общая типографика
+
+   Цвета и конкретные оттенки переопределяются в файлах темы:
+   - dark.qss, light.qss
+
+   Важно: специфичные функции UI (верхняя панель, панели избранного/недавних,
+   панель сфер, таблицы, меню) имеют отдельные блоки ниже с комментариями.
+   =============================================================== */
 /* Common styles for all themes */
 
+/* ---------------------------------------------------------------
+   ИНДЕКС НАСТРАИВАЕМЫХ ПАРАМЕТРОВ (из app_config.json -> ui)
+   - menu_font_size, menu_icon_size, menu_indicator_size
+   - menubar_font_size, menubar_item_height
+   - top_panel_container_height, top_bar_margins
+   - scrollbar_width, scrollbar_height
+   - tree_item_height, table_item_height
+   - separator_height
+   - splitter_handle_width
+   - spheres_bar_height, spheres_layout_margins, spheres_bar_margin_left/right
+   - default_font_size (общая типографика; может применяться из кода)
+   - top_panel_icon_size, quick_button_size (размеры кнопок/иконок верхней панели — задаются из кода)
+   Примечание: часть параметров применяется из Python-кода (layout spacing/margins,
+   фиксированные размеры виджетов) и здесь только документируется, чтобы было ясно,
+   где искать настройку.
+   --------------------------------------------------------------- */
+
+/* Левая панель (контейнер дерева + панель сфер) */
 QWidget#LeftPanel {
     border: none;
 }
 
+/* Кнопки на панели сфер (только рамка, без цвета). Цвет задаёт тема */
 QWidget#spheres_bar QToolButton {
     border: 2px solid;
 }
 
+/* Любые QToolButton внутри левой панели: базово без рамки (цвет добавит тема) */
 QWidget#LeftPanel QToolButton {
     border: none;
 }
 
+/* =========================
+   Меню (контекстные/выпадающие)
+   Настройка из конфигурации:
+   - ui.menu_font_size
+   - ui.menu_icon_size
+   - ui.menu_indicator_size
+   ========================= */
 QMenu {
     border-radius: 0px;
     padding: 0 0 6px 0;
@@ -30,7 +70,7 @@ QMenu::item {
 
 QMenu::icon {
     padding-left: 16px;
-    /* width и height устанавливаются динамически из config_loader.get_menu_icon_size() */
+    /* width/height: из ui.menu_icon_size (config_loader.get_menu_icon_size()) */
 }
 
 QMenu::separator {
@@ -54,7 +94,7 @@ QMenu::item:!has-icon {
 }
 
 QMenu::indicator {
-    /* width и height устанавливаются динамически из config_loader.get_menu_indicator_size() */
+    /* width/height: из ui.menu_indicator_size (config_loader.get_menu_indicator_size()) */
     margin-left: 4px;
 }
 
@@ -62,9 +102,15 @@ QMenu::indicator:checked {
     border-radius: 3px;
 }
 
-QTreeView {
-}
+/* Дефолт на TreeView — все визуальные параметры задаются темами */
+QTreeView {}
 
+/* =========================
+   Меню-бар (верхнее системное меню)
+   Настройка из конфигурации:
+   - ui.menubar_font_size
+   - ui.menubar_item_height
+   ========================= */
 QMenuBar {
     padding: 0;
     border: none;
@@ -77,7 +123,7 @@ QMenuBar::item {
     padding: 4px 10px;
     border-radius: 0;
     margin: 0;
-    /* font-size и min-height устанавливаются динамически из config_loader */
+    /* font-size: из ui.menubar_font_size; min-height: из ui.menubar_item_height */
     font-weight: normal;
 }
 
@@ -93,11 +139,17 @@ QMenuBar QMenu::item {
     min-height: 24px;
 }
 
-QWidget {
-    font-family: "Segoe UI", sans-serif;
-}
+/* Базовая типографика для всех виджетов */
+QWidget { font-family: "Segoe UI", sans-serif; }
 
-/* --- Top Panel Backgrounds (no colors) --- */
+/* =========================
+   Верхняя панель — фоновые фреймы панелей (без цветов)
+   Доп. настройка из кода:
+   - ui.top_panel_container_height (fixedHeight контейнера)
+   - ui.top_bar_margins (отступы layout сверху/снизу/слева/справа)
+   - ui.layout.spacing.top_bar (расстояние между элементами тулбара)
+   - ui.top_panel_icon_size, ui.quick_button_size (размеры кнопок/иконок)
+   ========================= */
 QFrame#favPanelBg,
 QFrame#recentPanelBg,
 QFrame#quickAddPanelBg {
@@ -107,6 +159,7 @@ QFrame#quickAddPanelBg {
     padding: 0 8px;
 }
 
+/* Поле поиска в верхней панели (общие размеры и внутренние отступы) */
 QWidget#topPanelContainer QLineEdit {
     border-radius: 0;
     min-height: 32px;
@@ -116,6 +169,9 @@ QWidget#topPanelContainer QLineEdit {
     vertical-align: middle;
 }
 
+/* Контейнер верхней панели и его прямые дети — без внешних отступов
+   Примечание: высота контейнера задаётся из кода (ui.top_panel_container_height),
+   отступы/spacing layout — из кода (ui.top_bar_margins, ui.layout.spacing.top_bar) */
 QWidget#topPanelContainer {
     margin: 0;
     padding: 0;
@@ -131,8 +187,11 @@ QWidget#topPanelContainer QToolButton {
     border-radius: 6px;
     padding: 2px;
     margin: 0;
+    /* Размеры кнопок и иконок верхней панели выставляются из кода
+       (например, ui.top_panel_icon_size, ui.quick_button_size) */
 }
 
+/* Поле поиска — альтернативный профиль размеров (используется в некоторых конфигурациях) */
 QWidget#topPanelContainer QLineEdit {
     border: 1px solid;
     border-radius: 0;
@@ -141,6 +200,9 @@ QWidget#topPanelContainer QLineEdit {
     padding: 0 8px;
 }
 
+/* =========================
+   Базовые кнопки (вне верхней панели)
+   ========================= */
 QPushButton {
     border: 1px solid;
     border-radius: 4px;
@@ -151,6 +213,11 @@ QPushButton:pressed {
     border-style: inset;
 }
 
+
+
+/* =========================
+   QToolButton (общие правила вне верхней панели)
+   ========================= */
 QToolButton {
     border: 1px solid;
     padding: 4px 8px;
@@ -169,12 +236,16 @@ QToolButton:checked {
     border: 1px solid;
 }
 
+/* Поля ввода (общие) */
 QLineEdit, QTextEdit, QComboBox, QSpinBox {
     border: 1px solid;
     border-radius: 0;
     padding: 2px;
 }
 
+
+
+/* Выпадающий список у QComboBox */
 QComboBox QAbstractItemView {
     border: 1px solid;
     border-radius: 0;
@@ -185,15 +256,19 @@ QComboBox QAbstractItemView::item {
     padding-left: 4px;
 }
 
+/* Заголовки колонок в таблицах/деревьях */
 QHeaderView::section {
     border-right: 1px solid;
     padding: 4px;
 }
 
+
+
 QHeaderView::section:last {
     border-right: none;
 }
 
+/* Лейбл пути в статус-баре */
 QLabel#pathLabel {
     font-weight: normal;
     padding: 2px 8px;
@@ -206,6 +281,7 @@ QTableWidget QTableCornerButton::section:first {
 QTableWidget QTableCornerButton::section:alternate {
 }
 
+/* Таблицы — базовая раскладка без рамок (цвета — в темах) */
 QTableWidget {
     border: none;
     border-radius: 0;
@@ -217,6 +293,8 @@ QTableWidget::item {
     border-radius: 0px;
 }
 
+
+
 QTreeWidget::item:selected,
 QTableWidget::item:selected {
     border-radius: 0px;
@@ -226,6 +304,8 @@ QTreeWidget::item:hover {
     border-radius: 0px;
 }
 
+/* Горизонтальные/вертикальные разделители (фон/цвета задаются темами)
+   Высота задаётся из конфигурации: ui.separator_height (app_config.json: ui.separator.height) */
 QWidget[class="separator"] {
     border: none;
     min-height: 1px;
@@ -234,6 +314,9 @@ QWidget[class="separator"] {
     padding: 0;
 }
 
+/* =========================
+   Статус-бар
+   ========================= */
 QStatusBar {
     border-top: 1px solid;
 }
@@ -242,28 +325,27 @@ QStatusBar::item {
     border: none;
 }
 
+/* Нижняя панель (контейнер) */
 QWidget#bottomBarContainer {
     border: none !important;
     border-top: 1px solid;
     border-bottom: 1px solid;
 }
 
+/* Тонкие вертикальные разделители в верхней панели
+   Геометрия (width/height) задаётся ТОЛЬКО из кода через app_config:
+   - ui.separator_width, ui.separator_height */
 QWidget#favQuickSeparatorBefore,
 QWidget#favQuickSeparatorAfter {
-    min-width: 1px;
-    max-width: 1px;
-    width: 1px;
-    /* min-height устанавливается динамически из config_loader.get_separator_height() */
+    /* geometry set in code */
 }
 
-QWidget[class="vertical_separator"] {
-    min-width: 1px;
-    max-width: 1px;
-}
+/* Универсальный вертикальный разделитель (геометрия задаётся из кода при создании) */
+QWidget[class="vertical_separator"] {}
 
-QSplitter::handle {
-    width: 1px;
-}
+/* Ползунок сплиттера (толщина/геометрия)
+   Толщина задаётся из кода: ui.splitter_handle_width */
+QSplitter::handle {}
 
 QSplitter::handle:horizontal {
     margin: 0;
@@ -276,9 +358,14 @@ QSplitter::handle:vertical {
 }
 
 QTreeWidget::item {
-    /* min-height устанавливается динамически из config_loader.get_table_item_height() */
+    /* min-height: из ui.tree_item_height (config_loader.get_tree_item_height()) */
 }
 
+/* Панель сфер — контейнер (геометрия и скругления без цветов)
+   Настройка из конфигурации (применяется из кода):
+   - ui.spheres_bar_height
+   - ui.spheres_layout_margins
+   - ui.spheres_bar_margin_left, ui.spheres_bar_margin_right */
 #spheres_bar {
     border: none;
     margin-bottom: 0;
@@ -286,10 +373,13 @@ QTreeWidget::item {
     padding: 0;
 }
 
+/* Любые скролл-области — убираем рамку (цвета — в темах) */
 QAbstractScrollArea {
     border: none;
 }
 
+/* Скроллбар вертикальный (размеры — из конфигурации)
+   Ширина: ui.scrollbar_width */
 QScrollBar:vertical {
     border: none;
     /* width устанавливается динамически из config_loader.get_scrollbar_width() */
@@ -314,6 +404,8 @@ QScrollBar::sub-line:vertical {
     subcontrol-origin: margin;
 }
 
+/* Скроллбар горизонтальный (размеры — из конфигурации)
+   Высота: ui.scrollbar_height */
 QScrollBar:horizontal {
     border: none;
     /* height устанавливается динамически из config_loader.get_scrollbar_height() */

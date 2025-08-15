@@ -71,7 +71,9 @@ class UIConfig(BaseConfig):
 
     def get_link_table_headers(self) -> list:
         """Получение заголовков колонок таблицы ссылок."""
-        return self.get("ui.link_table_headers", ["★", "Название", "Последний запуск", "Заметки"])
+        # Исторически существовало два ключа: link_table_headers и links_table_headers.
+        # Используем единый источник правды: ui.links_table_headers
+        return self.get("ui.links_table_headers", ["★", "Название", "Последний запуск", "Заметки"])
 
     def get_fixed_button_width(self) -> int:
         """Получение фиксированной ширины стандартных кнопок."""
@@ -85,7 +87,12 @@ class UIConfig(BaseConfig):
 
     def get_tile_icon_size(self) -> list:
         """Получение размера иконки на плитке категорий."""
-        return self.get("ui.tile_icon_size", [64, 64])
+        size = self.get("ui.tile_icon_size", [64, 64])
+        if isinstance(size, int):
+            return [size, size]
+        if isinstance(size, (list, tuple)) and len(size) >= 2:
+            return [size[0], size[1]]
+        return [64, 64]
 
     def get_tile_spacing(self) -> int:
         """Получение расстояния между плитками категорий."""
@@ -165,7 +172,16 @@ class UIConfig(BaseConfig):
 
     def get_quick_add_button_size(self) -> list:
         """Получение размера кнопок быстрого доступа."""
-        return self.get("ui.quick_add_button_size", [32, 32])
+        # Поддерживаем оба ключа для обратной совместимости:
+        # ui.quick_add_button_size (новый) и ui.quick_button_size (старый, int)
+        size = self.get("ui.quick_add_button_size")
+        if size is None:
+            size = self.get("ui.quick_button_size", 32)
+        if isinstance(size, int):
+            return [size, size]
+        if isinstance(size, (list, tuple)) and len(size) >= 2:
+            return [size[0], size[1]]
+        return [32, 32]
     
     def get_top_panel_button_size(self) -> int:
         """Единый размер для ВСЕХ кнопок в топпанели."""
@@ -181,7 +197,12 @@ class UIConfig(BaseConfig):
 
     def get_tree_icon_size(self) -> list:
         """Получение размера иконок в дереве структуры."""
-        return self.get("ui.tree_icon_size", [28, 28])
+        size = self.get("ui.tree_icon_size", [28, 28])
+        if isinstance(size, int):
+            return [size, size]
+        if isinstance(size, (list, tuple)) and len(size) >= 2:
+            return [size[0], size[1]]
+        return [28, 28]
     
     # === Сплиттер ===
 
@@ -208,6 +229,10 @@ class UIConfig(BaseConfig):
     def get_top_panel_container_height(self) -> int:
         """Получение высоты контейнера верхней панели."""
         return self.get("ui.top_panel_container_height", 48)
+
+    def get_top_panel_search_width(self) -> int:
+        """Получение ширины поля поиска в верхней панели."""
+        return self.get("ui.top_panel_search_width", 320)
 
     def get_stack_index_tiles(self) -> int:
         """Получение индекса стека для отображения плиток."""
@@ -314,6 +339,10 @@ class UIConfig(BaseConfig):
         """Получение отступов верхней панели."""
         margins = self.get("ui.top_bar_margins", [4, 4, 4, 4])
         return tuple(margins)
+
+    def get_top_bar_spacing(self) -> int:
+        """Получение расстояния между элементами верхней панели."""
+        return self.get("ui.layout.spacing.top_bar", 6)
 
     def get_main_layout_margins(self) -> tuple:
         """Получение отступов главного layout."""
@@ -457,3 +486,7 @@ class UIConfig(BaseConfig):
     def get_separator_height(self) -> int:
         """Получение высоты разделителей."""
         return self.get("ui.separator_height", 24)
+
+    def get_separator_width(self) -> int:
+        """Получение толщины (ширины) вертикальных разделителей."""
+        return self.get("ui.separator_width", 1)

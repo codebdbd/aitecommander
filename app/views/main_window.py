@@ -41,6 +41,7 @@ from app.utils.ui.icon.path_service import get_current_theme, icon_path_service
 from app.utils.db.synchronization import get_signal_guard, signal_guard
 from app.utils.system.task_scheduler import LimitedThreadPool, get_task_scheduler
 from app.utils.ui_state.ui_state_manager import UIStateManager
+from app.views.effects.neon_effect import NeonEventFilter
 
 
 class MainWindow(QMainWindow):
@@ -300,6 +301,10 @@ class MainWindow(QMainWindow):
             
             self.sphere_group.setExclusive(True)
             
+            # Готовим единый фильтр для неонового эффекта кнопок сфер
+            if not hasattr(self, '_neon_sphere_filter') or self._neon_sphere_filter is None:
+                self._neon_sphere_filter = NeonEventFilter(self)
+
             for sp in spheres:
                 btn = QToolButton()
                 sphere_id = sp["id"]
@@ -317,6 +322,8 @@ class MainWindow(QMainWindow):
                 btn.setToolTip(sp["name"])
                 self.sphere_group.addButton(btn, sphere_id)
                 btn.clicked.connect(lambda _, sid=sphere_id: self._switch_sphere(sid))
+                # Неоновый эффект при hover/focus
+                btn.installEventFilter(self._neon_sphere_filter)
                 self.sphere_buttons[sphere_id] = btn
                 s_layout.addWidget(btn)
 

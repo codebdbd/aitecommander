@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QPushButton,
+    QToolButton,
     QScrollArea,
     QSizePolicy,
     QSplitter,
@@ -35,6 +36,7 @@ from app.views.link import LinksTableView
 from app.views.quick_add_widget import QuickAddWidget
 from app.views.recent_links_widget import RecentLinksWidget
 from .common import create_font
+from app.views.effects.neon_effect import NeonEventFilter
 
 
 class WindowUISetup:
@@ -99,6 +101,8 @@ class WindowUISetup:
         # Создание top_bar
         top_bar = QHBoxLayout()
         top_bar.setContentsMargins(*app_config.get_top_bar_margins())
+        # Фиксированное расстояние между виджетами тулбара для консистентности
+        top_bar.setSpacing(app_config.get_top_bar_spacing())
         top_bar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         
         self.setup_top_bar_widgets(top_bar)
@@ -114,6 +118,15 @@ class WindowUISetup:
         
         self.window.top_panel_container = top_panel_container
         self.window.content_container = content_container
+
+        # Неоновый эффект для верхней панели: вешаем фильтр на контейнер
+        if not hasattr(self.window, '_neon_top_filter') or self.window._neon_top_filter is None:
+            self.window._neon_top_filter = NeonEventFilter(self.window, blur_radius=16)
+        top_panel_container.installEventFilter(self.window._neon_top_filter)
+        content_container.installEventFilter(self.window._neon_top_filter)
+        # Проактивно навесим фильтр на уже созданные дочерние элементы
+        for w in top_panel_container.findChildren((QPushButton, QToolButton, QLineEdit)):
+            w.installEventFilter(self.window._neon_top_filter)
     
     def setup_top_bar_widgets(self, top_bar):
         """Настройка виджетов верхней панели."""
@@ -133,6 +146,14 @@ class WindowUISetup:
         fav_quick_separator_before = QWidget()
         fav_quick_separator_before.setObjectName("favQuickSeparatorBefore")
         fav_quick_separator_before.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        # Геометрия разделителя из конфига
+        try:
+            sep_w = int(app_config.get_separator_width())
+            sep_h = int(app_config.get_separator_height())
+        except Exception:
+            sep_w, sep_h = 1, 28
+        fav_quick_separator_before.setFixedWidth(sep_w)
+        fav_quick_separator_before.setMinimumHeight(sep_h)
         top_bar.addWidget(fav_quick_separator_before)
         
         self.window.fav_widget = None
@@ -146,6 +167,8 @@ class WindowUISetup:
         fav_quick_separator = QWidget()
         fav_quick_separator.setObjectName("favQuickSeparatorAfter")
         fav_quick_separator.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        fav_quick_separator.setFixedWidth(sep_w)
+        fav_quick_separator.setMinimumHeight(sep_h)
         top_bar.addWidget(fav_quick_separator)
         
         # Панель быстрых кнопок - создается позже в WindowControllersSetup после создания контроллеров
@@ -161,7 +184,8 @@ class WindowUISetup:
         self.window.search.setPlaceholderText(app_config.get_search_placeholder())
         self.window.search.setClearButtonEnabled(True)
         self.window.search.setMinimumHeight(28)
-        self.window.search.setMaximumWidth(400)
+        # Ширина поиска из конфига
+        self.window.search.setFixedWidth(app_config.get_top_panel_search_width())
         self.window.search.setObjectName('mainSearch')
         
         self.window.search.setFont(create_font(11))
@@ -274,16 +298,21 @@ class WindowUISetup:
         # Сплиттер
         self.window.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.window.splitter.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        # Толщина ручки сплиттера из конфигурации
+        try:
+            self.window.splitter.setHandleWidth(int(app_config.get_splitter_handle_width()))
+        except Exception:
+            self.window.splitter.setHandleWidth(1)
         self.window.splitter.addWidget(self.window.left_panel)
         self.window.splitter.addWidget(right_panel)
         
-        stretch_factors = app_config.get('ui.layout.splitter.stretch_factors', [1, 3])
+        stretch_factors = app_config.get_splitter_stretch_factors()
         self.window.splitter.setStretchFactor(0, stretch_factors[0])
         self.window.splitter.setStretchFactor(1, stretch_factors[1])
         
         mid.addWidget(self.window.splitter)
         
-        splitter_sizes = app_config.get('ui.layout.splitter.sizes', [200, 600])
+        splitter_sizes = app_config.get_splitter_sizes()
         self.window.splitter.setSizes(splitter_sizes)
         self.window._first_structure_load = True
         
@@ -307,7 +336,7 @@ class WindowUISetup:
         self.window.switch_sphere_button = None
         
         # Дополнительные кнопки из конфигурации
-        bottom_actions = app_config.get('ui.bottom_actions', [])
+        bottom_actions = app_config.get_bottom_actions()
         for text, fn_name in bottom_actions:
             btn = QPushButton(text)
             btn.setFont(font10)
@@ -335,16 +364,16 @@ class WindowUISetup:
         status = QStatusBar(self.window)
         self.window.setStatusBar(status)
         
-        self.window.db_status_label = QLabel(app_config.get('ui.db_connected_text', 'DB: Connected'))
+        self.window.db_status_label = QLabel(app_config.get_db_connected_text())
         self.window.path_label = QLabel("")
         self.window.path_label.setObjectName("pathLabel")
-        self.window.path_label.setMinimumWidth(app_config.get('ui.path_label_min_width', 350))
-        self.window.links_count_label = QLabel(app_config.get('ui.links_count_text', 'Ссылок: 0'))
+        self.window.path_label.setMinimumWidth(app_config.get_path_label_min_width())
+        self.window.links_count_label = QLabel(app_config.get_links_count_text())
         
         status.addPermanentWidget(self.window.db_status_label)
         status.addPermanentWidget(self.window.path_label)
         status.addPermanentWidget(self.window.links_count_label)
-        status.showMessage(app_config.get('ui.status_ready_text', 'Готово'))
+        status.showMessage(app_config.get_status_ready_text())
     
     def setup_shortcuts(self):
         """Настройка горячих клавиш."""

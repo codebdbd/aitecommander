@@ -105,6 +105,8 @@
     "link_dialog_spacing": 10,
     "tree_icon_size": 28,
     "top_panel_icon_size": 24,
+    "top_panel_search_width": 320,
+    "top_bar_margins": [8, 4, 16, 4],
     "splitter_handle_width": 1,
     "splitter_stretch_factors": [
       1,
@@ -124,6 +126,9 @@
     "layout": {
       "margins": {
         "bottom": [16, 4, 16, 4]
+      },
+      "spacing": {
+        "top_bar": 6
       }
     },
     "window": {
@@ -141,6 +146,7 @@
     "scrollbar_height": 12,
     "tree_item_height": 32,
     "table_item_height": 28,
+    "separator_width": 1,
     "separator_height": 28
   },
   "paths": {
