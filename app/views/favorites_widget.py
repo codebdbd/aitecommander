@@ -27,7 +27,8 @@ class FavoritesWidget(BaseLinksPanelWidget):
     def __init__(self, main_window):
         # Больше не передаем links_business/db в базовый класс
         super().__init__(main_window)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        # Не растягиваемся по горизонтали, чтобы не ломать равномерные интервалы на верхней панели
+        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         self.setObjectName("favoritesPanel")
         self.bg_frame.setObjectName("favoritesPanelBg")
         self._default_icon_path = icon_path_service.get_ui_icons_dir() / DEFAULT_ICON_FILENAME  # теперь берётся из app_config

@@ -40,13 +40,21 @@ QWidget#spheres_bar QToolButton {
     border-color: transparent;
 }
 
-QWidget#spheres_bar QToolButton:hover {
-    border-color: #3A6EFF;
+/* Усиленное правило hover: явно задаём border, чтобы перебить border:none */
+QWidget#spheres_bar QToolButton:hover,
+QWidget#LeftPanel QWidget#spheres_bar QToolButton:hover {
+    border: 1px solid #0194F0;
 }
 
 QWidget#spheres_bar QToolButton:checked {
     background: #1E2633;
-    border-color: #3A6EFF;
+    border: 1px solid #0194F0;
+}
+
+/* При наведении на активную кнопку показывать синюю рамку */
+QWidget#spheres_bar QToolButton:checked:hover,
+QWidget#LeftPanel QWidget#spheres_bar QToolButton:checked:hover {
+    border: 1px solid #0194F0;
 }
 
 QWidget#LeftPanel QToolButton {
@@ -55,6 +63,18 @@ QWidget#LeftPanel QToolButton {
 
 QWidget#LeftPanel QToolButton:hover {
     background: #1E2633;
+}
+
+/* Базовая рамка для кнопок в панели сфер, чтобы не было смещения при hover */
+#spheres_bar QToolButton,
+#spheres_bar QPushButton {
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+/* Обводка при наведении для QPushButton в панели сфер (если такие используются) */
+#spheres_bar QPushButton:hover {
+    border-color: #0194F0;
 }
 
 QMenu {
@@ -138,12 +158,39 @@ QWidget#topPanelContainer {
 
 
 QWidget#topPanelContainer QLineEdit {
-    border-color: #252D3A;
+    /* Базовая прозрачная рамка для предотвращения сдвига при появлении обводки */
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+/* Обводка поиска при hover/focus в верхней панели */
+QWidget#topPanelContainer QLineEdit:hover,
+QWidget#topPanelContainer QLineEdit:focus {
+    border-color: #0194F0;
 }
 
 
 QWidget#topPanelContainer QToolButton {
     border-color: transparent;
+}
+
+/* Базовая прозрачная рамка для всех кнопок верхней панели во избежание сдвига */
+QWidget#topPanelContainer QToolButton,
+QWidget#topPanelContainer QPushButton {
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+/* Обводка на всех кнопках верхней панели при hover (после базового правила) */
+QWidget#topPanelContainer QToolButton:hover,
+QWidget#topPanelContainer QPushButton:hover {
+    border-color: #0194F0;
+}
+
+/* Обводка для активных (checked) кнопок верхней панели */
+QWidget#topPanelContainer QToolButton:checked,
+QWidget#topPanelContainer QPushButton:checked {
+    border: 1px solid #0194F0;
 }
 
 QPushButton {
@@ -153,6 +200,7 @@ QPushButton {
 
 QPushButton:hover {
     background-color: #2E4066;
+    border-color: #0194F0;
 }
 
 QToolButton {
@@ -171,9 +219,13 @@ QListWidget#categoryTiles::item {
     border: none;
 }
 
+QListWidget#categoryTiles::item:hover {
+    border: 1px solid #0194F0;
+}
+
 QToolButton:hover {
     background-color: #2E4066;
-    border-color: #3A6EFF;
+    border-color: #0194F0;
 }
 
 QToolButton:pressed {
@@ -191,6 +243,8 @@ QLineEdit, QTextEdit, QComboBox, QSpinBox {
     border-color: #2E4066;
 }
 
+
+
 QComboBox QAbstractItemView {
     background-color: #252D3A;
     selection-background-color: #2E4066;
@@ -202,6 +256,8 @@ QHeaderView::section {
     border-right-color: rgb(71, 78, 110);
     color: #C9D1DA;
 }
+
+
 
 QLabel#pathLabel {
     color: #9EA9B7;
@@ -255,20 +311,51 @@ QWidget#bottomBarContainer {
 }
 
 #bottomBarContainer QPushButton:hover {
-    background-color: #3A4A5A;
+    background-color: #252D3A;
+    border-color: #0194F0;
 }
 
+/* Focus outline for dialog inputs */
+QDialog QLineEdit,
+QDialog QTextEdit,
+QDialog QPlainTextEdit,
+QDialog QComboBox,
+QDialog QSpinBox,
+QDialog QDoubleSpinBox,
+QDialog QDateEdit,
+QDialog QTimeEdit {
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+QDialog QLineEdit:focus,
+QDialog QTextEdit:focus,
+QDialog QPlainTextEdit:focus,
+QDialog QComboBox:focus,
+QDialog QSpinBox:focus,
+QDialog QDoubleSpinBox:focus,
+QDialog QDateEdit:focus,
+QDialog QTimeEdit:focus {
+    border-color: #0194F0;
+}
+
+/* Скрываем вертикальные сепараторы в верхнем тулбаре */
 QWidget#favQuickSeparatorBefore,
 QWidget#favQuickSeparatorAfter {
-    min-width: 1px;
-    max-width: 1px;
-    width: 1px;
-    min-height: 24px;
-    background: #252D3A;
+    min-width: 0px;
+    max-width: 0px;
+    width: 0px;
+    margin-left: 0px;
+    margin-right: 0px;
+    background: transparent;
 }
 
+/* На всякий случай: делаем вертикальные сепараторы невидимыми */
 QWidget[class="vertical_separator"] {
-    background-color: rgb(71, 78, 110);
+    min-width: 0px;
+    max-width: 0px;
+    width: 0px;
+    background-color: transparent;
 }
 
 QSplitter::handle {
@@ -292,7 +379,7 @@ QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
 }
 
 QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
-    background: #3A6EFF;
+    background: #0194F0;
 }
 
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,

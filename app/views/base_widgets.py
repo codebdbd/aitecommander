@@ -36,7 +36,8 @@ class BasePanelWidget(QWidget):
         self.layout = QHBoxLayout(self.bg_frame)
         self.layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setSpacing(5)
+        # Унификация spacing панелей с верхним тулбаром
+        self.layout.setSpacing(app_config.get('ui.layout.spacing.top_bar', 6))
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self.bg_frame)

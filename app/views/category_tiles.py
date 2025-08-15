@@ -5,7 +5,7 @@
 import logging
 
 from PyQt6.QtCore import QPoint, QRect, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QBrush, QDrag, QFontMetrics, QIcon, QPen
+from PyQt6.QtGui import QBrush, QDrag, QFontMetrics, QIcon, QPen, QColor
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QListWidget,
@@ -88,6 +88,13 @@ class CategoryTileDelegate(QStyledItemDelegate):
             painter.setBrush(QBrush(bg_color))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(rect.adjusted(2, 2, -2, -2), self.border_radius, self.border_radius)
+            # Обводка при наведении
+            if (option.state & QStyle.StateFlag.State_MouseOver) and not (option.state & QStyle.StateFlag.State_Selected):
+                pen = QPen(QColor("#0194F0"))
+                pen.setWidth(1)
+                painter.setPen(pen)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.drawRoundedRect(rect.adjusted(1, 1, -2, -2), self.border_radius, self.border_radius)
         
         # Рисуем иконку
         icon_rect = QRect(
@@ -158,6 +165,8 @@ class CategoryTiles(QWidget):
         self.list_widget.setViewMode(QListWidget.ViewMode.IconMode)
         self.list_widget.setResizeMode(QListWidget.ResizeMode.Adjust)
         self.list_widget.setMovement(QListWidget.Movement.Static)
+        # Включаем hover-события
+        self.list_widget.setMouseTracking(True)
         self.list_widget.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
         self.list_widget.setSpacing(8)  # Простое значение по умолчанию
 

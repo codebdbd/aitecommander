@@ -223,6 +223,10 @@ class AppConfig:
         """Получение высоты контейнера верхней панели."""
         return self.ui.get_top_panel_container_height()
 
+    def get_top_panel_search_width(self) -> int:
+        """Получение ширины поля поиска в верхней панели."""
+        return self.ui.get_top_panel_search_width()
+
     def get_stack_index_tiles(self) -> int:
         """Получение индекса стека для отображения плиток."""
         return self.ui.get_stack_index_tiles()
@@ -310,6 +314,10 @@ class AppConfig:
     def get_top_bar_margins(self) -> tuple:
         """Получение отступов верхней панели."""
         return self.ui.get_top_bar_margins()
+
+    def get_top_bar_spacing(self) -> int:
+        """Получение расстояния между элементами верхней панели."""
+        return self.ui.get_top_bar_spacing()
 
     def get_link_dialog_width(self) -> int:
         """Получение ширины диалога добавления/редактирования ссылки."""
@@ -442,6 +450,10 @@ class AppConfig:
     def get_separator_height(self) -> int:
         """Получение высоты разделителей."""
         return self.ui.get_separator_height()
+
+    def get_separator_width(self) -> int:
+        """Получение толщины (ширины) вертикальных разделителей."""
+        return self.ui.get_separator_width()
     
     # === Пути ===
     

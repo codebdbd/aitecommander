@@ -57,12 +57,10 @@ class SelectionHandling:
     @signal_guard()
     def _on_current_changed(self, current: QTreeWidgetItem, _prev: QTreeWidgetItem) -> None:
         if current is None:
-            logger.debug("Selection changed to None - clearing tiles")
-            # Очищаем плитки когда нет выбранного элемента (например, после удаления всех разделов)
-            if hasattr(self.main, 'ui_state') and self.main.ui_state:
-                self.main.ui_state.switch_to_category_tiles([])
-            else:
-                self.main.tiles.set_categories([])
+            # Во время перезагрузки структуры (update_structure_tree/load_structure) текущее
+            # выделение может кратковременно становиться None. Очищать плитки в этот момент
+            # приводит к "промежуточному пустому окну" справа. Ничего не делаем и выходим.
+            logger.debug("Selection changed to None - skip clearing tiles during reload")
             return
         
         # Получаем информацию об элементе для логирования

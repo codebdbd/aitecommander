@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QPen, QColor
 from PyQt6.QtWidgets import (
     QStyle,
     QStyledItemDelegate,
@@ -82,6 +82,8 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
             # Рисуем без иконки
             super().paint(painter, option, index)
 
+        # Без обводки при наведении для дерева согласно требованиям
+
 
 class StructureTreeWidget(QTreeWidget, AsyncTaskMixin):
     """
@@ -130,6 +132,13 @@ class StructureTreeWidget(QTreeWidget, AsyncTaskMixin):
         self.setDropIndicatorShown(True)
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
         self.setItemDelegate(HighQualityTreeDelegate())
+        # Включаем отслеживание мыши, чтобы работал hover без нажатий
+        self.setMouseTracking(True)
+        # Активируем hover-события на viewport
+        try:
+            self.viewport().setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+        except Exception:
+            pass
 
     def update_font_size(self, font_size: int):
         """Применяет локальный размер шрифта ко всем элементам дерева."""

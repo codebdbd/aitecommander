@@ -5,7 +5,7 @@ import logging
 from typing import Dict, List, Optional, Set
 
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QIcon
+from PyQt6.QtGui import QColor, QIcon, QPen
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
@@ -36,11 +36,17 @@ class HoverHighlightDelegate(QStyledItemDelegate):
         self.hover_color = QColor(HOVER_COLOR)
 
     def paint(self, painter, option, index):
-        # Оптимизация: проверяем только если строка поменялась
-        if self.hovered_row == index.row() and not (option.state & QStyle.StateFlag.State_Selected):
+        # Оптимизация: проверяем только если строка под курсором и ячейка не выбрана
+        is_hovered_row = self.hovered_row == index.row()
+        is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
+
+        if is_hovered_row and not is_selected:
             painter.save()
+            # Подсветка фона строки
             painter.fillRect(option.rect, self.hover_color)
             painter.restore()
+
+        # Рисуем стандартное содержимое
         super().paint(painter, option, index)
 
 
