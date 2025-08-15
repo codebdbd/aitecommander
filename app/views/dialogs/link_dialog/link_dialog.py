@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from PyQt6.QtCore import Qt, QThreadPool, QTimer
+from PyQt6.QtGui import QColor
 
 from app.config_data import app_config
 from app.utils.db.db_workers import LinkInfoWorker
@@ -20,6 +21,7 @@ from app.utils.validators import validate_config_for_icons
 from ..base_dialog import BaseDialog
 from .link_dialog_handlers import LinkDialogHandlers
 from .link_dialog_ui import LinkDialogUI
+from app.views.effects.neon_effect import NeonEventFilter
 
 # Обеспечиваем существование директории пользовательских иконок
 icon_path_service.ensure_user_icons_dir()
@@ -69,6 +71,15 @@ class LinkDialog(BaseDialog):
         # UI компоненты
         self.ui = LinkDialogUI(self)
         self.ui.build_ui(self.link_types)
+
+        # Неоновое свечение для кнопок типов ссылок — как у кнопок сфер
+        try:
+            self._neon_link_filter = NeonEventFilter(color=QColor('#0194F0'), blur_radius=18)
+            for btn in self.ui.get_widget('type_group').buttons():
+                btn.installEventFilter(self._neon_link_filter)
+        except Exception:
+            # Не блокируем диалог при ошибке эффекта
+            pass
         
         # Обработчики событий
         self.handlers = LinkDialogHandlers(self)

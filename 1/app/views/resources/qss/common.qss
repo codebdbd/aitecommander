@@ -129,16 +129,34 @@ QWidget#topPanelContainer > QWidget {
 QWidget#topPanelContainer QToolButton {
     border: none;
     border-radius: 6px;
-    padding: 2px;
+    padding: 0;
     margin: 0;
+    min-height: 32px;
+    max-height: 32px;
+}
+
+QWidget#topPanelContainer QPushButton {
+    border: none;
+    border-radius: 6px;
+    padding: 0;
+    margin: 0;
+    min-height: 32px;
+    max-height: 32px;
 }
 
 QWidget#topPanelContainer QLineEdit {
     border: 1px solid;
     border-radius: 0;
-    min-height: 35px;
-    max-height: 35px;
+    min-height: 32px;
+    max-height: 32px;
     padding: 0 8px;
+}
+
+/* Специфический стиль поискового поля: фиксируем высоту под 32px (как у кнопок) */
+QLineEdit#mainSearch {
+    border-radius: 0;
+    min-height: 32px;
+    max-height: 32px;
 }
 
 QPushButton {

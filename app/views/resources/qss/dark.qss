@@ -163,6 +163,22 @@ QWidget#topPanelContainer QLineEdit {
     border-radius: 4px;
 }
 
+/* Убираем скругление только у поля поиска */
+QLineEdit#mainSearch {
+    border-radius: 0;
+}
+
+/* Усиление специфичности для поля поиска внутри верхней панели */
+QWidget#topPanelContainer QLineEdit#mainSearch {
+    border-radius: 0;
+}
+
+/* Гарантируем отсутствие скругления в состояниях hover/focus */
+QWidget#topPanelContainer QLineEdit#mainSearch:hover,
+QWidget#topPanelContainer QLineEdit#mainSearch:focus {
+    border-radius: 0;
+}
+
 /* Обводка поиска при hover/focus в верхней панели */
 QWidget#topPanelContainer QLineEdit:hover,
 QWidget#topPanelContainer QLineEdit:focus {
@@ -325,7 +341,7 @@ QDialog QDoubleSpinBox,
 QDialog QDateEdit,
 QDialog QTimeEdit {
     border: 1px solid transparent;
-    border-radius: 4px;
+    border-radius: 0;
 }
 
 QDialog QLineEdit:focus,
@@ -337,6 +353,43 @@ QDialog QDoubleSpinBox:focus,
 QDialog QDateEdit:focus,
 QDialog QTimeEdit:focus {
     border-color: #0194F0;
+}
+
+/* Dialog buttons: smoother corners */
+QDialog QPushButton,
+QDialog QToolButton {
+    border-radius: 4px;
+}
+
+/* Link type buttons (text under icon) — height by content with 8px paddings */
+QDialog QToolButton#linkTypeBtn {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-left: 6px;
+    padding-right: 6px;
+    margin: 0;
+}
+
+/* Match spheres bar behavior for link type buttons */
+QDialog QToolButton#linkTypeBtn {
+    /* Base transparent border to avoid layout shift */
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+}
+QDialog QToolButton#linkTypeBtn:hover {
+    /* Same hover outline and hover background as spheres */
+    border: 1px solid #0194F0;
+    background: #1E2633;
+}
+QDialog QToolButton#linkTypeBtn:checked {
+    /* Active state matches spheres: dark bg + blue border */
+    background: #1E2633;
+    border: 1px solid #0194F0;
+}
+QDialog QToolButton#linkTypeBtn:checked:hover {
+    /* Keep blue outline on hover for active */
+    border: 1px solid #0194F0;
 }
 
 /* Скрываем вертикальные сепараторы в верхнем тулбаре */
