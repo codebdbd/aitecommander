@@ -119,6 +119,11 @@ QLineEdit, QTextEdit, QComboBox, QSpinBox {
     border: 1px solid #CCCCCC;
 }
 
+/* Убираем скругление только у поля поиска */
+QLineEdit#mainSearch {
+    border-radius: 0;
+}
+
 /* Category Tiles Styles */
 QListWidget#categoryTiles {
     background: transparent;
@@ -231,4 +236,52 @@ QScrollBar::handle:horizontal {
 }
 QScrollBar::handle:horizontal:hover {
     background: #C0C0C0;
+}
+
+/* Dialog inputs: enforce sharp corners */
+QDialog QLineEdit,
+QDialog QTextEdit,
+QDialog QPlainTextEdit,
+QDialog QComboBox,
+QDialog QSpinBox,
+QDialog QDoubleSpinBox,
+QDialog QDateEdit,
+QDialog QTimeEdit {
+    border-radius: 0;
+}
+
+/* Dialog buttons: smoother corners */
+QDialog QPushButton,
+QDialog QToolButton {
+    border-radius: 8px;
+}
+
+/* Link type buttons (text under icon) — height by content with 8px paddings */
+QDialog QToolButton#linkTypeBtn {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-left: 6px;
+    padding-right: 6px;
+    margin: 0;
+}
+
+/* Match spheres bar behavior for link type buttons (light) */
+QDialog QToolButton#linkTypeBtn {
+    /* Base transparent border to avoid layout shift */
+    border: 2px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+}
+QDialog QToolButton#linkTypeBtn:hover {
+    /* Same hover outline and hover background as spheres */
+    border: 2px solid #0078d7;
+    background: #E0E0E0;
+}
+QDialog QToolButton#linkTypeBtn:checked {
+    /* Active state matches spheres */
+    border: 2px solid #E0E0E0;
+    background: #F0F0F0;
+}
+QDialog QToolButton#linkTypeBtn:checked:hover {
+    border: 2px solid #0078d7;
 }

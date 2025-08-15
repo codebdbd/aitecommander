@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
     QTextEdit,
     QToolButton,
     QVBoxLayout,
+    QSizePolicy,
 )
 
 from app.config_data import app_config
@@ -61,10 +62,12 @@ class LinkDialogUI:
                 btn.setIcon(create_icon_from_path(str(icon_path)))
                 btn.setIconSize(QSize(32, 32))
             btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-            btn.setFixedSize(90, 80)
+            # Height by content. Width expands to share space equally.
+            btn.setObjectName("linkTypeBtn")
+            btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             self.type_group.addButton(btn)
             btn.setProperty("link_type", code)
-            hl_type.addWidget(btn)
+            hl_type.addWidget(btn, 1)
             
         vbox.addLayout(hl_type)
         self.widgets['type_group'] = self.type_group

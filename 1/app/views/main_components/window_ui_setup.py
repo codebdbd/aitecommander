@@ -159,8 +159,9 @@ class WindowUISetup:
         self.window.search = QLineEdit()
         self.window.search.setPlaceholderText(app_config.get_search_placeholder())
         self.window.search.setClearButtonEnabled(True)
-        self.window.search.setMinimumHeight(28)
-        self.window.search.setMaximumWidth(400)
+        self.window.search.setFixedHeight(32)
+        # Разрешаем горизонтальное сжатие/растяжение
+        self.window.search.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.window.search.setObjectName('mainSearch')
         
         self.window.search.setFont(create_font(11))

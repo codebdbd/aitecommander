@@ -141,6 +141,22 @@ QWidget#topPanelContainer QLineEdit {
     border-color: #252D3A;
 }
 
+/* Убираем скругление только у поля поиска */
+QLineEdit#mainSearch {
+    border-radius: 0;
+}
+
+/* Усиливаем специфичность внутри верхней панели */
+QWidget#topPanelContainer QLineEdit#mainSearch {
+    border-radius: 0;
+}
+
+/* Гарантируем отсутствие скругления при hover/focus */
+QWidget#topPanelContainer QLineEdit#mainSearch:hover,
+QWidget#topPanelContainer QLineEdit#mainSearch:focus {
+    border-radius: 0;
+}
+
 
 QWidget#topPanelContainer QToolButton {
     border-color: transparent;
@@ -308,4 +324,53 @@ QScrollBar::left-arrow:horizontal, QScrollBar::right-arrow:horizontal {
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
 QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     background: none;
+}
+
+/* Dialog inputs: sharp corners */
+QDialog QLineEdit,
+QDialog QTextEdit,
+QDialog QPlainTextEdit,
+QDialog QComboBox,
+QDialog QSpinBox,
+QDialog QDoubleSpinBox,
+QDialog QDateEdit,
+QDialog QTimeEdit {
+    border-radius: 0;
+}
+
+/* Dialog buttons: smoother corners */
+QDialog QPushButton,
+QDialog QToolButton {
+    border-radius: 8px;
+}
+
+/* Link type buttons (text under icon) — height by content with 8px paddings */
+QDialog QToolButton#linkTypeBtn {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-left: 6px;
+    padding-right: 6px;
+    margin: 0;
+}
+
+/* Match spheres bar behavior for link type buttons */
+QDialog QToolButton#linkTypeBtn {
+    /* Base transparent border to avoid layout shift */
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+}
+QDialog QToolButton#linkTypeBtn:hover {
+    /* Same hover outline and hover background as spheres */
+    border: 1px solid #0194F0;
+    background: #1E2633;
+}
+QDialog QToolButton#linkTypeBtn:checked {
+    /* Active state matches spheres: dark bg + blue border */
+    background: #1E2633;
+    border: 1px solid #0194F0;
+}
+QDialog QToolButton#linkTypeBtn:checked:hover {
+    /* Keep blue outline on hover for active */
+    border: 1px solid #0194F0;
 }
