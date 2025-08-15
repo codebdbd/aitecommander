@@ -1,7 +1,7 @@
 from functools import partial
 
 from PyQt6.QtCore import QSize
-from PyQt6.QtWidgets import QToolButton
+from PyQt6.QtWidgets import QToolButton, QSizePolicy
 
 from app.config_data import app_config
 
@@ -38,4 +38,11 @@ def update_panel(widget, links, create_button_func):
     for link in links:
         button = create_button_func(link)
         widget.layout.addWidget(button)
-    widget.layout.addStretch()
+    # Добавляем растяжение только для панелей, которые должны растягиваться по горизонтали
+    try:
+        if widget.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Expanding:
+            widget.layout.addStretch()
+    except Exception:
+        # На случай отсутствия sizePolicy или иных ошибок — безопасно добавим stretch
+        # (у наших фиксированных панелей политика Fixed, сюда не попадем)
+        pass

@@ -151,12 +151,18 @@ QWidget { font-family: "Segoe UI", sans-serif; }
    - ui.top_panel_icon_size, ui.quick_button_size (размеры кнопок/иконок)
    ========================= */
 QFrame#favPanelBg,
-QFrame#recentPanelBg,
 QFrame#quickAddPanelBg {
     border-radius: 0;
     /* min-height устанавливается динамически из config_loader.get_top_panel_button_size() */
     margin: 0;
-    padding: 0 8px;
+    padding: 0;
+}
+
+/* Recent: без дополнительного внутреннего отступа, чтобы ширина считалась точно */
+QFrame#recentPanelBg {
+    border-radius: 0;
+    margin: 0;
+    padding: 0;
 }
 
 /* Поле поиска в верхней панели (общие размеры и внутренние отступы) */

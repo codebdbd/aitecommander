@@ -19,7 +19,10 @@ class PathConfig(BaseConfig):
     
     def get_ui_icons_dir(self) -> Path:
         """Директория UI-иконок, резолв конфиг-пути относительно base_path."""
-        rel = self.get("settings.paths.ui_icons", "views/resources/ui_icons")
+        # Новый ключ: paths.ui_icons_dir; обратная совместимость: settings.paths.ui_icons
+        rel = self.get("paths.ui_icons_dir")
+        if rel is None:
+            rel = self.get("settings.paths.ui_icons", "views/resources/ui_icons")
         p = Path(rel)
         return p if p.is_absolute() else self.get_base_path() / p
 
@@ -34,6 +37,11 @@ class PathConfig(BaseConfig):
 
     def get_link_icons_dir(self) -> Path:
         """Директория пользовательских иконок в %APPDATA%/Org/App/icons."""
+        # Разрешаем переопределение через paths.user_icons_dir (относительно user_data_dir)
+        conf = self.get("paths.user_icons_dir")
+        if conf:
+            p = Path(conf)
+            return p if p.is_absolute() else self.get_user_data_dir() / p
         org_name = self.get("app.org_name", "Codebdbd")
         app_name = self.get("app.name", "Aite Commander")
         appdata = os.getenv('APPDATA')
@@ -55,10 +63,20 @@ class PathConfig(BaseConfig):
 
     def get_logs_dir(self) -> Path:
         """Директория логов пользователя."""
+        # Поддержка конфигурационного переопределения
+        conf = self.get("paths.logs_dir")
+        if conf:
+            p = Path(conf)
+            return p if p.is_absolute() else self.get_user_data_dir() / p
         return self.get_user_data_dir() / "logs"
 
     def get_config_dir(self) -> Path:
         """Директория конфигурации пользователя."""
+        # Поддержка конфигурационного переопределения
+        conf = self.get("paths.config_dir")
+        if conf:
+            p = Path(conf)
+            return p if p.is_absolute() else self.get_user_data_dir() / p
         return self.get_user_data_dir() / "config"
 
     def ensure_user_data_dirs(self) -> None:
@@ -74,17 +92,24 @@ class PathConfig(BaseConfig):
 
     def get_qss_path(self) -> str:
         """Строковый путь к директории QSS (как в конфиге)."""
-        return self.get("settings.paths.qss", "views/resources/qss")
+        # Новый ключ: paths.qss_dir; обратная совместимость: settings.paths.qss
+        val = self.get("paths.qss_dir")
+        if val is None:
+            val = self.get("settings.paths.qss", "views/resources/qss")
+        return val
 
     def get_qss_dir(self) -> Path:
         """Директория QSS, резолв относительно base_path при необходимости."""
-        rel = self.get("settings.paths.qss", "views/resources/qss")
+        # Новый ключ: paths.qss_dir; обратная совместимость: settings.paths.qss
+        rel = self.get("paths.qss_dir")
+        if rel is None:
+            rel = self.get("settings.paths.qss", "views/resources/qss")
         p = Path(rel)
         return p if p.is_absolute() else self.get_base_path() / p
 
     def get_themes_manifest_path(self) -> Path:
         """Путь к файлу манифеста тем, резолв относительно base_path при необходимости."""
-        rel = self.get("paths.themes_manifest", "themes/manifest.json")
+        rel = self.get("paths.themes_manifest", "resources/themes/manifest.json")
         p = Path(rel)
         return p if p.is_absolute() else self.get_base_path() / p
     

@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional, Callable
 from dataclasses import dataclass
 
 from PyQt6.QtGui import QAction, QFont
-from PyQt6.QtWidgets import QPushButton, QWidget
+from PyQt6.QtWidgets import QPushButton, QWidget, QHBoxLayout, QSizePolicy
 from PyQt6.QtCore import QTimer
 
 from app.controllers.bootstrap import build_controllers
@@ -15,6 +15,7 @@ from app.controllers.ui.menu_controller import ActionController
 from app.utils.ui.icon.icon_operations.creators import themed_icon
 from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui_state.ui_state_manager import UIStateManager
+from app.config_data import app_config
 
 logger = logging.getLogger(__name__)
 
@@ -206,21 +207,31 @@ class DependencyInjectionSetup(IComponentSetup):
         """Добавление QuickAddWidget в топ-бар."""
         if not hasattr(window, 'content_container'):
             return
-            
+        
         top_bar = window.content_container.layout()
         if not top_bar:
             return
-            
-        # Поиск позиции после сепаратора
-        for i in range(top_bar.count()):
-            item = top_bar.itemAt(i)
-            if (item.widget() and 
-                item.widget().objectName() == "favQuickSeparatorAfter"):
-                top_bar.insertWidget(i + 1, window.quick_add_widget)
-                return
         
-        # Если сепаратор не найден, добавляем в конец
-        top_bar.addWidget(window.quick_add_widget)
+        # Вставляем QuickAdd непосредственно перед поиском (mainSearch),
+        # чтобы порядок был: QuickAdd → Favorites → Recent → Search
+        insert_index = top_bar.count()
+        try:
+            for i in range(top_bar.count()):
+                w = top_bar.itemAt(i).widget()
+                if w and getattr(w, 'objectName', lambda: '')() == 'mainSearch':
+                    insert_index = i
+                    break
+        except Exception:
+            pass
+
+        top_bar.insertWidget(insert_index, window.quick_add_widget)
+        # Если установлен фильтр авто-скрытия топ-бара, применить его сразу
+        try:
+            filt = getattr(window, '_auto_hide_tree_filter', None)
+            if filt:
+                QTimer.singleShot(0, filt._apply)
+        except Exception:
+            pass
 
 
 class SignalConnectionSetup(IComponentSetup):

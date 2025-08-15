@@ -21,7 +21,11 @@ class SettingsConfig(BaseConfig):
     
     def get_app_version(self) -> str:
         """Получение версии приложения."""
-        return self.get("application.version", "1.0.0")
+        # Предпочитаем новый ключ: app.version; обратная совместимость: application.version
+        ver = self.get("app.version")
+        if ver is None:
+            ver = self.get("application.version", "1.0.0")
+        return ver
     
     def is_debug_mode(self) -> bool:
         """Получение признака режима отладки."""
@@ -33,17 +37,29 @@ class SettingsConfig(BaseConfig):
     
     def get_about_title(self) -> str:
         """Получение заголовка диалога 'О программе'."""
-        return self.get("application.about_title", "О программе")
+        # Предпочитаем новый ключ: app.about_title; обратная совместимость: application.about_title
+        title = self.get("app.about_title")
+        if title is None:
+            title = self.get("application.about_title", "О программе")
+        return title
 
     def get_about_text(self) -> str:
         """Получение текста диалога 'О программе'."""
-        return self.get("application.about_text", "Link Manager\nВерсия 1.0\n© MyCompany")
+        # Предпочитаем новый ключ: app.about_text; обратная совместимость: application.about_text
+        text = self.get("app.about_text")
+        if text is None:
+            text = self.get("application.about_text", "Link Manager\nВерсия 1.0\n© MyCompany")
+        return text
     
     # === База данных ===
     
     def get_max_backups(self) -> int:
         """Получение максимального количества резервных копий базы данных."""
-        return self.get("database.max_backups", 5)
+        # Новый источник: limits.max_backups; обратная совместимость: database.max_backups
+        val = self.get("limits.max_backups")
+        if val is None:
+            val = self.get("database.max_backups", 10)
+        return val
     
     def is_backup_enabled(self) -> bool:
         """Получение признака включения резервного копирования."""

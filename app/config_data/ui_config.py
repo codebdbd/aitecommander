@@ -39,13 +39,23 @@ class UIConfig(BaseConfig):
     
     def get_main_window_title(self) -> str:
         """Получение заголовка главного окна приложения."""
-        return self.get("ui.window.title", "Aite Commander")
+        # Новый ключ в конфиге: ui.main_window_title; обратная совместимость: ui.window.title
+        title = self.get("ui.main_window_title")
+        if title is None:
+            title = self.get("ui.window.title", "Aite Commander")
+        return title
     
     def get_main_window_size(self) -> tuple:
         """Получение размеров главного окна при запуске."""
-        width = self.get("ui.window.width", 1000)
-        height = self.get("ui.window.height", 600)
-        return (width, height)
+        # Основной источник: ui.window.width/height; обратная совместимость: ui.main_window_size [w, h]
+        width = self.get("ui.window.width")
+        height = self.get("ui.window.height")
+        if isinstance(width, int) and isinstance(height, int):
+            return (width, height)
+        size = self.get("ui.main_window_size")
+        if isinstance(size, (list, tuple)) and len(size) >= 2:
+            return (int(size[0]), int(size[1]))
+        return (1000, 600)
     
     # === Иконки и размеры ===
     
@@ -83,7 +93,19 @@ class UIConfig(BaseConfig):
 
     def get_tile_size(self) -> list:
         """Получение размера плитки категорий."""
-        return self.get("ui.tile_size", [120, 120])
+        # Единый источник: ui.tile_width и ui.tile_height
+        # Обратная совместимость: ui.tile_size (массив/число)
+        w = self.get("ui.tile_width")
+        h = self.get("ui.tile_height")
+        if isinstance(w, int) and isinstance(h, int):
+            return [w, h]
+        legacy = self.get("ui.tile_size")
+        if isinstance(legacy, int):
+            return [legacy, legacy]
+        if isinstance(legacy, (list, tuple)) and len(legacy) >= 2:
+            return [int(legacy[0]), int(legacy[1])]
+        # По умолчанию согласовано со значениями по умолчанию ширины/высоты
+        return [self.get("ui.tile_width", 110), self.get("ui.tile_height", 110)]
 
     def get_tile_icon_size(self) -> list:
         """Получение размера иконки на плитке категорий."""
@@ -234,6 +256,10 @@ class UIConfig(BaseConfig):
         """Получение ширины поля поиска в верхней панели."""
         return self.get("ui.top_panel_search_width", 320)
 
+    def get_top_panel_search_min_width(self) -> int:
+        """Минимальная ширина поля поиска в верхней панели (для сжатия)."""
+        return self.get("ui.top_panel_search_min_width", 140)
+
     def get_stack_index_tiles(self) -> int:
         """Получение индекса стека для отображения плиток."""
         return self.get("ui.stack_index_tiles", 0)
@@ -343,6 +369,14 @@ class UIConfig(BaseConfig):
     def get_top_bar_spacing(self) -> int:
         """Получение расстояния между элементами верхней панели."""
         return self.get("ui.layout.spacing.top_bar", 6)
+
+    def get_top_bar_buttons_spacing(self) -> int:
+        """Внутренний spacing между кнопками внутри панелей топбара."""
+        return self.get("ui.layout.spacing.top_bar_buttons", self.get("ui.layout.spacing.top_bar", 8))
+
+    def get_top_bar_widgets_side_spacing(self) -> int:
+        """Боковой отступ (с каждой стороны) для виджетов топ-бара. Между соседями = 2*side."""
+        return self.get("ui.layout.spacing.top_bar_widgets_side", 8)
 
     def get_main_layout_margins(self) -> tuple:
         """Получение отступов главного layout."""
