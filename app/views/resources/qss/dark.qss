@@ -231,11 +231,26 @@ QListWidget#categoryTiles {
 }
 
 QListWidget#categoryTiles::item {
+    /* Базовая прозрачная рамка, как у кнопок сфер и linkTypeBtn */
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
 }
 
+/* Hover: синяя обводка и тёмный фон, как у сфер */
 QListWidget#categoryTiles::item:hover {
+    background: #1E2633;
+    border: 1px solid #0194F0;
+}
+
+/* Selected: фиксируем такой же стиль, как у активной кнопки */
+QListWidget#categoryTiles::item:selected {
+    background: #1E2633;
+    border: 1px solid #0194F0;
+}
+
+/* Selected + Hover: сохраняем синюю обводку */
+QListWidget#categoryTiles::item:selected:hover {
     border: 1px solid #0194F0;
 }
 

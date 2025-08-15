@@ -75,26 +75,15 @@ class CategoryTileDelegate(QStyledItemDelegate):
         icon = index.data(Qt.ItemDataRole.DecorationRole)
         text = index.data(Qt.ItemDataRole.DisplayRole)
         
-        # Рисуем фон для выбранного/наведенного элемента
-        from PyQt6.QtWidgets import QStyle
-        if option.state & (QStyle.StateFlag.State_Selected | QStyle.StateFlag.State_MouseOver):
-            if option.state & QStyle.StateFlag.State_Selected:
-                bg_color = option.palette.color(option.palette.ColorRole.Highlight)
-                bg_color.setAlpha(50)
-            else:
-                bg_color = option.palette.color(option.palette.ColorRole.Button)
-                bg_color.setAlpha(30)
-            
-            painter.setBrush(QBrush(bg_color))
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(rect.adjusted(2, 2, -2, -2), self.border_radius, self.border_radius)
-            # Обводка при наведении
-            if (option.state & QStyle.StateFlag.State_MouseOver) and not (option.state & QStyle.StateFlag.State_Selected):
-                pen = QPen(QColor("#0194F0"))
-                pen.setWidth(1)
-                painter.setPen(pen)
-                painter.setBrush(Qt.BrushStyle.NoBrush)
-                painter.drawRoundedRect(rect.adjusted(1, 1, -2, -2), self.border_radius, self.border_radius)
+        # Дать Qt/QSS нарисовать фон/рамку элемента (hover/selected) перед нашей отрисовкой
+        try:
+            from PyQt6.QtWidgets import QStyle
+            w = option.widget
+            style = w.style() if w is not None else None
+            if style is not None:
+                style.drawPrimitive(QStyle.PrimitiveElement.PE_PanelItemViewItem, option, painter, w)
+        except Exception:
+            pass
         
         # Рисуем иконку
         icon_rect = QRect(
@@ -111,33 +100,69 @@ class CategoryTileDelegate(QStyledItemDelegate):
             painter.setPen(QPen(option.palette.color(option.palette.ColorRole.Dark)))
             painter.drawEllipse(icon_rect)
         
-        # Рисуем текст
+        # Рисуем текст (перенос по словам, высота = по содержимому, но не более N строк из конфига)
         if text:
+            # Применяем размер шрифта из конфига (в пикселях)
+            try:
+                font = painter.font()
+                font.setPixelSize(app_config.get_tile_text_font_size())
+                painter.setFont(font)
+            except Exception:
+                pass
             text_rect = QRect(
                 rect.left() + self.padding,
                 rect.top() + self.padding + self.icon_size.height() + 5,
                 rect.width() - 2 * self.padding,
-                rect.height() - self.padding - self.icon_size.height() - 5
+                # Высота под текст будет установлена по содержимому (wrap), ограничено N строками
+                0
             )
-            
-            # Устанавливаем цвет текста в зависимости от состояния
-            if option.state & QStyle.StateFlag.State_MouseOver:
-                painter.setPen(option.palette.color(option.palette.ColorRole.HighlightedText))
-            else:
-                painter.setPen(option.palette.color(option.palette.ColorRole.WindowText))
-            
-            # Урезаем текст если он слишком длинный
             fm = QFontMetrics(painter.font())
-            elided_text = fm.elidedText(text, Qt.TextElideMode.ElideRight, text_rect.width())
-            
-            painter.drawText(text_rect, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop, elided_text)
+            # Перенос слов и выравнивание по центру, без эллипсиса
+            flags = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap
+            # Фактическая высота текста с переносом по доступной ширине
+            br = fm.boundingRect(QRect(0, 0, text_rect.width(), 10_000), int(flags), text)
+            try:
+                max_lines = int(app_config.get_tile_text_max_lines())
+            except Exception:
+                max_lines = 3
+            max_text_h = fm.lineSpacing() * max_lines
+            text_rect.setHeight(min(br.height(), max_text_h))
+
+            # Цвет текста берём из палитры; QSS управляет фоном/рамкой
+            painter.setPen(option.palette.color(option.palette.ColorRole.WindowText))
+
+            # Рисуем текст в рассчитанный rect
+            painter.drawText(text_rect, flags, text)
         
         painter.restore()
 
     def sizeHint(self, option, index):
         """Простой расчет размера плитки."""
         # pylint: disable=unused-argument
-        return self.tile_size
+        # Высота: padding + icon + 5 + высота текста по содержимому (wrap, но не более N строк) + padding
+        # Используем тот же размер шрифта, что и в paint()
+        try:
+            font = option.font
+            font.setPixelSize(app_config.get_tile_text_font_size())
+        except Exception:
+            font = option.font
+        fm = QFontMetrics(font)
+        try:
+            max_lines = int(app_config.get_tile_text_max_lines())
+        except Exception:
+            max_lines = 3
+        # Получаем текст элемента
+        try:
+            text = index.data(Qt.ItemDataRole.DisplayRole)
+        except Exception:
+            text = ""
+        # Доступная ширина текста в плитке
+        available_w = self.tile_size.width() - 2 * self.padding
+        flags = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap
+        br = fm.boundingRect(QRect(0, 0, available_w, 10_000), int(flags), text or "")
+        text_h = min(br.height(), fm.lineSpacing() * max_lines)
+        height = self.padding + self.icon_size.height() + 5 + text_h + self.padding
+        return QSize(self.tile_size.width(), height)
 
 class CategoryTiles(QWidget):
     # Единственный сигнал для выбора категории (остальные удалены в пользу прямой интеграции с командами)
@@ -165,15 +190,27 @@ class CategoryTiles(QWidget):
         self.list_widget.setViewMode(QListWidget.ViewMode.IconMode)
         self.list_widget.setResizeMode(QListWidget.ResizeMode.Adjust)
         self.list_widget.setMovement(QListWidget.Movement.Static)
-        # Включаем hover-события
+        # Включаем hover-события: важно активировать на viewport
         self.list_widget.setMouseTracking(True)
+        vp = self.list_widget.viewport()
+        try:
+            vp.setMouseTracking(True)
+            vp.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+        except Exception:
+            pass
+        # Простой делегат для отрисовки (нужен для параметров размеров)
+        self.delegate = CategoryTileDelegate(parent=self)
+        self.list_widget.setItemDelegate(self.delegate)
+
+        # Разрешаем динамическую высоту элементов (sizeHint делегата)
+        self.list_widget.setUniformItemSizes(False)
+        try:
+            self.list_widget.setWordWrap(True)
+        except Exception:
+            pass
         self.list_widget.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
         self.list_widget.setSpacing(8)  # Простое значение по умолчанию
 
-        # Простой делегат для отрисовки
-        self.delegate = CategoryTileDelegate(parent=self)
-        self.list_widget.setItemDelegate(self.delegate)
-        
         # Drag & Drop
         self.list_widget.setDragEnabled(True)
         self.list_widget.setAcceptDrops(False)
