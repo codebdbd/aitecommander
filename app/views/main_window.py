@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING, Optional
 
-from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QFont, QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
@@ -43,7 +43,6 @@ from app.utils.db.synchronization import get_signal_guard, signal_guard
 from app.utils.system.task_scheduler import LimitedThreadPool, get_task_scheduler
 from app.utils.ui_state.ui_state_manager import UIStateManager
 from app.views.effects.neon_effect import NeonEventFilter
-import logging
 
 
 class MainWindow(QMainWindow):
@@ -270,35 +269,12 @@ class MainWindow(QMainWindow):
         
         return undo_action, redo_action
 
-    def __init__(self, db: Database, settings: AppSettings, theme_ctrl: ThemeController, parent=None):
-        super().__init__(parent)
+    def __init__(self, db: Database, settings: AppSettings, theme_ctrl: ThemeController):
+        super().__init__()
         
         from app.views.main_components import WindowInitializer
         initializer = WindowInitializer(self, db, settings, theme_ctrl)
         initializer.initialize_window()
-
-        # --- DnD global diagnostics -------------------------------------------------
-        # Включаем прием DnD на уровне окна и центрального виджета и ставим глобальный логгер
-        try:
-            self.setAcceptDrops(True)
-            cw = self.centralWidget()
-            if cw is not None:
-                cw.setAcceptDrops(True)
-            if not hasattr(self, '_dnd_global_filter') or self._dnd_global_filter is None:
-                self._dnd_global_filter = _GlobalDnDLogger(self)
-                self.installEventFilter(self._dnd_global_filter)
-                if cw is not None:
-                    cw.installEventFilter(self._dnd_global_filter)
-            logging.info("[DnD][GLOBAL] MainWindow DnD diagnostics initialized")
-        except Exception:
-            logging.exception("[DnD][GLOBAL] Failed to initialize DnD diagnostics")
-
-        # Попытка разрешить прием DnD от процессов с более низким уровнем привилегий (Windows UAC)
-        try:
-            self._enable_win_dnd_from_low_integrity()
-        except Exception:
-            # Не критично, просто диагностируем
-            logging.debug("[DnD][GLOBAL] _enable_win_dnd_from_low_integrity skipped or failed", exc_info=True)
 
     def _init_spheres_ui(self):
         """Инициализация UI для сфер (асинхронная версия)."""
@@ -588,30 +564,3 @@ class MainWindow(QMainWindow):
         # В противном случае — стандартное закрытие
         super().closeEvent(event)
 
-
-class _GlobalDnDLogger(QtCore.QObject):
-    """Глобальный фильтр событий для диагностики DnD на уровне окна.
-    Не изменяет поведение, только логирует DragEnter/DragMove/Drop.
-    """
-    def eventFilter(self, obj, event):
-        et = event.type()
-        if et in (QtCore.QEvent.Type.DragEnter, QtCore.QEvent.Type.DragMove, QtCore.QEvent.Type.Drop):
-            try:
-                mime = event.mimeData()
-                fmts = getattr(mime, 'formats', lambda: [])()
-                name = obj.objectName() if hasattr(obj, 'objectName') else ''
-                if not name:
-                    name = obj.__class__.__name__
-                logging.info(
-                    "[DnD][GLOBAL] %s on %s: formats=%s hasUrls=%s hasText=%s hasHtml=%s",
-                    et.name,
-                    name,
-                    fmts,
-                    getattr(mime, 'hasUrls', lambda: False)(),
-                    getattr(mime, 'hasText', lambda: False)(),
-                    getattr(mime, 'hasHtml', lambda: False)(),
-                )
-            except Exception:
-                # Защитимся от любых неожиданных исключений в диагностике
-                pass
-        return super().eventFilter(obj, event)

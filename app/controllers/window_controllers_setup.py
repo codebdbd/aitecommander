@@ -168,6 +168,19 @@ class DependencyInjectionSetup(IComponentSetup):
         class DialogProvider(DialogMixin):
             def __init__(self, parent_widget):
                 self.parent = parent_widget
+            
+            def show_link_dialog_for_category(self, category_id: int):
+                """Делегирует показ диалога ссылки родительскому окну.
+                
+                Нужен для корректной работы пункта контекстного меню плиток
+                "Добавить ссылку", где используется dialog_provider.
+                """
+                try:
+                    return self.parent.show_link_dialog_for_category(category_id=category_id)
+                except Exception as e:
+                    logger.error(
+                        f"DialogProvider: failed to show LinkDialog for category {category_id}: {e}"
+                    )
         
         dialog_provider = DialogProvider(window)
         

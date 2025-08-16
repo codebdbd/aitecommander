@@ -5,8 +5,6 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMenu
 
 from app.controllers.domain.structure.commands import SaveLinkCommand
-from app.utils.ui.dnd.commands import AddLinksCommand
-from app.utils.links.url_detect import normalize_to_url, detect_link_type, suggest_name
 
 from .base_component import BaseLinksUIComponent
 from .exceptions import DatabaseError, LinksUIError
@@ -31,12 +29,6 @@ class LinksUIHandlers(BaseLinksUIComponent):
         self.table.cellDoubleClicked.connect(self._on_double_click)
         self.table.cellClicked.connect(self._on_cell_clicked)
         self.table.links_reordered.connect(self._on_links_reordered)
-        # Внешний дроп из ОС (файлы/URL/текст)
-        if hasattr(self.table, 'external_os_drop'):
-            try:
-                self.table.external_os_drop.connect(self._on_external_os_drop)
-            except Exception as e:
-                self.logger.warning(f"Не удалось подключить обработчик external_os_drop: {e}")
         
         # Обработка клавиш теперь централизована в KeyboardManager
     
@@ -148,67 +140,3 @@ class LinksUIHandlers(BaseLinksUIComponent):
     def _on_links_reordered(self, link_ids: list):
         """Обработка изменения порядка ссылок."""
         self.business.update_link_order(link_ids)
-
-    def _on_external_os_drop(self, strings: list):
-        """Обработка внешнего дропа в таблицу ссылок (Windows Explorer/браузер)."""
-        try:
-            self.logger.debug("[DnD][UI] external_os_drop received: %d items; sample=%s",
-                              len(strings), strings[:3])
-        except Exception:
-            pass
-        if not strings:
-            return
-        main = getattr(self, 'main', None)
-        category_id = getattr(main, 'current_category_id', None)
-        if not isinstance(category_id, int):
-            self.logger.warning("_on_external_os_drop: неизвестная текущая категория")
-            return
-
-        payload = []
-        for s in strings:
-            try:
-                url = normalize_to_url(s)
-                if not url:
-                    continue
-                typ = detect_link_type(url)
-                name = suggest_name(url)
-                payload.append({
-                    'name': name,
-                    'url': url,
-                    'type': typ,
-                    'category_id': int(category_id),
-                })
-            except Exception as e:
-                self.logger.debug(f"Пропуск элемента дропа '{s}': {e}")
-
-        if not payload:
-            self.logger.debug("[DnD][UI] external_os_drop: пустой payload после нормализации")
-            return
-        try:
-            self.logger.debug("[DnD][UI] external_os_drop: prepared payload: %d items; cat=%s; sample=%s",
-                              len(payload), category_id,
-                              [{k: v for k, v in payload[0].items() if k in ('name','url','type')}] if payload else [])
-        except Exception:
-            pass
-
-        # Пушим команду добавления ссылок с поддержкой undo/redo
-        try:
-            if hasattr(main, 'undo_stack') and main.undo_stack:
-                self.logger.debug("[DnD][UI] Using undo_stack to push AddLinksCommand")
-                main.undo_stack.push(AddLinksCommand(payload, int(category_id), main))
-            else:
-                # Fallback: прямое добавление через бизнес-логику (без undo/redo)
-                self.logger.warning("Undo stack недоступен. Добавление ссылок без истории.")
-                for item in payload:
-                    try:
-                        self.business.save_link(item)
-                    except Exception as e:
-                        self.logger.error(f"Ошибка добавления ссылки без undo: {e}")
-                # Обновим UI для текущей категории
-                try:
-                    if hasattr(main, 'ui_state') and main.ui_state:
-                        main.ui_state.update_category_without_stack_switch(int(category_id))
-                except Exception:
-                    pass
-        except Exception as e:
-            self.logger.error(f"Ошибка при обработке внешнего дропа: {e}")

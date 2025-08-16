@@ -1,0 +1,151 @@
+2025-08-17 00:04:16 - root - INFO - main - _setup_logging:136 - Логирование настроено из файла: B:\osteen path\app\config_data\logging_config.json
+2025-08-17 00:04:16 - root - INFO - main - main:426 - ============================================================
+2025-08-17 00:04:16 - root - INFO - main - main:427 - ЗАПУСК ПРИЛОЖЕНИЯ
+2025-08-17 00:04:16 - root - INFO - main - main:428 - ============================================================
+2025-08-17 00:04:16 - root - INFO - main - create_application:415 - QApplication создан: MyPyQtApp v1.0.0
+2025-08-17 00:04:17 - root - INFO - main - _log_system_info:390 - Операционная система: Windows-11-10.0.26100-SP0
+2025-08-17 00:04:17 - root - INFO - main - _log_system_info:391 - Версия Python: 3.13.5 (tags/v3.13.5:6cb20a2, Jun 11 2025, 16:15:46) [MSC v.1943 64 bit (AMD64)]
+2025-08-17 00:04:17 - root - INFO - main - _log_system_info:392 - Архитектура Python: ('64bit', 'WindowsPE')
+2025-08-17 00:04:17 - root - INFO - main - _log_system_info:393 - Версия PyQt6: 6.9.0
+2025-08-17 00:04:17 - root - INFO - main - _log_system_info:394 - Путь запуска: B:\osteen path\app\main.py
+2025-08-17 00:04:17 - root - INFO - main - _log_system_info:395 - Рабочая директория: B:\osteen path
+2025-08-17 00:04:17 - root - INFO - main - _log_system_info:401 - Дисплей 0: 1920x1080 @ 1.0x
+2025-08-17 00:04:17 - root - INFO - main - main:444 - PID процесса: 38168
+2025-08-17 00:04:17 - root - INFO - main - main:445 - Количество аргументов командной строки: 1
+2025-08-17 00:04:17 - root - INFO - main - main:452 - Пользовательский размер шрифта установлен в 10pt (Option A)
+2025-08-17 00:04:17 - root - INFO - main - main:477 - Глобальный шрифт приложения установлен: Segoe UI 10pt
+2025-08-17 00:04:17 - root - INFO - main - initialize_all:373 - Инициализация настроек...
+2025-08-17 00:04:17 - root - INFO - main - initialize_settings:298 - Используются переданные настройки приложения
+2025-08-17 00:04:17 - root - INFO - main - initialize_settings:299 - Настройки успешно загружены
+2025-08-17 00:04:17 - root - INFO - main - initialize_all:373 - Инициализация базы данных...
+2025-08-17 00:04:17 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-17 00:04:17 - root - INFO - main - initialize_database:308 - Подключение к базе данных...
+2025-08-17 00:04:17 - root - INFO - main - initialize_database:310 - База данных успешно инициализирована
+2025-08-17 00:04:17 - root - INFO - main - initialize_all:373 - Инициализация контроллера темы...
+2025-08-17 00:04:17 - root - INFO - main - initialize_theme_controller:319 - Создание контроллера темы...
+2025-08-17 00:04:17 - ThemeController - INFO - theme_controller - _load_themes_manifest:113 - Манифест тем не найден, используются значения по умолчанию
+2025-08-17 00:04:17 - root - INFO - main - initialize_theme_controller:321 - Контроллер темы создан
+2025-08-17 00:04:17 - root - INFO - main - initialize_all:373 - Инициализация главного окна...
+2025-08-17 00:04:17 - root - INFO - main - initialize_main_window:330 - Создание главного окна...
+2025-08-17 00:04:17 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-17 00:04:17 - app.utils.browser.browser_profiles.firefox_profile_finder - INFO - firefox_profile_finder - find_profiles:64 - Найдено 2 профилей Firefox
+2025-08-17 00:04:17 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 23 профилей Microsoft Edge
+2025-08-17 00:04:17 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Brave
+2025-08-17 00:04:17 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Opera
+2025-08-17 00:04:17 - root - INFO - main - run:467 - Профили браузеров предзагружены
+2025-08-17 00:04:17 - app.utils.system.task_scheduler - INFO - task_scheduler - get_task_scheduler:250 - Создан глобальный TaskScheduler
+2025-08-17 00:04:17 - app.utils.ui.icon.path_service - INFO - path_service - _maybe_log_metrics:53 - Icon metrics: hits=0 misses=0 hit_rate=0.00% disk_loads=1 not_found=0 avg_load_time=0.0000s load_count=0 uptime=0.42s
+2025-08-17 00:04:17 - app.controllers.domain.structure.structure_business - INFO - structure_business - _initialize_system:115 - Инициализация StructureBusinessLogic
+2025-08-17 00:04:17 - app.controllers.domain.structure.structure_business - INFO - structure_business - __init__:108 - [BL] Handlers connected for business id=2595928649520
+2025-08-17 00:04:17 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - _log_setup_results:520 - Setup completed: 5 successful, 0 failed
+2025-08-17 00:04:17 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-17 00:04:17 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: section #48
+2025-08-17 00:04:17 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 8 categories
+2025-08-17 00:04:17 - root - INFO - main - initialize_main_window:344 - Главное окно создано
+2025-08-17 00:04:17 - root - INFO - main - initialize_all:373 - Инициализация темы оформления...
+2025-08-17 00:04:17 - root - INFO - main - apply_initial_theme:354 - Применение начальной темы: dark
+2025-08-17 00:04:17 - ThemeController - INFO - theme_controller - apply:360 - Применена тема: dark
+2025-08-17 00:04:17 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-17 00:04:17 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: section #48
+2025-08-17 00:04:17 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 8 categories
+2025-08-17 00:04:17 - root - INFO - main - apply_initial_theme:356 - Тема успешно применена
+2025-08-17 00:04:17 - root - INFO - main - initialize_all:378 - Все компоненты успешно инициализированы
+2025-08-17 00:04:17 - root - INFO - main - main:486 - Отображение главного окна...
+2025-08-17 00:04:17 - root - INFO - main - main:488 - Главное окно отображено
+2025-08-17 00:04:17 - root - INFO - main - main:494 - Запуск главного цикла событий...
+2025-08-17 00:04:17 - category_tiles - INFO - category_tiles - inject_dependencies:441 - CategoryTiles: Menu builder инициализирован после инъекции зависимостей
+2025-08-17 00:04:17 - category_tiles - INFO - category_tiles - paint:113 - CategoryTileDelegate font diag: family='Segoe UI', requested_px=11, pixelSize=-1, pointSizeF=10.00, fm.height=17, fm.lineSpacing=17
+2025-08-17 00:04:18 - root - INFO - main - <lambda>:491 - Приложение успешно запущено
+2025-08-17 00:04:19 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-17 00:04:19 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-17 00:04:25 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-17 00:04:25 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-17 02:12:31 - root - INFO - app_shutdown_controller - perform_shutdown:76 - Starting application shutdown sequence
+2025-08-17 02:12:31 - root - INFO - app_shutdown_controller - _backup_database:400 - Creating database backup...
+2025-08-17 02:12:31 - app.models.db - INFO - db - backup:297 - Создана резервная копия: C:\Users\ostee\AppData\Roaming\Codebdbd\Aite Commander\backups\links_20250817_021231_544972.db
+2025-08-17 02:12:31 - root - INFO - app_shutdown_controller - _backup_database:402 - Database backup completed successfully
+2025-08-17 02:12:31 - root - INFO - app_shutdown_controller - perform_shutdown:78 - Application shutdown completed successfully
+2025-08-17 02:12:31 - root - INFO - main - main:497 - Приложение завершено с кодом: 0
+2025-08-17 02:12:31 - root - INFO - main - cleanup:284 - Соединение с базой данных закрыто
+2025-08-17 02:12:31 - root - INFO - main - main:509 - ============================================================
+2025-08-17 02:12:31 - root - INFO - main - main:510 - ЗАВЕРШЕНИЕ РАБОТЫ ПРИЛОЖЕНИЯ
+2025-08-17 02:12:31 - root - INFO - main - main:511 - ============================================================
+2025-08-17 02:12:35 - root - INFO - main - _setup_logging:136 - Логирование настроено из файла: B:\osteen path\app\config_data\logging_config.json
+2025-08-17 02:12:35 - root - INFO - main - main:426 - ============================================================
+2025-08-17 02:12:35 - root - INFO - main - main:427 - ЗАПУСК ПРИЛОЖЕНИЯ
+2025-08-17 02:12:35 - root - INFO - main - main:428 - ============================================================
+2025-08-17 02:12:35 - root - INFO - main - create_application:415 - QApplication создан: MyPyQtApp v1.0.0
+2025-08-17 02:12:35 - root - INFO - main - _log_system_info:390 - Операционная система: Windows-11-10.0.26100-SP0
+2025-08-17 02:12:35 - root - INFO - main - _log_system_info:391 - Версия Python: 3.13.5 (tags/v3.13.5:6cb20a2, Jun 11 2025, 16:15:46) [MSC v.1943 64 bit (AMD64)]
+2025-08-17 02:12:35 - root - INFO - main - _log_system_info:392 - Архитектура Python: ('64bit', 'WindowsPE')
+2025-08-17 02:12:35 - root - INFO - main - _log_system_info:393 - Версия PyQt6: 6.9.0
+2025-08-17 02:12:35 - root - INFO - main - _log_system_info:394 - Путь запуска: B:\osteen path\app\main.py
+2025-08-17 02:12:35 - root - INFO - main - _log_system_info:395 - Рабочая директория: B:\osteen path
+2025-08-17 02:12:35 - root - INFO - main - _log_system_info:401 - Дисплей 0: 1920x1080 @ 1.0x
+2025-08-17 02:12:35 - root - INFO - main - main:444 - PID процесса: 42876
+2025-08-17 02:12:35 - root - INFO - main - main:445 - Количество аргументов командной строки: 1
+2025-08-17 02:12:35 - root - INFO - main - main:452 - Пользовательский размер шрифта установлен в 10pt (Option A)
+2025-08-17 02:12:35 - root - INFO - main - main:477 - Глобальный шрифт приложения установлен: Segoe UI 10pt
+2025-08-17 02:12:35 - root - INFO - main - initialize_all:373 - Инициализация настроек...
+2025-08-17 02:12:35 - root - INFO - main - initialize_settings:298 - Используются переданные настройки приложения
+2025-08-17 02:12:35 - root - INFO - main - initialize_settings:299 - Настройки успешно загружены
+2025-08-17 02:12:35 - root - INFO - main - initialize_all:373 - Инициализация базы данных...
+2025-08-17 02:12:35 - root - INFO - main - initialize_database:308 - Подключение к базе данных...
+2025-08-17 02:12:35 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-17 02:12:35 - root - INFO - main - initialize_database:310 - База данных успешно инициализирована
+2025-08-17 02:12:35 - root - INFO - main - initialize_all:373 - Инициализация контроллера темы...
+2025-08-17 02:12:35 - root - INFO - main - initialize_theme_controller:319 - Создание контроллера темы...
+2025-08-17 02:12:35 - ThemeController - INFO - theme_controller - _load_themes_manifest:113 - Манифест тем не найден, используются значения по умолчанию
+2025-08-17 02:12:35 - root - INFO - main - initialize_theme_controller:321 - Контроллер темы создан
+2025-08-17 02:12:35 - root - INFO - main - initialize_all:373 - Инициализация главного окна...
+2025-08-17 02:12:35 - root - INFO - main - initialize_main_window:330 - Создание главного окна...
+2025-08-17 02:12:36 - app.utils.system.task_scheduler - INFO - task_scheduler - get_task_scheduler:250 - Создан глобальный TaskScheduler
+2025-08-17 02:12:36 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-17 02:12:36 - app.utils.browser.browser_profiles.firefox_profile_finder - INFO - firefox_profile_finder - find_profiles:64 - Найдено 2 профилей Firefox
+2025-08-17 02:12:36 - app.utils.ui.icon.path_service - INFO - path_service - _maybe_log_metrics:53 - Icon metrics: hits=0 misses=0 hit_rate=0.00% disk_loads=1 not_found=0 avg_load_time=0.0000s load_count=0 uptime=0.52s
+2025-08-17 02:12:36 - app.controllers.domain.structure.structure_business - INFO - structure_business - _initialize_system:115 - Инициализация StructureBusinessLogic
+2025-08-17 02:12:36 - app.controllers.domain.structure.structure_business - INFO - structure_business - __init__:108 - [BL] Handlers connected for business id=2001178865776
+2025-08-17 02:12:36 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 23 профилей Microsoft Edge
+2025-08-17 02:12:36 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Brave
+2025-08-17 02:12:36 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Opera
+2025-08-17 02:12:36 - root - INFO - main - run:467 - Профили браузеров предзагружены
+2025-08-17 02:12:36 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - _log_setup_results:520 - Setup completed: 5 successful, 0 failed
+2025-08-17 02:12:36 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-17 02:12:36 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: section #48
+2025-08-17 02:12:36 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 8 categories
+2025-08-17 02:12:36 - root - INFO - main - initialize_main_window:344 - Главное окно создано
+2025-08-17 02:12:36 - root - INFO - main - initialize_all:373 - Инициализация темы оформления...
+2025-08-17 02:12:36 - root - INFO - main - apply_initial_theme:354 - Применение начальной темы: dark
+2025-08-17 02:12:37 - ThemeController - INFO - theme_controller - apply:360 - Применена тема: dark
+2025-08-17 02:12:37 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-17 02:12:37 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: section #48
+2025-08-17 02:12:37 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 8 categories
+2025-08-17 02:12:37 - root - INFO - main - apply_initial_theme:356 - Тема успешно применена
+2025-08-17 02:12:37 - root - INFO - main - initialize_all:378 - Все компоненты успешно инициализированы
+2025-08-17 02:12:37 - root - INFO - main - main:486 - Отображение главного окна...
+2025-08-17 02:12:37 - root - INFO - main - main:488 - Главное окно отображено
+2025-08-17 02:12:37 - root - INFO - main - main:494 - Запуск главного цикла событий...
+2025-08-17 02:12:37 - category_tiles - INFO - category_tiles - inject_dependencies:441 - CategoryTiles: Menu builder инициализирован после инъекции зависимостей
+2025-08-17 02:12:37 - category_tiles - INFO - category_tiles - paint:113 - CategoryTileDelegate font diag: family='Segoe UI', requested_px=11, pixelSize=-1, pointSizeF=10.00, fm.height=17, fm.lineSpacing=17
+2025-08-17 02:12:37 - root - INFO - main - <lambda>:491 - Приложение успешно запущено
+2025-08-17 02:12:39 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-17 02:12:39 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-17 02:13:07 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-17 02:13:07 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-17 02:13:17 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-17 02:13:17 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-17 02:14:07 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: category #319
+2025-08-17 02:14:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:108 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-17 02:14:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:116 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-17 02:14:07 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: category #321
+2025-08-17 02:14:07 - app.utils.ui.icon.path_service - INFO - path_service - _maybe_log_metrics:53 - Icon metrics: hits=3 misses=2 hit_rate=60.00% disk_loads=60 not_found=2 avg_load_time=0.0016s load_count=30 uptime=92.21s
+2025-08-17 02:14:11 - root - INFO - app_shutdown_controller - perform_shutdown:76 - Starting application shutdown sequence
+2025-08-17 02:14:11 - root - INFO - app_shutdown_controller - _backup_database:400 - Creating database backup...
+2025-08-17 02:14:11 - app.models.db - INFO - db - backup:297 - Создана резервная копия: C:\Users\ostee\AppData\Roaming\Codebdbd\Aite Commander\backups\links_20250817_021411_010598.db
+2025-08-17 02:14:11 - root - INFO - app_shutdown_controller - _backup_database:402 - Database backup completed successfully
+2025-08-17 02:14:11 - root - INFO - app_shutdown_controller - perform_shutdown:78 - Application shutdown completed successfully
+2025-08-17 02:14:11 - root - INFO - main - main:497 - Приложение завершено с кодом: 0
+2025-08-17 02:14:11 - root - INFO - main - cleanup:284 - Соединение с базой данных закрыто
+2025-08-17 02:14:11 - root - INFO - main - main:509 - ============================================================
+2025-08-17 02:14:11 - root - INFO - main - main:510 - ЗАВЕРШЕНИЕ РАБОТЫ ПРИЛОЖЕНИЯ
+2025-08-17 02:14:11 - root - INFO - main - main:511 - ============================================================
