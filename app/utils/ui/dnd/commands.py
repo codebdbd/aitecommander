@@ -2,7 +2,7 @@
 Централизованные Undo/Redo команды для drag-and-drop ссылок и категорий.
 """
 import logging
-from typing import List
+from typing import List, Dict, Optional
 
 from app.utils.system.undo.base import BaseCommand
 
@@ -204,3 +204,114 @@ class MoveCategoryCommand(BaseCommand):
                 logging.info(f"Переключен фокус на перемещенную категорию {self.category_id}")
             except Exception as e:
                 logging.warning(f"Не удалось переключить фокус на категорию {self.category_id}: {e}")
+
+
+class AddLinksCommand(BaseCommand):
+    """Добавление набора ссылок в категорию с поддержкой undo/redo."""
+    def __init__(self, links_payload: List[Dict], category_id: int, main_window):
+        super().__init__(f"Добавление {len(links_payload)} ссылок", main_window)
+        self.category_id = category_id
+        self._payload = links_payload or []
+        self._prepared = False
+        self._new_items: List[Dict] = []    # то, что реально вставим (без дублей)
+        self._created_ids: List[int] = []   # id, созданные при redo
+
+    def _prepare_data(self):
+        if self._prepared:
+            return
+        links_business = self.main.links_business
+        # Существующие ссылки в категории для простой дедупликации по (url, type)
+        existing = links_business.get_links_for_category(self.category_id) or []
+        existing_keys = {(str(get_value(x, 'url', '')), str(get_value(x, 'type', '')))
+                         for x in existing}
+
+        # Фильтруем входные данные, оставляя только валидные и не дубли
+        filtered: List[Dict] = []
+        for item in self._payload:
+            try:
+                url = str(get_value(item, 'url', '')).strip()
+                typ = str(get_value(item, 'type', '')).strip() or 'web'
+                name = str(get_value(item, 'name', '')).strip() or url
+                if not url:
+                    continue
+                key = (url, typ)
+                if key in existing_keys:
+                    continue
+                filtered.append({
+                    'name': name,
+                    'url': url,
+                    'type': typ,
+                    'category_id': int(self.category_id),
+                })
+                existing_keys.add(key)
+            except Exception:
+                continue
+
+        if not filtered:
+            self._prepared = True
+            self._new_items = []
+            return
+
+        # Присваиваем позиции последовательно
+        start_pos = links_business.get_next_position(self.category_id)
+        for i, it in enumerate(filtered):
+            it['position'] = int(start_pos) + i
+
+        self._new_items = filtered
+        self._prepared = True
+
+    def _refresh_ui(self):
+        # По аналогии с MoveLinksCommand: обновляем UI и ставим фокус на категорию
+        if hasattr(self.main, 'ui_state') and self.main.ui_state:
+            try:
+                self.main.ui_state.update_category_without_stack_switch(self.category_id)
+            except Exception as e:
+                logging.warning(f"UIStateManager update failed: {e}")
+        else:
+            logging.error("UIStateManager not available in AddLinksCommand")
+
+        if hasattr(self.main, 'structure_business') and self.main.structure_business:
+            try:
+                self.main.structure_business.select_category(self.category_id)
+            except Exception as e:
+                logging.warning(f"Не удалось переключить фокус на категорию {self.category_id}: {e}")
+
+    def redo(self):
+        self._prepare_data()
+        if not self._new_items:
+            # Нечего вставлять (все дубли/пусто) — помечаем как устаревшую команду
+            try:
+                self.setObsolete(True)
+            except Exception:
+                pass
+            return
+
+        links_business = self.main.links_business
+        self._created_ids = []
+        # Вставляем по одной, чтобы гарантированно получить ID и триггерить link_updated
+        for item in self._new_items:
+            try:
+                new_id = links_business.save_link(item)
+                if new_id:
+                    self._created_ids.append(int(new_id))
+                elif 'id' in item and isinstance(item['id'], int):
+                    self._created_ids.append(int(item['id']))
+            except Exception as e:
+                logging.error(
+                    "Ошибка добавления ссылки '%s': %s",
+                    item.get('url', ''),
+                    str(e)
+                )
+
+        self._refresh_ui()
+
+    def undo(self):
+        if not self._created_ids:
+            return
+        links_business = self.main.links_business
+        for lid in self._created_ids:
+            try:
+                links_business.delete_link(lid)
+            except Exception as e:
+                logging.error(f"Ошибка удаления ссылки {lid} при undo: {e}")
+        self._refresh_ui()

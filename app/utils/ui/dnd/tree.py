@@ -5,12 +5,13 @@
 import logging
 from typing import List
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QDropEvent
 from PyQt6.QtWidgets import QAbstractItemView
 
 from app.config_data import app_config
 from app.utils.ui.dnd.mime import MimeDataParser
+from app.utils.links.url_detect import normalize_to_url, detect_link_type, suggest_name
 from .base import TreeHandlerBase
 from app.utils.ui.qt.roles import get_tree_tuple
 
@@ -19,9 +20,13 @@ class DragDropHandler(TreeHandlerBase):
     """Обработчик drag & drop операций в дереве структуры."""
     
     def accepts_mime_type(self, mime) -> bool:
-        """Проверяет, принимает ли виджет данный MIME тип."""
-        return (mime.hasFormat(app_config.get_link_mime_type()) or 
-                mime.hasFormat(app_config.get_category_mime_type()))
+        """Проверяет, принимает ли виджет данный MIME тип (включая внешние URL/текст)."""
+        return (
+            mime.hasFormat(app_config.get_link_mime_type())
+            or mime.hasFormat(app_config.get_category_mime_type())
+            or mime.hasUrls()
+            or mime.hasText()
+        )
     
     def handle_drag_enter_event(self, event) -> None:
         """Обработка входа drag операции."""
@@ -61,6 +66,8 @@ class DragDropHandler(TreeHandlerBase):
             self._handle_category_drop_event(mime, event)
         elif mime.hasFormat(app_config.get_link_mime_type()):
             self._handle_link_drop_event(mime, event)
+        elif mime.hasUrls() or mime.hasText():
+            self._handle_os_link_drop_event(mime, event)
         elif event.source() == self.tree_widget:
             self._handle_internal_drop_event(event)
         else:
@@ -101,11 +108,95 @@ class DragDropHandler(TreeHandlerBase):
             else:
                 event.ignore()
         else:
-            event.ignore()
+            # Внешние данные из ОС (файлы/URL/текст) — разрешаем только на категории
+            if mime.hasUrls() or mime.hasText():
+                if target_type == "category":
+                    valid_drop = True
+                    event.accept()
+                else:
+                    event.ignore()
+            else:
+                event.ignore()
         
         # Переключаем фокус на целевую категорию при валидном drop ссылок
-        if valid_drop and mime.hasFormat(app_config.get_link_mime_type()) and target_type == "category":
+        if valid_drop and (mime.hasFormat(app_config.get_link_mime_type()) or mime.hasUrls() or mime.hasText()) and target_type == "category":
             self._focus_target_category(target_item)
+
+    def _handle_os_link_drop_event(self, mime, event) -> None:
+        """Обработка drop из ОС (файлы/URL/текст) на категорию.
+        Формирует payload и запускает AddLinksCommand через move_operations_handler.
+        """
+        target_item = self.tree_widget.itemAt(event.position().toPoint())
+        if not target_item:
+            self.tree_widget.emit_invalid_drop("Ссылку можно бросать только на категорию")
+            event.ignore()
+            return
+        ttuple = get_tree_tuple(target_item, 0)
+        if not (ttuple and ttuple[0] == "category"):
+            self.tree_widget.emit_invalid_drop("Ссылку можно бросать только на категорию")
+            event.ignore()
+            return
+        category_id = ttuple[1]
+        if not isinstance(category_id, int):
+            event.ignore()
+            return
+
+        raw_items: List[str] = []
+        try:
+            if mime.hasUrls():
+                for qurl in mime.urls():
+                    # Преобразуем QUrl к строке и нормализуем
+                    if qurl.isLocalFile():
+                        url_str = QUrl.fromLocalFile(qurl.toLocalFile()).toString()
+                    else:
+                        url_str = qurl.toString(QUrl.UrlFormattingOption.FullyEncoded)
+                    raw_items.append(url_str)
+            elif mime.hasText():
+                text = mime.text() or ""
+                for line in text.splitlines():
+                    raw_items.append(line.strip())
+        except Exception as e:
+            logging.error(f"Ошибка извлечения данных из MIME: {e}")
+            event.ignore()
+            return
+
+        # Нормализация, типизация, сбор payload
+        seen = set()
+        payload: List[dict] = []
+        for s in raw_items:
+            url_norm = normalize_to_url(s)
+            if not url_norm:
+                continue
+            if url_norm in seen:
+                continue
+            seen.add(url_norm)
+            ltype = detect_link_type(url_norm)
+            name = suggest_name(url_norm)
+            payload.append({
+                'name': name,
+                'url': url_norm,
+                'type': ltype,
+                'category_id': category_id,
+            })
+
+        if not payload:
+            self.tree_widget.emit_invalid_drop("Нет валидных ссылок для добавления")
+            event.ignore()
+            return
+
+        # Запускаем команду добавления ссылок (undo/redo)
+        try:
+            self.tree_widget.move_operations_handler.execute_add_links_command(payload, category_id)
+            self.tree_widget.emit_drag_feedback({
+                'type': 'os_links_to_category',
+                'count': len(payload),
+                'category_id': category_id,
+            })
+            event.accept()
+        except Exception as e:
+            logging.error(f"Не удалось выполнить команду добавления ссылок: {e}")
+            self.tree_widget.emit_invalid_drop("Ошибка добавления ссылок")
+            event.ignore()
 
     def _focus_target_category(self, target_item):
         """Переключает фокус на целевую категорию."""

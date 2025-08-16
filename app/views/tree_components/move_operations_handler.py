@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from PyQt6.QtCore import Qt
 
 from app.utils.ui.dialog_manager import DialogManager
-from app.utils.ui.dnd.commands import MoveCategoryCommand, MoveLinksCommand
+from app.utils.ui.dnd.commands import MoveCategoryCommand, MoveLinksCommand, AddLinksCommand
 from app.utils.ui.dnd.base import TreeHandlerBase
 from app.utils.ui.qt.roles import get_tree_tuple
 
@@ -41,6 +41,24 @@ class MoveOperationsHandler(TreeHandlerBase):
             self.logger.info(f"Выполнена команда перемещения ссылок {link_ids} в категорию {new_category_id}")
         else:
             self.logger.warning("Undo stack не найден для перемещения ссылок")
+    
+    def execute_add_links_command(self, links_payload: List[Dict], category_id: int) -> None:
+        """Выполняет команду добавления ссылок в категорию (undo/redo)."""
+        main_win = self.tree_widget.window()
+        if not links_payload:
+            self.logger.info("Пустой payload ссылок — команда добавления не выполнена")
+            return
+        if hasattr(main_win, "undo_stack"):
+            main_win.undo_stack.push(AddLinksCommand(links_payload, category_id, main_win))
+            self.logger.info(f"Выполнена команда добавления {len(links_payload)} ссылок в категорию {category_id}")
+        else:
+            DialogManager.show_warning(
+                self.tree_widget,
+                "История действий недоступна. Добавление ссылок отменено.",
+                "Недоступна история действий",
+                informative_text="Включите поддержку undo/redo или инициализируйте undo_stack в главном окне.",
+            )
+            self.logger.warning("Undo stack не найден для добавления ссылок")
     
     def handle_internal_move(self, source_item) -> None:
         """Обработка внутреннего перемещения элементов."""
