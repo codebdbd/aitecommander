@@ -184,9 +184,23 @@ class ItemOperations:
         section_data = self.business.get_section_data(section_id)
         if not section_data:
             return
-        categories = self.business.get_categories(section_id) or []
-        cats_count = len(categories)
-        links_count = 0  # При необходимости можно заменить на реальный подсчет ссылок
+        # Реальный подсчет: категории и суммарное количество ссылок в разделе
+        try:
+            cats_count, links_count = self.business.structure_model.count_nested_objects_for_section(section_id)
+        except Exception:
+            # Фолбэк на прежнее поведение
+            categories = self.business.get_categories(section_id) or []
+            cats_count = len(categories)
+            links_count = 0
+
+        # Если раздел действительно пуст (нет категорий и ссылок) — удаляем без подтверждения
+        if cats_count == 0 and links_count == 0:
+            cmd = DeleteSectionCommand(section_data, self.main)
+            if cmd:
+                self.undo_stack.push(cmd)
+            return
+
+        # Иначе спрашиваем подтверждение
         if self._confirm_section_deletion(section_data, cats_count, links_count):
             cmd = DeleteSectionCommand(section_data, self.main)
             if cmd:
@@ -197,7 +211,20 @@ class ItemOperations:
         category_data = self.business.get_category_data(category_id)
         if not category_data:
             return
-        links_count = 0  # При необходимости заменить на реальный подсчет
+        # Реальный подсчет ссылок для категории
+        try:
+            links_count = self.business.structure_model.count_links_by_category(category_id)
+        except Exception:
+            links_count = 0
+
+        # Если ссылок нет — удаляем без подтверждения
+        if links_count == 0:
+            cmd = DeleteCategoryCommand(category_data, self.main)
+            if cmd:
+                self.undo_stack.push(cmd)
+            return
+
+        # Иначе спрашиваем подтверждение
         if self._confirm_category_deletion(category_data, links_count):
             cmd = DeleteCategoryCommand(category_data, self.main)
             if cmd:

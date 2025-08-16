@@ -49,7 +49,6 @@ class HoverHighlightDelegate(QStyledItemDelegate):
         # Рисуем стандартное содержимое
         super().paint(painter, option, index)
 
-
 class LinksTableView(BaseDragDropTableWidget, 
                     ItemBuildersMixin,
                     DataManagementMixin,
@@ -82,7 +81,6 @@ class LinksTableView(BaseDragDropTableWidget,
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._current_links = {}  # Кэш текущих данных: {row: link_data}
         self._current_mode = "normal"  # Текущий режим отображения
         self._setup_table()
 
@@ -94,9 +92,6 @@ class LinksTableView(BaseDragDropTableWidget,
         self.cellEntered.connect(self._on_cell_entered)
         self.leaveEvent = self._on_leave_event
 
-        # Простое решение: очищаем кэш после сортировки
-        self.horizontalHeader().sectionClicked.connect(self._on_sort_clicked)
-
         # Подключаем сигнал базового класса к нашему сигналу для совместимости
         self.items_reordered.connect(self.links_reordered.emit)
 
@@ -104,14 +99,14 @@ class LinksTableView(BaseDragDropTableWidget,
         headers = app_config.get_links_table_headers()
         self.setColumnCount(len(headers))
         self.setHorizontalHeaderLabels(headers)
-        # Выравнивание заголовка только для колонки "Имя" по левому краю
+        # Точечное выравнивание только заголовка колонки "Имя" по левому краю
         try:
             name_col = app_config.get_links_table_columns().get("name", 1)
             header_item = self.horizontalHeaderItem(name_col)
             if header_item is not None:
                 header_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         except Exception as e:
-            logging.debug(f"Не удалось выровнять заголовок колонки 'Имя': {e}")
+            logging.debug(f"[Headers] Не удалось выровнять заголовок 'Имя': {e}")
         self.setAlternatingRowColors(True)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setShowGrid(False)
@@ -120,8 +115,8 @@ class LinksTableView(BaseDragDropTableWidget,
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.setIconSize(app_config.get_icon_size())
         self.verticalHeader().setDefaultSectionSize(app_config.get_row_height())
-        self.horizontalHeader().setStretchLastSection(True)
         header = self.horizontalHeader()
+        header.setStretchLastSection(True)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         self.setColumnWidth(1, col_widths[1])
         self.setColumnWidth(2, col_widths[2])
@@ -153,23 +148,3 @@ class LinksTableView(BaseDragDropTableWidget,
         # Используем реализацию из DragDropHandlerMixin
         return DragDropHandlerMixin._get_current_order(self)
     
-    def _on_sort_clicked(self, logical_index):
-        """Обработчик клика по заголовку - очищает кэш после сортировки."""
-        import logging
-
-        from PyQt6.QtCore import QTimer
-        
-        logging.debug(f"[SORT] Клик по колонке {logical_index}, очищаем кэш")
-        
-        # Отложенное очищение кэша после завершения сортировки
-        QTimer.singleShot(0, self._clear_cache_after_sort)
-    
-    def _clear_cache_after_sort(self):
-        """Перестраивает кэш после сортировки по фактическому порядку строк."""
-        import logging
-        
-        old_cache_size = len(self._current_links)
-        # Перестраиваем кэш, чтобы соответствовать отсортированным строкам
-        self.rebuild_cache_from_items()
-        new_cache_size = len(self._current_links)
-        logging.debug(f"[SORT] Кэш перестроен: было {old_cache_size}, стало {new_cache_size}")

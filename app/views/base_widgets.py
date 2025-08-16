@@ -8,8 +8,8 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QDrag, QDropEvent, QPixmap
+from PyQt6.QtCore import Qt, QEvent, pyqtSignal
+from PyQt6.QtGui import QDrag, QDropEvent, QPixmap, QKeySequence, QGuiApplication
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QFrame,
@@ -133,6 +133,7 @@ class BaseDragDropTableWidget(QTableWidget):
     
     # Сигналы
     items_reordered: pyqtSignal = pyqtSignal(list)  # List[int] - ID элементов в новом порядке
+    external_os_drop: pyqtSignal = pyqtSignal(list)  # List[str] - строки/URI из внешнего DnD
     
     # Константы
     MIME_TYPE = app_config.get('settings.mime_types.internal_item', 'application/x-item-id')
@@ -146,7 +147,25 @@ class BaseDragDropTableWidget(QTableWidget):
         """Настройка параметров drag-and-drop."""
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
-        self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        # Важно для QAbstractItemView: события dnd приходят на viewport
+        try:
+            self.viewport().setAcceptDrops(True)
+            # Устанавливаем фильтр событий, чтобы гарантированно ловить drag/drop на viewport
+            self.viewport().installEventFilter(self)
+        except Exception:
+            pass
+        # Разрешаем как внутренние перемещения, так и внешние drop'ы
+        self.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
+        # Показываем индикатор допустимого места для дропа
+        try:
+            self.setDropIndicatorShown(True)
+        except Exception:
+            pass
+        # Для внешних дропов из ОС по умолчанию корректно использовать Copy
+        try:
+            self.setDefaultDropAction(Qt.DropAction.CopyAction)
+        except Exception:
+            pass
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setSortingEnabled(True)
         self.setTabKeyNavigation(True)
@@ -206,6 +225,23 @@ class BaseDragDropTableWidget(QTableWidget):
             self._sorting_disabled_for_drag = self.isSortingEnabled()
             if self._sorting_disabled_for_drag:
                 self.setSortingEnabled(False)
+
+        mime = event.mimeData()
+        # Разрешаем внешние OS-дропы (urls/text/html), помимо внутренних
+        if mime and (mime.hasUrls() or mime.hasText() or getattr(mime, 'hasHtml', lambda: False)()):
+            try:
+                logging.info("[DnD] dragEnter: formats=%s, hasUrls=%s, hasText=%s, hasHtml=%s",
+                              getattr(mime, 'formats', lambda: [])(),
+                              mime.hasUrls(), mime.hasText(), getattr(mime, 'hasHtml', lambda: False)())
+            except Exception:
+                pass
+            try:
+                event.setDropAction(Qt.DropAction.CopyAction)
+            except Exception:
+                pass
+            event.acceptProposedAction()
+            return
+
         super().dragEnterEvent(event)
     
     def dragLeaveEvent(self, event):
@@ -214,9 +250,91 @@ class BaseDragDropTableWidget(QTableWidget):
             self.setSortingEnabled(True)
             delattr(self, '_sorting_disabled_for_drag')
         super().dragLeaveEvent(event)
+
+    def dragMoveEvent(self, event):
+        """Принимаем перемещение для внешних OS-дропов, иначе будет 'знак стоп'."""
+        mime = event.mimeData()
+        if mime and (mime.hasUrls() or mime.hasText() or getattr(mime, 'hasHtml', lambda: False)()):
+            try:
+                logging.info("[DnD] dragMove: formats=%s, hasUrls=%s, hasText=%s, hasHtml=%s",
+                              getattr(mime, 'formats', lambda: [])(),
+                              mime.hasUrls(), mime.hasText(), getattr(mime, 'hasHtml', lambda: False)())
+            except Exception:
+                pass
+            try:
+                event.setDropAction(Qt.DropAction.CopyAction)
+            except Exception:
+                pass
+            event.acceptProposedAction()
+            return
+        # По умолчанию — стандартное поведение для внутренних перемещений
+        super().dragMoveEvent(event)
+
+    def eventFilter(self, obj, event):
+        """Гарантированная обработка DnD на viewport для внешних источников."""
+        try:
+            if obj is self.viewport():
+                if event.type() == QEvent.Type.DragEnter:
+                    mime = event.mimeData()
+                    if mime and (mime.hasUrls() or mime.hasText() or getattr(mime, 'hasHtml', lambda: False)()):
+                        try:
+                            logging.info("[DnD] viewport DragEnter: formats=%s", getattr(mime, 'formats', lambda: [])())
+                        except Exception:
+                            pass
+                        try:
+                            event.setDropAction(Qt.DropAction.CopyAction)
+                        except Exception:
+                            pass
+                        event.acceptProposedAction()
+                        return True
+                elif event.type() == QEvent.Type.DragMove:
+                    mime = event.mimeData()
+                    if mime and (mime.hasUrls() or mime.hasText() or getattr(mime, 'hasHtml', lambda: False)()):
+                        try:
+                            logging.info("[DnD] viewport DragMove: formats=%s", getattr(mime, 'formats', lambda: [])())
+                        except Exception:
+                            pass
+                        try:
+                            event.setDropAction(Qt.DropAction.CopyAction)
+                        except Exception:
+                            pass
+                        event.acceptProposedAction()
+                        return True
+                elif event.type() == QEvent.Type.Drop:
+                    mime = event.mimeData()
+                    if mime and not self._is_internal_drop(event) and (mime.hasUrls() or mime.hasText() or getattr(mime, 'hasHtml', lambda: False)()):
+                        try:
+                            strings = self._extract_strings_from_mime(mime)
+                            if strings:
+                                self.external_os_drop.emit(strings)
+                        except Exception:
+                            logging.exception("[DnD] Ошибка обработки внешнего drop на viewport")
+                        event.acceptProposedAction()
+                        return True
+        except Exception:
+            logging.exception("[DnD] Ошибка в eventFilter")
+        return super().eventFilter(obj, event)
     
     def dropEvent(self, event: QDropEvent):
-        """Обрабатывает событие drop для внутреннего перемещения элементов."""
+        """Обрабатывает событие drop. Поддерживает внутренний move и внешний OS drop (urls/text)."""
+        # Внешний дроп из ОС (файлы/URL/текст)
+        mime = event.mimeData()
+        if mime and not self._is_internal_drop(event) and (mime.hasUrls() or mime.hasText() or getattr(mime, 'hasHtml', lambda: False)()):
+            try:
+                strings = self._extract_strings_from_mime(mime)
+                if strings:
+                    self.external_os_drop.emit(strings)
+                    event.acceptProposedAction()
+                    return
+                else:
+                    event.ignore()
+                    return
+            except Exception as e:
+                logging.error(f"[DROP] Ошибка обработки внешнего дропа: {e}")
+                event.ignore()
+                return
+
+        # Внутреннее перемещение строк
         if not self._is_internal_drop(event):
             super().dropEvent(event)
             return
@@ -245,6 +363,67 @@ class BaseDragDropTableWidget(QTableWidget):
             if hasattr(self, '_sorting_disabled_for_drag') and self._sorting_disabled_for_drag:
                 self.setSortingEnabled(True)
                 delattr(self, '_sorting_disabled_for_drag')
+
+    def keyPressEvent(self, event):
+        """Поддержка вставки ссылок из буфера обмена (Ctrl+V)."""
+        try:
+            # Проверяем стандартное соответствие комбинации вставки
+            if hasattr(event, 'matches') and event.matches(QKeySequence.StandardKey.Paste):
+                cb = QGuiApplication.clipboard()
+                mime = cb.mimeData() if cb else None
+                if mime:
+                    try:
+                        strings = self._extract_strings_from_mime(mime)
+                        if strings:
+                            self.external_os_drop.emit(strings)
+                            event.accept()
+                            return
+                    except Exception:
+                        logging.exception("[DnD] Ошибка обработки вставки из буфера обмена")
+        except Exception:
+            # Никогда не ломаем стандартную обработку клавиш
+            pass
+        super().keyPressEvent(event)
+
+    def _extract_strings_from_mime(self, mime) -> List[str]:
+        """Извлекает список строк из QMimeData (urls, текст построчно, html)."""
+        results: List[str] = []
+        try:
+            if mime.hasUrls():
+                for qurl in mime.urls():
+                    try:
+                        # toString сохраняет схему для http/https/file
+                        url_str = qurl.toString()
+                        if url_str:
+                            results.append(url_str)
+                    except Exception:
+                        continue
+            if mime.hasText():
+                try:
+                    text = mime.text()
+                    if text:
+                        for line in text.splitlines():
+                            line = line.strip()
+                            if line:
+                                results.append(line)
+                except Exception:
+                    pass
+            # Некоторые браузеры дают только HTML
+            if getattr(mime, 'hasHtml', lambda: False)():
+                try:
+                    html = mime.html()
+                    if html:
+                        # Простой парсер ссылок из HTML
+                        import re
+                        for m in re.finditer(r"href=[\"']([^\"']+)[\"']", html, re.IGNORECASE):
+                            href = m.group(1).strip()
+                            if href:
+                                results.append(href)
+                except Exception:
+                    pass
+        except Exception as e:
+            logging.debug(f"_extract_strings_from_mime error: {e}")
+        return results
     
     def _is_internal_drop(self, event) -> bool:
         """Проверяет, является ли это внутренним перемещением."""

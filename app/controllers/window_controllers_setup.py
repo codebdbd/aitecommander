@@ -400,6 +400,16 @@ class DatabaseEventHandler:
             if spheres:
                 first_sphere_id = spheres[0].get('id', 1)
                 window.structure_business.set_current_sphere(first_sphere_id)
+                # Критично: после смены БД очистить кэш и принудительно загрузить структуру,
+                # чтобы UI немедленно обновился (событие structure_loaded)
+                try:
+                    window.structure_business.clear_all_cache()
+                except Exception:
+                    pass
+                try:
+                    window.structure_business.load_structure(first_sphere_id)
+                except Exception:
+                    logger.warning("Failed to load structure after DB change", exc_info=True)
     
     @staticmethod
     def _restore_ui_state(window):

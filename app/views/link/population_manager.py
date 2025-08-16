@@ -27,6 +27,7 @@ class PopulationManagerMixin:
             # Сохраняем текущую сортировку
             header = self.horizontalHeader()
             sort_col, sort_order = header.sortIndicatorSection(), header.sortIndicatorOrder()
+            was_sorting_enabled = self.isSortingEnabled()
 
             # Если режим изменился, делаем полное обновление
             if mode != self._current_mode:
@@ -39,11 +40,7 @@ class PopulationManagerMixin:
             try:
                 self.blockSignals(True)
                 self.horizontalHeader().blockSignals(True)
-                # Гарантируем корректность кэша перед диффом
-                cache_ok = self.validate_cache_integrity()
-                if not cache_ok:
-                    self.rebuild_cache_from_items()
-                
+
                 # Если нет активной сортировки и изменился порядок ID, проще и безопаснее сделать полное обновление
                 def _ids_from_table() -> List:
                     ids = []
@@ -65,16 +62,18 @@ class PopulationManagerMixin:
                 new_link_map = self._create_link_id_to_data_map(links)
                 
                 # Находим изменения
-                ids_to_remove = current_ids - new_ids
-                ids_to_add = new_ids - current_ids
-                ids_to_check = current_ids & new_ids
+                ids_to_remove = set(current_ids) - set(new_ids)
+                ids_to_add = set(new_ids) - set(current_ids)
+                ids_to_check = set(current_ids) & set(new_ids)
                 
+                # ВАЖНО: на время модификаций отключаем сортировку, чтобы индексы строк не "плавали"
+                self.setSortingEnabled(False)
+
                 # Удаляем исчезнувшие ссылки (в обратном порядке)
                 rows_to_remove = []
-                # Создаем копию кэша для итерации, чтобы избежать проблем при изменении кэша во время итерации
-                current_links_copy = self._current_links.copy()
-                for row, link in current_links_copy.items():
-                    if link and link.get('id') in ids_to_remove:
+                for row in range(self.rowCount()):
+                    data = self.get_link_at(row)
+                    if data and data.get('id') in ids_to_remove:
                         rows_to_remove.append(row)
                 
                 # Сортируем индексы в обратном порядке для корректного удаления
@@ -82,13 +81,14 @@ class PopulationManagerMixin:
                     self._remove_row(row)
                 
                 # Обновляем изменившиеся ссылки
-                for row, current_link in list(self._current_links.items()):
-                    if not current_link or current_link.get('id') not in ids_to_check:
+                for row in range(self.rowCount()):
+                    current_link = self.get_link_at(row)
+                    if not current_link:
                         continue
-                        
                     link_id = current_link.get('id')
+                    if link_id not in ids_to_check:
+                        continue
                     new_link = new_link_map.get(link_id)
-                    
                     if new_link and not self._links_equal(current_link, new_link, mode):
                         self._update_row(row, new_link, mode)
                 
@@ -102,6 +102,11 @@ class PopulationManagerMixin:
                             # Если есть активная сортировка, добавляем в конец и затем сортировка восстановится
                             target_row = self.rowCount() if sort_col != -1 else min(i, self.rowCount())
                             self._add_row(target_row, link, mode)
+
+                # Восстанавливаем сортировку, если она была включена
+                self.setSortingEnabled(was_sorting_enabled)
+                if was_sorting_enabled and sort_col != -1 and sort_col < self.columnCount():
+                    self.sortItems(sort_col, sort_order)
                 
             except Exception as e:
                 logging.error(f"[LinksTableView] Ошибка при инкрементальном обновлении: {e}")
@@ -119,22 +124,30 @@ class PopulationManagerMixin:
     def _full_populate(self, links: List[Dict], mode: str):
         """Выполняет полное обновление таблицы (fallback)."""
         try:
+            # На время полного обновления отключаем сортировку
+            header = self.horizontalHeader()
+            sort_col, sort_order = header.sortIndicatorSection(), header.sortIndicatorOrder()
+            was_sorting_enabled = self.isSortingEnabled()
+            self.setSortingEnabled(False)
+
             self.clearContents()
             self.setRowCount(len(links))
             self.verticalHeader().setVisible(False)
-            self._current_links.clear()
             
             # Заполняем строки
             for row_idx, link in enumerate(links):
                 row_items = self.build_row(link, mode=mode)
                 if not row_items:
                     continue
-                    
+                
                 for col_idx, item in enumerate(row_items):
                     self.setItem(row_idx, col_idx, item)
-                
-                self._current_links[row_idx] = link
-                
+            
+            # Восстанавливаем сортировку
+            self.setSortingEnabled(was_sorting_enabled)
+            if was_sorting_enabled and sort_col != -1 and sort_col < self.columnCount():
+                self.sortItems(sort_col, sort_order)
+            
         except Exception as e:
             logging.error(f"[LinksTableView] Ошибка при полном обновлении таблицы: {e}")
 

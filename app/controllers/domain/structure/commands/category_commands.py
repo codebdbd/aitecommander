@@ -77,7 +77,14 @@ class SaveCategoryCommand(BaseCommand):
                     business = self.main.structure_business
                     self.logger.info(f"[CMD:Category] Emitting to business id={id(business)} is_new={self.is_new}")
                     if self.is_new:
-                        business.item_added.emit("category", self.new_id, self.new_data)
+                        # ВАЖНО: вторым параметром (parent_id) должен быть section_id,
+                        # чтобы бизнес-логика корректно инвалидировала кэш категорий и перезагрузила их.
+                        parent_section_id = None
+                        try:
+                            parent_section_id = self.new_data.get('section_id') if isinstance(self.new_data, dict) else None
+                        except Exception:
+                            parent_section_id = None
+                        business.item_added.emit("category", parent_section_id, self.new_data)
                     else:
                         business.item_updated.emit("category", self.new_id, (self._merged_update or self.new_data))
                     business.load_structure()
@@ -136,6 +143,16 @@ class DeleteCategoryCommand(BaseCommand):
         # Удаляем категорию из базы данных
         self.db.categories.delete_category(self.category_data['id'])
         
+        # ВАЖНО: Инвалидируем кэш категорий соответствующего раздела ДО переключений UI
+        try:
+            section_id = self.category_data.get('section_id')
+            if hasattr(self.main, 'structure_business') and self.main.structure_business and isinstance(section_id, int):
+                # Прямо инвалидируем кэш, чтобы последующий select_section загрузил свежие категории
+                self.main.structure_business._invalidate_categories_cache(section_id)
+        except Exception:
+            # Не критично, продолжим стандартным путём
+            pass
+
         # Отправляем сигнал об удалении для правильной обработки фокуса
         # (TreeManagement автоматически выберет родительский раздел)
         if hasattr(self.main, 'structure_business') and self.main.structure_business:
@@ -154,7 +171,13 @@ class DeleteCategoryCommand(BaseCommand):
         try:
             if hasattr(self.main, 'structure_business') and self.main.structure_business:
                 business = self.main.structure_business
-                business.item_added.emit("category", self.category_data['id'], self._backup_tree['category'])
+                # ВАЖНО: передаём parent_id = section_id восстановленной категории
+                restored_category = self._backup_tree.get('category') if isinstance(self._backup_tree, dict) else None
+                try:
+                    parent_section_id = restored_category.get('section_id') if isinstance(restored_category, dict) else None
+                except Exception:
+                    parent_section_id = None
+                business.item_added.emit("category", parent_section_id, restored_category)
                 business.load_structure()
         except Exception as e:
             self.logger.warning(f"DeleteCategoryCommand.undo: не удалось инициировать бизнес-обновление структуры: {e}")

@@ -7,6 +7,7 @@ from app.utils.ui.icon.icon_operations.creators import themed_icon
 from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.qt.roles import get_tree_tuple
 from app.utils.system.task_scheduler import schedule_selection_restore
+from app.config_data import app_config
 
 
 class TreeManagement:
@@ -32,9 +33,44 @@ class TreeManagement:
         if current_selection:
             item_type, item_id = current_selection
             if item_type in ("section", "category") and isinstance(item_id, int):
-                self.controller.selection_handler._restore_selection_after_load(item_type, item_id)
+                ok = self.controller.selection_handler._restore_selection_after_load(item_type, item_id)
+                if not ok:
+                    # Если восстановить выбор не получилось (элемент отсутствует в новой сфере)
+                    # — выбираем первый доступный элемент, чтобы обновить правую панель.
+                    self.controller.selection_handler._select_first_item_if_needed()
         else:
             self.controller.selection_handler._select_first_item_if_needed()
+        
+        # Если в новой сфере НЕТ разделов — очищаем правую панель и показываем пустые плитки
+        if self.tree.topLevelItemCount() == 0:
+            main = getattr(self.controller, 'main', None)
+            if main is not None:
+                # Очистить плитки категорий
+                if hasattr(main, 'tiles') and main.tiles:
+                    try:
+                        main.tiles.set_categories([])
+                    except Exception:
+                        pass
+                # Сбросить выбор плиток
+                if hasattr(main, 'ui_state') and main.ui_state:
+                    try:
+                        main.ui_state.clear_tiles_selection()
+                    except Exception:
+                        pass
+                # Переключить стек на плитки (пустые), чтобы не показывалась старая таблица
+                if hasattr(main, 'stack') and main.stack:
+                    try:
+                        tiles_index = app_config.get_stack_index_tiles()
+                    except Exception:
+                        tiles_index = 0
+                    try:
+                        count = main.stack.count()
+                        if tiles_index < 0 or tiles_index >= count:
+                            tiles_index = 0
+                        if main.stack.currentIndex() != tiles_index:
+                            main.stack.setCurrentIndex(tiles_index)
+                    except Exception:
+                        pass
         
         # После первой загрузки структуры обновляем отображение главного окна
         if hasattr(self.controller, 'main') and getattr(self.controller.main, '_first_structure_load', False):
@@ -56,6 +92,14 @@ class TreeManagement:
             if parent_item:
                 parent_item.addChild(new_item)
                 parent_item.setExpanded(True)
+                # Принудительно обновим плитки категорий для выбранного раздела,
+                # чтобы новая категория сразу появилась в плитках.
+                if hasattr(self.controller, 'selection_handler') and self.controller.selection_handler:
+                    try:
+                        self.controller.selection_handler._last_handled = None
+                    except Exception:
+                        pass
+                    self.controller.selection_handler._handle_item_selection(parent_item)
         
         item_id = data["id"]
         schedule_selection_restore(
@@ -104,8 +148,14 @@ class TreeManagement:
             if next_item:
                 self.tree.setCurrentItem(next_item)
                 self.tree.setFocus()
-                # Принудительно вызываем обработчик выбора для обновления плиток
+                # Принудительно вызываем обработчик выбора для обновления плиток.
+                # Чтобы обойти дедупликацию выбора того же элемента, сбрасываем флаг _last_handled.
                 if hasattr(self.controller, 'selection_handler') and self.controller.selection_handler:
+                    try:
+                        # Сброс защиты от повторной обработки
+                        self.controller.selection_handler._last_handled = None
+                    except Exception:
+                        pass
                     self.controller.selection_handler._handle_item_selection(next_item)
     
     def _find_item_by_id(self, item_type: str, item_id: int) -> QTreeWidgetItem:
@@ -196,15 +246,14 @@ class TreeManagement:
                     icon = themed_icon(icon_path, theme, 'tree_management')
                     item.setIcon(0, icon)
             
-            # Обновляем плитки категорий если они открыты
-            if hasattr(self.controller.main, 'tiles'):
-                # Перезагружаем плитки для текущего раздела
-                parent_item = item.parent()
-                if parent_item:
-                    st = get_tree_tuple(parent_item, 0)
-                    if st and st[0] == "section":
-                        section_id = st[1]
-                        self.controller.business.select_section(section_id)
+            # Обновляем плитки категорий через централизованный SelectionHandling
+            parent_item = item.parent()
+            if parent_item and hasattr(self.controller, 'selection_handler') and self.controller.selection_handler:
+                try:
+                    self.controller.selection_handler._last_handled = None
+                except Exception:
+                    pass
+                self.controller.selection_handler._handle_item_selection(parent_item)
     
     def _update_category_tiles_after_edit(self, category_item) -> None:
         """Обновляет плитки категорий после редактирования категории."""
@@ -214,9 +263,13 @@ class TreeManagement:
             st = get_tree_tuple(parent_item, 0)
             if st and st[0] == "section":
                 section_id = st[1]
-                # Принудительно обновляем плитки для текущего раздела
-                if hasattr(self.controller.main, 'tiles'):
-                    self.controller.business.select_section(section_id)
+                # Принудительно обновляем плитки для текущего раздела через SelectionHandling
+                if hasattr(self.controller, 'selection_handler') and self.controller.selection_handler:
+                    try:
+                        self.controller.selection_handler._last_handled = None
+                    except Exception:
+                        pass
+                    self.controller.selection_handler._handle_item_selection(parent_item)
     
     def _update_section_tiles_after_edit(self, section_item) -> None:
         """Обновляет плитки категорий после редактирования раздела."""

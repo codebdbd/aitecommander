@@ -66,6 +66,7 @@ class KeyboardManager(QObject):
                 shortcut = QShortcut(QKeySequence(key_seq), table)
                 shortcut.activated.connect(handler)
                 self.shortcuts.append(shortcut)
+
     
 
     

@@ -165,6 +165,18 @@ QHeaderView::section {
     border-right: 1px solid #CCCCCC;
 }
 
+/* Полностью скрыть стрелки сортировки в заголовках (light) */
+QHeaderView::up-arrow,
+QHeaderView::down-arrow,
+QTableWidget QHeaderView::up-arrow,
+QTableWidget QHeaderView::down-arrow,
+QTableView QHeaderView::up-arrow,
+QTableView QHeaderView::down-arrow {
+    image: none;
+    width: 0px;
+    height: 0px;
+}
+
 QLabel#pathLabel {
     color: #555555;
 }
