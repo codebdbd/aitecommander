@@ -155,6 +155,10 @@ class SectionDialog(BaseEntityDialog):
         form = QFormLayout()
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
+        # Сначала — имя (основное поле)
+        self._init_common_ui(form)
+
+        # Затем — выбор сферы (опционально при создании)
         self.sphere_cb = QComboBox()
         self._populate_spheres()
         form.addRow("Сфера:", self.sphere_cb)
@@ -162,8 +166,13 @@ class SectionDialog(BaseEntityDialog):
         if self.default_sphere_id is not None and self.entity_id is None:
             self._set_sphere_selection(self.default_sphere_id)
 
-        self._init_common_ui(form)
         vbox.addLayout(form)
+        # Устанавливаем фокус по умолчанию на поле имени
+        try:
+            self.name_le.setFocus()
+            self.name_le.selectAll()
+        except Exception:
+            pass
         vbox.addWidget(self._create_button_box())
 
     
@@ -228,17 +237,29 @@ class CategoryDialog(BaseEntityDialog):
         form = QFormLayout()
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
+        # Сначала — имя (основное поле)
+        self._init_common_ui(form)
+
+        # Затем — Раздел
+        self.section_cb = QComboBox()
+        form.addRow("Раздел:", self.section_cb)
+
+        # И затем — Сфера (управляет списком разделов)
         self.sphere_cb = QComboBox()
         self._populate_spheres()
         self.sphere_cb.currentIndexChanged.connect(self._update_sections)
         form.addRow("Сфера:", self.sphere_cb)
 
-        self.section_cb = QComboBox()
-        form.addRow("Раздел:", self.section_cb)
+        # Первичное заполнение разделов согласно выбранной сфере
         self._update_sections()
 
-        self._init_common_ui(form)
         vbox.addLayout(form)
+        # Фокус на поле имени
+        try:
+            self.name_le.setFocus()
+            self.name_le.selectAll()
+        except Exception:
+            pass
         vbox.addWidget(self._create_button_box())
 
     def _update_sections(self):

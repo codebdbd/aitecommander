@@ -11,7 +11,6 @@ from pathlib import Path
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
-from PyQt6 import QtCore
 
 from app.controllers.ui.theme_controller import ThemeController
 from app.models.db import Database
@@ -404,49 +403,6 @@ def _log_system_info():
         logging.warning(f"Не удалось получить системную информацию: {e}")
 
 
-def _is_running_as_admin() -> bool:
-    """Проверяет, запущен ли процесс с правами администратора (Windows)."""
-    try:
-        import ctypes
-        return bool(ctypes.windll.shell32.IsUserAnAdmin())
-    except Exception:
-        return False
-
-
-class _AppWideDnDLogger(QtCore.QObject):
-    """Глобальный логгер DnD-событий на уровне QApplication.
-
-    Ловит DragEnter/DragMove/Drop для диагностики случаев, когда события
-    не доходят до окон/виджетов (например, из-за UAC или перехвата фильтрами).
-    """
-
-    def eventFilter(self, obj, event):
-        et = event.type()
-        if et in (QtCore.QEvent.Type.DragEnter, QtCore.QEvent.Type.DragMove, QtCore.QEvent.Type.Drop):
-            try:
-                mime = event.mimeData()
-                fmts = getattr(mime, 'formats', lambda: [])()
-                name = ''
-                try:
-                    name = obj.objectName()
-                except Exception:
-                    name = ''
-                if not name:
-                    name = obj.__class__.__name__
-                logging.info(
-                    "[DnD][APP] %s on %s: formats=%s hasUrls=%s hasText=%s hasHtml=%s",
-                    et.name,
-                    name,
-                    fmts,
-                    getattr(mime, 'hasUrls', lambda: False)(),
-                    getattr(mime, 'hasText', lambda: False)(),
-                    getattr(mime, 'hasHtml', lambda: False)(),
-                )
-            except Exception:
-                pass
-        return super().eventFilter(obj, event)
-
-
 def create_application() -> QApplication:
     """Создает и настраивает QApplication."""
     app = QApplication(sys.argv)
@@ -483,20 +439,6 @@ def main():
         
         # Логируем системную информацию после создания QApplication
         _log_system_info()
-        # Логируем статус прав процесса (для диагностики UAC и DnD)
-        try:
-            is_admin = _is_running_as_admin()
-            logging.info(f"Права процесса: {'Администратор' if is_admin else 'Обычный пользователь'}")
-        except Exception:
-            pass
-        
-        # Устанавливаем глобальный eventFilter для DnD-диагностики на уровне приложения
-        try:
-            _global_dnd_filter = _AppWideDnDLogger(app)
-            app.installEventFilter(_global_dnd_filter)
-            logging.info("[DnD][APP] QApplication DnD diagnostics installed")
-        except Exception as e:
-            logging.warning(f"[DnD][APP] Failed to install QApplication DnD diagnostics: {e}")
         
         # Логируем PID процесса и количество аргументов
         logging.info(f"PID процесса: {os.getpid()}")

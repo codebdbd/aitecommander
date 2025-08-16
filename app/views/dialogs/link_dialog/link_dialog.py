@@ -8,8 +8,9 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from PyQt6.QtCore import Qt, QThreadPool, QTimer
+from PyQt6.QtCore import Qt, QThreadPool, QTimer, QObject, QEvent
 from PyQt6.QtGui import QColor
+from PyQt6.QtWidgets import QFocusFrame, QFrame
 
 from app.config_data import app_config
 from app.utils.db.db_workers import LinkInfoWorker
@@ -71,6 +72,91 @@ class LinkDialog(BaseDialog):
         # UI компоненты
         self.ui = LinkDialogUI(self)
         self.ui.build_ui(self.link_types)
+
+        # Синяя обводка фокуса только для чекбокса "Добавить в избранное":
+        # 1) QFocusFrame (если стиль поддерживает)
+        # 2) Динамическое свойство через eventFilter (гарантированная отрисовка рамки стилем)
+        try:
+            fav_chk = self.ui.get_widget('fav_chk')
+            if fav_chk is not None:
+                self._fav_focus_frame = QFocusFrame(self)
+                self._fav_focus_frame.setWidget(fav_chk)
+                self._fav_focus_frame.setStyleSheet(
+                    "QFocusFrame { border: 1px solid rgba(93, 169, 255, 0.9); border-radius: 0; }"
+                )
+                # Фильтр для установки динамического свойства focusBorder
+                class _FocusBorderFilter(QObject):
+                    def __init__(self, target):
+                        super().__init__(target)
+                        self._target = target
+                    def eventFilter(self, obj, event):
+                        if obj is self._target:
+                            if event.type() == QEvent.Type.FocusIn:
+                                obj.setProperty('focusBorder', True)
+                                obj.style().unpolish(obj)
+                                obj.style().polish(obj)
+                                obj.update()
+                            elif event.type() == QEvent.Type.FocusOut:
+                                obj.setProperty('focusBorder', False)
+                                obj.style().unpolish(obj)
+                                obj.style().polish(obj)
+                                obj.update()
+                        return False
+                self._fav_focus_filter = _FocusBorderFilter(fav_chk)
+                fav_chk.installEventFilter(self._fav_focus_filter)
+        except Exception:
+            # Если что-то пойдёт не так, не блокируем диалог
+            pass
+
+        # Стрелочная навигация ТОЛЬКО по кнопкам типов (QToolButton в type_group)
+        try:
+            type_group = self.ui.get_widget('type_group')
+            buttons = type_group.buttons() if type_group else []
+            if buttons:
+                class _TypeButtonsKeyFilter(QObject):
+                    def __init__(self, owner, btns):
+                        super().__init__(owner)
+                        self._owner = owner
+                        self._btns = btns
+                    def eventFilter(self, obj, event):
+                        if obj in self._btns and event.type() == QEvent.Type.KeyPress:
+                            key = event.key()
+                            if key in (Qt.Key.Key_Left, Qt.Key.Key_Right):
+                                idx = self._btns.index(obj)
+                                next_idx = (idx + (1 if key == Qt.Key.Key_Right else -1)) % len(self._btns)
+                                next_btn = self._btns[next_idx]
+                                next_btn.setChecked(True)
+                                next_btn.setFocus()
+                                link_type = next_btn.property("link_type")
+                                # Подавляем перенос фокуса в обработчике смены типа
+                                try:
+                                    setattr(self._owner, '_suppress_focus_after_type_change', True)
+                                    self._owner.handlers._on_type_changed(link_type)
+                                finally:
+                                    setattr(self._owner, '_suppress_focus_after_type_change', False)
+                                return True  # Не пускаем стрелки дальше
+                        return False
+                self._type_btns_key_filter = _TypeButtonsKeyFilter(self, buttons)
+                for b in buttons:
+                    b.installEventFilter(self._type_btns_key_filter)
+        except Exception:
+            pass
+
+        # Явный порядок табуляции: сначала плитки типов, затем URL/остальные поля
+        try:
+            type_group = self.ui.get_widget('type_group')
+            buttons = type_group.buttons() if type_group else []
+            if buttons:
+                prev = buttons[0]
+                for b in buttons[1:]:
+                    self.setTabOrder(prev, b)
+                    prev = b
+                # После последней плитки переходим к URL
+                url_le = self.ui.get_widget('url_le')
+                if url_le:
+                    self.setTabOrder(prev, url_le)
+        except Exception:
+            pass
 
         # Неоновое свечение для кнопок типов ссылок — как у кнопок сфер
         try:
@@ -167,6 +253,17 @@ class LinkDialog(BaseDialog):
 
         # Обновление состояния UI
         self.handlers._update_ui_state()
+        
+        # Начальный фокус — на выбранной плитке типа (чтобы сначала выбрать тип)
+        try:
+            type_group = self.ui.get_widget('type_group')
+            if type_group:
+                for btn in type_group.buttons():
+                    if btn.property("link_type") == self.link_type:
+                        btn.setFocus()
+                        break
+        except Exception:
+            pass
         
     def _set_initial_icon(self) -> None:
         """Устанавливает начальную иконку."""

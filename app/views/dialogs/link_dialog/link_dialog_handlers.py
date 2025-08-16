@@ -92,6 +92,35 @@ class LinkDialogHandlers:
             self.dialog.ui.get_widget('icon_btn').setIcon(QIcon())
             
         self._update_ui_state()
+
+        # Если переключение инициировано стрелками по плиткам типов,
+        # не переносим фокус на поля формы.
+        if not getattr(self.dialog, '_suppress_focus_after_type_change', False):
+            # Убираем фокус с плиток типов, чтобы не оставалась обводка на предыдущей
+            try:
+                type_group = self.dialog.ui.get_widget('type_group')
+                if type_group:
+                    for btn in type_group.buttons():
+                        btn.clearFocus()
+            except Exception:
+                pass
+
+            # Устанавливаем фокус в зависимости от типа:
+            # web -> URL; остальные -> Обзор (если видим), иначе URL
+            try:
+                url_widget = self.dialog.ui.get_widget('url_le')
+                browse_btn = self.dialog.ui.get_widget('browse_btn')
+                if self.dialog.link_type == 'web':
+                    if url_widget:
+                        url_widget.setFocus()
+                        url_widget.selectAll()
+                else:
+                    if browse_btn and browse_btn.isVisible():
+                        browse_btn.setFocus()
+                    elif url_widget:
+                        url_widget.setFocus()
+            except Exception:
+                pass
         
     def _update_ui_state(self) -> None:
         """Обновляет состояние UI в зависимости от типа ссылки."""
