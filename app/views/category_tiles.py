@@ -4,8 +4,8 @@
 
 import logging
 
-from PyQt6.QtCore import QPoint, QRect, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QBrush, QDrag, QFontMetrics, QIcon, QPen, QColor
+from PyQt6.QtCore import QPoint, QPointF, QRect, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QBrush, QDrag, QFontMetrics, QIcon, QPen, QColor, QTextLayout, QTextOption
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QListWidget,
@@ -13,6 +13,8 @@ from PyQt6.QtWidgets import (
     QStyledItemDelegate,
     QVBoxLayout,
     QWidget,
+    QLabel,
+    QToolTip,
 )
 
 from app.config_data import app_config
@@ -66,6 +68,8 @@ class CategoryTileDelegate(QStyledItemDelegate):
         self.tile_size = tile_size or QSize(120, 100)
         self.padding = 8
         self.border_radius = 4
+        # Диагностика: логируем фактический размер шрифта один раз
+        self._font_diag_logged = False
 
 
     def paint(self, painter, option, index):
@@ -102,11 +106,20 @@ class CategoryTileDelegate(QStyledItemDelegate):
         
         # Рисуем текст (перенос по словам, высота = по содержимому, но не более N строк из конфига)
         if text:
-            # Применяем размер шрифта из конфига (в пикселях)
+            # Диагностика фактического размера шрифта (однократно на сессию)
             try:
-                font = painter.font()
-                font.setPixelSize(app_config.get_tile_text_font_size())
-                painter.setFont(font)
+                if not self._font_diag_logged:
+                    fm_diag = QFontMetrics(painter.font())
+                    logger.info(
+                        "CategoryTileDelegate font diag: family='%s', requested_px=%s, pixelSize=%s, pointSizeF=%.2f, fm.height=%s, fm.lineSpacing=%s",
+                        painter.font().family(),
+                        app_config.get_tile_text_font_size(),
+                        painter.font().pixelSize(),
+                        painter.font().pointSizeF(),
+                        fm_diag.height(),
+                        fm_diag.lineSpacing(),
+                    )
+                    self._font_diag_logged = True
             except Exception:
                 pass
             text_rect = QRect(
@@ -117,22 +130,57 @@ class CategoryTileDelegate(QStyledItemDelegate):
                 0
             )
             fm = QFontMetrics(painter.font())
-            # Перенос слов и выравнивание по центру, без эллипсиса
-            flags = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap
-            # Фактическая высота текста с переносом по доступной ширине
-            br = fm.boundingRect(QRect(0, 0, text_rect.width(), 10_000), int(flags), text)
+            # Лэйаут: сначала по словам, при необходимости по буквам
+            layout = QTextLayout(text, painter.font())
+            opt = QTextOption()
+            opt.setWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
+            opt.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+            layout.setTextOption(opt)
+            layout.beginLayout()
+            lines = []
+            y = 0
+            available_w = text_rect.width()
             try:
                 max_lines = int(app_config.get_tile_text_max_lines())
             except Exception:
                 max_lines = 3
-            max_text_h = fm.lineSpacing() * max_lines
-            text_rect.setHeight(min(br.height(), max_text_h))
+            has_more = False
+            for i in range(10_000):
+                line = layout.createLine()
+                if not line.isValid():
+                    break
+                line.setLineWidth(available_w)
+                line.setPosition(QPointF(0.0, float(y)))
+                lines.append(line)
+                y += int(line.height())
+                if len(lines) >= max_lines:
+                    # Проверим, есть ли ещё строки сверх лимита
+                    probe = layout.createLine()
+                    has_more = probe.isValid()
+                    # Обрезаем до max_lines, последнюю строку элидим при необходимости
+                    break
+            layout.endLayout()
+
+            # Высота текстового блока
+            text_rect.setHeight(y)
 
             # Цвет текста берём из палитры; QSS управляет фоном/рамкой
             painter.setPen(option.palette.color(option.palette.ColorRole.WindowText))
 
-            # Рисуем текст в рассчитанный rect
-            painter.drawText(text_rect, flags, text)
+            # Отрисовка построчно по центру
+            # Для последней строки применяем эллипсис, если есть больше строк
+            for idx, line in enumerate(lines):
+                line_text = text[line.textStart(): line.textStart() + line.textLength()]
+                # Центрирование по горизонтали вручную
+                natural_w = line.naturalTextWidth()
+                draw_x = text_rect.x() + max(0, (available_w - int(natural_w)) // 2)
+                draw_y = text_rect.y() + int(line.position().y()) + fm.ascent()
+                if idx == len(lines) - 1 and has_more:
+                    # Эллипсис для последней видимой строки
+                    elided = fm.elidedText(line_text, Qt.TextElideMode.ElideRight, available_w)
+                    painter.drawText(QPoint(draw_x, draw_y), elided)
+                else:
+                    painter.drawText(QPoint(draw_x, draw_y), line_text)
         
         painter.restore()
 
@@ -140,12 +188,8 @@ class CategoryTileDelegate(QStyledItemDelegate):
         """Простой расчет размера плитки."""
         # pylint: disable=unused-argument
         # Высота: padding + icon + 5 + высота текста по содержимому (wrap, но не более N строк) + padding
-        # Используем тот же размер шрифта, что и в paint()
-        try:
-            font = option.font
-            font.setPixelSize(app_config.get_tile_text_font_size())
-        except Exception:
-            font = option.font
+        # Используем шрифт из option (наследует глобальный pt размер)
+        font = option.font
         fm = QFontMetrics(font)
         try:
             max_lines = int(app_config.get_tile_text_max_lines())
@@ -158,11 +202,81 @@ class CategoryTileDelegate(QStyledItemDelegate):
             text = ""
         # Доступная ширина текста в плитке
         available_w = self.tile_size.width() - 2 * self.padding
-        flags = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap
-        br = fm.boundingRect(QRect(0, 0, available_w, 10_000), int(flags), text or "")
-        text_h = min(br.height(), fm.lineSpacing() * max_lines)
+        # Подсчёт высоты через QTextLayout с режимом WrapAtWordBoundaryOrAnywhere
+        layout = QTextLayout(text or "", option.font)
+        opt = QTextOption()
+        opt.setWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
+        opt.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        layout.setTextOption(opt)
+        layout.beginLayout()
+        y = 0
+        lines = 0
+        while True:
+            line = layout.createLine()
+            if not line.isValid():
+                break
+            line.setLineWidth(available_w)
+            y += int(line.height())
+            lines += 1
+            if lines >= max_lines:
+                break
+        layout.endLayout()
+        text_h = y
         height = self.padding + self.icon_size.height() + 5 + text_h + self.padding
         return QSize(self.tile_size.width(), height)
+
+    def helpEvent(self, event, view, option, index):
+        """Показывает тултип с полным названием ТОЛЬКО если текст усечён (за пределами max_lines).
+
+        Имитация поведения Windows Explorer: после переноса и усечения многоточием
+        показываем полный текст в подсказке.
+        """
+        try:
+            if not index.isValid() or event is None:
+                return False
+            # Получаем исходный текст
+            text = index.data(Qt.ItemDataRole.DisplayRole) or ""
+            if not text:
+                return super().helpEvent(event, view, option, index)
+
+            # Вычисляем, был ли усечён текст (существуют строки за пределами лимита)
+            try:
+                max_lines = int(app_config.get_tile_text_max_lines())
+            except Exception:
+                max_lines = 3
+
+            # Доступная ширина для текста основывается на реальном rect элемента
+            available_w = max(0, option.rect.width() - 2 * self.padding)
+
+            layout = QTextLayout(text, option.font)
+            opt = QTextOption()
+            opt.setWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
+            opt.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+            layout.setTextOption(opt)
+            layout.beginLayout()
+            lines_count = 0
+            has_more = False
+            while True:
+                line = layout.createLine()
+                if not line.isValid():
+                    break
+                line.setLineWidth(available_w)
+                lines_count += 1
+                if lines_count >= max_lines:
+                    probe = layout.createLine()
+                    has_more = probe.isValid()
+                    break
+            layout.endLayout()
+
+            if has_more:
+                # Показать полный текст только если реально усечён
+                QToolTip.showText(event.globalPos(), text, view)
+                return True
+
+            return super().helpEvent(event, view, option, index)
+        except Exception:
+            # В случае любых сбоев не ломаем стандартное поведение
+            return super().helpEvent(event, view, option, index)
 
 class CategoryTiles(QWidget):
     # Единственный сигнал для выбора категории (остальные удалены в пользу прямой интеграции с командами)
@@ -225,7 +339,19 @@ class CategoryTiles(QWidget):
         self.list_widget.itemClicked.connect(self._on_item_selected)
         self.list_widget.currentItemChanged.connect(self._on_item_selected)
 
-        self.layout.addWidget(self.list_widget)
+        # Отладочная контрольная метка для визуального сравнения шрифта плиток (отображаем НАД списком)
+        try:
+            if getattr(app_config, 'get_debug_show_tile_font_sample', None) and app_config.get_debug_show_tile_font_sample():
+                sample = QLabel("Sample: Абв ABC 123")
+                # Не принуждаем размер — пусть наследует глобальный pt, чтобы сравнить визуально
+                sample.setObjectName('tileFontSample')
+                self.layout.addWidget(sample, 0)
+                logger.info("CategoryTiles: debug font sample label added (inherits global font)")
+        except Exception:
+            pass
+
+        # Список плиток занимает оставшееся пространство
+        self.layout.addWidget(self.list_widget, 1)
 
         # Контекстное меню через builder
         self._menu_builder = None  # Будет инициализирован при первом использовании

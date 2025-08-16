@@ -188,8 +188,12 @@ QTableWidget::item:selected {
     color: white;
 }
 
-QTreeWidget::item:hover {
-    background-color: #E0E0E0;
+QTreeWidget::item:!selected:hover {
+    background-color: #444444;
+}
+
+QTreeView::item:!selected:hover {
+    background-color: #444444;
 }
 
 QToolButton {

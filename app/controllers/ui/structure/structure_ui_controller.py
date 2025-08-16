@@ -38,7 +38,6 @@ class StructureUIController(QObject):
         self.tree.setDefaultDropAction(Qt.DropAction.MoveAction)
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._on_context_menu)
-        self.tree.itemClicked.connect(self.selection_handler._on_single_click)
         self.tree.currentItemChanged.connect(self.selection_handler._on_current_changed)
     
     def _connect_business_signals(self) -> None:

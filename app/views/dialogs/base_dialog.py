@@ -26,9 +26,14 @@ def apply_uniform_height(dialog: QDialog):
             continue
         widget.setFixedHeight(32)
         if isinstance(widget, QPushButton):
-            font10 = widget.font()
-            font10.setPointSize(10)
-            widget.setFont(font10)
+            try:
+                base_size = dialog.font().pointSize()
+                f = widget.font()
+                f.setPointSize(base_size)
+                widget.setFont(f)
+            except Exception:
+                # Fall back to leaving the current font as-is if something goes wrong
+                pass
 
 
 def create_russian_context_menu(widget):

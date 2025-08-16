@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
 from app.utils.db.db_workers import AsyncTaskMixin
 from app.utils.ui.dnd.tree import DragDropHandler
 from app.views.tree_components.move_operations_handler import MoveOperationsHandler
+from app.config_data import app_config
 
 # Используем строковые литералы "section" и "category"
 
@@ -27,9 +28,15 @@ class NoFocusRectDelegate(QStyledItemDelegate):
 
 class HighQualityTreeDelegate(QStyledItemDelegate):
     """Делегат для высококачественной отрисовки иконок в дереве разделов."""
+    def __init__(self, item_height: int | None = None, parent=None):
+        super().__init__(parent)
+        try:
+            self._item_height = int(item_height) if item_height is not None else None
+        except Exception:
+            self._item_height = None
     
     def paint(self, painter, option, index):
-        # Убираем рамку фокуса
+        # Убираем рамку фокуса у элементов дерева
         option.state &= ~QStyle.StateFlag.State_HasFocus
         
         # Получаем иконку из модели
@@ -84,6 +91,16 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
 
         # Без обводки при наведении для дерева согласно требованиям
 
+    def sizeHint(self, option: QStyleOptionViewItem, index):
+        # Базовый размер от Qt
+        base = super().sizeHint(option, index)
+        # Жёстко возвращаем единую высоту строки из глобальной конфигурации (ui.row_height)
+        try:
+            row_h = int(app_config.get_row_height())
+        except Exception:
+            row_h = self._item_height if self._item_height else base.height()
+        return QSize(base.width(), row_h)
+
 
 class StructureTreeWidget(QTreeWidget, AsyncTaskMixin):
     """
@@ -131,14 +148,20 @@ class StructureTreeWidget(QTreeWidget, AsyncTaskMixin):
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
-        self.setItemDelegate(HighQualityTreeDelegate())
-        # Включаем отслеживание мыши, чтобы работал hover без нажатий
-        self.setMouseTracking(True)
-        # Активируем hover-события на viewport
+        # Явно применяем высоту строк из конфигурации через делегат (используем ui.row_height)
         try:
-            self.viewport().setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+            item_h = int(app_config.get_row_height())
+        except Exception:
+            item_h = None
+        self.setItemDelegate(HighQualityTreeDelegate(item_height=item_h))
+        # Для производительности и единообразия высоты
+        try:
+            self.setUniformRowHeights(True)
         except Exception:
             pass
+        # Включаем отслеживание мыши, чтобы работал hover без нажатий
+        self.setMouseTracking(True)
+        # Убираем специальные hover-обработчики (возврат к стандартному поведению)
 
     def update_font_size(self, font_size: int):
         """Применяет локальный размер шрифта ко всем элементам дерева."""
