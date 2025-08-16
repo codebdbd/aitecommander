@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
     QButtonGroup,
     QFrame,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QMainWindow,
     QPushButton,
@@ -20,7 +19,6 @@ from PyQt6.QtWidgets import (
     QSplitter,
     QStackedLayout,
     QStackedWidget,
-    QStatusBar,
     QVBoxLayout,
     QWidget,
 )
@@ -38,6 +36,7 @@ from app.views.recent_links_widget import RecentLinksWidget
 from app.views.main_components.top_bar_layout_manager import TopBarLayoutManager
 from .common import create_font
 from app.views.effects.neon_effect import NeonEventFilter
+from app.views.status_bar import setup_status_bar as init_status_bar
 
 
 class _AutoHideTreeFilter(QObject):
@@ -283,7 +282,13 @@ class WindowUISetup:
         self.window.search.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.window.search.setObjectName('mainSearch')
         
-        self.window.search.setFont(create_font(11))
+        # Применяем глобальный размер шрифта приложения
+        try:
+            base_size = self.window.font().pointSize()
+            self.window.search.setFont(create_font(base_size))
+        except Exception:
+            # На случай сбоев оставляем шрифт по умолчанию
+            pass
         self.window.search.textChanged.connect(self.window.on_search)
         top_bar.addWidget(self.window.search)
     
@@ -325,8 +330,14 @@ class WindowUISetup:
         self.window.tree.setHeaderHidden(True)
         tree_icon_size = app_config.get_tree_icon_size()
         icon_size = tree_icon_size[0] if isinstance(tree_icon_size, list) else tree_icon_size
+        # Ограничиваем размер иконки деревьев, чтобы высота строки оставалась равной ui.row_height
+        try:
+            row_h = int(app_config.get_row_height())
+        except Exception:
+            row_h = 32
+        eff_icon = max(0, min(int(icon_size), max(0, row_h - 8)))  # 4px сверху + 4px снизу
         from PyQt6 import QtCore
-        self.window.tree.setIconSize(QtCore.QSize(icon_size, icon_size))
+        self.window.tree.setIconSize(QtCore.QSize(eff_icon, eff_icon))
         
         font_size = self.settings.get_font_size() if hasattr(self.settings, 'get_font_size') else 12
         if hasattr(self.window.tree, 'update_font_size'):
@@ -398,13 +409,13 @@ class WindowUISetup:
             self.window.splitter.setHandleWidth(int(app_config.get_splitter_handle_width()))
         except Exception:
             self.window.splitter.setHandleWidth(1)
-        # Разрешаем сворачивание левой панели
+        self.window.splitter.addWidget(self.window.left_panel)
+        self.window.splitter.addWidget(right_panel)
+        # Разрешаем сворачивание левой панели (после добавления виджетов, чтобы индекс 0 существовал)
         try:
             self.window.splitter.setCollapsible(0, True)
         except Exception:
             pass
-        self.window.splitter.addWidget(self.window.left_panel)
-        self.window.splitter.addWidget(right_panel)
         
         stretch_factors = app_config.get_splitter_stretch_factors()
         self.window.splitter.setStretchFactor(0, stretch_factors[0])
@@ -445,20 +456,34 @@ class WindowUISetup:
         bot = QHBoxLayout()
         bot.setContentsMargins(*app_config.get_layout_margins('bottom'))
         
+        # Используем глобальный размер шрифта приложения для кнопок нижней панели
         font10 = QFont()
-        font10.setPointSize(11)
+        try:
+            font10.setPointSize(self.window.font().pointSize())
+        except Exception:
+            # Фоллбэк на 11 как дефолтный глобальный
+            font10.setPointSize(11)
         
         # Кнопка переключения сфер (будет создана после инициализации контроллеров)
         self.window.switch_sphere_button = None
         
         # Дополнительные кнопки из конфигурации
         bottom_actions = app_config.get_bottom_actions()
+        bottom_btns = []
         for text, fn_name in bottom_actions:
             btn = QPushButton(text)
             btn.setFont(font10)
             btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             btn.clicked.connect(getattr(self.window, fn_name))
             bot.addWidget(btn)
+            bottom_btns.append(btn)
+
+        # Помечаем последнюю кнопку, чтобы убрать у неё правую границу через QSS
+        if bottom_btns:
+            try:
+                bottom_btns[-1].setProperty("last", "1")
+            except Exception:
+                pass
         
         bottom_bar_container = QWidget()
         bottom_bar_container.setObjectName("bottomBarContainer")
@@ -477,19 +502,7 @@ class WindowUISetup:
     
     def setup_status_bar(self):
         """Настройка статус-бара."""
-        status = QStatusBar(self.window)
-        self.window.setStatusBar(status)
-        
-        self.window.db_status_label = QLabel(app_config.get_db_connected_text())
-        self.window.path_label = QLabel("")
-        self.window.path_label.setObjectName("pathLabel")
-        self.window.path_label.setMinimumWidth(app_config.get_path_label_min_width())
-        self.window.links_count_label = QLabel(app_config.get_links_count_text())
-        
-        status.addPermanentWidget(self.window.db_status_label)
-        status.addPermanentWidget(self.window.path_label)
-        status.addPermanentWidget(self.window.links_count_label)
-        status.showMessage(app_config.get_status_ready_text())
+        init_status_bar(self.window)
     
     def setup_shortcuts(self):
         """Настройка горячих клавиш."""

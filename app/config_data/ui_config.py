@@ -130,7 +130,7 @@ class UIConfig(BaseConfig):
 
     def get_tile_text_font_size(self) -> int:
         """Получение размера шрифта текста на плитке."""
-        return self.get("ui.tile_text_font_size", 10)
+        return self.get("ui.tile_text_font_size", 11)
 
     def get_tile_text_max_lines(self) -> int:
         """Получение максимального количества строк текста на плитке."""
@@ -524,3 +524,9 @@ class UIConfig(BaseConfig):
     def get_separator_width(self) -> int:
         """Получение толщины (ширины) вертикальных разделителей."""
         return self.get("ui.separator_width", 1)
+
+    # === Отладочные переключатели ===
+
+    def get_debug_show_tile_font_sample(self) -> bool:
+        """Показывать ли контрольную метку с образцом шрифта плиток (для визуального сравнения)."""
+        return self.get("ui.debug_show_tile_font_sample", False)

@@ -269,7 +269,19 @@ class ThemeController:
                 theme_qss = f.read()
             self._load_common_qss()
             with self._cache_lock:
+                # Комбинируем общие стили и стили темы
                 combined_qss = f"{self._common_qss}\n{theme_qss}"
+
+                # Добавляем перекрывающий блок QSS с параметрами из конфигурации.
+                # Это гарантирует применение размеров шрифтов меню/меню-бара и размеров иконок/индикаторов,
+                # даже если они захардкожены в файле темы. Поздние правила с одинаковой специфичностью побеждают.
+                try:
+                    overrides = self._build_config_overrides_qss()
+                    if overrides:
+                        combined_qss = f"{combined_qss}\n\n/* ==== AppConfig overrides (auto-generated) ==== */\n{overrides}"
+                except Exception as exc:
+                    # Не валим применение темы из‑за ошибок построения оверрайдов
+                    self.logger.warning("Не удалось построить QSS-оверрайды из конфигурации: %s", exc)
                 self._qss_cache[theme_name] = combined_qss
                 # Помечаем как недавно использованную и следим за размером
                 self._qss_cache.move_to_end(theme_name, last=True)
@@ -430,6 +442,78 @@ class ThemeController:
         QIcon.setThemeSearchPaths(search_paths)
         # Имя темы — каноническое имя, ожидая поддиректории ui_icons_dir/<theme_name>
         QIcon.setThemeName(theme_name)
+    
+    def _build_config_overrides_qss(self) -> str:
+        """Формирует блок QSS c параметрами из конфигурации для перекрытия темовых значений.
+
+        Возвращает строку QSS. Пустая строка, если нечего перекрывать.
+        """
+        try:
+            menu_font_size = int(app_config.get_menu_font_size())
+        except Exception:
+            menu_font_size = None
+        try:
+            menubar_font_size = int(app_config.get_menubar_font_size())
+        except Exception:
+            menubar_font_size = None
+        try:
+            menubar_item_height = int(app_config.get_menubar_item_height())
+        except Exception:
+            menubar_item_height = None
+        try:
+            menu_icon_size = int(app_config.get_menu_icon_size())
+        except Exception:
+            menu_icon_size = None
+        try:
+            menu_indicator_size = int(app_config.get_menu_indicator_size())
+        except Exception:
+            menu_indicator_size = None
+
+        lines = []
+
+        # Меню (QMenu)
+        if menu_font_size:
+            # Используем pt, чтобы соответствовать глобальному шрифту приложения и DPI
+            lines.append(f"QMenu {{ font-size: {menu_font_size}pt; }}")
+            # Применяем размер шрифта ко всем состояниям пунктов меню, чтобы перекрыть темовые состояния
+            lines.append(f"QMenu::item {{ font-size: {menu_font_size}pt; }}")
+            lines.append(f"QMenu::item:selected {{ font-size: {menu_font_size}pt; }}")
+            lines.append(f"QMenu::item:hover {{ font-size: {menu_font_size}pt; }}")
+            lines.append(f"QMenu::item:pressed {{ font-size: {menu_font_size}pt; }}")
+            lines.append(f"QMenu::item:disabled {{ font-size: {menu_font_size}pt; }}")
+
+        if menu_icon_size:
+            # set both width and height; padding-left already defined in common
+            lines.append(
+                f"QMenu::icon {{ width: {menu_icon_size}px; height: {menu_icon_size}px; }}"
+            )
+
+        if menu_indicator_size:
+            lines.append(
+                f"QMenu::indicator {{ width: {menu_indicator_size}px; height: {menu_indicator_size}px; }}"
+            )
+
+        # Меню-бар (QMenuBar)
+        menubar_rules = []
+        if menubar_font_size:
+            # Тоже используем pt для соответствия системному масштабу
+            menubar_rules.append(f"font-size: {menubar_font_size}pt;")
+        if menubar_rules:
+            lines.append("QMenuBar { " + " ".join(menubar_rules) + " }")
+        item_rules = []
+        if menubar_font_size:
+            item_rules.append(f"font-size: {menubar_font_size}pt;")
+        if menubar_item_height:
+            item_rules.append(f"min-height: {menubar_item_height}px;")
+        if item_rules:
+            # Базовое правило для пункта меню-бара
+            lines.append("QMenuBar::item { " + " ".join(item_rules) + " }")
+            # Дублируем для состояний, чтобы избежать переопределения темой
+            if menubar_font_size or menubar_item_height:
+                lines.append("QMenuBar::item:selected { " + " ".join(item_rules) + " }")
+                lines.append("QMenuBar::item:hover { " + " ".join(item_rules) + " }")
+                lines.append("QMenuBar::item:pressed { " + " ".join(item_rules) + " }")
+        return "\n".join(lines)
     
     def get_cache_stats(self) -> Dict[str, Any]:
         """Возвращает статистику кэша тем."""

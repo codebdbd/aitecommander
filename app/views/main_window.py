@@ -37,6 +37,7 @@ from app.settings import AppSettings
 # NOTE: Если clear_icon_cache переедет в qicon_cache, обновим импорт ниже
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path, themed_icon
+from app.views.status_bar import update_status_bar as _update_status_bar
 from app.utils.ui.icon.path_service import get_current_theme, icon_path_service
 from app.utils.db.synchronization import get_signal_guard, signal_guard
 from app.utils.system.task_scheduler import LimitedThreadPool, get_task_scheduler
@@ -403,35 +404,7 @@ class MainWindow(QMainWindow):
 
 
     def update_statusbar(self):
-        if self.has_links:
-            self.links_count_label.setText(f"Ссылок: {self.links.get_row_count()}")
-        else:
-            self.links_count_label.setText("Ссылок: 0")
-        
-        # Проверяем реальное состояние соединения с базой данных
-        if self.has_db and self.db.is_connected():
-            self.db_status_label.setText(app_config.get_db_connected_text())
-        else:
-            self.db_status_label.setText(app_config.get_db_disconnected_text())
-        try:
-            item = self.tree.currentItem()
-            if item:
-                parts = []
-                node = item
-                while node:
-                    text = node.text(0)
-                    if text:
-                        parts.insert(0, text)
-                    node = node.parent()
-                if self.has_structure_business and self.structure_business.current_sphere_id:
-                    sphere_data = self.structure_business.get_sphere_by_id(self.structure_business.current_sphere_id)
-                    if sphere_data:
-                        parts.insert(0, sphere_data['name'])
-                self.path_label.setText(" > ".join(parts))
-        except Exception as e:
-            import logging
-            logging.error(f"Error updating status bar: {e}")
-            self.path_label.clear()
+        _update_status_bar(self)
 
     def on_structure_item_added(self, item_type: str, parent_id: int, data: dict):
         self.structure.on_structure_item_added(item_type, parent_id, data)

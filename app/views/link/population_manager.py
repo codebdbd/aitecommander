@@ -39,7 +39,27 @@ class PopulationManagerMixin:
             try:
                 self.blockSignals(True)
                 self.horizontalHeader().blockSignals(True)
+                # Гарантируем корректность кэша перед диффом
+                cache_ok = self.validate_cache_integrity()
+                if not cache_ok:
+                    self.rebuild_cache_from_items()
                 
+                # Если нет активной сортировки и изменился порядок ID, проще и безопаснее сделать полное обновление
+                def _ids_from_table() -> List:
+                    ids = []
+                    for row in range(self.rowCount()):
+                        data = self.get_link_at(row)
+                        if data and 'id' in data:
+                            ids.append(data['id'])
+                    return ids
+
+                current_order = _ids_from_table()
+                new_order = [link.get('id') for link in links if link and 'id' in link]
+                if (sort_col == -1) and current_order and (current_order != new_order):
+                    logging.info("[LinksTableView] Обнаружено изменение порядка ID без активной сортировки — выполняем полное обновление")
+                    self._full_populate(links, mode)
+                    return
+
                 current_ids = self._get_current_link_ids()
                 new_ids = self._get_new_link_ids(links)
                 new_link_map = self._create_link_id_to_data_map(links)
@@ -79,7 +99,8 @@ class PopulationManagerMixin:
                         link_id = link.get('id')
                         if link_id in ids_to_add:
                             # Ищем правильную позицию для вставки
-                            target_row = min(i, self.rowCount())
+                            # Если есть активная сортировка, добавляем в конец и затем сортировка восстановится
+                            target_row = self.rowCount() if sort_col != -1 else min(i, self.rowCount())
                             self._add_row(target_row, link, mode)
                 
             except Exception as e:

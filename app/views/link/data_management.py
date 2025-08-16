@@ -60,12 +60,28 @@ class DataManagementMixin:
         return all(link1.get(field) == link2.get(field) for field in basic_fields)
 
     def _get_current_link_ids(self) -> Set[str]:
-        """Возвращает множество ID текущих ссылок."""
-        return {link.get('id') for link in self._current_links.values() if link and 'id' in link}
+        """Возвращает множество ID текущих ссылок на основе фактических элементов таблицы (не кэша)."""
+        ids: Set[str] = set()
+        for row in range(self.rowCount()):
+            link_data = self.get_link_at(row)
+            if link_data and 'id' in link_data:
+                ids.add(link_data['id'])
+        return ids
 
     def _get_new_link_ids(self, new_links: List[Dict]) -> Set[str]:
         """Возвращает множество ID новых ссылок."""
         return {link.get('id') for link in new_links if link and 'id' in link}
+
+    def rebuild_cache_from_items(self) -> None:
+        """Полностью перестраивает кэш _current_links по текущему состоянию таблицы."""
+        try:
+            self._current_links.clear()
+            for row in range(self.rowCount()):
+                link_data = self.get_link_at(row)
+                if link_data:
+                    self._current_links[row] = link_data
+        except Exception as e:
+            logging.error(f"[LinksTableView] Ошибка перестроения кэша из элементов: {e}")
 
     def _create_link_id_to_data_map(self, links: List[Dict]) -> Dict[str, Dict]:
         """Создает маппинг ID -> данные ссылки."""

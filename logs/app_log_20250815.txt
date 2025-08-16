@@ -22921,3 +22921,594 @@
 2025-08-15 23:43:13 - category_tiles - INFO - category_tiles - inject_dependencies:315 - CategoryTiles: Menu builder инициализирован после инъекции зависимостей
 2025-08-15 23:43:13 - root - INFO - main - <lambda>:483 - Приложение успешно запущено
 2025-08-15 23:43:51 - root - INFO - app_shutdown_controller - perform_shutdown:76 - Starting application shutdown sequence
+2025-08-15 23:44:41 - root - INFO - main - _setup_logging:136 - Логирование настроено из файла: B:\osteen path\app\config_data\logging_config.json
+2025-08-15 23:44:41 - root - INFO - main - main:426 - ============================================================
+2025-08-15 23:44:41 - root - INFO - main - main:427 - ЗАПУСК ПРИЛОЖЕНИЯ
+2025-08-15 23:44:41 - root - INFO - main - main:428 - ============================================================
+2025-08-15 23:44:41 - root - INFO - main - create_application:415 - QApplication создан: MyPyQtApp v1.0.0
+2025-08-15 23:44:41 - root - INFO - main - _log_system_info:390 - Операционная система: Windows-11-10.0.26100-SP0
+2025-08-15 23:44:41 - root - INFO - main - _log_system_info:391 - Версия Python: 3.13.5 (tags/v3.13.5:6cb20a2, Jun 11 2025, 16:15:46) [MSC v.1943 64 bit (AMD64)]
+2025-08-15 23:44:41 - root - INFO - main - _log_system_info:392 - Архитектура Python: ('64bit', 'WindowsPE')
+2025-08-15 23:44:41 - root - INFO - main - _log_system_info:393 - Версия PyQt6: 6.9.0
+2025-08-15 23:44:41 - root - INFO - main - _log_system_info:394 - Путь запуска: B:\osteen path\app\main.py
+2025-08-15 23:44:41 - root - INFO - main - _log_system_info:395 - Рабочая директория: B:\osteen path
+2025-08-15 23:44:41 - root - INFO - main - _log_system_info:401 - Дисплей 0: 1920x1080 @ 1.0x
+2025-08-15 23:44:41 - root - INFO - main - main:444 - PID процесса: 700
+2025-08-15 23:44:41 - root - INFO - main - main:445 - Количество аргументов командной строки: 1
+2025-08-15 23:44:41 - root - INFO - main - initialize_all:373 - Инициализация настроек...
+2025-08-15 23:44:41 - root - INFO - main - initialize_settings:298 - Используются переданные настройки приложения
+2025-08-15 23:44:41 - root - INFO - main - initialize_settings:299 - Настройки успешно загружены
+2025-08-15 23:44:41 - root - INFO - main - initialize_all:373 - Инициализация базы данных...
+2025-08-15 23:44:41 - root - INFO - main - initialize_database:308 - Подключение к базе данных...
+2025-08-15 23:44:41 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-15 23:44:41 - root - INFO - main - initialize_database:310 - База данных успешно инициализирована
+2025-08-15 23:44:41 - root - INFO - main - initialize_all:373 - Инициализация контроллера темы...
+2025-08-15 23:44:41 - root - INFO - main - initialize_theme_controller:319 - Создание контроллера темы...
+2025-08-15 23:44:41 - ThemeController - INFO - theme_controller - _load_themes_manifest:113 - Манифест тем не найден, используются значения по умолчанию
+2025-08-15 23:44:41 - root - INFO - main - initialize_theme_controller:321 - Контроллер темы создан
+2025-08-15 23:44:41 - root - INFO - main - initialize_all:373 - Инициализация главного окна...
+2025-08-15 23:44:41 - root - INFO - main - initialize_main_window:330 - Создание главного окна...
+2025-08-15 23:44:41 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-15 23:44:41 - app.utils.browser.browser_profiles.firefox_profile_finder - INFO - firefox_profile_finder - find_profiles:64 - Найдено 2 профилей Firefox
+2025-08-15 23:44:41 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 23 профилей Microsoft Edge
+2025-08-15 23:44:41 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Brave
+2025-08-15 23:44:41 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Opera
+2025-08-15 23:44:41 - root - INFO - main - run:461 - Профили браузеров предзагружены
+2025-08-15 23:44:41 - app.utils.system.task_scheduler - INFO - task_scheduler - get_task_scheduler:250 - Создан глобальный TaskScheduler
+2025-08-15 23:44:41 - app.utils.ui.icon.path_service - INFO - path_service - _maybe_log_metrics:53 - Icon metrics: hits=0 misses=0 hit_rate=0.00% disk_loads=1 not_found=0 avg_load_time=0.0000s load_count=0 uptime=0.35s
+2025-08-15 23:44:41 - app.controllers.domain.structure.structure_business - INFO - structure_business - _initialize_system:115 - Инициализация StructureBusinessLogic
+2025-08-15 23:44:41 - app.controllers.domain.structure.structure_business - INFO - structure_business - __init__:108 - [BL] Handlers connected for business id=2200326515248
+2025-08-15 23:44:41 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - _log_setup_results:494 - Setup completed: 5 successful, 0 failed
+2025-08-15 23:44:41 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-15 23:44:41 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:44:41 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 16 categories
+2025-08-15 23:44:41 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:44:41 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:44:41 - root - INFO - main - initialize_main_window:344 - Главное окно создано
+2025-08-15 23:44:41 - root - INFO - main - initialize_all:373 - Инициализация темы оформления...
+2025-08-15 23:44:41 - root - INFO - main - apply_initial_theme:354 - Применение начальной темы: dark
+2025-08-15 23:44:41 - ThemeController - INFO - theme_controller - apply:348 - Применена тема: dark
+2025-08-15 23:44:41 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-15 23:44:41 - root - INFO - main - apply_initial_theme:356 - Тема успешно применена
+2025-08-15 23:44:41 - root - INFO - main - initialize_all:378 - Все компоненты успешно инициализированы
+2025-08-15 23:44:41 - root - INFO - main - main:478 - Отображение главного окна...
+2025-08-15 23:44:42 - root - INFO - main - main:480 - Главное окно отображено
+2025-08-15 23:44:42 - root - INFO - main - main:486 - Запуск главного цикла событий...
+2025-08-15 23:44:42 - category_tiles - INFO - category_tiles - inject_dependencies:315 - CategoryTiles: Menu builder инициализирован после инъекции зависимостей
+2025-08-15 23:44:42 - root - INFO - main - <lambda>:483 - Приложение успешно запущено
+2025-08-15 23:48:23 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #39
+2025-08-15 23:48:23 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 1 categories
+2025-08-15 23:48:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=1
+2025-08-15 23:48:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:48:23 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #39
+2025-08-15 23:48:23 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 1 categories
+2025-08-15 23:48:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=1
+2025-08-15 23:48:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:48:24 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:48:24 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 16 categories
+2025-08-15 23:48:24 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:48:24 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:48:24 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:48:24 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 16 categories
+2025-08-15 23:48:24 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:48:24 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:48:25 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #39
+2025-08-15 23:48:25 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 1 categories
+2025-08-15 23:48:25 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=1
+2025-08-15 23:48:25 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:48:25 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #39
+2025-08-15 23:48:25 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 1 categories
+2025-08-15 23:48:25 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=1
+2025-08-15 23:48:25 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:48:26 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:48:26 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 16 categories
+2025-08-15 23:48:26 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:48:26 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:48:26 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:48:26 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 16 categories
+2025-08-15 23:48:26 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:48:26 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:49:04 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 2
+2025-08-15 23:49:05 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 3
+2025-08-15 23:49:05 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #24
+2025-08-15 23:49:05 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 0 categories
+2025-08-15 23:49:06 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 4
+2025-08-15 23:49:11 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-15 23:49:11 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:49:11 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 16 categories
+2025-08-15 23:49:11 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:49:11 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:49:50 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 3
+2025-08-15 23:49:51 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 2
+2025-08-15 23:49:51 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #19
+2025-08-15 23:49:51 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 6 categories
+2025-08-15 23:49:51 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=6
+2025-08-15 23:49:51 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:49:51 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-15 23:49:52 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 2
+2025-08-15 23:49:52 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #19
+2025-08-15 23:49:52 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 6 categories
+2025-08-15 23:49:52 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=6
+2025-08-15 23:49:52 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:49:52 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 3
+2025-08-15 23:49:53 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 4
+2025-08-15 23:49:53 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #20
+2025-08-15 23:49:53 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 0 categories
+2025-08-15 23:49:55 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 2
+2025-08-15 23:50:37 - root - INFO - app_shutdown_controller - perform_shutdown:76 - Starting application shutdown sequence
+2025-08-15 23:50:37 - root - INFO - app_shutdown_controller - _backup_database:400 - Creating database backup...
+2025-08-15 23:50:37 - app.models.db - INFO - db - backup:297 - Создана резервная копия: C:\Users\ostee\AppData\Roaming\Codebdbd\Aite Commander\backups\links_20250815_235037_610332.db
+2025-08-15 23:50:37 - root - INFO - app_shutdown_controller - _backup_database:402 - Database backup completed successfully
+2025-08-15 23:50:37 - root - INFO - app_shutdown_controller - perform_shutdown:78 - Application shutdown completed successfully
+2025-08-15 23:50:37 - root - INFO - main - main:489 - Приложение завершено с кодом: 0
+2025-08-15 23:50:37 - root - INFO - main - cleanup:284 - Соединение с базой данных закрыто
+2025-08-15 23:50:37 - root - INFO - main - main:501 - ============================================================
+2025-08-15 23:50:37 - root - INFO - main - main:502 - ЗАВЕРШЕНИЕ РАБОТЫ ПРИЛОЖЕНИЯ
+2025-08-15 23:50:37 - root - INFO - main - main:503 - ============================================================
+2025-08-15 23:50:42 - root - INFO - main - _setup_logging:136 - Логирование настроено из файла: B:\osteen path\app\config_data\logging_config.json
+2025-08-15 23:50:42 - root - INFO - main - main:426 - ============================================================
+2025-08-15 23:50:42 - root - INFO - main - main:427 - ЗАПУСК ПРИЛОЖЕНИЯ
+2025-08-15 23:50:42 - root - INFO - main - main:428 - ============================================================
+2025-08-15 23:50:42 - root - INFO - main - create_application:415 - QApplication создан: MyPyQtApp v1.0.0
+2025-08-15 23:50:42 - root - INFO - main - _log_system_info:390 - Операционная система: Windows-11-10.0.26100-SP0
+2025-08-15 23:50:42 - root - INFO - main - _log_system_info:391 - Версия Python: 3.13.5 (tags/v3.13.5:6cb20a2, Jun 11 2025, 16:15:46) [MSC v.1943 64 bit (AMD64)]
+2025-08-15 23:50:42 - root - INFO - main - _log_system_info:392 - Архитектура Python: ('64bit', 'WindowsPE')
+2025-08-15 23:50:42 - root - INFO - main - _log_system_info:393 - Версия PyQt6: 6.9.0
+2025-08-15 23:50:42 - root - INFO - main - _log_system_info:394 - Путь запуска: B:\osteen path\app\main.py
+2025-08-15 23:50:42 - root - INFO - main - _log_system_info:395 - Рабочая директория: B:\osteen path
+2025-08-15 23:50:42 - root - INFO - main - _log_system_info:401 - Дисплей 0: 1920x1080 @ 1.0x
+2025-08-15 23:50:42 - root - INFO - main - main:444 - PID процесса: 28684
+2025-08-15 23:50:42 - root - INFO - main - main:445 - Количество аргументов командной строки: 1
+2025-08-15 23:50:42 - root - INFO - main - initialize_all:373 - Инициализация настроек...
+2025-08-15 23:50:42 - root - INFO - main - initialize_settings:298 - Используются переданные настройки приложения
+2025-08-15 23:50:42 - root - INFO - main - initialize_settings:299 - Настройки успешно загружены
+2025-08-15 23:50:42 - root - INFO - main - initialize_all:373 - Инициализация базы данных...
+2025-08-15 23:50:42 - root - INFO - main - initialize_database:308 - Подключение к базе данных...
+2025-08-15 23:50:42 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-15 23:50:42 - root - INFO - main - initialize_database:310 - База данных успешно инициализирована
+2025-08-15 23:50:42 - root - INFO - main - initialize_all:373 - Инициализация контроллера темы...
+2025-08-15 23:50:42 - root - INFO - main - initialize_theme_controller:319 - Создание контроллера темы...
+2025-08-15 23:50:42 - ThemeController - INFO - theme_controller - _load_themes_manifest:113 - Манифест тем не найден, используются значения по умолчанию
+2025-08-15 23:50:42 - root - INFO - main - initialize_theme_controller:321 - Контроллер темы создан
+2025-08-15 23:50:42 - root - INFO - main - initialize_all:373 - Инициализация главного окна...
+2025-08-15 23:50:42 - root - INFO - main - initialize_main_window:330 - Создание главного окна...
+2025-08-15 23:50:42 - app.utils.system.task_scheduler - INFO - task_scheduler - get_task_scheduler:250 - Создан глобальный TaskScheduler
+2025-08-15 23:50:42 - app.utils.ui.icon.path_service - INFO - path_service - _maybe_log_metrics:53 - Icon metrics: hits=0 misses=0 hit_rate=0.00% disk_loads=1 not_found=0 avg_load_time=0.0000s load_count=0 uptime=0.60s
+2025-08-15 23:50:43 - app.controllers.domain.structure.structure_business - INFO - structure_business - _initialize_system:115 - Инициализация StructureBusinessLogic
+2025-08-15 23:50:43 - app.controllers.domain.structure.structure_business - INFO - structure_business - __init__:108 - [BL] Handlers connected for business id=2137178925776
+2025-08-15 23:50:43 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-15 23:50:43 - app.utils.browser.browser_profiles.firefox_profile_finder - INFO - firefox_profile_finder - find_profiles:64 - Найдено 2 профилей Firefox
+2025-08-15 23:50:43 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - _log_setup_results:494 - Setup completed: 5 successful, 0 failed
+2025-08-15 23:50:43 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-15 23:50:44 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 23 профилей Microsoft Edge
+2025-08-15 23:50:44 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Brave
+2025-08-15 23:50:44 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Opera
+2025-08-15 23:50:44 - root - INFO - main - run:461 - Профили браузеров предзагружены
+2025-08-15 23:50:44 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:50:44 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 16 categories
+2025-08-15 23:50:44 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:50:44 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:50:44 - root - INFO - main - initialize_main_window:344 - Главное окно создано
+2025-08-15 23:50:44 - root - INFO - main - initialize_all:373 - Инициализация темы оформления...
+2025-08-15 23:50:44 - root - INFO - main - apply_initial_theme:354 - Применение начальной темы: dark
+2025-08-15 23:50:44 - ThemeController - INFO - theme_controller - apply:348 - Применена тема: dark
+2025-08-15 23:50:44 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-15 23:50:44 - root - INFO - main - apply_initial_theme:356 - Тема успешно применена
+2025-08-15 23:50:44 - root - INFO - main - initialize_all:378 - Все компоненты успешно инициализированы
+2025-08-15 23:50:44 - root - INFO - main - main:478 - Отображение главного окна...
+2025-08-15 23:50:44 - root - INFO - main - main:480 - Главное окно отображено
+2025-08-15 23:50:44 - root - INFO - main - main:486 - Запуск главного цикла событий...
+2025-08-15 23:50:44 - category_tiles - INFO - category_tiles - inject_dependencies:315 - CategoryTiles: Menu builder инициализирован после инъекции зависимостей
+2025-08-15 23:50:44 - root - INFO - main - <lambda>:483 - Приложение успешно запущено
+2025-08-15 23:51:41 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:51:41 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:51:51 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #39
+2025-08-15 23:51:51 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 1 categories
+2025-08-15 23:51:51 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=1
+2025-08-15 23:51:51 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:51:51 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #39
+2025-08-15 23:51:51 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 1 categories
+2025-08-15 23:51:51 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=1
+2025-08-15 23:51:51 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:51:56 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:51:56 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 16 categories
+2025-08-15 23:51:56 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:51:56 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:51:56 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:51:56 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 16 categories
+2025-08-15 23:51:56 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:51:56 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:51:57 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #39
+2025-08-15 23:51:57 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 1 categories
+2025-08-15 23:51:57 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=1
+2025-08-15 23:51:57 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:51:57 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #39
+2025-08-15 23:51:57 - category_tiles - INFO - category_tiles - set_categories:239 - Loading 1 categories
+2025-08-15 23:51:57 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=1
+2025-08-15 23:51:57 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:52:36 - root - INFO - app_shutdown_controller - perform_shutdown:76 - Starting application shutdown sequence
+2025-08-15 23:52:36 - root - INFO - app_shutdown_controller - _backup_database:400 - Creating database backup...
+2025-08-15 23:52:36 - app.models.db - INFO - db - backup:297 - Создана резервная копия: C:\Users\ostee\AppData\Roaming\Codebdbd\Aite Commander\backups\links_20250815_235236_703127.db
+2025-08-15 23:52:36 - root - INFO - app_shutdown_controller - _backup_database:402 - Database backup completed successfully
+2025-08-15 23:52:36 - root - INFO - app_shutdown_controller - perform_shutdown:78 - Application shutdown completed successfully
+2025-08-15 23:52:36 - root - INFO - main - main:489 - Приложение завершено с кодом: 0
+2025-08-15 23:52:36 - root - INFO - main - cleanup:284 - Соединение с базой данных закрыто
+2025-08-15 23:52:36 - root - INFO - main - main:501 - ============================================================
+2025-08-15 23:52:36 - root - INFO - main - main:502 - ЗАВЕРШЕНИЕ РАБОТЫ ПРИЛОЖЕНИЯ
+2025-08-15 23:52:36 - root - INFO - main - main:503 - ============================================================
+2025-08-15 23:52:50 - root - INFO - main - _setup_logging:136 - Логирование настроено из файла: B:\osteen path\app\config_data\logging_config.json
+2025-08-15 23:52:50 - root - INFO - main - main:426 - ============================================================
+2025-08-15 23:52:50 - root - INFO - main - main:427 - ЗАПУСК ПРИЛОЖЕНИЯ
+2025-08-15 23:52:50 - root - INFO - main - main:428 - ============================================================
+2025-08-15 23:52:50 - root - INFO - main - create_application:415 - QApplication создан: MyPyQtApp v1.0.0
+2025-08-15 23:52:50 - root - INFO - main - _log_system_info:390 - Операционная система: Windows-11-10.0.26100-SP0
+2025-08-15 23:52:50 - root - INFO - main - _log_system_info:391 - Версия Python: 3.13.5 (tags/v3.13.5:6cb20a2, Jun 11 2025, 16:15:46) [MSC v.1943 64 bit (AMD64)]
+2025-08-15 23:52:50 - root - INFO - main - _log_system_info:392 - Архитектура Python: ('64bit', 'WindowsPE')
+2025-08-15 23:52:50 - root - INFO - main - _log_system_info:393 - Версия PyQt6: 6.9.0
+2025-08-15 23:52:50 - root - INFO - main - _log_system_info:394 - Путь запуска: B:\osteen path\app\main.py
+2025-08-15 23:52:50 - root - INFO - main - _log_system_info:395 - Рабочая директория: B:\osteen path
+2025-08-15 23:52:50 - root - INFO - main - _log_system_info:401 - Дисплей 0: 1920x1080 @ 1.0x
+2025-08-15 23:52:50 - root - INFO - main - main:444 - PID процесса: 7180
+2025-08-15 23:52:50 - root - INFO - main - main:445 - Количество аргументов командной строки: 1
+2025-08-15 23:52:50 - root - INFO - main - initialize_all:373 - Инициализация настроек...
+2025-08-15 23:52:50 - root - INFO - main - initialize_settings:298 - Используются переданные настройки приложения
+2025-08-15 23:52:50 - root - INFO - main - initialize_settings:299 - Настройки успешно загружены
+2025-08-15 23:52:50 - root - INFO - main - initialize_all:373 - Инициализация базы данных...
+2025-08-15 23:52:50 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-15 23:52:50 - root - INFO - main - initialize_database:308 - Подключение к базе данных...
+2025-08-15 23:52:50 - root - INFO - main - initialize_database:310 - База данных успешно инициализирована
+2025-08-15 23:52:50 - root - INFO - main - initialize_all:373 - Инициализация контроллера темы...
+2025-08-15 23:52:50 - root - INFO - main - initialize_theme_controller:319 - Создание контроллера темы...
+2025-08-15 23:52:50 - ThemeController - INFO - theme_controller - _load_themes_manifest:113 - Манифест тем не найден, используются значения по умолчанию
+2025-08-15 23:52:50 - root - INFO - main - initialize_theme_controller:321 - Контроллер темы создан
+2025-08-15 23:52:50 - root - INFO - main - initialize_all:373 - Инициализация главного окна...
+2025-08-15 23:52:50 - root - INFO - main - initialize_main_window:330 - Создание главного окна...
+2025-08-15 23:52:50 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-15 23:52:50 - app.utils.browser.browser_profiles.firefox_profile_finder - INFO - firefox_profile_finder - find_profiles:64 - Найдено 2 профилей Firefox
+2025-08-15 23:52:50 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 23 профилей Microsoft Edge
+2025-08-15 23:52:50 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Brave
+2025-08-15 23:52:50 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Opera
+2025-08-15 23:52:50 - root - INFO - main - run:461 - Профили браузеров предзагружены
+2025-08-15 23:52:50 - app.utils.system.task_scheduler - INFO - task_scheduler - get_task_scheduler:250 - Создан глобальный TaskScheduler
+2025-08-15 23:52:50 - app.utils.ui.icon.path_service - INFO - path_service - _maybe_log_metrics:53 - Icon metrics: hits=0 misses=0 hit_rate=0.00% disk_loads=1 not_found=0 avg_load_time=0.0000s load_count=0 uptime=0.44s
+2025-08-15 23:52:51 - app.controllers.domain.structure.structure_business - INFO - structure_business - _initialize_system:115 - Инициализация StructureBusinessLogic
+2025-08-15 23:52:51 - app.controllers.domain.structure.structure_business - INFO - structure_business - __init__:108 - [BL] Handlers connected for business id=1595741252304
+2025-08-15 23:52:51 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - _log_setup_results:494 - Setup completed: 5 successful, 0 failed
+2025-08-15 23:52:51 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-15 23:52:51 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:52:51 - category_tiles - INFO - category_tiles - set_categories:256 - Loading 16 categories
+2025-08-15 23:52:51 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:52:51 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:52:51 - root - INFO - main - initialize_main_window:344 - Главное окно создано
+2025-08-15 23:52:51 - root - INFO - main - initialize_all:373 - Инициализация темы оформления...
+2025-08-15 23:52:51 - root - INFO - main - apply_initial_theme:354 - Применение начальной темы: dark
+2025-08-15 23:52:51 - ThemeController - INFO - theme_controller - apply:348 - Применена тема: dark
+2025-08-15 23:52:51 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-15 23:52:51 - root - INFO - main - apply_initial_theme:356 - Тема успешно применена
+2025-08-15 23:52:51 - root - INFO - main - initialize_all:378 - Все компоненты успешно инициализированы
+2025-08-15 23:52:51 - root - INFO - main - main:478 - Отображение главного окна...
+2025-08-15 23:52:51 - root - INFO - main - main:480 - Главное окно отображено
+2025-08-15 23:52:51 - root - INFO - main - main:486 - Запуск главного цикла событий...
+2025-08-15 23:52:51 - category_tiles - INFO - category_tiles - inject_dependencies:332 - CategoryTiles: Menu builder инициализирован после инъекции зависимостей
+2025-08-15 23:52:51 - category_tiles - INFO - category_tiles - paint:118 - CategoryTileDelegate font diag: requested_px=11, pixelSize=11, pointSizeF=-1.00, fm.height=15, fm.lineSpacing=15
+2025-08-15 23:52:51 - root - INFO - main - <lambda>:483 - Приложение успешно запущено
+2025-08-15 23:52:52 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:52:52 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:52:54 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:52:54 - category_tiles - INFO - category_tiles - set_categories:256 - Loading 16 categories
+2025-08-15 23:52:54 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:52:54 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:53:27 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:53:27 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:53:29 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:53:29 - category_tiles - INFO - category_tiles - set_categories:256 - Loading 16 categories
+2025-08-15 23:53:29 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:53:29 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:53:37 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:53:37 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:53:38 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:53:38 - category_tiles - INFO - category_tiles - set_categories:256 - Loading 16 categories
+2025-08-15 23:53:38 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:53:38 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:53:41 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:53:41 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:53:42 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:53:42 - category_tiles - INFO - category_tiles - set_categories:256 - Loading 16 categories
+2025-08-15 23:53:42 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:53:42 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:53:46 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:53:46 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:53:49 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:53:49 - category_tiles - INFO - category_tiles - set_categories:256 - Loading 16 categories
+2025-08-15 23:53:49 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:53:49 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:53:51 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:53:51 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:53:51 - app.utils.ui.icon.path_service - INFO - path_service - _maybe_log_metrics:53 - Icon metrics: hits=3 misses=8 hit_rate=27.27% disk_loads=58 not_found=169 avg_load_time=0.0010s load_count=29 uptime=60.77s
+2025-08-15 23:55:04 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #273
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:04 - app.utils.ui.icon.path_service - INFO - path_service - _maybe_log_metrics:53 - Icon metrics: hits=3 misses=25 hit_rate=10.71% disk_loads=58 not_found=266 avg_load_time=0.0010s load_count=29 uptime=134.01s
+2025-08-15 23:55:04 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #273
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:04 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #270
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:04 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #270
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:04 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:05 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #277
+2025-08-15 23:55:05 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:05 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:05 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:05 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:05 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #277
+2025-08-15 23:55:05 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:05 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:05 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:05 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:06 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #274
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:06 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #274
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:06 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #271
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:06 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #271
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:06 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:07 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #270
+2025-08-15 23:55:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:07 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #270
+2025-08-15 23:55:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:10 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #271
+2025-08-15 23:55:10 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:10 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:10 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:10 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:10 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #271
+2025-08-15 23:55:10 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:10 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:10 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:10 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:11 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #273
+2025-08-15 23:55:11 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:11 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:11 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:11 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:11 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #273
+2025-08-15 23:55:11 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:11 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:11 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:11 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:12 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #275
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:12 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #275
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:12 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #273
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:12 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #273
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:12 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:13 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #272
+2025-08-15 23:55:13 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:13 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:13 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:13 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:13 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #272
+2025-08-15 23:55:13 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:13 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:13 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:13 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:21 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #274
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:21 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #274
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:21 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #273
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:21 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #273
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:21 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:22 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #272
+2025-08-15 23:55:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:22 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #272
+2025-08-15 23:55:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:23 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #268
+2025-08-15 23:55:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:23 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #268
+2025-08-15 23:55:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:23 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #302
+2025-08-15 23:55:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:23 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:24 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #302
+2025-08-15 23:55:24 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:24 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:24 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:24 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:24 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #270
+2025-08-15 23:55:24 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:24 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:24 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:24 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:25 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #270
+2025-08-15 23:55:25 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:25 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:55:25 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:55:25 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:07 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #271
+2025-08-15 23:56:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:07 - app.utils.ui.icon.path_service - INFO - path_service - _maybe_log_metrics:53 - Icon metrics: hits=3 misses=77 hit_rate=3.75% disk_loads=58 not_found=654 avg_load_time=0.0010s load_count=29 uptime=197.25s
+2025-08-15 23:56:07 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #271
+2025-08-15 23:56:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:07 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #272
+2025-08-15 23:56:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:07 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:08 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #272
+2025-08-15 23:56:08 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:08 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:08 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:08 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:08 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #271
+2025-08-15 23:56:08 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:08 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:08 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:08 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:08 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #271
+2025-08-15 23:56:08 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:08 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:08 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:08 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:22 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #270
+2025-08-15 23:56:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:22 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: category #270
+2025-08-15 23:56:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:91 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-15 23:56:22 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:95 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-15 23:56:52 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:56:52 - category_tiles - INFO - category_tiles - set_categories:256 - Loading 16 categories
+2025-08-15 23:56:52 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:56:52 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:56:52 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:56:52 - category_tiles - INFO - category_tiles - set_categories:256 - Loading 16 categories
+2025-08-15 23:56:52 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:56:52 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:57:08 - root - INFO - app_shutdown_controller - perform_shutdown:76 - Starting application shutdown sequence
+2025-08-15 23:57:10 - root - INFO - main - _setup_logging:136 - Логирование настроено из файла: B:\osteen path\app\config_data\logging_config.json
+2025-08-15 23:57:10 - root - INFO - main - main:426 - ============================================================
+2025-08-15 23:57:10 - root - INFO - main - main:427 - ЗАПУСК ПРИЛОЖЕНИЯ
+2025-08-15 23:57:10 - root - INFO - main - main:428 - ============================================================
+2025-08-15 23:57:10 - root - INFO - main - create_application:415 - QApplication создан: MyPyQtApp v1.0.0
+2025-08-15 23:57:11 - root - INFO - main - _log_system_info:390 - Операционная система: Windows-11-10.0.26100-SP0
+2025-08-15 23:57:11 - root - INFO - main - _log_system_info:391 - Версия Python: 3.13.5 (tags/v3.13.5:6cb20a2, Jun 11 2025, 16:15:46) [MSC v.1943 64 bit (AMD64)]
+2025-08-15 23:57:11 - root - INFO - main - _log_system_info:392 - Архитектура Python: ('64bit', 'WindowsPE')
+2025-08-15 23:57:11 - root - INFO - main - _log_system_info:393 - Версия PyQt6: 6.9.0
+2025-08-15 23:57:11 - root - INFO - main - _log_system_info:394 - Путь запуска: B:\osteen path\app\main.py
+2025-08-15 23:57:11 - root - INFO - main - _log_system_info:395 - Рабочая директория: B:\osteen path
+2025-08-15 23:57:11 - root - INFO - main - _log_system_info:401 - Дисплей 0: 1920x1080 @ 1.0x
+2025-08-15 23:57:11 - root - INFO - main - main:444 - PID процесса: 28368
+2025-08-15 23:57:11 - root - INFO - main - main:445 - Количество аргументов командной строки: 1
+2025-08-15 23:57:11 - root - INFO - main - initialize_all:373 - Инициализация настроек...
+2025-08-15 23:57:11 - root - INFO - main - initialize_settings:298 - Используются переданные настройки приложения
+2025-08-15 23:57:11 - root - INFO - main - initialize_settings:299 - Настройки успешно загружены
+2025-08-15 23:57:11 - root - INFO - main - initialize_all:373 - Инициализация базы данных...
+2025-08-15 23:57:11 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-15 23:57:11 - root - INFO - main - initialize_database:308 - Подключение к базе данных...
+2025-08-15 23:57:11 - root - INFO - main - initialize_database:310 - База данных успешно инициализирована
+2025-08-15 23:57:11 - root - INFO - main - initialize_all:373 - Инициализация контроллера темы...
+2025-08-15 23:57:11 - root - INFO - main - initialize_theme_controller:319 - Создание контроллера темы...
+2025-08-15 23:57:11 - ThemeController - INFO - theme_controller - _load_themes_manifest:113 - Манифест тем не найден, используются значения по умолчанию
+2025-08-15 23:57:11 - root - INFO - main - initialize_theme_controller:321 - Контроллер темы создан
+2025-08-15 23:57:11 - root - INFO - main - initialize_all:373 - Инициализация главного окна...
+2025-08-15 23:57:11 - root - INFO - main - initialize_main_window:330 - Создание главного окна...
+2025-08-15 23:57:11 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-15 23:57:11 - app.utils.browser.browser_profiles.firefox_profile_finder - INFO - firefox_profile_finder - find_profiles:64 - Найдено 2 профилей Firefox
+2025-08-15 23:57:11 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 23 профилей Microsoft Edge
+2025-08-15 23:57:11 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Brave
+2025-08-15 23:57:11 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Opera
+2025-08-15 23:57:11 - root - INFO - main - run:461 - Профили браузеров предзагружены
+2025-08-15 23:57:11 - app.utils.system.task_scheduler - INFO - task_scheduler - get_task_scheduler:250 - Создан глобальный TaskScheduler
+2025-08-15 23:57:11 - app.utils.ui.icon.path_service - INFO - path_service - _maybe_log_metrics:53 - Icon metrics: hits=0 misses=0 hit_rate=0.00% disk_loads=1 not_found=0 avg_load_time=0.0000s load_count=0 uptime=0.43s
+2025-08-15 23:57:11 - app.controllers.domain.structure.structure_business - INFO - structure_business - _initialize_system:115 - Инициализация StructureBusinessLogic
+2025-08-15 23:57:11 - app.controllers.domain.structure.structure_business - INFO - structure_business - __init__:108 - [BL] Handlers connected for business id=1245252234416
+2025-08-15 23:57:11 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - _log_setup_results:494 - Setup completed: 5 successful, 0 failed
+2025-08-15 23:57:11 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-15 23:57:11 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:94 - Handling selection: section #14
+2025-08-15 23:57:11 - category_tiles - INFO - category_tiles - set_categories:264 - Loading 16 categories
+2025-08-15 23:57:11 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:121 - [UI] Switch to TILES view: index=0, stack_count=2, categories=16
+2025-08-15 23:57:11 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:125 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-15 23:57:11 - root - INFO - main - initialize_main_window:344 - Главное окно создано
+2025-08-15 23:57:11 - root - INFO - main - initialize_all:373 - Инициализация темы оформления...
+2025-08-15 23:57:11 - root - INFO - main - apply_initial_theme:354 - Применение начальной темы: dark
+2025-08-15 23:57:11 - ThemeController - INFO - theme_controller - apply:348 - Применена тема: dark
+2025-08-15 23:57:11 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:139 - Установлена текущая сфера: 1
+2025-08-15 23:57:11 - root - INFO - main - apply_initial_theme:356 - Тема успешно применена
+2025-08-15 23:57:11 - root - INFO - main - initialize_all:378 - Все компоненты успешно инициализированы
+2025-08-15 23:57:11 - root - INFO - main - main:478 - Отображение главного окна...
+2025-08-15 23:57:12 - root - INFO - main - main:480 - Главное окно отображено
+2025-08-15 23:57:12 - root - INFO - main - main:486 - Запуск главного цикла событий...
+2025-08-15 23:57:12 - category_tiles - INFO - category_tiles - inject_dependencies:340 - CategoryTiles: Menu builder инициализирован после инъекции зависимостей
+2025-08-15 23:57:12 - category_tiles - INFO - category_tiles - paint:122 - CategoryTileDelegate font diag: requested_px=11, pixelSize=11, pointSizeF=-1.00, fm.height=15, fm.lineSpacing=15
+2025-08-15 23:57:12 - root - INFO - main - <lambda>:483 - Приложение успешно запущено
+2025-08-15 23:59:48 - root - INFO - app_shutdown_controller - perform_shutdown:76 - Starting application shutdown sequence
+2025-08-15 23:59:48 - root - INFO - app_shutdown_controller - _backup_database:400 - Creating database backup...
+2025-08-15 23:59:48 - app.models.db - INFO - db - backup:297 - Создана резервная копия: C:\Users\ostee\AppData\Roaming\Codebdbd\Aite Commander\backups\links_20250815_235948_061280.db
+2025-08-15 23:59:48 - root - INFO - app_shutdown_controller - _backup_database:402 - Database backup completed successfully
+2025-08-15 23:59:48 - root - INFO - app_shutdown_controller - perform_shutdown:78 - Application shutdown completed successfully
+2025-08-15 23:59:48 - root - INFO - main - main:489 - Приложение завершено с кодом: 0
+2025-08-15 23:59:48 - root - INFO - main - cleanup:284 - Соединение с базой данных закрыто
+2025-08-15 23:59:48 - root - INFO - main - main:501 - ============================================================
+2025-08-15 23:59:48 - root - INFO - main - main:502 - ЗАВЕРШЕНИЕ РАБОТЫ ПРИЛОЖЕНИЯ
+2025-08-15 23:59:48 - root - INFO - main - main:503 - ============================================================

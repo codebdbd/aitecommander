@@ -446,6 +446,12 @@ def main():
         
         # Создаем настройки один раз и передаем их в инициализатор
         settings = AppSettings()
+        # Вариант A: единоразово зафиксировать размер шрифта 10pt в пользовательских настройках
+        try:
+            settings.set_font_size(10)
+            logging.info("Пользовательский размер шрифта установлен в 10pt (Option A)")
+        except Exception as e:
+            logging.warning(f"Не удалось записать размер шрифта в настройки: {e}")
         initializer = ApplicationInitializer(settings)
 
         # Предзагрузка профилей браузеров в фоне
@@ -467,6 +473,8 @@ def main():
         # Применяем размер шрифта из настроек
         from PyQt6.QtGui import QFont
         font_size = settings.get_font_size() if hasattr(settings, 'get_font_size') else 12
+        app.setFont(QFont(app.font().family(), font_size))
+        logging.info(f"Глобальный шрифт приложения установлен: {app.font().family()} {font_size}pt")
 
         if not initializer.initialize_all():
             logging.critical("Не удалось инициализировать приложение")

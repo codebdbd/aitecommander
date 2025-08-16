@@ -18,6 +18,9 @@ class SelectionHandling:
         self.tree = controller.tree
         self.main = controller.main
         self.business = controller.business
+        # Запоминаем последний обработанный выбор, чтобы игнорировать дубликаты подряд
+        # Формат: ("section"|"category", int id)
+        self._last_handled = None
     
     def _on_section_selected(self, section_id: int, categories_data: list) -> None:
         if hasattr(self.main, 'ui_state') and self.main.ui_state:
@@ -37,7 +40,7 @@ class SelectionHandling:
         if hasattr(self.main, 'ui_state') and self.main.ui_state:
             self.main.ui_state.load_category(category_id, source="SelectionHandling._on_category_selected")
         else:
-            self.logger.error("UIStateManager not available in SelectionHandling._on_category_selected")
+            logger.error("UIStateManager not available in SelectionHandling._on_category_selected")
     
     def _on_error_occurred(self, title: str, message: str) -> None:
         from app.utils.ui.dialog_manager import DialogManager
@@ -77,6 +80,14 @@ class SelectionHandling:
         self._handle_item_selection(current)
     
     def _on_single_click(self, item: QTreeWidgetItem, _col: int) -> None:
+        # Избегаем дублирующей обработки: если клик пришёл по уже текущему элементу,
+        # то событие currentItemChanged уже покроет этот кейс или переключения нет вовсе.
+        try:
+            cur = self.tree.currentItem()
+        except Exception:
+            cur = None
+        if item is cur:
+            return
         self._handle_item_selection(item)
     
     @signal_guard()
@@ -91,6 +102,11 @@ class SelectionHandling:
             if typ not in ("section", "category") or not isinstance(id_, int):
                 logger.warning("Invalid item data types for selection")
                 return
+
+            # Защита от повторной обработки того же элемента подряд
+            if self._last_handled == (typ, id_):
+                logger.debug(f"Skip duplicate selection handling for {typ} #{id_}")
+                return
             logger.info(f"Handling selection: {typ} #{id_}")
             
             if typ == "section":
@@ -101,6 +117,9 @@ class SelectionHandling:
                 logger.debug(f"Category #{id_} selected - links will be loaded")
             else:
                 logger.warning(f"Unknown item type: {typ}")
+
+            # Обновляем последний обработанный выбор только после успешной обработки
+            self._last_handled = (typ, id_)
                 
         except Exception as e:
             logger.error(f"Error handling item selection: {e}", exc_info=True)
@@ -125,14 +144,14 @@ class SelectionHandling:
                 if hasattr(self.main, 'ui_state') and self.main.ui_state:
                     self.main.ui_state.load_category(item_id, source="SelectionHandling._handle_item_selection")
                 else:
-                    self.logger.error("UIStateManager not available in _handle_item_selection")
+                    logger.error("UIStateManager not available in _handle_item_selection")
     
     def _select_category_without_stack_switch(self, category_id: int) -> None:
         """ЦЕНТРАЛИЗОВАНО: Обновляем current_category_id без переключения стека"""
         if hasattr(self.main, 'ui_state') and self.main.ui_state:
             self.main.ui_state.update_category_without_stack_switch(category_id)
         else:
-            self.logger.error("UIStateManager not available in _select_category_without_stack_switch")
+            logger.error("UIStateManager not available in _select_category_without_stack_switch")
     
     def _restore_category_selection(self, category_id: int) -> None:
         item = self.controller.tree_manager._find_item_by_id("category", category_id)

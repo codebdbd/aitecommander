@@ -52,10 +52,22 @@ class UIStateManager:
                 self.logger.warning(f"Invalid category_id: {category_id} from {source}")
                 return False
             
-            # 2. Обновляем состояние приложения
+            # 2. Если уже загружена эта категория и мы уже в TABLE, можно спокойно пропустить
+            try:
+                current_idx = self.main.stack.currentIndex() if hasattr(self.main, 'stack') else None
+                table_idx = app_config.get_stack_index_table()
+            except Exception:
+                current_idx = None
+                table_idx = None
+            already_loaded = getattr(self.main, 'current_category_id', None) == category_id
+            if already_loaded and current_idx == table_idx:
+                self.logger.debug(f"load_category пропущен: категория {category_id} уже активна и TABLE вид установлен (source={source})")
+                return True
+
+            # 3. Обновляем состояние приложения
             self.main.current_category_id = category_id
             
-            # 3. Загружаем данные через бизнес-логику
+            # 4. Загружаем данные через бизнес-логику
             if hasattr(self.main, 'links_business') and self.main.links_business:
                 self.main.links_business.load_links(category_id)
             elif hasattr(self.main, 'links') and self.main.links:
@@ -65,7 +77,7 @@ class UIStateManager:
                 self.logger.error(f"No links business logic available for category {category_id}")
                 return False
             
-            # 4. Обновляем UI состояние
+            # 5. Обновляем UI состояние
             self._switch_to_table_view()
             self._clear_tiles_selection()
             
@@ -88,11 +100,22 @@ class UIStateManager:
             if count is not None and (table_index < 0 or table_index >= count):
                 self.logger.warning(f"Table index {table_index} out of range (count={count}). Forcing index=0.")
                 table_index = 0
-            self.logger.info(f"[UI] Switch to TABLE view: index={table_index}, stack_count={count}")
-            self.main.stack.setCurrentIndex(table_index)
+            try:
+                current = self.main.stack.currentIndex()
+            except Exception:
+                current = None
+            if current != table_index:
+                self.logger.info(f"[UI] Switch to TABLE view: index={table_index}, stack_count={count}")
+                self.main.stack.setCurrentIndex(table_index)
+            else:
+                self.logger.debug(f"[UI] Already in TABLE view (index={table_index}) - skip switch")
             try:
                 cur = self.main.stack.currentIndex()
-                self.logger.info(f"[UI] Stack currentIndex after switch_to_table_view: {cur}")
+                # Информируем только при реальном переключении, иначе DEBUG
+                if current != table_index:
+                    self.logger.info(f"[UI] Stack currentIndex after switch_to_table_view: {cur}")
+                else:
+                    self.logger.debug(f"[UI] Stack currentIndex after switch_to_table_view (unchanged): {cur}")
             except Exception:
                 pass
     
@@ -118,11 +141,21 @@ class UIStateManager:
                 if count is not None and (tiles_index < 0 or tiles_index >= count):
                     self.logger.warning(f"Tiles index {tiles_index} out of range (count={count}). Forcing index=0.")
                     tiles_index = 0
-                self.logger.info(f"[UI] Switch to TILES view: index={tiles_index}, stack_count={count}, categories={len(categories_data)}")
-                self.main.stack.setCurrentIndex(tiles_index)
+                try:
+                    current = self.main.stack.currentIndex()
+                except Exception:
+                    current = None
+                if current != tiles_index:
+                    self.logger.info(f"[UI] Switch to TILES view: index={tiles_index}, stack_count={count}, categories={len(categories_data)}")
+                    self.main.stack.setCurrentIndex(tiles_index)
+                else:
+                    self.logger.debug(f"[UI] Already in TILES view (index={tiles_index}) - skip switch")
                 try:
                     cur = self.main.stack.currentIndex()
-                    self.logger.info(f"[UI] Stack currentIndex after switch_to_category_tiles: {cur}")
+                    if current != tiles_index:
+                        self.logger.info(f"[UI] Stack currentIndex after switch_to_category_tiles: {cur}")
+                    else:
+                        self.logger.debug(f"[UI] Stack currentIndex after switch_to_category_tiles (unchanged): {cur}")
                 except Exception:
                     pass
                 

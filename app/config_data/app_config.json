@@ -8,7 +8,7 @@
   },
   "ui": {
     "icon_size": 24,
-    "row_height": 30,
+    "row_height": 32,
     "col_widths": [
       40,
       280,
@@ -17,8 +17,8 @@
     "fixed_button_width": 100,
     "links_table_headers": [
       "★",
-      "Название",
-      "Последний запуск",
+      "Имя",
+      "Открывалась",
       "Заметки"
     ],
     "links_table_columns": {
@@ -55,15 +55,16 @@
     "tile_padding": 10,
     "tile_icon_text_gap": 5,
     "tile_text_font_size": 11,
+    "debug_show_tile_font_sample": true,
     "tile_text_max_lines": 4,
     "tile_border_radius": 8,
     "tile_border_width": 2,
     "tile_border_margin": 2,
-    "spheres_bar_height":78,
+    "spheres_bar_height":96,
     "spheres_layout_margins": [5, 5, 5, 5],
     "spheres_bar_margin_left": 16,
     "spheres_bar_margin_right": 16,
-    "default_font_size": 12,
+    "default_font_size": 11,
     "search_placeholder": "Поиск… (Ctrl+F)",
     "central_frame_shape": "StyledPanel",
     "default_icon_size": 24,
@@ -104,7 +105,7 @@
     "link_dialog_margins": 20,
     "link_dialog_spacing": 10,
     "tree_icon_size": 28,
-    "top_panel_icon_size": 24,
+    "top_panel_icon_size": 28,
     "top_panel_search_width": 320,
     "top_panel_search_min_width": 160,
     "top_bar_margins": [
@@ -132,9 +133,9 @@
     "layout": {
       "margins": {
         "bottom": [
-          16,
           4,
-          16,
+          4,
+          4,
           4
         ]
       },
@@ -150,8 +151,8 @@
       "min_width": 330,
       "min_height": 600
     },
-    "menu_font_size": 12,
-    "menubar_font_size": 12,
+    "menu_font_size": 11,
+    "menubar_font_size": 11,
     "menubar_item_height": 24,
     "menu_icon_size": 20,
     "menu_indicator_size": 16,
@@ -161,6 +162,18 @@
     "table_item_height": 28,
     "separator_width": 1,
     "separator_height": 28,
+    "colors": {
+      "light": {
+        "tree_hover_bg": "#E0E0E0",
+        "selected_bg": "#0078d7",
+        "selected_text": "#FFFFFF"
+      },
+      "dark": {
+        "tree_hover_bg": "#252D3A",
+        "selected_bg": "#6A2E44",
+        "selected_text": "#FFFFFF"
+      }
+    },
     "topbar": {
       "throttle_ms": 0,
       "log_info": false,

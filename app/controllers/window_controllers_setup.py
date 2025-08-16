@@ -123,7 +123,10 @@ class UIElementsSetup(IComponentSetup):
         window.switch_sphere_button.setToolTip(window.switch_sphere_action.toolTip())
         
         font = QFont()
-        font.setPointSize(11)
+        try:
+            font.setPointSize(window.font().pointSize())
+        except Exception:
+            font.setPointSize(11)
         window.switch_sphere_button.setFont(font)
         window.switch_sphere_button.clicked.connect(window.switch_sphere_action.trigger)
     

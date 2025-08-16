@@ -283,10 +283,44 @@ QComboBox QAbstractItemView {
 }
 
 QHeaderView::section {
-    background-color: #252D3A;
-    border-right-color: rgb(71, 78, 110);
+    background-color: #1A1F26;
+    border-right-color: #252D3A; /* как горизонтальные сепараторы */
     color: #C9D1DA;
 }
+
+/* Шапка таблицы: вернуть вертикальные разделители колонок */
+QTableWidget QHeaderView::section:horizontal {
+    border: none;
+    border-right: 1px solid #252D3A; /* как горизонтальные сепараторы */
+    border-bottom: none;
+}
+QTableView QHeaderView::section:horizontal {
+    border: none;
+    border-right: 1px solid #252D3A; /* как горизонтальные сепараторы */
+    border-bottom: none;
+}
+/* Удалены вспомогательные бордеры, чтобы не было удвоения толщины */
+/* Нижняя граница заголовка в цвет горизонтальных сепараторов */
+QTableWidget QHeaderView {
+    border-bottom: 1px solid #252D3A;
+}
+QTableView QHeaderView {
+    border-bottom: 1px solid #252D3A;
+}
+
+/* Первая колонка с цифрами (вертикальный заголовок): убрать границы */
+QTableWidget QHeaderView::section:vertical {
+    background-color: #202731; /* как фон статус-бара */
+    border: none;
+    border-right: none;
+    border-bottom: none;
+}
+QTableWidget QHeaderView:vertical {
+    background-color: #202731; /* как фон статус-бара */
+    border: none;
+    border-right: none;
+}
+
 
 
 
@@ -296,15 +330,69 @@ QLabel#pathLabel {
 
 QTableWidget QTableCornerButton::section,
 QTableWidget QTableCornerButton::section:first {
-    background-color: #1E2633;
+    background-color: #202731; /* как фон статус-бара */
+    border-right: none;
+    border-bottom: none;
+    border-top: none;
+    border-left: none;
+    margin: 0px;  /* чтобы бордер не прятался из-за отступов */
+    padding: 0px;
 }
 
 QTableWidget QTableCornerButton::section:alternate {
-    background-color: #252D3A;
+    background-color: #202731; /* как фон статус-бара */
+    border-right: none;
+    border-bottom: none;
+    border-top: none;
+    border-left: none;
+    margin: 0px;
+    padding: 0px;
+}
+
+/* То же самое для QTableView (corner принадлежит представлению) */
+QTableView QTableCornerButton::section,
+QTableView QTableCornerButton::section:first {
+    background-color: #202731;
+    border-right: none;
+    border-bottom: none;
+    border-top: none;
+    border-left: none;
+    margin: 0px;
+    padding: 0px;
+}
+QTableView QTableCornerButton::section:alternate {
+    background-color: #202731;
+    border-right: none;
+    border-bottom: none;
+    border-top: none;
+    border-left: none;
+    margin: 0px;
+    padding: 0px;
+}
+
+/* Вертикальные заголовки для QTableView (колонка цифр) */
+QTableView QHeaderView::section:vertical {
+    background-color: #202731;
+    border: none;
+    border-right: none;
+    border-bottom: none;
+}
+QTableView QHeaderView:vertical {
+    background-color: #202731;
+    border: none;
+    border-right: none;
 }
 
 QTableWidget {
-    alternate-background-color: #1E2633;
+    background-color: #2D2D2D;           /* теперь нечётные строки серые */
+    alternate-background-color: #1A1F26; /* чётные — тёмные */
+    gridline-color: transparent;
+}
+
+/* Для QTableView применяем ту же схему чередования */
+QTableView {
+    background-color: #2D2D2D;
+    alternate-background-color: #1A1F26;
     gridline-color: transparent;
 }
 
@@ -318,31 +406,54 @@ QTableWidget::item:selected {
     color: #FFFFFF;
 }
 
-QTreeWidget::item:hover {
-    background-color: #252D3A;
+QTreeWidget::item:!selected:hover {
+    background-color: #444444;
 }
+
+QTreeView::item:!selected:hover {
+    background-color: #444444;
+}
+
 
 QWidget[class="separator"] {
     background-color: #252D3A;
 }
 
 QStatusBar {
-    border-top-color: #252D3A;
+    border: none;
+    background-color: #202731;
+}
+
+/* Менее контрастные надписи справа в статус-баре */
+QStatusBar QLabel#dbStatusLabel,
+QStatusBar QLabel#linksCountLabel {
+    color: #7E8896; /* чуть бледнее, чем #9EA9B7 у pathLabel */
+    font-weight: normal;
 }
 
 QWidget#bottomBarContainer {
-    background-color: #252D3A;
-    border-top-color: #252D3A;
-    border-bottom-color: #252D3A;
+    background-color: #1A1F26;
+    border-top-color: #1A1F26;
+    border-bottom-color: #1A1F26;
 }
 
 #bottomBarContainer QPushButton {
-    background-color: #2D3A4A;
+    /* Прозрачный фон и базовая прозрачная рамка (чтобы не прыгала верстка) */
+    background: transparent;
     color: #fff;
+    border: 1px solid transparent;
+    border-radius: 0;
+    /* Разделитель справа между кнопками */
+    border-right: 1px solid #252D3A;
 }
 
+/* У последней кнопки убираем разделитель справа */
+#bottomBarContainer QPushButton[last="1"] {
+    border-right: none;
+}
+
+/* Обводка только при наведении */
 #bottomBarContainer QPushButton:hover {
-    background-color: #252D3A;
     border-color: #0194F0;
 }
 

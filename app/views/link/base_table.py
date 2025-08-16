@@ -104,6 +104,14 @@ class LinksTableView(BaseDragDropTableWidget,
         headers = app_config.get_links_table_headers()
         self.setColumnCount(len(headers))
         self.setHorizontalHeaderLabels(headers)
+        # Выравнивание заголовка только для колонки "Имя" по левому краю
+        try:
+            name_col = app_config.get_links_table_columns().get("name", 1)
+            header_item = self.horizontalHeaderItem(name_col)
+            if header_item is not None:
+                header_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        except Exception as e:
+            logging.debug(f"Не удалось выровнять заголовок колонки 'Имя': {e}")
         self.setAlternatingRowColors(True)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setShowGrid(False)
@@ -157,11 +165,11 @@ class LinksTableView(BaseDragDropTableWidget,
         QTimer.singleShot(0, self._clear_cache_after_sort)
     
     def _clear_cache_after_sort(self):
-        """Очищает кэш после сортировки."""
+        """Перестраивает кэш после сортировки по фактическому порядку строк."""
         import logging
         
         old_cache_size = len(self._current_links)
-        self._current_links.clear()
-        
-        logging.debug(f"[SORT] Кэш очищен: {old_cache_size} записей удалено")
-        logging.debug(f"[SORT] Теперь get_link_at() будет использовать fallback (item.data)")
+        # Перестраиваем кэш, чтобы соответствовать отсортированным строкам
+        self.rebuild_cache_from_items()
+        new_cache_size = len(self._current_links)
+        logging.debug(f"[SORT] Кэш перестроен: было {old_cache_size}, стало {new_cache_size}")
