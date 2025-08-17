@@ -264,7 +264,15 @@ class LinkInfoWorker(QRunnable):
                 return
             if self.link_type == "web":
                 from app.utils.links.web_favicon import fetch_web_link_info
-                info = fetch_web_link_info(self.path, self.config)
+                # Простая прокидка флага принудительного обновления из args
+                force = False
+                try:
+                    a = (self.args or "").lower()
+                    if ("--force-refresh" in a) or ("force_refresh=1" in a) or ("force=true" in a):
+                        force = True
+                except Exception:
+                    force = False
+                info = fetch_web_link_info(self.path, self.config, force_refresh=force)
             else:
                 from app.utils.links.link_parser import parse_local_link
                 info = parse_local_link(self.link_type, self.path, self.config, self.args)

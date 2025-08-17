@@ -288,18 +288,6 @@ QHeaderView::section {
     color: #C9D1DA;
 }
 
-/* Полностью скрыть стрелки сортировки в заголовках */
-QHeaderView::up-arrow,
-QHeaderView::down-arrow,
-QTableWidget QHeaderView::up-arrow,
-QTableWidget QHeaderView::down-arrow,
-QTableView QHeaderView::up-arrow,
-QTableView QHeaderView::down-arrow {
-    image: none;
-    width: 0px;
-    height: 0px;
-}
-
 /* Шапка таблицы: вернуть вертикальные разделители колонок */
 QTableWidget QHeaderView::section:horizontal {
     border: none;

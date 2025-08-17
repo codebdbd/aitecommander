@@ -10,7 +10,29 @@ from app.utils.ui.qt.roles import get_item_dict
 
 
 class DataManagementMixin:
-    """Миксин для управления данными таблицы ссылок (без строкового кэша)."""
+    """Миксин для управления данными и кэшем таблицы ссылок."""
+    
+    def validate_cache_integrity(self) -> bool:
+        """Проверяет целостность кэша ссылок."""
+        try:
+            row_count = self.rowCount()
+            cache_size = len(self._current_links)
+            
+            # Проверяем, что размер кэша соответствует количеству строк
+            if cache_size != row_count:
+                logging.warning(f"[LinksTableView] Несоответствие размера кэша: {cache_size} != {row_count}")
+                return False
+            
+            # Проверяем, что все индексы в кэше находятся в допустимом диапазоне
+            for row in self._current_links.keys():
+                if not (0 <= row < row_count):
+                    logging.warning(f"[LinksTableView] Недопустимый индекс в кэше: {row}")
+                    return False
+            
+            return True
+        except Exception as e:
+            logging.error(f"[LinksTableView] Ошибка проверки целостности кэша: {e}")
+            return False
 
     def _links_equal(self, link1: Dict, link2: Dict, mode: str) -> bool:
         """Сравнивает две ссылки на предмет равенства для текущего режима."""
@@ -50,7 +72,16 @@ class DataManagementMixin:
         """Возвращает множество ID новых ссылок."""
         return {link.get('id') for link in new_links if link and 'id' in link}
 
-    # Кэш строк больше не используется. Данные читаются из самих элементов таблицы.
+    def rebuild_cache_from_items(self) -> None:
+        """Полностью перестраивает кэш _current_links по текущему состоянию таблицы."""
+        try:
+            self._current_links.clear()
+            for row in range(self.rowCount()):
+                link_data = self.get_link_at(row)
+                if link_data:
+                    self._current_links[row] = link_data
+        except Exception as e:
+            logging.error(f"[LinksTableView] Ошибка перестроения кэша из элементов: {e}")
 
     def _create_link_id_to_data_map(self, links: List[Dict]) -> Dict[str, Dict]:
         """Создает маппинг ID -> данные ссылки."""

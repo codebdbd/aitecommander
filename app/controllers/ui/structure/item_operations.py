@@ -41,10 +41,45 @@ class ItemOperations:
             )
     
     def switch_sphere(self, sphere_id: int) -> None:
-        """Переключает сферу с использованием асинхронной загрузки структуры."""
+        """Переключает сферу и перезагружает структуру.
+
+        Предпочитаем асинхронную загрузку, но если её нет, делаем синхронную,
+        чтобы дерево обязательно обновилось.
+        """
         self.business.set_current_sphere(sphere_id)
-        # Используем асинхронную версию для предотвращения блокировки UI
-        self.business.load_structure_async()
+        # Мгновенно очищаем дерево, чтобы UI отразил смену сферы до прихода данных
+        try:
+            if hasattr(self.controller, 'tree') and self.controller.tree:
+                self.controller.tree.clear()
+        except Exception:
+            pass
+        # Предпочтительно используем реальный асинхронный слой воркеров
+        try:
+            async_ops = getattr(self.business, 'async_operations', None)
+            current_id = getattr(self.business, 'current_sphere_id', None)
+            if async_ops and callable(getattr(async_ops, 'load_structure_async', None)) and isinstance(current_id, int):
+                async_ops.load_structure_async(current_id)
+                # Отложенная проверка: если дерево так и не заполнилось, грузим синхронно
+                try:
+                    from app.utils.system.task_scheduler import schedule_selection_restore
+                    schedule_selection_restore(
+                        lambda: (self.business.load_structure() if self.controller.tree.topLevelItemCount() == 0 else None),
+                        f"ensure_tree_{current_id}"
+                    )
+                except Exception:
+                    pass
+                return
+        except Exception:
+            # Не прерываем — пойдём по фолбэкам ниже
+            pass
+
+        # Фолбэк: совместимый псевдо-асинхронный вызов
+        load_async = getattr(self.business, 'load_structure_async', None)
+        if callable(load_async):
+            load_async()
+        else:
+            # Синхронная загрузка (UI может подтормаживать, но обновится)
+            self.business.load_structure()
     
     def add_new_section(self) -> None:
         try:
@@ -184,23 +219,9 @@ class ItemOperations:
         section_data = self.business.get_section_data(section_id)
         if not section_data:
             return
-        # Реальный подсчет: категории и суммарное количество ссылок в разделе
-        try:
-            cats_count, links_count = self.business.structure_model.count_nested_objects_for_section(section_id)
-        except Exception:
-            # Фолбэк на прежнее поведение
-            categories = self.business.get_categories(section_id) or []
-            cats_count = len(categories)
-            links_count = 0
-
-        # Если раздел действительно пуст (нет категорий и ссылок) — удаляем без подтверждения
-        if cats_count == 0 and links_count == 0:
-            cmd = DeleteSectionCommand(section_data, self.main)
-            if cmd:
-                self.undo_stack.push(cmd)
-            return
-
-        # Иначе спрашиваем подтверждение
+        categories = self.business.get_categories(section_id) or []
+        cats_count = len(categories)
+        links_count = 0  # При необходимости можно заменить на реальный подсчет ссылок
         if self._confirm_section_deletion(section_data, cats_count, links_count):
             cmd = DeleteSectionCommand(section_data, self.main)
             if cmd:
@@ -211,20 +232,7 @@ class ItemOperations:
         category_data = self.business.get_category_data(category_id)
         if not category_data:
             return
-        # Реальный подсчет ссылок для категории
-        try:
-            links_count = self.business.structure_model.count_links_by_category(category_id)
-        except Exception:
-            links_count = 0
-
-        # Если ссылок нет — удаляем без подтверждения
-        if links_count == 0:
-            cmd = DeleteCategoryCommand(category_data, self.main)
-            if cmd:
-                self.undo_stack.push(cmd)
-            return
-
-        # Иначе спрашиваем подтверждение
+        links_count = 0  # При необходимости заменить на реальный подсчет
         if self._confirm_category_deletion(category_data, links_count):
             cmd = DeleteCategoryCommand(category_data, self.main)
             if cmd:

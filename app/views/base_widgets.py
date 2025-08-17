@@ -68,22 +68,36 @@ class BaseLinksPanelWidget(BasePanelWidget):
         """Находит путь к иконке, проверяя пользовательские, системные и дефолтные пути."""
         if not icon_path:
             return str(self._get_default_icon_path())
+
+        # 1) Абсолютный путь — используем как есть, если файл существует
+        try:
+            p = Path(icon_path)
+            if p.is_absolute() and p.exists():
+                return str(p)
+        except Exception:
+            pass
         
-        # Проверяем пользовательскую иконку
+        # 2) Проверяем пользовательскую иконку (относительный путь/имя файла)
         user_icon_path = icon_path_service.get_user_icons_dir() / icon_path
         if user_icon_path.exists():
             return str(user_icon_path)
         
-        # Проверяем системную иконку
+        # 3) Проверяем системную иконку
         ui_icon_path = icon_path_service.get_ui_icons_dir() / icon_path
         if ui_icon_path.exists():
             return str(ui_icon_path)
         
-        # Fallback на дефолтную иконку
+        # 4) Fallback на дефолтную иконку
         return str(self._get_default_icon_path())
 
     def _create_link_button(self, link_data: Dict[str, Any]) -> QToolButton:
-        """Общий метод создания кнопки ссылки."""
+        """Общий метод создания кнопки ссылки.
+
+        Логика иконок синхронизирована с таблицей ссылок:
+        - если у ссылки есть `icon_path` — используем его;
+        - иначе берем дефолтную иконку в зависимости от `type` (file, web, folder, ...);
+        - при отсутствии подходящей — общий дефолт.
+        """
         button = QToolButton()
         
         # Используем единые параметры для всех кнопок топпанели
@@ -95,8 +109,34 @@ class BaseLinksPanelWidget(BasePanelWidget):
         from PyQt6.QtWidgets import QSizePolicy
         button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         
-        # Находим и создаем иконку
-        icon_path = self._find_icon(link_data.get("icon_path", ""))
+        # Подбор иконки: как в таблице (по типу)
+        original_icon_name = (link_data.get("icon_path") or "").strip()
+        icon_name = original_icon_name
+        if not icon_name:
+            try:
+                default_icons = app_config.get_default_icons()
+                # Приводим тип к нижнему регистру для соответствия ключам конфига
+                link_type = ((link_data.get("type") or "file").strip() or "file").lower()
+                icon_name = default_icons.get(link_type, default_icons.get("default", "default.ico"))
+            except Exception:
+                # На крайний случай — общий дефолт
+                icon_name = "default.ico"
+
+        # Находим путь к иконке среди пользовательских/системных
+        icon_path = self._find_icon(icon_name)
+
+        # Если был задан icon_path, но файл не найден (вернулся дефолт),
+        # то делаем фоллбек на дефолтную по типу, а не на общий дефолт
+        try:
+            if original_icon_name:
+                default_path = str(self._get_default_icon_path())
+                if icon_path == default_path:
+                    default_icons = app_config.get_default_icons()
+                    link_type = ((link_data.get("type") or "file").strip() or "file").lower()
+                    type_icon = default_icons.get(link_type, default_icons.get("default", "default.ico"))
+                    icon_path = self._find_icon(type_icon)
+        except Exception:
+            pass
         icon = create_icon_from_path(icon_path)
         button.setIcon(icon)
         

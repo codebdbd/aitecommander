@@ -91,8 +91,6 @@ class BaseDialog(QDialog):
         """
         if not self._styles_applied:
             apply_uniform_height(self)
-            self._apply_button_focus_style()
-            self._apply_tab_behavior()
             self._styles_applied = True
             self._setup_russian_context_menus()
         super().showEvent(event)
@@ -103,31 +101,3 @@ class BaseDialog(QDialog):
             widget.customContextMenuRequested.connect(
                 lambda pos, w=widget: create_russian_context_menu(w).popup(w.mapToGlobal(pos))
             )
-
-    def _apply_button_focus_style(self):
-        """Applies a unified focus style for push/tool buttons to avoid dotted outline on Windows.
-        Replaces it with a clear solid border for focused state, matching input focus visuals.
-        """
-        # Keep any existing stylesheet and append our rules
-        current = self.styleSheet() or ""
-        focus_qss = (
-            "QPushButton:focus {\n"
-            "    outline: 0;\n"
-            "    border: 1px solid rgba(93, 169, 255, 0.9);\n"
-            "}\n"
-            "QToolButton:focus {\n"
-            "    outline: 0;\n"
-            "    border: 1px solid rgba(93, 169, 255, 0.9);\n"
-            "}\n"
-        )
-        # Avoid duplicating rules if showEvent happens multiple times
-        if focus_qss not in current:
-            self.setStyleSheet(current + ("\n" if current else "") + focus_qss)
-
-    def _apply_tab_behavior(self):
-        """Make multi-line text edits pass Tab to focus navigation instead of inserting a tab symbol."""
-        try:
-            for te in self.findChildren(QTextEdit):
-                te.setTabChangesFocus(True)
-        except Exception:
-            pass

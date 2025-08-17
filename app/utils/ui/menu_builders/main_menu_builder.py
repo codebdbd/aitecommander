@@ -7,7 +7,7 @@ from PyQt6.QtGui import QKeySequence
 from PyQt6.QtWidgets import QMenuBar
 
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
-from app.utils.ui.menu_actions import ActionBuilder, Shortcuts
+from app.utils.ui.menu_actions import ActionBuilder
 
 if TYPE_CHECKING:
     from app.main_window import MainWindow
@@ -130,47 +130,7 @@ class MainMenuBuilder:
         if undo_action and redo_action:
             undo_action.setIcon(self._get_icon('undo'))
             redo_action.setIcon(self._get_icon('redo'))
-        
-        # Действия структуры и ссылок
-        edit_menu.addAction(self.actions.create(
-            "Добавить раздел",
-            self.main_window.show_section_dialog,
-            Shortcuts.ADD_SECTION,
-            self._get_icon('add_section')
-        ))
-        edit_menu.addAction(self.actions.create(
-            "Добавить категорию",
-            self.main_window.show_category_dialog,
-            Shortcuts.ADD_CATEGORY,
-            self._get_icon('add_category')
-        ))
-        edit_menu.addAction(self.actions.create(
-            "Добавить ссылку",
-            lambda: self.main_window.show_link_dialog_for_category(
-                category_id=self.main_window.get_current_category_id()
-            ),
-            Shortcuts.ADD_LINK,
-            self._get_icon('add_link')
-        ))
-        
-        edit_menu.addSeparator()
-        
-        edit_menu.addAction(self.actions.create(
-            "Редактировать",
-            self.main_window.edit_current,
-            Shortcuts.EDIT,
-            self._get_icon('edit')
-        ))
-        edit_menu.addAction(self.actions.create(
-            "Удалить",
-            self.main_window.delete_current,
-            Shortcuts.DELETE,
-            self._get_icon('delete')
-        ))
-        
-        edit_menu.addSeparator()
-        
-        # Undo/Redo в конце группы правки
+
         edit_menu.addAction(self.main_window.undo_action)
         edit_menu.addAction(self.main_window.redo_action)
     

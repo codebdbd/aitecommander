@@ -95,14 +95,6 @@ class NeonEventFilter(QObject):
 
     # ---- helpers ---------------------------------------------------------
     def _attach_to_tree(self, w: QWidget) -> None:
-        # 1) Всегда навешиваем фильтр на сам контейнер, чтобы он получал ChildAdded
-        #    для будущих динамических детей (включая глубокие уровни вложенности).
-        try:
-            w.installEventFilter(self)
-        except Exception:
-            pass
-
-        # 2) Если это подходящий контрол — подключаем неон и синхронизируем checked-состояние.
         eligible = (
             QPushButton,
             QToolButton,
@@ -118,18 +110,15 @@ class NeonEventFilter(QObject):
             QAbstractItemView,
         )
         if isinstance(w, eligible):
+            w.installEventFilter(self)
             self._maybe_connect_toggled(w)
+            # Синхронизируем эффект с текущим состоянием checked
             if self._is_active_checked_button(w):
                 self._apply_effect(w)
-
-        # 3) Рекурсивно навешиваем фильтр на всех текущих потомков, чтобы они
-        #    тоже перехватывали ChildAdded и, если они eligible, имели неон.
+        # Рекурсивно обходим текущих потомков
         for child in w.findChildren(QWidget):
-            try:
-                child.installEventFilter(self)
-            except Exception:
-                pass
             if isinstance(child, eligible):
+                child.installEventFilter(self)
                 self._maybe_connect_toggled(child)
                 if self._is_active_checked_button(child):
                     self._apply_effect(child)

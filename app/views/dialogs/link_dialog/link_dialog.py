@@ -8,15 +8,13 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from PyQt6.QtCore import Qt, QThreadPool, QTimer, QObject, QEvent
+from PyQt6.QtCore import Qt, QThreadPool, QTimer
 from PyQt6.QtGui import QColor
-from PyQt6.QtWidgets import QFocusFrame, QFrame
 
 from app.config_data import app_config
 from app.utils.db.db_workers import LinkInfoWorker
 from app.utils.ui.dialog_manager import DialogManager
 from app.utils.ui.icon.path_service import icon_path_service
-from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
 from app.utils.validators import validate_config_for_icons
 
@@ -73,91 +71,6 @@ class LinkDialog(BaseDialog):
         # UI компоненты
         self.ui = LinkDialogUI(self)
         self.ui.build_ui(self.link_types)
-
-        # Синяя обводка фокуса только для чекбокса "Добавить в избранное":
-        # 1) QFocusFrame (если стиль поддерживает)
-        # 2) Динамическое свойство через eventFilter (гарантированная отрисовка рамки стилем)
-        try:
-            fav_chk = self.ui.get_widget('fav_chk')
-            if fav_chk is not None:
-                self._fav_focus_frame = QFocusFrame(self)
-                self._fav_focus_frame.setWidget(fav_chk)
-                self._fav_focus_frame.setStyleSheet(
-                    "QFocusFrame { border: 1px solid rgba(93, 169, 255, 0.9); border-radius: 0; }"
-                )
-                # Фильтр для установки динамического свойства focusBorder
-                class _FocusBorderFilter(QObject):
-                    def __init__(self, target):
-                        super().__init__(target)
-                        self._target = target
-                    def eventFilter(self, obj, event):
-                        if obj is self._target:
-                            if event.type() == QEvent.Type.FocusIn:
-                                obj.setProperty('focusBorder', True)
-                                obj.style().unpolish(obj)
-                                obj.style().polish(obj)
-                                obj.update()
-                            elif event.type() == QEvent.Type.FocusOut:
-                                obj.setProperty('focusBorder', False)
-                                obj.style().unpolish(obj)
-                                obj.style().polish(obj)
-                                obj.update()
-                        return False
-                self._fav_focus_filter = _FocusBorderFilter(fav_chk)
-                fav_chk.installEventFilter(self._fav_focus_filter)
-        except Exception:
-            # Если что-то пойдёт не так, не блокируем диалог
-            pass
-
-        # Стрелочная навигация ТОЛЬКО по кнопкам типов (QToolButton в type_group)
-        try:
-            type_group = self.ui.get_widget('type_group')
-            buttons = type_group.buttons() if type_group else []
-            if buttons:
-                class _TypeButtonsKeyFilter(QObject):
-                    def __init__(self, owner, btns):
-                        super().__init__(owner)
-                        self._owner = owner
-                        self._btns = btns
-                    def eventFilter(self, obj, event):
-                        if obj in self._btns and event.type() == QEvent.Type.KeyPress:
-                            key = event.key()
-                            if key in (Qt.Key.Key_Left, Qt.Key.Key_Right):
-                                idx = self._btns.index(obj)
-                                next_idx = (idx + (1 if key == Qt.Key.Key_Right else -1)) % len(self._btns)
-                                next_btn = self._btns[next_idx]
-                                next_btn.setChecked(True)
-                                next_btn.setFocus()
-                                link_type = next_btn.property("link_type")
-                                # Подавляем перенос фокуса в обработчике смены типа
-                                try:
-                                    setattr(self._owner, '_suppress_focus_after_type_change', True)
-                                    self._owner.handlers._on_type_changed(link_type)
-                                finally:
-                                    setattr(self._owner, '_suppress_focus_after_type_change', False)
-                                return True  # Не пускаем стрелки дальше
-                        return False
-                self._type_btns_key_filter = _TypeButtonsKeyFilter(self, buttons)
-                for b in buttons:
-                    b.installEventFilter(self._type_btns_key_filter)
-        except Exception:
-            pass
-
-        # Явный порядок табуляции: сначала плитки типов, затем URL/остальные поля
-        try:
-            type_group = self.ui.get_widget('type_group')
-            buttons = type_group.buttons() if type_group else []
-            if buttons:
-                prev = buttons[0]
-                for b in buttons[1:]:
-                    self.setTabOrder(prev, b)
-                    prev = b
-                # После последней плитки переходим к URL
-                url_le = self.ui.get_widget('url_le')
-                if url_le:
-                    self.setTabOrder(prev, url_le)
-        except Exception:
-            pass
 
         # Неоновое свечение для кнопок типов ссылок — как у кнопок сфер
         try:
@@ -255,17 +168,6 @@ class LinkDialog(BaseDialog):
         # Обновление состояния UI
         self.handlers._update_ui_state()
         
-        # Начальный фокус — на выбранной плитке типа (чтобы сначала выбрать тип)
-        try:
-            type_group = self.ui.get_widget('type_group')
-            if type_group:
-                for btn in type_group.buttons():
-                    if btn.property("link_type") == self.link_type:
-                        btn.setFocus()
-                        break
-        except Exception:
-            pass
-        
     def _set_initial_icon(self) -> None:
         """Устанавливает начальную иконку."""
         if self.icon_name:
@@ -323,8 +225,7 @@ class LinkDialog(BaseDialog):
         # Используем данные из initialization_data вместо прямых запросов к БД
         spheres = self.initialization_data.get('spheres', [])
         for sp in spheres:
-            # По требованию: иконки для сфер не добавляем; также sp — sqlite3.Row
-            sphere_cb.addItem(sp["name"], sp["id"]) 
+            sphere_cb.addItem(sp["name"], sp["id"])
         self.handlers._update_sections()
         
         # Используем иерархию из initialization_data
@@ -356,35 +257,19 @@ class LinkDialog(BaseDialog):
                 
                 # Обновляем разделы для первой сферы
                 sections = [s for s in self.initialization_data.get('sections', [])
-                           if (s["sphere_id"] if hasattr(s, '__getitem__') and 'sphere_id' in s.keys() else s.get('sphere_id')) == sphere_id]
+                           if s.get('sphere_id') == sphere_id]
                 section_cb.clear()
                 for sec in sections:
-                    icon_name = ((sec["icon_path"] if hasattr(sec, '__getitem__') and 'icon_path' in sec.keys() else sec.get("icon_path")) or "").strip()
-                    if icon_name:
-                        user_path = icon_path_service.get_user_icons_dir() / icon_name
-                        ui_path = icon_path_service.get_ui_icons_dir() / icon_name
-                        icon_path = user_path if user_path.exists() else ui_path
-                        if icon_path.exists():
-                            section_cb.addItem(create_icon_from_path(str(icon_path)), (sec["name"] if hasattr(sec, '__getitem__') and 'name' in sec.keys() else sec.get("name")), (sec["id"] if hasattr(sec, '__getitem__') and 'id' in sec.keys() else sec.get("id")))
-                            continue
-                    section_cb.addItem((sec["name"] if hasattr(sec, '__getitem__') and 'name' in sec.keys() else sec.get("name")), (sec["id"] if hasattr(sec, '__getitem__') and 'id' in sec.keys() else sec.get("id")))
+                    section_cb.addItem(sec["name"], sec["id"])
                 
                 # Обновляем категории для первого раздела
                 if sections:
                     section_id = sections[0]["id"]
                     categories = [c for c in self.initialization_data.get('categories', [])
-                                 if (c["section_id"] if hasattr(c, '__getitem__') and 'section_id' in c.keys() else c.get('section_id')) == section_id]
+                                 if c.get('section_id') == section_id]
                     category_cb.clear()
                     for cat in categories:
-                        icon_name = ((cat["icon_path"] if hasattr(cat, '__getitem__') and 'icon_path' in cat.keys() else cat.get("icon_path")) or "").strip()
-                        if icon_name:
-                            user_path = icon_path_service.get_user_icons_dir() / icon_name
-                            ui_path = icon_path_service.get_ui_icons_dir() / icon_name
-                            icon_path = user_path if user_path.exists() else ui_path
-                            if icon_path.exists():
-                                category_cb.addItem(create_icon_from_path(str(icon_path)), (cat["name"] if hasattr(cat, '__getitem__') and 'name' in cat.keys() else cat.get("name")), (cat["id"] if hasattr(cat, '__getitem__') and 'id' in cat.keys() else cat.get("id")))
-                                continue
-                        category_cb.addItem((cat["name"] if hasattr(cat, '__getitem__') and 'name' in cat.keys() else cat.get("name")), (cat["id"] if hasattr(cat, '__getitem__') and 'id' in cat.keys() else cat.get("id"))) 
+                        category_cb.addItem(cat["name"], cat["id"])
 
     def get_ui_icons_dir(self) -> Path:
         """Получает директорию UI иконок."""

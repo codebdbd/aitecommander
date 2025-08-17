@@ -81,6 +81,7 @@ class LinksTableView(BaseDragDropTableWidget,
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._current_links = {}  # Кэш текущих данных: {row: link_data}
         self._current_mode = "normal"  # Текущий режим отображения
         self._setup_table()
 
@@ -91,6 +92,9 @@ class LinksTableView(BaseDragDropTableWidget,
         self.setMouseTracking(True)
         self.cellEntered.connect(self._on_cell_entered)
         self.leaveEvent = self._on_leave_event
+
+        # Простое решение: очищаем кэш после сортировки
+        self.horizontalHeader().sectionClicked.connect(self._on_sort_clicked)
 
         # Подключаем сигнал базового класса к нашему сигналу для совместимости
         self.items_reordered.connect(self.links_reordered.emit)
@@ -148,3 +152,23 @@ class LinksTableView(BaseDragDropTableWidget,
         # Используем реализацию из DragDropHandlerMixin
         return DragDropHandlerMixin._get_current_order(self)
     
+    def _on_sort_clicked(self, logical_index):
+        """Обработчик клика по заголовку - очищает кэш после сортировки."""
+        import logging
+
+        from PyQt6.QtCore import QTimer
+        
+        logging.debug(f"[SORT] Клик по колонке {logical_index}, очищаем кэш")
+        
+        # Отложенное очищение кэша после завершения сортировки
+        QTimer.singleShot(0, self._clear_cache_after_sort)
+    
+    def _clear_cache_after_sort(self):
+        """Перестраивает кэш после сортировки по фактическому порядку строк."""
+        import logging
+        
+        old_cache_size = len(self._current_links)
+        # Перестраиваем кэш, чтобы соответствовать отсортированным строкам
+        self.rebuild_cache_from_items()
+        new_cache_size = len(self._current_links)
+        logging.debug(f"[SORT] Кэш перестроен: было {old_cache_size}, стало {new_cache_size}")

@@ -85,6 +85,15 @@ class UniversalProfileProcessor:
             existing_links = [dict(link) for link in existing_links_in_category]
         else:
             existing_links = [dict(link) for link in self.database.links.get_links(category_id)]
+        # Предварительно строим хэш-ключи для ускоренной проверки дубликатов
+        # Ключ: (url, type, args)
+        try:
+            existing_keys = {
+                (l.get('url'), l.get('type'), (l.get('args') if (hasattr(l, 'get') and l.get('args') is not None) else l.get('args') if isinstance(l, dict) else ''))
+                for l in existing_links
+            }
+        except Exception:
+            existing_keys = set()
         
         result_links = []
         is_edit = existing_link is not None
@@ -146,7 +155,13 @@ class UniversalProfileProcessor:
                     logger.debug(f"Пропускаем проверку дубликатов для профиля другого браузера: {prof_name}")
                 
                 logger.debug(f"Проверка дубликатов для {link_name}: skip={skip_duplicate_check}, url={url}, type={link_type}, args={prof_args}")
-                duplicate_check_result = validate_link_duplicate(url, link_type, prof_args, existing_links, current_link_id) if not skip_duplicate_check else False
+                if skip_duplicate_check:
+                    duplicate_check_result = False
+                elif is_current:
+                    # Текущая редактируемая запись не считается дубликатом самой себя
+                    duplicate_check_result = False
+                else:
+                    duplicate_check_result = (url, link_type, prof_args) in existing_keys
                 logger.debug(f"Результат проверки дубликатов: {duplicate_check_result}")
                 
                 if not skip_duplicate_check and duplicate_check_result:

@@ -168,19 +168,6 @@ class DependencyInjectionSetup(IComponentSetup):
         class DialogProvider(DialogMixin):
             def __init__(self, parent_widget):
                 self.parent = parent_widget
-            
-            def show_link_dialog_for_category(self, category_id: int):
-                """Делегирует показ диалога ссылки родительскому окну.
-                
-                Нужен для корректной работы пункта контекстного меню плиток
-                "Добавить ссылку", где используется dialog_provider.
-                """
-                try:
-                    return self.parent.show_link_dialog_for_category(category_id=category_id)
-                except Exception as e:
-                    logger.error(
-                        f"DialogProvider: failed to show LinkDialog for category {category_id}: {e}"
-                    )
         
         dialog_provider = DialogProvider(window)
         
@@ -275,15 +262,55 @@ class SignalConnectionSetup(IComponentSetup):
         window.structure_business.active_sphere_changed.connect(
             window._update_left_panel_style
         )
+        # При смене сферы гарантируем перезагрузку структуры (обновление дерева)
+        try:
+            window.structure_business.active_sphere_changed.connect(
+                lambda *_: (
+                    getattr(window.structure_business, 'load_structure_async', None)() \
+                    if callable(getattr(window.structure_business, 'load_structure_async', None)) \
+                    else window.structure_business.load_structure()
+                )
+            )
+        except Exception:
+            pass
+        # При смене сферы обновляем верхние панели (Избранное/Недавние)
+        try:
+            window.structure_business.active_sphere_changed.connect(
+                lambda *_: getattr(window, '_refresh_top_panels', lambda: None)()
+            )
+        except Exception:
+            pass
+
+        # После загрузки структуры также обновляем верхние панели
+        try:
+            window.structure_business.structure_loaded.connect(
+                lambda *_: getattr(window, '_refresh_top_panels', lambda: None)()
+            )
+        except Exception:
+            pass
         window.structure.item_changed.connect(window.on_structure_item_changed)
         window.structure.item_added.connect(window.on_structure_item_added)
         
-        # ЦЕНТРАЛИЗОВАНО: Подключение к UIStateManager
+        # ЦЕНТРАЛИЗОВАНО: Подключение к UIStateManager (загрузка категории)
         window.structure_business.category_selected.connect(
             lambda cat_id: window.ui_state.load_category(
                 cat_id, source="StructureBusiness"
             )
         )
+        
+        # Дополнительно обновляем верхние панели при выборе раздела/категории
+        try:
+            window.structure_business.section_selected.connect(
+                lambda *_: getattr(window, '_refresh_top_panels', lambda: None)()
+            )
+        except Exception:
+            pass
+        try:
+            window.structure_business.category_selected.connect(
+                lambda *_: getattr(window, '_refresh_top_panels', lambda: None)()
+            )
+        except Exception:
+            pass
     
     def _connect_database_signals(self, window):
         """Подключение сигналов базы данных."""
@@ -413,16 +440,6 @@ class DatabaseEventHandler:
             if spheres:
                 first_sphere_id = spheres[0].get('id', 1)
                 window.structure_business.set_current_sphere(first_sphere_id)
-                # Критично: после смены БД очистить кэш и принудительно загрузить структуру,
-                # чтобы UI немедленно обновился (событие structure_loaded)
-                try:
-                    window.structure_business.clear_all_cache()
-                except Exception:
-                    pass
-                try:
-                    window.structure_business.load_structure(first_sphere_id)
-                except Exception:
-                    logger.warning("Failed to load structure after DB change", exc_info=True)
     
     @staticmethod
     def _restore_ui_state(window):

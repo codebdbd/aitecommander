@@ -87,6 +87,21 @@ class RowOperationsMixin:
                 
                 self.setItem(row, col_idx, item)
             
+            # Обновляем кэш (пока оставляем для совместимости)
+            self._current_links[row] = link
+            # Принудительно перерисовываем видимую область таблицы,
+            # чтобы гарантировать визуальное обновление иконок/текста
+            try:
+                viewport = getattr(self, 'viewport', None)
+                if callable(viewport):
+                    vp = viewport()
+                    if hasattr(vp, 'update'):
+                        vp.update()
+                # Как дополнительный вариант, если потребуется более жёсткая перерисовка:
+                # if hasattr(self, 'repaint'):
+                #     self.repaint()
+            except Exception as e:
+                logging.debug(f"[LinksTableView] Не удалось принудительно обновить viewport: {e}")
             logging.info(f"Строка {row} успешно обновлена")
             return True
             
@@ -116,6 +131,16 @@ class RowOperationsMixin:
             for col_idx, item in enumerate(row_items):
                 self.setItem(row, col_idx, item)
             
+            # Обновляем кэш (сдвигаем индексы)
+            new_cache = {}
+            for cached_row, cached_link in self._current_links.items():
+                if cached_row >= row:
+                    new_cache[cached_row + 1] = cached_link
+                else:
+                    new_cache[cached_row] = cached_link
+            new_cache[row] = link
+            self._current_links = new_cache
+            
             return True
             
         except Exception as e:
@@ -137,6 +162,16 @@ class RowOperationsMixin:
                 return
                 
             self.removeRow(row)
+            
+            # Обновляем кэш (сдвигаем индексы)
+            new_cache = {}
+            for cached_row, cached_link in self._current_links.items():
+                if cached_row < row:
+                    new_cache[cached_row] = cached_link
+                elif cached_row > row:
+                    new_cache[cached_row - 1] = cached_link
+                # cached_row == row - удаляем
+            self._current_links = new_cache
             
         except Exception as e:
             logging.error(f"[LinksTableView] Ошибка удаления строки {row}: {e}")
