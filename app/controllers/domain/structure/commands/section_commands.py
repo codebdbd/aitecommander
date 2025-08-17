@@ -47,6 +47,17 @@ class SaveSectionCommand(BaseCommand):
                 else:
                     self.db.sections.upsert_section(self.new_data)
             else:
+                # ВАЖНО: сохраняем текущую позицию, если она не была задана явно в new_data,
+                # чтобы раздел не «перепрыгивал» в дереве после редактирования (переименования и т.п.)
+                try:
+                    if 'position' not in self.new_data or self.new_data.get('position') is None:
+                        current_row = self.db.sections.get_section_by_id(self.new_id)
+                        if current_row and 'position' in current_row:
+                            # Интегрируем текущую позицию в обновляемые данные
+                            self.new_data['position'] = int(current_row['position'])
+                except Exception as e:
+                    # Не блокируем команду из-за неудачного чтения позиции, просто логируем
+                    self.logger.warning(f"SaveSectionCommand: не удалось сохранить позицию раздела: {e}")
                 self.db.sections.upsert_section(self.new_data)
             self.update_structure_tree(item_to_select=('section', self.new_id))
             # Эмитим бизнес-сигналы и инициируем асинхронную перезагрузку структуры,

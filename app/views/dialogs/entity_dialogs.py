@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
+    QListView,
 )
 
 from app.config_data import app_config
@@ -37,6 +38,7 @@ def _populate_spheres_common(structure_business: StructureBusinessLogic, sphere_
     """
     spheres = structure_business.get_spheres()
     for sphere in spheres:
+        # По требованию: иконки для сфер не добавляем
         sphere_cb.addItem(sphere["name"], sphere["id"])
 
 
@@ -160,6 +162,12 @@ class SectionDialog(BaseEntityDialog):
 
         # Затем — выбор сферы (опционально при создании)
         self.sphere_cb = QComboBox()
+        self.sphere_cb.setIconSize(QSize(24, 24))
+        self.sphere_cb.setFixedHeight(32)
+        _sphere_view = QListView()
+        _sphere_view.setIconSize(QSize(24, 24))
+        _sphere_view.setStyleSheet("QListView::item { height: 32px; }")
+        self.sphere_cb.setView(_sphere_view)
         self._populate_spheres()
         form.addRow("Сфера:", self.sphere_cb)
 
@@ -242,10 +250,22 @@ class CategoryDialog(BaseEntityDialog):
 
         # Затем — Раздел
         self.section_cb = QComboBox()
+        self.section_cb.setIconSize(QSize(24, 24))
+        self.section_cb.setFixedHeight(32)
+        _section_view = QListView()
+        _section_view.setIconSize(QSize(24, 24))
+        _section_view.setStyleSheet("QListView::item { height: 32px; }")
+        self.section_cb.setView(_section_view)
         form.addRow("Раздел:", self.section_cb)
 
         # И затем — Сфера (управляет списком разделов)
         self.sphere_cb = QComboBox()
+        self.sphere_cb.setIconSize(QSize(24, 24))
+        self.sphere_cb.setFixedHeight(32)
+        _sphere_view = QListView()
+        _sphere_view.setIconSize(QSize(24, 24))
+        _sphere_view.setStyleSheet("QListView::item { height: 32px; }")
+        self.sphere_cb.setView(_sphere_view)
         self._populate_spheres()
         self.sphere_cb.currentIndexChanged.connect(self._update_sections)
         form.addRow("Сфера:", self.sphere_cb)
@@ -272,6 +292,14 @@ class CategoryDialog(BaseEntityDialog):
         try:
             sections = self.structure_business.get_sections(sphere_id)
             for section in sections:
+                icon_name = (section.get("icon_path") or "").strip()
+                if icon_name:
+                    user_path = icon_path_service.get_user_icons_dir() / icon_name
+                    ui_path = icon_path_service.get_ui_icons_dir() / icon_name
+                    icon_path = user_path if user_path.exists() else ui_path
+                    if icon_path.exists():
+                        self.section_cb.addItem(create_icon_from_path(str(icon_path)), section["name"], section["id"])
+                        continue
                 self.section_cb.addItem(section["name"], section["id"])
         except Exception as e:
             DialogManager.show_error(

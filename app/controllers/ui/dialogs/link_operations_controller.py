@@ -116,6 +116,13 @@ class LinkOperationsController:
                     first_link_id = cmd.created_ids[0] if hasattr(cmd, 'created_ids') and cmd.created_ids else None
                     if first_link_id:
                         QTimer.singleShot(200, lambda: self.main_window.links.focus_on_link(first_link_id))
+                # Гарантируем, что после операций показана таблица, а не плитки
+                try:
+                    from PyQt6.QtCore import QTimer
+                    if hasattr(self.main_window, 'ui_state') and self.main_window.ui_state:
+                        QTimer.singleShot(220, lambda: self.main_window.ui_state._switch_to_table_view())
+                except Exception:
+                    pass
             else:
                 # Для одиночных ссылок используем обычную команду
                 data = links_to_save[0]
@@ -133,21 +140,25 @@ class LinkOperationsController:
                     )
                     self.undo_stack.push(cmd)
                     
-                    # Устанавливаем фокус на добавленную ссылку (только для новых ссылок)
-                    logger.debug(f"Focus check: is_update={is_update_single}, has_links={hasattr(self.main_window, 'links')}")
-                    if hasattr(self.main_window, 'links'):
-                        logger.debug(f"Links object exists, has_focus_method={hasattr(self.main_window.links, 'focus_on_link')}")
-                    
-                    if not is_update_single and hasattr(self.main_window, 'links') and hasattr(self.main_window.links, 'focus_on_link'):
-                        # Используем QTimer для отложенной фокусировки после обновления UI
+                    # Всегда пытаемся установить фокус на сохранённую ссылку (и при создании, и при редактировании)
+                    try:
                         from PyQt6.QtCore import QTimer
                         link_id = cmd.created_id or data.get('id')
-                        logger.info(f"Attempting to focus on link: cmd.created_id={cmd.created_id}, data.id={data.get('id')}, final_link_id={link_id}")
-                        if link_id:
-                            logger.info(f"Scheduling focus on link ID {link_id} in 200ms")
-                            QTimer.singleShot(200, lambda: self.main_window.links.focus_on_link(link_id))
+                        logger.info(f"Scheduling focus on saved link ID {link_id} (is_update={is_update_single})")
+                        if link_id and hasattr(self.main_window, 'table') and hasattr(self.main_window.table, 'focus_on_link_id'):
+                            QTimer.singleShot(200, lambda: self.main_window.table.focus_on_link_id(link_id))
                         else:
-                            logger.warning("No link ID available for focusing")
+                            logger.warning("Cannot schedule focus: link_id or table with focus_on_link_id is unavailable")
+                    except Exception as e:
+                        logger.warning(f"Failed to schedule focusing on link after save: {e}")
+                    
+                    # Гарантируем, что после операций показана таблица, а не плитки
+                    try:
+                        from PyQt6.QtCore import QTimer
+                        if hasattr(self.main_window, 'ui_state') and self.main_window.ui_state:
+                            QTimer.singleShot(220, lambda: self.main_window.ui_state._switch_to_table_view())
+                    except Exception:
+                        pass
     
         return result
     

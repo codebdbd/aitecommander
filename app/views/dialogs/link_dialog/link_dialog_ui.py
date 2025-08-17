@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
     QToolButton,
     QVBoxLayout,
     QSizePolicy,
+    QListView,
 )
 
 from app.config_data import app_config
@@ -127,6 +128,17 @@ class LinkDialogUI:
         self.sphere_cb = QComboBox()
         self.section_cb = QComboBox()
         self.category_cb = QComboBox()
+
+        # Настройка размеров иконок и высоты строк в выпадающих списках
+        for cb in (self.sphere_cb, self.section_cb, self.category_cb):
+            # Отображаемая строка комбобокса
+            cb.setIconSize(QSize(24, 24))
+            cb.setFixedHeight(32)
+            # Всплывающий список
+            view = QListView()
+            view.setIconSize(QSize(24, 24))
+            view.setStyleSheet("QListView::item { height: 32px; }")
+            cb.setView(view)
         
         self.form.addRow("Сфера:", self.sphere_cb)
         self.form.addRow("Раздел:", self.section_cb)
