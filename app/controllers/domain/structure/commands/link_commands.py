@@ -42,7 +42,12 @@ class SaveLinkCommand(BaseCommand):
                     else:
                         business.item_added.emit("link", link_id, self.new_data)
                     # Обновление структуры может быть необходимо для плиток счетчиков/бейджей
-                    # (вес незначительный, но повышает консистентность отображения)
+                    # Перед перезагрузкой структуры подавляем однократное переключение на плитки
+                    try:
+                        if hasattr(self.main, 'ui_state') and self.main.ui_state:
+                            self.main.ui_state.suppress_tiles_for(600)
+                    except Exception:
+                        pass
                     business.load_structure()
             except Exception as e:
                 logger.warning(f"SaveLinkCommand: не удалось инициировать бизнес-обновление: {e}")
@@ -79,6 +84,11 @@ class SaveLinkCommand(BaseCommand):
                         business.item_updated.emit("link", self.old_data['id'], self.old_data)
                     else:
                         business.item_deleted.emit("link", self.created_id)
+                    try:
+                        if hasattr(self.main, 'ui_state') and self.main.ui_state:
+                            self.main.ui_state.suppress_tiles_for(600)
+                    except Exception:
+                        pass
                     business.load_structure()
             except Exception as e:
                 self.logger.warning(f"SaveLinkCommand.undo: не удалось инициировать бизнес-обновление: {e}")
@@ -116,6 +126,13 @@ class SaveLinkCommand(BaseCommand):
             # Надёжная фокусировка с повторными попытками, чтобы дождаться,
             # когда таблица завершит перезаполнение после load_category()
             def try_focus(remaining: int, interval_ms: int = 120):
+                # Перед каждой попыткой убеждаемся, что активна таблица (а не плитки)
+                try:
+                    if hasattr(self.main, 'ui_state') and self.main.ui_state:
+                        self.main.ui_state._switch_to_table_view()
+                except Exception:
+                    pass
+
                 links_table = getattr(self.main, 'table', None)
                 if not links_table or not hasattr(links_table, 'focus_on_link_id'):
                     logger.warning("Links table or focus method not available")
@@ -200,6 +217,11 @@ class BatchSaveLinksCommand(BaseCommand):
             try:
                 if hasattr(self.main, 'structure_business') and self.main.structure_business:
                     self.logger.info(f"[CMD:BatchLinks] Emitting load_structure to business id={id(self.main.structure_business)}")
+                    try:
+                        if hasattr(self.main, 'ui_state') and self.main.ui_state:
+                            self.main.ui_state.suppress_tiles_for(600)
+                    except Exception:
+                        pass
                     self.main.structure_business.load_structure()
             except Exception as e:
                 logger.warning(f"BatchSaveLinksCommand: не удалось инициировать бизнес-обновление структуры: {e}")
