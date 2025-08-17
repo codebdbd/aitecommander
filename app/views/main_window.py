@@ -471,6 +471,23 @@ class MainWindow(QMainWindow):
                 self.left_panel.setUpdatesEnabled(True)
                 self.left_panel.update()
 
+    def _refresh_top_panels(self) -> None:
+        """Обновляет верхние панели (Избранное и Недавние) при смене сферы/структуры.
+
+        Минимально-инвазивный способ: дергаем пассивные виджеты, чтобы они
+        запросили данные через свои сигналы, которые обработает контроллер ссылок.
+        """
+        try:
+            if hasattr(self, 'fav_widget') and self.fav_widget:
+                self.fav_widget.update_favorites()
+        except Exception:
+            pass
+        try:
+            if hasattr(self, 'recent_links_widget') and self.recent_links_widget:
+                self.recent_links_widget.update_recent_links()
+        except Exception:
+            pass
+
     def on_search(self, text: str):
         self.links.on_search(text)
 

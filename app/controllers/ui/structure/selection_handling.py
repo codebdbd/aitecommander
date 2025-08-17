@@ -124,39 +124,15 @@ class SelectionHandling:
         except Exception as e:
             logger.error(f"Error handling item selection: {e}", exc_info=True)
     
-    def _restore_selection_after_load(self, item_type: str, item_id: int) -> bool:
+    def _restore_selection_after_load(self, item_type: str, item_id: int) -> None:
         item = self.controller.tree_manager._find_item_by_id(item_type, item_id)
-        if not item:
-            return False
-        self.tree.blockSignals(True)
-        self.tree.setCurrentItem(item)
-        self.tree.scrollToItem(item)
-        self.tree.blockSignals(False)
-        # После восстановления выделения сигнал currentItemChanged мог не сработать
-        # из-за блокировки сигналов. Принудительно инициируем обработку выбора,
-        # сбросив защиту от повторной обработки.
-        try:
-            self._last_handled = None
-        except Exception:
-            pass
-        if item_type == "category":
-            # ВАЖНО: сначала обновим плитки категорий для родительского раздела,
-            # затем восстановим выбор категории без переключения стека.
-            try:
-                parent = item.parent()
-            except Exception:
-                parent = None
-            if parent is not None:
-                # Принудительно обработаем выбор раздела, чтобы справа перерисовались плитки
-                # с актуальными данными после Undo/Redo.
-                self._handle_item_selection(parent)
-            # Теперь восстановим выбор категории без переключения стека таблиц
-            self._select_category_without_stack_switch(item_id)
-        else:
-            # Для раздела запускаем стандартную обработку выбора,
-            # чтобы правая панель обновилась немедленно.
-            self._handle_item_selection(item)
-        return True
+        if item:
+            self.tree.blockSignals(True)
+            self.tree.setCurrentItem(item)
+            self.tree.scrollToItem(item)
+            self.tree.blockSignals(False)
+            if item_type == "category":
+                self._select_category_without_stack_switch(item_id)
     
     def _set_focus_on_new_item_by_id(self, item_type: str, item_id: int) -> None:
         item = self.controller.tree_manager._find_item_by_id(item_type, item_id)

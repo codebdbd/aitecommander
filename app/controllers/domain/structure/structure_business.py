@@ -9,7 +9,7 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple, Union, Callable
 from dataclasses import dataclass
 
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 
 from app.models.db import Database
 from app.models.structure_model import StructureModel
@@ -94,6 +94,11 @@ class StructureBusinessLogic(AsyncCompatMixin, UtilitiesMixin, SectionsMixin, Ca
         self.async_operations = AsyncOperations(self.db, self.logger)
         self._async_handlers = AsyncSignalHandlers(self)
         self.async_operations.connect_signal_handlers(self._async_handlers)
+
+        # Таймер для дебаунса перезагрузки структуры при изменениях ссылок
+        self._structure_reload_timer: Optional[QTimer] = QTimer(self)
+        self._structure_reload_timer.setSingleShot(True)
+        self._structure_reload_timer.timeout.connect(self._perform_structure_reload)
         
         # Инициализация
         self._initialize_system()
@@ -184,6 +189,13 @@ class StructureBusinessLogic(AsyncCompatMixin, UtilitiesMixin, SectionsMixin, Ca
         """Элемент добавлен: инвалидируем кэш и запускаем асинхронную перезагрузку."""
         try:
             self.logger.info(f"[BL] item_added: type={item_type}, parent_id={parent_id}")
+            # Для ссылок не требуется немедленная полная перезагрузка структуры
+            if item_type == 'link':
+                category_id = (item_data.get('category_id') if isinstance(item_data, dict) else None)
+                self._invalidate_categories_cache(category_id)
+                # Лёгкая консистентность дерева: отложенная общая перезагрузка (коалесцирует частые события)
+                self._schedule_structure_reload(200)
+                return
             if item_type == 'category':
                 # parent_id здесь — это section_id для категории
                 section_id = parent_id or (item_data.get('section_id') if isinstance(item_data, dict) else None)
@@ -202,6 +214,13 @@ class StructureBusinessLogic(AsyncCompatMixin, UtilitiesMixin, SectionsMixin, Ca
         """Элемент обновлён: инвалидируем кэш и запускаем асинхронную перезагрузку."""
         try:
             self.logger.info(f"[BL] item_updated: type={item_type}, id={item_id}")
+            if item_type == 'link':
+                category_id = (item_data.get('category_id') if isinstance(item_data, dict) else None)
+                self._invalidate_categories_cache(category_id)
+                # Раньше здесь планировалась полная перезагрузка структуры сферы.
+                # Отключено для «мелких» правок ссылок: таблицу/избранное обновляют UI-команды,
+                # а структура сферы не меняется.
+                return
             if item_type == 'category':
                 section_id = (item_data.get('section_id') if isinstance(item_data, dict) else None)
                 self._invalidate_categories_cache(section_id)
@@ -214,6 +233,28 @@ class StructureBusinessLogic(AsyncCompatMixin, UtilitiesMixin, SectionsMixin, Ca
         except Exception as e:
             self.logger.error(f"Ошибка в обработчике _on_item_updated: {e}", exc_info=True)
 
+    def _schedule_structure_reload(self, delay_ms: int = 200) -> None:
+        """Планирует отложенную перезагрузку структуры (дебаунсирует частые события)."""
+        try:
+            if not isinstance(delay_ms, int) or delay_ms < 0:
+                delay_ms = 200
+            # Перезапускаем одиночный таймер: несколько вызовов сольются в один
+            if self._structure_reload_timer.isActive():
+                self._structure_reload_timer.stop()
+            self._structure_reload_timer.start(delay_ms)
+        except Exception as e:
+            self.logger.warning(f"_schedule_structure_reload: failed to schedule: {e}")
+
+    def _perform_structure_reload(self) -> None:
+        """Выполняет фактическую перезагрузку структуры текущей сферы."""
+        try:
+            self._invalidate_structure_cache()
+            sphere_id = self.current_sphere_id
+            if isinstance(sphere_id, int) and sphere_id > 0:
+                self.async_operations.load_structure_async(sphere_id)
+        except Exception as e:
+            self.logger.error(f"_perform_structure_reload: {e}")
+
     def _on_item_deleted(self, item_type: str, item_id: int) -> None:
         """Элемент удалён: инвалидируем кэш и запускаем асинхронную перезагрузку.
 
@@ -222,6 +263,12 @@ class StructureBusinessLogic(AsyncCompatMixin, UtilitiesMixin, SectionsMixin, Ca
         """
         try:
             self.logger.info(f"[BL] item_deleted: type={item_type}, id={item_id}")
+            # Для ссылок используем отложенную перезагрузку структуры, чтобы
+            # коалесцировать серию удалений в одну перезагрузку
+            if item_type == 'link':
+                self._schedule_structure_reload(200)
+                return
+            # Для остальных типов сохраняем прежнее поведение
             self._invalidate_structure_cache()
             sphere_id = self.current_sphere_id
             if isinstance(sphere_id, int) and sphere_id > 0:

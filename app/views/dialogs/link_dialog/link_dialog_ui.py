@@ -24,7 +24,6 @@ from PyQt6.QtWidgets import (
     QToolButton,
     QVBoxLayout,
     QSizePolicy,
-    QListView,
 )
 
 from app.config_data import app_config
@@ -52,12 +51,10 @@ class LinkDialogUI:
         self.type_group = QButtonGroup(self.parent)
         hl_type = QHBoxLayout()
         
-        # Кнопки выбора типа ссылки — должны быть доступны с клавиатуры
         for code, txt in link_types:
             btn = QToolButton()
             btn.setCheckable(True)
             btn.setText(txt)
-            btn.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
             default_icons = app_config.get_default_icons()
             icon_filename = default_icons.get(code, default_icons["default"])
             icon_path = self.parent.get_ui_icons_dir() / icon_filename
@@ -73,7 +70,6 @@ class LinkDialogUI:
             hl_type.addWidget(btn, 1)
             
         vbox.addLayout(hl_type)
-        self.type_group.setExclusive(True)
         self.widgets['type_group'] = self.type_group
 
         # Форма
@@ -128,17 +124,6 @@ class LinkDialogUI:
         self.sphere_cb = QComboBox()
         self.section_cb = QComboBox()
         self.category_cb = QComboBox()
-
-        # Настройка размеров иконок и высоты строк в выпадающих списках
-        for cb in (self.sphere_cb, self.section_cb, self.category_cb):
-            # Отображаемая строка комбобокса
-            cb.setIconSize(QSize(24, 24))
-            cb.setFixedHeight(32)
-            # Всплывающий список
-            view = QListView()
-            view.setIconSize(QSize(24, 24))
-            view.setStyleSheet("QListView::item { height: 32px; }")
-            cb.setView(view)
         
         self.form.addRow("Сфера:", self.sphere_cb)
         self.form.addRow("Раздел:", self.section_cb)
@@ -157,22 +142,7 @@ class LinkDialogUI:
 
         # Избранное
         self.fav_chk = QCheckBox("Добавить в избранное")
-        # Локальный стиль: убрать пунктир фокуса и рисовать синюю рамку,
-        # когда динамическое свойство focusBorder=true (выставляется фильтром в LinkDialog)
-        self.fav_chk.setStyleSheet(
-            "QCheckBox:focus { outline: 0; }\n"
-            "QCheckBox[focusBorder=\"true\"] {\n"
-            "    border: 1px solid rgba(93, 169, 255, 0.9);\n"
-            "    border-radius: 0;\n"
-            "    background: transparent;\n"
-            "}"
-        )
-        # Не растягивать чекбокс на всю ширину строки формы
-        self.fav_chk.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
-        fav_row = QHBoxLayout()
-        fav_row.addWidget(self.fav_chk)
-        fav_row.addStretch(1)
-        self.form.addRow("", fav_row)
+        self.form.addRow("", self.fav_chk)
         self.widgets['fav_chk'] = self.fav_chk
 
         vbox.addLayout(self.form)

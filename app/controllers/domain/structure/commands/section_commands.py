@@ -47,17 +47,6 @@ class SaveSectionCommand(BaseCommand):
                 else:
                     self.db.sections.upsert_section(self.new_data)
             else:
-                # ВАЖНО: сохраняем текущую позицию, если она не была задана явно в new_data,
-                # чтобы раздел не «перепрыгивал» в дереве после редактирования (переименования и т.п.)
-                try:
-                    if 'position' not in self.new_data or self.new_data.get('position') is None:
-                        current_row = self.db.sections.get_section_by_id(self.new_id)
-                        if current_row and 'position' in current_row:
-                            # Интегрируем текущую позицию в обновляемые данные
-                            self.new_data['position'] = int(current_row['position'])
-                except Exception as e:
-                    # Не блокируем команду из-за неудачного чтения позиции, просто логируем
-                    self.logger.warning(f"SaveSectionCommand: не удалось сохранить позицию раздела: {e}")
                 self.db.sections.upsert_section(self.new_data)
             self.update_structure_tree(item_to_select=('section', self.new_id))
             # Эмитим бизнес-сигналы и инициируем асинхронную перезагрузку структуры,
@@ -70,8 +59,30 @@ class SaveSectionCommand(BaseCommand):
                         business.item_added.emit("section", self.new_id, self.new_data)
                     else:
                         business.item_updated.emit("section", self.new_id, self.new_data)
-                    # Триггерим асинхронную загрузку структуры текущей сферы
-                    business.load_structure()
+                    # Если при редактировании изменилась сфера — инвалидируем кэш старой сферы
+                    # и переключаемся на новую, чтобы раздел появился сразу
+                    try:
+                        if not self.is_new and self.old_data:
+                            old_sphere_id = self.old_data.get('sphere_id')
+                            new_sphere_id = self.new_data.get('sphere_id')
+                            if old_sphere_id and new_sphere_id and int(old_sphere_id) != int(new_sphere_id):
+                                # Инвалидируем кэш старой сферы (структура/разделы/first_category)
+                                cm = getattr(business, 'cache_manager', None)
+                                if cm:
+                                    cm.invalidate(f"structure_{old_sphere_id}")
+                                    cm.invalidate(f"sections_{old_sphere_id}")
+                                    cm.invalidate(f"first_category_{old_sphere_id}")
+                                # Переключаем текущую сферу на новую и загружаем её структуру
+                                business.set_current_sphere(int(new_sphere_id))
+                                business.load_structure()
+                            else:
+                                # Обычное обновление в рамках той же сферы
+                                business.load_structure()
+                        else:
+                            # Новое добавление — обновляем текущую сферу
+                            business.load_structure()
+                    except Exception as e:
+                        self.logger.warning(f"SaveSectionCommand: post-update sphere handling failed: {e}")
             except Exception as e:
                 # Логируем, но не прерываем UX
                 self.logger.warning(f"SaveSectionCommand: не удалось инициировать бизнес-обновление структуры: {e}")

@@ -3,7 +3,6 @@
 """Централизованный менеджер состояния UI для устранения дублирования логики."""
 
 import logging
-import time
 from typing import Optional
 
 from app.config_data import app_config
@@ -21,19 +20,6 @@ class UIStateManager:
         self.logger = logging.getLogger(__name__)
         # Простой флаг, чтобы не запускать параллельные загрузки одной категории
         self._loading: bool = False
-        # Дедлайн подавления переключения на плитки категорий, чтобы избежать мерцания
-        # Пока time.monotonic() < _suppress_tiles_deadline — не переключаем стек на плитки
-        self._suppress_tiles_deadline: float = 0.0
-
-    # --- Подавление мерцания плиток ---
-    def suppress_tiles_for(self, ms: int = 600) -> None:
-        """Подавить переключение на плитки на заданное время (мс)."""
-        try:
-            self._suppress_tiles_deadline = max(self._suppress_tiles_deadline, time.monotonic() + ms / 1000.0)
-            self.logger.debug(f"Tiles switch suppressed for {ms}ms (until {self._suppress_tiles_deadline:.3f})")
-        except Exception:
-            # В маловероятном случае ошибки — просто игнорируем
-            pass
     
     def load_category(self, category_id: int, source: str = "unknown") -> bool:
         """ЕДИНСТВЕННЫЙ метод для загрузки категорий в приложении.
@@ -142,16 +128,6 @@ class UIStateManager:
     def switch_to_category_tiles(self, categories_data: list) -> None:
         """Переключиться на плитки категорий для указанного раздела."""
         try:
-            # Подавление переключения на плитки на время (например, при сохранении/перезагрузке структуры)
-            if time.monotonic() < getattr(self, '_suppress_tiles_deadline', 0.0):
-                # Обновим данные плиток, но стек не трогаем
-                try:
-                    if hasattr(self.main, 'tiles') and self.main.tiles:
-                        self.main.tiles.set_categories(categories_data)
-                except Exception:
-                    pass
-                self.logger.debug("Tiles switch suppressed by deadline - keeping TABLE view active")
-                return
             # 1. Устанавливаем данные категорий в плитки
             if hasattr(self.main, 'tiles') and self.main.tiles:
                 self.main.tiles.set_categories(categories_data)

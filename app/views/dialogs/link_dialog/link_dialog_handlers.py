@@ -16,8 +16,6 @@ from app.utils.db.db_workers import LinkInfoWorker, StructureWorkerSignals
 from app.utils.ui.dialog_manager import DialogManager
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
 from app.utils.ui.icon.selection import choose_icon_and_copy
-from app.utils.ui.icon.path_service import icon_path_service
-from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 
 
 class LinkDialogHandlers:
@@ -94,35 +92,6 @@ class LinkDialogHandlers:
             self.dialog.ui.get_widget('icon_btn').setIcon(QIcon())
             
         self._update_ui_state()
-
-        # Если переключение инициировано стрелками по плиткам типов,
-        # не переносим фокус на поля формы.
-        if not getattr(self.dialog, '_suppress_focus_after_type_change', False):
-            # Убираем фокус с плиток типов, чтобы не оставалась обводка на предыдущей
-            try:
-                type_group = self.dialog.ui.get_widget('type_group')
-                if type_group:
-                    for btn in type_group.buttons():
-                        btn.clearFocus()
-            except Exception:
-                pass
-
-            # Устанавливаем фокус в зависимости от типа:
-            # web -> URL; остальные -> Обзор (если видим), иначе URL
-            try:
-                url_widget = self.dialog.ui.get_widget('url_le')
-                browse_btn = self.dialog.ui.get_widget('browse_btn')
-                if self.dialog.link_type == 'web':
-                    if url_widget:
-                        url_widget.setFocus()
-                        url_widget.selectAll()
-                else:
-                    if browse_btn and browse_btn.isVisible():
-                        browse_btn.setFocus()
-                    elif url_widget:
-                        url_widget.setFocus()
-            except Exception:
-                pass
         
     def _update_ui_state(self) -> None:
         """Обновляет состояние UI в зависимости от типа ссылки."""
@@ -273,19 +242,7 @@ class LinkDialogHandlers:
         if sphere_id and self.dialog.dialog_controller:
             sections = self.dialog.dialog_controller.get_sections_for_sphere(sphere_id)
             for sec in sections:
-                # sec может быть sqlite3.Row
-                icon_name = (sec["icon_path"] if hasattr(sec, '__getitem__') and 'icon_path' in sec.keys() else (sec.get("icon_path") if isinstance(sec, dict) else "")) or ""
-                icon_name = icon_name.strip()
-                name_val = sec["name"] if hasattr(sec, '__getitem__') and 'name' in sec.keys() else (sec.get("name") if isinstance(sec, dict) else None)
-                id_val = sec["id"] if hasattr(sec, '__getitem__') and 'id' in sec.keys() else (sec.get("id") if isinstance(sec, dict) else None)
-                if icon_name:
-                    user_path = icon_path_service.get_user_icons_dir() / icon_name
-                    ui_path = icon_path_service.get_ui_icons_dir() / icon_name
-                    icon_path = user_path if user_path.exists() else ui_path
-                    if icon_path.exists():
-                        section_cb.addItem(create_icon_from_path(str(icon_path)), name_val, id_val)
-                        continue
-                section_cb.addItem(name_val, id_val)
+                section_cb.addItem(sec["name"], sec["id"])
                 
         self._update_categories()
         
@@ -300,19 +257,7 @@ class LinkDialogHandlers:
         if section_id and self.dialog.dialog_controller:
             categories = self.dialog.dialog_controller.get_categories_for_section(section_id)
             for cat in categories:
-                # cat может быть sqlite3.Row
-                icon_name = (cat["icon_path"] if hasattr(cat, '__getitem__') and 'icon_path' in cat.keys() else (cat.get("icon_path") if isinstance(cat, dict) else "")) or ""
-                icon_name = icon_name.strip()
-                name_val = cat["name"] if hasattr(cat, '__getitem__') and 'name' in cat.keys() else (cat.get("name") if isinstance(cat, dict) else None)
-                id_val = cat["id"] if hasattr(cat, '__getitem__') and 'id' in cat.keys() else (cat.get("id") if isinstance(cat, dict) else None)
-                if icon_name:
-                    user_path = icon_path_service.get_user_icons_dir() / icon_name
-                    ui_path = icon_path_service.get_ui_icons_dir() / icon_name
-                    icon_path = user_path if user_path.exists() else ui_path
-                    if icon_path.exists():
-                        category_cb.addItem(create_icon_from_path(str(icon_path)), name_val, id_val)
-                        continue
-                category_cb.addItem(name_val, id_val)
+                category_cb.addItem(cat["name"], cat["id"])
                 
     def _on_accept(self) -> None:
         """Обработчик подтверждения диалога."""

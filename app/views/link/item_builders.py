@@ -3,6 +3,7 @@
 
 import logging
 from typing import Dict, List
+from pathlib import Path
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
@@ -10,6 +11,7 @@ from PyQt6.QtWidgets import QTableWidgetItem
 
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path, themed_icon
 from app.utils.ui.icon.path_service import get_current_theme, icon_path_service
+from app.config_data import app_config
 
 # Константы для магических чисел
 MAX_NOTES_LENGTH = 462
@@ -21,31 +23,44 @@ PATH_SEPARATOR = " → "
 class ItemBuildersMixin:
     """Миксин для создания элементов таблицы ссылок."""
     
-    def _set_icon_if_exists(self, item: QTableWidgetItem, icon_name: str) -> None:
-        """Устанавливает иконку для элемента. Если файл не найден, ничего не делает."""
+    def _set_icon_if_exists(self, item: QTableWidgetItem, icon_name: str) -> bool:
+        """Пытается установить иконку для элемента.
+        Возвращает True, если иконка установлена, иначе False.
+        Поддерживаются абсолютные пути, пользовательская и системная директории, а также тема."""
         if not icon_name:
-            return
-        
+            return False
+
         try:
-            # Используем систему иконок из utils
+            # Абсолютный путь
+            try:
+                p = Path(icon_name)
+                if p.is_absolute() and p.exists():
+                    icon = create_icon_from_path(str(p))
+                    if icon and not icon.isNull():
+                        item.setIcon(icon)
+                        return True
+            except Exception:
+                pass
+
+            # Попытка через тему
             theme = get_current_theme()
             icon = themed_icon(icon_name, theme, source='links_table')
             if icon and not icon.isNull():
                 item.setIcon(icon)
-                return
-            
-            # Fallback: пробуем найти иконку по путям
+                return True
+
+            # Fallback: пользовательская/системная директории
             icon_path = icon_path_service.get_user_icons_dir() / icon_name
             if not icon_path.exists():
                 icon_path = icon_path_service.get_ui_icons_dir() / icon_name
             if icon_path.exists():
-                # Используем вспомогательную функцию для создания иконки из пути
                 fallback_icon = create_icon_from_path(str(icon_path))
-                if not fallback_icon.isNull():
+                if fallback_icon and not fallback_icon.isNull():
                     item.setIcon(fallback_icon)
-                    return
+                    return True
         except Exception as e:
             logging.warning(f"[LinksTableView] Ошибка установки иконки {icon_name}: {e}")
+        return False
 
     def _create_star_item(self, is_favorite: bool) -> QTableWidgetItem:
         """Создает элемент со звездочкой для избранного."""
@@ -69,36 +84,24 @@ class ItemBuildersMixin:
         
         name_item = QTableWidgetItem(name_text)
         
-        # Получаем иконку из данных ссылки
+        # Получаем иконку из данных ссылки и тип
         icon_name = link.get("icon_path", "")
-        link_type = link.get("type", "file")  # По умолчанию тип "file"
-        
-        # Сначала пробуем установить пользовательскую иконку
+        link_type = (link.get("type", "file") or "file").strip().lower()
+
+        # Пытаемся установить заданную иконку (включая абсолютные пути)
         icon_set = False
         if icon_name:
-            # Проверяем, что иконка реально существует
-            theme = get_current_theme()
-            icon = themed_icon(icon_name, theme, source='links_table')
-            if icon and not icon.isNull():
-                name_item.setIcon(icon)
-                icon_set = True
-            else:
-                # Проверяем по путям
-                icon_path = icon_path_service.get_user_icons_dir() / icon_name
-                if not icon_path.exists():
-                    icon_path = icon_path_service.get_ui_icons_dir() / icon_name
-                if icon_path.exists():
-                    fallback_icon = create_icon_from_path(str(icon_path))
-                    if not fallback_icon.isNull():
-                        name_item.setIcon(fallback_icon)
-                        icon_set = True
-        
-        # Если пользовательская иконка не установлена, устанавливаем иконку по умолчанию
+            icon_set = self._set_icon_if_exists(name_item, icon_name)
+
+        # Если пользовательская иконка не установлена — фоллбек по типу
         if not icon_set:
-            from app.config_data import app_config
-            default_icons = app_config.get('settings', {}).get('default_icons', {})
-            default_icon = default_icons.get(link_type, default_icons.get('default', 'default.ico'))
-            self._set_icon_if_exists(name_item, default_icon)
+            try:
+                default_icons = app_config.get_default_icons()
+                type_icon = default_icons.get(link_type, default_icons.get('default', 'default.ico'))
+                self._set_icon_if_exists(name_item, type_icon)
+            except Exception:
+                # Последний шанс — общий дефолт
+                self._set_icon_if_exists(name_item, 'default.ico')
         
         return name_item
 

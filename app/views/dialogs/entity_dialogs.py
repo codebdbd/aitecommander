@@ -19,7 +19,6 @@ from PyQt6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
-    QListView,
 )
 
 from app.config_data import app_config
@@ -38,7 +37,6 @@ def _populate_spheres_common(structure_business: StructureBusinessLogic, sphere_
     """
     spheres = structure_business.get_spheres()
     for sphere in spheres:
-        # По требованию: иконки для сфер не добавляем
         sphere_cb.addItem(sphere["name"], sphere["id"])
 
 
@@ -149,6 +147,11 @@ class SectionDialog(BaseEntityDialog):
         self.default_sphere_id = default_sphere_id
         self.resize(400, 150)
         self._init_ui()
+        # Фокус на поле имени при открытии
+        try:
+            self.name_le.setFocus()
+        except Exception:
+            pass
         if section_id:
             self._load_section()
 
@@ -157,17 +160,11 @@ class SectionDialog(BaseEntityDialog):
         form = QFormLayout()
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
-        # Сначала — имя (основное поле)
+        # Имя на первой строке
         self._init_common_ui(form)
 
-        # Затем — выбор сферы (опционально при создании)
+        # Затем выбор сферы
         self.sphere_cb = QComboBox()
-        self.sphere_cb.setIconSize(QSize(24, 24))
-        self.sphere_cb.setFixedHeight(32)
-        _sphere_view = QListView()
-        _sphere_view.setIconSize(QSize(24, 24))
-        _sphere_view.setStyleSheet("QListView::item { height: 32px; }")
-        self.sphere_cb.setView(_sphere_view)
         self._populate_spheres()
         form.addRow("Сфера:", self.sphere_cb)
 
@@ -175,12 +172,6 @@ class SectionDialog(BaseEntityDialog):
             self._set_sphere_selection(self.default_sphere_id)
 
         vbox.addLayout(form)
-        # Устанавливаем фокус по умолчанию на поле имени
-        try:
-            self.name_le.setFocus()
-            self.name_le.selectAll()
-        except Exception:
-            pass
         vbox.addWidget(self._create_button_box())
 
     
@@ -237,6 +228,11 @@ class CategoryDialog(BaseEntityDialog):
         super().__init__(structure_business, 'category', category_id, parent)
         self.resize(400, 200)
         self._init_ui()
+        # Фокус на поле имени при открытии
+        try:
+            self.name_le.setFocus()
+        except Exception:
+            pass
         if category_id:
             self._load_category()
 
@@ -245,41 +241,20 @@ class CategoryDialog(BaseEntityDialog):
         form = QFormLayout()
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
-        # Сначала — имя (основное поле)
+        # Имя на первой строке
         self._init_common_ui(form)
 
-        # Затем — Раздел
-        self.section_cb = QComboBox()
-        self.section_cb.setIconSize(QSize(24, 24))
-        self.section_cb.setFixedHeight(32)
-        _section_view = QListView()
-        _section_view.setIconSize(QSize(24, 24))
-        _section_view.setStyleSheet("QListView::item { height: 32px; }")
-        self.section_cb.setView(_section_view)
-        form.addRow("Раздел:", self.section_cb)
-
-        # И затем — Сфера (управляет списком разделов)
+        # Затем сфера и раздел
         self.sphere_cb = QComboBox()
-        self.sphere_cb.setIconSize(QSize(24, 24))
-        self.sphere_cb.setFixedHeight(32)
-        _sphere_view = QListView()
-        _sphere_view.setIconSize(QSize(24, 24))
-        _sphere_view.setStyleSheet("QListView::item { height: 32px; }")
-        self.sphere_cb.setView(_sphere_view)
         self._populate_spheres()
         self.sphere_cb.currentIndexChanged.connect(self._update_sections)
         form.addRow("Сфера:", self.sphere_cb)
 
-        # Первичное заполнение разделов согласно выбранной сфере
+        self.section_cb = QComboBox()
+        form.addRow("Раздел:", self.section_cb)
         self._update_sections()
 
         vbox.addLayout(form)
-        # Фокус на поле имени
-        try:
-            self.name_le.setFocus()
-            self.name_le.selectAll()
-        except Exception:
-            pass
         vbox.addWidget(self._create_button_box())
 
     def _update_sections(self):
@@ -292,14 +267,6 @@ class CategoryDialog(BaseEntityDialog):
         try:
             sections = self.structure_business.get_sections(sphere_id)
             for section in sections:
-                icon_name = (section.get("icon_path") or "").strip()
-                if icon_name:
-                    user_path = icon_path_service.get_user_icons_dir() / icon_name
-                    ui_path = icon_path_service.get_ui_icons_dir() / icon_name
-                    icon_path = user_path if user_path.exists() else ui_path
-                    if icon_path.exists():
-                        self.section_cb.addItem(create_icon_from_path(str(icon_path)), section["name"], section["id"])
-                        continue
                 self.section_cb.addItem(section["name"], section["id"])
         except Exception as e:
             DialogManager.show_error(
