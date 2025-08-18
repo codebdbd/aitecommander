@@ -50,9 +50,25 @@ class SaveCategoryCommand(BaseCommand):
                 # Проверка дубликатов в рамках раздела (исключая текущую категорию)
                 try:
                     if self.db.categories.has_duplicate_category(section_id, name, exclude_id=payload.get('id')):
-                        self.show_info(
-                            "Дубликат категории",
-                            f"Категория с именем '{name}' уже существует в этом разделе.")
+                        # Молча переключаем фокус на уже существующую категорию и выходим
+                        try:
+                            existing_id = None
+                            try:
+                                rows = self.db.categories.get_categories(section_id) or []
+                                # rows могут быть sqlite Row, приводим к dict при необходимости
+                                for r in rows:
+                                    d = dict(r) if hasattr(r, 'keys') else r
+                                    if str(d.get('name', '')).strip().lower() == str(name).strip().lower():
+                                        existing_id = d.get('id') if isinstance(d, dict) else getattr(d, 'id', None)
+                                        break
+                            except Exception:
+                                existing_id = None
+                            if existing_id:
+                                self.update_structure_tree(item_to_select=('category', existing_id))
+                            else:
+                                self.update_structure_tree(item_to_select=('section', section_id))
+                        except Exception as _e:
+                            self.logger.debug(f"SaveCategoryCommand: silent focus on duplicate failed: {_e}")
                         self.setObsolete(True)
                         return
                 except Exception as e:
@@ -84,7 +100,34 @@ class SaveCategoryCommand(BaseCommand):
             except Exception as e:
                 self.logger.warning(f"SaveCategoryCommand: не удалось инициировать бизнес-обновление структуры: {e}")
         except ValueError as e:
-            self.show_info("Информация", str(e))
+            # Считаем это, вероятно, дубликатом при добавлении. Молча фокусируемся на существующей категории/разделе.
+            try:
+                section_id = None
+                name = None
+                try:
+                    # Пытаемся извлечь из new_data
+                    if isinstance(self.new_data, dict):
+                        section_id = self.new_data.get('section_id')
+                        name = self.new_data.get('name')
+                except Exception:
+                    pass
+                existing_id = None
+                if section_id and name:
+                    try:
+                        rows = self.db.categories.get_categories(section_id) or []
+                        for r in rows:
+                            d = dict(r) if hasattr(r, 'keys') else r
+                            if str(d.get('name', '')).strip().lower() == str(name).strip().lower():
+                                existing_id = d.get('id') if isinstance(d, dict) else getattr(d, 'id', None)
+                                break
+                    except Exception:
+                        existing_id = None
+                if existing_id:
+                    self.update_structure_tree(item_to_select=('category', existing_id))
+                elif section_id:
+                    self.update_structure_tree(item_to_select=('section', section_id))
+            except Exception as _e:
+                self.logger.debug(f"SaveCategoryCommand: silent focus after ValueError failed: {_e}")
             self.setObsolete(True)
         except Exception as e:
             # Используем централизованный обработчик ошибок
@@ -136,8 +179,50 @@ class DeleteCategoryCommand(BaseCommand):
         # Удаляем категорию из базы данных
         self.db.categories.delete_category(self.category_data['id'])
         
-        # Отправляем сигнал об удалении для правильной обработки фокуса
-        # (TreeManagement автоматически выберет родительский раздел)
+        # Выбираем следующий элемент фокуса: категорию выше, иначе родительский раздел
+        try:
+            section_id = self.category_data.get('section_id')
+            categories = self.db.categories.get_categories(section_id) if section_id is not None else []
+            # Приводим к удобному виду и сортируем по position (если есть)
+            def _to_dict(row):
+                return dict(row) if hasattr(row, 'keys') else row
+            cats = [_to_dict(r) for r in (categories or [])]
+
+            next_selection = ('section', section_id)
+            if cats:
+                # Пытаемся найти предыдущую относительно удаленной позицию
+                del_pos = None
+                try:
+                    del_pos = self.category_data.get('position')
+                except Exception:
+                    del_pos = None
+
+                if any('position' in c for c in cats):
+                    cats_sorted = sorted(cats, key=lambda c: c.get('position', 0))
+                    prev_candidates = [c for c in cats_sorted if del_pos is not None and c.get('position') is not None and c.get('position') < del_pos]
+                    if prev_candidates:
+                        next_selection = ('category', prev_candidates[-1].get('id'))
+                    else:
+                        # Если не нашли предыдущую по позиции — берем последнюю в списке (визуально "выше")
+                        next_selection = ('category', cats_sorted[-1].get('id'))
+                else:
+                    # Нет позиции — выбираем последнюю категорию как ближайшую "выше"
+                    last_cat = cats[-1]
+                    next_selection = ('category', (last_cat.get('id') if isinstance(last_cat, dict) else last_cat.id))
+
+            # Меняем выделение в дереве до эмиссии сигналов
+            self.update_structure_tree(item_to_select=next_selection)
+        except Exception as e:
+            # На всякий случай: если что-то пошло не так — пусть UI выберет раздел по умолчанию
+            self.logger.warning(f"DeleteCategoryCommand: не удалось навести фокус после удаления: {e}")
+            try:
+                section_id = self.category_data.get('section_id')
+                if section_id is not None:
+                    self.update_structure_tree(item_to_select=('section', section_id))
+            except Exception:
+                pass
+
+        # Отправляем сигнал об удалении и инициируем перезагрузку структуры
         if hasattr(self.main, 'structure_business') and self.main.structure_business:
             self.main.structure_business.item_deleted.emit("category", self.category_data['id'])
             try:

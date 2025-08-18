@@ -248,7 +248,48 @@ class DeleteLinkCommand(BaseCommand):
         """Выполняет действие: удаляет ссылку."""
         try:
             self.db.links.delete_link(self.link_id)
-            self.refresh_all_views(self.deleted_link_data['category_id'])
+            category_id = self.deleted_link_data['category_id']
+            self.refresh_all_views(category_id)
+
+            # Подбор следующего фокуса: предыдущая ссылка в категории, иначе удерживаем фокус на категории
+            next_link_id = None
+            try:
+                links = self.db.links.get_links(category_id)
+                # Приводим к dict при необходимости
+                rows = [dict(r) if hasattr(r, 'keys') else r for r in (links or [])]
+                if rows:
+                    del_pos = self.deleted_link_data.get('position')
+                    if any((isinstance(row, dict) and 'position' in row) for row in rows):
+                        rows_sorted = sorted(rows, key=lambda r: (r.get('position', 0) if isinstance(r, dict) else getattr(r, 'position', 0)))
+                        if del_pos is not None:
+                            prev = [r for r in rows_sorted if (r.get('position') if isinstance(r, dict) else getattr(r, 'position', None)) is not None and (r.get('position') if isinstance(r, dict) else getattr(r, 'position')) < del_pos]
+                            if prev:
+                                candidate = prev[-1]
+                                next_link_id = candidate.get('id') if isinstance(candidate, dict) else getattr(candidate, 'id', None)
+                        if next_link_id is None:
+                            candidate = rows_sorted[-1]
+                            next_link_id = candidate.get('id') if isinstance(candidate, dict) else getattr(candidate, 'id', None)
+                    else:
+                        # Без позиций — выбираем последнюю ссылку
+                        candidate = rows[-1]
+                        next_link_id = candidate.get('id') if isinstance(candidate, dict) else getattr(candidate, 'id', None)
+            except Exception as e:
+                self.logger.warning(f"DeleteLinkCommand: не удалось вычислить следующую ссылку для фокуса: {e}")
+
+            # Отложенная фокусировка на ссылку, чтобы дождаться обновления таблицы
+            if next_link_id:
+                try:
+                    from PyQt6.QtCore import QTimer
+                    def do_focus():
+                        table = getattr(self.main, 'table', None)
+                        if table and hasattr(table, 'focus_on_link_id'):
+                            try:
+                                table.focus_on_link_id(next_link_id)
+                            except Exception:
+                                pass
+                    QTimer.singleShot(120, do_focus)
+                except Exception:
+                    pass
             try:
                 if hasattr(self.main, 'structure_business') and self.main.structure_business:
                     business = self.main.structure_business

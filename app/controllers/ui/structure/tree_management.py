@@ -24,9 +24,17 @@ class TreeManagement:
         
         expanded_state = self._save_expanded_state()
         self.tree.clear()
+        # Сортируем разделы по имени (без учета регистра)
+        try:
+            sections_data = sorted(sections_data or [], key=lambda s: (s.get('name') or '').lower())
+        except Exception:
+            # На случай нештатных данных просто продолжаем без сортировки
+            pass
         for section_data in sections_data:
             self._create_section_item(section_data)
         self._restore_expanded_state(expanded_state)
+        # Обеспечим алфавитный порядок верхнего уровня на всякий случай
+        self._sort_top_level()
         
         # Восстанавливаем выделение, если оно существовало
         if current_selection:
@@ -51,6 +59,8 @@ class TreeManagement:
         if item_type == "section":
             self.tree.addTopLevelItem(new_item)
             new_item.setExpanded(True)
+            # Сразу поддерживаем алфавитный порядок разделов
+            self._sort_top_level()
         elif item_type == "category":
             parent_item = self._find_item_by_id("section", parent_id)
             if parent_item:
@@ -75,6 +85,8 @@ class TreeManagement:
             # Обновляем плитки категорий если обновился раздел (название раздела могло измениться)
             elif item_type == "section":
                 self._update_section_tiles_after_edit(item)
+                # Переименование раздела может нарушить порядок — пересортируем верхний уровень
+                self._sort_top_level()
     
     def _on_item_deleted(self, item_type: str, item_id: int) -> None:
         item = self._find_item_by_id(item_type, item_id)
@@ -174,6 +186,26 @@ class TreeManagement:
             root_item = self.tree.topLevelItem(i)
             if root_item:
                 sort_item(root_item, reverse_sort)
+
+    def _sort_top_level(self) -> None:
+        """Сортирует разделы верхнего уровня по алфавиту (без учета регистра)."""
+        try:
+            count = self.tree.topLevelItemCount()
+            if count <= 1:
+                return
+            # Безопасно извлекаем элементы, сохраняя владение Python'ом
+            items = [self.tree.takeTopLevelItem(0) for _ in range(count)]
+            items.sort(key=lambda it: it.text(0).lower() if it else '')
+            for it in items:
+                if it:
+                    self.tree.addTopLevelItem(it)
+        except Exception:
+            # На случай проблем используем встроенную сортировку без рекурсивного воздействия
+            try:
+                from PyQt6.QtCore import Qt
+                self.tree.sortItems(0, Qt.SortOrder.AscendingOrder)
+            except Exception:
+                pass
     
     def on_structure_item_changed(self, item_type: str, item_id: int, data: dict) -> None:
         self._on_item_updated(item_type, item_id, data)

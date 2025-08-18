@@ -32,6 +32,11 @@
         "handlers": ["console", "file"],
         "level": "DEBUG",
         "propagate": false
+      },
+      "favicon_parser": {
+        "handlers": ["console", "file"],
+        "level": "DEBUG",
+        "propagate": true
       }
     }
   }

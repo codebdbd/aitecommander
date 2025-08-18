@@ -147,6 +147,14 @@ class PopulationManagerMixin:
             # Восстанавливаем сортировку
             if sort_col != -1 and sort_col < self.columnCount():
                 self.sortItems(sort_col, sort_order)
+                # ВАЖНО: после сортировки строки меняют индексы —
+                # нужно синхронизировать кэш _current_links с фактическими элементами,
+                # иначе возможны визуальные дубликаты и неверные обновления строк
+                try:
+                    if hasattr(self, 'rebuild_cache_from_items'):
+                        self.rebuild_cache_from_items()
+                except Exception as e:
+                    logging.warning(f"[LinksTableView] Не удалось перестроить кэш после сортировки: {e}")
             
             # Убрано автоматическое восстановление выделения строк
             # для стандартного поведения Qt без принудительного выбора
