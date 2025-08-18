@@ -1,8 +1,9 @@
 # app/controllers/structure/structure_ui_controller.py
 
-from PyQt6.QtCore import QObject, Qt, pyqtSignal  # Импортируем Qt из QtCore
+from PyQt6.QtCore import QObject, Qt, pyqtSignal, QSize  # Импортируем Qt и QSize из QtCore
 from PyQt6.QtWidgets import QAbstractItemView, QTreeWidget
 
+from app.config_data import app_config
 from .icon_handling import IconHandling
 from .item_operations import ItemOperations
 from .selection_handling import SelectionHandling
@@ -32,6 +33,13 @@ class StructureUIController(QObject):
     
     def _setup_tree(self) -> None:
         self.tree.setHeaderHidden(True)
+        # Размер иконок в дереве — из конфигурации (ui.tree_icon_size)
+        try:
+            w, h = app_config.get_tree_icon_size()
+            self.tree.setIconSize(QSize(int(w), int(h)))
+        except Exception:
+            # Fallback на безопасное значение
+            self.tree.setIconSize(QSize(28, 28))
         self.tree.setDragEnabled(True)
         self.tree.setAcceptDrops(True)
         self.tree.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)

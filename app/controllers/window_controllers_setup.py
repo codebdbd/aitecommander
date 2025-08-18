@@ -168,6 +168,22 @@ class DependencyInjectionSetup(IComponentSetup):
         class DialogProvider(DialogMixin):
             def __init__(self, parent_widget):
                 self.parent = parent_widget
+            
+            def show_link_dialog_for_category(self, category_id: int | None = None, link=None) -> bool:
+                """Проксирует вызов показа диалога ссылки к главному окну.
+                
+                Используется плитками категорий при выборе пункта "Добавить ссылку".
+                """
+                try:
+                    if hasattr(self.parent, 'show_link_dialog_for_category'):
+                        return bool(self.parent.show_link_dialog_for_category(category_id=category_id, link=link))
+                    # Если по какой-то причине метод недоступен
+                    self.show_error("Невозможно открыть диалог ссылки: окно не готово.")
+                    return False
+                except Exception as e:
+                    # Безопасное сообщение об ошибке, чтобы не падать молча
+                    self.show_error(f"Ошибка открытия диалога ссылки: {e}")
+                    return False
         
         dialog_provider = DialogProvider(window)
         

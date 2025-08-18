@@ -104,20 +104,22 @@ class LinkModel(DatabaseBase):
                 # Новая запись
                 data['position'] = self._get_next_position('link', 'category_id', data["category_id"])
                 
-                # Предохранитель: не перезаписывать существующие записи с тем же URL/args/type в категории
+                # Предохранитель: не перезаписывать существующие записи с тем же URL/args/type И именем в категории
+                # ВАЖНО: Ссылки с одинаковым адресом, но РАЗНЫМ описанием (именем) — НЕ считаются дубликатами
                 existing = self.get_link_by_unique_fields(
                     data['category_id'],
                     data.get('url', ''),
                     data.get('args', ''),
-                    data.get('type', 'web')
+                    data.get('type', 'web'),
+                    data.get('name', '')
                 )
                 if existing:
                     logger.warning(
-                        "Попытка добавить дубликат ссылки (category_id=%s, url=%s, args=%s, type=%s) — операция отклонена",
-                        data['category_id'], data.get('url', ''), data.get('args', ''), data.get('type', 'web')
+                        "Попытка добавить дубликат ссылки (category_id=%s, url=%s, args=%s, type=%s, name=%s) — операция отклонена",
+                        data['category_id'], data.get('url', ''), data.get('args', ''), data.get('type', 'web'), data.get('name', '')
                     )
                     # Выбрасываем DatabaseError с сообщением, которое корректно классифицируется обработчиком
-                    raise DatabaseError("UNIQUE constraint failed: link duplicate (category_id,url,args,type)")
+                    raise DatabaseError("UNIQUE constraint failed: link duplicate (category_id,url,args,type,name)")
                 
                 columns = [f for f in all_possible_fields if f != 'id']
                 placeholders = ', '.join(['?'] * len(columns))
@@ -138,13 +140,16 @@ class LinkModel(DatabaseBase):
             logger.warning(f"UNIQUE constraint при upsert ссылки: {e}")
             raise DatabaseError(f"UNIQUE constraint failed: {e}")
     
-    def get_link_by_unique_fields(self, category_id: int, url: str, args: str = '', link_type: str = 'web'):
-        """Находит ссылку по уникальным полям (category_id, url, args, type)."""
+    def get_link_by_unique_fields(self, category_id: int, url: str, args: str = '', link_type: str = 'web', name: str = ''):
+        """Находит ссылку по уникальным полям (category_id, url, args, type, name).
+
+        Примечание: одинаковые URL считаются дубликатами только если совпадают также args, type и имя ссылки.
+        """
         try:
             with db_lock:
                 cursor = self.connection_manager.connection.execute(
-                    "SELECT * FROM link WHERE category_id=? AND url=? AND args=? AND type=?",
-                    (category_id, url, args, link_type)
+                    "SELECT * FROM link WHERE category_id=? AND url=? AND args=? AND type=? AND name=?",
+                    (category_id, url, args, link_type, name)
                 )
                 row = cursor.fetchone()
                 if row:

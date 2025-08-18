@@ -29,11 +29,18 @@ class SaveSectionCommand(BaseCommand):
                         # при редактировании исключаем сам элемент
                         return same_name and same_scope and int(row['id']) != int(self.new_id)
                     if any(is_dup(row) for row in existing):
-                        self.show_error(
-                            f"Раздел с именем '{name}' уже существует в выбранной сфере.",
-                            "Ошибка добавления раздела"
-                        )
-                        # Не бросаем исключение, помечаем команду устаревшей
+                        # Молча переключаем фокус на уже существующий раздел и выходим
+                        try:
+                            existing_id = None
+                            for row in existing:
+                                if is_dup(row):
+                                    existing_id = int(row['id'])
+                                    break
+                            if existing_id is not None:
+                                self.update_structure_tree(item_to_select=('section', existing_id))
+                        except Exception as _e:
+                            # На случай любых проблем просто игнорируем и прерываем команду
+                            self.logger.debug(f"SaveSectionCommand: silent focus on duplicate failed: {_e}")
                         self.setObsolete(True)
                         return
                 except Exception as e:

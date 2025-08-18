@@ -215,24 +215,50 @@ class ItemOperations:
             )
     
     def _delete_section(self, section_id: int) -> None:
-        # Предпросмотр данных для подтверждения, без удаления в бизнес-слое
+        # Предпросмотр данных и вычисление фактического количества ссылок
         section_data = self.business.get_section_data(section_id)
         if not section_data:
             return
-        categories = self.business.get_categories(section_id) or []
-        cats_count = len(categories)
-        links_count = 0  # При необходимости можно заменить на реальный подсчет ссылок
+        try:
+            # Точный подсчет: категории и суммарное число ссылок в разделе
+            cats_count, links_count = self.business.structure_model.count_nested_objects_for_section(section_id)
+        except Exception:
+            # Фолбэк: если подсчет не удался, считаем только категории и предполагаем 0 ссылок
+            categories = self.business.get_categories(section_id) or []
+            cats_count = len(categories)
+            links_count = 0
+
+        # Если в разделе нет ссылок — удаляем без подтверждения (в т.ч. если есть пустые категории)
+        if links_count == 0:
+            cmd = DeleteSectionCommand(section_data, self.main)
+            if cmd:
+                self.undo_stack.push(cmd)
+            return
+
+        # Иначе требуется подтверждение, т.к. будут удалены ссылки
         if self._confirm_section_deletion(section_data, cats_count, links_count):
             cmd = DeleteSectionCommand(section_data, self.main)
             if cmd:
                 self.undo_stack.push(cmd)
     
     def _delete_category(self, category_id: int) -> None:
-        # Предпросмотр данных для подтверждения, без удаления в бизнес-слое
+        # Предпросмотр данных и вычисление фактического количества ссылок
         category_data = self.business.get_category_data(category_id)
         if not category_data:
             return
-        links_count = 0  # При необходимости заменить на реальный подсчет
+        try:
+            links_count = int(self.business.structure_model.count_links_by_category(category_id))
+        except Exception:
+            links_count = 0
+
+        # Если в категории нет ссылок — удаляем без подтверждения
+        if links_count == 0:
+            cmd = DeleteCategoryCommand(category_data, self.main)
+            if cmd:
+                self.undo_stack.push(cmd)
+            return
+
+        # Иначе требуется подтверждение, т.к. будут удалены ссылки
         if self._confirm_category_deletion(category_data, links_count):
             cmd = DeleteCategoryCommand(category_data, self.main)
             if cmd:

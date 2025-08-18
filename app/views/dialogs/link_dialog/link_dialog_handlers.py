@@ -42,7 +42,13 @@ class LinkDialogHandlers:
         )
         
         # URL изменение
-        self.dialog.ui.get_widget('url_le').textChanged.connect(self._on_path_changed)
+        url_widget = self.dialog.ui.get_widget('url_le')
+        url_widget.textChanged.connect(self._on_path_changed)
+        # Немедленный триггер при завершении редактирования (Enter/потеря фокуса)
+        try:
+            url_widget.editingFinished.connect(self._trigger_link_processing)
+        except Exception:
+            pass
         
         # Кнопки
         self.dialog.ui.get_widget('browse_btn').clicked.connect(self._on_browse)
@@ -199,7 +205,8 @@ class LinkDialogHandlers:
     def _on_path_changed(self, text: str) -> None:
         """Обработчик изменения пути."""
         self.dialog._processing_timer.stop()
-        self.dialog._processing_timer.start(500)
+        # Уменьшаем задержку дебаунса, чтобы успеть запустить воркер до закрытия диалога
+        self.dialog._processing_timer.start(300)
         
     def _on_profile(self) -> None:
         """Обработчик кнопки выбора профиля."""
