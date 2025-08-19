@@ -36,7 +36,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
         
         dlg = LinkDialog(
             initialization_data=init_data,
-            dialog_controller=self.main.link_operations,
+            dialog_controller=link_controller,
             link=None,
             category_id=cat_id,
             parent=self.main,

@@ -180,4 +180,19 @@ class BrowserProfileManager:
         """Очищает кеш профилей."""
         self._cache.clear()
         self._last_update.clear()
-        logger.info("Кеш профилей очищен")
+        logger.info(f"Кеш профилей очищен")
+
+
+# Модульный синглтон для переиспользования одного экземпляра менеджера
+_PROFILE_MANAGER: Optional[BrowserProfileManager] = None
+
+
+def get_profile_manager() -> BrowserProfileManager:
+    """
+    Возвращает общий экземпляр BrowserProfileManager для всего приложения.
+    Гарантирует единичную инициализацию на процесс.
+    """
+    global _PROFILE_MANAGER
+    if _PROFILE_MANAGER is None:
+        _PROFILE_MANAGER = BrowserProfileManager()
+    return _PROFILE_MANAGER

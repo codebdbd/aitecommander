@@ -66,6 +66,13 @@ class TreeManagement:
             if parent_item:
                 parent_item.addChild(new_item)
                 parent_item.setExpanded(True)
+                # Принудительно обновляем плитки для этого раздела, чтобы отразить новую категорию
+                # Делает поведение согласованным с редактированием (_update_category_tiles_after_edit)
+                try:
+                    if hasattr(self.controller, 'main') and hasattr(self.controller, 'business'):
+                        self.controller.business.select_section(parent_id)
+                except Exception:
+                    pass
         
         item_id = data["id"]
         schedule_selection_restore(
@@ -99,6 +106,15 @@ class TreeManagement:
                 # Для категории: выбираем родительский раздел
                 if item_type == "category":
                     next_item = parent
+                    # Принудительно обновляем плитки для родительского раздела, чтобы отразить удаление категории
+                    try:
+                        st = get_tree_tuple(parent, 0)
+                        if st and st[0] == "section":
+                            section_id = st[1]
+                            if hasattr(self.controller, 'business'):
+                                self.controller.business.select_section(section_id)
+                    except Exception:
+                        pass
                 parent.removeChild(item)
             else:
                 # Для элементов верхнего уровня
@@ -119,6 +135,18 @@ class TreeManagement:
                 # Принудительно вызываем обработчик выбора для обновления плиток
                 if hasattr(self.controller, 'selection_handler') and self.controller.selection_handler:
                     self.controller.selection_handler._handle_item_selection(next_item)
+        else:
+            # Резервный путь: элемент не найден (например, уже перезагружена структура).
+            # Если удалили категорию, обновим плитки для текущего выбранного раздела.
+            if item_type == "category":
+                try:
+                    cur = self.tree.currentItem()
+                    st = get_tree_tuple(cur, 0) if cur else None
+                    if st and st[0] == "section" and hasattr(self.controller, 'business'):
+                        section_id = st[1]
+                        self.controller.business.select_section(section_id)
+                except Exception:
+                    pass
     
     def _find_item_by_id(self, item_type: str, item_id: int) -> QTreeWidgetItem:
         iterator = QTreeWidgetItemIterator(self.tree)

@@ -14,6 +14,9 @@ from app.utils.ui.icon.icon_operations.creators import themed_icon
 from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui_state.ui_state_manager import UIStateManager
 from app.config_data import app_config
+from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
+from app.controllers.ui.top_panels_controller import TopPanelsController
+from app.controllers.ui.links.links_actions import LinksActions
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +47,20 @@ def setup_controllers(window, controllers: Dict[str, Any]) -> None:
     window.structure_business = controllers['structure_business']
     window.structure = controllers['structure']
     window.links_business = controllers['links_business']
-    window.links = controllers['links']
-    window.link_operations = controllers['link_operations']
     window.database_controller = controllers['database_controller']
     window.system_dialogs = controllers['system_dialogs']
     window.app_shutdown = controllers['app_shutdown']
+
+    # Фасад ссылочных действий (UI): единая точка делегирования
+    try:
+        window.links_actions = LinksActions(
+            window,
+            links=controllers.get('links'),
+            link_ops=controllers.get('link_operations')
+        )
+        controllers['links_actions'] = window.links_actions
+    except Exception as e:
+        logger.error(f"Failed to create LinksActions: {e}")
 
     # Централизованный менеджер состояния UI
     window.ui_state = UIStateManager(window)
@@ -57,6 +69,20 @@ def setup_controllers(window, controllers: Dict[str, Any]) -> None:
     # Контроллер действий
     window.action_controller = ActionController(window)
     controllers['action_controller'] = window.action_controller
+
+    # Создаём контроллер панели сфер заранее (до подключения сигналов)
+    try:
+        window.spheres_controller = SpheresBarController(window)
+        controllers['spheres_controller'] = window.spheres_controller
+    except Exception as e:
+        logger.error(f"Failed to create SpheresBarController: {e}")
+
+    # Контроллер верхних панелей (Избранное/Недавние)
+    try:
+        window.top_panels_controller = TopPanelsController(window)
+        controllers['top_panels_controller'] = window.top_panels_controller
+    except Exception as e:
+        logger.error(f"Failed to create TopPanelsController: {e}")
 
 
 def setup_ui_elements(window, controllers: Dict[str, Any]) -> None:
@@ -205,9 +231,15 @@ def setup_signal_connections(window, controllers: Dict[str, Any]) -> None:
 
 def _connect_structure_signals(window) -> None:
     """Подключение сигналов структуры."""
-    window.structure_business.active_sphere_changed.connect(
-        window._update_active_sphere_button
-    )
+    if getattr(window, '_structure_signals_connected', False):
+        return
+    # Обновляем состояние кнопок сфер через контроллер панелей сфер
+    try:
+        window.structure_business.active_sphere_changed.connect(
+            window.spheres_controller._update_active_sphere_button
+        )
+    except Exception as e:
+        logger.error(f"Failed to connect sphere button update: {e}")
     window.structure_business.active_sphere_changed.connect(
         window._update_left_panel_style
     )
@@ -222,10 +254,10 @@ def _connect_structure_signals(window) -> None:
         )
     except Exception:
         pass
-    # При смене сферы обновляем верхние панели (Избранное/Недавние)
+    # При смене сферы обновляем верхние панели (Избранное/Недавние) через контроллер
     try:
         window.structure_business.active_sphere_changed.connect(
-            lambda *_: getattr(window, '_refresh_top_panels', lambda: None)()
+            lambda *_: getattr(window, 'top_panels_controller', None) and window.top_panels_controller.refresh_all()
         )
     except Exception:
         pass
@@ -233,7 +265,7 @@ def _connect_structure_signals(window) -> None:
     # После загрузки структуры также обновляем верхние панели
     try:
         window.structure_business.structure_loaded.connect(
-            lambda *_: getattr(window, '_refresh_top_panels', lambda: None)()
+            lambda *_: getattr(window, 'top_panels_controller', None) and window.top_panels_controller.refresh_all()
         )
     except Exception:
         pass
@@ -250,20 +282,23 @@ def _connect_structure_signals(window) -> None:
     # Дополнительно обновляем верхние панели при выборе раздела/категории
     try:
         window.structure_business.section_selected.connect(
-            lambda *_: getattr(window, '_refresh_top_panels', lambda: None)()
+            lambda *_: getattr(window, 'top_panels_controller', None) and window.top_panels_controller.refresh_all()
         )
     except Exception:
         pass
     try:
         window.structure_business.category_selected.connect(
-            lambda *_: getattr(window, '_refresh_top_panels', lambda: None)()
+            lambda *_: getattr(window, 'top_panels_controller', None) and window.top_panels_controller.refresh_all()
         )
     except Exception:
         pass
+    window._structure_signals_connected = True
 
 
 def _connect_database_signals(window) -> None:
     """Подключение сигналов базы данных."""
+    if getattr(window, '_database_signals_connected', False):
+        return
     db_controller = window.database_controller
 
     db_controller.database_restored.connect(lambda new_db: DatabaseEventHandler.handle_database_restored(window, new_db))
@@ -271,10 +306,13 @@ def _connect_database_signals(window) -> None:
     db_controller.favorites_cleared.connect(lambda: DatabaseEventHandler.handle_favorites_cleared(window))
     db_controller.operation_success.connect(lambda title, message: MessageHandler.show_success_message(window, title, message))
     db_controller.operation_error.connect(lambda title, message: MessageHandler.show_error_message(window, title, message))
+    window._database_signals_connected = True
 
 
 def _connect_ui_signals(window) -> None:
     """Подключение сигналов UI."""
+    if getattr(window, '_ui_signals_connected', False):
+        return
     try:
         if hasattr(window, 'tree') and window.tree:
             window.tree.currentItemChanged.connect(
@@ -292,6 +330,7 @@ def _connect_ui_signals(window) -> None:
                 )
     except Exception as e:
         logger.warning(f"Failed to connect table selection signals: {e}")
+    window._ui_signals_connected = True
 
 
 def setup_keyboard(window, controllers: Dict[str, Any]) -> None:
@@ -340,10 +379,14 @@ class DatabaseEventHandler:
             window.structure.categories = new_db.categories
             window.structure.load()
         
-        # Обновляем ссылки
-        if hasattr(window, 'links'):
-            window.links.db = new_db
-            window.links.links = new_db.links
+        # Обновляем ссылки через фасад LinksActions (без хранения на окне)
+        try:
+            la = getattr(window, 'links_actions', None)
+            if la and getattr(la, 'links', None):
+                la.links.db = new_db
+                la.links.links = new_db.links
+        except Exception:
+            pass
         
         # Обновляем бизнес-логику структуры
         if hasattr(window, 'structure_business'):
@@ -424,7 +467,9 @@ class WindowControllersSetup:
     def initialize_spheres(self):
         """Инициализация сфер."""
         try:
-            self.window._init_spheres_ui()
+            # Используем новый контроллер панели сфер
+            self.window.spheres_controller = SpheresBarController(self.window)
+            self.window.spheres_controller.init()
         except Exception as e:
             logger.error(f"Failed to initialize spheres: {e}")
             # Не останавливаем выполнение, так как это не критично для базовой работы

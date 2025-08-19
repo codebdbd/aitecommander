@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.utils.browser.browser_profiles import BrowserProfileManager
+from app.utils.browser.browser_profiles import get_profile_manager
 from app.utils.browser.browser_profiles.utils import get_browser_display_name
 
 
@@ -24,7 +24,7 @@ class BrowserProfileDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Выбор профиля браузера")
         self.setMinimumSize(480, 400)
-        self.manager = BrowserProfileManager()
+        self.manager = get_profile_manager()
         self.selected_profiles = []
         self.profile_checkboxes = []
         self._setup_ui()

@@ -5,7 +5,7 @@
 import logging
 from typing import Dict, List
 
-from .profile_manager import BrowserProfileManager
+from .profile_manager import get_profile_manager
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class ProfileMigrationHelper:
             database: Объект базы данных
         """
         self.database = database
-        self.profile_manager = BrowserProfileManager()
+        self.profile_manager = get_profile_manager()
         logger.info("Инициализирован помощник миграции профилей")
     
     def migrate_existing_chrome_links(self) -> int:

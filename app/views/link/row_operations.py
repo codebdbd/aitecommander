@@ -47,7 +47,7 @@ class RowOperationsMixin:
                     success = self._update_row(row, link, mode)
                     return success
                     
-            logging.warning(f"Ссылка с ID {link_id} не найдена в таблице")
+            logging.debug(f"Ссылка с ID {link_id} не найдена в таблице")
             return False
         except Exception as e:
             logging.error(f"[LinksTableView] Ошибка обновления строки по ID: {e}")

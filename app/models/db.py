@@ -107,6 +107,68 @@ class Database(DatabaseBase):
                     logger.debug("Поле browser_key уже существует в таблице link")
                 else:
                     raise
+
+            # Миграция: изменить уникальность с (category_id,url,args,type) на (category_id,name,url,args)
+            try:
+                with db_lock:
+                    # Проверяем текущие уникальные индексы таблицы link
+                    idx_list = self.connection.execute("PRAGMA index_list('link')").fetchall()
+                    need_migrate = False
+                    for idx in idx_list:
+                        # row: seq, name, unique, origin, partial
+                        if idx[2] == 1:  # unique
+                            cols = self.connection.execute(f"PRAGMA index_info('{idx[1]}')").fetchall()
+                            col_names = [c[2] for c in cols]
+                            if col_names == ['category_id', 'url', 'args', 'type']:
+                                need_migrate = True
+                                break
+
+                    if need_migrate:
+                        logger.info("Миграция: пересоздание link с UNIQUE(category_id,name,url,args)")
+                        self.connection.execute("BEGIN TRANSACTION")
+                        try:
+                            # Создаем новую таблицу c нужным UNIQUE
+                            self.connection.execute(
+                                """
+                                CREATE TABLE IF NOT EXISTS link_new (
+                                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    category_id  INTEGER NOT NULL REFERENCES category(id) ON DELETE CASCADE,
+                                    name         TEXT    NOT NULL,
+                                    url          TEXT    NOT NULL,
+                                    type         TEXT    NOT NULL CHECK(type IN ('web','file','program','script','chromeapp','folder')),
+                                    notes        TEXT    DEFAULT '',
+                                    is_favorite  INTEGER NOT NULL CHECK(is_favorite IN (0,1)) DEFAULT 0,
+                                    last_used    TEXT    DEFAULT NULL,
+                                    icon_path    TEXT    NOT NULL DEFAULT 'default.ico',
+                                    args         TEXT    DEFAULT '',
+                                    browser_key  TEXT    DEFAULT NULL,
+                                    position     INTEGER NOT NULL DEFAULT 0,
+                                    UNIQUE(category_id, name, url, args)
+                                )
+                                """
+                            )
+
+                            # Перенос данных
+                            self.connection.execute(
+                                """
+                                INSERT OR IGNORE INTO link_new 
+                                    (id, category_id, name, url, type, notes, is_favorite, last_used, icon_path, args, browser_key, position)
+                                SELECT id, category_id, name, url, type, notes, is_favorite, last_used, icon_path, args, browser_key, position
+                                FROM link
+                                """
+                            )
+
+                            # Заменяем таблицы
+                            self.connection.execute("DROP TABLE link")
+                            self.connection.execute("ALTER TABLE link_new RENAME TO link")
+                            self.connection.commit()
+                            logger.info("Миграция link завершена успешно")
+                        except Exception as inner:
+                            self.connection.execute("ROLLBACK")
+                            logger.error(f"Ошибка миграции таблицы link: {inner}")
+                            # не пробрасываем исключение, чтобы не падало приложение
+            except Exception as mig_err:
+                logger.error(f"Ошибка при подготовке миграции уникальности link: {mig_err}")
         except Exception as e:
             logger.error(f"Ошибка выполнения миграций: {e}")
             # Не прерываем работу приложения из-за ошибок миграции

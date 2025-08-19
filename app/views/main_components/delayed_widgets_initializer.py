@@ -76,14 +76,14 @@ class DelayedWidgetsInitializer:
                         insert_index = top_bar.count()
                 top_bar.insertWidget(insert_index, self.window.recent_links_widget)
             
-            # Подключаем сигнал запуска ссылки к обработчику в окне
-            self.window.recent_links_widget.linkClicked.connect(self.window.open_link)
+            # Подключаем сигнал запуска ссылки к фасаду ссылок
+            self.window.recent_links_widget.linkClicked.connect(self.window.links_actions.open_link)
             # При запуске ссылки виджет сам инициирует refresh_requested, см. его реализацию
 
-            # Пассивная схема: сигнал виджета обрабатывает контроллер ссылок, если он уже создан
-            if hasattr(self.window, 'links') and self.window.links:
+            # Пассивная схема: сигнал виджета обрабатывает фасад ссылок
+            if hasattr(self.window, 'links_actions') and self.window.links_actions:
                 self.window.recent_links_widget.refresh_requested.connect(
-                    self.window.links.on_recent_refresh_requested
+                    self.window.links_actions.on_recent_refresh_requested
                 )
 
             # Инициируем первичную загрузку после подключения обработчиков
@@ -122,16 +122,16 @@ class DelayedWidgetsInitializer:
                         insert_index = top_bar.count()
                 top_bar.insertWidget(insert_index, self.window.fav_widget)
             
-            # Подключаем сигнал запуска ссылки к обработчику в окне
-            self.window.fav_widget.linkClicked.connect(self.window.open_link)
+            # Подключаем сигнал запуска ссылки к фасаду ссылок
+            self.window.fav_widget.linkClicked.connect(self.window.links_actions.open_link)
 
-            # Пассивная схема: сигналы виджета обрабатывает контроллер ссылок, если он уже создан
-            if hasattr(self.window, 'links') and self.window.links:
+            # Пассивная схема: сигналы виджета обрабатывает фасад ссылок
+            if hasattr(self.window, 'links_actions') and self.window.links_actions:
                 self.window.fav_widget.refresh_requested.connect(
-                    self.window.links.on_favorites_refresh_requested
+                    self.window.links_actions.on_favorites_refresh_requested
                 )
                 self.window.fav_widget.clear_requested.connect(
-                    self.window.links.on_favorites_clear_requested
+                    self.window.links_actions.on_favorites_clear_requested
                 )
 
             # Инициируем первичную загрузку после подключения обработчиков

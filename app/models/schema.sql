@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS link (
     args         TEXT    DEFAULT '',
     browser_key  TEXT    DEFAULT NULL,
     position     INTEGER NOT NULL DEFAULT 0,
-    UNIQUE(category_id, url, args, type)
+    UNIQUE(category_id, name, url, args)
 );
 
 -- Резервные копии базы

@@ -70,6 +70,21 @@ class MenuController:
         self._links_menu_builder = None
         self._category_menu_builder = None
 
+    def rebuild_after_theme_change(self) -> None:
+        """Пересобирает главное меню после смены темы.
+        Инкапсулирует очистку кеша и пересоздание меню.
+        """
+        try:
+            old_menu = self.main_window.menuBar()
+            if old_menu is not None:
+                old_menu.deleteLater()
+        except Exception:
+            # В случае, если меню ещё не инициализировалось
+            pass
+        
+        self.clear_cache()
+        self.main_window.setMenuBar(self.create_main_menu())
+
 
 class ActionController:
     """Контроллер для обработки пользовательских действий."""
@@ -82,19 +97,21 @@ class ActionController:
         """Определить контекст и выполнить редактирование текущего элемента."""
         # Проверяем плитки категорий
         tiles_stack_index = app_config.get('ui.stack_indices.tiles', 0)
-        if (self.main_window.has_tiles and self.main_window.has_stack and 
-            self.main_window.stack.currentIndex() == tiles_stack_index and 
-            hasattr(self.main_window.tiles, '_current_item_id') and 
-            self.main_window.tiles._current_item_id is not None):
-            
-            self.main_window.structure.handle_edit_category(self.main_window.tiles._current_item_id)
+        stack = getattr(self.main_window, 'stack', None)
+        tiles = getattr(self.main_window, 'tiles', None)
+        if (stack is not None and tiles is not None and 
+            stack.currentIndex() == tiles_stack_index and 
+            hasattr(tiles, '_current_item_id') and 
+            tiles._current_item_id is not None):
+
+            self.main_window.structure.handle_edit_category(tiles._current_item_id)
             return
         
         # Проверяем таблицу ссылок (активная)
         table_stack_index = app_config.get('ui.stack_indices.table', 1)
-        if (self.main_window.has_stack and 
-            self.main_window.stack.currentIndex() == table_stack_index and 
-            self.main_window.links.has_selection()):
+        if (stack is not None and 
+            stack.currentIndex() == table_stack_index and 
+            bool(self.main_window.links_actions.get_selected_rows())):
             self._edit_selected_link()
             return
         
@@ -106,7 +123,7 @@ class ActionController:
         
         # Проверяем фокус на таблице ссылок
         if (self.main_window.table.hasFocus() and 
-            self.main_window.links.has_selection()):
+            bool(self.main_window.links_actions.get_selected_rows())):
             self._edit_selected_link()
             return
         
@@ -116,7 +133,7 @@ class ActionController:
             return
         
         # Fallback: проверяем наличие выбранной ссылки
-        if self.main_window.links.has_selection():
+        if bool(self.main_window.links_actions.get_selected_rows()):
             self._edit_selected_link()
     
     def delete_current(self):
@@ -124,10 +141,10 @@ class ActionController:
         # Проверяем фокус на таблице ссылок
         if ((self.main_window.table.hasFocus() or 
              self.main_window.table.isAncestorOf(self.main_window.focusWidget())) and 
-            self.main_window.links.has_selection()):
+            bool(self.main_window.links_actions.get_selected_rows())):
             links = self._get_selected_links()
             if links:
-                self.main_window.link_operations.delete_links_with_confirmation(links)
+                self.main_window.links_actions.delete_links_with_confirmation(links)
                 self.main_window.update_statusbar()
             return
 
@@ -140,10 +157,10 @@ class ActionController:
             return
 
         # Fallback: проверяем наличие выбранных ссылок
-        if self.main_window.links.has_selection():
+        if bool(self.main_window.links_actions.get_selected_rows()):
             links = self._get_selected_links()
             if links:
-                self.main_window.link_operations.delete_links_with_confirmation(links)
+                self.main_window.links_actions.delete_links_with_confirmation(links)
                 self.main_window.update_statusbar()
             return
 
@@ -154,17 +171,17 @@ class ActionController:
     
     def copy_current(self):
         """Копировать выбранные элементы."""
-        if self.main_window.links.has_selection():
-            self.main_window.copy_selected_links()
+        if bool(self.main_window.links_actions.get_selected_rows()):
+            self.main_window.links_actions.copy_selected_links()
     
     def cut_current(self):
         """Вырезать выбранные элементы."""
-        if self.main_window.links.has_selection():
-            self.main_window.cut_selected_links()
+        if bool(self.main_window.links_actions.get_selected_rows()):
+            self.main_window.links_actions.cut_selected_links()
     
     def paste_current(self):
         """Вставить элементы."""
-        self.main_window.paste_links()
+        self.main_window.links_actions.paste_links()
     
     def select_all_current(self):
         """Выделить все элементы в текущем контексте."""
@@ -173,11 +190,8 @@ class ActionController:
     
     def _edit_selected_link(self):
         """Редактировать выбранную ссылку."""
-        row = self.main_window.links.current_row()
-        if row >= 0:
-            link = self.main_window.links.get_link_by_row(row)
-            if link:
-                self.main_window.show_link_dialog(link)
+        if self.main_window.links_actions.edit_selected_link():
+            return
     
     def _get_selected_links(self):
         """Получить список выбранных ссылок."""

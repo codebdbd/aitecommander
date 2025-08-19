@@ -90,7 +90,7 @@ class StructureMenuBuilder:
         
         menu.addAction(self.actions.create(
             "Добавить ссылку", 
-            lambda: self.main_window.show_link_dialog_for_category(category_id=id_),
+            lambda: self.main_window.links_actions.show_link_dialog(category_id=id_),
             Shortcuts.ADD_LINK,
             get_menu_icon('add_link', self.theme)
         ))

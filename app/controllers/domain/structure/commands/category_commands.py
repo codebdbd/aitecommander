@@ -93,7 +93,15 @@ class SaveCategoryCommand(BaseCommand):
                     business = self.main.structure_business
                     self.logger.info(f"[CMD:Category] Emitting to business id={id(business)} is_new={self.is_new}")
                     if self.is_new:
-                        business.item_added.emit("category", self.new_id, self.new_data)
+                        # ВАЖНО: для item_added второй аргумент — это parent_id (section_id), а не id категории
+                        try:
+                            parent_section_id = None
+                            if isinstance(self.new_data, dict):
+                                parent_section_id = self.new_data.get('section_id')
+                            business.item_added.emit("category", parent_section_id, self.new_data)
+                        except Exception:
+                            # Фолбэк на случай отсутствия section_id — эмитим как раньше (может привести к пустой загрузке)
+                            business.item_added.emit("category", self.new_id, self.new_data)
                     else:
                         business.item_updated.emit("category", self.new_id, (self._merged_update or self.new_data))
                     business.load_structure()
@@ -239,7 +247,7 @@ class DeleteCategoryCommand(BaseCommand):
         try:
             if hasattr(self.main, 'structure_business') and self.main.structure_business:
                 business = self.main.structure_business
-                business.item_added.emit("category", self.category_data['id'], self._backup_tree['category'])
+                business.item_added.emit("category", self.category_data['section_id'], self._backup_tree['category'])
                 business.load_structure()
         except Exception as e:
             self.logger.warning(f"DeleteCategoryCommand.undo: не удалось инициировать бизнес-обновление структуры: {e}")
