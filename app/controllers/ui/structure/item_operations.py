@@ -57,8 +57,11 @@ class ItemOperations:
         try:
             async_ops = getattr(self.business, 'async_operations', None)
             current_id = getattr(self.business, 'current_sphere_id', None)
-            if async_ops and callable(getattr(async_ops, 'load_structure_async', None)) and isinstance(current_id, int):
-                async_ops.load_structure_async(current_id)
+            if isinstance(current_id, int):
+                # Централизуем перезагрузку структуры через бизнес-логику, чтобы не обходить дебаунс
+                schedule_reload = getattr(self.business, '_schedule_structure_reload', None)
+                if callable(schedule_reload):
+                    schedule_reload(delay_ms=150)
                 # Отложенная проверка: если дерево так и не заполнилось, грузим синхронно
                 try:
                     from app.utils.system.task_scheduler import schedule_selection_restore

@@ -629,3 +629,252 @@
 2025-08-19 12:35:19 - root - INFO - main - main:509 - ============================================================
 2025-08-19 12:35:19 - root - INFO - main - main:510 - ЗАВЕРШЕНИЕ РАБОТЫ ПРИЛОЖЕНИЯ
 2025-08-19 12:35:19 - root - INFO - main - main:511 - ============================================================
+2025-08-19 12:39:45 - root - INFO - main - _setup_logging:136 - Логирование настроено из файла: B:\osteen path\app\config_data\logging_config.json
+2025-08-19 12:39:45 - root - INFO - main - main:426 - ============================================================
+2025-08-19 12:39:45 - root - INFO - main - main:427 - ЗАПУСК ПРИЛОЖЕНИЯ
+2025-08-19 12:39:45 - root - INFO - main - main:428 - ============================================================
+2025-08-19 12:39:45 - root - INFO - main - create_application:415 - QApplication создан: MyPyQtApp v1.0.0
+2025-08-19 12:39:45 - root - INFO - main - _log_system_info:390 - Операционная система: Windows-11-10.0.26100-SP0
+2025-08-19 12:39:45 - root - INFO - main - _log_system_info:391 - Версия Python: 3.13.5 (tags/v3.13.5:6cb20a2, Jun 11 2025, 16:15:46) [MSC v.1943 64 bit (AMD64)]
+2025-08-19 12:39:45 - root - INFO - main - _log_system_info:392 - Архитектура Python: ('64bit', 'WindowsPE')
+2025-08-19 12:39:45 - root - INFO - main - _log_system_info:393 - Версия PyQt6: 6.9.0
+2025-08-19 12:39:45 - root - INFO - main - _log_system_info:394 - Путь запуска: B:\osteen path\app\main.py
+2025-08-19 12:39:45 - root - INFO - main - _log_system_info:395 - Рабочая директория: B:\osteen path
+2025-08-19 12:39:45 - root - INFO - main - _log_system_info:401 - Дисплей 0: 1920x1080 @ 1.0x
+2025-08-19 12:39:45 - root - INFO - main - main:444 - PID процесса: 29612
+2025-08-19 12:39:45 - root - INFO - main - main:445 - Количество аргументов командной строки: 1
+2025-08-19 12:39:45 - root - INFO - main - main:452 - Пользовательский размер шрифта установлен в 10pt (Option A)
+2025-08-19 12:39:45 - root - INFO - main - main:477 - Глобальный шрифт приложения установлен: Segoe UI 10pt
+2025-08-19 12:39:45 - root - INFO - main - initialize_all:373 - Инициализация настроек...
+2025-08-19 12:39:45 - root - INFO - main - initialize_settings:298 - Используются переданные настройки приложения
+2025-08-19 12:39:45 - root - INFO - main - initialize_settings:299 - Настройки успешно загружены
+2025-08-19 12:39:45 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-19 12:39:45 - root - INFO - main - initialize_all:373 - Инициализация базы данных...
+2025-08-19 12:39:45 - root - INFO - main - initialize_database:308 - Подключение к базе данных...
+2025-08-19 12:39:45 - root - INFO - main - initialize_database:310 - База данных успешно инициализирована
+2025-08-19 12:39:45 - root - INFO - main - initialize_all:373 - Инициализация контроллера темы...
+2025-08-19 12:39:45 - root - INFO - main - initialize_theme_controller:319 - Создание контроллера темы...
+2025-08-19 12:39:45 - ThemeController - INFO - theme_controller - _load_themes_manifest:113 - Манифест тем не найден, используются значения по умолчанию
+2025-08-19 12:39:45 - root - INFO - main - initialize_theme_controller:321 - Контроллер темы создан
+2025-08-19 12:39:45 - root - INFO - main - initialize_all:373 - Инициализация главного окна...
+2025-08-19 12:39:45 - root - INFO - main - initialize_main_window:330 - Создание главного окна...
+2025-08-19 12:39:46 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-19 12:39:46 - app.utils.browser.browser_profiles.firefox_profile_finder - INFO - firefox_profile_finder - find_profiles:64 - Найдено 2 профилей Firefox
+2025-08-19 12:39:46 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 23 профилей Microsoft Edge
+2025-08-19 12:39:46 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Brave
+2025-08-19 12:39:46 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Opera
+2025-08-19 12:39:46 - root - INFO - main - run:467 - Профили браузеров предзагружены
+2025-08-19 12:39:46 - app.utils.system.task_scheduler - INFO - task_scheduler - get_task_scheduler:250 - Создан глобальный TaskScheduler
+2025-08-19 12:39:46 - app.utils.ui.icon.path_service - INFO - path_service - _maybe_log_metrics:53 - Icon metrics: hits=0 misses=0 hit_rate=0.00% disk_loads=1 not_found=0 avg_load_time=0.0000s load_count=0 uptime=0.52s
+2025-08-19 12:39:46 - app.controllers.domain.structure.structure_business - INFO - structure_business - _initialize_system:120 - Инициализация StructureBusinessLogic
+2025-08-19 12:39:46 - app.controllers.domain.structure.structure_business - INFO - structure_business - __init__:113 - [BL] Handlers connected for business id=2067399768528
+2025-08-19 12:39:46 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - setup_controllers:406 - Controllers setup completed
+2025-08-19 12:39:46 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - setup_controllers:420 - UIElementsSetup completed
+2025-08-19 12:39:46 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - setup_controllers:420 - DependencyInjectionSetup completed
+2025-08-19 12:39:46 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - setup_controllers:420 - SignalConnectionSetup completed
+2025-08-19 12:39:46 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - setup_controllers:420 - KeyboardSetup completed
+2025-08-19 12:39:46 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:150 - Установлена текущая сфера: 1
+2025-08-19 12:39:46 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: section #85
+2025-08-19 12:39:46 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 1 categories
+2025-08-19 12:39:46 - root - INFO - main - initialize_main_window:344 - Главное окно создано
+2025-08-19 12:39:46 - root - INFO - main - initialize_all:373 - Инициализация темы оформления...
+2025-08-19 12:39:46 - root - INFO - main - apply_initial_theme:354 - Применение начальной темы: dark
+2025-08-19 12:39:46 - app.utils.db.db_workers - INFO - db_workers - run:351 - Загружена структура для сферы 1: 8 разделов
+2025-08-19 12:39:46 - ThemeController - INFO - theme_controller - apply:360 - Применена тема: dark
+2025-08-19 12:39:46 - root - INFO - main - apply_initial_theme:356 - Тема успешно применена
+2025-08-19 12:39:46 - root - INFO - main - initialize_all:378 - Все компоненты успешно инициализированы
+2025-08-19 12:39:46 - root - INFO - main - main:486 - Отображение главного окна...
+2025-08-19 12:39:47 - root - INFO - main - main:488 - Главное окно отображено
+2025-08-19 12:39:47 - root - INFO - main - main:494 - Запуск главного цикла событий...
+2025-08-19 12:39:47 - category_tiles - INFO - category_tiles - inject_dependencies:441 - CategoryTiles: Menu builder инициализирован после инъекции зависимостей
+2025-08-19 12:39:47 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_started:425 - Загрузка структуры для сферы 1...
+2025-08-19 12:39:47 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_finished:433 - Структура загружена
+2025-08-19 12:39:47 - category_tiles - INFO - category_tiles - paint:113 - CategoryTileDelegate font diag: family='Segoe UI', requested_px=11, pixelSize=-1, pointSizeF=10.00, fm.height=17, fm.lineSpacing=17
+2025-08-19 12:39:47 - root - INFO - main - <lambda>:491 - Приложение успешно запущено
+2025-08-19 12:39:48 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:150 - Установлена текущая сфера: 2
+2025-08-19 12:39:48 - app.utils.db.db_workers - INFO - db_workers - run:351 - Загружена структура для сферы 2: 13 разделов
+2025-08-19 12:39:48 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_started:425 - Загрузка структуры для сферы 2...
+2025-08-19 12:39:48 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: section #81
+2025-08-19 12:39:48 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 7 categories
+2025-08-19 12:39:48 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_finished:433 - Структура загружена
+2025-08-19 12:39:48 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:150 - Установлена текущая сфера: 3
+2025-08-19 12:39:48 - app.utils.db.db_workers - INFO - db_workers - run:351 - Загружена структура для сферы 3: 8 разделов
+2025-08-19 12:39:48 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_started:425 - Загрузка структуры для сферы 3...
+2025-08-19 12:39:48 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: section #132
+2025-08-19 12:39:48 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 2 categories
+2025-08-19 12:39:48 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_finished:433 - Структура загружена
+2025-08-19 12:39:49 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:150 - Установлена текущая сфера: 4
+2025-08-19 12:39:49 - app.utils.db.db_workers - INFO - db_workers - run:351 - Загружена структура для сферы 4: 12 разделов
+2025-08-19 12:39:49 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_started:425 - Загрузка структуры для сферы 4...
+2025-08-19 12:39:49 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: section #67
+2025-08-19 12:39:49 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 1 categories
+2025-08-19 12:39:49 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_finished:433 - Структура загружена
+2025-08-19 12:39:49 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:150 - Установлена текущая сфера: 3
+2025-08-19 12:39:49 - app.utils.db.db_workers - INFO - db_workers - run:351 - Загружена структура для сферы 3: 8 разделов
+2025-08-19 12:39:49 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_started:425 - Загрузка структуры для сферы 3...
+2025-08-19 12:39:49 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: section #132
+2025-08-19 12:39:49 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 2 categories
+2025-08-19 12:39:49 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_finished:433 - Структура загружена
+2025-08-19 12:39:56 - app.models.category_model - INFO - category_model - insert_category:108 - Добавлена новая категория: ыва34
+2025-08-19 12:39:56 - SaveCategoryCommand - INFO - category_commands - redo:94 - [CMD:Category] Emitting to business id=2067399768528 is_new=True
+2025-08-19 12:39:56 - app.controllers.domain.structure.structure_business - INFO - structure_business - _on_item_added:197 - [BL] item_added: type=category, parent_id=1303
+2025-08-19 12:39:56 - app.controllers.domain.structure.structure_business - INFO - async_operations - load_categories_async:132 - Запущена асинхронная загрузка категорий для раздела 1303
+2025-08-19 12:39:56 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_started:425 - Загрузка категорий для раздела 1303...
+2025-08-19 12:39:56 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_categories_loaded:309 - Загружено 0 категорий для раздела 1303
+2025-08-19 12:39:56 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 0 categories
+2025-08-19 12:39:56 - app.utils.db.db_workers - INFO - db_workers - run:351 - Загружена структура для сферы 3: 8 разделов
+2025-08-19 12:39:56 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_finished:433 - Категории загружены
+2025-08-19 12:39:56 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_started:425 - Загрузка структуры для сферы 3...
+2025-08-19 12:39:56 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_finished:433 - Структура загружена
+2025-08-19 12:39:56 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:108 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-19 12:39:56 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:116 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-19 12:39:57 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-19 12:39:57 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-19 12:40:02 - app.models.link_model - INFO - link_model - upsert_link:135 - Добавлена новая ссылка: Grok, browser_key=None
+2025-08-19 12:40:02 - app.controllers.domain.structure.commands.link_commands - INFO - link_commands - redo:26 - SaveLinkCommand.redo: upsert_link returned id=20583
+2025-08-19 12:40:02 - app.controllers.domain.structure.commands.link_commands - INFO - link_commands - redo:38 - [CMD:Link] Emitting to business id=2067399768528 is_update=False
+2025-08-19 12:40:02 - app.controllers.domain.structure.structure_business - INFO - structure_business - _on_item_added:197 - [BL] item_added: type=link, parent_id=20583
+2025-08-19 12:40:02 - root - WARNING - row_operations - update_link_by_id:50 - Ссылка с ID 20583 не найдена в таблице
+2025-08-19 12:40:02 - app.controllers.domain.structure.commands.link_commands - INFO - link_commands - redo:59 - Focus check: focus_id=20583
+2025-08-19 12:40:02 - app.controllers.domain.structure.commands.link_commands - INFO - link_commands - _focus_on_new_link:120 - Focusing on new link ID 20583
+2025-08-19 12:40:03 - root - INFO - data_management - focus_on_link_id:133 - [LinksTableView] Успешно установлен фокус на ссылку ID 20583 в строке 0
+2025-08-19 12:40:03 - app.controllers.domain.structure.commands.link_commands - INFO - link_commands - try_focus:137 - Focus set on link ID 20583
+2025-08-19 12:40:03 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_started:425 - Загрузка структуры для сферы 3...
+2025-08-19 12:40:03 - app.utils.db.db_workers - INFO - db_workers - run:351 - Загружена структура для сферы 3: 8 разделов
+2025-08-19 12:40:03 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_finished:433 - Структура загружена
+2025-08-19 12:40:05 - ThemeController - INFO - theme_controller - apply:360 - Применена тема: light
+2025-08-19 12:40:08 - ThemeController - INFO - theme_controller - apply:360 - Применена тема: dark
+2025-08-19 12:40:16 - SaveCategoryCommand - INFO - category_commands - redo:94 - [CMD:Category] Emitting to business id=2067399768528 is_new=False
+2025-08-19 12:40:16 - app.controllers.domain.structure.structure_business - INFO - structure_business - _on_item_updated:221 - [BL] item_updated: type=category, id=1303
+2025-08-19 12:40:16 - app.controllers.domain.structure.structure_business - INFO - async_operations - load_categories_async:132 - Запущена асинхронная загрузка категорий для раздела 129
+2025-08-19 12:40:16 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 2 categories
+2025-08-19 12:40:16 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:149 - [UI] Switch to TILES view: index=0, stack_count=2, categories=2
+2025-08-19 12:40:16 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:156 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-19 12:40:16 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_started:425 - Загрузка категорий для раздела 129...
+2025-08-19 12:40:16 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_categories_loaded:309 - Загружено 2 категорий для раздела 129
+2025-08-19 12:40:16 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 2 categories
+2025-08-19 12:40:16 - app.utils.db.db_workers - INFO - db_workers - run:351 - Загружена структура для сферы 3: 8 разделов
+2025-08-19 12:40:16 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_finished:433 - Категории загружены
+2025-08-19 12:40:16 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_started:425 - Загрузка структуры для сферы 3...
+2025-08-19 12:40:16 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_finished:433 - Структура загружена
+2025-08-19 12:42:56 - root - INFO - main - _setup_logging:136 - Логирование настроено из файла: B:\osteen path\app\config_data\logging_config.json
+2025-08-19 12:42:56 - root - INFO - main - main:426 - ============================================================
+2025-08-19 12:42:56 - root - INFO - main - main:427 - ЗАПУСК ПРИЛОЖЕНИЯ
+2025-08-19 12:42:56 - root - INFO - main - main:428 - ============================================================
+2025-08-19 12:42:56 - root - INFO - main - create_application:415 - QApplication создан: MyPyQtApp v1.0.0
+2025-08-19 12:42:57 - root - INFO - main - _log_system_info:390 - Операционная система: Windows-11-10.0.26100-SP0
+2025-08-19 12:42:57 - root - INFO - main - _log_system_info:391 - Версия Python: 3.13.5 (tags/v3.13.5:6cb20a2, Jun 11 2025, 16:15:46) [MSC v.1943 64 bit (AMD64)]
+2025-08-19 12:42:57 - root - INFO - main - _log_system_info:392 - Архитектура Python: ('64bit', 'WindowsPE')
+2025-08-19 12:42:57 - root - INFO - main - _log_system_info:393 - Версия PyQt6: 6.9.0
+2025-08-19 12:42:57 - root - INFO - main - _log_system_info:394 - Путь запуска: B:\osteen path\app\main.py
+2025-08-19 12:42:57 - root - INFO - main - _log_system_info:395 - Рабочая директория: B:\osteen path
+2025-08-19 12:42:57 - root - INFO - main - _log_system_info:401 - Дисплей 0: 1920x1080 @ 1.0x
+2025-08-19 12:42:57 - root - INFO - main - main:444 - PID процесса: 18112
+2025-08-19 12:42:57 - root - INFO - main - main:445 - Количество аргументов командной строки: 1
+2025-08-19 12:42:57 - root - INFO - main - main:452 - Пользовательский размер шрифта установлен в 10pt (Option A)
+2025-08-19 12:42:57 - root - INFO - main - main:477 - Глобальный шрифт приложения установлен: Segoe UI 10pt
+2025-08-19 12:42:57 - root - INFO - main - initialize_all:373 - Инициализация настроек...
+2025-08-19 12:42:57 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-19 12:42:57 - root - INFO - main - initialize_settings:298 - Используются переданные настройки приложения
+2025-08-19 12:42:57 - root - INFO - main - initialize_settings:299 - Настройки успешно загружены
+2025-08-19 12:42:57 - root - INFO - main - initialize_all:373 - Инициализация базы данных...
+2025-08-19 12:42:57 - root - INFO - main - initialize_database:308 - Подключение к базе данных...
+2025-08-19 12:42:57 - root - INFO - main - initialize_database:310 - База данных успешно инициализирована
+2025-08-19 12:42:57 - root - INFO - main - initialize_all:373 - Инициализация контроллера темы...
+2025-08-19 12:42:57 - root - INFO - main - initialize_theme_controller:319 - Создание контроллера темы...
+2025-08-19 12:42:57 - ThemeController - INFO - theme_controller - _load_themes_manifest:113 - Манифест тем не найден, используются значения по умолчанию
+2025-08-19 12:42:57 - root - INFO - main - initialize_theme_controller:321 - Контроллер темы создан
+2025-08-19 12:42:57 - root - INFO - main - initialize_all:373 - Инициализация главного окна...
+2025-08-19 12:42:57 - root - INFO - main - initialize_main_window:330 - Создание главного окна...
+2025-08-19 12:42:57 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-19 12:42:57 - app.utils.browser.browser_profiles.firefox_profile_finder - INFO - firefox_profile_finder - find_profiles:64 - Найдено 2 профилей Firefox
+2025-08-19 12:42:57 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 23 профилей Microsoft Edge
+2025-08-19 12:42:57 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Brave
+2025-08-19 12:42:57 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 0 профилей Opera
+2025-08-19 12:42:57 - root - INFO - main - run:467 - Профили браузеров предзагружены
+2025-08-19 12:42:57 - app.utils.system.task_scheduler - INFO - task_scheduler - get_task_scheduler:250 - Создан глобальный TaskScheduler
+2025-08-19 12:42:57 - app.utils.ui.icon.path_service - INFO - path_service - _maybe_log_metrics:53 - Icon metrics: hits=0 misses=0 hit_rate=0.00% disk_loads=1 not_found=0 avg_load_time=0.0000s load_count=0 uptime=0.74s
+2025-08-19 12:42:57 - app.controllers.domain.structure.structure_business - INFO - structure_business - _initialize_system:120 - Инициализация StructureBusinessLogic
+2025-08-19 12:42:57 - app.controllers.domain.structure.structure_business - INFO - structure_business - __init__:113 - [BL] Handlers connected for business id=2658246817296
+2025-08-19 12:42:57 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - setup_controllers:406 - Controllers setup completed
+2025-08-19 12:42:57 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - setup_controllers:420 - UIElementsSetup completed
+2025-08-19 12:42:57 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - setup_controllers:420 - DependencyInjectionSetup completed
+2025-08-19 12:42:57 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - setup_controllers:420 - SignalConnectionSetup completed
+2025-08-19 12:42:57 - app.controllers.window_controllers_setup - INFO - window_controllers_setup - setup_controllers:420 - KeyboardSetup completed
+2025-08-19 12:42:57 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:150 - Установлена текущая сфера: 1
+2025-08-19 12:42:57 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: section #85
+2025-08-19 12:42:57 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 1 categories
+2025-08-19 12:42:57 - root - INFO - main - initialize_main_window:344 - Главное окно создано
+2025-08-19 12:42:57 - root - INFO - main - initialize_all:373 - Инициализация темы оформления...
+2025-08-19 12:42:57 - root - INFO - main - apply_initial_theme:354 - Применение начальной темы: dark
+2025-08-19 12:42:58 - ThemeController - INFO - theme_controller - apply:360 - Применена тема: dark
+2025-08-19 12:42:58 - root - INFO - main - apply_initial_theme:356 - Тема успешно применена
+2025-08-19 12:42:58 - root - INFO - main - initialize_all:378 - Все компоненты успешно инициализированы
+2025-08-19 12:42:58 - root - INFO - main - main:486 - Отображение главного окна...
+2025-08-19 12:42:58 - root - INFO - main - main:488 - Главное окно отображено
+2025-08-19 12:42:58 - root - INFO - main - main:494 - Запуск главного цикла событий...
+2025-08-19 12:42:58 - category_tiles - INFO - category_tiles - inject_dependencies:441 - CategoryTiles: Menu builder инициализирован после инъекции зависимостей
+2025-08-19 12:42:58 - category_tiles - INFO - category_tiles - paint:113 - CategoryTileDelegate font diag: family='Segoe UI', requested_px=11, pixelSize=-1, pointSizeF=10.00, fm.height=17, fm.lineSpacing=17
+2025-08-19 12:42:58 - root - INFO - main - <lambda>:491 - Приложение успешно запущено
+2025-08-19 12:42:59 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:150 - Установлена текущая сфера: 2
+2025-08-19 12:43:00 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: section #81
+2025-08-19 12:43:00 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 7 categories
+2025-08-19 12:43:00 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:150 - Установлена текущая сфера: 3
+2025-08-19 12:43:00 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: section #132
+2025-08-19 12:43:00 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 2 categories
+2025-08-19 12:43:05 - app.models.category_model - INFO - category_model - insert_category:108 - Добавлена новая категория: йуц233232
+2025-08-19 12:43:05 - SaveCategoryCommand - INFO - category_commands - redo:94 - [CMD:Category] Emitting to business id=2658246817296 is_new=True
+2025-08-19 12:43:05 - app.controllers.domain.structure.structure_business - INFO - structure_business - _on_item_added:197 - [BL] item_added: type=category, parent_id=1304
+2025-08-19 12:43:05 - app.controllers.domain.structure.structure_business - INFO - async_operations - load_categories_async:132 - Запущена асинхронная загрузка категорий для раздела 1304
+2025-08-19 12:43:05 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_started:429 - Загрузка категорий для раздела 1304...
+2025-08-19 12:43:05 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_categories_loaded:309 - Загружено 0 категорий для раздела 1304
+2025-08-19 12:43:05 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 0 categories
+2025-08-19 12:43:05 - app.controllers.domain.structure.structure_business - INFO - async_operations - on_operation_finished:441 - Категории загружены
+2025-08-19 12:43:05 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:108 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-19 12:43:05 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:116 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-19 12:43:07 - app.utils.browser.browser_profiles.profile_manager - INFO - profile_manager - __init__:78 - Инициализирован менеджер профилей для 7 браузеров
+2025-08-19 12:43:07 - app.utils.browser.browser_profiles.chromium_base_finder - INFO - chromium_base_finder - find_profiles:72 - Найдено 80 профилей Google Chrome
+2025-08-19 12:43:17 - app.models.link_model - INFO - link_model - upsert_link:135 - Добавлена новая ссылка: SortDownloads.ps1, browser_key=None
+2025-08-19 12:43:17 - app.controllers.domain.structure.commands.link_commands - INFO - link_commands - redo:26 - SaveLinkCommand.redo: upsert_link returned id=20584
+2025-08-19 12:43:17 - app.controllers.domain.structure.commands.link_commands - INFO - link_commands - redo:38 - [CMD:Link] Emitting to business id=2658246817296 is_update=False
+2025-08-19 12:43:17 - app.controllers.domain.structure.structure_business - INFO - structure_business - _on_item_added:197 - [BL] item_added: type=link, parent_id=20584
+2025-08-19 12:43:17 - root - WARNING - row_operations - update_link_by_id:50 - Ссылка с ID 20584 не найдена в таблице
+2025-08-19 12:43:17 - app.controllers.domain.structure.commands.link_commands - INFO - link_commands - redo:59 - Focus check: focus_id=20584
+2025-08-19 12:43:17 - app.controllers.domain.structure.commands.link_commands - INFO - link_commands - _focus_on_new_link:120 - Focusing on new link ID 20584
+2025-08-19 12:43:17 - root - INFO - data_management - focus_on_link_id:133 - [LinksTableView] Успешно установлен фокус на ссылку ID 20584 в строке 0
+2025-08-19 12:43:17 - app.controllers.domain.structure.commands.link_commands - INFO - link_commands - try_focus:137 - Focus set on link ID 20584
+2025-08-19 12:43:19 - LinksBusinessLogic - INFO - links_business - save_link:171 - Link saved: 20584
+2025-08-19 12:43:19 - root - INFO - row_operations - _update_row:71 - _update_row: строка 0, ID 20584, 'SortDownloads.ps1', избранное=True
+2025-08-19 12:43:19 - root - INFO - row_operations - _update_row:78 - Получено 4 элементов для обновления
+2025-08-19 12:43:19 - root - INFO - row_operations - _update_row:86 - Обновление звездочки: '' -> '★'
+2025-08-19 12:43:19 - root - INFO - row_operations - _update_row:105 - Строка 0 успешно обновлена
+2025-08-19 12:43:19 - LinksBusinessLogic - INFO - links_business - toggle_favorite:216 - Favorite status updated successfully, result ID: 20584
+2025-08-19 12:43:19 - root - INFO - row_operations - _update_row:71 - _update_row: строка 0, ID 20584, 'SortDownloads.ps1', избранное=True
+2025-08-19 12:43:19 - root - INFO - row_operations - _update_row:78 - Получено 4 элементов для обновления
+2025-08-19 12:43:19 - root - INFO - row_operations - _update_row:86 - Обновление звездочки: '★' -> '★'
+2025-08-19 12:43:19 - root - INFO - row_operations - _update_row:105 - Строка 0 успешно обновлена
+2025-08-19 12:43:19 - root - INFO - row_operations - _update_row:71 - _update_row: строка 0, ID 20584, 'SortDownloads.ps1', избранное=True
+2025-08-19 12:43:19 - root - INFO - row_operations - _update_row:78 - Получено 4 элементов для обновления
+2025-08-19 12:43:19 - root - INFO - row_operations - _update_row:86 - Обновление звездочки: '★' -> '★'
+2025-08-19 12:43:19 - root - INFO - row_operations - _update_row:105 - Строка 0 успешно обновлена
+2025-08-19 12:43:21 - ThemeController - INFO - theme_controller - apply:360 - Применена тема: light
+2025-08-19 12:44:25 - ThemeController - INFO - theme_controller - apply:360 - Применена тема: dark
+2025-08-19 12:44:25 - app.utils.ui.icon.path_service - INFO - path_service - _maybe_log_metrics:53 - Icon metrics: hits=3 misses=2 hit_rate=60.00% disk_loads=85 not_found=5 avg_load_time=0.0015s load_count=42 uptime=89.17s
+2025-08-19 12:44:27 - app.controllers.domain.structure.structure_business - INFO - structure_business - set_current_sphere:150 - Установлена текущая сфера: 4
+2025-08-19 12:44:27 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: section #67
+2025-08-19 12:44:27 - category_tiles - INFO - category_tiles - set_categories:365 - Loading 1 categories
+2025-08-19 12:44:27 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:149 - [UI] Switch to TILES view: index=0, stack_count=2, categories=1
+2025-08-19 12:44:27 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - switch_to_category_tiles:156 - [UI] Stack currentIndex after switch_to_category_tiles: 0
+2025-08-19 12:44:29 - app.controllers.ui.structure.selection_handling - INFO - selection_handling - _handle_item_selection:110 - Handling selection: category #740
+2025-08-19 12:44:29 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:108 - [UI] Switch to TABLE view: index=1, stack_count=2
+2025-08-19 12:44:29 - app.utils.ui_state.ui_state_manager - INFO - ui_state_manager - _switch_to_table_view:116 - [UI] Stack currentIndex after switch_to_table_view: 1
+2025-08-19 12:44:30 - root - INFO - app_shutdown_controller - perform_shutdown:76 - Starting application shutdown sequence
+2025-08-19 12:44:30 - root - INFO - app_shutdown_controller - _backup_database:400 - Creating database backup...
+2025-08-19 12:44:30 - app.models.db - INFO - db - backup:297 - Создана резервная копия: C:\Users\ostee\AppData\Roaming\Codebdbd\Aite Commander\backups\links_20250819_124430_847597.db
+2025-08-19 12:44:30 - root - INFO - app_shutdown_controller - _backup_database:402 - Database backup completed successfully
+2025-08-19 12:44:30 - root - INFO - app_shutdown_controller - perform_shutdown:78 - Application shutdown completed successfully
+2025-08-19 12:44:30 - root - INFO - main - main:497 - Приложение завершено с кодом: 0
+2025-08-19 12:44:30 - root - INFO - main - cleanup:284 - Соединение с базой данных закрыто
+2025-08-19 12:44:30 - root - INFO - main - main:509 - ============================================================
+2025-08-19 12:44:30 - root - INFO - main - main:510 - ЗАВЕРШЕНИЕ РАБОТЫ ПРИЛОЖЕНИЯ
+2025-08-19 12:44:30 - root - INFO - main - main:511 - ============================================================
