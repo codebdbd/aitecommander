@@ -1,4 +1,4 @@
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.path_service import get_current_theme
+from app.views.ui.delegates.combo_row_height_delegate import ComboRowHeightDelegate
 
 
 def apply_uniform_height(dialog: QDialog):
@@ -91,6 +92,7 @@ class BaseDialog(QDialog):
         """
         if not self._styles_applied:
             apply_uniform_height(self)
+            self._apply_combo_popup_styles()
             self._styles_applied = True
             self._setup_russian_context_menus()
         super().showEvent(event)
@@ -101,3 +103,32 @@ class BaseDialog(QDialog):
             widget.customContextMenuRequested.connect(
                 lambda pos, w=widget: create_russian_context_menu(w).popup(w.mapToGlobal(pos))
             )
+
+    def _apply_combo_popup_styles(self):
+        """Apply DPI-aware row height delegate and icon size to all QComboBox in this dialog."""
+        try:
+            combos = self.findChildren(QComboBox)
+            if not combos:
+                return
+            # Determine DPI scale from this dialog window
+            scale = 1.0
+            try:
+                wh = self.windowHandle()
+                screen = wh.screen() if wh else None
+                if screen is not None:
+                    scale = max(1.0, screen.logicalDotsPerInch() / 96.0)
+            except Exception:
+                pass
+            target_icon = int(round(20 * scale))
+            for combo in combos:
+                try:
+                    # Row height delegate (32px logical scaled)
+                    combo.setItemDelegate(ComboRowHeightDelegate(combo))
+                    # Ensure popup view exists and set icon size
+                    view = combo.view()
+                    if view is not None:
+                        view.setIconSize(QSize(target_icon, target_icon))
+                except Exception:
+                    continue
+        except Exception:
+            pass

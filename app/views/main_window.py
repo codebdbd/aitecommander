@@ -43,6 +43,7 @@ from app.utils.db.synchronization import get_signal_guard, signal_guard
 from app.utils.system.task_scheduler import LimitedThreadPool, get_task_scheduler
 from app.utils.ui_state.ui_state_manager import UIStateManager
 from app.views.effects.neon_effect import NeonEventFilter
+from app.utils.ui_state.category_context import CategoryContext
 
 
 class MainWindow(QMainWindow):
@@ -110,30 +111,11 @@ class MainWindow(QMainWindow):
 
     
     def get_current_category_id(self) -> Optional[int]:
-        """Определяет ID текущей категории по приоритету (плитки → сохранённый → дерево → фолбэк)."""
-        tiles_stack_index = app_config.get('ui.stack_indices.tiles', 0)
-        if (self.has_tiles and self.has_stack and 
-            self.stack.currentIndex() == tiles_stack_index and 
-            hasattr(self.tiles, '_current_item_id') and self.tiles._current_item_id is not None):
-            return self.tiles._current_item_id
-        
-        if hasattr(self, 'current_category_id') and self.current_category_id:
-            return self.current_category_id
-        
-        if self.has_structure and hasattr(self.structure, 'tree'):
-            current_item = self.structure.tree.currentItem()
-            if current_item:
-                from app.utils.ui.qt.roles import get_tree_tuple
-                t = get_tree_tuple(current_item, 0)
-                if t:
-                    item_type, item_id = t
-                    if item_type == 'category' and isinstance(item_id, int):
-                        return item_id
-        
-        if self.has_structure_business:
-            return self.structure_business.get_first_category_id()
-        
-        return None
+        """Определяет ID текущей категории через сервис CategoryContext."""
+        # Ленивая инициализация, чтобы не трогать __init__ и не плодить зависимости
+        if not hasattr(self, 'category_context') or self.category_context is None:
+            self.category_context = CategoryContext(self)
+        return self.category_context.get_current_category_id()
     
     # === ПУБЛИЧНЫЕ МЕТОДЫ ДЛЯ ДЕЛЕГИРОВАНИЯ ===
     

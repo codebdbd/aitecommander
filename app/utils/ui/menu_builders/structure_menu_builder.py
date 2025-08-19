@@ -10,7 +10,7 @@ from app.utils.ui.qt.roles import get_tree_tuple
 from .base import get_menu_icon
 
 if TYPE_CHECKING:
-    from app.main_window import MainWindow
+    from app.utils.ui_state.window_api import MainWindowAPI as MainWindow
 
 logger = logging.getLogger(__name__)
 

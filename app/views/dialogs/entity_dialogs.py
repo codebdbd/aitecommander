@@ -60,6 +60,11 @@ class BaseEntityDialog(BaseDialog):
     def _init_common_ui(self, form_layout: QFormLayout):
         """Инициализирует общие элементы UI: поле имени и кнопку иконки."""
         self.name_le = QLineEdit()
+        # По Enter сохраняем только если имя непустое (без назначения default-кнопки)
+        try:
+            self.name_le.returnPressed.connect(self._on_return_pressed)
+        except Exception:
+            pass
         self.icon_btn = QPushButton("Иконка")
         self.icon_btn.setFixedWidth(app_config.get('ui.fixed_button_width', 100))
         self.icon_btn.setIconSize(QSize(24, 24))
@@ -79,14 +84,55 @@ class BaseEntityDialog(BaseDialog):
         ok_btn = bb.button(QDialogButtonBox.StandardButton.Ok)
         ok_btn.setText("Сохранить")
         ok_btn.setFixedWidth(app_config.get('ui.fixed_button_width', 100))
+        # Не делаем кнопку по умолчанию, чтобы не было подсветки default/autoDefault без фокуса
+        try:
+            ok_btn.setDefault(False)
+            ok_btn.setAutoDefault(False)
+            # Кнопка получает фокус только по Tab (не автоматически при показе окна)
+            ok_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+        except Exception:
+            pass
 
         cancel_btn = bb.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_btn.setText("Отмена")
         cancel_btn.setFixedWidth(app_config.get('ui.fixed_button_width', 100))
+        # Также убираем default/autoDefault у Cancel, чтобы кнопки не перехватывали фокус по умолчанию
+        try:
+            cancel_btn.setDefault(False)
+            cancel_btn.setAutoDefault(False)
+            cancel_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+        except Exception:
+            pass
+
+        # Блокируем кнопку Сохранить, пока имя пустое; обновляем по мере ввода
+        try:
+            name_text = self.name_le.text().strip() if hasattr(self, 'name_le') else ""
+            ok_btn.setEnabled(bool(name_text))
+            if hasattr(self, 'name_le'):
+                self.name_le.textChanged.connect(lambda _t: ok_btn.setEnabled(bool(self.name_le.text().strip())))
+        except Exception:
+            pass
 
         bb.accepted.connect(self._on_accept)
         bb.rejected.connect(self.reject)
         return bb
+
+    def showEvent(self, event):
+        """На показе окна принудительно ставим фокус на поле имени, чтобы его не перехватывала кнопка."""
+        super().showEvent(event)
+        try:
+            self.name_le.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+        except Exception:
+            pass
+
+    def _on_return_pressed(self):
+        """Локальная обработка Enter на поле имени: триггерим сохранение только при валидном имени."""
+        try:
+            if hasattr(self, 'name_le') and self.name_le.text().strip():
+                # Делегируем основную валидацию в _on_accept (наследники проверят остальные поля)
+                self._on_accept()
+        except Exception:
+            pass
 
     def _get_icon_path(self, icon_filename: str) -> Path:
         """Возвращает путь к иконке, проверяя сначала пользовательские, затем UI иконки."""
@@ -368,6 +414,11 @@ class NoteDialog(BaseDialog):
         vbox = QVBoxLayout(self)
         
         self.notes_te = QTextEdit(self.link.get("notes", ""))
+        # Не перехватывать Tab внутри многострочного поля — Tab должен переключать фокус
+        try:
+            self.notes_te.setTabChangesFocus(True)
+        except Exception:
+            pass
         vbox.addWidget(self.notes_te)
         
         bb = QDialogButtonBox(

@@ -279,6 +279,86 @@ QDialog QToolButton {
     border-radius: 8px;
 }
 
+/* Dialog buttons: keyboard focus outline (Tab navigation) */
+QDialog QPushButton:focus,
+QDialog QToolButton:focus {
+    border: 1px solid #0078d7;
+    outline: none;
+}
+
+/* Remove system dotted focus frame drawn by Qt */
+QFocusFrame {
+    border: 0px;
+    outline: none;
+    background: transparent;
+}
+
+/* Default buttons: show border only when focused; remove system dotted outline */
+QDialog QPushButton:default:focus,
+QDialog QPushButton:autoDefault:focus {
+    outline: none;
+    border: 1px solid #0078d7;
+}
+
+/* Disabled dialog buttons: gray background, keep existing borders */
+QDialog QPushButton:disabled,
+QDialog QToolButton:disabled {
+    background: #E6E6E6; /* light gray for light theme */
+}
+QDialog QPushButton:disabled:hover,
+QDialog QToolButton:disabled:hover {
+    background: #E6E6E6;
+}
+
+ 
+
+
+/* Dialog checkboxes: match buttons' focus behavior */
+QDialog QCheckBox {
+    /* Base transparent border to avoid layout shift when focus border appears */
+    border: 1px solid transparent;
+    border-radius: 4px;
+    outline: none;
+}
+
+/* Remove dotted outline on indicator as well */
+QDialog QCheckBox::indicator,
+QDialog QCheckBox::indicator:focus {
+    outline: none;
+}
+
+/* Keyboard focus outline (Tab navigation) */
+QDialog QCheckBox:focus {
+    border: 1px solid #0078d7;
+    outline: none;
+}
+
+/* =========================
+   Dialog combobox dropdown (popup list)
+   ========================= */
+QDialog QComboBox QAbstractItemView {
+    outline: none;
+    border: 1px solid #D7D7D7;
+    background: #FFFFFF;
+}
+
+QDialog QComboBox QAbstractItemView::item {
+    min-height: 32px; /* Fallback; main height via ComboRowHeightDelegate */
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+/* Selected same as table/tree selected */
+QDialog QComboBox QAbstractItemView::item:selected {
+    background-color: #0078d7;
+    color: white;
+}
+
+/* Hover — светлая нейтральная подсветка, гармонирующая с темой */
+QDialog QComboBox QAbstractItemView::item:hover {
+    background-color: #EDEDED;
+}
+
 /* Link type buttons (text under icon) — height by content with 8px paddings */
 QDialog QToolButton#linkTypeBtn {
     padding-top: 8px;

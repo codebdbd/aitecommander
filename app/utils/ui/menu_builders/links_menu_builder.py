@@ -1,7 +1,7 @@
 """Строитель контекстного меню для таблицы ссылок."""
 import json
 import logging
-from typing import TYPE_CHECKING, Callable, Dict
+from typing import TYPE_CHECKING, Callable, Dict, Optional
 
 from PyQt6.QtCore import QModelIndex
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
@@ -10,7 +10,7 @@ from app.utils.ui.menu_actions import ActionBuilder, Shortcuts
 from .base import get_menu_icon
 
 if TYPE_CHECKING:
-    from app.main_window import MainWindow
+    from app.utils.ui_state.window_api import MainWindowAPI as MainWindow
 
 logger = logging.getLogger(__name__)
 
@@ -18,18 +18,27 @@ logger = logging.getLogger(__name__)
 class LinksMenuBuilder:
     """Строитель контекстного меню для таблицы ссылок."""
     
-    def __init__(self, table_widget: QWidget, main_window: 'MainWindow'):
+    def __init__(self, table_widget: QWidget, main_window: 'MainWindow',
+                 get_current_category_id: Optional[Callable[[], Optional[int]]] = None,
+                 callbacks: Optional[Dict[str, Callable]] = None):
         self.table_widget = table_widget
         self.main_window = main_window
         self.actions = ActionBuilder(table_widget)
         self.theme = main_window.settings.get_theme()
+        # Провайдер текущей категории для снижения связанности с окном
+        self._get_current_category_id = get_current_category_id or getattr(main_window, 'get_current_category_id', lambda: None)
+        # Набор коллбеков для операций со ссылками и таблицей
+        self._callbacks: Dict[str, Callable] = callbacks or {}
+
+    def _cb(self, name: str) -> Callable:
+        return self._callbacks.get(name) or getattr(self.main_window, name)
     
     def build(self, idx: QModelIndex, paste_link_cb: Callable) -> QMenu:
         """Создаёт контекстное меню для таблицы ссылок."""
         menu = QMenu(self.table_widget)
         
         if idx.isValid():
-            link = self.main_window.get_link_at_row(idx.row())
+            link = self._cb('get_link_at_row')(idx.row())
             self._add_link_item_actions(menu, link)
             self._add_common_link_actions(menu, paste_link_cb)
             self._add_additional_actions(menu, link)
@@ -46,7 +55,7 @@ class LinksMenuBuilder:
         # Открыть ссылку
         menu.addAction(self.actions.create(
             "Открыть", 
-            lambda: self.main_window.open_link(link),
+            lambda: self._cb('open_link')(link),
             Shortcuts.ENTER,
             get_menu_icon('run', self.theme)
         ))
@@ -54,7 +63,7 @@ class LinksMenuBuilder:
         # Добавить ссылку
         menu.addAction(self.actions.create(
             "Добавить ссылку", 
-            lambda: self.main_window.show_link_dialog_for_category(category_id=self.main_window.get_current_category_id()),
+            lambda: self._cb('show_link_dialog_for_category')(category_id=self._get_current_category_id()),
             Shortcuts.ADD_LINK,
             get_menu_icon('add_link', self.theme)
         ))
@@ -66,7 +75,7 @@ class LinksMenuBuilder:
         
         menu.addAction(self.actions.create(
             fav_text, 
-            lambda: self.main_window.toggle_link_favorite(link),
+            lambda: self._cb('toggle_link_favorite')(link),
             Shortcuts.CTRL_D,
             fav_icon
         ))
@@ -76,7 +85,7 @@ class LinksMenuBuilder:
         # Редактировать
         menu.addAction(self.actions.create(
             "Редактировать", 
-            lambda: self.main_window.show_link_dialog_for_category(link=link),
+            lambda: self._cb('show_link_dialog_for_category')(link=link),
             Shortcuts.EDIT,
             get_menu_icon('edit', self.theme)
         ))
@@ -94,7 +103,7 @@ class LinksMenuBuilder:
         # Копировать
         menu.addAction(self.actions.create(
             "Копировать", 
-            self.main_window.copy_selected_links,
+            self._cb('copy_selected_links'),
             Shortcuts.CTRL_C,
             get_menu_icon('copy', self.theme)
         ))
@@ -104,14 +113,14 @@ class LinksMenuBuilder:
         if self._clipboard_has_links():
             menu.addAction(self.actions.create(
                 "Вставить", 
-                self.main_window.paste_links,
+                self._cb('paste_links'),
                 Shortcuts.CTRL_V,
                 get_menu_icon('paste', self.theme)
             ))
         
         menu.addAction(self.actions.create(
             "Вырезать", 
-            self.main_window.cut_selected_links,
+            self._cb('cut_selected_links'),
             Shortcuts.CTRL_X,
             get_menu_icon('cut', self.theme)
         ))
@@ -136,7 +145,7 @@ class LinksMenuBuilder:
             # Выделить все
             menu.insertAction(undo_action_in_menu, self.actions.create(
                 "Выделить все", 
-                self.main_window.select_all_links,
+                self._cb('select_all_links'),
                 Shortcuts.CTRL_A,
                 get_menu_icon('select_all', self.theme)
             ))
@@ -144,7 +153,7 @@ class LinksMenuBuilder:
             # Редактировать заметку
             menu.insertAction(undo_action_in_menu, self.actions.create(
                 "Редактировать заметку", 
-                lambda: self.main_window.show_note_dialog_for_link(link),
+                lambda: self._cb('show_note_dialog_for_link')(link),
                 Shortcuts.CTRL_N,
                 get_menu_icon('edit_note', self.theme)
             ))
@@ -153,11 +162,11 @@ class LinksMenuBuilder:
     
     def _add_empty_area_actions(self, menu: QMenu, paste_link_cb: Callable):
         """Добавляет действия для пустой области таблицы."""
-        current_category_id = self.main_window.get_current_category_id()
+        current_category_id = self._get_current_category_id()
         if current_category_id is not None:
             menu.addAction(self.actions.create(
                 "Добавить ссылку", 
-                lambda: self.main_window.show_link_dialog_for_category(category_id=current_category_id),
+                lambda: self._cb('show_link_dialog_for_category')(category_id=current_category_id),
                 Shortcuts.ADD_LINK,
                 get_menu_icon('add_link', self.theme)
             ))
@@ -179,7 +188,7 @@ class LinksMenuBuilder:
     
     def _create_delete_callback(self):
         """Создаёт коллбек для удаления выбранных ссылок."""
-        return lambda: self.main_window.delete_selected_links()
+        return lambda: self._cb('delete_selected_links')()
     
     def _clipboard_has_links(self) -> bool:
         """Проверяет, содержит ли буфер обмена ссылки."""

@@ -137,12 +137,22 @@ class LinkDialogUI:
 
         # Заметки
         self.notes_te = QTextEdit()
+        # Не перехватывать Tab внутри многострочного поля — пусть переключает фокус
+        try:
+            self.notes_te.setTabChangesFocus(True)
+        except Exception:
+            pass
         self.form.addRow("Заметки:", self.notes_te)
         self.widgets['notes_te'] = self.notes_te
 
-        # Избранное
+        # Избранное (не растягивать на всю ширину)
         self.fav_chk = QCheckBox("Добавить в избранное")
-        self.form.addRow("", self.fav_chk)
+        fav_row = QHBoxLayout()
+        fav_row.setContentsMargins(0, 0, 0, 0)
+        fav_row.setSpacing(0)
+        fav_row.addWidget(self.fav_chk)
+        fav_row.addStretch(1)  # фиксирует чекбокс слева, без растяжения
+        self.form.addRow("", fav_row)
         self.widgets['fav_chk'] = self.fav_chk
 
         vbox.addLayout(self.form)
@@ -154,18 +164,56 @@ class LinkDialogUI:
         )
         ok_btn = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
         ok_btn.setText("Сохранить")
+        # Убираем системный пунктирный фокус: запретим default/autoDefault и автофокус
+        try:
+            ok_btn.setAutoDefault(False)
+            ok_btn.setDefault(False)
+            ok_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+        except Exception:
+            pass
         ok_btn.setFixedWidth(app_config.get('ui.fixed_button_width', 100))
 
         cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_btn.setText("Отмена")
+        try:
+            cancel_btn.setAutoDefault(False)
+            cancel_btn.setDefault(False)
+            cancel_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+        except Exception:
+            pass
         cancel_btn.setFixedWidth(app_config.get('ui.fixed_button_width', 100))
         
         vbox.addWidget(self.button_box)
         self.widgets['button_box'] = self.button_box
+        self.widgets['ok_btn'] = ok_btn
+
+        # Состояние кнопки "Сохранить": активно только если заполнены и Путь, и Имя
+        self._update_save_button_state()
+        try:
+            self.url_le.textChanged.connect(lambda _t: self._update_save_button_state())
+            self.name_le.textChanged.connect(lambda _t: self._update_save_button_state())
+        except Exception:
+            pass
+
+        # Начальный фокус ставим на поле URL/Путь (а не на кнопку)
+        try:
+            self.url_le.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+        except Exception:
+            pass
 
     def get_widget(self, name: str):
         """Получить виджет по имени."""
         return self.widgets.get(name)
+
+    def _update_save_button_state(self) -> None:
+        """Включает кнопку "Сохранить" только если заполнены и URL/Путь, и Имя."""
+        try:
+            url_ok = bool(self.url_le.text().strip())
+            name_ok = bool(self.name_le.text().strip())
+            ok_btn = self.widgets.get('ok_btn') or self.button_box.button(QDialogButtonBox.StandardButton.Ok)
+            ok_btn.setEnabled(url_ok and name_ok)
+        except Exception:
+            pass
 
     def set_form_data(self, data: Dict[str, Any]) -> None:
         """Установить данные формы из словаря."""

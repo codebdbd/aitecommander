@@ -48,7 +48,25 @@ class MenuController:
                                 paste_link_cb: Callable) -> QMenu:
         """Создаёт контекстное меню для таблицы ссылок."""
         if not self._links_menu_builder:
-            self._links_menu_builder = LinksMenuBuilder(table_widget, self.main_window)
+            # Инъекция провайдера текущей категории и явных коллбеков для снижения связанности
+            callbacks = {
+                'get_link_at_row': self.main_window.get_link_at_row,
+                'open_link': self.main_window.open_link,
+                'show_link_dialog_for_category': self.main_window.show_link_dialog_for_category,
+                'toggle_link_favorite': self.main_window.toggle_link_favorite,
+                'copy_selected_links': self.main_window.copy_selected_links,
+                'paste_links': self.main_window.paste_links,
+                'cut_selected_links': self.main_window.cut_selected_links,
+                'select_all_links': self.main_window.select_all_links,
+                'show_note_dialog_for_link': self.main_window.show_note_dialog_for_link,
+                'delete_selected_links': self.main_window.delete_selected_links,
+            }
+            self._links_menu_builder = LinksMenuBuilder(
+                table_widget,
+                self.main_window,
+                get_current_category_id=self.main_window.get_current_category_id,
+                callbacks=callbacks,
+            )
         return self._links_menu_builder.build(idx, paste_link_cb)
     
     def create_category_tile_context_menu(self, list_widget: QListWidget, item_id: Any,

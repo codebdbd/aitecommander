@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from PyQt6.QtCore import Qt, QThreadPool, QTimer
-from PyQt6.QtGui import QColor
+from PyQt6.QtGui import QColor, QIcon
 
 from app.config_data import app_config
 from app.utils.db.db_workers import LinkInfoWorker
@@ -88,6 +88,24 @@ class LinkDialog(BaseDialog):
         # Инициализация воркеров и таймеров
         self._init_workers_and_timers()
         
+    def _make_icon(self, icon_path_str: str) -> Optional[QIcon]:
+        """Создаёт QIcon из пути (абсолютного или относительного к папкам иконок)."""
+        try:
+            if not icon_path_str:
+                return None
+            p = Path(icon_path_str)
+            if p.exists():
+                return QIcon(str(p))
+            user_p = self.get_user_icons_dir() / icon_path_str
+            if user_p.exists():
+                return QIcon(str(user_p))
+            ui_p = self.get_ui_icons_dir() / icon_path_str
+            if ui_p.exists():
+                return QIcon(str(ui_p))
+        except Exception:
+            pass
+        return None
+
     def _init_workers_and_timers(self) -> None:
         """Инициализирует воркеры и таймеры для обработки ссылок."""
         self._worker_task_id = 0  # Для защиты от race condition
@@ -260,7 +278,11 @@ class LinkDialog(BaseDialog):
                            if s.get('sphere_id') == sphere_id]
                 section_cb.clear()
                 for sec in sections:
-                    section_cb.addItem(sec["name"], sec["id"])
+                    icon = self._make_icon(sec.get("icon_path", ""))
+                    if icon:
+                        section_cb.addItem(icon, sec["name"], sec["id"])
+                    else:
+                        section_cb.addItem(sec["name"], sec["id"])
                 
                 # Обновляем категории для первого раздела
                 if sections:
@@ -269,7 +291,11 @@ class LinkDialog(BaseDialog):
                                  if c.get('section_id') == section_id]
                     category_cb.clear()
                     for cat in categories:
-                        category_cb.addItem(cat["name"], cat["id"])
+                        icon = self._make_icon(cat.get("icon_path", ""))
+                        if icon:
+                            category_cb.addItem(icon, cat["name"], cat["id"])
+                        else:
+                            category_cb.addItem(cat["name"], cat["id"])
 
     def get_ui_icons_dir(self) -> Path:
         """Получает директорию UI иконок."""

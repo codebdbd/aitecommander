@@ -10,7 +10,7 @@ from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.menu_actions import ActionBuilder, Shortcuts
 
 if TYPE_CHECKING:
-    from app.main_window import MainWindow
+    from app.utils.ui_state.window_api import MainWindowAPI as MainWindow
 
 logger = logging.getLogger(__name__)
 
