@@ -11,6 +11,7 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
+from app.utils.ui.icon.cache_manager import clear_icon_cache
 
 
 class ThemeController:
@@ -373,6 +374,48 @@ class ThemeController:
             self._qss_cache.clear()
             self._common_qss = None
         self.logger.debug("Кэш тем очищен, удалено %d записей", cache_size)
+
+    def apply_and_refresh_ui(self) -> None:
+        """Централизованно обновляет UI после применения темы.
+
+        Делает следующее:
+        - Очищает кэш иконок
+        - Пересобирает главное меню
+        - Перезагружает иконки дерева структуры
+        - Обновляет верхние панели (Избранное/Недавние)
+        """
+        try:
+            clear_icon_cache()
+        except Exception as exc:
+            self.logger.warning("Не удалось очистить кэш иконок: %s", exc)
+
+        mw = getattr(self, 'main_window', None)
+        if not mw:
+            return
+
+        # Пересоздание главного меню
+        try:
+            menu_ctrl = getattr(mw, 'menu_controller', None)
+            if menu_ctrl:
+                menu_ctrl.rebuild_after_theme_change()
+        except Exception as exc:
+            self.logger.warning("Ошибка пересборки меню после смены темы: %s", exc)
+
+        # Перезагрузка иконок в структуре
+        try:
+            structure = getattr(mw, 'structure', None)
+            if structure and hasattr(structure, 'reload_icons'):
+                structure.reload_icons()
+        except Exception as exc:
+            self.logger.warning("Ошибка перезагрузки иконок структуры: %s", exc)
+
+        # Обновление верхних панелей
+        try:
+            top_ctrl = getattr(mw, 'top_panels_controller', None)
+            if top_ctrl and hasattr(top_ctrl, 'refresh_all'):
+                top_ctrl.refresh_all()
+        except Exception as exc:
+            self.logger.warning("Ошибка обновления верхних панелей: %s", exc)
     
     def _validate_theme_config(self, theme: Dict[str, Any]) -> bool:
         """Проверяет корректность конфигурации темы."""

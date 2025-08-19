@@ -57,6 +57,9 @@ class LinksTableView(BaseDragDropTableWidget,
                     DragDropHandlerMixin):
     """Основной класс таблицы ссылок с модульной архитектурой."""
     
+    # Сигнал оповещения о завершении массового обновления/заполнения таблицы
+    table_populated: pyqtSignal = pyqtSignal()
+
     def update_font_size(self, font_size: int):
         """Применяет локальный размер шрифта ко всем ячейкам таблицы."""
         # Проверяем, изменился ли размер шрифта
@@ -172,3 +175,8 @@ class LinksTableView(BaseDragDropTableWidget,
         self.rebuild_cache_from_items()
         new_cache_size = len(self._current_links)
         logging.debug(f"[SORT] Кэш перестроен: было {old_cache_size}, стало {new_cache_size}")
+        # Оповещаем подписчиков (например, контроллер) о том, что таблица обновлена
+        try:
+            self.table_populated.emit()
+        except Exception as e:
+            logging.debug(f"[SORT] Не удалось эмитить table_populated: {e}")

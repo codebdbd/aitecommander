@@ -59,13 +59,15 @@ def update_status_bar(window) -> None:
     """
     try:
         # Счётчик ссылок
-        if getattr(window, 'has_links', False) and window.has_links:
-            window.links_count_label.setText(f"Ссылок: {window.links.get_row_count()}")
+        links = getattr(window, 'links', None)
+        if links is not None:
+            window.links_count_label.setText(f"Ссылок: {links.get_row_count()}")
         else:
             window.links_count_label.setText("Ссылок: 0")
 
         # Статус БД
-        if getattr(window, 'has_db', False) and window.has_db and window.db.is_connected():
+        db = getattr(window, 'db', None)
+        if db is not None and db.is_connected():
             window.db_status_label.setText(app_config.get_db_connected_text())
         else:
             window.db_status_label.setText(app_config.get_db_disconnected_text())
@@ -80,8 +82,9 @@ def update_status_bar(window) -> None:
                 if text:
                     parts.insert(0, text)
                 node = node.parent()
-            if getattr(window, 'has_structure_business', False) and window.has_structure_business and window.structure_business.current_sphere_id:
-                sphere_data = window.structure_business.get_sphere_by_id(window.structure_business.current_sphere_id)
+            sb = getattr(window, 'structure_business', None)
+            if sb is not None and getattr(sb, 'current_sphere_id', None):
+                sphere_data = sb.get_sphere_by_id(sb.current_sphere_id)
                 if sphere_data:
                     parts.insert(0, sphere_data['name'])
 

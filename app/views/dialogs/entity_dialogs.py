@@ -540,8 +540,8 @@ class ChromeProfilesWorker(QRunnable):
     def run(self):
         """Выполняет поиск профилей Chrome в отдельном потоке."""
         try:
-            from app.utils.browser.browser_profiles import BrowserProfileManager
-            manager = BrowserProfileManager()
+            from app.utils.browser.browser_profiles import get_profile_manager
+            manager = get_profile_manager()
             profiles = manager.get_browser_profiles('chrome')
             self.callback(profiles)
         except ImportError:

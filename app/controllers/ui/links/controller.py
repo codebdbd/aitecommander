@@ -8,7 +8,6 @@ from app.controllers.links_business import LinksBusinessLogic
 from app.views.link import LinksTableView
 
 from .clipboard import LinksUIClipboard
-from .exceptions import DatabaseError
 from .handlers import LinksUIHandlers
 from .link_operations import LinksUILinkOperations
 
@@ -22,6 +21,7 @@ class LinksUIController(QObject):
         self.business = business_logic
         self.main = main_window
         self.logger = logging.getLogger(self.__class__.__name__)
+        self._row_by_link_id: dict[int, int] = {}
         
         # Инициализация подмодулей
         self.handlers = LinksUIHandlers(self)
@@ -31,18 +31,15 @@ class LinksUIController(QObject):
         # Подключение сигналов
         self.handlers._connect_signals()
         self.handlers._connect_table_signals()
+        # Индексация строк после любого массового обновления таблицы
+        try:
+            if hasattr(self.table, 'table_populated'):
+                self.table.table_populated.connect(self.rebuild_row_index)
+        except Exception as e:
+            self.logger.debug(f"Failed to connect table_populated: {e}")
         
-        # ЦЕНТРАЛИЗОВАНО: Загружаем ссылки для текущей категории через UIStateManager
-        category_id = main_window.get_current_category_id()
-        if category_id:
-            try:
-                if hasattr(main_window, 'ui_state') and main_window.ui_state:
-                    main_window.ui_state.update_category_without_stack_switch(category_id)
-                else:
-                    # Fallback: только бизнес-логика без UI координации
-                    self.business.load_links(category_id)
-            except Exception as e:
-                self.logger.error(f"Failed to load initial category: {e}")
+        # ЦЕНТРАЛИЗОВАНО: начальная загрузка категории
+        self._reload_current_category()
 
         # Подключение виджетов topbar (если уже существуют к моменту создания контроллера)
         # Безопасные ленивые подключения
@@ -70,24 +67,12 @@ class LinksUIController(QObject):
         """Обработка поискового запроса."""
         if not text.strip():
             # Если поиск пустой, загружаем текущую категорию
-            category_id = self.main.get_current_category_id()
-            if category_id:
-                try:
-                    if hasattr(self.main, 'ui_state') and self.main.ui_state:
-                        self.main.ui_state.update_category_without_stack_switch(category_id)
-                    else:
-                        # Fallback: только бизнес-логика без UI координации
-                        self.business.load_links(category_id)
-                except Exception as e:
-                    self.logger.error(f"Failed to reload category on empty search: {e}")
+            self._reload_current_category()
         else:
             self.business.search_links(text)
     
     def get_link_at(self, row: int) -> Optional[Dict]:
         """Получить ссылку по номеру строки."""
-        import logging
-        logger = logging.getLogger(__name__)
-        
         if 0 <= row < self.table.rowCount():
             link = self.table.get_link_at(row)
             
@@ -122,9 +107,7 @@ class LinksUIController(QObject):
         if item:
             self.table.scrollToItem(item)
     
-    def get_link_by_row(self, row: int) -> Optional[Dict]:
-        """Получить ссылку по номеру строки."""
-        return self.get_link_at(row)
+    # get_link_by_row удалён как дублирующий get_link_at
     
     def get_selected_rows(self) -> List[int]:
         """Получить номера выделенных строк."""
@@ -138,15 +121,13 @@ class LinksUIController(QObject):
         """Показать диалог заметки для ссылки."""
         self.link_ops.show_note_dialog(link)
     
-    def get_selected_links(self):
+    def get_selected_links(self) -> List[Dict]:
         """Получить выбранные ссылки."""
         return self.clipboard.get_selected_links()
     
     def open_link(self, link: Dict):
         """Открыть ссылку."""
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"LinksUIController.open_link called with link: {link}")
+        self.logger.info(f"open_link called with link: {link}")
         self.link_ops._open_link(link)
     
     def toggle_favorite(self, link: Dict = None):
@@ -169,6 +150,59 @@ class LinksUIController(QObject):
         """Удалить выбранные ссылки."""
         links = self.clipboard.get_selected_links()
         self.clipboard.delete_links(links)
+
+    def focus_on_link(self, link_id: int) -> None:
+        """Сфокусироваться на ссылке с указанным ID.
+
+        Перенос логики из MainWindow._restore_table_selection для устранения дублирования
+        и чтобы внешние вызовы (см. link_operations_controller) работали через UI-контроллер.
+        """
+        try:
+            # Быстрый путь: используем индекс, если он есть
+            row = self._row_by_link_id.get(link_id)
+            if row is None:
+                # Ленивая перестройка индекса
+                self.rebuild_row_index()
+                row = self._row_by_link_id.get(link_id)
+            if row is not None:
+                self.select_row(row)
+                self.set_current_cell(row, 0)
+                self.scroll_to_row(row)
+                try:
+                    if hasattr(self.table, 'setFocus'):
+                        self.table.setFocus()
+                except Exception:
+                    pass
+            else:
+                self.logger.debug(f"focus_on_link: link_id {link_id} not found in current table")
+        except Exception as e:
+            self.logger.error(f"Failed to focus on link {link_id}: {e}")
+
+    def rebuild_row_index(self) -> None:
+        """Переcтроить индекс link_id -> row по текущему содержимому таблицы."""
+        try:
+            self._row_by_link_id.clear()
+            rows = self.get_row_count()
+            for row in range(rows):
+                link = self.get_link_at(row)
+                if link and 'id' in link:
+                    self._row_by_link_id[link['id']] = row
+        except Exception as e:
+            self.logger.debug(f"rebuild_row_index failed: {e}")
+
+    def _reload_current_category(self) -> None:
+        """Централизованная перезагрузка текущей категории через UIStateManager или бизнес-логику."""
+        category_id = self.main.get_current_category_id()
+        if not category_id:
+            return
+        try:
+            if hasattr(self.main, 'ui_state') and self.main.ui_state:
+                self.main.ui_state.update_category_without_stack_switch(category_id)
+            else:
+                # Fallback: только бизнес-логика без UI координации
+                self.business.load_links(category_id)
+        except Exception as e:
+            self.logger.error(f"Failed to reload category (id={category_id}): {e}")
 
     # --- Handlers for Recent/Favorites widgets ---
     def _connect_recent_widget_signals(self):

@@ -275,13 +275,13 @@ class FileSearchDialog(BaseDialog, DialogMixin):
             # Открываем LinkDialog с уже заполненным путем
             from app.views.dialogs.link_dialog.link_dialog import LinkDialog
 
-            # Используем link_operations вместо прямого обращения к БД
-            if hasattr(main_window, 'link_operations'):
-                main_window.link_operations.show_link_dialog(link={"type": "file", "url": file_path}, category_id=getattr(main_window, 'current_category_id', None))
+            # Используем фасад ссылочных действий
+            if hasattr(main_window, 'links_actions'):
+                main_window.links_actions.show_link_dialog(link={"type": "file", "url": file_path}, category_id=getattr(main_window, 'current_category_id', None))
             else:
-                # Fallback: создаем диалог через метод MainWindow
+                # Fallback: через метод MainWindow
                 main_window.show_link_dialog(link={"type": "file", "url": file_path}, category_id=getattr(main_window, 'current_category_id', None))
-            return  # Выходим, так как link_operations сам обработает диалог
+            return
 
     def _on_open_folder(self):
         """Открыть папку с выбранным файлом в проводнике"""

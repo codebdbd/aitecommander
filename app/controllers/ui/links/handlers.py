@@ -15,20 +15,26 @@ class LinksUIHandlers(BaseLinksUIComponent):
     
     def _connect_signals(self):
         """Подключение сигналов от бизнес-логики."""
+        if getattr(self, '_signals_connected', False):
+            return
         self.business.links_loaded.connect(self._update_table)
         self.business.search_results_ready.connect(self._update_search_results)
         self.business.favorites_counted.connect(self._complete_toggle_fav)
         self.business.link_updated.connect(self._on_link_updated)
         self.business.error_occurred.connect(self._handle_error)
+        self._signals_connected = True
     
     def _connect_table_signals(self):
         """Подключение сигналов от таблицы."""
+        if getattr(self, '_table_signals_connected', False):
+            return
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._on_context_menu)
 
         self.table.cellDoubleClicked.connect(self._on_double_click)
         self.table.cellClicked.connect(self._on_cell_clicked)
         self.table.links_reordered.connect(self._on_links_reordered)
+        self._table_signals_connected = True
         
         # Обработка клавиш теперь централизована в KeyboardManager
     
@@ -94,6 +100,10 @@ class LinksUIHandlers(BaseLinksUIComponent):
         link = self.controller.get_link_at(row)
         if not link:
             self.logger.warning(f"No link found at row {row}")
+            return
+
+        # Не открываем ссылку при двойном клике по колонке избранного (звезда)
+        if column == self.COLUMNS['favorite']:
             return
 
         if column == self.COLUMNS['notes']:

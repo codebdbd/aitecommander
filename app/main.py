@@ -457,12 +457,12 @@ def main():
         # Предзагрузка профилей браузеров в фоне
         from PyQt6.QtCore import QRunnable, QThreadPool
 
-        from app.utils.browser.browser_profiles import BrowserProfileManager
+        from app.utils.browser.browser_profiles import get_profile_manager
         
         class ProfilePreloader(QRunnable):
             def run(self):
                 try:
-                    manager = BrowserProfileManager()
+                    manager = get_profile_manager()
                     manager.get_all_profiles()
                     logging.info("Профили браузеров предзагружены")
                 except Exception as e:

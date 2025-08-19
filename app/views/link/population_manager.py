@@ -115,6 +115,12 @@ class PopulationManagerMixin:
             # Всегда включаем обновление UI в конце
             self.setUpdatesEnabled(True)
             self.viewport().update()
+            # Сообщаем подписчикам, что таблица обновлена
+            try:
+                if hasattr(self, 'table_populated'):
+                    self.table_populated.emit()
+            except Exception as e:
+                logging.debug(f"[LinksTableView] Не удалось эмитить table_populated после populate: {e}")
 
     def _full_populate(self, links: List[Dict], mode: str):
         """Выполняет полное обновление таблицы (fallback)."""
@@ -137,6 +143,13 @@ class PopulationManagerMixin:
                 
         except Exception as e:
             logging.error(f"[LinksTableView] Ошибка при полном обновлении таблицы: {e}")
+        finally:
+            # Сообщаем подписчикам, что таблица полностью обновлена
+            try:
+                if hasattr(self, 'table_populated'):
+                    self.table_populated.emit()
+            except Exception as e:
+                logging.debug(f"[LinksTableView] Не удалось эмитить table_populated после _full_populate: {e}")
 
     def _restore_ui_state(self, selection: List[int], scroll_pos: int, sort_col: int, sort_order: Qt.SortOrder):
         # Обновляем состояние сортировки

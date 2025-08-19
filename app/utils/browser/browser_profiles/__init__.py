@@ -8,9 +8,9 @@
 - Конкретные реализации для каждого браузера
 
 Использование:
-    from app.utils.browser.browser_profiles import BrowserProfileManager
+    from app.utils.browser.browser_profiles import get_profile_manager
     
-    manager = BrowserProfileManager()
+    manager = get_profile_manager()
     all_profiles = manager.get_all_profiles()
     chrome_profiles = manager.get_browser_profiles('chrome')
 """
@@ -27,12 +27,13 @@ from .chromium_base_finder import (
 )
 from .firefox_profile_finder import FirefoxProfileFinder
 from .migration_helper import ProfileMigrationHelper
-from .profile_manager import BrowserProfileManager
+from .profile_manager import BrowserProfileManager, get_profile_manager
 from .universal_profile_processor import UniversalProfileProcessor
 from .validator import BrowserProfileValidator
 
 __all__ = [
     'BrowserProfileManager',
+    'get_profile_manager',
     'UniversalProfileProcessor', 
     'BaseBrowserProfileFinder',
     'ChromeProfileFinder',

@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from app.controllers.links_business import LinksBusinessLogic
 from app.models.db import Database
+from app.utils.browser.browser_profiles import get_profile_manager
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,8 @@ class LinkDialogController:
         self.database = database
         self.links_business = LinksBusinessLogic(database)
         self.result_data: List[Dict[str, Any]] = []
+        # Единый менеджер профилей через фабрику — исключаем повторные сканы профилей
+        self.profile_manager = get_profile_manager()
     
     def get_initialization_data(self, category_id: Optional[int] = None, link: Optional[Dict] = None) -> Dict[str, Any]:
         """Получает данные для инициализации диалога."""
@@ -42,10 +45,8 @@ class LinkDialogController:
                 for profile in profiles:
                     profile['browser_key'] = browser_key
                     if 'browser_name' not in profile:
-                        from app.utils.browser.browser_profiles import BrowserProfileManager
                         from app.utils.browser.browser_profiles.utils import get_browser_display_name
-                        manager = BrowserProfileManager()
-                        finder = manager.finders.get(browser_key)
+                        finder = self.profile_manager.finders.get(browser_key)
                         if finder:
                             profile['browser_name'] = get_browser_display_name(finder, browser_key)
                 link['migrated_profiles'] = profiles
@@ -65,9 +66,7 @@ class LinkDialogController:
     def _get_chrome_profiles(self) -> List[Dict[str, Any]]:
         """Получает список Chrome профилей."""
         try:
-            from app.utils.browser.browser_profiles import BrowserProfileManager
-            manager = BrowserProfileManager()
-            return manager.get_browser_profiles('chrome')
+            return self.profile_manager.get_browser_profiles('chrome')
         except Exception:
             return []
     
@@ -138,7 +137,6 @@ class LinkDialogController:
     def _prepare_profile_links(self, form_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Подготавливает ссылки с профилями любых браузеров."""
         from app.utils.browser.browser_profiles import (
-            BrowserProfileManager,
             UniversalProfileProcessor,
         )
         
@@ -159,8 +157,8 @@ class LinkDialogController:
         if not selected_profiles:
             return []
         
-        # Разделяем профили по браузерам
-        manager = BrowserProfileManager()
+        # Разделяем профили по браузерам (используем единый менеджер на контроллер)
+        manager = self.profile_manager
         profiles_by_browser = {}
         
         for profile in selected_profiles:
@@ -264,8 +262,7 @@ class LinkDialogController:
         
         # Для редактирования: сравниваем с автогенерированными аргументами
         try:
-            from app.utils.browser.browser_profiles import BrowserProfileManager
-            manager = BrowserProfileManager()
+            manager = self.profile_manager
             finder = manager.finders.get(browser_key)
             
             if not finder or not selected_profiles:

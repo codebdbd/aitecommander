@@ -1,5 +1,6 @@
 import logging
 import sqlite3
+from contextlib import contextmanager
 from typing import Any, Dict, List, Optional
 
 from app.utils.db.synchronization import db_lock
@@ -22,29 +23,46 @@ class ValidationError(DatabaseError):
 
 
 class DatabaseBase:
-    """Базовый класс для всех моделей БД с общими методами.
-    
-    Предоставляет унифицированный интерфейс для:
-    - Управления соединениями с БД
-    - Обработки ошибок и валидации
-    - Общих операций (позиционирование, обновление)
-    - Выполнения SQL-запросов с блокировками
-    
-    Архитектурное решение: Все модели наследуются от этого класса
-    для обеспечения согласованности и переиспользования кода.
-    """
+    """Базовый класс для моделей БД с единым доступом к соединению и операциям."""
     
     def __init__(self, connection_manager):
-        """
-        Args:
-            connection_manager: Объект Database с методом connection
-        """
+        """Инициализирует базовый класс с менеджером соединения (Database)."""
         self.connection_manager = connection_manager
     
     @property
     def connection(self):
-        """Получает соединение через менеджер соединений"""
+        """Возвращает активное соединение SQLite через менеджер."""
         return self.connection_manager.connection
+
+    def commit(self) -> None:
+        """Фиксирует текущую транзакцию."""
+        try:
+            self.connection.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Ошибка commit: {e}")
+            raise DatabaseError(f"Ошибка commit: {e}")
+
+    def rollback(self) -> None:
+        """Откатывает текущую транзакцию."""
+        try:
+            self.connection.rollback()
+        except sqlite3.Error as e:
+            logger.error(f"Ошибка rollback: {e}")
+            raise DatabaseError(f"Ошибка rollback: {e}")
+
+    @contextmanager
+    def transaction(self):
+        """Контекстный менеджер транзакции с автоматическим commit/rollback."""
+        try:
+            with db_lock:
+                self.connection.execute("BEGIN TRANSACTION")
+            yield
+            with db_lock:
+                self.connection.commit()
+        except Exception:
+            with db_lock:
+                self.connection.rollback()
+            raise
     
     def _validate_required_fields(self, data: Dict[str, Any], required_fields: List[str], entity_name: str = ""):
         """Валидирует обязательные поля"""
@@ -71,7 +89,7 @@ class DatabaseBase:
             return 0
 
     def _execute_with_error_handling(self, query: str, params: tuple = (), fetch_method: str = None):
-        """Выполняет SQL запрос с обработкой ошибок."""
+        """Выполняет SQL-запрос с обработкой ошибок и блокировкой."""
         try:
             with db_lock:
                 cursor = self.connection.execute(query, params)

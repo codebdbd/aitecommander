@@ -15,7 +15,6 @@ class BaseCommand(UtilsBaseCommand, DialogMixin):
         self.main = main_window
         self.db = main_window.db
         self.structure = main_window.structure
-        self.links = main_window.links
         self.logger = logging.getLogger(self.__class__.__name__)
     
     def update_links_table(self, category_id: int) -> None:

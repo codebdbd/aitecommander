@@ -46,7 +46,7 @@ class LinksMenuBuilder:
         # Открыть ссылку
         menu.addAction(self.actions.create(
             "Открыть", 
-            lambda: self.main_window.open_link(link),
+            lambda: self.main_window.links_actions.open_link(link),
             Shortcuts.ENTER,
             get_menu_icon('run', self.theme)
         ))
@@ -54,7 +54,7 @@ class LinksMenuBuilder:
         # Добавить ссылку
         menu.addAction(self.actions.create(
             "Добавить ссылку", 
-            lambda: self.main_window.show_link_dialog_for_category(category_id=self.main_window.get_current_category_id()),
+            lambda: self.main_window.links_actions.show_link_dialog(category_id=self.main_window.get_current_category_id()),
             Shortcuts.ADD_LINK,
             get_menu_icon('add_link', self.theme)
         ))
@@ -66,7 +66,7 @@ class LinksMenuBuilder:
         
         menu.addAction(self.actions.create(
             fav_text, 
-            lambda: self.main_window.toggle_link_favorite(link),
+            lambda: self.main_window.links_actions.toggle_link_favorite(link),
             Shortcuts.CTRL_D,
             fav_icon
         ))
@@ -76,7 +76,7 @@ class LinksMenuBuilder:
         # Редактировать
         menu.addAction(self.actions.create(
             "Редактировать", 
-            lambda: self.main_window.show_link_dialog_for_category(link=link),
+            lambda: self.main_window.links_actions.show_link_dialog(link=link),
             Shortcuts.EDIT,
             get_menu_icon('edit', self.theme)
         ))
@@ -94,7 +94,7 @@ class LinksMenuBuilder:
         # Копировать
         menu.addAction(self.actions.create(
             "Копировать", 
-            self.main_window.copy_selected_links,
+            self.main_window.links_actions.copy_selected_links,
             Shortcuts.CTRL_C,
             get_menu_icon('copy', self.theme)
         ))
@@ -104,14 +104,14 @@ class LinksMenuBuilder:
         if self._clipboard_has_links():
             menu.addAction(self.actions.create(
                 "Вставить", 
-                self.main_window.paste_links,
+                self.main_window.links_actions.paste_links,
                 Shortcuts.CTRL_V,
                 get_menu_icon('paste', self.theme)
             ))
         
         menu.addAction(self.actions.create(
             "Вырезать", 
-            self.main_window.cut_selected_links,
+            self.main_window.links_actions.cut_selected_links,
             Shortcuts.CTRL_X,
             get_menu_icon('cut', self.theme)
         ))
@@ -144,7 +144,7 @@ class LinksMenuBuilder:
             # Редактировать заметку
             menu.insertAction(undo_action_in_menu, self.actions.create(
                 "Редактировать заметку", 
-                lambda: self.main_window.show_note_dialog_for_link(link),
+                lambda: self.main_window.links_actions.show_note_dialog(link),
                 Shortcuts.CTRL_N,
                 get_menu_icon('edit_note', self.theme)
             ))
@@ -157,7 +157,7 @@ class LinksMenuBuilder:
         if current_category_id is not None:
             menu.addAction(self.actions.create(
                 "Добавить ссылку", 
-                lambda: self.main_window.show_link_dialog_for_category(category_id=current_category_id),
+                lambda: self.main_window.links_actions.show_link_dialog(category_id=current_category_id),
                 Shortcuts.ADD_LINK,
                 get_menu_icon('add_link', self.theme)
             ))
@@ -166,7 +166,7 @@ class LinksMenuBuilder:
         if self._clipboard_has_links():
             menu.addAction(self.actions.create(
                 "Вставить", 
-                self.main_window.paste_links,
+                self.main_window.links_actions.paste_links,
                 Shortcuts.CTRL_V,
                 get_menu_icon('paste', self.theme)
             ))
@@ -179,7 +179,7 @@ class LinksMenuBuilder:
     
     def _create_delete_callback(self):
         """Создаёт коллбек для удаления выбранных ссылок."""
-        return lambda: self.main_window.delete_selected_links()
+        return lambda: self.main_window.links_actions.delete_selected_links()
     
     def _clipboard_has_links(self) -> bool:
         """Проверяет, содержит ли буфер обмена ссылки."""

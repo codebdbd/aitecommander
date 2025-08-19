@@ -12,7 +12,7 @@ from app.utils.validators import (
     validate_link_duplicate,
 )
 
-from .profile_manager import BrowserProfileManager
+from .profile_manager import get_profile_manager
 from .utils import get_browser_display_name
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class UniversalProfileProcessor:
             database: Объект базы данных для работы с ссылками
         """
         self.database = database
-        self.profile_manager = BrowserProfileManager()
+        self.profile_manager = get_profile_manager()
         logger.info("Инициализирован универсальный процессор профилей")
     
     def process_profile_links(self, name: str, url: str, link_type: str,

@@ -5,7 +5,7 @@
 import logging
 from typing import Dict, List
 
-from .profile_manager import BrowserProfileManager
+from .profile_manager import get_profile_manager
 from .utils import get_browser_display_name
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ class BrowserProfileValidator:
     
     def __init__(self):
         """Инициализация валидатора."""
-        self.profile_manager = BrowserProfileManager()
+        self.profile_manager = get_profile_manager()
         logger.info("Инициализирован валидатор профилей браузеров")
     
     def validate_all_browsers(self) -> Dict[str, Dict]:

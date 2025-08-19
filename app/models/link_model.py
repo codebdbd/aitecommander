@@ -53,7 +53,7 @@ class LinkModel(DatabaseBase):
         """Вставляет или обновляет запись о ссылке. Возвращает ID записи."""
         self._validate_required_fields(link, ['category_id'], 'ссылки')
         
-        conn = self.connection_manager.connection
+        conn = self.connection
         all_possible_fields = [
             'id', 'category_id', 'name', 'url', 'type', 'notes',
             'is_favorite', 'last_used', 'icon_path', 'args', 'position', 'browser_key'
@@ -78,12 +78,11 @@ class LinkModel(DatabaseBase):
                 update_placeholders = ', '.join([f'{f}=?' for f in update_fields])
                 update_values = [data[f] for f in update_fields]
                 
-                with db_lock:
-                    cursor = conn.execute(
-                        f"UPDATE link SET {update_placeholders} WHERE id=?",
-                        update_values + [data['id']]
-                    )
-                    conn.commit()
+                cursor = self._execute_with_error_handling(
+                    f"UPDATE link SET {update_placeholders} WHERE id=?",
+                    tuple(update_values + [data['id']])
+                )
+                self.commit()
                 
                 # Если запись не была обновлена, вставляем новую с указанным ID
                 if cursor.rowcount == 0:
@@ -91,12 +90,11 @@ class LinkModel(DatabaseBase):
                     insert_placeholders = ', '.join(['?'] * len(insert_fields))
                     insert_values = [data[f] for f in insert_fields]
                     
-                    with db_lock:
-                        conn.execute(
-                            f"INSERT INTO link ({', '.join(insert_fields)}) VALUES ({insert_placeholders})",
-                            insert_values
-                        )
-                        conn.commit()
+                    self._execute_with_error_handling(
+                        f"INSERT INTO link ({', '.join(insert_fields)}) VALUES ({insert_placeholders})",
+                        tuple(insert_values)
+                    )
+                    self.commit()
                 
                 logger.debug(f"Обновлена ссылка с ID {data['id']}, browser_key={data.get('browser_key')}")
                 return data['id']
@@ -104,40 +102,49 @@ class LinkModel(DatabaseBase):
                 # Новая запись
                 data['position'] = self._get_next_position('link', 'category_id', data["category_id"])
                 
-                # Предохранитель: не перезаписывать существующие записи с тем же URL/args/type И именем в категории
-                # ВАЖНО: Ссылки с одинаковым адресом, но РАЗНЫМ описанием (именем) — НЕ считаются дубликатами
-                existing = self.get_link_by_unique_fields(
+                # Тихая обработка дубликатов по требованию:
+                # Дубликат = совпадают Имя (name), Путь (url) и Аргумент (args) в рамках категории
+                existing = self.get_link_by_name_url_args(
                     data['category_id'],
+                    data.get('name', ''),
                     data.get('url', ''),
                     data.get('args', ''),
-                    data.get('type', 'web'),
-                    data.get('name', '')
                 )
                 if existing:
-                    logger.warning(
-                        "Попытка добавить дубликат ссылки (category_id=%s, url=%s, args=%s, type=%s, name=%s) — операция отклонена",
-                        data['category_id'], data.get('url', ''), data.get('args', ''), data.get('type', 'web'), data.get('name', '')
-                    )
-                    # Выбрасываем DatabaseError с сообщением, которое корректно классифицируется обработчиком
-                    raise DatabaseError("UNIQUE constraint failed: link duplicate (category_id,url,args,type,name)")
+                    # Молча возвращаем существующий ID без ошибок/предупреждений
+                    return existing.get('id')
                 
                 columns = [f for f in all_possible_fields if f != 'id']
                 placeholders = ', '.join(['?'] * len(columns))
                 values = [data[c] for c in columns]
                 
-                with db_lock:
-                    cursor = conn.execute(
-                        f"INSERT INTO link ({', '.join(columns)}) VALUES ({placeholders})",
-                        values
-                    )
-                    conn.commit()
+                cursor = self._execute_with_error_handling(
+                    f"INSERT INTO link ({', '.join(columns)}) VALUES ({placeholders})",
+                    tuple(values)
+                )
+                self.commit()
                 new_id = cursor.lastrowid
                 logger.info(f"Добавлена новая ссылка: {data.get('name', 'Без названия')}, browser_key={data.get('browser_key')}")
                 logger.debug(f"Добавлена новая ссылка с ID {new_id}, полные данные={data}")
                 return new_id
         except sqlite3.IntegrityError as e:
-            # Не пытаемся "разруливать" конфликт обновлением существующей записи — это приводит к перезаписи
-            logger.warning(f"UNIQUE constraint при upsert ссылки: {e}")
+            # Молча игнорируем дубликаты по новой уникальности (category_id,name,url,args):
+            # пытаемся найти уже существующую запись и вернуть её ID
+            try:
+                cat_id = link.get('category_id')
+                name = link.get('name', '')
+                url = link.get('url', '')
+                args = link.get('args', '')
+                row = self._execute_with_error_handling(
+                    "SELECT id FROM link WHERE category_id=? AND name=? AND url=? AND args=?",
+                    (cat_id, name, url, args),
+                    fetch_method='one'
+                )
+                if row:
+                    return row[0] if isinstance(row, tuple) else row['id']
+            except Exception:
+                pass
+            # Если не нашли — пробрасываем как DatabaseError, но без лишнего шума
             raise DatabaseError(f"UNIQUE constraint failed: {e}")
     
     def get_link_by_unique_fields(self, category_id: int, url: str, args: str = '', link_type: str = 'web', name: str = ''):
@@ -146,17 +153,35 @@ class LinkModel(DatabaseBase):
         Примечание: одинаковые URL считаются дубликатами только если совпадают также args, type и имя ссылки.
         """
         try:
-            with db_lock:
-                cursor = self.connection_manager.connection.execute(
-                    "SELECT * FROM link WHERE category_id=? AND url=? AND args=? AND type=? AND name=?",
-                    (category_id, url, args, link_type, name)
-                )
-                row = cursor.fetchone()
-                if row:
-                    return dict(row)
-                return None
+            row = self._execute_with_error_handling(
+                "SELECT * FROM link WHERE category_id=? AND url=? AND args=? AND type=? AND name=?",
+                (category_id, url, args, link_type, name),
+                fetch_method='one'
+            )
+            if row:
+                return dict(row)
+            return None
         except Exception as e:
             logger.error(f"Ошибка поиска ссылки по уникальным полям: {e}")
+            return None
+
+    def get_link_by_name_url_args(self, category_id: int, name: str, url: str, args: str = '') -> Optional[Dict[str, Any]]:
+        """Найти ссылку по тройке (Имя, Путь, Аргумент) внутри категории.
+
+        Требование пользователя: дубликатом считается совпадение name, url, args в рамках category_id,
+        тип (type) игнорируется для этой проверки.
+        """
+        try:
+            row = self._execute_with_error_handling(
+                "SELECT * FROM link WHERE category_id=? AND name=? AND url=? AND args=?",
+                (category_id, name, url, args),
+                fetch_method='one'
+            )
+            if row:
+                return dict(row)
+            return None
+        except Exception as e:
+            logger.error(f"Ошибка поиска ссылки по (name,url,args): {e}")
             return None
     
     def get_all_links(self) -> List[Dict[str, Any]]:
@@ -177,8 +202,8 @@ class LinkModel(DatabaseBase):
         """Удаляет ссылку по её ID."""
         try:
             with db_lock:
-                self._execute_with_error_handling("DELETE FROM link WHERE id=?", (link_id,))
-                self.connection_manager.connection.commit()
+                self._execute_with_error_handling("DELETE FROM link WHERE id= ?", (link_id,))
+            self.commit()
             logger.info(f"Удалена ссылка с ID {link_id}")
         except Exception as e:
             logger.error(f"Ошибка удаления ссылки: {e}")
@@ -192,7 +217,7 @@ class LinkModel(DatabaseBase):
                 "UPDATE link SET last_used = ? WHERE id = ?",
                 (now, link_id)
             )
-            self.connection_manager.connection.commit()
+        self.commit()
     
     def count_favorites(self) -> int:
         """Возвращает количество избранных ссылок."""
@@ -207,7 +232,7 @@ class LinkModel(DatabaseBase):
         try:
             with db_lock:
                 self._execute_with_error_handling("UPDATE link SET is_favorite=0 WHERE is_favorite=1")
-                self.connection_manager.connection.commit()
+            self.commit()
             logger.info("Очищены все избранные ссылки")
         except Exception as e:
             logger.error(f"Ошибка очистки избранного: {e}")
@@ -292,7 +317,7 @@ class LinkModel(DatabaseBase):
                         "UPDATE link SET position = ? WHERE id = ?",
                         (i, link_id)
                     )
-                self.connection_manager.connection.commit()
+            self.commit()
             return True
         except Exception as e:
             logger.error(f"Ошибка обновления порядка ссылок: {e}")
@@ -304,28 +329,17 @@ class LinkModel(DatabaseBase):
             return True
             
         try:
-            with db_lock:
-                # Начинаем транзакцию
-                self.connection_manager.connection.execute("BEGIN TRANSACTION")
-                
+            with self.transaction():
                 for link_data in links_data:
                     link_id = link_data.get('id')
                     if not link_id:
                         continue
-                        
-                    # Обновляем позицию и категорию
                     self._execute_with_error_handling(
                         "UPDATE link SET position = ?, category_id = ? WHERE id = ?",
                         (link_data.get('position'), link_data.get('category_id'), link_id)
                     )
-                
-                # Подтверждаем транзакцию
-                self.connection_manager.connection.commit()
             return True
-            
         except Exception as e:
-            # Откатываем транзакцию при ошибке
-            self.connection_manager.connection.rollback()
             logger.error(f"Ошибка пакетного обновления ссылок: {e}")
             raise
     

@@ -5,7 +5,7 @@
 import logging
 
 from PyQt6.QtCore import QPoint, QPointF, QRect, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QBrush, QDrag, QFontMetrics, QIcon, QPen, QColor, QTextLayout, QTextOption
+from PyQt6.QtGui import QBrush, QDrag, QFont, QFontMetrics, QIcon, QPen, QColor, QTextLayout, QTextOption
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QListWidget,
@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QWidget,
     QLabel,
     QToolTip,
+    QMenu,
 )
 
 from app.config_data import app_config
@@ -78,6 +79,16 @@ class CategoryTileDelegate(QStyledItemDelegate):
         rect = option.rect
         icon = index.data(Qt.ItemDataRole.DecorationRole)
         text = index.data(Qt.ItemDataRole.DisplayRole)
+        # Применяем размер шрифта из конфигурации (если указан)
+        try:
+            cfg_sz = app_config.get_tile_text_font_size()
+            if isinstance(cfg_sz, (int, float)) and cfg_sz > 0:
+                f = painter.font()
+                # Используем point size, чтобы соответствовать глобальному стилю
+                f.setPointSize(int(cfg_sz))
+                painter.setFont(f)
+        except (TypeError, ValueError, AttributeError) as e:
+            logger.warning(f"Failed to set font size from config in paint: {e}")
         
         # Дать Qt/QSS нарисовать фон/рамку элемента (hover/selected) перед нашей отрисовкой
         try:
@@ -86,8 +97,8 @@ class CategoryTileDelegate(QStyledItemDelegate):
             style = w.style() if w is not None else None
             if style is not None:
                 style.drawPrimitive(QStyle.PrimitiveElement.PE_PanelItemViewItem, option, painter, w)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.debug(f"Style primitive draw skipped: {e}")
         
         # Рисуем иконку
         icon_rect = QRect(
@@ -100,9 +111,29 @@ class CategoryTileDelegate(QStyledItemDelegate):
             icon.paint(painter, icon_rect)
         else:
             # Placeholder для отсутствующей иконки
-            painter.setBrush(QBrush(option.palette.color(option.palette.ColorRole.Mid)))
-            painter.setPen(QPen(option.palette.color(option.palette.ColorRole.Dark)))
+            mid = option.palette.color(option.palette.ColorRole.Mid)
+            dark = option.palette.color(option.palette.ColorRole.Dark)
+            text_col = option.palette.color(option.palette.ColorRole.BrightText)
+            painter.setBrush(QBrush(mid))
+            painter.setPen(QPen(dark))
             painter.drawEllipse(icon_rect)
+            # Отрисуем «?» в центре как индикатор отсутствующей иконки
+            try:
+                placeholder_font = QFont(painter.font())
+                placeholder_font.setBold(True)
+                # Подберём размер относительно иконки
+                placeholder_font.setPointSize(max(8, int(self.icon_size.height() * 0.45)))
+                painter.setFont(placeholder_font)
+                painter.setPen(QPen(text_col))
+                qmark = "?"
+                fm_q = QFontMetrics(placeholder_font)
+                tw = fm_q.horizontalAdvance(qmark)
+                th = fm_q.ascent()
+                cx = icon_rect.left() + (icon_rect.width() - tw) // 2
+                cy = icon_rect.top() + (icon_rect.height() + th) // 2 - 2
+                painter.drawText(QPoint(cx, cy), qmark)
+            except (RuntimeError, ValueError) as e:
+                logger.debug(f"Placeholder '?' draw skipped: {e}")
         
         # Рисуем текст (перенос по словам, высота = по содержимому, но не более N строк из конфига)
         if text:
@@ -120,8 +151,8 @@ class CategoryTileDelegate(QStyledItemDelegate):
                         fm_diag.lineSpacing(),
                     )
                     self._font_diag_logged = True
-            except Exception:
-                pass
+            except (RuntimeError, AttributeError) as e:
+                logger.debug(f"Font diagnostics skipped: {e}")
             text_rect = QRect(
                 rect.left() + self.padding,
                 rect.top() + self.padding + self.icon_size.height() + 5,
@@ -142,10 +173,12 @@ class CategoryTileDelegate(QStyledItemDelegate):
             available_w = text_rect.width()
             try:
                 max_lines = int(app_config.get_tile_text_max_lines())
-            except Exception:
+            except (TypeError, ValueError, AttributeError) as e:
+                logger.debug(f"Invalid max_lines config, fallback to 3: {e}")
                 max_lines = 3
             has_more = False
-            for i in range(10_000):
+            # Оптимизированный цикл разметки строк: без фиксированного большого лимита
+            while True:
                 line = layout.createLine()
                 if not line.isValid():
                     break
@@ -176,9 +209,21 @@ class CategoryTileDelegate(QStyledItemDelegate):
                 draw_x = text_rect.x() + max(0, (available_w - int(natural_w)) // 2)
                 draw_y = text_rect.y() + int(line.position().y()) + fm.ascent()
                 if idx == len(lines) - 1 and has_more:
-                    # Эллипсис для последней видимой строки
+                    # Эллипсис для последней видимой строки. Гарантируем «…», даже если ширина позволяет исходный текст.
                     elided = fm.elidedText(line_text, Qt.TextElideMode.ElideRight, available_w)
-                    painter.drawText(QPoint(draw_x, draw_y), elided)
+                    if elided == line_text:
+                        ellipsis = "…"
+                        ell_w = fm.horizontalAdvance(ellipsis)
+                        max_w = max(0, available_w - ell_w)
+                        core = fm.elidedText(line_text, Qt.TextElideMode.ElideRight, max_w)
+                        text_to_draw = (core if core else "") + ellipsis
+                    else:
+                        # elidedText уже добавил многоточие
+                        text_to_draw = elided
+                    # Пересчитаем центрирование по ширине нарисованной строки
+                    draw_w = fm.horizontalAdvance(text_to_draw)
+                    draw_x = text_rect.x() + max(0, (available_w - draw_w) // 2)
+                    painter.drawText(QPoint(draw_x, draw_y), text_to_draw)
                 else:
                     painter.drawText(QPoint(draw_x, draw_y), line_text)
         
@@ -188,22 +233,30 @@ class CategoryTileDelegate(QStyledItemDelegate):
         """Простой расчет размера плитки."""
         # pylint: disable=unused-argument
         # Высота: padding + icon + 5 + высота текста по содержимому (wrap, но не более N строк) + padding
-        # Используем шрифт из option (наследует глобальный pt размер)
-        font = option.font
+        # Используем шрифт из option, но применяем размер из конфигурации, если задан
+        font = QFont(option.font)
+        try:
+            cfg_sz = app_config.get_tile_text_font_size()
+            if isinstance(cfg_sz, (int, float)) and cfg_sz > 0:
+                font.setPointSize(int(cfg_sz))
+        except (TypeError, ValueError, AttributeError) as e:
+            logger.warning(f"Failed to set font size from config in sizeHint: {e}")
         fm = QFontMetrics(font)
         try:
             max_lines = int(app_config.get_tile_text_max_lines())
-        except Exception:
+        except (TypeError, ValueError, AttributeError) as e:
+            logger.debug(f"Invalid max_lines config in sizeHint, fallback to 3: {e}")
             max_lines = 3
         # Получаем текст элемента
         try:
             text = index.data(Qt.ItemDataRole.DisplayRole)
-        except Exception:
+        except (RuntimeError, AttributeError) as e:
+            logger.debug(f"Failed to read DisplayRole in sizeHint: {e}")
             text = ""
         # Доступная ширина текста в плитке
         available_w = self.tile_size.width() - 2 * self.padding
         # Подсчёт высоты через QTextLayout с режимом WrapAtWordBoundaryOrAnywhere
-        layout = QTextLayout(text or "", option.font)
+        layout = QTextLayout(text or "", font)
         opt = QTextOption()
         opt.setWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
         opt.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
@@ -242,13 +295,23 @@ class CategoryTileDelegate(QStyledItemDelegate):
             # Вычисляем, был ли усечён текст (существуют строки за пределами лимита)
             try:
                 max_lines = int(app_config.get_tile_text_max_lines())
-            except Exception:
+            except (TypeError, ValueError, AttributeError) as e:
+                logger.debug(f"Invalid max_lines config in helpEvent, fallback to 3: {e}")
                 max_lines = 3
 
             # Доступная ширина для текста основывается на реальном rect элемента
             available_w = max(0, option.rect.width() - 2 * self.padding)
 
-            layout = QTextLayout(text, option.font)
+            # Применим шрифт с конфигурационным размером
+            font = QFont(option.font)
+            try:
+                cfg_sz = app_config.get_tile_text_font_size()
+                if isinstance(cfg_sz, (int, float)) and cfg_sz > 0:
+                    font.setPointSize(int(cfg_sz))
+            except (TypeError, ValueError, AttributeError) as e:
+                logger.debug(f"Failed to set font size in helpEvent: {e}")
+
+            layout = QTextLayout(text, font)
             opt = QTextOption()
             opt.setWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
             opt.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
@@ -256,11 +319,15 @@ class CategoryTileDelegate(QStyledItemDelegate):
             layout.beginLayout()
             lines_count = 0
             has_more = False
+            any_line_overflow = False
             while True:
                 line = layout.createLine()
                 if not line.isValid():
                     break
                 line.setLineWidth(available_w)
+                # Если естественная ширина строки больше доступной — значит есть горизонтальное усечение
+                if line.naturalTextWidth() > available_w:
+                    any_line_overflow = True
                 lines_count += 1
                 if lines_count >= max_lines:
                     probe = layout.createLine()
@@ -268,14 +335,14 @@ class CategoryTileDelegate(QStyledItemDelegate):
                     break
             layout.endLayout()
 
-            if has_more:
-                # Показать полный текст только если реально усечён
-                QToolTip.showText(event.globalPos(), text, view)
-                return True
-
-            return super().helpEvent(event, view, option, index)
-        except Exception:
-            # В случае любых сбоев не ломаем стандартное поведение
+            # Показываем тултип всегда для непустого текста.
+            # Если текст усечён (has_more или any_line_overflow), поведение прежнее — показать полный текст.
+            # Если не усечён — всё равно показываем тот же текст как подсказку для единообразия UX.
+            QToolTip.showText(event.globalPos(), text, view)
+            return True
+        except (RuntimeError, AttributeError, ValueError) as e:
+            # В случае сбоев логируем и не ломаем стандартное поведение
+            logger.warning(f"helpEvent failed, using default tooltip handling: {e}")
             return super().helpEvent(event, view, option, index)
 
 class CategoryTiles(QWidget):
@@ -310,8 +377,8 @@ class CategoryTiles(QWidget):
         try:
             vp.setMouseTracking(True)
             vp.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.debug(f"Viewport hover setup skipped: {e}")
         # Простой делегат для отрисовки (нужен для параметров размеров)
         self.delegate = CategoryTileDelegate(parent=self)
         self.list_widget.setItemDelegate(self.delegate)
@@ -320,8 +387,8 @@ class CategoryTiles(QWidget):
         self.list_widget.setUniformItemSizes(False)
         try:
             self.list_widget.setWordWrap(True)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.debug(f"WordWrap not supported on list widget: {e}")
         self.list_widget.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
         self.list_widget.setSpacing(8)  # Простое значение по умолчанию
 
@@ -347,8 +414,8 @@ class CategoryTiles(QWidget):
                 sample.setObjectName('tileFontSample')
                 self.layout.addWidget(sample, 0)
                 logger.info("CategoryTiles: debug font sample label added (inherits global font)")
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.debug(f"Debug font sample init skipped: {e}")
 
         # Список плиток занимает оставшееся пространство
         self.layout.addWidget(self.list_widget, 1)
@@ -369,7 +436,21 @@ class CategoryTiles(QWidget):
         for category in categories:
             name = category.get('name', '')
             icon_path = category.get('icon_path', '')
-            category_id = category.get('id')
+            # Нормализуем и валидируем ID категории
+            raw_id = category.get('id')
+            category_id = None
+            try:
+                if raw_id is None:
+                    raise ValueError("id is None")
+                if isinstance(raw_id, int):
+                    category_id = raw_id
+                elif isinstance(raw_id, str):
+                    category_id = int(raw_id)
+                else:
+                    category_id = int(raw_id)  # попытка для типов вроде numpy.int64 etc
+            except Exception:
+                logger.warning(f"Skip category with invalid id '{raw_id}' and name '{name}'")
+                continue
             
             # Получаем иконку через централизованную систему
             if icon_path:
@@ -407,6 +488,12 @@ class CategoryTiles(QWidget):
         
         # Обновляем текущий ID
         self._current_item_id = item_id
+        # Синхронизируем глобальный UI-стейт, если поддерживается
+        try:
+            if self.ui_state_manager and hasattr(self.ui_state_manager, 'set_tiles_selection'):
+                self.ui_state_manager.set_tiles_selection(item_id)
+        except (RuntimeError, AttributeError) as e:
+            logger.debug(f"Tiles selection sync failed: {e}")
         logger.debug(f"Selected category tile ID {item_id} ({item.text()})")
 
     def _on_item_clicked(self, item):
@@ -445,7 +532,16 @@ class CategoryTiles(QWidget):
         logger.debug(f"Context menu requested at position {pos}")
         
         if not self._menu_builder:
-            logger.error("CategoryTiles: Menu builder not initialized. Dependencies not injected yet.")
+            # Пытаемся лениво инициализировать билдер, если зависимости уже есть
+            if self.structure_controller:
+                try:
+                    self._menu_builder = CategoryMenuBuilder(self.list_widget, self.dialog_provider)
+                    logger.info("CategoryTiles: Lazy-initialized Menu builder in _show_context_menu")
+                except (Exception,) as e:
+                    logger.debug(f"Context menu builder init failed: {e}")
+        if not self._menu_builder:
+            # Фолбэк: показывать пустое/минимальное меню нецелесообразно — просто тихо выходим
+            logger.warning("CategoryTiles: Context menu is unavailable (builder not ready yet)")
             return
             
         index = self.list_widget.indexAt(pos)
@@ -520,6 +616,11 @@ class CategoryTiles(QWidget):
         try:
             if self.structure_controller:
                 self.structure_controller.handle_delete_category(category_id)
+                # Оптимистично удаляем плитку сразу, чтобы правая панель обновилась мгновенно
+                try:
+                    self._remove_tile_by_id(category_id)
+                except Exception:
+                    pass
                 logger.debug(f"Delete category command executed for ID {category_id}")
             else:
                 logger.error("CategoryTiles: Structure controller not available")
@@ -537,3 +638,19 @@ class CategoryTiles(QWidget):
                 logger.error("CategoryTiles: Dialog provider not available")
         except Exception as exc:
             logger.error(f"CategoryTiles: Ошибка добавления ссылки в категорию {category_id}: {exc}")
+
+    def _remove_tile_by_id(self, category_id: int) -> None:
+        """Удаляет плитку категории с указанным ID, если она существует (оптимистичное обновление UI)."""
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            if item and item.data(Qt.ItemDataRole.UserRole) == category_id:
+                self.list_widget.takeItem(i)
+                if self._current_item_id == category_id:
+                    self._current_item_id = None
+                    try:
+                        if self.ui_state_manager and hasattr(self.ui_state_manager, 'clear_tiles_selection'):
+                            self.ui_state_manager.clear_tiles_selection()
+                    except Exception:
+                        pass
+                logger.debug(f"Optimistically removed category tile ID {category_id}")
+                break

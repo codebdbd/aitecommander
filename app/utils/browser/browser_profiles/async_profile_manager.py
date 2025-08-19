@@ -11,7 +11,7 @@ from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal
 from PyQt6.QtWidgets import QApplication
 
 from .base_profile_finder import BaseBrowserProfileFinder
-from .profile_manager import BrowserProfileManager
+from .profile_manager import get_profile_manager
 
 logger = logging.getLogger(__name__)
 
@@ -209,8 +209,8 @@ class AsyncBrowserProfileManager(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         
-        # Создаем синхронный менеджер для доступа к finder'ам
-        self._sync_manager = BrowserProfileManager()
+        # Создаем/получаем общий синхронный менеджер для доступа к finder'ам
+        self._sync_manager = get_profile_manager()
         
         # Настройки
         self._cache_timeout = self._sync_manager._get_cache_timeout()

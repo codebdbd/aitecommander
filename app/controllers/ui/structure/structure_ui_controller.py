@@ -112,3 +112,38 @@ class StructureUIController(QObject):
     
     def on_structure_item_added(self, item_type: str, parent_id: int, data: dict) -> None:
         self.tree_manager.on_structure_item_added(item_type, parent_id, data)
+
+    def get_current_category_id(self):
+        """Вернуть текущий ID категории на основе активного UI-контекста.
+        Предпочтение: плитки -> выбранный элемент дерева -> первая категория из BL.
+        """
+        # 1) Если активен режим плиток категорий — используем текущую плитку
+        try:
+            tiles_stack_index = app_config.get('ui.stack_indices.tiles', 0)
+            stack = getattr(self.main, 'stack', None)
+            tiles = getattr(self.main, 'tiles', None)
+            if stack is not None and tiles is not None and stack.currentIndex() == tiles_stack_index:
+                current_id = getattr(tiles, '_current_item_id', None)
+                if isinstance(current_id, int):
+                    return current_id
+        except Exception:
+            pass
+
+        # 2) Текущий элемент в дереве структуры
+        try:
+            item = self.tree.currentItem()
+            if item is not None:
+                from app.utils.ui.qt.roles import get_tree_tuple
+                t = get_tree_tuple(item, 0)
+                if t:
+                    item_type, item_id = t
+                    if item_type == 'category' and isinstance(item_id, int):
+                        return item_id
+        except Exception:
+            pass
+
+        # 3) Fallback: спросить у бизнес-логики первую доступную категорию
+        try:
+            return self.business.get_first_category_id()
+        except Exception:
+            return None
