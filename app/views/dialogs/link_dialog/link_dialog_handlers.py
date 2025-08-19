@@ -34,6 +34,29 @@ class LinkDialogHandlers:
         self.signals.link_info_finished.connect(lambda info: self._on_link_info_fetched(info))
         self.signals.simple_error.connect(lambda error: self._on_link_info_error(error))
         
+    def _make_icon(self, icon_path_str: str) -> Optional[QIcon]:
+        """Пытается создать QIcon по сохранённому пути.
+        Поддерживает абсолютные пути и относительные относительно пользовательской и UI-папок иконок.
+        """
+        try:
+            if not icon_path_str:
+                return None
+            p = Path(icon_path_str)
+            # Абсолютный путь
+            if p.exists():
+                return QIcon(str(p))
+            # Пользовательская папка
+            user_p = self.dialog.get_user_icons_dir() / icon_path_str
+            if user_p.exists():
+                return QIcon(str(user_p))
+            # UI папка
+            ui_p = self.dialog.get_ui_icons_dir() / icon_path_str
+            if ui_p.exists():
+                return QIcon(str(ui_p))
+        except Exception:
+            pass
+        return None
+
     def connect_signals(self) -> None:
         """Подключение сигналов к слотам."""
         # Тип ссылки
@@ -249,7 +272,12 @@ class LinkDialogHandlers:
         if sphere_id and self.dialog.dialog_controller:
             sections = self.dialog.dialog_controller.get_sections_for_sphere(sphere_id)
             for sec in sections:
-                section_cb.addItem(sec["name"], sec["id"])
+                icon_path_val = sec["icon_path"] if (hasattr(sec, 'keys') and "icon_path" in sec.keys()) else ""
+                icon = self._make_icon(icon_path_val)
+                if icon:
+                    section_cb.addItem(icon, sec["name"], sec["id"])
+                else:
+                    section_cb.addItem(sec["name"], sec["id"])
                 
         self._update_categories()
         
@@ -264,7 +292,12 @@ class LinkDialogHandlers:
         if section_id and self.dialog.dialog_controller:
             categories = self.dialog.dialog_controller.get_categories_for_section(section_id)
             for cat in categories:
-                category_cb.addItem(cat["name"], cat["id"])
+                icon_path_val = cat["icon_path"] if (hasattr(cat, 'keys') and "icon_path" in cat.keys()) else ""
+                icon = self._make_icon(icon_path_val)
+                if icon:
+                    category_cb.addItem(icon, cat["name"], cat["id"])
+                else:
+                    category_cb.addItem(cat["name"], cat["id"])
                 
     def _on_accept(self) -> None:
         """Обработчик подтверждения диалога."""
