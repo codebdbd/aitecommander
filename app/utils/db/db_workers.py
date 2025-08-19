@@ -348,7 +348,7 @@ class LoadStructureWorker(SphereIdWorker):
             for section in sections_data:
                 section['categories'] = categories_by_section.get(section['id'], [])
             
-            logger.info(f"Загружена структура для сферы {self.sphere_id}: {len(sections_data)} разделов")
+            logger.debug(f"Загружена структура для сферы {self.sphere_id}: {len(sections_data)} разделов")
             self.signals.structure_loaded.emit(sections_data, self.sphere_id)
             self.signals.operation_finished.emit("Структура загружена")
             

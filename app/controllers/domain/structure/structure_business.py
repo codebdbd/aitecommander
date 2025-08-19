@@ -135,6 +135,12 @@ class StructureBusinessLogic(AsyncCompatMixin, UtilitiesMixin, SectionsMixin, Ca
         """Устанавливает текущую сферу."""
         try:
             old_sphere_id = self.current_sphere_id
+
+            # Гард: если сфера не меняется — ничего не делаем
+            if old_sphere_id == sphere_id:
+                self.logger.debug("set_current_sphere: сфера не изменилась; пропуск")
+                return
+
             self.current_sphere_id = sphere_id
             
             # Очищаем кэш при смене сферы
@@ -204,9 +210,8 @@ class StructureBusinessLogic(AsyncCompatMixin, UtilitiesMixin, SectionsMixin, Ca
                     self.async_operations.load_categories_async(section_id)
             # Для надёжности всегда инвалидируем общую структуру
             self._invalidate_structure_cache()
-            sphere_id = self.current_sphere_id
-            if isinstance(sphere_id, int) and sphere_id > 0:
-                self.async_operations.load_structure_async(sphere_id)
+            # Коалесцируем перезагрузку структуры, чтобы избежать дублей
+            self._schedule_structure_reload(0)
         except Exception as e:
             self.logger.error(f"Ошибка в обработчике _on_item_added: {e}", exc_info=True)
 
@@ -227,9 +232,8 @@ class StructureBusinessLogic(AsyncCompatMixin, UtilitiesMixin, SectionsMixin, Ca
                 if isinstance(section_id, int) and section_id > 0:
                     self.async_operations.load_categories_async(section_id)
             self._invalidate_structure_cache()
-            sphere_id = self.current_sphere_id
-            if isinstance(sphere_id, int) and sphere_id > 0:
-                self.async_operations.load_structure_async(sphere_id)
+            # Коалесцируем перезагрузку структуры, чтобы избежать дублей
+            self._schedule_structure_reload(0)
         except Exception as e:
             self.logger.error(f"Ошибка в обработчике _on_item_updated: {e}", exc_info=True)
 
@@ -268,11 +272,9 @@ class StructureBusinessLogic(AsyncCompatMixin, UtilitiesMixin, SectionsMixin, Ca
             if item_type == 'link':
                 self._schedule_structure_reload(200)
                 return
-            # Для остальных типов сохраняем прежнее поведение
+            # Для остальных типов: инвалидируем и планируем общую перезагрузку структуры
             self._invalidate_structure_cache()
-            sphere_id = self.current_sphere_id
-            if isinstance(sphere_id, int) and sphere_id > 0:
-                self.async_operations.load_structure_async(sphere_id)
+            self._schedule_structure_reload(0)
         except Exception as e:
             self.logger.error(f"Ошибка в обработчике _on_item_deleted: {e}", exc_info=True)
     

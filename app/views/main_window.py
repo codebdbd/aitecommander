@@ -397,8 +397,6 @@ class MainWindow(QMainWindow):
                 if self.has_fav_widget:
                     self.fav_widget.update_favorites()
             QTimer.singleShot(150, _try_update_fav)
-        if self.has_structure_business and self.structure_business.current_sphere_id:
-            self._switch_sphere(self.structure_business.current_sphere_id)
 
     def _switch_sphere(self, sphere_id: int) -> None:
         self.structure.switch_sphere(sphere_id)

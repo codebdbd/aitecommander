@@ -111,7 +111,7 @@ class AsyncOperations:
             return
         worker = LoadStructureWorker(self.db, current_sphere_id, self._worker_signals)
         self._scheduler.submit_task(worker)
-        self.logger.info(f"Запущена асинхронная загрузка структуры для сферы {current_sphere_id}")
+        self.logger.debug(f"Запущена асинхронная загрузка структуры для сферы {current_sphere_id}")
 
     def load_sections_async(self, sphere_id: int) -> None:
         """Асинхронная загрузка разделов для сферы."""
@@ -284,7 +284,7 @@ class AsyncSignalHandlers:
     def on_structure_loaded(self, structure: List[Dict[str, Any]], sphere_id: int) -> None:
         """Обработчик завершения загрузки структуры."""
         try:
-            self.logger.info(f"Загружена структура для сферы {sphere_id}: {len(structure)} разделов")
+            self.logger.debug(f"Загружена структура для сферы {sphere_id}: {len(structure)} разделов")
             if hasattr(self.controller, 'structure_loaded'):
                 self.controller.structure_loaded.emit(structure)
         except Exception as e:
@@ -337,10 +337,10 @@ class AsyncSignalHandlers:
                     sphere_id = getattr(self.controller, 'current_sphere_id', None)
                     if hasattr(self.controller, '_invalidate_structure_cache'):
                         self.controller._invalidate_structure_cache()
-                    if isinstance(sphere_id, int) and sphere_id > 0 and hasattr(self.controller, 'async_operations'):
-                        # Обновим и список разделов, и целиком структуру (дерево)
-                        self.controller.async_operations.load_sections_async(sphere_id)
-                        self.controller.async_operations.load_structure_async(sphere_id)
+                    if isinstance(sphere_id, int) and sphere_id > 0:
+                        # Централизуем перезагрузку структуры в бизнес-логике с дебаунсом
+                        if hasattr(self.controller, '_schedule_structure_reload'):
+                            self.controller._schedule_structure_reload(delay_ms=150)
             except Exception as e2:
                 self.logger.warning(f"Не удалось инициировать обновление UI после создания {item_type}: {e2}")
         except Exception as e:
@@ -364,8 +364,10 @@ class AsyncSignalHandlers:
                     sphere_id = getattr(self.controller, 'current_sphere_id', None)
                     if hasattr(self.controller, '_invalidate_structure_cache'):
                         self.controller._invalidate_structure_cache()
-                    if isinstance(sphere_id, int) and sphere_id > 0 and hasattr(self.controller, 'async_operations'):
-                        self.controller.async_operations.load_sections_async(sphere_id)
+                    if isinstance(sphere_id, int) and sphere_id > 0:
+                        # Централизуем перезагрузку структуры в бизнес-логике с дебаунсом
+                        if hasattr(self.controller, '_schedule_structure_reload'):
+                            self.controller._schedule_structure_reload(delay_ms=150)
             except Exception as e2:
                 self.logger.warning(f"Не удалось инициировать обновление UI после обновления {item_type}: {e2}")
         except Exception as e:
@@ -393,8 +395,10 @@ class AsyncSignalHandlers:
                     if hasattr(self.controller, '_invalidate_structure_cache'):
                         self.controller._invalidate_structure_cache()
                     sphere_id = getattr(self.controller, 'current_sphere_id', None)
-                    if isinstance(sphere_id, int) and sphere_id > 0 and hasattr(self.controller, 'async_operations'):
-                        self.controller.async_operations.load_sections_async(sphere_id)
+                    if isinstance(sphere_id, int) and sphere_id > 0:
+                        # Централизуем перезагрузку структуры в бизнес-логике с дебаунсом
+                        if hasattr(self.controller, '_schedule_structure_reload'):
+                            self.controller._schedule_structure_reload(delay_ms=150)
             except Exception as e2:
                 self.logger.warning(f"Не удалось инициировать обновление UI после удаления {item_type}: {e2}")
         except Exception as e:
@@ -422,7 +426,11 @@ class AsyncSignalHandlers:
 
     def on_operation_started(self, description: str) -> None:
         try:
-            self.logger.info(description)
+            # Сообщения о структуре чрезмерно частые — логируем их на DEBUG
+            if 'структур' in description.lower():
+                self.logger.debug(description)
+            else:
+                self.logger.info(description)
             if hasattr(self.controller, 'operation_started'):
                 self.controller.operation_started.emit(description)
         except Exception as e:
@@ -430,7 +438,11 @@ class AsyncSignalHandlers:
 
     def on_operation_finished(self, description: str) -> None:
         try:
-            self.logger.info(description)
+            # Сообщения о структуре чрезмерно частые — логируем их на DEBUG
+            if 'структур' in description.lower():
+                self.logger.debug(description)
+            else:
+                self.logger.info(description)
             if hasattr(self.controller, 'operation_finished'):
                 self.controller.operation_finished.emit(description)
         except Exception as e:
