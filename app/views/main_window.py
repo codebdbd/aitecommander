@@ -1,31 +1,11 @@
 # app/views/main_window.py
 
 from __future__ import annotations
-
-import sys
 from typing import TYPE_CHECKING, Optional
 
-from PyQt6 import QtCore
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QFont, QIcon, QKeySequence, QShortcut
-from PyQt6.QtWidgets import (
-    QApplication,
-    QButtonGroup,
-    QFrame,
-    QHBoxLayout,
-    QLineEdit,
-    QMainWindow,
-    QMessageBox,
-    QPushButton,
-    QScrollArea,
-    QSizePolicy,
-    QSplitter,
-    QStackedLayout,
-    QStatusBar,
-    QToolButton,
-    QVBoxLayout,
-    QWidget,
-)
+from PyQt6.QtGui import QIcon, QKeySequence
+from PyQt6.QtWidgets import QMainWindow, QToolButton
 
 if TYPE_CHECKING:  # Только для аннотаций типов, без зависимости во время выполнения
     from app.controllers.ui.theme_controller import ThemeController
@@ -33,24 +13,17 @@ if TYPE_CHECKING:  # Только для аннотаций типов, без �
 from app.config_data import app_config
 from app.models.db import Database
 from app.settings import AppSettings
-
-# NOTE: Если clear_icon_cache переедет в qicon_cache, обновим импорт ниже
 from app.utils.ui.icon.cache_manager import clear_icon_cache
-from app.utils.ui.icon.icon_operations.creators import create_icon_from_path, themed_icon
+from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.views.status_bar import update_status_bar as _update_status_bar
-from app.utils.ui.icon.path_service import get_current_theme, icon_path_service
-from app.utils.db.synchronization import get_signal_guard, signal_guard
-from app.utils.system.task_scheduler import LimitedThreadPool, get_task_scheduler
-from app.utils.ui_state.ui_state_manager import UIStateManager
+from app.utils.ui.icon.path_service import icon_path_service
+from app.utils.db.synchronization import signal_guard
 from app.views.effects.neon_effect import NeonEventFilter
-from app.utils.ui_state.category_context import CategoryContext
 
 
 class MainWindow(QMainWindow):
     shown: pyqtSignal = pyqtSignal()  # Сигнал отображения окна
-    
-    # === СВОЙСТВА ДЛЯ ОПТИМИЗАЦИИ ПРОВЕРОК АТРИБУТОВ ===
-    
+
     @property
     def has_structure(self) -> bool:
         """Проверка наличия и валидности структуры."""
@@ -111,55 +84,69 @@ class MainWindow(QMainWindow):
 
     
     def get_current_category_id(self) -> Optional[int]:
-        """Определяет ID текущей категории через сервис CategoryContext."""
-        # Ленивая инициализация, чтобы не трогать __init__ и не плодить зависимости
-        if not hasattr(self, 'category_context') or self.category_context is None:
-            self.category_context = CategoryContext(self)
-        return self.category_context.get_current_category_id()
+        """Возвращает ID текущей категории."""
+        tiles_stack_index = app_config.get('ui.stack_indices.tiles', 0)
+        if (self.has_tiles and self.has_stack and 
+            self.stack.currentIndex() == tiles_stack_index and 
+            hasattr(self.tiles, '_current_item_id') and self.tiles._current_item_id is not None):
+            return self.tiles._current_item_id
+        
+        if hasattr(self, 'current_category_id') and self.current_category_id:
+            return self.current_category_id
+        
+        if self.has_structure and hasattr(self.structure, 'tree'):
+            current_item = self.structure.tree.currentItem()
+            if current_item:
+                from app.utils.ui.qt.roles import get_tree_tuple
+                t = get_tree_tuple(current_item, 0)
+                if t:
+                    item_type, item_id = t
+                    if item_type == 'category' and isinstance(item_id, int):
+                        return item_id
+        
+        if self.has_structure_business:
+            return self.structure_business.get_first_category_id()
+        
+        return None
     
-    # === ПУБЛИЧНЫЕ МЕТОДЫ ДЛЯ ДЕЛЕГИРОВАНИЯ ===
+    
     
     def edit_structure_item(self, item):
-        """Публичный метод для редактирования элемента структуры."""
+        """Редактировать элемент структуры."""
         if self.has_structure:
             self.structure.edit_item(item)
     
     def add_new_category(self):
-        """Публичный метод для добавления новой категории."""
+        """Добавить новую категорию."""
         if self.has_structure:
             self.structure.add_new_category()
     
     def show_link_dialog_for_category(self, category_id: int = None, link=None) -> bool:
-        """Публичный метод для показа диалога ссылки."""
+        """Показать диалог ссылки для категории."""
         return self.link_operations.show_link_dialog(link=link, category_id=category_id)
     
     def reload_structure(self) -> None:
-        """Публичный метод для перезагрузки структуры."""
+        """Перезагрузить структуру."""
         if self.has_structure:
             self.structure.load()
     
     def reload_current_category(self) -> None:
-        """Публичный метод для перезагрузки текущей категории.
-        ЦЕНТРАЛИЗОВАНО: Использует UIStateManager вместо DEPRECATED load_category.
-        """
+        """Перезагрузить текущую категорию через UIStateManager."""
         category_id = self.get_current_category_id()
         if category_id:
             if hasattr(self, 'ui_state') and self.ui_state:
                 self.ui_state.load_category(category_id, source="reload_current_category")
-            else:
-                # Fallback для совместимости
-                self.load_category(category_id)
     
-    # === ПУБЛИЧНЫЕ МЕТОДЫ ДЛЯ РАБОТЫ С ССЫЛКАМИ ===
+    
     
     def get_link_at_row(self, row: int):
-        """Публичный метод для получения ссылки по номеру строки."""
+        """Получить ссылку по номеру строки."""
         if self.has_links:
             return self.links.get_link_at(row)
         return None
     
     def open_link(self, link):
-        """Публичный метод для открытия ссылки."""
+        """Открыть ссылку."""
         import logging
         logger = logging.getLogger(__name__)
         logger.info(f"MainWindow.open_link called with link: {link}")
@@ -167,67 +154,66 @@ class MainWindow(QMainWindow):
             self.links.open_link(link)
     
     def toggle_link_favorite(self, link):
-        """Публичный метод для переключения статуса избранного."""
+        """Переключить статус избранного."""
         if self.has_links:
             self.links.toggle_favorite(link)
     
     def copy_selected_links(self):
-        """Публичный метод для копирования выбранных ссылок."""
+        """Копировать выбранные ссылки."""
         if self.has_links:
             self.links.copy_selected_links()
     
     def paste_links(self):
-        """Публичный метод для вставки ссылок."""
+        """Вставить ссылки."""
         if self.has_links:
             self.links.paste_links()
     
     def cut_selected_links(self):
-        """Публичный метод для вырезания выбранных ссылок."""
+        """Вырезать выбранные ссылки."""
         if self.has_links:
             self.links.cut_selected_links()
     
     def show_note_dialog_for_link(self, link):
-        """Публичный метод для показа диалога заметки."""
+        """Показать диалог заметки для ссылки."""
         if self.has_links:
             self.links.show_note_dialog(link)
     
     def delete_selected_links(self):
-        """Публичный метод для удаления выбранных ссылок."""
+        """Удалить выбранные ссылки."""
         if self.has_links:
             self.links.delete_selected_links()
     
     def select_all_links(self):
-        """Публичный метод для выделения всех ссылок."""
+        """Выделить все ссылки."""
         if self.has_table:
             self.table.selectAll()
     
     def get_selected_rows(self):
-        """Публичный метод для получения выбранных строк."""
+        """Получить номера выбранных строк."""
         if self.has_table and hasattr(self.table, 'selectionModel'):
-            # Извлекаем номера строк из QModelIndex объектов
             selected_indexes = self.table.selectionModel().selectedRows()
             return [index.row() for index in selected_indexes if index.isValid()]
         return []
     
-    # === ПУБЛИЧНЫЕ МЕТОДЫ ДЛЯ ТЕМ И UNDO/REDO ===
+    
     
     def get_available_themes(self):
-        """Публичный метод для получения доступных тем."""
+        """Получить доступные темы."""
         if self.has_theme_ctrl:
             return self.theme_ctrl.available()
         return []
     
     def apply_theme(self, theme_name: str):
-        """Публичный метод для применения темы."""
+        """Применить тему."""
         if self.has_theme_ctrl:
             self.theme_ctrl.apply(theme_name)
     
     def get_undo_stack(self):
-        """Публичный метод для получения undo stack."""
+        """Вернуть undo stack."""
         return getattr(self, 'undo_stack', None)
     
     def create_undo_redo_actions(self):
-        """Публичный метод для создания undo/redo действий."""
+        """Создать действия Undo/Redo."""
         if not self.has_undo_stack:
             return None, None
             
@@ -259,14 +245,13 @@ class MainWindow(QMainWindow):
         initializer.initialize_window()
 
     def _init_spheres_ui(self):
-        """Инициализация UI для сфер (асинхронная версия)."""
+        """Инициализировать UI для сфер (асинхронно)."""
         self.structure_business.spheres_loaded.connect(self._on_spheres_loaded_ui)
         
         self.structure_business.load_spheres_async()
     
     def _on_spheres_loaded_ui(self, spheres: list):
-        """Обработчик завершения асинхронной загрузки сфер для UI."""
-        # Блокируем обновления во время реконструкции
+        """Обработчик завершения асинхронной загрузки сфер."""
         self.spheres_bar.setUpdatesEnabled(False)
         
         try:
@@ -284,7 +269,7 @@ class MainWindow(QMainWindow):
             
             self.sphere_group.setExclusive(True)
             
-            # Готовим единый фильтр для неонового эффекта кнопок сфер
+            # Единый фильтр для неонового эффекта кнопок сфер
             if not hasattr(self, '_neon_sphere_filter') or self._neon_sphere_filter is None:
                 self._neon_sphere_filter = NeonEventFilter(self)
 
@@ -311,7 +296,6 @@ class MainWindow(QMainWindow):
                 s_layout.addWidget(btn)
 
         finally:
-            # Включаем обновления и делаем одно финальное обновление
             self.spheres_bar.setUpdatesEnabled(True)
             self.spheres_bar.update()
         
@@ -320,7 +304,7 @@ class MainWindow(QMainWindow):
 
     @signal_guard("_update_active_sphere_button")
     def _update_active_sphere_button(self, sphere_id: int):
-        """Обновляет состояние кнопок сфер, выделяя активную и устанавливая фокус."""
+        """Обновляет состояние кнопок сфер и фокус."""
         for button in self.sphere_buttons.values():
             button.setChecked(False)
 
@@ -345,7 +329,7 @@ class MainWindow(QMainWindow):
             )
 
     def _get_selected_links(self):
-        """Получить список выбранных ссылок."""
+        """Вернуть список выбранных ссылок."""
         selected_rows = self.links.get_selected_rows()
         if not selected_rows:
             return []
@@ -363,20 +347,14 @@ class MainWindow(QMainWindow):
         return False
 
     def edit_current(self):
-        """Редактировать текущий выбранный элемент."""
+        """Редактировать текущий элемент."""
         if hasattr(self, 'action_controller') and self.action_controller:
             self.action_controller.edit_current()
-        else:
-            # Fallback для совместимости (если контроллер не инициализирован)
-            self._edit_current_fallback()
 
     def delete_current(self):
-        """Удалить выбранный элемент (ссылку или структурный элемент)."""
+        """Удалить текущий элемент (ссылку или структурный элемент)."""
         if hasattr(self, 'action_controller') and self.action_controller:
             self.action_controller.delete_current()
-        else:
-            # Fallback для совместимости (если контроллер не инициализирован)
-            self._delete_current_fallback()
 
     def show_section_dialog(self):
         self.structure.add_new_section()
@@ -423,11 +401,10 @@ class MainWindow(QMainWindow):
             self._switch_sphere(self.structure_business.current_sphere_id)
 
     def _switch_sphere(self, sphere_id: int) -> None:
-        # Убираем дублирующий вызов - structure.switch_sphere() уже устанавливает сферу
         self.structure.switch_sphere(sphere_id)
 
     def _show_note_for_current(self):
-        """Показать диалог заметки для текущей выбранной ссылки."""
+        """Показать диалог заметки для текущей ссылки."""
         row = self.links.current_row()
         if row >= 0:
             link = self.links.get_link_by_row(row)
@@ -438,12 +415,10 @@ class MainWindow(QMainWindow):
     def _update_left_panel_style(self, sphere_id: int):
         """Обновляет стиль левой панели при смене сферы."""
         if self.has_left_panel:
-            # Проверяем, нужно ли обновлять стиль
             current_sphere = self.left_panel.property("sphere")
             if current_sphere == str(sphere_id):
                 return
-                
-            # Блокируем обновления во время смены стиля
+
             self.left_panel.setUpdatesEnabled(False)
             try:
                 self.left_panel.setProperty("sphere", str(sphere_id))
@@ -454,11 +429,7 @@ class MainWindow(QMainWindow):
                 self.left_panel.update()
 
     def _refresh_top_panels(self) -> None:
-        """Обновляет верхние панели (Избранное и Недавние) при смене сферы/структуры.
-
-        Минимально-инвазивный способ: дергаем пассивные виджеты, чтобы они
-        запросили данные через свои сигналы, которые обработает контроллер ссылок.
-        """
+        """Обновляет верхние панели (Избранное/Недавние)."""
         try:
             if hasattr(self, 'fav_widget') and self.fav_widget:
                 self.fav_widget.update_favorites()
@@ -489,77 +460,17 @@ class MainWindow(QMainWindow):
                 break
     
     def showEvent(self, event):
-        """Переопределяем showEvent для эмита сигнала shown при первом показе окна."""
+        """Эмитит сигнал shown при первом показе окна."""
         super().showEvent(event)
         if not hasattr(self, '_shown_emitted'):
             self._shown_emitted = True
-            # Увеличиваем задержку для стабилизации UI
             QTimer.singleShot(200, self.shown.emit)
 
-    # --- fallback methods for compatibility ----------------------------------
-    def _edit_current_fallback(self):
-        """Fallback метод для редактирования (для обратной совместимости)."""
-        tiles_stack_index = app_config.get('ui.stack_indices.tiles', 0)
-        if (self.has_tiles and self.has_stack and 
-            self.stack.currentIndex() == tiles_stack_index and 
-            hasattr(self.tiles, '_current_item_id') and self.tiles._current_item_id is not None):
-            
-            self.structure.handle_edit_category(self.tiles._current_item_id)
-            return
-        
-        table_stack_index = app_config.get('ui.stack_indices.table', 1)
-        if (self.has_stack and self.stack.currentIndex() == table_stack_index and 
-            self.links.has_selection()):
-            self._edit_selected_link()
-            return
-        
-        if self.tree.hasFocus() and self.tree.currentItem():
-            self.structure.edit_selected_item()
-            return
-        
-        if self.table.hasFocus() and self.links.has_selection():
-            self._edit_selected_link()
-            return
-        
-        if self.tree.currentItem():
-            self.structure.edit_selected_item()
-            return
-        
-        if self.links.has_selection():
-            self._edit_selected_link()
     
-    def _delete_current_fallback(self):
-        """Fallback метод для удаления (для обратной совместимости)."""
-        if (self.table.hasFocus() or self.table.isAncestorOf(self.focusWidget())) and self.links.has_selection():
-            links = self._get_selected_links()
-            if links:
-                self.link_operations.delete_links_with_confirmation(links)
-                self.update_statusbar()
-            return
-
-        if (self.tree.hasFocus() or self.tree.isAncestorOf(self.focusWidget())) and self.tree.currentItem():
-            self.structure.delete_selected_item()
-            self.update_statusbar()
-            return
-
-        if self.links.has_selection():
-            links = self._get_selected_links()
-            if links:
-                self.link_operations.delete_links_with_confirmation(links)
-                self.update_statusbar()
-            return
-
-        if self.tree.currentItem():
-            self.structure.delete_selected_item()
-            self.update_statusbar()
-
-    # --- graceful shutdown --------------------------------------------------
     def closeEvent(self, event):
-        """Корректно завершаем фоновые задачи, делаем бэкап и закрываем ресурсы."""
-        # Используем контроллер из слоя controllers, если он инициализирован
+        """Корректное завершение и закрытие ресурсов."""
         if hasattr(self, 'app_shutdown') and self.app_shutdown:
             self.app_shutdown.perform_shutdown(event)
             return
-        # В противном случае — стандартное закрытие
         super().closeEvent(event)
 
