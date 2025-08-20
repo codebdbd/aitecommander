@@ -7,7 +7,6 @@ from PyQt6.QtGui import QAction, QFont
 from PyQt6.QtWidgets import QPushButton, QWidget
 from PyQt6.QtCore import QTimer
 
-from app.controllers.bootstrap import build_controllers
 from app.controllers.keyboard import KeyboardManager
 from app.controllers.ui.menu_controller import ActionController
 from app.utils.ui.icon.icon_operations.creators import themed_icon
@@ -17,6 +16,16 @@ from app.config_data import app_config
 from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
 from app.controllers.ui.top_panels_controller import TopPanelsController
 from app.controllers.ui.links.links_actions import LinksActions
+
+# Direct controller imports (remove facade usage)
+from app.controllers.structure_business import StructureBusinessLogic
+from app.controllers.ui.structure.structure_ui_controller import StructureUIController
+from app.controllers.links_business import LinksBusinessLogic
+from app.controllers.ui.links.controller import LinksUIController
+from app.controllers.ui.dialogs.link_operations_controller import LinkOperationsController
+from app.controllers.ui.dialogs.database_controller import DatabaseController
+from app.controllers.ui.dialogs.system_dialog_controller import SystemDialogController
+from app.controllers.app_shutdown_controller import AppShutdownController
 
 logger = logging.getLogger(__name__)
 
@@ -28,19 +37,28 @@ class SetupError(Exception):
 
 def setup_controllers(window, controllers: Dict[str, Any]) -> None:
     """Создание и настройка основных контроллеров."""
-    # Централизованное создание контроллеров/бизнес-логики
-    app_controllers = build_controllers(window)
+    # Прямое создание контроллеров/бизнес-логики (без фасада)
+    structure_business = StructureBusinessLogic(window.db)
+    links_business = LinksBusinessLogic(window.db)
+
+    structure_ctrl = StructureUIController(window.tree, structure_business, window)
+    links_ctrl = LinksUIController(window.table, links_business, window)
+
+    link_ops = LinkOperationsController(window.db, window.undo_stack, window)
+    db_ctrl = DatabaseController(window.db, window)
+    sys_dialogs = SystemDialogController(window)
+    app_shutdown = AppShutdownController(window)
 
     # Сохраняем контроллеры для других компонентов
     controllers.update({
-        'structure_business': app_controllers.structure_business,
-        'structure': app_controllers.structure,
-        'links_business': app_controllers.links_business,
-        'links': app_controllers.links,
-        'link_operations': app_controllers.link_operations,
-        'database_controller': app_controllers.database_controller,
-        'system_dialogs': app_controllers.system_dialogs,
-        'app_shutdown': app_controllers.app_shutdown,
+        'structure_business': structure_business,
+        'structure': structure_ctrl,
+        'links_business': links_business,
+        'links': links_ctrl,
+        'link_operations': link_ops,
+        'database_controller': db_ctrl,
+        'system_dialogs': sys_dialogs,
+        'app_shutdown': app_shutdown,
     })
 
     # Пробрасываем на окно для существующего кода

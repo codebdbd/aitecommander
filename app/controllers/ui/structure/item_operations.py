@@ -3,11 +3,11 @@
 import logging
 from PyQt6.QtCore import Qt  # Импорт Qt из QtCore
 
-from app.controllers.domain.structure.commands import (
-    DeleteCategoryCommand,
-    DeleteSectionCommand,
-    SaveCategoryCommand,
-    SaveSectionCommand,
+from app.utils.system.undo.commands_structure import (
+    DeleteCategoryCmd,
+    DeleteSectionCmd,
+    SaveCategoryCmd,
+    SaveSectionCmd,
 )
 
 # Используем строковые литералы "section" и "category"
@@ -89,7 +89,7 @@ class ItemOperations:
             dlg = SectionDialog(self.business, default_sphere_id=self.business.current_sphere_id, parent=self.main)
             if dlg.exec() == dlg.DialogCode.Accepted:
                 data = dlg.get_result()
-                cmd = SaveSectionCommand(data, self.main)
+                cmd = SaveSectionCmd(new_data=data, old_data=None, main_window=self.main)
                 if cmd:
                     self.undo_stack.push(cmd)
         except Exception as e:
@@ -115,7 +115,7 @@ class ItemOperations:
             dlg.set_result({"section_id": target_section_id})
             if dlg.exec() == dlg.DialogCode.Accepted:
                 data = dlg.get_result()
-                cmd = SaveCategoryCommand(data, self.main)
+                cmd = SaveCategoryCmd(new_data=data, old_data=None, main_window=self.main)
                 if cmd:
                     self.undo_stack.push(cmd)
         except Exception as e:
@@ -179,7 +179,7 @@ class ItemOperations:
             if dlg.exec() == dlg.DialogCode.Accepted:
                 new_data = dlg.get_result()
                 new_data['id'] = section_id
-                cmd = SaveSectionCommand(new_data, self.main, old_data=old_data)
+                cmd = SaveSectionCmd(new_data=new_data, old_data=old_data, main_window=self.main)
                 if cmd:
                     self.undo_stack.push(cmd)
         except Exception as e:
@@ -204,7 +204,7 @@ class ItemOperations:
                 if 'position' not in new_data and 'position' in old_data:
                     new_data['position'] = old_data['position']
                 # Не изменяем модель заранее — изменение выполнит команда и сама эмитит сигналы
-                cmd = SaveCategoryCommand(new_data, self.main, old_data=old_data, skip_reload=False)
+                cmd = SaveCategoryCmd(new_data=new_data, old_data=old_data, main_window=self.main, skip_reload=False)
                 if cmd:
                     self.undo_stack.push(cmd)
         except Exception as e:
@@ -233,14 +233,14 @@ class ItemOperations:
 
         # Если в разделе нет ссылок — удаляем без подтверждения (в т.ч. если есть пустые категории)
         if links_count == 0:
-            cmd = DeleteSectionCommand(section_data, self.main)
+            cmd = DeleteSectionCmd(section_data, self.main)
             if cmd:
                 self.undo_stack.push(cmd)
             return
 
         # Иначе требуется подтверждение, т.к. будут удалены ссылки
         if self._confirm_section_deletion(section_data, cats_count, links_count):
-            cmd = DeleteSectionCommand(section_data, self.main)
+            cmd = DeleteSectionCmd(section_data, self.main)
             if cmd:
                 self.undo_stack.push(cmd)
     
@@ -256,14 +256,14 @@ class ItemOperations:
 
         # Если в категории нет ссылок — удаляем без подтверждения
         if links_count == 0:
-            cmd = DeleteCategoryCommand(category_data, self.main)
+            cmd = DeleteCategoryCmd(category_data, self.main)
             if cmd:
                 self.undo_stack.push(cmd)
             return
 
         # Иначе требуется подтверждение, т.к. будут удалены ссылки
         if self._confirm_category_deletion(category_data, links_count):
-            cmd = DeleteCategoryCommand(category_data, self.main)
+            cmd = DeleteCategoryCmd(category_data, self.main)
             if cmd:
                 self.undo_stack.push(cmd)
     

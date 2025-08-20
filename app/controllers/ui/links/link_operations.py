@@ -6,7 +6,7 @@ from typing import Dict, Optional
 
 from PyQt6.QtWidgets import QDialog, QMessageBox
 
-from app.controllers.domain.structure.commands import SaveLinkCommand
+from app.utils.system.undo.commands_links import SaveLinkCmd
 from app.utils.links.link_utils import LinkInfo, LinkOpener
 from app.views.dialogs.entity_dialogs import NoteDialog
 
@@ -50,7 +50,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             links_to_save = link_controller.get_result_data()
             if links_to_save:
                 for data in links_to_save:
-                    cmd = SaveLinkCommand(new_data=data, old_data=None, main_window=self.main)
+                    cmd = SaveLinkCmd(new_data=data, old_data=None, main_window=self.main)
                     self.main.undo_stack.push(cmd)
 
     

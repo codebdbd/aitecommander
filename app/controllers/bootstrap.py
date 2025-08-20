@@ -10,7 +10,7 @@ from app.controllers.ui.dialogs import (
 from app.controllers.links_business import LinksBusinessLogic
 from app.controllers.ui.links import LinksUIController
 from app.controllers.ui.structure import StructureUIController
-from app.controllers.domain.structure.structure_business import StructureBusinessLogic
+from app.controllers.structure_business import StructureBusinessLogic
 
 
 @dataclass
