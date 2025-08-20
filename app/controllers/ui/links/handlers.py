@@ -4,8 +4,6 @@ from typing import Dict, List, Optional
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMenu
 
-from app.controllers.domain.structure.commands import SaveLinkCommand
-
 from .base_component import BaseLinksUIComponent
 from .exceptions import DatabaseError, LinksUIError
 

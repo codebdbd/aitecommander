@@ -1,4 +1,4 @@
-# app/controllers/domain/structure/structure_business.py
+# app/controllers/structure_business.py
 
 """
 Полностью рефакторированная бизнес-логика для управления структурой (сферы, разделы, категории).
@@ -13,34 +13,26 @@ from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 
 from app.models.db import Database
 from app.models.structure_model import StructureModel
-from app.controllers.domain.structure.services.exporter import ExportService
-from app.controllers.domain.structure.services.integrity import IntegrityService
-from app.controllers.domain.structure.services.loader import LoaderService
-from app.controllers.domain.structure.services.selection import SelectionService
-from app.controllers.domain.structure.services.validation import ValidationService
-from app.controllers.domain.structure.services.crud import CrudService
-from app.controllers.domain.structure.services.importer import ImportService
-from app.controllers.domain.structure.services.utilities import UtilityService
-from app.controllers.domain.structure.infrastructure.cache import CacheManager
-from app.controllers.domain.structure.infrastructure.exceptions import handle_exceptions
-from app.controllers.domain.structure.compat.types import ItemTypes, ItemTypeStr, StructureItemType
-from app.controllers.domain.structure.compat.async_wrappers import AsyncWrappers
+from app.controllers.structure_services.exporter import ExportService
+from app.controllers.structure_services.integrity import IntegrityService
+from app.controllers.structure_services.loader import LoaderService
+from app.controllers.structure_services.selection import SelectionService
+from app.controllers.structure_services.validation import ValidationService
+from app.controllers.structure_services.crud import CrudService
+from app.controllers.structure_services.importer import ImportService
+from app.controllers.structure_services.utilities import UtilityService
+from app.controllers.structure_modules import (
+    CacheManager,
+    handle_exceptions,
+    ValidationResult,
+    ItemTypes,
+    ItemTypeStr,
+    StructureItemType,
+)
 from app.controllers.structure_modules.async_operations import AsyncOperations, AsyncSignalHandlers
-from app.controllers.domain.structure.facade_mixins.utilities_mixin import UtilitiesMixin
-from app.controllers.domain.structure.facade_mixins.async_compat_mixin import AsyncCompatMixin
-from app.controllers.domain.structure.facade_mixins.sections_mixin import SectionsMixin
-from app.controllers.domain.structure.facade_mixins.categories_mixin import CategoriesMixin
-from app.controllers.domain.structure.facade_mixins.export_integrity_mixin import ExportIntegrityMixin
-from app.controllers.domain.structure.facade_mixins.diagnostics_mixin import DiagnosticsMixin
-from app.controllers.domain.structure.validation.result import ValidationResult
-
-# Типы совместимости импортируются из compat/types.py
-# ValidationResult вынесен в validation/result.py
-# CacheManager вынесен в infrastructure/cache.py
-# handle_exceptions вынесен в infrastructure/exceptions.py
 
 
-class StructureBusinessLogic(AsyncCompatMixin, UtilitiesMixin, SectionsMixin, CategoriesMixin, ExportIntegrityMixin, DiagnosticsMixin, QObject):
+class StructureBusinessLogic(QObject):
     """
     Полностью рефакторированная бизнес-логика для управления структурой.
     
@@ -87,7 +79,6 @@ class StructureBusinessLogic(AsyncCompatMixin, UtilitiesMixin, SectionsMixin, Ca
         self.validation_service = ValidationService()
         self.crud_service = CrudService()
         self.import_service = ImportService()
-        self.async_wrappers = AsyncWrappers()
         self.utility_service = UtilityService()
         
         # Реальный асинхронный слой для операций структуры (через TaskScheduler)
@@ -305,6 +296,83 @@ class StructureBusinessLogic(AsyncCompatMixin, UtilitiesMixin, SectionsMixin, Ca
         spheres = self.selection_service.get_spheres(self.structure_model, self.logger)
         self.cache_manager.set(cache_key, spheres)
         return spheres or []
+
+    # --- Совместимые методы, ранее предоставлялись Mixin-ами ---
+    def get_sections(self, sphere_id: int) -> List[Dict[str, Any]]:
+        """Получает разделы для сферы с кэшированием."""
+        cache_key = f"sections_{sphere_id}"
+        cached = self.cache_manager.get(cache_key)
+        if cached is not None:
+            return cached
+        sections = self.selection_service.get_sections(self.structure_model, sphere_id, self.logger)
+        self.cache_manager.set(cache_key, sections)
+        return sections or []
+
+    def get_categories(self, section_id: int) -> List[Dict[str, Any]]:
+        """Получает категории для раздела с кэшированием."""
+        cache_key = f"categories_{section_id}"
+        cached = self.cache_manager.get(cache_key)
+        if cached is not None:
+            return cached
+        categories = self.selection_service.get_categories(self.structure_model, section_id, self.logger)
+        self.cache_manager.set(cache_key, categories)
+        return categories or []
+
+    @handle_exceptions()
+    def get_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
+        """Совместимый метод получения данных раздела (для диалогов/операций UI)."""
+        return self.structure_model.get_section_data(section_id)
+
+    @handle_exceptions()
+    def get_category_data(self, category_id: int) -> Optional[Dict[str, Any]]:
+        """Совместимый метод получения данных категории (для диалогов/операций UI)."""
+        return self.structure_model.get_category_data(category_id)
+
+    @handle_exceptions()
+    def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, Any]]:
+        """Совместимый метод: возвращает {'sphere_id', 'section_id'} для категории."""
+        return self.structure_model.get_category_hierarchy(category_id)
+
+    def get_item_for_editing(self, item_id: int, item_type: Union[str, Any]) -> Optional[Dict[str, Any]]:
+        """Совместимый метод получения данных элемента для редактирования."""
+        return self.utility_service.get_item_for_editing(
+            item_id=item_id,
+            item_type=item_type,
+            get_section_data=self.structure_model.get_section_data,
+            get_category_data=self.structure_model.get_category_data,
+            logger=self.logger,
+        )
+
+    def get_first_category_id(self) -> Optional[int]:
+        """Возвращает id первой доступной категории в текущей сфере (с кэшированием)."""
+        return self.utility_service.get_first_category_id(
+            current_sphere_id=self.current_sphere_id,
+            get_sections=self.get_sections,
+            get_categories=self.get_categories,
+            cache_get=self.cache_manager.get,
+            cache_set=self.cache_manager.set,
+        )
+
+    def get_target_section_id(self) -> Optional[int]:
+        """Совместимое имя-обёртка для получения первой категории текущей сферы."""
+        return self.utility_service.get_target_section_id(
+            current_sphere_id=self.current_sphere_id,
+            get_sections=self.get_sections,
+            get_categories=self.get_categories,
+            cache_get=self.cache_manager.get,
+            cache_set=self.cache_manager.set,
+        )
+    
+    # =============================================================================
+    # ПУБЛИЧНЫЕ АСИНХРОННЫЕ ОБЁРТКИ ДЛЯ UI (совместимость)
+    # =============================================================================
+    def load_spheres_async(self) -> None:
+        """Загружает список сфер и эмитит сигнал spheres_loaded (совместимость с UI)."""
+        try:
+            # Переход на реальную асинхронную загрузку через AsyncOperations
+            self.async_operations.load_spheres_async()
+        except Exception as e:
+            self.logger.error(f"load_spheres_async failed: {e}")
     
     @handle_exceptions()
     def get_sphere_by_id(self, sphere_id: int) -> Optional[Dict[str, Any]]:
@@ -451,55 +519,3 @@ class StructureBusinessLogic(AsyncCompatMixin, UtilitiesMixin, SectionsMixin, Ca
         """Полностью очищает весь кэш."""
         self.cache_manager.invalidate()
         self.logger.info("Кэш полностью очищен")
-    
-    # =============================================================================
-    # ВНУТРЕННИЕ МЕТОДЫ - ВАЛИДАЦИЯ
-    # =============================================================================
-    def _validate_section_data(self, data: Dict[str, Any], section_id: Optional[int] = None) -> ValidationResult:
-        """Валидирует данные раздела (делегировано в ValidationService)."""
-        return self.validation_service.validate_section_data(
-            data=data,
-            section_id=section_id,
-            get_sections=self.get_sections,
-        )
-    
-    def _validate_category_data(self, data: Dict[str, Any], category_id: Optional[int] = None) -> ValidationResult:
-        """Валидирует данные категории (делегировано в ValidationService)."""
-        return self.validation_service.validate_category_data(
-            data=data,
-            category_id=category_id,
-            has_duplicate_category=self.has_duplicate_category,
-        )
-    
-    # =============================================================================
-    # ВНУТРЕННИЕ МЕТОДЫ - УПРАВЛЕНИЕ КЭШЕМ
-    # =============================================================================
-    def _invalidate_structure_cache(self) -> None:
-        """Инвалидирует кэш структуры."""
-        if self.current_sphere_id:
-            # Инвалидируем кэш структуры и разделов для текущей сферы
-            self.cache_manager.invalidate(f"structure_{self.current_sphere_id}")
-            self.cache_manager.invalidate(f"sections_{self.current_sphere_id}")
-            self.cache_manager.invalidate(f"first_category_{self.current_sphere_id}")
-    
-    def _invalidate_categories_cache(self, section_id: Optional[int]) -> None:
-        """Инвалидирует кэш категорий для раздела."""
-        if section_id:
-            self.cache_manager.invalidate(f"categories_{section_id}")
-        
-        # Также инвалидируем структуру, так как она содержит категории
-        self._invalidate_structure_cache()
-    
-    # =============================================================================
-    # ВНУТРЕННИЕ МЕТОДЫ - ОБРАБОТКА ОШИБОК
-    # =============================================================================
-    def _handle_error(self, title: str, error: Exception) -> None:
-        """Обрабатывает ошибки с полным логированием."""
-        error_msg = str(error)
-        self.logger.error(f"{title}: {error_msg}", exc_info=True)
-        self._emit_error(title, error_msg)
-    
-    def _emit_error(self, title: str, message: str) -> None:
-        """Отправляет сигнал об ошибке."""
-        self.error_occurred.emit(title, message)
-        self.logger.error(f"{title}: {message}")

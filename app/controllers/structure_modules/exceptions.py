@@ -1,3 +1,4 @@
+# app/controllers/structure_modules/exceptions.py
 from __future__ import annotations
 
 import logging

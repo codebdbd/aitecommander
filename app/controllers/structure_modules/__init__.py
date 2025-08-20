@@ -5,6 +5,7 @@
 from .async_operations import AsyncOperations, AsyncSignalHandlers
 from .base import ItemTypes, ItemTypeStr, StructureItemType, ValidationError
 from .cache_manager import CacheManager
+from .exceptions import handle_exceptions
 from .category_operations import CategoryOperations
 from .coordination import OperationCoordinator
 from .legacy_support import LegacySupport, StructureBusinessLogicLegacy
@@ -19,6 +20,7 @@ from .validation import (
     validate_item_data,
     validate_section_data,
 )
+from .validation_result import ValidationResult
 
 __all__ = [
     # Base classes and constants
@@ -26,6 +28,10 @@ __all__ = [
     'ValidationError', 
     'ItemTypes',
     'ItemTypeStr',
+    
+    # Exceptions / results
+    'handle_exceptions',
+    'ValidationResult',
     
     # Validation
     'validate_item_data',

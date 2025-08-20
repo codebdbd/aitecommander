@@ -2,7 +2,7 @@
 
 from typing import Dict, List
 
-from app.controllers.domain.structure.commands import DeleteLinkCommand, SaveLinkCommand
+from app.utils.system.undo.commands_links import DeleteLinkCmd, SaveLinkCmd
 from app.utils.system.clipboard_utils import copy_link_to_clipboard, get_link_from_clipboard
 
 from .base_component import BaseLinksUIComponent
@@ -57,7 +57,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
                     new_data["category_id"] = current_category_id
                     # Проверка на дубликат
                     if not self._is_duplicate(new_data, existing_links):
-                        self.main.undo_stack.push(SaveLinkCommand(new_data, None, self.main))
+                        self.main.undo_stack.push(SaveLinkCmd(new_data=new_data, old_data=None, main_window=self.main))
                         existing_links.append(new_data)
         else:
             for link in links:
@@ -66,7 +66,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 new_data["category_id"] = current_category_id
                 # Проверка на дубликат
                 if not self._is_duplicate(new_data, existing_links):
-                    self.main.undo_stack.push(SaveLinkCommand(new_data, None, self.main))
+                    self.main.undo_stack.push(SaveLinkCmd(new_data=new_data, old_data=None, main_window=self.main))
                     existing_links.append(new_data)
     
     def delete_links(self, links: List[Dict]):
@@ -79,12 +79,12 @@ class LinksUIClipboard(BaseLinksUIComponent):
         if len(links) > 1:
             with self.main.undo_stack.macro(f"Удаление {len(links)} ссылок"):
                 for link in links:
-                    command = DeleteLinkCommand(link, self.main)
+                    command = DeleteLinkCmd(link_to_delete=link, main_window=self.main)
                     command._suppress_ui = True
                     self.main.undo_stack.push(command)
         else:
             for link in links:
-                command = DeleteLinkCommand(link, self.main)
+                command = DeleteLinkCmd(link_to_delete=link, main_window=self.main)
                 command._suppress_ui = True
                 self.main.undo_stack.push(command)
         

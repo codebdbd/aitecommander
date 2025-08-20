@@ -3,10 +3,10 @@
 from PyQt6.QtWidgets import QDialog
 
 from app.config_data import app_config
-from app.controllers.domain.structure.commands import (
-    BatchSaveLinksCommand,
-    DeleteLinkCommand,
-    SaveLinkCommand,
+from app.utils.system.undo.commands_links import (
+    BatchSaveLinksCmd,
+    DeleteLinkCmd,
+    SaveLinkCmd,
 )
 from app.utils.system.undo.stack import UndoManager
 from app.views.dialogs.link_dialog.link_dialog import LinkDialog
@@ -101,8 +101,8 @@ class LinkOperationsController:
             # Используем пакетную команду для множественных ссылок
             if len(links_to_save) > 1:
                 # Для множественных ссылок (профили) всегда создаются новые записи
-                logger.debug(f"show_link_dialog: using BatchSaveLinksCommand for {len(links_to_save)} links")
-                cmd = BatchSaveLinksCommand(
+                logger.debug(f"show_link_dialog: using BatchSaveLinksCmd for {len(links_to_save)} links")
+                cmd = BatchSaveLinksCmd(
                     links_data=links_to_save,
                     old_link_data=None,  # Всегда None для множественных ссылок
                     main_window=self.main_window
@@ -119,16 +119,16 @@ class LinkOperationsController:
             else:
                 # Для одиночных ссылок используем обычную команду
                 data = links_to_save[0]
-                logger.debug(f"show_link_dialog: using SaveLinkCommand for single link: name={data.get('name')}, browser_key={data.get('browser_key')}")
+                logger.debug(f"show_link_dialog: using SaveLinkCmd for single link: name={data.get('name')}, browser_key={data.get('browser_key')}")
                 if data.get("_action") == "delete":
                     self.db.links.delete_link(data["id"])
                 else:
                     # Переопределяем признак обновления для одиночного результата:
                     # если у данных нет id — это создание новой ссылки, не передаём old_data
                     is_update_single = bool(data.get('id'))
-                    cmd = SaveLinkCommand(
+                    cmd = SaveLinkCmd(
                         new_data=data,
-                        old_data=link if is_update_single else None,
+                        old_data=(link if is_update_single else None),
                         main_window=self.main_window
                     )
                     self.undo_stack.push(cmd)
@@ -158,7 +158,7 @@ class LinkOperationsController:
         
         # Если выделена только одна ссылка — удаляем без подтверждения
         if len(links) == 1:
-            cmd = DeleteLinkCommand(link_to_delete=links[0], main_window=self.main_window)
+            cmd = DeleteLinkCmd(link_to_delete=links[0], main_window=self.main_window)
             self.undo_stack.push(cmd)
             return
         
@@ -175,5 +175,5 @@ class LinkOperationsController:
         if reply:
             with self.undo_stack.macro(MACRO_DELETE_LINKS_TEXT.format(count=len(links))):
                 for link_to_delete in links:
-                    cmd = DeleteLinkCommand(link_to_delete=link_to_delete, main_window=self.main_window)
+                    cmd = DeleteLinkCmd(link_to_delete=link_to_delete, main_window=self.main_window)
                     self.undo_stack.push(cmd)
