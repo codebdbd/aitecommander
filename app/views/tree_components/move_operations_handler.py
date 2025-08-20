@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from PyQt6.QtCore import Qt
 
-from app.utils.ui.dialog_manager import DialogManager
+from app.controllers.ui.dialogs import DialogManager
 from app.utils.ui.dnd.commands import MoveCategoryCommand, MoveLinksCommand
 from app.utils.ui.dnd.base import TreeHandlerBase
 from app.utils.ui.qt.roles import get_tree_tuple
@@ -193,3 +193,4 @@ class MoveOperationsHandler(TreeHandlerBase):
         # Обновляем дерево структуры
         if hasattr(main_win, 'structure'):
             main_win.structure.load()
+

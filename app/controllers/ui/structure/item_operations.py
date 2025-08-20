@@ -11,7 +11,7 @@ from app.utils.system.undo.commands_structure import (
 )
 
 # Используем строковые литералы "section" и "category"
-from app.utils.ui.dialog_manager import DialogManager
+from app.controllers.ui.dialogs import DialogManager
 from app.utils.ui.qt.roles import get_tree_tuple
 from app.views.dialogs.entity_dialogs import CategoryDialog, SectionDialog
 
@@ -32,7 +32,7 @@ class ItemOperations:
         # если item_to_select не указан, иначе будет восстановлено указанное выделение
         self.business.load_structure()
         if item_to_select:
-            from app.utils.system.task_scheduler import schedule_selection_restore
+            from app.controllers.ui.state.task_scheduler import schedule_selection_restore
             item_type, item_id = item_to_select
             # Восстанавливаем выделение после загрузки с небольшой задержкой
             schedule_selection_restore(
@@ -64,7 +64,7 @@ class ItemOperations:
                     schedule_reload(delay_ms=150)
                 # Отложенная проверка: если дерево так и не заполнилось, грузим синхронно
                 try:
-                    from app.utils.system.task_scheduler import schedule_selection_restore
+                    from app.controllers.ui.state.task_scheduler import schedule_selection_restore
                     schedule_selection_restore(
                         lambda: (self.business.load_structure() if self.controller.tree.topLevelItemCount() == 0 else None),
                         f"ensure_tree_{current_id}"

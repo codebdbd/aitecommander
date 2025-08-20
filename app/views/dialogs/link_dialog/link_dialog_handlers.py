@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import QDialog, QFileDialog
 
 from app.config_data import app_config
 from app.utils.db.db_workers import LinkInfoWorker, StructureWorkerSignals
-from app.utils.ui.dialog_manager import DialogManager
+from app.controllers.ui.dialogs import DialogManager
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
 from app.utils.ui.icon.selection import choose_icon_and_copy
 
@@ -525,3 +525,4 @@ class LinkDialogHandlers:
         """Обработка ошибки получения информации."""
         self._is_processing = False
         self._active_worker = None
+

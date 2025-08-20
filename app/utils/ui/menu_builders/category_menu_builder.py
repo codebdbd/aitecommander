@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QListWidget, QMenu
 
 from app.utils.ui.icon.icon_operations.creators import themed_icon
 from app.utils.ui.icon.path_service import get_current_theme
-from app.utils.ui.menu_actions import ActionBuilder, Shortcuts
+from app.utils.ui.menu_builders.menu_actions import ActionBuilder, Shortcuts
 
 if TYPE_CHECKING:
     from app.main_window import MainWindow

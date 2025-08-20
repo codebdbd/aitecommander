@@ -100,7 +100,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             # Дружелюбная обработка небезопасных URL без всплывающих ошибок
             msg = str(e)
             if msg.startswith("Unsafe URL:"):
-                from app.utils.ui.dialog_manager import DialogManager
+                from app.controllers.ui.dialogs import DialogManager
                 safe_msg = self.get_message('unsafe_url_info', 'Эта ссылка не может быть открыта по соображениям безопасности.')
                 details = msg  # чтобы был доступен текст причины при включённых деталях
                 self.logger.warning(f"Blocked unsafe URL: {msg}")

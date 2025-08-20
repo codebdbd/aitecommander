@@ -7,25 +7,25 @@ from PyQt6.QtGui import QAction, QFont
 from PyQt6.QtWidgets import QPushButton, QWidget
 from PyQt6.QtCore import QTimer
 
-from app.controllers.keyboard import KeyboardManager
-from app.controllers.ui.menu_controller import ActionController
+from app.controllers.system.keyboard_manager import KeyboardManager
+from app.controllers.ui.action_controller import ActionController
 from app.utils.ui.icon.icon_operations.creators import themed_icon
 from app.utils.ui.icon.path_service import get_current_theme
-from app.utils.ui_state.ui_state_manager import UIStateManager
+from app.controllers.ui.state.ui_state_manager import UIStateManager
 from app.config_data import app_config
 from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
 from app.controllers.ui.top_panels_controller import TopPanelsController
 from app.controllers.ui.links.links_actions import LinksActions
 
 # Direct controller imports (remove facade usage)
-from app.controllers.structure_business import StructureBusinessLogic
+from app.controllers.business import StructureBusinessLogic
 from app.controllers.ui.structure.structure_ui_controller import StructureUIController
-from app.controllers.links_business import LinksBusinessLogic
+from app.controllers.business.links_business import LinksBusinessLogic
 from app.controllers.ui.links.controller import LinksUIController
 from app.controllers.ui.dialogs.link_operations_controller import LinkOperationsController
 from app.controllers.ui.dialogs.database_controller import DatabaseController
 from app.controllers.ui.dialogs.system_dialog_controller import SystemDialogController
-from app.controllers.app_shutdown_controller import AppShutdownController
+from app.controllers.system.app_shutdown_controller import AppShutdownController
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +154,7 @@ def _inject_to_category_tiles(window, controllers: Dict[str, Any]) -> None:
     if not (hasattr(window, 'tiles') and window.tiles):
         return
 
-    from app.utils.ui.dialog_manager import DialogMixin
+    from app.controllers.ui.dialogs import DialogMixin
 
     class DialogProvider(DialogMixin):
         def __init__(self, parent_widget):
@@ -429,7 +429,7 @@ class MessageHandler:
     @staticmethod
     def show_success_message(window, title: str, message: str):
         """Показать сообщение об успехе."""
-        from app.utils.ui.dialog_manager import DialogManager
+        from app.controllers.ui.dialogs import DialogManager
         DialogManager.show_info(
             window,
             title,
@@ -440,7 +440,7 @@ class MessageHandler:
     @staticmethod
     def show_error_message(window, title: str, message: str):
         """Показать сообщение об ошибке."""
-        from app.utils.ui.dialog_manager import DialogManager
+        from app.controllers.ui.dialogs import DialogManager
         DialogManager.show_error(
             window,
             title,

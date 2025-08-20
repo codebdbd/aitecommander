@@ -17,7 +17,7 @@ from .title_parser import get_title
 from .icon_downloader import pick_icon_parallel
 from .cache import read_cache, write_cache
 from .domain import base_domain, apply_jitter
-from app.utils.system.task_scheduler import get_task_scheduler, TaskType
+from app.controllers.ui.state.task_scheduler import get_task_scheduler, TaskType
 from app.utils.ui.icon.path_service import icon_path_service
 import os
 

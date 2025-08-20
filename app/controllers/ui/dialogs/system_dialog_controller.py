@@ -1,7 +1,7 @@
 # app/controllers/system_dialog_controller.py
 
 from app.config_data import app_config
-from app.utils.ui.dialog_manager import DialogManager
+from app.controllers.ui.dialogs import DialogManager
 
 
 class SystemDialogController:
@@ -64,3 +64,4 @@ class SystemDialogController:
         )
         dialog = FileSearchDialog(self.main_window)
         dialog.exec()
+

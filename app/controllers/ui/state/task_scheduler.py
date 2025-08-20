@@ -1,14 +1,9 @@
 """
 Унифицированный планировщик задач для управления параллелизмом и отложенными операциями.
 
-Объединяет функциональность:
-1. Пула потоков (threading)
-2. Централизованного менеджера таймеров (timer_manager)
-
-Решает проблемы:
-1. Управление параллелизмом через пул потоков с ограничением
-2. Оптимизация QTimer usage и предотвращение перегрузки event loop
-3. Единый слой для управления всеми асинхронными операциями
+Перемещён из app/utils/system/task_scheduler.py в слой UI state.
+Сохраняет прежний API (TaskScheduler, get_task_scheduler, schedule_*) для
+обратной совместимости вызовов внутри приложения.
 """
 
 import logging
@@ -185,7 +180,7 @@ class TaskScheduler(QObject):
         self.thread_pool.start(task)
         logger.debug(f"Задача отправлена в пул потоков")
     
-    def get_thread_pool(self) -> LimitedThreadPool:
+    def get_thread_pool(self) -> 'LimitedThreadPool':
         """Возвращает пул потоков."""
         return self.thread_pool
     
@@ -238,12 +233,14 @@ class TaskScheduler(QObject):
         logger.info("Все запланированные операции очищены")
 
 
-# Глобальный экземпляр планировщика задач
+# Глобальный экземпляр планировщика задач (сохранён для совместимости внутри проекта)
 _task_scheduler_instance: Optional[TaskScheduler] = None
 
 
 def get_task_scheduler() -> TaskScheduler:
-    """Возвращает глобальный экземпляр TaskScheduler (singleton)."""
+    """Возвращает глобальный экземпляр TaskScheduler (singleton).
+    В дальнейшем может быть заменено провайдером из UIStateManager.
+    """
     global _task_scheduler_instance
     if _task_scheduler_instance is None:
         _task_scheduler_instance = TaskScheduler()

@@ -1,10 +1,9 @@
-
 import logging
 from typing import Dict, List, Optional
 
 from PyQt6.QtCore import QObject
 
-from app.controllers.links_business import LinksBusinessLogic
+from app.controllers.business.links_business import LinksBusinessLogic
 from app.views.link import LinksTableView
 
 from .clipboard import LinksUIClipboard

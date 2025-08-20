@@ -6,7 +6,7 @@ from typing import Optional
 from PyQt6.QtCore import QObject
 from PyQt6.QtWidgets import QFileDialog
 
-from app.utils.ui.dialog_manager import DialogManager
+from app.controllers.ui.dialogs import DialogManager
 
 
 class DatabaseDialogs(QObject):
@@ -80,3 +80,4 @@ class DatabaseDialogs(QObject):
             "ZIP архив (*.zip);;Все файлы (*)"
         )
         return Path(file_path) if file_path else None
+

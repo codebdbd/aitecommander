@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from app.controllers.links_business import LinksBusinessLogic
+from app.controllers.business.links_business import LinksBusinessLogic
 from app.models.db import Database
 from app.utils.browser.browser_profiles import get_profile_manager
 

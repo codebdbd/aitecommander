@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import QApplication
 from app.controllers.ui.theme_controller import ThemeController
 from app.models.db import Database
 from app.settings import AppSettings
-from app.utils.ui.dialog_manager import DialogManager
+from app.controllers.ui.dialogs import DialogManager
 from app.views.main_window import MainWindow
 
 

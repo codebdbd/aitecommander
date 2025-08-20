@@ -43,7 +43,7 @@ class SelectionHandling:
             logger.error("UIStateManager not available in SelectionHandling._on_category_selected")
     
     def _on_error_occurred(self, title: str, message: str) -> None:
-        from app.utils.ui.dialog_manager import DialogManager
+        from app.controllers.ui.dialogs import DialogManager
         DialogManager.show_warning(
             self.main,
             title or "Предупреждение",

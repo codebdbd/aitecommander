@@ -26,7 +26,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from app.utils.ui.dialog_manager import DialogMixin
+from app.controllers.ui.dialogs import DialogMixin
 from app.utils.system.os_ops import open_file as os_open_file
 from app.utils.system.os_ops import reveal_in_folder as os_reveal_in_folder
 

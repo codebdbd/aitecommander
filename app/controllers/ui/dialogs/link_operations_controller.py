@@ -163,7 +163,7 @@ class LinkOperationsController:
             return
         
         # Если выделено несколько — спрашиваем подтверждение
-        from app.utils.ui.dialog_manager import DialogManager
+        from app.controllers.ui.dialogs import DialogManager
         reply = DialogManager.ask_confirmation(
             self.main_window,
             app_config.get('ui.delete_confirm_text', 'Вы уверены, что хотите удалить {count} ссылк(и/у)?').format(count=len(links)),
@@ -177,3 +177,4 @@ class LinkOperationsController:
                 for link_to_delete in links:
                     cmd = DeleteLinkCmd(link_to_delete=link_to_delete, main_window=self.main_window)
                     self.undo_stack.push(cmd)
+
