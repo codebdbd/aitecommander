@@ -5,8 +5,6 @@ import logging
 import sqlite3
 from typing import Any
 
-from app.utils.ui.dialog_manager import DialogManager
-
 try:
     from app.models.db import DatabaseError
 except ImportError:
@@ -99,6 +97,8 @@ class DatabaseErrorHandler:
     
     def _show_info(self, title: str, message: str, context: Any):
         """Показать информационное сообщение"""
+        # Локальный импорт, чтобы избежать ранних кольцевых импортов
+        from app.controllers.ui.dialogs.dialog_manager import DialogManager
         DialogManager.show_info(parent=None, message=message, title=title, silent=True)
     
     def _show_error(self, title: str, message: str, context: Any):
@@ -106,6 +106,8 @@ class DatabaseErrorHandler:
         if context and hasattr(context, 'show_error'):
             context.show_error(title, message)
         else:
+            # Локальный импорт, чтобы избежать ранних кольцевых импортов
+            from app.controllers.ui.dialogs.dialog_manager import DialogManager
             DialogManager.show_error(None, title, message)
 
 default_error_handler = DatabaseErrorHandler()
@@ -114,3 +116,4 @@ default_error_handler = DatabaseErrorHandler()
 def handle_db_error(error: Exception, context: Any = None) -> bool:
     """Удобная функция для обработки ошибок БД"""
     return default_error_handler.handle_error(error, context)
+

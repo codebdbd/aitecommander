@@ -13,7 +13,7 @@ from PyQt6.QtGui import QColor, QIcon
 
 from app.config_data import app_config
 from app.utils.db.db_workers import LinkInfoWorker
-from app.utils.ui.dialog_manager import DialogManager
+from app.controllers.ui.dialogs import DialogManager
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
 from app.utils.validators import validate_config_for_icons
@@ -346,3 +346,4 @@ class LinkDialog(BaseDialog):
             self._active_worker.cancel()
             self._active_worker = None
         super().closeEvent(event)
+

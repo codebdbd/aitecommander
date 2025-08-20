@@ -25,7 +25,7 @@ from PyQt6.QtWidgets import (
 
 from app.config_data import app_config
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.utils.system.task_scheduler import get_task_scheduler
+from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.utils.system.undo.stack import UndoManager
 from app.views.category_tiles import CategoryTiles
 from app.views.custom_widgets import StructureTreeWidget

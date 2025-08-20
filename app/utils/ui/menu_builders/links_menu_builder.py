@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Callable, Dict
 from PyQt6.QtCore import QModelIndex
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
 
-from app.utils.ui.menu_actions import ActionBuilder, Shortcuts
+from app.utils.ui.menu_builders.menu_actions import ActionBuilder, Shortcuts
 from .base import get_menu_icon
 
 if TYPE_CHECKING:

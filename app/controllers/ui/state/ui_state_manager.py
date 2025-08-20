@@ -1,4 +1,4 @@
-# app/utils/ui_state_manager.py
+# app/controllers/ui/state/ui_state_manager.py
 
 """Централизованный менеджер состояния UI для устранения дублирования логики."""
 

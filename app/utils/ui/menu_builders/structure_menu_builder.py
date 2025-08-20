@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMenu, QTreeWidget
 
-from app.utils.ui.menu_actions import ActionBuilder, Shortcuts, StructureItemType
+from app.utils.ui.menu_builders.menu_actions import ActionBuilder, Shortcuts, StructureItemType
 from app.utils.ui.qt.roles import get_tree_tuple
 from .base import get_menu_icon
 

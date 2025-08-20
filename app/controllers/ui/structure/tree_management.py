@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import QTreeWidgetItem, QTreeWidgetItemIterator
 from app.utils.ui.icon.icon_operations.creators import themed_icon
 from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.qt.roles import get_tree_tuple
-from app.utils.system.task_scheduler import schedule_selection_restore
+from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 
 
 class TreeManagement:

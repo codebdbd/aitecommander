@@ -23,10 +23,10 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data import app_config
-from app.controllers.window_controllers_setup import WindowControllersSetup
+from app.controllers.system.window_controllers_setup import WindowControllersSetup
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path, themed_icon
 from app.utils.ui.icon.path_service import get_current_theme
-from app.utils.system.task_scheduler import LimitedThreadPool
+from app.controllers.ui.state.task_scheduler import LimitedThreadPool
 
 # Компоненты для рефакторинга
 from .window_ui_setup import WindowUISetup

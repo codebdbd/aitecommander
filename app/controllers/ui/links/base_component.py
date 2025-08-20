@@ -53,7 +53,7 @@ class BaseLinksUIComponent:
     
     def _show_warning(self, message: str, title: str = None) -> None:
         """Показать предупреждение пользователю."""
-        from app.utils.ui.dialog_manager import DialogManager
+        from app.controllers.ui.dialogs import DialogManager
         title = title or self.get_message('warning_title')
         DialogManager.show_warning(
             self.main,
@@ -64,7 +64,7 @@ class BaseLinksUIComponent:
     
     def _show_error(self, message: str, title: str = None) -> None:
         """Показать ошибку пользователю."""
-        from app.utils.ui.dialog_manager import DialogManager
+        from app.controllers.ui.dialogs import DialogManager
         title = title or self.get_message('error_title')
         DialogManager.show_error(
             self.main,
@@ -82,4 +82,5 @@ class BaseLinksUIComponent:
             return current_category_id
         return category_id
     
+
 

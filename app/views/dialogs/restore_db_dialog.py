@@ -16,7 +16,7 @@ from typing import Optional
 from PyQt6.QtWidgets import QDialogButtonBox, QListWidget, QMessageBox, QVBoxLayout
 
 from app.config_data import app_config
-from app.utils.ui.dialog_manager import DialogManager
+from app.controllers.ui.dialogs import DialogManager
 
 from .base_dialog import BaseDialog
 
@@ -305,3 +305,4 @@ class RestoreDbDialog(BaseDialog):
     def get_result(self) -> Optional[Path]:
         """Возвращает выбранную резервную копию после закрытия диалога."""
         return self.selected_backup
+

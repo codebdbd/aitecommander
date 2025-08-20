@@ -1,16 +1,16 @@
 # app/controllers/bootstrap.py
 from dataclasses import dataclass
 
-from app.controllers.app_shutdown_controller import AppShutdownController
+from app.controllers.system.app_shutdown_controller import AppShutdownController
 from app.controllers.ui.dialogs import (
     DatabaseController,
     LinkOperationsController,
     SystemDialogController,
 )
-from app.controllers.links_business import LinksBusinessLogic
+from app.controllers.business.links_business import LinksBusinessLogic
 from app.controllers.ui.links import LinksUIController
 from app.controllers.ui.structure import StructureUIController
-from app.controllers.structure_business import StructureBusinessLogic
+from app.controllers.business import StructureBusinessLogic
 
 
 @dataclass

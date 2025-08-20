@@ -77,7 +77,7 @@ def parse_browser_bookmarks(html_path):
 def import_browser_bookmarks_to_db(structure_business_logic, parent_widget, links_business_logic=None):
     from PyQt6.QtWidgets import QApplication, QDialog, QFileDialog
 
-    from app.utils.ui.dialog_manager import DialogManager
+    from app.controllers.ui.dialogs.dialog_manager import DialogManager
     from app.views.dialogs.import_browser_dialog import ImportBrowserDialog
 
     path, _ = QFileDialog.getOpenFileName(parent_widget, "Импорт из браузера", "", "HTML Files (*.html)")
@@ -197,3 +197,4 @@ def import_browser_bookmarks_to_db(structure_business_logic, parent_widget, link
             except Exception as e:
                 logging.getLogger(__name__).error(f"ERROR: Не удалось добавить ссылку '{link.get('name', '')}' в категорию '{cat_name}': {e}")
     return True, f"Добавлено ссылок: {added}"
+

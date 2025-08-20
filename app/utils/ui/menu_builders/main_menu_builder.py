@@ -7,7 +7,7 @@ from PyQt6.QtGui import QKeySequence
 from PyQt6.QtWidgets import QMenuBar
 
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
-from app.utils.ui.menu_actions import ActionBuilder
+from app.utils.ui.menu_builders.menu_actions import ActionBuilder
 
 if TYPE_CHECKING:
     from app.main_window import MainWindow

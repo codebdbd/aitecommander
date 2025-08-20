@@ -17,7 +17,7 @@ from app.utils.db.db_workers import StructureWorkerSignals as LoadLinksWorkerSig
 from app.utils.db.db_workers import StructureWorkerSignals as SearchLinksWorkerSignals
 from app.utils.db.db_workers import StructureWorkerSignals as UpdateLinkWorkerSignals
 from app.utils.db.synchronization import tasks_lock
-from app.utils.system.task_scheduler import get_task_scheduler
+from app.controllers.ui.state.task_scheduler import get_task_scheduler
 
 
 class LinksBusinessLogic(QObject):

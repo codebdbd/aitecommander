@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, Optional
 import time
 
 from app.models.db import Database
-from app.utils.system.task_scheduler import get_task_scheduler
+from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.utils.db.db_workers import (
     CountNestedObjectsWorker,
     CreateItemWorker,

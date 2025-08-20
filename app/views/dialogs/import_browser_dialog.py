@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from app.utils.ui.dialog_manager import DialogManager
+from app.controllers.ui.dialogs import DialogManager
 
 from .base_dialog import BaseDialog
 
@@ -212,3 +212,4 @@ class ImportBrowserDialog(BaseDialog):
         if self.selected_section_id:
             return self.get_selected_section_info()
         return None
+
