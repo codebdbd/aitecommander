@@ -14,20 +14,21 @@ class LinksUIClipboard(BaseLinksUIComponent):
     
     def cut_link(self):
         """Вырезать выбранные ссылки."""
-        links = self.get_selected_links()
-        if not links:
-            return
-        
-        copy_link_to_clipboard(links[0] if len(links) == 1 else links)
-        self.delete_links(links)
+        self._process_clipboard_operation(is_cut=True)
     
     def copy_link(self):
         """Копировать выбранные ссылки."""
+        self._process_clipboard_operation(is_cut=False)
+    
+    def _process_clipboard_operation(self, is_cut: bool = False):
+        """Общая логика для копирования/вырезания ссылок."""
         links = self.get_selected_links()
         if not links:
             return
         
         copy_link_to_clipboard(links[0] if len(links) == 1 else links)
+        if is_cut:
+            self.delete_links(links)
     
     def paste_link(self):
         """Вставить ссылки из буфера обмена."""
@@ -37,37 +38,26 @@ class LinksUIClipboard(BaseLinksUIComponent):
             self._show_warning(str(e))
             return
         
-        links = get_link_from_clipboard()
-        if not links:
-            return
-        
-        if isinstance(links, dict):
-            links = [links]
-        if not isinstance(links, list):
-            return
-        
-        # Получаем существующие ссылки для проверки дубликатов
-        existing_links = self.business.get_links_for_category(current_category_id)
-        
-        if len(links) > 1:
-            with self.main.undo_stack.macro(f"Вставка {len(links)} ссылок"):
-                for link in links:
-                    new_data = dict(link)
-                    new_data.pop("id", None)
-                    new_data["category_id"] = current_category_id
-                    # Проверка на дубликат
-                    if not self._is_duplicate(new_data, existing_links):
-                        self.main.undo_stack.push(SaveLinkCmd(new_data=new_data, old_data=None, main_window=self.main))
-                        existing_links.append(new_data)
-        else:
-            for link in links:
-                new_data = dict(link)
-                new_data.pop("id", None)
-                new_data["category_id"] = current_category_id
-                # Проверка на дубликат
-                if not self._is_duplicate(new_data, existing_links):
-                    self.main.undo_stack.push(SaveLinkCmd(new_data=new_data, old_data=None, main_window=self.main))
-                    existing_links.append(new_data)
+        try:
+            links = self._validate_clipboard_data()
+            if not links:
+                return
+            
+            # Получаем существующие ссылки для проверки дубликатов
+            existing_links = self.business.get_links_for_category(current_category_id)
+            
+            # Оптимизированная фильтрация дубликатов с использованием set
+            new_links = self._filter_duplicates_optimized(links, existing_links, current_category_id)
+            
+            if not new_links:
+                return  # Все ссылки являются дубликатами
+            
+            # Вставка ссылок
+            self._insert_links(new_links)
+            
+        except Exception as e:
+            self.logger.error(f"Ошибка при вставке ссылок: {e}", exc_info=True)
+            self._show_error(f"Не удалось вставить ссылки: {str(e)}")
     
     def delete_links(self, links: List[Dict]):
         """Удалить ссылки."""
@@ -102,14 +92,64 @@ class LinksUIClipboard(BaseLinksUIComponent):
         selected_rows = sorted(set(idx.row() for idx in self.table.selectedIndexes()))
         return [self.controller.get_link_at(row) for row in selected_rows if self.controller.get_link_at(row)]
     
+    def _validate_clipboard_data(self) -> List[Dict]:
+        """Валидация данных из буфера обмена."""
+        links = get_link_from_clipboard()
+        if not links:
+            return []
+        
+        # Нормализация к списку
+        if isinstance(links, dict):
+            links = [links]
+        elif not isinstance(links, list):
+            raise ValueError("Некорректный формат данных в буфере обмена")
+        
+        return links
+    
+    def _prepare_link_data(self, link: Dict, category_id: int) -> Dict:
+        """Подготовка данных ссылки для вставки."""
+        new_data = dict(link)
+        new_data.pop("id", None)  # Удаляем старый ID
+        new_data["category_id"] = category_id
+        return new_data
+    
+    def _insert_links(self, links: List[Dict]):
+        """Вставка списка ссылок с поддержкой undo."""
+        if len(links) > 1:
+            with self.main.undo_stack.macro(f"Вставка {len(links)} ссылок"):
+                for link_data in links:
+                    self.main.undo_stack.push(SaveLinkCmd(new_data=link_data, old_data=None, main_window=self.main))
+        else:
+            for link_data in links:
+                self.main.undo_stack.push(SaveLinkCmd(new_data=link_data, old_data=None, main_window=self.main))
+    
+    def _filter_duplicates_optimized(self, links: List[Dict], existing_links: List[Dict], category_id: int) -> List[Dict]:
+        """Оптимизированная фильтрация дубликатов с использованием set для O(n) сложности."""
+        # Создаем set существующих ключей для быстрого поиска
+        existing_keys = set()
+        for link in existing_links:
+            link_dict = dict(link) if not isinstance(link, dict) else link
+            key = (link_dict.get('url', ''), link_dict.get('type', ''), link_dict.get('args', ''))
+            existing_keys.add(key)
+        
+        new_links = []
+        for link in links:
+            new_data = self._prepare_link_data(link, category_id)
+            candidate_key = (new_data.get('url', ''), new_data.get('type', ''), new_data.get('args', ''))
+            
+            if candidate_key not in existing_keys:
+                new_links.append(new_data)
+                existing_keys.add(candidate_key)  # Добавляем для следующих проверок
+        
+        return new_links
+    
     def _is_duplicate(self, candidate: Dict, links: List[Dict]) -> bool:
-        """Проверить, является ли ссылка дубликатом."""
+        """Проверить, является ли ссылка дубликатом (сохранено для обратной совместимости)."""
+        candidate_key = (candidate.get('url', ''), candidate.get('type', ''), candidate.get('args', ''))
+        
         for link in links:
             link_dict = dict(link) if not isinstance(link, dict) else link
-            if (
-                link_dict.get('url', '') == candidate.get('url', '') and
-                link_dict.get('type', '') == candidate.get('type', '') and
-                link_dict.get('args', '') == candidate.get('args', '')
-            ):
+            link_key = (link_dict.get('url', ''), link_dict.get('type', ''), link_dict.get('args', ''))
+            if candidate_key == link_key:
                 return True
         return False
