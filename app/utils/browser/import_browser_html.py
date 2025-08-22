@@ -1,12 +1,12 @@
 import base64
 import logging
-import os
 from collections import defaultdict
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
 from app.config_data import app_config
+from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 
 
 def parse_browser_bookmarks(html_path):
@@ -126,8 +126,10 @@ def import_browser_bookmarks_to_db(structure_business_logic, parent_widget, link
         
         if not cat_row:
             logging.getLogger(__name__).debug(f"DEBUG: Категория '{cat_name}' не найдена, создаю новую...")
-            from app.config_data import app_config
-            category_icon = app_config.get_default_icons().get('category', 'category.png')
+            try:
+                category_icon = resolve_icon_for_link({"type": "category", "icon_path": ""})
+            except Exception:
+                category_icon = ""
             
             # Создаем категорию через бизнес-логику
             category_data = {
@@ -161,7 +163,7 @@ def import_browser_bookmarks_to_db(structure_business_logic, parent_widget, link
             
             # Проверка на дубликат через бизнес-логику
             existing_links = structure_business_logic.get_links(category_id)
-            existing = next((l for l in existing_links if l['url'] == url and l['name'] == name), None)
+            existing = next((link_item for link_item in existing_links if link_item['url'] == url and link_item['name'] == name), None)
             
             logging.getLogger(__name__).debug(f"DEBUG: Результат поиска дубликата: {existing}")
             if existing:

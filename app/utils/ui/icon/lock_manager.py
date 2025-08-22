@@ -16,7 +16,7 @@ import logging
 import threading
 from contextlib import contextmanager
 from enum import IntEnum
-from typing import Generator, Optional
+from typing import Generator
 
 logger = logging.getLogger(__name__)
 

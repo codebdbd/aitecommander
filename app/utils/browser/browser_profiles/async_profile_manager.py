@@ -5,13 +5,13 @@
 
 import logging
 import time
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal
-from PyQt6.QtWidgets import QApplication
 
 from .base_profile_finder import BaseBrowserProfileFinder
 from .profile_manager import get_profile_manager
+from .profile_cache import ProfileCache
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +215,7 @@ class AsyncBrowserProfileManager(QObject):
         # Настройки
         self._cache_timeout = self._sync_manager._get_cache_timeout()
         self._thread_pool = QThreadPool.globalInstance()
+        self._file_cache = ProfileCache()
         
         # Статистика
         self._stats = {
@@ -283,6 +284,10 @@ class AsyncBrowserProfileManager(QObject):
         
         logger.debug("Запущена асинхронная загрузка всех профилей")
         return True
+
+    def refresh_async(self) -> bool:
+        """Фоновое полное обновление профилей (игнорируя кеш)."""
+        return self.load_all_profiles_async(use_cache=False)
     
     def load_available_browsers_async(self) -> bool:
         """
@@ -353,6 +358,13 @@ class AsyncBrowserProfileManager(QObject):
     def _on_browser_profiles_loaded(self, browser_key: str, profiles: List[Dict]):
         """Обработка загруженных профилей браузера."""
         logger.debug(f"Получены профили {browser_key}: {len(profiles)}")
+        # Обновляем файловый кэш точечно
+        try:
+            cached = self._file_cache.load() or {}
+            cached[browser_key] = profiles
+            self._file_cache.save(cached)
+        except Exception:
+            pass
         self.browser_profiles_ready.emit(browser_key, profiles)
     
     def _on_browser_load_error(self, browser_key: str, error_message: str):
@@ -365,6 +377,11 @@ class AsyncBrowserProfileManager(QObject):
         """Обработка загруженных профилей всех браузеров."""
         total_profiles = sum(len(profiles) for profiles in all_profiles.values())
         logger.info(f"Получены профили всех браузеров: {total_profiles} профилей из {len(all_profiles)} браузеров")
+        # Сохраняем агрегированный кэш на диск
+        try:
+            self._file_cache.save(all_profiles)
+        except Exception:
+            pass
         self.all_profiles_ready.emit(all_profiles)
     
     def _on_all_profiles_progress(self, current_browser: str, current: int, total: int):

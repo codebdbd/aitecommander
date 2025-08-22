@@ -1,15 +1,17 @@
 # app/controllers/app_shutdown_controller.py
 
 import logging
+import sys
 import threading
 import time
-from enum import Enum
-from typing import List, Dict, Callable, Any
-from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FutureTimeoutError
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from contextlib import contextmanager
+from enum import Enum
+from typing import Any, Callable, Dict, List
+
 from PyQt6.QtCore import QThreadPool
 from PyQt6.QtWidgets import QApplication
-import sys
 
 from app.config_data import app_config
 
@@ -100,7 +102,7 @@ class AppShutdownController:
             # В любом случае принимаем событие, чтобы приложение могло закрыться
             try:
                 event.accept()
-            except:
+            except Exception:
                 pass
 
     def _execute_shutdown_sequence(self):

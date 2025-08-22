@@ -1,25 +1,25 @@
 # app/views/effects/neon_effect.py
 from __future__ import annotations
 
-from typing import Optional, Type
+from typing import Optional
 
-from PyQt6.QtCore import QObject, QEvent
+from PyQt6.QtCore import QEvent, QObject
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
-    QWidget,
-    QGraphicsDropShadowEffect,
-    QPushButton,
-    QToolButton,
-    QLineEdit,
     QAbstractItemView,
-    QTextEdit,
-    QPlainTextEdit,
     QComboBox,
-    QSpinBox,
-    QDoubleSpinBox,
     QDateEdit,
-    QTimeEdit,
     QDateTimeEdit,
+    QDoubleSpinBox,
+    QGraphicsDropShadowEffect,
+    QLineEdit,
+    QPlainTextEdit,
+    QPushButton,
+    QSpinBox,
+    QTextEdit,
+    QTimeEdit,
+    QToolButton,
+    QWidget,
 )
 
 

@@ -1,13 +1,10 @@
-import datetime
-import fnmatch
 import os
 import re
-import stat
 
 from PyQt6.QtCore import QRunnable
 
+from .common import matches_criteria as _matches_common
 from .search_signals import SearchSignals
-from .common import matches_criteria as _matches_common, check_file_content as _check_content_common
 
 
 class FileSearchWorker(QRunnable):

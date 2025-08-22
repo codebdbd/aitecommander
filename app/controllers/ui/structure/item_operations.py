@@ -1,20 +1,17 @@
 # app/controllers/structure/item_operations.py
 
 import logging
-from PyQt6.QtCore import Qt  # Импорт Qt из QtCore
 
-from app.utils.system.undo.commands_structure import (
+# Используем строковые литералы "section" и "category"
+from app.controllers.ui.dialogs import DialogManager
+from app.controllers.ui.undo.commands_structure import (
     DeleteCategoryCmd,
     DeleteSectionCmd,
     SaveCategoryCmd,
     SaveSectionCmd,
 )
-
-# Используем строковые литералы "section" и "category"
-from app.controllers.ui.dialogs import DialogManager
 from app.utils.ui.qt.roles import get_tree_tuple
 from app.views.dialogs.entity_dialogs import CategoryDialog, SectionDialog
-
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +29,9 @@ class ItemOperations:
         # если item_to_select не указан, иначе будет восстановлено указанное выделение
         self.business.load_structure()
         if item_to_select:
-            from app.controllers.ui.state.task_scheduler import schedule_selection_restore
+            from app.controllers.ui.state.task_scheduler import (
+                schedule_selection_restore,
+            )
             item_type, item_id = item_to_select
             # Восстанавливаем выделение после загрузки с небольшой задержкой
             schedule_selection_restore(
@@ -55,7 +54,6 @@ class ItemOperations:
             pass
         # Предпочтительно используем реальный асинхронный слой воркеров
         try:
-            async_ops = getattr(self.business, 'async_operations', None)
             current_id = getattr(self.business, 'current_sphere_id', None)
             if isinstance(current_id, int):
                 # Централизуем перезагрузку структуры через бизнес-логику, чтобы не обходить дебаунс
@@ -64,7 +62,9 @@ class ItemOperations:
                     schedule_reload(delay_ms=150)
                 # Отложенная проверка: если дерево так и не заполнилось, грузим синхронно
                 try:
-                    from app.controllers.ui.state.task_scheduler import schedule_selection_restore
+                    from app.controllers.ui.state.task_scheduler import (
+                        schedule_selection_restore,
+                    )
                     schedule_selection_restore(
                         lambda: (self.business.load_structure() if self.controller.tree.topLevelItemCount() == 0 else None),
                         f"ensure_tree_{current_id}"

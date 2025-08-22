@@ -6,9 +6,9 @@ import json
 import os
 import threading
 import time
-from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional
+from io import BytesIO
+from typing import TYPE_CHECKING, Optional
 
 import requests
 from PIL import Image
@@ -16,11 +16,14 @@ from PIL import Image
 from app.config_data import app_config
 from app.utils.ui.icon.path_service import icon_path_service
 
+if TYPE_CHECKING:
+    # For type hints only; avoids runtime dependency and fixes Ruff F821
+    from bs4 import BeautifulSoup
+
 from .constants import MIN_GOOD_SIZE, logger
 from .http_client import http_request
-from .svg_convert import convert_svg
 from .icon_candidates import find_favicon_candidates
-
+from .svg_convert import convert_svg
 
 _ICON_LOCKS: dict[str, threading.Lock] = {}
 _ICON_LOCKS_GUARD = threading.Lock()

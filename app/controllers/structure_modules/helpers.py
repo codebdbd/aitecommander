@@ -1,8 +1,8 @@
 # app/controllers/structure_modules/helpers.py
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Protocol, runtime_checkable, Callable
 import logging
+from typing import Any, Callable, Dict, Optional, Protocol, runtime_checkable
 
 from .base import StructureItemType
 

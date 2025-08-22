@@ -1,7 +1,7 @@
 """
 Конфигурация пользовательского интерфейса.
 """
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict
 
 from .base_config import BaseConfig
 
@@ -23,11 +23,11 @@ class UIConfig(BaseConfig):
     
     def get_window_width(self) -> int:
         """Получение ширины окна приложения."""
-        return self.get("ui.window.width", 1200)
+        return self.get("ui.window.width", 1024)
     
     def get_window_height(self) -> int:
         """Получение высоты окна приложения."""
-        return self.get("ui.window.height", 800)
+        return self.get("ui.window.height", 768)
     
     def get_window_min_width(self) -> int:
         """Получение минимальной ширины окна приложения."""
@@ -47,25 +47,24 @@ class UIConfig(BaseConfig):
     
     def get_main_window_size(self) -> tuple:
         """Получение размеров главного окна при запуске."""
-        # Основной источник: ui.window.width/height; обратная совместимость: ui.main_window_size [w, h]
-        width = self.get("ui.window.width")
-        height = self.get("ui.window.height")
-        if isinstance(width, int) and isinstance(height, int):
-            return (width, height)
-        size = self.get("ui.main_window_size")
-        if isinstance(size, (list, tuple)) and len(size) >= 2:
-            return (int(size[0]), int(size[1]))
-        return (1000, 600)
+        # Единый источник: ui.window.width/height
+        width = self.get("ui.window.width", 1024)
+        height = self.get("ui.window.height", 768)
+        return (width, height)
     
     # === Иконки и размеры ===
     
-    def get_icon_size(self) -> 'QSize':
+    def get_icon_size(self) -> Any:
         """Получение размера иконок в таблице ссылок."""
-        from PyQt6.QtCore import QSize
+        from .qt_adapters import to_qsize
         size = self.get("ui.icon_size", 24)
-        if isinstance(size, (list, tuple)) and len(size) >= 2:
-            return QSize(size[0], size[1])
-        return QSize(size, size)
+        return to_qsize(size)
+
+    def get_tree_icon_size(self) -> Any:
+        """Получение размера иконок в дереве категорий."""
+        from .qt_adapters import to_qsize
+        size = self.get("ui.tree_icon_size", 24)
+        return to_qsize(size)
 
     def get_row_height(self) -> int:
         """Получение высоты строки в таблице ссылок."""
@@ -178,13 +177,12 @@ class UIConfig(BaseConfig):
         """Получение расстояния между элементами на панели сфер."""
         return self.get("ui.spheres_bar_spacing", 12)
     
-    def get_sphere_button_icon_size(self) -> 'QSize':
+    def get_sphere_button_icon_size(self) -> Any:
         """Получение размера иконки кнопки сферы."""
-        from PyQt6.QtCore import QSize
-
+        from .qt_adapters import to_qsize
         # Запрашиваем размер больше для качественного уменьшения Qt
         size = self.get("ui.sphere_button_icon_size", 64)  # Увеличено с 48 до 64
-        return QSize(size, size)
+        return to_qsize(size)
     
     # === Топпанель ===
 
@@ -209,11 +207,11 @@ class UIConfig(BaseConfig):
         """Единый размер для ВСЕХ кнопок в топпанели."""
         return self.get("ui.top_panel_button_size", 36)
 
-    def get_top_panel_icon_size(self) -> 'QSize':
+    def get_top_panel_icon_size(self) -> Any:
         """Единый размер иконок для ВСЕХ кнопок в топпанели."""
-        from PyQt6.QtCore import QSize
+        from .qt_adapters import to_qsize
         size = self.get("ui.top_panel_icon_size", 32)
-        return QSize(size, size)
+        return to_qsize(size)
     
     # === Дерево структуры ===
 

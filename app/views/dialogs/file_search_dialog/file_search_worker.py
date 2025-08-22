@@ -7,7 +7,7 @@ import os
 import re
 from datetime import datetime
 
-from PyQt6.QtCore import QObject, QRunnable, pyqtSignal
+from PyQt6.QtCore import QRunnable
 
 from .search_signals import SearchSignals
 
@@ -98,7 +98,7 @@ class FileSearchWorker(QRunnable):
                     return False
             
             # Проверка атрибутов файла
-            if self.search_params.get('include_hidden', True) == False:
+            if not self.search_params.get('include_hidden', True):
                 if self._is_hidden_file(file_path):
                     return False
             

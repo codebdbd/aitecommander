@@ -1,7 +1,7 @@
 import logging
 import sqlite3
 from contextlib import contextmanager
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from app.utils.db.synchronization import db_lock
 

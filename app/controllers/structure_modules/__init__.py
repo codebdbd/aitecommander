@@ -5,9 +5,9 @@
 from .async_operations import AsyncOperations, AsyncSignalHandlers
 from .base import ItemTypes, ItemTypeStr, StructureItemType, ValidationError
 from .cache_manager import CacheManager
-from .exceptions import handle_exceptions
 from .category_operations import CategoryOperations
 from .coordination import OperationCoordinator
+from .exceptions import handle_exceptions
 from .legacy_support import LegacySupport, StructureBusinessLogicLegacy
 from .normalization import normalize_row, normalize_rows, row_to_dict
 
@@ -48,6 +48,7 @@ __all__ = [
     'SphereOperations',
     'SectionOperations', 
     'CategoryOperations',
+    'PositioningOperations',
     'AsyncOperations',
     'AsyncSignalHandlers',
     'OperationCoordinator',

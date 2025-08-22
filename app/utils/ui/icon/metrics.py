@@ -1,5 +1,4 @@
 """Модуль для работы с метриками кэша иконок"""
-import threading
 import time
 from collections import deque
 from typing import Dict

@@ -5,14 +5,14 @@
 import logging
 from typing import List
 
-from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QDropEvent
 from PyQt6.QtWidgets import QAbstractItemView
 
 from app.config_data import app_config
 from app.utils.ui.dnd.mime import MimeDataParser
-from .base import TreeHandlerBase
 from app.utils.ui.qt.roles import get_tree_tuple
+
+from .base import TreeHandlerBase
 
 
 class DragDropHandler(TreeHandlerBase):

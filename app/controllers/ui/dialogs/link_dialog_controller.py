@@ -45,7 +45,9 @@ class LinkDialogController:
                 for profile in profiles:
                     profile['browser_key'] = browser_key
                     if 'browser_name' not in profile:
-                        from app.utils.browser.browser_profiles.utils import get_browser_display_name
+                        from app.utils.browser.browser_profiles.utils import (
+                            get_browser_display_name,
+                        )
                         finder = self.profile_manager.finders.get(browser_key)
                         if finder:
                             profile['browser_name'] = get_browser_display_name(finder, browser_key)

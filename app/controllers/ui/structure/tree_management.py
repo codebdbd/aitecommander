@@ -3,10 +3,10 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QTreeWidgetItem, QTreeWidgetItemIterator
 
+from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 from app.utils.ui.icon.icon_operations.creators import themed_icon
 from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.qt.roles import get_tree_tuple
-from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 
 
 class TreeManagement:
@@ -94,6 +94,14 @@ class TreeManagement:
                 self._update_section_tiles_after_edit(item)
                 # Переименование раздела может нарушить порядок — пересортируем верхний уровень
                 self._sort_top_level()
+
+        # Если обновлена категория, планируем восстановление выбора на неё.
+        # Это критично после операций переноса, когда текущим элементом в момент reload мог стать раздел.
+        if item_type == "category":
+            schedule_selection_restore(
+                lambda: self.controller.selection_handler._restore_category_selection(item_id),
+                f"restore_cat_{item_id}"
+            )
     
     def _on_item_deleted(self, item_type: str, item_id: int) -> None:
         item = self._find_item_by_id(item_type, item_id)

@@ -3,7 +3,7 @@
 """
 from __future__ import annotations
 
-from typing import Any, Callable, Generic, Optional, TypeVar
+from typing import Callable, Generic, Optional, TypeVar
 
 from PyQt6.QtCore import QObject, QRunnable, pyqtSignal
 

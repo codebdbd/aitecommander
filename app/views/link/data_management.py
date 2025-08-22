@@ -6,8 +6,6 @@ from typing import Dict, List, Optional, Set
 
 from PyQt6.QtCore import Qt
 
-from app.utils.ui.qt.roles import get_item_dict
-
 
 class DataManagementMixin:
     """Миксин для управления данными и кэшем таблицы ссылок."""
@@ -15,7 +13,8 @@ class DataManagementMixin:
     def validate_cache_integrity(self) -> bool:
         """Проверяет целостность кэша ссылок."""
         try:
-            row_count = self.rowCount()
+            model = self.model()
+            row_count = model.rowCount() if model is not None else 0
             cache_size = len(self._current_links)
             
             # Проверяем, что размер кэша соответствует количеству строк
@@ -62,7 +61,10 @@ class DataManagementMixin:
     def _get_current_link_ids(self) -> Set[str]:
         """Возвращает множество ID текущих ссылок на основе фактических элементов таблицы (не кэша)."""
         ids: Set[str] = set()
-        for row in range(self.rowCount()):
+        model = self.model()
+        if model is None:
+            return ids
+        for row in range(model.rowCount()):
             link_data = self.get_link_at(row)
             if link_data and 'id' in link_data:
                 ids.add(link_data['id'])
@@ -76,7 +78,10 @@ class DataManagementMixin:
         """Полностью перестраивает кэш _current_links по текущему состоянию таблицы."""
         try:
             self._current_links.clear()
-            for row in range(self.rowCount()):
+            model = self.model()
+            if model is None:
+                return
+            for row in range(model.rowCount()):
                 link_data = self.get_link_at(row)
                 if link_data:
                     self._current_links[row] = link_data
@@ -90,19 +95,15 @@ class DataManagementMixin:
     def get_link_at(self, row: int) -> Optional[Dict]:
         """Возвращает данные о ссылке для указанной строки."""
         try:
-            if not (0 <= row < self.rowCount()):
+            model = self.model()
+            if model is None:
                 return None
-            
-            # НАДЕЖНОЕ РЕШЕНИЕ: Используем только актуальные данные из элементов таблицы
-            item = self.item(row, 0)
-            if not item:
+            if not (0 <= row < model.rowCount()):
                 return None
-                
-            link_data = get_item_dict(item)
+            index = model.index(row, 0)
+            link_data = index.data(Qt.ItemDataRole.UserRole)
             if not isinstance(link_data, dict):
-                logging.warning(f"[LinksTableView] Некорректные данные в строке {row}")
                 return None
-                
             return link_data
         except Exception as e:
             logging.error(f"[LinksTableView] Ошибка получения данных ссылки в строке {row}: {e}")
@@ -111,7 +112,10 @@ class DataManagementMixin:
     def find_row_by_link_id(self, link_id: int) -> Optional[int]:
         """Находит строку таблицы по ID ссылки."""
         try:
-            for row in range(self.rowCount()):
+            model = self.model()
+            if model is None:
+                return None
+            for row in range(model.rowCount()):
                 link_data = self.get_link_at(row)
                 if link_data and link_data.get('id') == link_id:
                     return row
@@ -125,11 +129,16 @@ class DataManagementMixin:
         try:
             row = self.find_row_by_link_id(link_id)
             if row is not None:
-                self.selectRow(row)
-                self.setCurrentCell(row, 0)
-                item = self.item(row, 0)
-                if item:
-                    self.scrollToItem(item)
+                model = self.model()
+                if model is None:
+                    return False
+                index = model.index(row, 0)
+                sel_model = self.selectionModel()
+                if sel_model is not None:
+                    sel_model.clearSelection()
+                    sel_model.select(index, sel_model.SelectionFlag.Select | sel_model.SelectionFlag.Rows)
+                    self.setCurrentIndex(index)
+                self.scrollTo(index)
                 logging.info(f"[LinksTableView] Успешно установлен фокус на ссылку ID {link_id} в строке {row}")
                 return True
             else:

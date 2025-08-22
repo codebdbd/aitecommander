@@ -1,13 +1,14 @@
 """Cache helpers for link metadata (title/icon)."""
 from __future__ import annotations
 
-import os
-import time
 import shelve
+import time
 from contextlib import closing
 from typing import Any, Dict, Optional
 
+from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.path_service import icon_path_service
+
 from .constants import CACHE_TTL, SHORT_NEGATIVE_TTL, logger
 
 
@@ -21,7 +22,10 @@ def read_cache(url: str, config) -> Optional[Dict[str, Any]]:
         item = db.get(url)
         if not item:
             return None
-        default_icon = config.get_default_icons().get("web", "")
+        try:
+            default_icon = resolve_icon_for_link({"type": "web", "icon_path": ""}) or ""
+        except Exception:
+            default_icon = ""
         if "ttl" not in item and item.get("icon") == default_icon:
             ttl = SHORT_NEGATIVE_TTL
         else:

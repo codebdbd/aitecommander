@@ -1,24 +1,19 @@
-import datetime
-import fnmatch
 import os
 import platform
 import re
-import stat
 import subprocess
 import time
 
-from PyQt6.QtCore import QDate, QObject, QRunnable, QThreadPool, pyqtSignal
+from PyQt6.QtCore import QDate, QThreadPool, pyqtSignal
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QDateEdit,
-    QDialog,
     QFileDialog,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QLineEdit,
-    QMessageBox,
     QProgressBar,
     QPushButton,
     QTableWidget,
@@ -26,23 +21,11 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from app.controllers.ui.dialogs import DialogMixin
-from app.utils.system.os_ops import open_file as os_open_file
-from app.utils.system.os_ops import reveal_in_folder as os_reveal_in_folder
-
-
-# Базовый класс диалога (если нет, создаем простую версию)
-class BaseDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setModal(True)
-
-from .search_signals import SearchSignals
-from .common import matches_criteria as _matches_common, check_file_content as _check_content_common
+from ..base_dialog import BaseDialog
 from .search_worker import FileSearchWorker as ExternalFileSearchWorker
 
 
-class FileSearchDialog(BaseDialog, DialogMixin):
+class FileSearchDialog(BaseDialog):
     """
     Диалог для расширенного поиска файлов с фильтрами:
     - Маска (fnmatch)
@@ -273,7 +256,6 @@ class FileSearchDialog(BaseDialog, DialogMixin):
         main_window = self.parent() if hasattr(self.parent(), 'show_link_dialog') else (self.parent().parent() if self.parent() else None)
         if main_window and hasattr(main_window, 'show_link_dialog'):
             # Открываем LinkDialog с уже заполненным путем
-            from app.views.dialogs.link_dialog.link_dialog import LinkDialog
 
             # Используем фасад ссылочных действий
             if hasattr(main_window, 'links_actions'):

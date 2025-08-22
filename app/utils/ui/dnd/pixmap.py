@@ -5,7 +5,7 @@ Provides small, readable functions to render drag previews for
 single-row and multi-row selections.
 """
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPixmap, QImage
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QImage, QPainter, QPixmap
 
 
 def create_text_pixmap(text: str, single_row: bool = True) -> QPixmap:

@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import time
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 import requests
 from requests.exceptions import RequestException
 
-from .constants import USER_AGENT, TIMEOUT, logger
+from .constants import TIMEOUT, USER_AGENT, logger
 
 try:
     import cloudscraper  # type: ignore

@@ -9,18 +9,17 @@ import logging
 import os
 import warnings
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict
 
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal
 
 # Современные реализации и фасад
 from app.utils.db.api import run_db as run_db  # re-export
+from app.utils.db.db_error_handler import handle_db_error
 from app.utils.db.executors.pool import get_thread_pool
+from app.utils.db.synchronization import db_lock
 from app.utils.db.tasks.base import DatabaseTask as _NewDatabaseTask
 from app.utils.db.tasks.base import TaskSignals as _NewTaskSignals
-
-from app.utils.db.db_error_handler import handle_db_error
-from app.utils.db.synchronization import db_lock
 
 logger = logging.getLogger(__name__)
 

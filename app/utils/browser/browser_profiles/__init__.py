@@ -15,8 +15,6 @@
     chrome_profiles = manager.get_browser_profiles('chrome')
 """
 
-from typing import Dict, List
-
 from .base_profile_finder import BaseBrowserProfileFinder
 from .chromium_base_finder import (
     BraveProfileFinder,
@@ -41,6 +39,7 @@ __all__ = [
     'EdgeProfileFinder',
     'BraveProfileFinder',
     'VivaldiProfileFinder',
+    'ChromiumBaseBrowserFinder',
     'ProfileMigrationHelper',
     'BrowserProfileValidator',
     'BrowserProfileDevTools'

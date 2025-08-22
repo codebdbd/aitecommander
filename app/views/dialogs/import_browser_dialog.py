@@ -9,17 +9,14 @@
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialogButtonBox,
     QLabel,
-    QMessageBox,
     QVBoxLayout,
 )
-
-from app.controllers.ui.dialogs import DialogManager
 
 from .base_dialog import BaseDialog
 
@@ -137,8 +134,7 @@ class ImportBrowserDialog(BaseDialog):
         """Показывает сообщение об ошибке."""
         self.section_cb.addItem(f"Ошибка: {message}")
         self.section_cb.setEnabled(False)
-        DialogManager.show_error(
-            self,
+        self.show_error(
             "Не удалось загрузить список разделов.",
             "Ошибка загрузки разделов",
             informative_text="Проверьте подключение к базе данных и повторите попытку.",
@@ -173,8 +169,7 @@ class ImportBrowserDialog(BaseDialog):
         section_id = self.get_selected_section_id()
         
         if not section_id:
-            DialogManager.show_warning(
-                self,
+            self.show_warning(
                 "Раздел для импорта не выбран.",
                 "Требуется выбор раздела",
                 informative_text="Выберите раздел в выпадающем списке, затем нажмите 'Импортировать'.",
@@ -185,8 +180,7 @@ class ImportBrowserDialog(BaseDialog):
         try:
             section_info = self.get_selected_section_info()
             if not section_info:
-                DialogManager.show_warning(
-                    self,
+                self.show_warning(
                     "Выбранный раздел недоступен.",
                     "Раздел не найден",
                     informative_text="Возможно, раздел был удалён. Обновите список разделов и выберите другой.",
@@ -199,8 +193,7 @@ class ImportBrowserDialog(BaseDialog):
             
         except Exception as e:
             self.logger.error(f"Ошибка при подтверждении выбора раздела: {e}")
-            DialogManager.show_error(
-                self,
+            self.show_error(
                 "Не удалось подтвердить выбор раздела.",
                 "Ошибка при подтверждении",
                 informative_text="Попробуйте выбрать раздел заново или обновите список разделов.",

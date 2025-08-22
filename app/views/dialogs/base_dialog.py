@@ -1,9 +1,10 @@
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
     QLineEdit,
     QMenu,
+    QMessageBox,
     QPushButton,
     QSpinBox,
     QTextEdit,
@@ -12,7 +13,7 @@ from PyQt6.QtWidgets import (
 
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.path_service import get_current_theme
-from app.views.ui.delegates.combo_row_height_delegate import ComboRowHeightDelegate
+from app.utils.ui.qt.delegates.combo_row_height_delegate import ComboRowHeightDelegate
 
 
 def apply_uniform_height(dialog: QDialog):
@@ -132,3 +133,72 @@ class BaseDialog(QDialog):
                     continue
         except Exception:
             pass
+
+    # --- Local message box helpers to avoid importing controllers in views ---
+    def show_info(self, text: str, title: str = "Информация", informative_text: str | None = None,
+                  details: str | None = None, silent: bool = False) -> None:
+        try:
+            mb = QMessageBox(self)
+            mb.setIcon(QMessageBox.Icon.Information)
+            mb.setWindowTitle(title)
+            mb.setText(text)
+            if informative_text:
+                mb.setInformativeText(informative_text)
+            if details:
+                mb.setDetailedText(details)
+            mb.setStandardButtons(QMessageBox.StandardButton.Ok)
+            if not silent:
+                mb.exec()
+        except Exception:
+            pass
+
+    def show_warning(self, text: str, title: str = "Предупреждение", informative_text: str | None = None,
+                     details: str | None = None, silent: bool = False) -> None:
+        try:
+            mb = QMessageBox(self)
+            mb.setIcon(QMessageBox.Icon.Warning)
+            mb.setWindowTitle(title)
+            mb.setText(text)
+            if informative_text:
+                mb.setInformativeText(informative_text)
+            if details:
+                mb.setDetailedText(details)
+            mb.setStandardButtons(QMessageBox.StandardButton.Ok)
+            if not silent:
+                mb.exec()
+        except Exception:
+            pass
+
+    def show_error(self, text: str, title: str = "Ошибка", informative_text: str | None = None,
+                   details: str | None = None, silent: bool = False) -> None:
+        try:
+            mb = QMessageBox(self)
+            mb.setIcon(QMessageBox.Icon.Critical)
+            mb.setWindowTitle(title)
+            mb.setText(text)
+            if informative_text:
+                mb.setInformativeText(informative_text)
+            if details:
+                mb.setDetailedText(details)
+            mb.setStandardButtons(QMessageBox.StandardButton.Ok)
+            if not silent:
+                mb.exec()
+        except Exception:
+            pass
+
+    def ask_confirmation(self, text: str, title: str = "Подтверждение",
+                          informative_text: str | None = None, details: str | None = None) -> bool:
+        try:
+            mb = QMessageBox(self)
+            mb.setIcon(QMessageBox.Icon.Question)
+            mb.setWindowTitle(title)
+            mb.setText(text)
+            if informative_text:
+                mb.setInformativeText(informative_text)
+            if details:
+                mb.setDetailedText(details)
+            mb.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            mb.setDefaultButton(QMessageBox.StandardButton.No)
+            return mb.exec() == QMessageBox.StandardButton.Yes
+        except Exception:
+            return False

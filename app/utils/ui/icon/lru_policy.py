@@ -12,7 +12,6 @@ LRU-политика кэширования для иконок.
 
 from __future__ import annotations
 
-import threading
 from collections import OrderedDict
 from typing import Any, Dict, Optional, Tuple
 

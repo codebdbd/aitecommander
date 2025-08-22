@@ -53,7 +53,6 @@ class LinkModel(DatabaseBase):
         """Вставляет или обновляет запись о ссылке. Возвращает ID записи."""
         self._validate_required_fields(link, ['category_id'], 'ссылки')
         
-        conn = self.connection
         all_possible_fields = [
             'id', 'category_id', 'name', 'url', 'type', 'notes',
             'is_favorite', 'last_used', 'icon_path', 'args', 'position', 'browser_key'

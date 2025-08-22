@@ -1,12 +1,11 @@
 # app/controllers/links_ui/link_operations.py
 
-import logging
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict
 
-from PyQt6.QtWidgets import QDialog, QMessageBox
+from PyQt6.QtWidgets import QDialog
 
-from app.utils.system.undo.commands_links import SaveLinkCmd
+from app.controllers.ui.undo.commands_links import SaveLinkCmd
 from app.utils.links.link_utils import LinkInfo, LinkOpener
 from app.views.dialogs.entity_dialogs import NoteDialog
 

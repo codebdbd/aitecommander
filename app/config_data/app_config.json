@@ -17,7 +17,7 @@
     "fixed_button_width": 100,
     "links_table_headers": [
       "★",
-      "Имя",
+      "Название",
       "Открывалась",
       "Заметки"
     ],
@@ -47,7 +47,7 @@
     "yes_text": "Да",
     "no_text": "Нет",
     "quick_button_size": 32,
-    "sphere_button_icon_size": 48,
+    "sphere_button_icon_size": 64,
     "tile_icon_size": 48,
     "tile_width": 110,
     "tile_height": 110,
@@ -91,10 +91,6 @@
       ]
     ],
     "main_window_title": "Aite Commander",
-    "main_window_size": [
-      1000,
-      600
-    ],
     "db_connected_text": "БД: Подключена",
     "db_disconnected_text": "БД: Отключена",
     "links_count_text": "Ссылок: 0",
@@ -148,7 +144,7 @@
     "window": {
       "width": 1024,
       "height": 768,
-      "min_width": 330,
+      "min_width": 800,
       "min_height": 600
     },
     "menu_font_size": 11,
@@ -198,12 +194,7 @@
     "ui_icons_dir": "views/resources/ui_icons",
     "user_icons_dir": "icons",
     "config_dir": "config",
-    "logs_dir": "logs",
-    "database_dir": "data",
-    "database_file": "data/links.db",
-    "schema_file": "app/models/schema.sql",
-    "mime_type_link": "application/x-link-id",
-    "mime_type_category": "application/x-category-id"
+    "logs_dir": "logs"
   },
   "limits": {
     "max_icon_size": 10485760,
@@ -212,7 +203,6 @@
     "icon_cache_ttl": 300,
     "negative_cache_ttl": 30,
     "abs_icon_cache_ttl": 30,
-    "column_data": 0,
     "max_backups": 10,
     "slow_update_positions_threshold_sec": 1.0
   },

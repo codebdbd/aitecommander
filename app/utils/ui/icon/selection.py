@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Optional, Tuple
 
-from PyQt6.QtWidgets import QFileDialog, QWidget
 from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QFileDialog, QWidget
 
 # Reuse existing operations
 from app.utils.ui.icon.icon_operations.converters import copy_icon_smart

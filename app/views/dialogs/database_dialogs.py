@@ -4,9 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 from PyQt6.QtCore import QObject
-from PyQt6.QtWidgets import QFileDialog
-
-from app.controllers.ui.dialogs import DialogManager
+from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
 
 class DatabaseDialogs(QObject):
@@ -14,22 +12,28 @@ class DatabaseDialogs(QObject):
     
     def confirm_clear_favorites(self) -> bool:
         """Диалог подтверждения очистки избранного."""
-        return DialogManager.ask_confirmation(
-            self.parent(),
-            "Вы действительно хотите очистить избранное?",
-            "Очистить избранное",
-            informative_text="Действие необратимо. Все пометки 'Избранное' будут удалены.",
-        )
+        parent = self.parent()
+        box = QMessageBox(parent)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle("Очистить избранное")
+        box.setText("Вы действительно хотите очистить избранное?")
+        box.setInformativeText("Действие необратимо. Все пометки 'Избранное' будут удалены.")
+        box.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+        box.setDefaultButton(QMessageBox.StandardButton.Cancel)
+        return box.exec() == QMessageBox.StandardButton.Ok
     
     def confirm_database_restore(self, backup_name: str) -> bool:
         """Диалог подтверждения восстановления базы данных."""
-        return DialogManager.ask_confirmation(
-            self.parent(),
-            "Восстановить базу данных из выбранной резервной копии?",
-            "Восстановление базы данных",
-            informative_text="Текущая база будет полностью заменена. Рекомендуется сделать бэкап перед восстановлением.",
-            details=f"Файл бэкапа: {backup_name}",
-        )
+        parent = self.parent()
+        box = QMessageBox(parent)
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setWindowTitle("Восстановление базы данных")
+        box.setText("Восстановить базу данных из выбранной резервной копии?")
+        box.setInformativeText("Текущая база будет полностью заменена. Рекомендуется сделать бэкап перед восстановлением.")
+        box.setDetailedText(f"Файл бэкапа: {backup_name}")
+        box.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+        box.setDefaultButton(QMessageBox.StandardButton.Cancel)
+        return box.exec() == QMessageBox.StandardButton.Ok
     
     def get_restore_file(self) -> Optional[Path]:
         """Показать диалог выбора файла для восстановления БД."""

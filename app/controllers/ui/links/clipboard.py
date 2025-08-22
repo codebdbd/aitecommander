@@ -2,8 +2,8 @@
 
 from typing import Dict, List
 
-from app.utils.system.undo.commands_links import DeleteLinkCmd, SaveLinkCmd
-from app.utils.system.clipboard_utils import copy_link_to_clipboard, get_link_from_clipboard
+from app.controllers.ui.undo.commands_links import DeleteLinkCmd, SaveLinkCmd
+from app.utils.ui.clipboard import copy_link_to_clipboard, get_link_from_clipboard
 
 from .base_component import BaseLinksUIComponent
 from .exceptions import CategoryNotFoundError, DatabaseError

@@ -26,7 +26,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Dict, List, Optional
 
 
 class LinkType(Enum):
@@ -52,7 +52,7 @@ class LinkInfo:
     def from_dict(cls, link_dict: Dict[str, Any]) -> 'LinkInfo':
         """Создает объект LinkInfo из словаря"""
         logger = logging.getLogger(__name__)
-        logger.debug(f"Creating LinkInfo from dict")
+        logger.debug("Creating LinkInfo from dict")
         
         # Безопасное преобразование типа ссылки
         link_type_str = link_dict.get("type", "web")

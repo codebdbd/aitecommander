@@ -3,14 +3,14 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from PyQt6.QtWidgets import QToolButton
 from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QToolButton
 
 from app.config_data import app_config
-from app.utils.ui.icon.path_service import icon_path_service
-from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.views.effects.neon_effect import NeonEventFilter
 from app.utils.db.synchronization import signal_guard
+from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
+from app.utils.ui.icon.path_service import icon_path_service
+from app.views.effects.neon_effect import NeonEventFilter
 
 
 class SpheresBarController:

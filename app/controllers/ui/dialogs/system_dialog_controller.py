@@ -1,7 +1,8 @@
 # app/controllers/system_dialog_controller.py
 
 from app.config_data import app_config
-from app.controllers.ui.dialogs import DialogManager
+
+from .dialog_manager import DialogManager
 
 
 class SystemDialogController:

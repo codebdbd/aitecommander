@@ -3,7 +3,6 @@
 from PyQt6.QtCore import QSettings
 
 from .config_data import app_config
-from .config_data.config_loader import AppConfig
 
 
 class AppSettings:

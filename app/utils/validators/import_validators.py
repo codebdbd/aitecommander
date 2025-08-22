@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 
 def is_valid_bookmarks_html(path: str, max_size_mb: int = 50) -> bool:

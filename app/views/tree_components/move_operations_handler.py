@@ -2,20 +2,53 @@
 
 """Обработчик операций перемещения для StructureTreeWidget."""
 
-import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QMessageBox
 
-from app.controllers.ui.dialogs import DialogManager
-from app.utils.ui.dnd.commands import MoveCategoryCommand, MoveLinksCommand
 from app.utils.ui.dnd.base import TreeHandlerBase
+from app.utils.ui.dnd.commands import MoveCategoryCommand, MoveLinksCommand
 from app.utils.ui.qt.roles import get_tree_tuple
 
 
 class MoveOperationsHandler(TreeHandlerBase):
     """Обработчик операций перемещения элементов в дереве структуры."""
     
+    def _show_message(
+        self,
+        kind: str,
+        text: str,
+        title: str,
+        informative_text: str | None = None,
+        details: str | None = None,
+        silent: bool = False,
+    ) -> None:
+        msg = QMessageBox(self.tree_widget)
+        if kind == "info":
+            msg.setIcon(QMessageBox.Icon.Information)
+        elif kind == "warning":
+            msg.setIcon(QMessageBox.Icon.Warning)
+        else:
+            msg.setIcon(QMessageBox.Icon.Critical)
+        msg.setWindowTitle(title)
+        msg.setText(text)
+        if informative_text:
+            msg.setInformativeText(informative_text)
+        if details:
+            msg.setDetailedText(details)
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        # silent зарезервирован для единообразия с BaseDialog; здесь поведение одинаковое
+        msg.exec()
+
+    def _show_info(self, text: str, title: str, informative_text: str | None = None, details: str | None = None, silent: bool = False) -> None:
+        self._show_message("info", text, title, informative_text, details, silent)
+
+    def _show_warning(self, text: str, title: str, informative_text: str | None = None, details: str | None = None, silent: bool = False) -> None:
+        self._show_message("warning", text, title, informative_text, details, silent)
+
+    def _show_error(self, text: str, title: str, informative_text: str | None = None, details: str | None = None, silent: bool = False) -> None:
+        self._show_message("error", text, title, informative_text, details, silent)
+
     def execute_move_category_command(self, category_id: int, target_id: int) -> None:
         """Выполняет команду перемещения категории."""
         main_win = self.tree_widget.window()
@@ -24,8 +57,7 @@ class MoveOperationsHandler(TreeHandlerBase):
             main_win.undo_stack.push(MoveCategoryCommand(category_id, target_id, main_win))
             self.logger.info(f"Выполнена команда перемещения категории {category_id} в {target_id}")
         else:
-            DialogManager.show_warning(
-                self.tree_widget,
+            self._show_warning(
                 "История действий недоступна. Перемещение отменено.",
                 "Недоступна история действий",
                 informative_text="Включите поддержку undo/redo или инициализируйте undo_stack в главном окне.",
@@ -83,8 +115,7 @@ class MoveOperationsHandler(TreeHandlerBase):
             main_win.undo_stack.push(MoveCategoryCommand(source_id, new_section_id, main_win))
             self.logger.info(f"Перемещена категория {source_id} в раздел {new_section_id}")
         else:
-            DialogManager.show_warning(
-                self.tree_widget,
+            self._show_warning(
                 "История действий недоступна. Перемещение между разделами отменено.",
                 "Недоступна история действий",
                 informative_text="Включите поддержку undo/redo или инициализируйте undo_stack в главном окне.",
@@ -158,8 +189,7 @@ class MoveOperationsHandler(TreeHandlerBase):
         self.logger.info("Async internal move finished successfully.")
         
         if result == "duplicate":
-            DialogManager.show_info(
-                self.tree_widget,
+            self._show_info(
                 "Такая категория уже существует в выбранном разделе.",
                 "Дубликат категории",
                 informative_text="Переименуйте категорию или выберите другой раздел.",
@@ -171,8 +201,7 @@ class MoveOperationsHandler(TreeHandlerBase):
     def _on_db_error(self, error) -> None:
         """Обработчик ошибок базы данных."""
         self.logger.error(f"Database operation failed in MoveOperationsHandler: {error}")
-        DialogManager.show_error(
-            self.tree_widget,
+        self._show_error(
             "Не удалось обновить позиции элементов.",
             "Ошибка базы данных при перемещении",
             informative_text="Изменения позиций не были сохранены.",
@@ -193,4 +222,28 @@ class MoveOperationsHandler(TreeHandlerBase):
         # Обновляем дерево структуры
         if hasattr(main_win, 'structure'):
             main_win.structure.load()
+        
+        # Дополнительно: принудительно обновим плитки категорий, переустановив текущий раздел
+        try:
+            tw = self.tree_widget
+            current = tw.currentItem() if hasattr(tw, 'currentItem') else None
+            section_id = None
+            if current:
+                t = get_tree_tuple(current, 0)
+                if t:
+                    typ, id_ = t
+                    if typ == "section" and isinstance(id_, int):
+                        section_id = id_
+                    elif typ == "category":
+                        parent = current.parent()
+                        if parent:
+                            pt = get_tree_tuple(parent, 0)
+                            if pt and pt[0] == "section" and isinstance(pt[1], int):
+                                section_id = pt[1]
+            if section_id and hasattr(main_win, 'structure_business') and main_win.structure_business:
+                # Это приведет к загрузке актуальных категорий и вызову switch_to_category_tiles()
+                main_win.structure_business.select_section(section_id)
+        except Exception:
+            # Не прерываем UI-поток из-за вспомогательного обновления плиток
+            pass
 

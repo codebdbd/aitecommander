@@ -7,7 +7,6 @@ import asyncio
 import logging
 import shutil
 from pathlib import Path
-from typing import Union
 
 from PIL import Image
 from PIL.Image import Resampling

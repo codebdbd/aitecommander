@@ -6,7 +6,7 @@
 """
 
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from PyQt6.QtWidgets import QMessageBox, QWidget
 

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
 import logging
+from typing import List, Optional
 
 from PyQt6 import QtCore
-from PyQt6.QtCore import QObject, QEvent, QTimer
-from PyQt6.QtWidgets import QWidget, QLayout, QToolButton, QLineEdit
+from PyQt6.QtCore import QEvent, QObject, QTimer
+from PyQt6.QtWidgets import QLayout, QLineEdit, QToolButton, QWidget
 
 from app.config_data import app_config
 
@@ -29,6 +29,8 @@ class TopBarLayoutManager(QObject):
         self._pending_adjust = False
         # Для стабилизации пересчетов
         self._last_applied: tuple[int, int, int, int] | None = None  # (width, recent, fav, quick)
+        # Кэш контейнера топ-бара
+        self._container_widget: Optional[QWidget] = None
         # Троттлинг пересчетов (мс)
         try:
             self._throttle_interval_ms: int = int(getattr(app_config, 'get', lambda *_: 50)('ui.topbar.throttle_ms', 50))
@@ -63,11 +65,9 @@ class TopBarLayoutManager(QObject):
         # На всякий случай слушаем и окно (Resize)
         self.window.installEventFilter(self)
 
-        # Инициализационный пересчет после показа окна
+        # Инициализационный пересчет после показа окна (один раз)
         if hasattr(self.window, 'shown'):
-            # Первый тик сразу, затем еще один, чтобы дождаться отложенных виджетов
             self.window.shown.connect(lambda: QTimer.singleShot(0, self.adjust))
-            self.window.shown.connect(lambda: QTimer.singleShot(50, self.adjust))
 
     # ---------------------------- Event Filter -----------------------------
     def eventFilter(self, obj: QObject, event: QtCore.QEvent) -> bool:
@@ -78,7 +78,7 @@ class TopBarLayoutManager(QObject):
             self.window,
         ):
             if event.type() == QEvent.Type.Resize:
-                self._request_adjust()
+                self.adjust()
         return super().eventFilter(obj, event)
 
     def _ensure_panel_filters(self):
@@ -92,31 +92,10 @@ class TopBarLayoutManager(QObject):
                 w.installEventFilter(self)
 
     def _request_adjust(self):
-        """Запросить пересчет с троттлингом и коалесингом событий."""
-        if self._pending_adjust:
-            # Уже запланировано — просто перезапустим таймер
-            try:
-                if self._throttle_interval_ms <= 0:
-                    # Уже стоит задача на ближайший тик — ничего не делаем
-                    pass
-                else:
-                    self._throttle_timer.start(self._throttle_interval_ms)
-            except Exception:
-                pass
-            return
-        self._pending_adjust = True
-        try:
-            if self._throttle_interval_ms <= 0:
-                # Немедленный пересчет на следующем тике цикла событий
-                QtCore.QTimer.singleShot(0, self._run_adjust)
-            else:
-                self._throttle_timer.start(self._throttle_interval_ms)
-        except Exception:
-            # Fallback: без таймера — сразу
-            self._run_adjust()
+        """Немедленный пересчет без троттлинга."""
+        self.adjust()
 
     def _run_adjust(self):
-        self._pending_adjust = False
         self.adjust()
 
     # ------------------------------ Helpers --------------------------------
@@ -125,6 +104,16 @@ class TopBarLayoutManager(QObject):
         if not cc:
             return None
         return cc.layout()
+
+    def _get_container_widget(self) -> Optional[QWidget]:
+        """Ленивая выборка контейнера, где лежит топ-панель, с кэшем."""
+        if self._container_widget and isinstance(self._container_widget, QWidget):
+            return self._container_widget
+        container: Optional[QWidget] = getattr(self.window, 'top_panel_container', None)
+        if not container:
+            container = getattr(self.window, 'content_container', None)
+        self._container_widget = container
+        return container
 
 
     def _iter_buttons(self, panel_widget: Optional[QWidget], name: str) -> List[QToolButton]:
@@ -207,9 +196,7 @@ class TopBarLayoutManager(QObject):
             if not top_bar:
                 return
             # Берем ширину топ-панели, а не всего контейнера окна
-            container: Optional[QWidget] = getattr(self.window, 'top_panel_container', None)
-            if not container:
-                container = getattr(self.window, 'content_container', None)
+            container: Optional[QWidget] = self._get_container_widget()
             if not container:
                 return
             width = container.width()
@@ -231,19 +218,7 @@ class TopBarLayoutManager(QObject):
             except Exception:
                 narrow_threshold = 280
             if width <= narrow_threshold:
-                # Скрываем все кнопки у Recent/Fav/Quick (по 0)
-                self._set_visible_count(getattr(self.window, 'recent_links_widget', None), 'recentButton', 0)
-                self._set_visible_count(getattr(self.window, 'fav_widget', None), 'favoriteButton', 0)
-                self._set_visible_count(getattr(self.window, 'quick_add_widget', None), 'quickButton', 0)
-                # Поиск — без минимальной ширины, чтобы занимал доступное
-                if search:
-                    try:
-                        search.setMinimumWidth(0)
-                        search.setMaximumWidth(16777215)
-                    except Exception:
-                        pass
-                # Запоминаем состояние, чтобы не дёргать лейаут лишний раз
-                self._last_applied = (width, 0, 0, 0)
+                self._apply_counts(width, 0, 0, 0, search)
                 return
 
             # Получим списки кнопок
@@ -251,117 +226,14 @@ class TopBarLayoutManager(QObject):
             fav_btns = self._iter_buttons(fav, 'favoriteButton')
             recent_btns = self._iter_buttons(recent, 'recentButton')
 
-            # Верхние пределы
-            max_recent = min(self._max_recent, len(recent_btns))
-            max_fav = min(self._max_fav, len(fav_btns))
-            max_quick = min(self._max_quick, len(quick_btns))
-
-            # Минимальные видимые количества из конфига (по умолчанию recent=0, fav=1, quick=1)
-            try:
-                cfg_min_recent = int(getattr(app_config, 'get', lambda *_: 0)('ui.topbar.min_visible.recent', 0))
-            except Exception:
-                cfg_min_recent = 0
-            try:
-                cfg_min_fav = int(getattr(app_config, 'get', lambda *_: 1)('ui.topbar.min_visible.fav', 1))
-            except Exception:
-                cfg_min_fav = 1
-            try:
-                cfg_min_quick = int(getattr(app_config, 'get', lambda *_: 1)('ui.topbar.min_visible.quick', 1))
-            except Exception:
-                cfg_min_quick = 1
-
-            # Применяем минимум только если панель непуста; иначе 0
-            min_recent = cfg_min_recent if max_recent > 0 else 0
-            min_fav = cfg_min_fav if max_fav > 0 else 0
-            min_quick = cfg_min_quick if max_quick > 0 else 0
-
-            # Не меняем видимость на старте, чтобы не провоцировать лишние LayoutRequest
-
-            # Вспомогательная функция для подсчета ширины N кнопок панели
-            def panel_width(panel: Optional[QWidget], btns: list[QToolButton], count: int) -> int:
-                if not panel or not btns or count <= 0:
-                    return 0
-                # Кнопки располагаются в bg_frame, берём spacing именно оттуда,
-                # чтобы избежать конфликта с атрибутом instance-level 'layout'
-                bg = getattr(panel, 'bg_frame', None)
-                lay = bg.layout() if isinstance(bg, QWidget) and callable(getattr(bg, 'layout', None)) else None
-                spacing = lay.spacing() or 0 if lay else 0
-                total = 0
-                for i, b in enumerate(btns[:count]):
-                    w = b.sizeHint().width()
-                    if i > 0:
-                        w += spacing
-                    total += w
-                return total
-
-            # Начальные количества
-            cnt_recent = max_recent
-            cnt_fav = max_fav
-            cnt_quick = max_quick
-
-            # Итеративно уменьшаем справа-налево, пока не влезем
-            def total_width_for(count_recent: int, count_fav: int, count_quick: int) -> int:
-                # Проходим по всем элементам top_bar по порядку и считаем суммарную ширину
-                total = 0
-                items = []
-                for i in range(top_bar.count()):
-                    it = top_bar.itemAt(i)
-                    w = it.widget() if it else None
-                    if not w:
-                        continue
-                    # Поиск — учитываем минимальную ширину
-                    if isinstance(w, QLineEdit) and (w is search):
-                        items.append(self._min_search_width)
-                        continue
-                    # Панели
-                    if w is recent:
-                        if count_recent > 0:
-                            items.append(panel_width(recent, recent_btns, count_recent))
-                        continue
-                    if w is fav:
-                        if count_fav > 0:
-                            items.append(panel_width(fav, fav_btns, count_fav))
-                        continue
-                    if w is quick:
-                        if count_quick > 0:
-                            items.append(panel_width(quick, quick_btns, count_quick))
-                        continue
-                    # Прочие виджеты (разделители и т.п.)
-                    if w.isVisible():
-                        items.append(w.sizeHint().width())
-
-                if not items:
-                    return 0
-
-                total = sum(items)
-                # Добавляем межвиджетные отступы
-                spacing = top_bar.spacing() or 0
-                total += spacing * (len(items) - 1)
-                # Добавляем маргины
-                m = top_bar.contentsMargins()
-                total += m.left() + m.right()
-                return total
-
-            # Гарантируем минимумы и ужимаем
-            cnt_recent = max(min_recent, cnt_recent)
-            cnt_fav = max(min_fav, cnt_fav)
-            cnt_quick = max(min_quick, cnt_quick)
-
-            guard = 0
-            while total_width_for(cnt_recent, cnt_fav, cnt_quick) > width and guard < 1000:
-                guard += 1
-                # Уменьшаем справа: Recent -> Favorites -> Quick, но не ниже минимума (1 если панель непуста)
-                if cnt_recent > min_recent:
-                    cnt_recent -= 1
-                    continue
-                if cnt_fav > min_fav:
-                    cnt_fav -= 1
-                    continue
-                if cnt_quick > min_quick:
-                    cnt_quick -= 1
-                    continue
-                # Больше нельзя уменьшать — выходим
-                break
+            # Верхние/минимальные пределы и расчет видимых количеств чистой функцией
+            cnt_recent, cnt_fav, cnt_quick = self._compute_visible_counts(
+                width,
+                top_bar,
+                search,
+                recent, fav, quick,
+                recent_btns, fav_btns, quick_btns,
+            )
 
             # Если состояние не меняется — выходим рано, чтобы не плодить LayoutRequest
             state = (width, cnt_recent, cnt_fav, cnt_quick)
@@ -390,3 +262,134 @@ class TopBarLayoutManager(QObject):
         except Exception:
             # Не роняем UI из-за ошибок расчета
             pass
+
+    # -------------------------- Pure calculation ---------------------------
+    def _compute_visible_counts(
+        self,
+        width: int,
+        top_bar: QLayout,
+        search: Optional[QLineEdit],
+        recent: Optional[QWidget],
+        fav: Optional[QWidget],
+        quick: Optional[QWidget],
+        recent_btns: List[QToolButton],
+        fav_btns: List[QToolButton],
+        quick_btns: List[QToolButton],
+    ) -> tuple[int, int, int]:
+        # Верхние пределы
+        max_recent = min(self._max_recent, len(recent_btns))
+        max_fav = min(self._max_fav, len(fav_btns))
+        max_quick = min(self._max_quick, len(quick_btns))
+
+        # Минимальные видимые количества из конфига (по умолчанию recent=0, fav=1, quick=1)
+        try:
+            cfg_min_recent = int(getattr(app_config, 'get', lambda *_: 0)('ui.topbar.min_visible.recent', 0))
+        except Exception:
+            cfg_min_recent = 0
+        try:
+            cfg_min_fav = int(getattr(app_config, 'get', lambda *_: 1)('ui.topbar.min_visible.fav', 1))
+        except Exception:
+            cfg_min_fav = 1
+        try:
+            cfg_min_quick = int(getattr(app_config, 'get', lambda *_: 1)('ui.topbar.min_visible.quick', 1))
+        except Exception:
+            cfg_min_quick = 1
+
+        # Применяем минимум только если панель непуста; иначе 0
+        min_recent = cfg_min_recent if max_recent > 0 else 0
+        min_fav = cfg_min_fav if max_fav > 0 else 0
+        min_quick = cfg_min_quick if max_quick > 0 else 0
+
+        # Старт с максимумов
+        cnt_recent = max_recent
+        cnt_fav = max_fav
+        cnt_quick = max_quick
+
+        def panel_width(panel: Optional[QWidget], btns: List[QToolButton], count: int) -> int:
+            if not panel or not btns or count <= 0:
+                return 0
+            bg = getattr(panel, 'bg_frame', None)
+            lay = bg.layout() if isinstance(bg, QWidget) and callable(getattr(bg, 'layout', None)) else None
+            spacing = lay.spacing() or 0 if lay else 0
+            total = 0
+            for i, b in enumerate(btns[:count]):
+                w = b.sizeHint().width()
+                if i > 0:
+                    w += spacing
+                total += w
+            return total
+
+        def total_width_for(c_r: int, c_f: int, c_q: int) -> int:
+            items: List[int] = []
+            for i in range(top_bar.count()):
+                it = top_bar.itemAt(i)
+                w = it.widget() if it else None
+                if not w:
+                    continue
+                if isinstance(w, QLineEdit) and (w is search):
+                    items.append(self._min_search_width)
+                    continue
+                if w is recent:
+                    if c_r > 0:
+                        items.append(panel_width(recent, recent_btns, c_r))
+                    continue
+                if w is fav:
+                    if c_f > 0:
+                        items.append(panel_width(fav, fav_btns, c_f))
+                    continue
+                if w is quick:
+                    if c_q > 0:
+                        items.append(panel_width(quick, quick_btns, c_q))
+                    continue
+                if w.isVisible():
+                    items.append(w.sizeHint().width())
+            if not items:
+                return 0
+            total = sum(items)
+            spacing = top_bar.spacing() or 0
+            total += spacing * (len(items) - 1)
+            m = top_bar.contentsMargins()
+            total += m.left() + m.right()
+            return total
+
+        # Гарантируем минимумы и ужимаем
+        cnt_recent = max(min_recent, cnt_recent)
+        cnt_fav = max(min_fav, cnt_fav)
+        cnt_quick = max(min_quick, cnt_quick)
+
+        guard = 0
+        while total_width_for(cnt_recent, cnt_fav, cnt_quick) > width and guard < 1000:
+            guard += 1
+            if cnt_recent > min_recent:
+                cnt_recent -= 1
+                continue
+            if cnt_fav > min_fav:
+                cnt_fav -= 1
+                continue
+            if cnt_quick > min_quick:
+                cnt_quick -= 1
+                continue
+            break
+
+        return cnt_recent, cnt_fav, cnt_quick
+
+    # ----------------------------- Apply -----------------------------------
+    def _apply_counts(self, width: int, c_r: int, c_f: int, c_q: int, search: Optional[QLineEdit]) -> None:
+        # Скрываем все кнопки у Recent/Fav/Quick (по 0 или заданное)
+        recent = getattr(self.window, 'recent_links_widget', None)
+        fav = getattr(self.window, 'fav_widget', None)
+        quick = getattr(self.window, 'quick_add_widget', None)
+        self._set_visible_count(recent, 'recentButton', c_r)
+        self._set_visible_count(fav, 'favoriteButton', c_f)
+        self._set_visible_count(quick, 'quickButton', c_q)
+        if search:
+            try:
+                # В узком режиме позволяем занять всё
+                if c_r == c_f == c_q == 0:
+                    search.setMinimumWidth(0)
+                else:
+                    search.setMinimumWidth(self._min_search_width)
+                search.setMaximumWidth(16777215)
+            except Exception:
+                pass
+        self._last_applied = (width, c_r, c_f, c_q)

@@ -17,6 +17,7 @@ from .chromium_base_finder import (
 )
 from .firefox_profile_finder import FirefoxProfileFinder
 from .utils import get_browser_display_name
+from .profile_cache import ProfileCache
 
 logger = logging.getLogger(__name__)
 
@@ -70,10 +71,23 @@ class BrowserProfileManager:
             'yandex': YandexProfileFinder(),
         }
         
-        # Кеширование для производительности
-        self._cache = {}
+        # Кеширование для производительности (память + файловый кэш)
+        self._cache: Dict[str, List[Dict]] = {}
         self._cache_timeout = self._get_cache_timeout()
-        self._last_update = {}
+        self._last_update: Dict[str, float] = {}
+
+        # Файловый кэш профилей: <user_data_dir>/cache/profiles.json
+        self._profile_cache = ProfileCache()
+        try:
+            cached = self._profile_cache.load()
+        except Exception:
+            cached = None
+        if isinstance(cached, dict) and cached:
+            # Прогреваем память из файла — мгновенная отдача списка профилей
+            self._cache.update({k: v or [] for k, v in cached.items()})
+            now = time.time()
+            for k in self._cache.keys():
+                self._last_update[k] = now
         
         logger.info(f"Инициализирован менеджер профилей для {len(self.finders)} браузеров")
     
@@ -129,6 +143,11 @@ class BrowserProfileManager:
                 profiles = finder.find_profiles()
                 self._cache[browser_key] = profiles
                 self._last_update[browser_key] = current_time
+                # Сохраняем агрегированный кэш на диск (атомарно)
+                try:
+                    self._profile_cache.save(self._cache)
+                except Exception:
+                    pass
                 return profiles
             except Exception as e:
                 logger.error(f"Ошибка при получении профилей {browser_key}: {e}")
@@ -180,7 +199,7 @@ class BrowserProfileManager:
         """Очищает кеш профилей."""
         self._cache.clear()
         self._last_update.clear()
-        logger.info(f"Кеш профилей очищен")
+        logger.info("Кеш профилей очищен")
 
 
 # Модульный синглтон для переиспользования одного экземпляра менеджера

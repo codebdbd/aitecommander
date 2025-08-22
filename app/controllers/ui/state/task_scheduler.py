@@ -178,7 +178,7 @@ class TaskScheduler(QObject):
             task: Задача для выполнения (QRunnable)
         """
         self.thread_pool.start(task)
-        logger.debug(f"Задача отправлена в пул потоков")
+        logger.debug("Задача отправлена в пул потоков")
     
     def get_thread_pool(self) -> 'LimitedThreadPool':
         """Возвращает пул потоков."""

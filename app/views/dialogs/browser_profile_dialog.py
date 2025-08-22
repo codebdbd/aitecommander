@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
-    QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -16,6 +15,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.utils.browser.browser_profiles import get_profile_manager
+from app.utils.browser.browser_profiles.async_profile_manager import get_async_profile_manager
 from app.utils.browser.browser_profiles.utils import get_browser_display_name
 
 
@@ -25,12 +25,14 @@ class BrowserProfileDialog(QDialog):
         self.setWindowTitle("Выбор профиля браузера")
         self.setMinimumSize(480, 400)
         self.manager = get_profile_manager()
+        self.async_manager = get_async_profile_manager()
         self.selected_profiles = []
         self.profile_checkboxes = []
         self._setup_ui()
         self._populate_browsers()
         # Не загружаем все профили сразу, только для выбранного браузера
         # self._populate_profiles()
+        self._connect_async_signals()
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -46,11 +48,20 @@ class BrowserProfileDialog(QDialog):
         control_layout = QHBoxLayout()
         self.select_all_btn = QPushButton("Выбрать все")
         self.deselect_all_btn = QPushButton("Снять выделение")
+        self.refresh_btn = QPushButton("Обновить")
         self.select_all_btn.clicked.connect(self._select_all_profiles)
         self.deselect_all_btn.clicked.connect(self._deselect_all_profiles)
+        self.refresh_btn.clicked.connect(self._on_refresh_clicked)
         control_layout.addWidget(self.select_all_btn)
         control_layout.addWidget(self.deselect_all_btn)
+        control_layout.addWidget(self.refresh_btn)
         layout.addLayout(control_layout)
+
+        # Статус загрузки/прогресса
+        status_layout = QHBoxLayout()
+        self.status_label = QLabel("")
+        status_layout.addWidget(self.status_label)
+        layout.addLayout(status_layout)
         
         # Список профилей
         self.scroll = QScrollArea()
@@ -103,6 +114,8 @@ class BrowserProfileDialog(QDialog):
 
         if not profiles:
             self.profile_layout.addWidget(QLabel("Профили не найдены"))
+            # Запускаем фоновую загрузку текущего браузера
+            self.async_manager.load_browser_profiles_async(browser_key, use_cache=True)
             return
 
         # Создание чекбоксов для профилей
@@ -117,6 +130,38 @@ class BrowserProfileDialog(QDialog):
             self.profile_checkboxes.append(cb)
         # Добавляем stretch, чтобы чекбоксы не растягивались по вертикали
         self.profile_layout.addStretch()
+
+    def _connect_async_signals(self):
+        # Подключение сигналов асинхронного менеджера
+        self.async_manager.browser_profiles_ready.connect(self._on_browser_profiles_ready)
+        self.async_manager.loading_progress.connect(self._on_loading_progress)
+        self.async_manager.loading_error.connect(self._on_loading_error)
+
+    def _on_refresh_clicked(self):
+        browser_key = self.browser_combo.currentData()
+        if not browser_key:
+            return
+        self.refresh_btn.setEnabled(False)
+        self.status_label.setText(f"Обновление {browser_key}…")
+        # Обновляем только текущий браузер без кеша
+        self.async_manager.load_browser_profiles_async(browser_key, use_cache=False)
+
+    def _on_browser_profiles_ready(self, browser_key: str, profiles: List[Dict]):
+        # Обновляем список, только если это текущий браузер
+        current_key = self.browser_combo.currentData()
+        if browser_key != current_key:
+            return
+        self.status_label.setText(f"Загружено {len(profiles)} профилей")
+        self.refresh_btn.setEnabled(True)
+        self._populate_profiles()
+
+    def _on_loading_progress(self, message: str, current: int, total: int):
+        # Используем прогресс для всех-браузеров; здесь просто отображаем статус
+        self.status_label.setText(f"{message}: {current}/{total}")
+
+    def _on_loading_error(self, operation: str, error_message: str):
+        self.status_label.setText(f"Ошибка: {error_message}")
+        self.refresh_btn.setEnabled(True)
 
     def accept(self):
         """Переопределение accept для сохранения выбранных профилей."""

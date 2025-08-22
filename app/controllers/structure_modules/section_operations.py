@@ -3,12 +3,12 @@
 """Модуль для операций с разделами."""
 
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple
 from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from app.models.structure_model import StructureModel
 
-from .base import StructureItemType, BaseOperations
+from .base import BaseOperations, StructureItemType
 
 
 @dataclass

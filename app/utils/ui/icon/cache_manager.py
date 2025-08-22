@@ -19,7 +19,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Union
 
 from PyQt6.QtGui import QIcon
 

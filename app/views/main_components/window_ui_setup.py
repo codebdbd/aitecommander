@@ -1,42 +1,40 @@
 # app/views/main_components/window_ui_setup.py
 
-import logging
 import os
 import sys
+import time
+import logging
 
-from PyQt6.QtCore import Qt, QObject, QEvent
+from PyQt6.QtCore import QEvent, QObject, Qt
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QFrame,
     QHBoxLayout,
     QLineEdit,
-    QMainWindow,
     QPushButton,
-    QToolButton,
     QScrollArea,
     QSizePolicy,
     QSplitter,
     QStackedLayout,
-    QStackedWidget,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
 from app.config_data import app_config
-from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
-from app.utils.system.undo.stack import UndoManager
+from app.controllers.ui.undo.stack import UndoManager
+from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.views.category_tiles import CategoryTiles
 from app.views.custom_widgets import StructureTreeWidget
-from app.views.favorites_widget import FavoritesWidget
-from app.views.link import LinksTableView
-from app.views.quick_add_widget import QuickAddWidget
-from app.views.recent_links_widget import RecentLinksWidget
-from app.views.main_components.top_bar_layout_manager import TopBarLayoutManager
-from .common import create_font
 from app.views.effects.neon_effect import NeonEventFilter
+from app.views.link import LinksTableView
+from app.views.main_components.top_bar_layout_manager import TopBarLayoutManager
 from app.views.status_bar import setup_status_bar as init_status_bar
+from app.views.top_panel_widgets import TopPanelWidget
+
+from .common import create_font
 
 
 class _AutoHideTreeFilter(QObject):
@@ -155,6 +153,7 @@ class WindowUISetup:
     
     def setup_basic_attributes(self):
         """Настройка базовых атрибутов окна."""
+        t0 = time.perf_counter()
         self.window.db = self.window_initializer.db
         self.window.settings = self.window_initializer.settings
         self.window.theme_ctrl = self.window_initializer.theme_ctrl
@@ -163,15 +162,21 @@ class WindowUISetup:
         self.window.thread_pool = get_task_scheduler().get_thread_pool()
         self.window.undo_stack = UndoManager(self.window)
         self.window.sphere_buttons = {}
+        t1 = time.perf_counter()
+        logging.info(f"WindowUISetup: basic_attributes took {(t1 - t0)*1000:.1f} ms")
     
     def setup_menu(self):
         """Настройка меню."""
+        t0 = time.perf_counter()
         from app.controllers.ui.menu_controller import MenuController
         self.window.menu_controller = MenuController(self.window)
         self.window.setMenuBar(self.window.menu_controller.create_main_menu())
+        t1 = time.perf_counter()
+        logging.info(f"WindowUISetup: menu took {(t1 - t0)*1000:.1f} ms")
     
     def setup_central_widget(self):
         """Настройка центрального виджета."""
+        t0 = time.perf_counter()
         central = QFrame()
         central.setFrameShape(getattr(QFrame.Shape, app_config.get_central_frame_shape()))
         self.window.setCentralWidget(central)
@@ -179,9 +184,12 @@ class WindowUISetup:
         self.main_layout = QVBoxLayout(central)
         self.main_layout.setContentsMargins(*app_config.get_main_layout_margins())
         self.main_layout.setSpacing(app_config.get_main_layout_spacing())
+        t1 = time.perf_counter()
+        logging.info(f"WindowUISetup: central_widget took {(t1 - t0)*1000:.1f} ms")
     
     def setup_top_panel(self):
         """Настройка верхней панели."""
+        t0 = time.perf_counter()
         # Контейнер для панели с разделителем
         top_panel_container = QWidget()
         top_panel_container.setObjectName("topPanelContainer")
@@ -239,41 +247,58 @@ class WindowUISetup:
         except Exception:
             # Не блокируем инициализацию UI при ошибке менеджера
             self.window._topbar_manager = None
+        t1 = time.perf_counter()
+        logging.info(f"WindowUISetup: top_panel took {(t1 - t0)*1000:.1f} ms")
     
     def setup_top_bar_widgets(self, top_bar):
-        """Настройка виджетов верхней панели."""
-            # Создание таблицы и настройка шрифта
+        """Настройка виджетов верхней панели.
+        Создаём и добавляем все панели сразу, без отложенных прослоек:
+        Порядок: QuickAdd → Favorites → Recent → Search
+        """
+        t0 = time.perf_counter()
+        # Создание таблицы и настройка шрифта
         self.window.table = LinksTableView(self.window)
         font_size = self.settings.get_font_size() if hasattr(self.settings, 'get_font_size') else 12
         if hasattr(self.window.table, 'update_font_size'):
             self.window.table.update_font_size(font_size)
-        
-        # Стили фокуса применяются через тему - не захардкоживаем здесь
-        
-        # Отложенная инициализация виджетов
-        self.window.recent_links_widget = None
-        self.window.db_for_delayed_init = self.window_initializer.db
-        
-        # Без разделителей: первый виджет идёт сразу слева, отступы заданы маргинами и spacing
 
-        self.window.fav_widget = None
-        def initialize_delayed_widgets():
-            from .delayed_widgets_initializer import DelayedWidgetsInitializer
-            initializer = DelayedWidgetsInitializer(self.window)
-            initializer.initialize_delayed_widgets()
-        
-        self.window.shown.connect(initialize_delayed_widgets)
-        
-        # Панель быстрых кнопок - создается позже в WindowControllersSetup после создания контроллеров
-        # Оставляем место для QuickAddWidget
-        self.window.quick_add_widget = None
-        
-        # Поле поиска
+        # QuickAdd
+        try:
+            self.window.quick_add_widget = TopPanelWidget(self.window, mode="quick", category_provider=self.window)
+            # Фиксированная политика размеров для кнопочных панелей
+            self.window.quick_add_widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            top_bar.addWidget(self.window.quick_add_widget)
+        except Exception:
+            self.window.quick_add_widget = None
+
+        # Favorites
+        try:
+            self.window.fav_widget = TopPanelWidget(self.window, mode="favorites")
+            # Совместимость со старым стилем/поиском через objectName
+            self.window.fav_widget.setObjectName("favoritesWidget")
+            self.window.fav_widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            top_bar.addWidget(self.window.fav_widget)
+        except Exception:
+            self.window.fav_widget = None
+
+        # Recent
+        try:
+            self.window.recent_links_widget = TopPanelWidget(self.window, mode="recent")
+            self.window.recent_links_widget.setObjectName("recentLinksWidget")
+            self.window.recent_links_widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            top_bar.addWidget(self.window.recent_links_widget)
+        except Exception:
+            self.window.recent_links_widget = None
+
+        # Поиск (в конце, расширяется по ширине)
         self.setup_search_widget(top_bar)
+        t1 = time.perf_counter()
+        logging.info(f"WindowUISetup: top_bar_widgets took {(t1 - t0)*1000:.1f} ms")
 
     
     def setup_search_widget(self, top_bar):
         """Настройка поля поиска."""
+        t0 = time.perf_counter()
         self.window.search = QLineEdit()
         self.window.search.setPlaceholderText(app_config.get_search_placeholder())
         self.window.search.setClearButtonEnabled(True)
@@ -291,9 +316,12 @@ class WindowUISetup:
             pass
         self.window.search.textChanged.connect(self.window.on_search)
         top_bar.addWidget(self.window.search)
+        t1 = time.perf_counter()
+        logging.info(f"WindowUISetup: search_widget took {(t1 - t0)*1000:.1f} ms")
     
     def setup_main_content(self):
         """Настройка основного содержимого."""
+        t0 = time.perf_counter()
         # Горизонтальный разделитель
         h_line_top = QWidget()
         h_line_top.setProperty("class", "separator")
@@ -314,9 +342,12 @@ class WindowUISetup:
         h_line_2 = QWidget()
         h_line_2.setProperty("class", "separator")
         self.main_layout.addWidget(h_line_2)
+        t1 = time.perf_counter()
+        logging.info(f"WindowUISetup: main_content took {(t1 - t0)*1000:.1f} ms")
     
     def setup_left_panel(self, mid):
         """Настройка левой панели."""
+        t0 = time.perf_counter()
         left_panel = QWidget()
         self.window.left_panel = left_panel
         left_panel.setObjectName("LeftPanel")
@@ -343,12 +374,15 @@ class WindowUISetup:
         if hasattr(self.window.tree, 'update_font_size'):
             self.window.tree.update_font_size(font_size)
         left_layout.addWidget(self.window.tree)
+        t1 = time.perf_counter()
+        logging.info(f"WindowUISetup: left_panel took {(t1 - t0)*1000:.1f} ms")
     
         # Панель сфер
         self.setup_spheres_bar(left_layout)
     
     def setup_spheres_bar(self, left_layout):
         """Настройка панели сфер."""
+        t0 = time.perf_counter()
         self.window.spheres_bar = QWidget()
         self.window.spheres_bar.setObjectName("spheres_bar")
         # Фиксированная высота берется из конфигурации (spheres_bar_height)
@@ -362,9 +396,12 @@ class WindowUISetup:
         self.window.sphere_group = QButtonGroup(self.window)
         
         left_layout.addWidget(self.window.spheres_bar)
+        t1 = time.perf_counter()
+        logging.info(f"WindowUISetup: spheres_bar took {(t1 - t0)*1000:.1f} ms")
     
     def setup_right_panel(self, mid):
         """Настройка правой панели."""
+        t0 = time.perf_counter()
         # Плитки категорий - создаем без зависимостей, инжектируем позже
         self.window.tiles = CategoryTiles(parent=None)
         
@@ -450,9 +487,12 @@ class WindowUISetup:
         # Установить нижней панели NoFocus policy чтобы исключить из Tab
         if hasattr(self.window, 'bottom_bar_container'):
             self.window.bottom_bar_container.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        t1 = time.perf_counter()
+        logging.info(f"WindowUISetup: right_panel (tiles+table+stack+splitter) took {(t1 - t0)*1000:.1f} ms")
     
     def setup_bottom_panel(self):
         """Настройка нижней панели."""
+        t0 = time.perf_counter()
         bot = QHBoxLayout()
         bot.setContentsMargins(*app_config.get_layout_margins('bottom'))
         
@@ -499,19 +539,28 @@ class WindowUISetup:
         h_line_bottom = QWidget()
         h_line_bottom.setProperty("class", "separator")
         self.main_layout.addWidget(h_line_bottom)
+        t1 = time.perf_counter()
+        logging.info(f"WindowUISetup: bottom_panel took {(t1 - t0)*1000:.1f} ms")
     
     def setup_status_bar(self):
         """Настройка статус-бара."""
+        t0 = time.perf_counter()
         init_status_bar(self.window)
+        t1 = time.perf_counter()
+        logging.info(f"WindowUISetup: status_bar took {(t1 - t0)*1000:.1f} ms")
     
     def setup_shortcuts(self):
         """Настройка горячих клавиш."""
         # Горячие клавиши теперь управляются централизованно через KeyboardManager
         # в WindowControllersSetup.setup_keyboard_manager()
-        pass
+        t0 = time.perf_counter()
+        # no-op here; keyboard is configured in controllers setup
+        t1 = time.perf_counter()
+        logging.info(f"WindowUISetup: shortcuts (noop) took {(t1 - t0)*1000:.1f} ms")
     
     def setup_window_properties(self):
         """Настройка базовых свойств окна."""
+        t0 = time.perf_counter()
         self.window.setWindowTitle(app_config.get_main_window_title())
         self.window.resize(*app_config.get_main_window_size())
         # Применяем минимальные размеры окна из конфига, чтобы окно могло сжиматься
@@ -530,3 +579,5 @@ class WindowUISetup:
             base_path = os.path.dirname(os.path.abspath(__file__))
         logo_path = os.path.join(base_path, "resources", "logo", "logo.png")
         self.window.setWindowIcon(create_icon_from_path(logo_path))
+        t1 = time.perf_counter()
+        logging.info(f"WindowUISetup: window_properties took {(t1 - t0)*1000:.1f} ms")

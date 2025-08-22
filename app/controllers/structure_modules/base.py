@@ -5,7 +5,7 @@
 import logging
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, Callable, Optional, Protocol
+from typing import Any, Callable, Dict, Optional, Protocol
 
 
 class StructureItemType(Enum):

@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 from enum import Enum
 from pathlib import Path
@@ -229,3 +230,95 @@ def is_valid_icon_file(file_path: str | Path) -> bool:
     except Exception as exc:  # noqa: BLE001
         logger.warning("Unexpected raster validation error for %s: %s", path, exc)
         return False
+
+
+def validate_config_for_icons(config) -> bool:
+    """Проверяет, что конфиг поддерживает директории иконок.
+
+    Минимальная проверка UI-иконок: наличие метода get_link_icons_dir.
+    Держим в UI-слое, чтобы не тянуть UI-зависимость в общий validators.
+    """
+    return hasattr(config, "get_link_icons_dir")
+
+
+def is_cached_icon_valid(save_path: str | Path, source_path: str | Path) -> bool:
+    """Проверяет, актуальна ли кэшированная иконка по времени модификации.
+
+    Возвращает True, если save_path существует, является валидным файлом иконки
+    и его mtime не меньше, чем у исходного файла.
+    """
+    try:
+        save_path = str(save_path)
+        source_path = str(source_path)
+        if not (os.path.exists(save_path) and is_valid_icon_file(save_path)):
+            return False
+        return os.path.getmtime(save_path) >= os.path.getmtime(source_path)
+    except OSError:
+        return False
+
+
+# === Стартап-валидация окружения иконок ===
+
+
+def validate_ui_icon_environment() -> bool:
+    """Проверяет базовую готовность окружения иконок.
+
+    Проверки:
+    - Существует базовая директория UI-иконок из конфигурации (`app_config.paths.get_ui_icons_dir()`).
+    - Существуют подпапки для всех валидных тем (`app_config.get_valid_themes()`).
+
+    Возвращает True, если все проверки пройдены; иначе False.
+    Логи пишет сам (error/warning/info).
+    """
+    ok = True
+    try:
+        base_dir = app_config.paths.get_ui_icons_dir()
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Не удалось получить путь к UI-иконкам из конфигурации: %s", exc)
+        return False
+
+    if not base_dir or not isinstance(base_dir, (str, Path)):
+        logger.error("Некорректный путь к UI-иконкам в конфигурации: %r", base_dir)
+        return False
+
+    base_dir = Path(base_dir)
+    if not base_dir.exists() or not base_dir.is_dir():
+        logger.error("Директория UI-иконок не найдена: %s", base_dir)
+        ok = False
+    else:
+        logger.info("Директория UI-иконок: %s", base_dir)
+
+    # Проверка тем
+    try:
+        themes = list(get_valid_themes())
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Не удалось получить список валидных тем: %s", exc)
+        themes = ["light", "dark"]
+
+    for t in themes:
+        theme_dir = base_dir / t
+        if not theme_dir.exists() or not theme_dir.is_dir():
+            logger.error("Папка темы не найдена: %s", theme_dir)
+            ok = False
+        else:
+            # Небольшая информационная сводка
+            try:
+                count = sum(1 for _ in theme_dir.iterdir())
+                logger.info("Тема '%s': %s (элементов: %d)", t, theme_dir, count)
+            except OSError as exc:  # noqa: BLE001
+                logger.debug("Не удалось просканировать папку темы %s: %s", theme_dir, exc)
+
+    return ok
+
+
+def validate_and_log_ui_icons_startup() -> bool:
+    """Запускает проверку окружения иконок на старте и пишет сводку в лог.
+
+    Возвращает результат `validate_ui_icon_environment()` без прерывания запуска.
+    """
+    result = validate_ui_icon_environment()
+    if result:
+        logger.info("Проверка окружения UI-иконок: OK")
+    else:
+        logger.warning("Проверка окружения UI-иконок завершена с ошибками. Проверьте путь и темы.")
+    return result

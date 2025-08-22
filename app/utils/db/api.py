@@ -13,8 +13,8 @@ from typing import Callable, Optional, Protocol, TypeVar
 from PyQt6.QtCore import QThreadPool
 
 from app.utils.db.db_error_handler import handle_db_error
-from app.utils.db.synchronization import db_lock
 from app.utils.db.executors.pool import get_thread_pool
+from app.utils.db.synchronization import db_lock
 from app.utils.db.tasks.base import DatabaseTask, TaskSignals
 
 T = TypeVar("T")

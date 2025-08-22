@@ -7,9 +7,8 @@ import asyncio
 import logging
 import time
 from pathlib import Path
-from typing import Optional
 
-from PyQt6.QtCore import QRectF, QSize, Qt, QThread, QTimer
+from PyQt6.QtCore import QRectF, QSize, Qt, QThread
 from PyQt6.QtGui import QIcon, QImage, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QApplication
@@ -32,7 +31,6 @@ from ..cache_manager import (
     record_not_found,
 )
 from ..path_service import (
-    get_current_theme,
     get_icon_path,
     metrics_record_disk_load,
     metrics_record_hit,

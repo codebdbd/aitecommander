@@ -2,6 +2,7 @@
 Базовый класс для работы с конфигурацией.
 """
 from typing import Any, Dict
+
 from .utils import get_by_path
 
 
