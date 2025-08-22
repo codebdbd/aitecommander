@@ -12,7 +12,6 @@ from .base import StructureItemType, ValidationError
 from .normalization import normalize_row, normalize_rows, validate_normalized_data
 from .validation import validate_item_data
 
-
 # Константы для валидации
 SECTION_REQUIRED_KEYS = ['id']
 CATEGORY_REQUIRED_KEYS = ['section_id']

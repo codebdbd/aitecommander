@@ -2,11 +2,10 @@
 
 import logging
 
-from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QTreeWidgetItem
 
-from app.utils.ui.qt.roles import get_tree_tuple
 from app.utils.db.synchronization import signal_guard
+from app.utils.ui.qt.roles import get_tree_tuple
 
 # Используем строковые литералы "section" и "category"
 
@@ -131,8 +130,8 @@ class SelectionHandling:
             self.tree.setCurrentItem(item)
             self.tree.scrollToItem(item)
             self.tree.blockSignals(False)
-            if item_type == "category":
-                self._select_category_without_stack_switch(item_id)
+            # Явно обрабатываем выбор после перезагрузки, т.к. сигналы были заблокированы
+            self._handle_item_selection(item)
     
     def _set_focus_on_new_item_by_id(self, item_type: str, item_id: int) -> None:
         item = self.controller.tree_manager._find_item_by_id(item_type, item_id)
@@ -160,4 +159,5 @@ class SelectionHandling:
             self.tree.setCurrentItem(item)
             self.tree.scrollToItem(item)
             self.tree.blockSignals(False)
-            self._select_category_without_stack_switch(category_id)
+            # Гарантируем полную обработку выбора и переключение UI
+            self._handle_item_selection(item)

@@ -5,21 +5,23 @@ Supports deferred icon loading for responsive UIs.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Callable
+import os
+from typing import Any, Callable, Dict, Optional
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 from PyQt6.QtCore import QRunnable
 
-from .constants import BS_PARSER, CACHE_TTL, logger
-from .http_client import http_request
-from .title_parser import get_title
-from .icon_downloader import pick_icon_parallel
-from .cache import read_cache, write_cache
-from .domain import base_domain, apply_jitter
-from app.controllers.ui.state.task_scheduler import get_task_scheduler, TaskType
+from app.controllers.ui.state.task_scheduler import TaskType, get_task_scheduler
+from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.path_service import icon_path_service
-import os
+
+from .cache import read_cache, write_cache
+from .constants import BS_PARSER, CACHE_TTL, logger
+from .domain import apply_jitter, base_domain
+from .http_client import http_request
+from .icon_downloader import pick_icon_parallel
+from .title_parser import get_title
 
 
 def fetch_web_link_info(
@@ -69,10 +71,10 @@ def fetch_web_link_info(
         if cached:
             # Если в кэше дефолтная иконка, но в папке уже есть сохранённая — подставим её (без перезаписи кэша)
             try:
-                default_icon = config.get_default_icons().get("web", "")
+                default_icon_path = resolve_icon_for_link({"type": "web", "icon_path": ""}) or ""
             except Exception:
-                default_icon = ""
-            if (not cached.get("icon")) or (cached.get("icon") == default_icon):
+                default_icon_path = ""
+            if (not cached.get("icon")) or (cached.get("icon") == default_icon_path):
                 if existing_icon_path:
                     cached = {**cached, "icon": existing_icon_path}
             return cached
@@ -199,7 +201,10 @@ def fetch_web_link_info(
     # Если подбор не дал результата, но иконка уже сохранена ранее для домена — используем её
     if icon_path is None and existing_icon_path:
         icon_path = existing_icon_path
-    default_icon = config.get_default_icons().get("web", "")
+    try:
+        default_icon = resolve_icon_for_link({"type": "web", "icon_path": ""}) or ""
+    except Exception:
+        default_icon = ""
     result = {
         "url": url,
         "title": title,

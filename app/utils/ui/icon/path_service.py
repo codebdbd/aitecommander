@@ -370,31 +370,6 @@ def get_icon_path(icon_name: str, theme: str = "light") -> Optional[str]:
     return None
 
 
-def resolve_category_icon_path(icon_path: str) -> str:
-    """Разрешает путь к иконке категории с fallback на дефолтную."""
-    if not icon_path:
-        default_icon = app_config.get_default_icons().get("category", "category.png")
-        return str(_icon_path_service.get_ui_icons_dir() / default_icon)
-
-    p = Path(icon_path)
-    if p.is_absolute():
-        if p.is_file():
-            return str(p)
-        default_icon = app_config.get_default_icons().get("category", "category.png")
-        return str(_icon_path_service.get_ui_icons_dir() / default_icon)
-
-    user_candidate = _icon_path_service.get_user_icons_dir() / icon_path
-    if user_candidate.is_file():
-        return str(user_candidate)
-
-    ui_candidate = _icon_path_service.get_ui_icons_dir() / icon_path
-    if ui_candidate.is_file():
-        return str(ui_candidate)
-
-    default_icon = app_config.get_default_icons().get("category", "category.png")
-    return str(_icon_path_service.get_ui_icons_dir() / default_icon)
-
-
 def get_qss_dir() -> Path:
     """Путь к директории QSS-тем."""
     return app_config.paths.get_qss_dir()

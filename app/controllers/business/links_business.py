@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
+from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.models.db import Database
 from app.utils.db.db_error_handler import handle_db_error
 from app.utils.db.db_workers import (
@@ -12,12 +13,13 @@ from app.utils.db.db_workers import (
     LoadLinksWorker,
     SearchLinksWorker,
 )
-from app.utils.db.db_workers import StructureWorkerSignals as CountFavoritesWorkerSignals
+from app.utils.db.db_workers import (
+    StructureWorkerSignals as CountFavoritesWorkerSignals,
+)
 from app.utils.db.db_workers import StructureWorkerSignals as LoadLinksWorkerSignals
 from app.utils.db.db_workers import StructureWorkerSignals as SearchLinksWorkerSignals
 from app.utils.db.db_workers import StructureWorkerSignals as UpdateLinkWorkerSignals
 from app.utils.db.synchronization import tasks_lock
-from app.controllers.ui.state.task_scheduler import get_task_scheduler
 
 
 class LinksBusinessLogic(QObject):

@@ -1,7 +1,6 @@
 import os
 import platform
 import subprocess
-from typing import Optional
 
 
 def open_file(file_path: str) -> bool:

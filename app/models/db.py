@@ -1,6 +1,9 @@
+import datetime
+import logging
 import sqlite3
 import threading
 from pathlib import Path
+from typing import Dict, List, Optional
 
 from app.config_data import app_config
 from app.utils.db.synchronization import db_lock
@@ -10,11 +13,6 @@ from .db_base import VALID_POSITION_TABLES, DatabaseBase, DatabaseError, Validat
 from .link_model import LinkModel
 from .section_model import SectionModel
 from .sphere_model import SphereModel
-
-DEFAULT_ICONS = app_config.get_default_icons()
-import datetime
-import logging
-from typing import Any, Dict, List, Optional
 
 # Настройка логирования
 logger = logging.getLogger(__name__)

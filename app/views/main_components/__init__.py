@@ -7,10 +7,8 @@
 модульности и читаемости кода.
 """
 
-from .delayed_widgets_initializer import DelayedWidgetsInitializer
 from .window_initializer import WindowInitializer
 
 __all__ = [
     'WindowInitializer',
-    'DelayedWidgetsInitializer'
 ]

@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from app.utils.db.synchronization import db_lock
 
-from .db_base import DatabaseBase, DatabaseError, ValidationError
+from .db_base import DatabaseBase
 
 logger = logging.getLogger(__name__)
 

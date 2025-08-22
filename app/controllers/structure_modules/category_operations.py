@@ -3,11 +3,11 @@
 """Модуль для операций с категориями."""
 
 import logging
-from typing import Any, Dict, Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from app.models.structure_model import StructureModel
 
-from .base import StructureItemType, BaseOperations
+from .base import BaseOperations, StructureItemType
 
 
 class SignalTypes:

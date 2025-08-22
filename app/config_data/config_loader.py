@@ -5,12 +5,12 @@
 import json
 from pathlib import Path
 from typing import Any, Dict, Optional
-from .utils import get_by_path
 
 from .limits_config import LimitsConfig
 from .path_config import PathConfig
 from .settings_config import SettingsConfig
 from .ui_config import UIConfig
+from .utils import get_by_path
 
 
 class AppConfig:
@@ -111,7 +111,7 @@ class AppConfig:
         """Получение минимальной высоты окна приложения."""
         return self.ui.get_window_min_height()
 
-    def get_icon_size(self) -> 'QSize':
+    def get_icon_size(self) -> Any:
         """Получение размера иконок в таблице ссылок."""
         return self.ui.get_icon_size()
 
@@ -271,7 +271,7 @@ class AppConfig:
         """Получение отступов для указанного типа layout."""
         return self.ui.get_layout_margins(margin_type)
 
-    def get_sphere_button_icon_size(self) -> 'QSize':
+    def get_sphere_button_icon_size(self) -> Any:
         """Получение размера иконки кнопки сферы."""
         return self.ui.get_sphere_button_icon_size()
 
@@ -415,7 +415,7 @@ class AppConfig:
         """Единый размер для ВСЕХ кнопок в топпанели."""
         return self.ui.get_top_panel_button_size()
 
-    def get_top_panel_icon_size(self) -> 'QSize':
+    def get_top_panel_icon_size(self) -> Any:
         """Единый размер иконок для ВСЕХ кнопок в топпанели."""
         return self.ui.get_top_panel_icon_size()
 

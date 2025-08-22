@@ -1,7 +1,7 @@
 """
 Конфигурация настроек приложения.
 """
-from typing import Any, Dict, List
+import platform
 
 from .base_config import BaseConfig
 
@@ -159,7 +159,6 @@ class SettingsConfig(BaseConfig):
     
     def get_browser_config(self) -> dict:
         """Получение конфигурации браузеров для текущей ОС."""
-        import platform
         os_type = "windows" if platform.system() == "Windows" else "other"
         return self.get(f"settings.browser_config.{os_type}", {})
     

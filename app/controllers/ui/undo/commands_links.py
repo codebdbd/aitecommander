@@ -1,7 +1,7 @@
 # app/utils/system/undo/commands_links.py
 from __future__ import annotations
 
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 from PyQt6.QtGui import QUndoCommand
 

@@ -3,7 +3,7 @@
 """Модуль для управления кэшем структуры."""
 
 import logging
-from typing import Optional, Any, Dict
+from typing import Any, Dict, Optional
 
 
 class CacheManager:

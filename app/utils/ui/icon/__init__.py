@@ -13,6 +13,11 @@ from .cache_manager import (
     reset_icon_cache_stats,
 )
 
+# Разрешение путей категорий — из icon_resolver, чтобы избежать циклических импортов
+from .icon_resolver import (
+    resolve_category_icon_path,
+)
+
 # Централизованная система блокировок
 from .lock_manager import (
     LockLevel,
@@ -37,7 +42,6 @@ from .path_service import (
     get_qss_dir,
     get_themes_manifest_path,
     icon_path_service,
-    resolve_category_icon_path,
 )
 
 # Импорт is_valid_icon_file из локального валидатора
@@ -47,7 +51,9 @@ from .validation import (
     IconNotFoundError,
     InvalidIconError,
     Theme,
+    is_cached_icon_valid,
     is_valid_icon_file,
+    validate_config_for_icons,
     validate_theme,
 )
 
@@ -76,6 +82,8 @@ __all__ = [
     'InvalidIconError',
     'validate_theme',
     'is_valid_icon_file',
+    'is_cached_icon_valid',
+    'validate_config_for_icons',
     
     # Централизованный сервис путей
     'IconPathService',

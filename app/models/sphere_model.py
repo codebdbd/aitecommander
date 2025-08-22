@@ -1,18 +1,16 @@
 import logging
 import sqlite3
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
-from app.config_data import app_config
 from app.utils.db.synchronization import db_lock
+from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 
 from .db_base import DatabaseBase, DatabaseError
 
 # Настройка логирования
 logger = logging.getLogger(__name__)
 
-# Получаем иконки по умолчанию
-DEFAULT_ICONS = app_config.get_default_icons()
+# Централизованный резолв иконок
 
 
 class SphereModel(DatabaseBase):
@@ -81,10 +79,10 @@ class SphereModel(DatabaseBase):
                     pass  # Игнорируем, если колонка уже существует
 
                 default = [
-                    ("AI", 0, DEFAULT_ICONS["ai"]),
-                    ("Работа", 1, DEFAULT_ICONS["work"]),
-                    ("Учеба", 2, DEFAULT_ICONS["study"]),
-                    ("Личное", 3, DEFAULT_ICONS["personal"]),
+                    ("AI", 0, resolve_icon_for_link({"type": "ai", "icon_path": ""})),
+                    ("Работа", 1, resolve_icon_for_link({"type": "work", "icon_path": ""})),
+                    ("Учеба", 2, resolve_icon_for_link({"type": "study", "icon_path": ""})),
+                    ("Личное", 3, resolve_icon_for_link({"type": "personal", "icon_path": ""})),
                 ]
                 with db_lock:
                     self.connection.executemany(
@@ -112,10 +110,10 @@ class SphereModel(DatabaseBase):
                     pass  # Игнорируем, если колонка уже существует
 
                 default = [
-                    ("AI", 0, DEFAULT_ICONS["ai"]),
-                    ("Работа", 1, DEFAULT_ICONS["work"]),
-                    ("Учеба", 2, DEFAULT_ICONS["study"]),
-                    ("Личное", 3, DEFAULT_ICONS["personal"]),
+                    ("AI", 0, resolve_icon_for_link({"type": "ai", "icon_path": ""})),
+                    ("Работа", 1, resolve_icon_for_link({"type": "work", "icon_path": ""})),
+                    ("Учеба", 2, resolve_icon_for_link({"type": "study", "icon_path": ""})),
+                    ("Личное", 3, resolve_icon_for_link({"type": "personal", "icon_path": ""})),
                 ]
                 with db_lock:
                     self.connection.executemany(

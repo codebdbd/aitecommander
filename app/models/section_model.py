@@ -1,10 +1,9 @@
 import logging
-import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from app.utils.db.synchronization import db_lock
 
-from .db_base import DatabaseBase, DatabaseError
+from .db_base import DatabaseBase
 
 # Настройка логирования
 logger = logging.getLogger(__name__)

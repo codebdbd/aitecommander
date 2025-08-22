@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QIcon, QPen, QColor
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QStyle,
     QStyledItemDelegate,
@@ -7,10 +7,10 @@ from PyQt6.QtWidgets import (
     QTreeWidget,
 )
 
+from app.config_data import app_config
 from app.utils.db.db_workers import AsyncTaskMixin
 from app.utils.ui.dnd.tree import DragDropHandler
 from app.views.tree_components.move_operations_handler import MoveOperationsHandler
-from app.config_data import app_config
 
 # Используем строковые литералы "section" и "category"
 

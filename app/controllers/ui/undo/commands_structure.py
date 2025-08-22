@@ -1,9 +1,11 @@
 # app/utils/system/undo/commands_structure.py
 from __future__ import annotations
 
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 from PyQt6.QtGui import QUndoCommand
+
+from app.utils.ui.icon.cache_manager import clear_icon_cache
 
 
 class SaveSectionCmd(QUndoCommand):
@@ -144,6 +146,11 @@ class SaveCategoryCmd(QUndoCommand):
         try:
             business = getattr(self.main, 'structure_business', None)
             if business:
+                # Иконки категорий могли измениться — очищаем кэш, чтобы плитки перерисовали актуальные
+                try:
+                    clear_icon_cache()
+                except Exception:
+                    pass
                 if self.is_new:
                     # Для категорий второй аргумент — parent_id (section_id)
                     parent_id = self.new_data.get('section_id')
@@ -223,9 +230,29 @@ class DeleteCategoryCmd(QUndoCommand):
             self.main.structure.update_tree(item_to_select=("section", section_id))
         except Exception:
             pass
+        # Явно обновляем плитки категорий для выбранного раздела,
+        # чтобы гарантировать отражение удаления в интерфейсе
         try:
             business = getattr(self.main, 'structure_business', None)
             if business:
+                # Критично: инвалидируем кэш категорий раздела, иначе select_section
+                # может взять устаревшие данные из categories_{section_id}
+                try:
+                    # внутренний метод, но безопасен для вызова из команды
+                    business._invalidate_categories_cache(section_id)
+                except Exception:
+                    pass
+                business.select_section(section_id)
+        except Exception:
+            pass
+        try:
+            business = getattr(self.main, 'structure_business', None)
+            if business:
+                # При удалении также сбрасываем кэш иконок категорий
+                try:
+                    clear_icon_cache()
+                except Exception:
+                    pass
                 business.item_deleted.emit("category", category_id)
                 business.load_structure()
         except Exception:
@@ -246,6 +273,11 @@ class DeleteCategoryCmd(QUndoCommand):
             try:
                 business = getattr(self.main, 'structure_business', None)
                 if business:
+                    # После восстановления сбрасываем кэш, чтобы обновились иконки восстановленной категории
+                    try:
+                        clear_icon_cache()
+                    except Exception:
+                        pass
                     business.item_added.emit("category", self.category.get('section_id'), self._backup_tree['category'])
                     business.load_structure()
             except Exception:

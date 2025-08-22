@@ -1,12 +1,11 @@
 # app/controllers/keyboard/keyboard_manager.py
 
-from typing import Any, Optional, TypeVar
 import time
+from typing import Any, Optional, TypeVar
 
 from PyQt6.QtCore import QObject, Qt, QTimer
 from PyQt6.QtGui import QKeyEvent, QKeySequence, QShortcut
 from PyQt6.QtWidgets import QApplication, QWidget
-
 
 # =====================
 # Встроенные обработчики

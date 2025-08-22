@@ -5,6 +5,7 @@
 import logging
 import time
 from typing import List, Optional, Tuple
+
 from .base import BaseOperations
 
 # Тип-алиас для батч-обновлений: (имя_таблицы, список_ID)

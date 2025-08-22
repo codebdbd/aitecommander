@@ -13,9 +13,9 @@ from PyQt6.QtWidgets import QDialog, QFileDialog
 
 from app.config_data import app_config
 from app.utils.db.db_workers import LinkInfoWorker, StructureWorkerSignals
-from app.controllers.ui.dialogs import DialogManager
-from app.utils.ui.icon.ui_helpers import set_icon_to_button
+from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.selection import choose_icon_and_copy
+from app.utils.ui.icon.ui_helpers import set_icon_to_button
 
 
 class LinkDialogHandlers:
@@ -107,16 +107,14 @@ class LinkDialogHandlers:
                 pass  # Игнорируем ошибки отмены
             self.dialog._active_worker = None
         
-        # Установка иконки по умолчанию (без зависимости от темы)
-        default_icons = app_config.get_default_icons()
-        default_icon_filename = default_icons.get(link_type, default_icons.get("default"))
-        self.dialog.icon_name = default_icon_filename or ""
-        if default_icon_filename:
-            icon_path = self.dialog.get_ui_icons_dir() / default_icon_filename
-            if icon_path.exists():
-                set_icon_to_button(self.dialog.ui.get_widget('icon_btn'), str(icon_path))
-            else:
-                self.dialog.ui.get_widget('icon_btn').setIcon(QIcon())
+        # Установка иконки по умолчанию через централизованный резолвер
+        try:
+            resolved_icon_path = resolve_icon_for_link({"type": link_type, "icon_path": ""})
+        except Exception:
+            resolved_icon_path = ""
+        self.dialog.icon_name = (Path(resolved_icon_path).name if resolved_icon_path else "")
+        if resolved_icon_path and Path(resolved_icon_path).exists():
+            set_icon_to_button(self.dialog.ui.get_widget('icon_btn'), resolved_icon_path)
         else:
             self.dialog.ui.get_widget('icon_btn').setIcon(QIcon())
             
@@ -315,8 +313,8 @@ class LinkDialogHandlers:
             name_empty = not (form_data.get('name') or '').strip()
             url_empty = not (form_data.get('url') or '').strip()
             if name_empty and url_empty:
-                DialogManager.show_info(
-                    self.dialog,
+                # Используем помощники BaseDialog у экземпляра диалога
+                self.dialog.show_info(
                     "Пусто, как холодильник в конце месяца 🥶 — добавьте хоть адрес или название, и будет что сохранить!",
                     "Подсказка",
                     informative_text="Введите URL или имя и попробуйте снова.",
@@ -360,8 +358,7 @@ class LinkDialogHandlers:
                     main_msg = "Пожалуйста, проверьте данные перед сохранением."
                     info_msg = "Проверьте выделенные поля и всплывающие подсказки."
 
-                DialogManager.show_info(
-                    self.dialog,
+                self.dialog.show_info(
                     main_msg,
                     "Небольшая подсказка",
                     informative_text=info_msg,
@@ -391,9 +388,6 @@ class LinkDialogHandlers:
         collected_args = self.dialog.ui.get_widget('args_le').text().strip()
         collected_link_id = self.dialog.link.get('id') if self.dialog.link else None
         
-        # Проверяем, изменились ли аргументы (только для редактирования)
-        if collected_link_id and hasattr(self.dialog, 'link') and self.dialog.link:
-            original_args = self.dialog.link.get('args', '')
         
         logger.debug(f"_collect_form_data: collected name from UI='{collected_name}'")
         logger.debug(f"_collect_form_data: dialog.link={self.dialog.link}")
@@ -501,18 +495,18 @@ class LinkDialogHandlers:
                 icon_path_str
             )
         else:
-            # Фолбек на дефолтную иконку типа (без темы)
-            default_icons = app_config.get_default_icons()
-            default_icon_name = default_icons.get(self.dialog.link_type, default_icons.get("default"))
-            if default_icon_name:
-                root_path = self.dialog.get_ui_icons_dir() / default_icon_name
-                if root_path.exists():
-                    set_icon_to_button(
-                        self.dialog.ui.get_widget('icon_btn'),
-                        str(root_path)
-                    )
-                else:
-                    self.dialog.ui.get_widget('icon_btn').setIcon(QIcon())
+            # Фолбек через централизованный резолвер
+            try:
+                resolved_icon_path = resolve_icon_for_link({
+                    "type": self.dialog.link_type,
+                    "icon_path": self.dialog.icon_name or ""
+                })
+            except Exception:
+                resolved_icon_path = ""
+            if resolved_icon_path and Path(resolved_icon_path).exists():
+                set_icon_to_button(self.dialog.ui.get_widget('icon_btn'), resolved_icon_path)
+            else:
+                self.dialog.ui.get_widget('icon_btn').setIcon(QIcon())
             
         if self.dialog.link_type in ('program', 'script', 'chromeapp'):
             args = info.get('args', '')

@@ -1,11 +1,8 @@
-import logging
 from typing import Dict, List, Optional
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QMenu
 
 from .base_component import BaseLinksUIComponent
-from .exceptions import DatabaseError, LinksUIError
 
 
 class LinksUIHandlers(BaseLinksUIComponent):
@@ -83,9 +80,16 @@ class LinksUIHandlers(BaseLinksUIComponent):
     
     def _on_link_updated(self, updated_link: Dict):
         """Обработка обновления ссылки."""
-        link_id = updated_link.get('id')
-        link_name = updated_link.get('name', 'Untitled')
-        is_favorite = updated_link.get('is_favorite', False)
+        # Диагностическое логирование вместо неиспользуемых локальных переменных
+        try:
+            self.logger.debug(
+                "Link updated: id=%s, name=%s, favorite=%s",
+                updated_link.get('id'),
+                updated_link.get('name', 'Untitled'),
+                updated_link.get('is_favorite', False),
+            )
+        except Exception:
+            pass
         
         if hasattr(self.table, 'update_link_by_id'):
             self.table.update_link_by_id(updated_link)
@@ -117,18 +121,20 @@ class LinksUIHandlers(BaseLinksUIComponent):
             return
             
         if column == self.COLUMNS['favorite']:
-            link_id = link.get('id')
             link_name = link.get('name', 'Untitled')
-            current_fav_status = link.get('is_favorite', False)
             
             name_item = self.table.item(row, self.COLUMNS['name'])
             visible_name = name_item.text() if name_item else "Unknown"
             
             if link_name != visible_name:
-                self.logger.warning(f"MISMATCH! Link data does not match visible content!")
-                self.logger.warning(f"  - Expected: '{visible_name}'")
-                self.logger.warning(f"  - Received: '{link_name}'")
+                self.logger.warning(f"MISMATCH! Link data does not match visible content! Expected: '{visible_name}', Received: '{link_name}'")
             
+            # Логируем переключение избранного с кратким контекстом
+            self.logger.debug(
+                "Toggling favorite: id=%s, name=%s, current=%s",
+                link.get('id'), link_name, link.get('is_favorite', False)
+            )
+
             self.controller.toggle_favorite(link)
     
     def _on_context_menu(self, pos):

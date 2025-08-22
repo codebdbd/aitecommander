@@ -1,11 +1,11 @@
 """Базовый компонент для модуля links_ui."""
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 from app.config_data import app_config
 
-from .exceptions import CategoryNotFoundError, DatabaseError, LinksUIError
+from .exceptions import CategoryNotFoundError, DatabaseError
 
 
 class BaseLinksUIComponent:

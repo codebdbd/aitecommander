@@ -11,11 +11,11 @@ import logging
 import threading
 import time
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
 from threading import Lock, RLock
-from typing import Any, Callable, Dict, Optional, Set
+from typing import Callable, Dict, Optional, Set
 
 logger = logging.getLogger(__name__)
 

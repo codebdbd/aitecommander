@@ -2,10 +2,7 @@
 
 """Модуль для операций со сферами."""
 
-import logging
-from typing import Any, Callable, Dict, List, Optional
-
-from app.models.structure_model import StructureModel
+from typing import Any, Dict, List, Optional
 
 from .base import BaseOperations
 

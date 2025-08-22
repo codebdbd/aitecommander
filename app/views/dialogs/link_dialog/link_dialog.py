@@ -3,25 +3,22 @@ LinkDialog - диалог добавления/редактирования сс
 Основной класс с бизнес-логикой, использующий модульную структуру.
 """
 
-import logging
-import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
-from PyQt6.QtCore import Qt, QThreadPool, QTimer
+from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QColor, QIcon
 
 from app.config_data import app_config
-from app.utils.db.db_workers import LinkInfoWorker
-from app.controllers.ui.dialogs import DialogManager
+from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
-from app.utils.validators import validate_config_for_icons
+from app.utils.ui.icon.validation import validate_config_for_icons
+from app.views.effects.neon_effect import NeonEventFilter
 
 from ..base_dialog import BaseDialog
 from .link_dialog_handlers import LinkDialogHandlers
 from .link_dialog_ui import LinkDialogUI
-from app.views.effects.neon_effect import NeonEventFilter
 
 # Обеспечиваем существование директории пользовательских иконок
 icon_path_service.ensure_user_icons_dir()
@@ -120,8 +117,7 @@ class LinkDialog(BaseDialog):
     def _validate_configuration(self) -> bool:
         """Проверяет конфигурацию диалога."""
         if not validate_config_for_icons(app_config):
-            DialogManager.show_error(
-                self,
+            self.show_error(
                 "Некорректная конфигурация иконок.",
                 "Ошибка конфигурации",
                 informative_text=(
@@ -140,9 +136,6 @@ class LinkDialog(BaseDialog):
         
     def _load_initial(self) -> None:
         """Загружает начальные данные в форму."""
-        import logging
-        logger = logging.getLogger(__name__)
-        
         # ДИАГНОСТИЧЕСКОЕ ЛОГИРОВАНИЕ ДЛЯ ARGS
 
         
@@ -168,8 +161,7 @@ class LinkDialog(BaseDialog):
         self.ui.set_form_data(form_data)
         
         # ДИАГНОСТИЧЕСКОЕ ЛОГИРОВАНИЕ ПОСЛЕ УСТАНОВКИ В UI
-        args_widget = self.ui.get_widget('args_le')
-
+        
 
         # Установка иконки
         self._set_initial_icon()
@@ -188,27 +180,18 @@ class LinkDialog(BaseDialog):
         
     def _set_initial_icon(self) -> None:
         """Устанавливает начальную иконку."""
-        if self.icon_name:
-            icon_path = Path(self.icon_name)
-            if not icon_path.is_absolute():
-                icon_path = self.get_user_icons_dir() / icon_path
-            if icon_path.exists():
-                set_icon_to_button(self.ui.get_widget('icon_btn'), str(icon_path))
-                return
-                
-        # Используем иконку по умолчанию
-        default_icon = app_config.get_default_icons().get(self.link_type, "default.png")
-        icon_path = self.get_ui_icons_dir() / default_icon
-        if icon_path.exists():
-            set_icon_to_button(self.ui.get_widget('icon_btn'), str(icon_path))
+        # Централизованный выбор иконки для ссылки
+        link_dict = {"type": self.link_type, "icon_path": self.icon_name}
+        resolved = resolve_icon_for_link(link_dict)
+        if resolved and Path(resolved).exists():
+            set_icon_to_button(self.ui.get_widget('icon_btn'), resolved)
         else:
             # Сообщаем один раз, что иконка не найдена
-            DialogManager.show_warning(
-                self,
+            self.show_warning(
                 "Иконка по умолчанию не найдена.",
                 "Проблема с иконкой",
                 informative_text="Кнопка будет отображаться без иконки. Укажите корректный путь к иконкам в настройках.",
-                details=f"Ожидался файл: {icon_path}",
+                details=f"Ожидался файл: {resolved}",
             )
             
     def set_link_type(self, link_type: str) -> None:
@@ -218,8 +201,7 @@ class LinkDialog(BaseDialog):
         доступа к приватному _on_type_changed.
         """
         if link_type not in {code for code, _ in self.link_types}:
-            DialogManager.show_warning(
-                self,
+            self.show_warning(
                 "Неизвестный тип ссылки.",
                 "Ошибка типа",
                 informative_text="Допустимые значения берутся из конфигурации приложения.",
@@ -321,8 +303,7 @@ class LinkDialog(BaseDialog):
         # Если идёт обработка ссылки, попросим подтверждение у пользователя
         if getattr(self, '_is_processing', False) or getattr(self, '_active_worker', None):
             path_info = getattr(self, '_last_processed_path', '') or self.link.get('url', '')
-            proceed = DialogManager.ask_confirmation(
-                self,
+            proceed = self.ask_confirmation(
                 "Идёт обработка ссылки. Прервать и закрыть диалог?",
                 "Подтверждение закрытия",
                 informative_text="Текущая операция будет отменена и изменения могут быть потеряны.",

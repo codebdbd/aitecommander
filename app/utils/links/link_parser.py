@@ -17,13 +17,16 @@ from PyQt6.QtCore import QFileInfo
 from PyQt6.QtWidgets import QFileIconProvider
 from win32com.shell import shell
 
-from app.config_data import app_config
+from app.utils.ui.icon.icon_resolver import (
+    resolve_icon_for_link,
+)
 from app.utils.ui.icon.path_service import icon_path_service
-from app.utils.ui.icon.validation import is_valid_icon_file
-from app.utils.validators import (
+from app.utils.ui.icon.validation import (
     is_cached_icon_valid,
+    is_valid_icon_file,
     validate_config_for_icons,
-    validate_exe_path,
+)
+from app.utils.validators import (
     validate_link_type,
     validate_path,
 )
@@ -39,6 +42,27 @@ def _get_icon_provider():
             if _provider is None:
                 _provider = QFileIconProvider()
     return _provider
+
+
+def _validate_exe_path(exe_path: str) -> bool:
+    """Локальная проверка пути к EXE: существование, файл, расширение, доступ и разумный размер."""
+    if not exe_path or not isinstance(exe_path, str):
+        return False
+    if not os.path.isfile(exe_path):
+        return False
+    if not exe_path.lower().endswith('.exe'):
+        return False
+    # Проверяем доступ на чтение
+    if not os.access(exe_path, os.R_OK):
+        return False
+    # Мягкий лимит размера (100 МБ) как защита от случайно огромных файлов
+    try:
+        if os.path.getsize(exe_path) > 100 * 1024 * 1024:
+            logging.warning(f"EXE file too large: {exe_path}")
+            return False
+    except OSError:
+        return False
+    return True
 
 @contextmanager
 def com_context():
@@ -80,16 +104,16 @@ def gdi_context():
                     pass
 
 def _get_default_icon(icon_type: str, config) -> str:
-    """Возвращает путь к иконке по умолчанию для указанного типа."""
-    default_icons = config.get_default_icons()
-    if not isinstance(default_icons, dict):
-        logging.warning("Config default_icons не найден или не является словарем")
+    """Возвращает ПОЛНЫЙ путь к иконке по умолчанию для указанного типа через icon_resolver."""
+    try:
+        resolved = resolve_icon_for_link({"type": icon_type, "icon_path": ""})
+        return resolved or ""
+    except Exception:
         return ""
-    return default_icons.get(icon_type, default_icons.get("default", ""))
 
 def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
     """Извлекает иконку из EXE файла с улучшенной обработкой ошибок"""
-    if not validate_exe_path(exe_path):
+    if not _validate_exe_path(exe_path):
         return None
     if not os.path.exists(save_dir):
         try:
@@ -195,13 +219,13 @@ def _get_name_for_link_type(link_type: str, path: str, lnk_info: Dict[str, str])
         return "Unknown"
 
 def _handle_folder_icon(config) -> str:
-    """Обрабатывает иконку для папки"""
+    """Обрабатывает иконку для папки через централизованный резолвер."""
     try:
-        folder_icon = str(icon_path_service.get_ui_icons_dir() / "folder_icon.png")
-        if os.path.exists(folder_icon):
-            return folder_icon
+        resolved = resolve_icon_for_link({"type": "folder", "icon_path": ""})
+        if resolved and os.path.exists(resolved):
+            return resolved
     except Exception as e:
-        logging.error(f"Error getting folder icon: {e}")
+        logging.debug(f"folder icon resolve failed, fallback: {e}")
     return _get_default_icon("folder", config)
 
 def _handle_chromeapp_icon(lnk_info: Dict[str, str], icons_dir: str) -> Optional[str]:

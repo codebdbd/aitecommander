@@ -22,12 +22,6 @@ def validate_path(path) -> bool:
     return isinstance(path, str) and path.strip() != ""
 
 
-def validate_config_for_icons(config) -> bool:
-    """Проверяет, что config содержит путь к иконкам."""
-    # В новой системе конфигурации проверяем наличие метода get_link_icons_dir
-    return hasattr(config, 'get_link_icons_dir')
-
-
 def validate_category_id(category_id) -> bool:
     """Проверяет, что ID категории корректно."""
     return category_id is not None and isinstance(category_id, int) and category_id > 0

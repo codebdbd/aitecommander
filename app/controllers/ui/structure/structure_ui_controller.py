@@ -1,9 +1,15 @@
 # app/controllers/structure/structure_ui_controller.py
 
-from PyQt6.QtCore import QObject, Qt, pyqtSignal, QSize  # Импортируем Qt и QSize из QtCore
+from PyQt6.QtCore import (  # Импортируем Qt и QSize из QtCore
+    QObject,
+    QSize,
+    Qt,
+    pyqtSignal,
+)
 from PyQt6.QtWidgets import QAbstractItemView, QTreeWidget
 
 from app.config_data import app_config
+
 from .icon_handling import IconHandling
 from .item_operations import ItemOperations
 from .selection_handling import SelectionHandling

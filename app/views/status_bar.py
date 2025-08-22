@@ -1,6 +1,6 @@
 # app/views/status_bar.py
 
-from PyQt6.QtWidgets import QStatusBar, QLabel, QWidget, QHBoxLayout
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QStatusBar, QWidget
 
 from app.config_data import app_config
 

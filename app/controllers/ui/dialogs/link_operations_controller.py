@@ -3,12 +3,12 @@
 from PyQt6.QtWidgets import QDialog
 
 from app.config_data import app_config
-from app.utils.system.undo.commands_links import (
+from app.controllers.ui.undo.commands_links import (
     BatchSaveLinksCmd,
     DeleteLinkCmd,
     SaveLinkCmd,
 )
-from app.utils.system.undo.stack import UndoManager
+from app.controllers.ui.undo.stack import UndoManager
 from app.views.dialogs.link_dialog.link_dialog import LinkDialog
 
 # Константы для макросов отмены/повтора
@@ -96,7 +96,6 @@ class LinkOperationsController:
                 return False
             # ВАЖНО: определяем обновление/создание по самим результатам, а не по факту редактирования
             # Если результат содержит id, это обновление существующей записи; иначе — создание новой
-            is_update = link is not None
             
             # Используем пакетную команду для множественных ссылок
             if len(links_to_save) > 1:
@@ -163,7 +162,7 @@ class LinkOperationsController:
             return
         
         # Если выделено несколько — спрашиваем подтверждение
-        from app.controllers.ui.dialogs import DialogManager
+        from .dialog_manager import DialogManager
         reply = DialogManager.ask_confirmation(
             self.main_window,
             app_config.get('ui.delete_confirm_text', 'Вы уверены, что хотите удалить {count} ссылк(и/у)?').format(count=len(links)),

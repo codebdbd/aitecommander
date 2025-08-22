@@ -4,7 +4,7 @@
 
 import logging
 import warnings
-from typing import Any, Dict, List, Union, Protocol, runtime_checkable
+from typing import Any, Dict, List, Protocol, Union, runtime_checkable
 
 # Модульный логгер
 logger = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ def normalize_row(row: Any, logger: logging.Logger = None) -> Dict[str, Any]:
     # Если ничего не сработало
     active_logger.error(
         f"Не удалось нормализовать объект типа {type(row).__name__}. "
-        f"Поддерживаемые типы: dict, namedtuple, sqlite3.Row, объекты с методом keys()"
+        "Поддерживаемые типы: dict, namedtuple, sqlite3.Row, объекты с методом keys()"
     )
     return {}
 

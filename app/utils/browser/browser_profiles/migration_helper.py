@@ -3,7 +3,7 @@
 """
 
 import logging
-from typing import Dict, List
+from typing import Dict
 
 from .profile_manager import get_profile_manager
 
@@ -106,7 +106,7 @@ class ProfileMigrationHelper:
                 summary.append(f"  • {browser['name']}: {browser['profile_count']} профилей")
             
             if existing_browsers:
-                summary.append(f"\nСуществующие ссылки браузеров:")
+                summary.append("\nСуществующие ссылки браузеров:")
                 for browser, count in existing_browsers.items():
                     summary.append(f"  • {browser}: {count} ссылок")
             

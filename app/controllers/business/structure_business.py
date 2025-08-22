@@ -6,30 +6,29 @@
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable
-from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Union
 
-from PyQt6.QtCore import QObject, pyqtSignal, QTimer
+from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
-from app.models.db import Database
-from app.models.structure_model import StructureModel
+from app.controllers.structure_modules import (
+    CacheManager,
+    ValidationResult,
+    handle_exceptions,
+)
+from app.controllers.structure_modules.async_operations import (
+    AsyncOperations,
+    AsyncSignalHandlers,
+)
+from app.controllers.structure_services.crud import CrudService
 from app.controllers.structure_services.exporter import ExportService
+from app.controllers.structure_services.importer import ImportService
 from app.controllers.structure_services.integrity import IntegrityService
 from app.controllers.structure_services.loader import LoaderService
 from app.controllers.structure_services.selection import SelectionService
-from app.controllers.structure_services.validation import ValidationService
-from app.controllers.structure_services.crud import CrudService
-from app.controllers.structure_services.importer import ImportService
 from app.controllers.structure_services.utilities import UtilityService
-from app.controllers.structure_modules import (
-    CacheManager,
-    handle_exceptions,
-    ValidationResult,
-    ItemTypes,
-    ItemTypeStr,
-    StructureItemType,
-)
-from app.controllers.structure_modules.async_operations import AsyncOperations, AsyncSignalHandlers
+from app.controllers.structure_services.validation import ValidationService
+from app.models.db import Database
+from app.models.structure_model import StructureModel
 
 
 class StructureBusinessLogic(QObject):
@@ -317,6 +316,11 @@ class StructureBusinessLogic(QObject):
         categories = self.selection_service.get_categories(self.structure_model, section_id, self.logger)
         self.cache_manager.set(cache_key, categories)
         return categories or []
+
+    def get_links(self, category_id: int) -> List[Dict[str, Any]]:
+        """Получает ссылки для категории (совместимость со старым интерфейсом)."""
+        # Делегируем в UtilityService, который обращается к модели.
+        return self.utility_service.get_links(self.structure_model, category_id, self.logger)
 
     @handle_exceptions()
     def get_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:

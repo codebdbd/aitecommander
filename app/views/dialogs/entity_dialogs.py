@@ -2,20 +2,16 @@ from pathlib import Path
 from typing import Optional
 
 from PyQt6.QtCore import QRunnable, QSize, Qt, QThreadPool, pyqtSignal, pyqtSlot
-from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialogButtonBox,
-    QFileDialog,
     QFormLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QMessageBox,
     QPushButton,
     QScrollArea,
-    QSpinBox,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -24,7 +20,6 @@ from PyQt6.QtWidgets import (
 from app.config_data import app_config
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.ui.theme_controller import ThemeController
-from app.controllers.ui.dialogs import DialogManager
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
 
@@ -155,8 +150,7 @@ class BaseEntityDialog(BaseDialog):
             self._icon_filename = fname
                 
         except Exception as e:
-            DialogManager.show_error(
-                self,
+            self.show_error(
                 "Не удалось установить выбранную иконку.",
                 "Ошибка выбора иконки",
                 informative_text="Выберите другой файл изображения (.png, .ico, .jpg, .svg) и повторите попытку.",
@@ -167,8 +161,7 @@ class BaseEntityDialog(BaseDialog):
         """Базовая проверка и сбор данных. Возвращает словарь с именем и иконкой или None при ошибке."""
         name = self.name_le.text().strip()
         if not name:
-            DialogManager.show_warning(
-                self,
+            self.show_warning(
                 "Название не может быть пустым.",
                 "Неверное имя",
                 informative_text="Введите имя сущности (минимум 1 символ).",
@@ -233,8 +226,7 @@ class SectionDialog(BaseEntityDialog):
         section_data = self.structure_business.get_section_for_editing(self.entity_id)
         
         if not section_data:
-            DialogManager.show_warning(
-                self,
+            self.show_warning(
                 "Раздел для редактирования не найден.",
                 "Раздел недоступен",
                 informative_text=f"Возможно, раздел был удалён. ID: {self.entity_id}",
@@ -256,8 +248,7 @@ class SectionDialog(BaseEntityDialog):
         
         sphere_id = self.sphere_cb.currentData()
         if sphere_id is None:
-            DialogManager.show_warning(
-                self,
+            self.show_warning(
                 "Сфера не выбрана.",
                 "Требуется выбор сферы",
                 informative_text="Выберите сферу из выпадающего списка, затем нажмите 'Сохранить'.",
@@ -315,8 +306,7 @@ class CategoryDialog(BaseEntityDialog):
             for section in sections:
                 self.section_cb.addItem(section["name"], section["id"])
         except Exception as e:
-            DialogManager.show_error(
-                self,
+            self.show_error(
                 "Не удалось загрузить список разделов.",
                 "Ошибка загрузки разделов",
                 informative_text="Проверьте подключение к базе данных и повторите попытку.",
@@ -328,8 +318,7 @@ class CategoryDialog(BaseEntityDialog):
         category_data = self.structure_business.get_category_for_editing(self.entity_id)
         
         if not category_data:
-            DialogManager.show_warning(
-                self,
+            self.show_warning(
                 "Категория для редактирования не найдена.",
                 "Категория недоступна",
                 informative_text=f"Возможно, категория была удалена. ID: {self.entity_id}",
@@ -367,8 +356,7 @@ class CategoryDialog(BaseEntityDialog):
 
         section_id = self.section_cb.currentData()
         if section_id is None:
-            DialogManager.show_warning(
-                self,
+            self.show_warning(
                 "Раздел не выбран.",
                 "Требуется выбор раздела",
                 informative_text="Выберите раздел из выпадающего списка, затем нажмите 'Сохранить'.",
@@ -438,8 +426,7 @@ class NoteDialog(BaseDialog):
             # Не сохраняем сразу - пусть это делает контроллер
             self.accept()
         except Exception as e:
-            DialogManager.show_error(
-                self,
+            self.show_error(
                 "Не удалось обновить заметки.",
                 "Ошибка обновления заметок",
                 informative_text="Закройте и откройте диалог снова, затем повторите попытку.",
@@ -521,8 +508,7 @@ class SettingsDialog(BaseDialog):
             self.accept()
 
         except Exception as e:
-            DialogManager.show_error(
-                self,
+            self.show_error(
                 "Не удалось сохранить настройки.",
                 "Ошибка сохранения настроек",
                 informative_text="Проверьте корректность значений и повторите попытку.",

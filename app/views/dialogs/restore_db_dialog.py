@@ -13,10 +13,9 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtWidgets import QDialogButtonBox, QListWidget, QMessageBox, QVBoxLayout
+from PyQt6.QtWidgets import QDialogButtonBox, QListWidget, QVBoxLayout
 
 from app.config_data import app_config
-from app.controllers.ui.dialogs import DialogManager
 
 from .base_dialog import BaseDialog
 
@@ -274,8 +273,7 @@ class RestoreDbDialog(BaseDialog):
         selected_backup = self.get_selected_backup()
         
         if not selected_backup:
-            DialogManager.show_warning(
-                self,
+            self.show_warning(
                 "Резервная копия не выбрана.",
                 "Требуется выбор резервной копии",
                 informative_text="Выберите файл из списка и нажмите 'Импортировать'. Если список пуст, проверьте каталог бэкапов.",
@@ -283,8 +281,7 @@ class RestoreDbDialog(BaseDialog):
             return
         
         # Дополнительное подтверждение
-        reply = DialogManager.ask_confirmation(
-            self,
+        reply = self.ask_confirmation(
             "Восстановить базу данных из выбранной резервной копии?",
             "Восстановление базы данных",
             informative_text=(

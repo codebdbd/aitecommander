@@ -6,7 +6,6 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Dict, List, Optional, Tuple
 
-from PyQt6.QtCore import QThread, QTimer
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 

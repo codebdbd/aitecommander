@@ -1,31 +1,33 @@
 # app/controllers/window_controllers_setup.py
 
 import logging
-from typing import Dict, Any, Callable
+import time
+from typing import Any, Dict
 
+from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QAction, QFont
 from PyQt6.QtWidgets import QPushButton, QWidget
-from PyQt6.QtCore import QTimer
-
-from app.controllers.system.keyboard_manager import KeyboardManager
-from app.controllers.ui.action_controller import ActionController
-from app.utils.ui.icon.icon_operations.creators import themed_icon
-from app.utils.ui.icon.path_service import get_current_theme
-from app.controllers.ui.state.ui_state_manager import UIStateManager
-from app.config_data import app_config
-from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
-from app.controllers.ui.top_panels_controller import TopPanelsController
-from app.controllers.ui.links.links_actions import LinksActions
 
 # Direct controller imports (remove facade usage)
 from app.controllers.business import StructureBusinessLogic
-from app.controllers.ui.structure.structure_ui_controller import StructureUIController
 from app.controllers.business.links_business import LinksBusinessLogic
-from app.controllers.ui.links.controller import LinksUIController
-from app.controllers.ui.dialogs.link_operations_controller import LinkOperationsController
-from app.controllers.ui.dialogs.database_controller import DatabaseController
-from app.controllers.ui.dialogs.system_dialog_controller import SystemDialogController
 from app.controllers.system.app_shutdown_controller import AppShutdownController
+from app.controllers.system.keyboard_manager import KeyboardManager
+from app.controllers.ui.action_controller import ActionController
+from app.controllers.ui.dialogs.database_controller import DatabaseController
+from app.controllers.ui.dialogs.link_operations_controller import (
+    LinkOperationsController,
+)
+from app.controllers.ui.dialogs.system_dialog_controller import SystemDialogController
+from app.controllers.ui.links.controller import LinksUIController
+from app.controllers.ui.links.links_actions import LinksActions
+from app.controllers.ui.state.ui_state_manager import UIStateManager
+from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
+from app.controllers.ui.structure.structure_ui_controller import StructureUIController
+from app.controllers.ui.top_panels_controller import TopPanelsController
+from app.utils.ui.icon.icon_operations.creators import themed_icon
+from app.utils.ui.icon.path_service import get_current_theme
+from app.utils.ui.menu_builders.category_menu_builder import CategoryMenuBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +146,8 @@ def setup_dependency_injection(window, controllers: Dict[str, Any]) -> None:
 def _deferred_setup(window, controllers: Dict[str, Any]) -> None:
     try:
         _inject_to_category_tiles(window, controllers)
-        _setup_quick_add_widget(window, controllers)
+        # Подключаем сигналы уже созданных виджетов верхней панели
+        _connect_top_panels_signals(window, controllers)
     except Exception as e:
         logger.error(f"Failed during deferred dependency injection: {e}")
 
@@ -179,19 +182,43 @@ def _inject_to_category_tiles(window, controllers: Dict[str, Any]) -> None:
         dialog_provider=dialog_provider
     )
 
+    # Подключение сигналов плиток к контроллерам и показу контекстного меню
+    try:
+        tiles = window.tiles
+        structure_ctrl = controllers['structure']
+
+        # Контекстное меню через CategoryMenuBuilder
+        def on_tiles_context_menu(category_id: int, global_pos):
+            try:
+                builder = CategoryMenuBuilder(tiles.list_widget, window)
+                menu, edit_action, delete_action, add_link_action = builder.build(
+                    category_id,
+                    edit_cb=lambda cid: structure_ctrl.handle_edit_category(cid),
+                    delete_cb=lambda cid: structure_ctrl.handle_delete_category(cid),
+                    add_link_cb=lambda cid: dialog_provider.show_link_dialog_for_category(category_id=cid)
+                )
+                menu.popup(global_pos)
+            except Exception as e:
+                logger.warning(f"Failed to show category tiles context menu: {e}")
+
+        tiles.contextMenuRequested.connect(on_tiles_context_menu)
+
+        # Операции через сигналы
+        tiles.editRequested.connect(structure_ctrl.handle_edit_category)
+        tiles.deleteRequested.connect(structure_ctrl.handle_delete_category)
+        tiles.addLinkRequested.connect(lambda cid: dialog_provider.show_link_dialog_for_category(category_id=cid))
+    except Exception as e:
+        logger.warning(f"Failed to connect CategoryTiles signals: {e}")
+
 
 def _setup_quick_add_widget(window, controllers: Dict[str, Any]) -> None:
     """Создание и настройка QuickAddWidget."""
     if hasattr(window, 'quick_add_widget') and window.quick_add_widget:
         return
 
-    from app.views.quick_add_widget import QuickAddWidget
+    from app.views.top_panel_widgets import TopPanelWidget
 
-    window.quick_add_widget = QuickAddWidget(
-        window,
-        controllers['links'],
-        window  # category_provider
-    )
+    window.quick_add_widget = TopPanelWidget(window, mode="quick", category_provider=window)
 
     _connect_quick_add_signal(window, controllers)
     _add_quick_add_to_top_bar(window)
@@ -212,29 +239,56 @@ def _connect_quick_add_signal(window, controllers: Dict[str, Any]) -> None:
 
 def _add_quick_add_to_top_bar(window) -> None:
     """Добавление QuickAddWidget в топ-бар."""
-    if not hasattr(window, 'content_container'):
-        return
+    # Больше не вставляем здесь: QuickAdd создаётся и добавляется в WindowUISetup
+    return
 
-    top_bar = window.content_container.layout()
-    if not top_bar:
-        return
-
-    # Вставляем QuickAdd непосредственно перед поиском (mainSearch)
-    insert_index = top_bar.count()
+def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
+    """Подключение сигналов верхних панелей и первичная загрузка данных."""
     try:
-        for i in range(top_bar.count()):
-            w = top_bar.itemAt(i).widget()
-            if w and getattr(w, 'objectName', lambda: '')() == 'mainSearch':
-                insert_index = i
-                break
-    except Exception:
-        pass
+        # QuickAdd
+        if hasattr(window, 'quick_add_widget') and window.quick_add_widget:
+            _connect_quick_add_signal(window, controllers)
+    except Exception as e:
+        logger.warning(f"Failed to wire quick add: {e}")
 
-    top_bar.insertWidget(insert_index, window.quick_add_widget)
+    # Favorites
+    try:
+        if hasattr(window, 'fav_widget') and window.fav_widget:
+            window.fav_widget.linkClicked.connect(window.links_actions.open_link)
+            window.fav_widget.refresh_requested.connect(
+                controllers['links_actions'].on_favorites_refresh_requested
+            )
+            window.fav_widget.clear_requested.connect(
+                controllers['links_actions'].on_favorites_clear_requested
+            )
+            # Первичная загрузка
+            window.fav_widget.update_favorites()
+    except Exception as e:
+        logger.warning(f"Failed to wire favorites panel: {e}")
+
+    # Recent
+    try:
+        if hasattr(window, 'recent_links_widget') and window.recent_links_widget:
+            window.recent_links_widget.linkClicked.connect(window.links_actions.open_link)
+            window.recent_links_widget.refresh_requested[int].connect(
+                controllers['links_actions'].on_recent_refresh_requested
+            )
+            # Первичная загрузка
+            window.recent_links_widget.update_recent_links()
+    except Exception as e:
+        logger.warning(f"Failed to wire recent panel: {e}")
+
+    # Применить авто-скрытие и пересчёт топ-бара после подключения
     try:
         filt = getattr(window, '_auto_hide_tree_filter', None)
         if filt:
             QTimer.singleShot(0, filt._apply)
+    except Exception:
+        pass
+    try:
+        mgr = getattr(window, '_topbar_manager', None)
+        if mgr:
+            QTimer.singleShot(0, mgr.adjust)
     except Exception:
         pass
 
@@ -463,8 +517,10 @@ class WindowControllersSetup:
 
         # Шаг 1. Критичный: контроллеры
         try:
+            t0 = time.perf_counter()
             setup_controllers(self.window, controllers)
-            logger.info("Controllers setup completed")
+            t1 = time.perf_counter()
+            logger.info(f"Controllers setup completed in {(t1 - t0)*1000:.1f} ms")
         except Exception as e:
             logger.error(f"Failed to setup controllers: {e}")
             raise SetupError("Critical component ControllersSetup failed to initialize") from e
@@ -477,8 +533,10 @@ class WindowControllersSetup:
             ("KeyboardSetup", setup_keyboard),
         ):
             try:
+                t0 = time.perf_counter()
                 step(self.window, controllers)
-                logger.info(f"{name} completed")
+                t1 = time.perf_counter()
+                logger.info(f"{name} completed in {(t1 - t0)*1000:.1f} ms")
             except Exception as e:
                 logger.error(f"{name} failed: {e}")
 

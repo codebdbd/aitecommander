@@ -1,36 +1,12 @@
 # app/views/main_components/window_initializer.py
 
-import os
-import sys
+import logging
+import time
 
-from PyQt6 import QtCore
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QAction, QFont, QIcon, QKeySequence, QShortcut
-from PyQt6.QtWidgets import (
-    QButtonGroup,
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QScrollArea,
-    QSizePolicy,
-    QSplitter,
-    QStackedLayout,
-    QStatusBar,
-    QVBoxLayout,
-    QWidget,
-)
-
-from app.config_data import app_config
 from app.controllers.system.window_controllers_setup import WindowControllersSetup
-from app.utils.ui.icon.icon_operations.creators import create_icon_from_path, themed_icon
-from app.utils.ui.icon.path_service import get_current_theme
-from app.controllers.ui.state.task_scheduler import LimitedThreadPool
 
 # Компоненты для рефакторинга
 from .window_ui_setup import WindowUISetup
-from .common import create_font
 
 
 class WindowInitializer:
@@ -57,38 +33,68 @@ class WindowInitializer:
     
     def initialize_window(self):
         """Выполняет полную инициализацию главного окна."""
+        t_total0 = time.perf_counter()
         # Блокируем обновления во время инициализации
         self.window.setUpdatesEnabled(False)
-        
+
         try:
-            # Используем новые компоненты (тестируем постепенно)
-            self.ui_setup.setup_window_properties()
-            self.ui_setup.setup_basic_attributes()
-            self.ui_setup.setup_menu()
-            self.ui_setup.setup_central_widget()
-            
+            # Базовые UI свойства и окружение
+            for name, fn in (
+                ("window_properties", self.ui_setup.setup_window_properties),
+                ("basic_attributes", self.ui_setup.setup_basic_attributes),
+                ("menu", self.ui_setup.setup_menu),
+                ("central_widget", self.ui_setup.setup_central_widget),
+            ):
+                t0 = time.perf_counter()
+                fn()
+                t1 = time.perf_counter()
+                logging.info(f"WindowInit: {name} took {(t1 - t0)*1000:.1f} ms")
+
             # Получаем main_layout из UI компонента для совместимости со старыми методами
             self.main_layout = self.ui_setup.main_layout
-            
-            # Используем UI компонент для верхней панели
+
+            # Верхняя панель
+            t0 = time.perf_counter()
             self.ui_setup.setup_top_panel()
-            
-            # Используем UI компонент для основного содержимого
+            t1 = time.perf_counter()
+            logging.info(f"WindowInit: top_panel took {(t1 - t0)*1000:.1f} ms")
+
+            # Основное содержимое
+            t0 = time.perf_counter()
             self.ui_setup.setup_main_content()
-            
-            # Используем UI компонент для нижней панели и статус-бара
+            t1 = time.perf_counter()
+            logging.info(f"WindowInit: main_content took {(t1 - t0)*1000:.1f} ms")
+
+            # Нижняя панель
+            t0 = time.perf_counter()
             self.ui_setup.setup_bottom_panel()
+            t1 = time.perf_counter()
+            logging.info(f"WindowInit: bottom_panel took {(t1 - t0)*1000:.1f} ms")
+
+            # Статус-бар
+            t0 = time.perf_counter()
             self.ui_setup.setup_status_bar()
-            
-            # Используем контроллер компонент (должен быть до горячих клавиш)
+            t1 = time.perf_counter()
+            logging.info(f"WindowInit: status_bar took {(t1 - t0)*1000:.1f} ms")
+
+            # Контроллеры
+            t0 = time.perf_counter()
             self.controllers_setup.setup_controllers()
-            
-            # Горячие клавиши после создания контроллеров
+            t1 = time.perf_counter()
+            logging.info(f"WindowInit: setup_controllers took {(t1 - t0)*1000:.1f} ms")
+
+            # Горячие клавиши
+            t0 = time.perf_counter()
             self.ui_setup.setup_shortcuts()
+            t1 = time.perf_counter()
+            logging.info(f"WindowInit: shortcuts took {(t1 - t0)*1000:.1f} ms")
         finally:
             # Включаем обновления после завершения инициализации
             self.window.setUpdatesEnabled(True)
-            
+
+        t_total1 = time.perf_counter()
+        logging.info(f"WindowInit: total initialize_window took {(t_total1 - t_total0)*1000:.1f} ms")
+
         # Инициализация сфер выполняется асинхронно
         self.controllers_setup.initialize_spheres()
     

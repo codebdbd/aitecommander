@@ -3,32 +3,28 @@ UI компоненты для LinkDialog.
 Содержит только UI элементы и их первичную настройку.
 """
 
-import os
-from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
     QComboBox,
     QDialogButtonBox,
-    QFileDialog,
     QFormLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QTextEdit,
     QToolButton,
     QVBoxLayout,
-    QSizePolicy,
 )
 
 from app.config_data import app_config
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.utils.ui.icon.ui_helpers import set_icon_to_button
+from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 
 
 class LinkDialogUI:
@@ -55,12 +51,13 @@ class LinkDialogUI:
             btn = QToolButton()
             btn.setCheckable(True)
             btn.setText(txt)
-            default_icons = app_config.get_default_icons()
-            icon_filename = default_icons.get(code, default_icons["default"])
-            icon_path = self.parent.get_ui_icons_dir() / icon_filename
-            if icon_path.exists():
-                btn.setIcon(create_icon_from_path(str(icon_path)))
-                btn.setIconSize(QSize(32, 32))
+            try:
+                icon_path = resolve_icon_for_link({"type": code, "icon_path": ""})
+                if icon_path:
+                    btn.setIcon(create_icon_from_path(str(icon_path)))
+                    btn.setIconSize(QSize(32, 32))
+            except Exception:
+                pass
             btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
             # Height by content. Width expands to share space equally.
             btn.setObjectName("linkTypeBtn")

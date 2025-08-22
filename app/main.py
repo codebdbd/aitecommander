@@ -1,13 +1,7 @@
-# app/main.py
-
-import json
 import logging
-import logging.config
+import time
 import os
 import sys
-import traceback
-from datetime import datetime
-from pathlib import Path
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
@@ -15,255 +9,10 @@ from PyQt6.QtWidgets import QApplication
 from app.controllers.ui.theme_controller import ThemeController
 from app.models.db import Database
 from app.settings import AppSettings
-from app.controllers.ui.dialogs import DialogManager
+from app.utils.logging.application_logger import ApplicationLogger
+from app.utils.logging.exception_handler import ExceptionHandler
+from app.utils.ui.icon.validation import validate_and_log_ui_icons_startup
 from app.views.main_window import MainWindow
-
-
-class ApplicationLogger:
-    """Централизованная система логирования приложения."""
-    
-    def __init__(self, log_level=logging.INFO):
-        self.log_level = log_level
-        self.logs_dir = self._ensure_logs_directory()
-        self.log_file_path = self._create_log_file_path()
-        self._setup_logging()
-    
-    def _ensure_logs_directory(self) -> Path:
-        """Создает директорию для логов, если она не существует."""
-        project_root = Path(__file__).parent.parent
-        logs_dir = project_root / "logs"
-        logs_dir.mkdir(exist_ok=True)
-        return logs_dir
-    
-    def _create_log_file_path(self) -> Path:
-        """Создает путь к лог-файлу с датой."""
-        log_filename = f"app_log_{datetime.now().strftime('%Y%m%d')}.txt"
-        return self.logs_dir / log_filename
-    
-    def _get_app_directory(self):
-        """Определяет корневую директорию приложения (работает в упакованном виде)."""
-        if getattr(sys, 'frozen', False):
-            # Упакованное приложение (PyInstaller, cx_Freeze, etc.)
-            return Path(sys.executable).parent
-        else:
-            # Режим разработки
-            return Path(__file__).parent.parent
-    
-    def _get_config_path(self):
-        """Определяет путь к конфигурации логирования с приоритетами."""
-        # Приоритет 1: Переменная окружения (для продвинутых пользователей)
-        env_path = os.getenv('LOGGING_CONFIG_PATH')
-        if env_path and Path(env_path).exists():
-            logging.info(f"Используется конфигурация из переменной окружения: {env_path}")
-            return Path(env_path)
-        
-        # Приоритет 2: Рядом с исполняемым файлом (портативность)
-        app_dir = self._get_app_directory()
-        portable_path = app_dir / "config_data" / "logging_config.json"
-        if portable_path.exists():
-            logging.info(f"Используется портативная конфигурация: {portable_path}")
-            return portable_path
-        
-        # Приоритет 3: Стандартное место в проекте (разработка)
-        dev_path = Path(__file__).parent / "config_data" / "logging_config.json"
-        if dev_path.exists():
-            logging.info(f"Используется конфигурация разработки: {dev_path}")
-            return dev_path
-        
-        # Если ничего не найдено
-        logging.warning("Конфигурационный файл логирования не найден, используются настройки по умолчанию")
-        return None
-    
-    def _get_embedded_config(self):
-        """Возвращает встроенную конфигурацию логирования как fallback."""
-        return {
-            'version': 1,
-            'disable_existing_loggers': False,
-            'formatters': {
-                'standard': {
-                    'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-                },
-                'detailed': {
-                    'format': '%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s'
-                },
-            },
-            'handlers': {
-                'console': {
-                    'level': 'INFO',
-                    'class': 'logging.StreamHandler',
-                    'formatter': 'standard'
-                },
-                'file': {
-                    'level': 'DEBUG',
-                    'class': 'logging.handlers.RotatingFileHandler',
-                    'filename': str(self.log_file_path),
-                    'maxBytes': 10485760,  # 10MB
-                    'backupCount': 5,
-                    'formatter': 'detailed',
-                    'encoding': 'utf-8'
-                }
-            },
-            'loggers': {
-                '': {
-                    'handlers': ['console', 'file'],
-                    'level': self.log_level,
-                    'propagate': False
-                }
-            }
-        }
-
-    def _setup_logging(self):
-        """Настраивает систему логирования через dictConfig с ротацией логов."""
-        try:
-            # Получаем путь к конфигурационному файлу
-            config_path = self._get_config_path()
-            
-            if config_path:
-                # Загружаем конфигурацию из файла
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    log_config = json.load(f)
-                
-                # Обновляем путь к файлу лога в конфигурации
-                if 'handlers' in log_config and 'file' in log_config['handlers']:
-                    log_config['handlers']['file']['filename'] = str(self.log_file_path)
-                
-                # Применяем уровень логирования
-                if 'loggers' in log_config and '' in log_config['loggers']:
-                    log_config['loggers']['']['level'] = self.log_level
-                
-                # Настраиваем логирование через dictConfig
-                logging.config.dictConfig(log_config)
-                logging.info(f"Логирование настроено из файла: {config_path}")
-            else:
-                # Используем встроенную конфигурацию
-                log_config = self._get_embedded_config()
-                logging.config.dictConfig(log_config)
-                logging.info(f"Логирование настроено через встроенную конфигурацию. Файл: {self.log_file_path}")
-                
-        except (FileNotFoundError, PermissionError, json.JSONDecodeError) as e:
-            # Если возникла ошибка при загрузке конфигурации, используем встроенную
-            logging.warning(f"Ошибка при загрузке конфигурации логирования: {e}. Используется встроенная конфигурация.")
-            try:
-                log_config = self._get_embedded_config()
-                logging.config.dictConfig(log_config)
-                logging.info("Логирование настроено через встроенную конфигурацию (fallback)")
-            except Exception as fallback_error:
-                # Последний резерв - базовая настройка
-                logging.basicConfig(
-                    level=self.log_level,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    handlers=[
-                        logging.StreamHandler(),
-                        logging.FileHandler(self.log_file_path, encoding='utf-8')
-                    ]
-                )
-                logging.error(f"Критическая ошибка настройки логирования: {fallback_error}. Используется базовая конфигурация.")
-        except Exception as e:
-            # Общий обработчик для непредвиденных ошибок
-            logging.error(f"Неожиданная ошибка при настройке логирования: {e}. Используется базовая конфигурация.")
-            logging.basicConfig(
-                level=self.log_level,
-                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-            )
-    
-    def _setup_default_logging(self):
-        """Настраивает систему логирования с параметрами по умолчанию."""
-        log_config = {
-            'version': 1,
-            'disable_existing_loggers': False,
-            'formatters': {
-                'standard': {
-                    'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-                },
-                'detailed': {
-                    'format': '%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s'
-                },
-            },
-            'handlers': {
-                'console': {
-                    'level': 'INFO',
-                    'class': 'logging.StreamHandler',
-                    'formatter': 'standard',
-                },
-                'file': {
-                    'level': 'DEBUG',
-                    'class': 'logging.handlers.RotatingFileHandler',
-                    'formatter': 'detailed',
-                    'filename': str(self.log_file_path),
-                    'maxBytes': 1024*1024*5,  # 5 MB
-                    'backupCount': 5,
-                    'encoding': 'utf-8',
-                },
-            },
-            'loggers': {
-                '': {  # root logger
-                    'handlers': ['console', 'file'],
-                    'level': self.log_level,
-                    'propagate': False
-                }
-            }
-        }
-        
-        logging.config.dictConfig(log_config)
-        logging.info(f"Логирование настроено через dictConfig (по умолчанию). Файл: {self.log_file_path}")
-
-
-class ExceptionHandler:
-    """Обработчик глобальных исключений."""
-    
-    def __init__(self):
-        self.original_excepthook = sys.excepthook
-        sys.excepthook = self.handle_exception
-    
-    def handle_exception(self, exc_type, exc_value, exc_traceback):
-        """Обрабатывает непойманные исключения."""
-        if issubclass(exc_type, KeyboardInterrupt):
-            # Возвращаем стандартное поведение для прерывания
-            self.original_excepthook(exc_type, exc_value, exc_traceback)
-            return
-        
-        # Логируем критическую ошибку
-        logging.critical(
-            "Непойманное исключение",
-            exc_info=(exc_type, exc_value, exc_traceback)
-        )
-        
-        # Показываем пользователю информацию об ошибке
-        self._show_error_dialog(exc_type, exc_value, exc_traceback)
-    
-    def _show_error_dialog(self, exc_type, exc_value, exc_traceback):
-        """Показывает диалог с информацией об ошибке."""
-        try:
-            # Проверяем, существует ли QApplication
-            if QApplication.instance() is None:
-                error_text = f"Произошла критическая ошибка: {exc_type.__name__}"
-                error_info = str(exc_value)
-                error_details = ''.join(traceback.format_exception(
-                    exc_type, exc_value, exc_traceback
-                ))
-                logging.getLogger(__name__).error(error_text)
-                logging.getLogger(__name__).error(error_info)
-                logging.getLogger(__name__).error("Подробности:")
-                logging.getLogger(__name__).error(error_details)
-                return
-            
-            error_text = f"Произошла критическая ошибка: {exc_type.__name__}"
-            error_info = str(exc_value)
-            error_details = ''.join(traceback.format_exception(
-                exc_type, exc_value, exc_traceback
-            ))
-            
-            DialogManager.show_error(
-                None,
-                "Критическая ошибка",
-                error_text,
-                informative_text=f"{error_info}\n\nПриложение будет закрыто.",
-                details=error_details,
-            )
-        except Exception as e:
-            # Если даже диалог не удается показать
-            print(f"Критическая ошибка: {exc_type.__name__}: {exc_value}")
-            print(f"Ошибка показа диалога: {e}")
 
 
 class ApplicationInitializer:
@@ -278,25 +27,18 @@ class ApplicationInitializer:
     def cleanup(self):
         """Очищает ресурсы приложения."""
         try:
-            # Проверяем, что database существует и имеет активное соединение
             if self.database and hasattr(self.database, 'thread_local') and hasattr(self.database.thread_local, 'conn'):
                 self.database.close()
-                logging.info("Соединение с базой данных закрыто")
             elif self.database:
-                logging.info("Соединение с базой данных уже было закрыто или не было установлено")
+                pass
         except Exception as e:
             logging.error(f"Ошибка при закрытии соединения с базой данных: {e}")
     
     def initialize_settings(self) -> bool:
         """Инициализирует настройки приложения."""
         try:
-            # Если настройки уже были переданы извне, используем их
             if self.settings is None:
-                logging.info("Загрузка настроек приложения...")
                 self.settings = AppSettings()
-            else:
-                logging.info("Используются переданные настройки приложения")
-            logging.info("Настройки успешно загружены")
             return True
         except Exception as e:
             logging.error(f"Ошибка загрузки настроек: {e}", exc_info=True)
@@ -305,9 +47,7 @@ class ApplicationInitializer:
     def initialize_database(self) -> bool:
         """Инициализирует подключение к базе данных."""
         try:
-            logging.info("Подключение к базе данных...")
             self.database = Database()
-            logging.info("База данных успешно инициализирована")
             return True
         except Exception as e:
             logging.error(f"Ошибка подключения к базе данных: {e}", exc_info=True)
@@ -316,9 +56,7 @@ class ApplicationInitializer:
     def initialize_theme_controller(self) -> bool:
         """Инициализирует контроллер темы."""
         try:
-            logging.info("Создание контроллера темы...")
             self.theme_controller = ThemeController(self.settings)
-            logging.info("Контроллер темы создан")
             return True
         except Exception as e:
             logging.error(f"Ошибка создания контроллера темы: {e}", exc_info=True)
@@ -327,21 +65,15 @@ class ApplicationInitializer:
     def initialize_main_window(self) -> bool:
         """Инициализирует главное окно приложения."""
         try:
-            logging.info("Создание главного окна...")
             self.main_window = MainWindow(
                 self.database, 
                 self.settings, 
                 self.theme_controller
             )
-            
-            # Устанавливаем связь между контроллером темы и окном
             if hasattr(self.theme_controller, 'set_main_window'):
                 self.theme_controller.set_main_window(self.main_window)
             else:
-                # Fallback для старого API
                 self.theme_controller.main_window = self.main_window
-            
-            logging.info("Главное окно создано")
             return True
         except Exception as e:
             logging.error(f"Ошибка создания главного окна: {e}", exc_info=True)
@@ -351,9 +83,7 @@ class ApplicationInitializer:
         """Применяет начальную тему оформления."""
         try:
             theme_name = self.settings.get_theme()
-            logging.info(f"Применение начальной темы: {theme_name}")
             self.theme_controller.apply(theme_name)
-            logging.info("Тема успешно применена")
             return True
         except Exception as e:
             logging.error(f"Ошибка применения темы: {e}", exc_info=True)
@@ -361,6 +91,7 @@ class ApplicationInitializer:
     
     def initialize_all(self) -> bool:
         """Выполняет полную инициализацию всех компонентов."""
+        t0 = time.perf_counter()
         initialization_steps = [
             ("настроек", self.initialize_settings),
             ("базы данных", self.initialize_database),
@@ -368,16 +99,16 @@ class ApplicationInitializer:
             ("главного окна", self.initialize_main_window),
             ("темы оформления", self.apply_initial_theme),
         ]
-        
         for step_name, step_func in initialization_steps:
-            logging.info(f"Инициализация {step_name}...")
+            s0 = time.perf_counter()
             if not step_func():
                 logging.critical(f"Критическая ошибка при инициализации {step_name}")
                 return False
-        
-        logging.info("Все компоненты успешно инициализированы")
+            s1 = time.perf_counter()
+            logging.info(f"Init step '{step_name}' took {(s1 - s0)*1000:.1f} ms")
+        t1 = time.perf_counter()
+        logging.info(f"Initialize_all total: {(t1 - t0)*1000:.1f} ms")
         return True
-
 
 def _log_system_info():
     """Логирует системную информацию для отладки."""
@@ -385,7 +116,6 @@ def _log_system_info():
 
     from PyQt6.QtCore import QT_VERSION_STR
     from PyQt6.QtGui import QGuiApplication
-    
     try:
         logging.info(f"Операционная система: {platform.platform()}")
         logging.info(f"Версия Python: {sys.version}")
@@ -393,8 +123,6 @@ def _log_system_info():
         logging.info(f"Версия PyQt6: {QT_VERSION_STR}")
         logging.info(f"Путь запуска: {sys.argv[0]}")
         logging.info(f"Рабочая директория: {os.getcwd()}")
-        
-        # Информация о дисплеях
         screens = QGuiApplication.screens()
         for i, screen in enumerate(screens):
             geometry = screen.geometry()
@@ -402,114 +130,103 @@ def _log_system_info():
     except Exception as e:
         logging.warning(f"Не удалось получить системную информацию: {e}")
 
-
 def create_application() -> QApplication:
     """Создает и настраивает QApplication."""
     app = QApplication(sys.argv)
-    
-    # Настройки приложения
     app.setApplicationName("MyPyQtApp")
     app.setApplicationVersion("1.0.0")
     app.setOrganizationName("MyCompany")
-    
-    logging.info(f"QApplication создан: {app.applicationName()} v{app.applicationVersion()}")
     return app
-
 
 def main():
     """Главная функция приложения."""
-    # Определяем уровень логирования в зависимости от режима
     log_level = logging.DEBUG if '--debug' in sys.argv else logging.INFO
+    t_app0 = time.perf_counter()
     
     # Инициализируем систему логирования
-    app_logger = ApplicationLogger(log_level)
+    ApplicationLogger(log_level)
     logging.info("=" * 60)
     logging.info("ЗАПУСК ПРИЛОЖЕНИЯ")
     logging.info("=" * 60)
-    
+    if '--debug' in sys.argv:
+        try:
+            validate_and_log_ui_icons_startup()
+        except Exception as _e:
+            logging.warning("Ошибка при стартап-валидации иконок: %s", _e)
     # Устанавливаем глобальный обработчик исключений
-    exception_handler = ExceptionHandler()
+    ExceptionHandler()
     
     # Инициализируем инициализатор приложения
     initializer = None
-    
     try:
-        # Создаем QApplication
+        s0 = time.perf_counter()
         app = create_application()
-        
-        # Логируем системную информацию после создания QApplication
+        s1 = time.perf_counter()
+        logging.info(f"Startup: create_application took {(s1 - s0)*1000:.1f} ms")
+
+        s0 = time.perf_counter()
         _log_system_info()
-        
-        # Логируем PID процесса и количество аргументов
+        s1 = time.perf_counter()
+        logging.info(f"Startup: _log_system_info took {(s1 - s0)*1000:.1f} ms")
+
         logging.info(f"PID процесса: {os.getpid()}")
         logging.info(f"Количество аргументов командной строки: {len(sys.argv)}")
-        
-        # Создаем настройки один раз и передаем их в инициализатор
+
+        s0 = time.perf_counter()
         settings = AppSettings()
-        # Вариант A: единоразово зафиксировать размер шрифта 10pt в пользовательских настройках
         try:
             settings.set_font_size(10)
-            logging.info("Пользовательский размер шрифта установлен в 10pt (Option A)")
         except Exception as e:
             logging.warning(f"Не удалось записать размер шрифта в настройки: {e}")
         initializer = ApplicationInitializer(settings)
-
-        # Предзагрузка профилей браузеров в фоне
+        s1 = time.perf_counter()
+        logging.info(f"Startup: settings + initializer took {(s1 - s0)*1000:.1f} ms")
         from PyQt6.QtCore import QRunnable, QThreadPool
 
         from app.utils.browser.browser_profiles import get_profile_manager
-        
         class ProfilePreloader(QRunnable):
             def run(self):
                 try:
                     manager = get_profile_manager()
                     manager.get_all_profiles()
-                    logging.info("Профили браузеров предзагружены")
                 except Exception as e:
                     logging.warning(f"Ошибка предзагрузки профилей: {e}")
-        
         QThreadPool.globalInstance().start(ProfilePreloader())
-
-        # Применяем размер шрифта из настроек
         from PyQt6.QtGui import QFont
+        s0 = time.perf_counter()
         font_size = settings.get_font_size() if hasattr(settings, 'get_font_size') else 12
         app.setFont(QFont(app.font().family(), font_size))
-        logging.info(f"Глобальный шрифт приложения установлен: {app.font().family()} {font_size}pt")
+        s1 = time.perf_counter()
+        logging.info(f"Startup: set application font took {(s1 - s0)*1000:.1f} ms")
 
+        s0 = time.perf_counter()
         if not initializer.initialize_all():
             logging.critical("Не удалось инициализировать приложение")
             if app:
                 app.quit()
             return 1
-        
-        # Показываем главное окно
-        logging.info("Отображение главного окна...")
+        s1 = time.perf_counter()
+        logging.info(f"Startup: initialize_all() took {(s1 - s0)*1000:.1f} ms")
+
+        s0 = time.perf_counter()
         initializer.main_window.show()
-        logging.info("Главное окно отображено")
-        
-        # Логируем успешный старт через небольшую задержку
+        s1 = time.perf_counter()
+        logging.info(f"Startup: main_window.show() took {(s1 - s0)*1000:.1f} ms")
+
         QTimer.singleShot(100, lambda: logging.info("Приложение успешно запущено"))
-        
-        # Запускаем главный цикл событий
-        logging.info("Запуск главного цикла событий...")
+        t_ready = time.perf_counter()
+        logging.info(f"Startup: time before event loop: {(t_ready - t_app0)*1000:.1f} ms")
         exit_code = app.exec()
-        
-        logging.info(f"Приложение завершено с кодом: {exit_code}")
         return exit_code
-        
     except Exception as e:
         logging.critical(f"Критическая ошибка в main(): {e}", exc_info=True)
         return 1
-    
     finally:
-        # Очищаем ресурсы приложения
         if initializer:
             initializer.cleanup()
-        
         logging.info("=" * 60)
         logging.info("ЗАВЕРШЕНИЕ РАБОТЫ ПРИЛОЖЕНИЯ")
         logging.info("=" * 60)
-
 
 if __name__ == "__main__":
     sys.exit(main())

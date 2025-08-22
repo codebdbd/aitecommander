@@ -1,5 +1,18 @@
 from __future__ import annotations
 
+import html as _html
+import json
+import re
+from typing import Optional
+from urllib.parse import urlencode, urlparse
+
+from bs4 import BeautifulSoup
+
+from .constants import BS_PARSER, logger
+from .domain import base_domain
+from .http_client import http_request
+from .js_renderer import render_html
+
 # ------------------------------
 # Module-level constants
 # ------------------------------
@@ -86,20 +99,6 @@ def _looks_js_heavy(soup: BeautifulSoup, html_text: str) -> bool:
     except Exception:
         return False
     return False
-"""Title parsing utilities with OG/Twitter support and YouTube oEmbed fallback."""
-
-import html as _html
-import json
-import re
-from typing import Optional
-from urllib.parse import urlencode, urlparse
-
-from bs4 import BeautifulSoup
-
-from .constants import BS_PARSER, logger
-from .http_client import http_request
-from .domain import base_domain
-from .js_renderer import render_html
 
 
 # ------------------------------

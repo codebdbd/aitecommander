@@ -1,12 +1,10 @@
 # app/controllers/structure/icon_handling.py
 
-from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QTreeWidgetItem, QTreeWidgetItemIterator
 
-from app.config_data import app_config
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.utils.ui.icon.path_service import icon_path_service
+from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.qt.roles import get_tree_tuple
 
 
@@ -17,31 +15,14 @@ class IconHandling:
         self.business = controller.business
     
     def _get_icon_for_item(self, item_type: str, icon_name: str) -> QIcon:
-        default_icons = app_config.get_default_icons()
-        default_icon = default_icons.get("section") if item_type == "section" else default_icons.get("category")
-        icon_file = icon_name or default_icon
-        
-        # Если icon_file пустая, используем иконку по умолчанию
-        if not icon_file:
-            icon_file = default_icon
-        
-        # Проверяем пользовательские иконки
-        icon_path = icon_path_service.get_user_icons_dir() / icon_file
-        if icon_path.exists():
-            return create_icon_from_path(str(icon_path))
-        
-        # Проверяем UI иконки
-        icon_path = icon_path_service.get_ui_icons_dir() / icon_file
-        if icon_path.exists():
-            return create_icon_from_path(str(icon_path))
-        
-        # Если иконка не найдена, используем иконку по умолчанию
-        if default_icon:
-            icon_path = icon_path_service.get_ui_icons_dir() / default_icon
-            if icon_path.exists():
-                return create_icon_from_path(str(icon_path))
-        
-        # Если ничего не найдено, возвращаем пустую иконку
+        # Централизованный резолвер: учитывает и заданный icon_name, и тип
+        try:
+            resolved = resolve_icon_for_link({"type": item_type, "icon_path": icon_name or ""})
+            if resolved:
+                return create_icon_from_path(resolved)
+        except Exception:
+            pass
+        # Пустая иконка, если ничего не найдено
         return QIcon()
     
     def _set_tree_item_icon(self, item: QTreeWidgetItem, item_type: str, data: dict) -> None:

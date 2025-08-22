@@ -1,6 +1,7 @@
 # app/controllers/ui/links/links_actions.py
 
 from __future__ import annotations
+
 from typing import Dict, List, Optional
 
 

@@ -2,8 +2,6 @@
 import logging
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import QModelIndex
-from PyQt6.QtGui import QKeySequence
 from PyQt6.QtWidgets import QMenuBar
 
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache

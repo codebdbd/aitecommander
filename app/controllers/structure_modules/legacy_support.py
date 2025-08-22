@@ -2,10 +2,10 @@
 
 """Модуль для поддержки устаревших методов и обратной совместимости."""
 
-import warnings
+import inspect
 import logging
 import threading
-import inspect
+import warnings
 from typing import Any, Dict, List, Tuple
 
 from .base import StructureItemType, ValidationError

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Optional, Union
 import logging
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from app.models.structure_model import StructureModel
 

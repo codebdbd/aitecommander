@@ -1,7 +1,6 @@
 """
 Конфигурация лимитов и ограничений.
 """
-from typing import Any, Dict
 
 from .base_config import BaseConfig
 

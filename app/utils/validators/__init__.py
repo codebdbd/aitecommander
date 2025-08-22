@@ -5,12 +5,10 @@
 
 from .basic_validators import (
     validate_category_id,
-    validate_config_for_icons,
     validate_link_type,
     validate_path,
     validate_required_fields,
 )
-from .file_validators import is_cached_icon_valid, is_valid_icon_file, validate_exe_path
 from .import_validators import can_parse_bookmarks_html, is_valid_bookmarks_html
 from .link_validators import (
     extract_base_name_from_profile_name,
@@ -34,7 +32,6 @@ __all__ = [
     'validate_required_fields',
     'validate_link_type', 
     'validate_path',
-    'validate_config_for_icons',
     'validate_category_id',
     
     # Link validators
@@ -46,10 +43,7 @@ __all__ = [
     'validate_chrome_profile_name',
     'extract_base_name_from_profile_name',
     
-    # File validators
-    'validate_exe_path',
-    'is_cached_icon_valid',
-    'is_valid_icon_file',
+    # File validators (без UI-иконок) — пусто после инлайнинга
     
     # Structure validators
     'validate_section_data',

@@ -9,7 +9,6 @@ from app.utils.links.link_factory import make_profile_link_record
 from app.utils.validators import (
     extract_base_name_from_profile_name,
     validate_chrome_profile_name,
-    validate_link_duplicate,
 )
 
 from .profile_manager import get_profile_manager
@@ -89,8 +88,16 @@ class UniversalProfileProcessor:
         # Ключ: (url, type, args)
         try:
             existing_keys = {
-                (l.get('url'), l.get('type'), (l.get('args') if (hasattr(l, 'get') and l.get('args') is not None) else l.get('args') if isinstance(l, dict) else ''))
-                for l in existing_links
+                (
+                    link_item.get('url'),
+                    link_item.get('type'),
+                    (
+                        link_item.get('args')
+                        if (hasattr(link_item, 'get') and link_item.get('args') is not None)
+                        else link_item.get('args') if isinstance(link_item, dict) else ''
+                    ),
+                )
+                for link_item in existing_links
             }
         except Exception:
             existing_keys = set()
@@ -145,7 +152,6 @@ class UniversalProfileProcessor:
                 logger.debug(f"Generated link_name='{link_name}' for profile '{prof_name}'")
                 
                 # Проверяем на дубликаты
-                current_link_id = existing_link.get("id") if is_current else None
                 
                 # При редактировании смешанных профилей не проверяем на дубликаты профили другого браузера
                 skip_duplicate_check = False
@@ -199,9 +205,11 @@ class UniversalProfileProcessor:
             return finder.format_profile_display_name(profile)
         
         # Fallback для совместимости
-        profile_name = (profile.get("email") or 
-                       profile.get("name") or 
-                       get_browser_display_name(finder, browser_key))
+        profile_name = (
+            profile.get("email")
+            or profile.get("name")
+            or getattr(finder, 'get_browser_name', lambda: 'Browser')()
+        )
         return validate_chrome_profile_name(profile_name)
     
     def _generate_link_name(self, base_name: str, profile_name: str, 

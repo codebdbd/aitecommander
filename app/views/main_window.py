@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Optional
 
 from PyQt6.QtCore import QTimer, pyqtSignal
@@ -6,18 +7,20 @@ from PyQt6.QtGui import QKeySequence, QUndoStack
 from PyQt6.QtWidgets import QMainWindow, QTableView, QWidget
 
 if TYPE_CHECKING:
-    from app.controllers.ui.theme_controller import ThemeController
-    from app.controllers.ui.structure.structure_ui_controller import StructureUIController
-    from app.controllers.ui.menu_controller import MenuController, ActionController
     from app.controllers.ui.links.links_actions import LinksActions
-    from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
-    from app.controllers.ui.top_panels_controller import TopPanelsController
+    from app.controllers.ui.menu_controller import ActionController, MenuController
     from app.controllers.ui.state.ui_state_manager import UIStateManager
+    from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
+    from app.controllers.ui.structure.structure_ui_controller import (
+        StructureUIController,
+    )
+    from app.controllers.ui.theme_controller import ThemeController
+    from app.controllers.ui.top_panels_controller import TopPanelsController
 
 from app.models.db import Database
 from app.settings import AppSettings
-from app.views.status_bar import update_status_bar as _update_status_bar
 from app.utils.db.synchronization import signal_guard
+from app.views.status_bar import update_status_bar as _update_status_bar
 
 
 class MainWindow(QMainWindow):
@@ -142,11 +145,19 @@ class MainWindow(QMainWindow):
         self.update_statusbar()
         
         if result and selected_link_id:
-            from app.controllers.ui.state.task_scheduler import schedule_selection_restore
+            from app.controllers.ui.state.task_scheduler import (
+                schedule_selection_restore,
+            )
             schedule_selection_restore(
                 lambda: getattr(self.links_actions, 'restore_selection', lambda *_: None)(selected_link_id),
                 f"table_selection_{selected_link_id}"
             )
+        # Возвращаем результат, чтобы внешние вызовы могли узнать об успешности
+        return bool(result)
+
+    def show_link_dialog_for_category(self, category_id: int | None = None, link=None) -> bool:
+        """Открывает диалог ссылки для указанной категории (используется плитками категорий)."""
+        return bool(self.show_link_dialog(link=link, category_id=category_id))
 
     def _get_selected_links(self):
         """Возвращает список выбранных ссылок."""
