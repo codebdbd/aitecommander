@@ -1,8 +1,12 @@
 # app/controllers/system_dialog_controller.py
 
+import logging
 from app.config_data import app_config
 
 from .dialog_manager import DialogManager
+
+
+logger = logging.getLogger(__name__)
 
 
 class SystemDialogController:
@@ -24,8 +28,7 @@ class SystemDialogController:
             try:
                 self.main_window.db.backup()
             except Exception as backup_err:
-                import logging
-                logging.warning(f"Не удалось создать резервную копию после импорта закладок: {backup_err}")
+                logger.warning(f"Не удалось создать резервную копию после импорта закладок: {backup_err}")
             # Обновить дерево категорий и таблицу ссылок
             if hasattr(self.main_window, 'structure_business'):
                 self.main_window.structure_business.load_structure()
@@ -35,7 +38,7 @@ class SystemDialogController:
                 if hasattr(self.main_window, 'ui_state') and self.main_window.ui_state:
                     self.main_window.ui_state.update_category_without_stack_switch(category_id)
                 else:
-                    self.logger.error("UIStateManager not available in SystemDialogController")
+                    logger.error("UIStateManager not available in SystemDialogController")
             self.main_window.update_statusbar()
         # Ошибки и сообщения обрабатываются внутри import_browser_bookmarks_to_db
     

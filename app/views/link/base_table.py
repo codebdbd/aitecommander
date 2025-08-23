@@ -27,6 +27,9 @@ from .row_operations import RowOperationsMixin
 # Константы для магических чисел
 HOVER_COLOR = "#444444"
 
+# Модульный логгер
+logger = logging.getLogger(__name__)
+
 
 class HoverHighlightDelegate(QStyledItemDelegate):
     def __init__(self, parent=None):
@@ -112,7 +115,7 @@ class LinksTableView(BaseDragDropTableWidget,
             if header_item is not None:
                 header_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         except Exception as e:
-            logging.debug(f"[Headers] Не удалось выровнять заголовок 'Имя': {e}")
+            logger.debug(f"[Headers] Не удалось выровнять заголовок 'Имя': {e}")
         self.setAlternatingRowColors(True)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setShowGrid(False)
@@ -156,26 +159,22 @@ class LinksTableView(BaseDragDropTableWidget,
     
     def _on_sort_clicked(self, logical_index):
         """Обработчик клика по заголовку - очищает кэш после сортировки."""
-        import logging
-
         from PyQt6.QtCore import QTimer
         
-        logging.debug(f"[SORT] Клик по колонке {logical_index}, очищаем кэш")
+        logger.debug(f"[SORT] Клик по колонке {logical_index}, очищаем кэш")
         
         # Отложенное очищение кэша после завершения сортировки
         QTimer.singleShot(0, self._clear_cache_after_sort)
     
     def _clear_cache_after_sort(self):
         """Перестраивает кэш после сортировки по фактическому порядку строк."""
-        import logging
-        
         old_cache_size = len(self._current_links)
         # Перестраиваем кэш, чтобы соответствовать отсортированным строкам
         self.rebuild_cache_from_items()
         new_cache_size = len(self._current_links)
-        logging.debug(f"[SORT] Кэш перестроен: было {old_cache_size}, стало {new_cache_size}")
+        logger.debug(f"[SORT] Кэш перестроен: было {old_cache_size}, стало {new_cache_size}")
         # Оповещаем подписчиков (например, контроллер) о том, что таблица обновлена
         try:
             self.table_populated.emit()
         except Exception as e:
-            logging.debug(f"[SORT] Не удалось эмитить table_populated: {e}")
+            logger.debug(f"[SORT] Не удалось эмитить table_populated: {e}")

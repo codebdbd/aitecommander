@@ -33,8 +33,6 @@ class DatabaseController(QObject):
         super().__init__(parent)
         self.db = db
         self.dialogs = DatabaseDialogs(parent)
-        import logging
-        self.logger = logging.getLogger(__name__)
     
     def handle_clear_favorites(self):
         """Обработчик очистки избранного.
