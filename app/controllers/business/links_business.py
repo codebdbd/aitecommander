@@ -20,6 +20,7 @@ from app.utils.db.db_workers import StructureWorkerSignals as LoadLinksWorkerSig
 from app.utils.db.db_workers import StructureWorkerSignals as SearchLinksWorkerSignals
 from app.utils.db.db_workers import StructureWorkerSignals as UpdateLinkWorkerSignals
 from app.utils.db.synchronization import tasks_lock
+from app.services import LinksService
 
 
 class LinksBusinessLogic(QObject):
@@ -37,6 +38,8 @@ class LinksBusinessLogic(QObject):
         self.db = db
         # Используем унифицированную LinkModel напрямую из database
         self.links_model = db.links
+        # Сервисный слой поверх репозитория для снижения дублирования и транзакций
+        self.links = LinksService(db)
         # Единый глобальный планировщик задач
         self.scheduler = get_task_scheduler()
         self.pending_tasks = set()
@@ -115,7 +118,7 @@ class LinksBusinessLogic(QObject):
         self.logger.debug(f"Updating order for {len(link_ids)} links")
         
         try:
-            self.links_model.update_link_order(link_ids)
+            self.links.reorder(link_ids)
             self.logger.debug(f"Updated order for {len(link_ids)} links")
         except Exception as e:
             self.logger.error(f"Error updating link order: {e}")
@@ -139,7 +142,7 @@ class LinksBusinessLogic(QObject):
     def get_links_for_category(self, category_id: int) -> List[Dict]:
         """Получить ссылки для категории синхронно."""
         try:
-            return self.links_model.get_links_for_category(category_id)
+            return self.links.get_links_for_category(category_id)
         except Exception as e:
             self.logger.error(f"Ошибка получения ссылок для категории {category_id}: {e}")
             if not handle_db_error(e, self):
@@ -152,7 +155,7 @@ class LinksBusinessLogic(QObject):
             return
             
         try:
-            self.links_model.delete_link(link_id)
+            self.links.delete_link(link_id)
             self.logger.info(f"Link deleted: {link_id}")
         except Exception as e:
             self.logger.error(f"Ошибка удаления ссылки {link_id}: {e}")
@@ -165,7 +168,7 @@ class LinksBusinessLogic(QObject):
             raise ValueError("Invalid link data provided")
             
         try:
-            result = self.links_model.upsert_link(link_data)
+            result = self.links.create_or_update_link(link_data)
             # Гарантируем, что в link_data есть актуальный id (для новых ссылок)
             if result and not link_data.get('id'):
                 link_data['id'] = result
@@ -191,7 +194,7 @@ class LinksBusinessLogic(QObject):
             return
             
         try:
-            self.links_model.update_link_last_used(link_id)
+            self.links.update_last_used(link_id)
             self.logger.debug(f"Link last_used updated: {link_id}")
         except Exception as e:
             self.logger.error(f"Ошибка обновления времени использования ссылки {link_id}: {e}")
@@ -234,7 +237,7 @@ class LinksBusinessLogic(QObject):
             return []
             
         try:
-            return self.links_model.get_recent_links(limit)
+            return self.links.get_recent_links(limit)
         except Exception as e:
             self.logger.error(f"Ошибка получения недавних ссылок: {e}")
             if not handle_db_error(e, self):
@@ -244,7 +247,7 @@ class LinksBusinessLogic(QObject):
     def get_favorite_links(self) -> List[Dict]:
         """Получить избранные ссылки."""
         try:
-            return self.links_model.get_favorite_links()
+            return self.links.get_favorite_links()
         except Exception as e:
             self.logger.error(f"Ошибка получения избранных ссылок: {e}")
             if not handle_db_error(e, self):
@@ -254,7 +257,7 @@ class LinksBusinessLogic(QObject):
     def clear_favorites(self) -> bool:
         """Очистить все избранные ссылки."""
         try:
-            result = self.links_model.clear_favorites()
+            result = self.links.clear_favorites() or True
             self.logger.info("Избранные ссылки очищены")
             return result
         except Exception as e:
@@ -269,7 +272,7 @@ class LinksBusinessLogic(QObject):
             return None
             
         try:
-            return self.links_model.get_link_by_id(link_id)
+            return self.links.get_link_by_id(link_id)
         except Exception as e:
             self.logger.error(f"Ошибка получения ссылки {link_id}: {e}")
             if not handle_db_error(e, self):
@@ -283,7 +286,7 @@ class LinksBusinessLogic(QObject):
             return 0
             
         try:
-            return self.links_model.get_next_position(category_id)
+            return self.links.get_next_position(category_id)
         except Exception as e:
             self.logger.error(f"Ошибка получения следующей позиции: {e}")
             if not handle_db_error(e, self):
@@ -303,7 +306,7 @@ class LinksBusinessLogic(QObject):
                 return False
                 
         try:
-            return self.links_model.batch_update_links(links_data)
+            return self.links.batch_update(links_data)
         except Exception as e:
             self.logger.error(f"Ошибка пакетного обновления ссылок: {e}")
             if not handle_db_error(e, self):
@@ -327,7 +330,8 @@ class LinksBusinessLogic(QObject):
             return None
             
         try:
-            result_id = self.links_model.upsert_link(link_data)
+            # Используем сервисный слой (UnitOfWork внутри LinksService)
+            result_id = self.links.create_or_update_link(link_data)
             if result_id:
                 self.logger.debug(f"Создана ссылка для импорта: {link_data.get('name', 'без имени')}")
                 return result_id
@@ -369,7 +373,7 @@ class LinksBusinessLogic(QObject):
     def _get_all_links_safe(self) -> List[Dict]:
         """Безопасное получение всех ссылок для внутреннего использования."""
         try:
-            return self.links_model.get_all_links()
+            return self.links.get_all_links()
         except Exception as e:
             self.logger.error(f"Error getting all links: {e}")
             return []

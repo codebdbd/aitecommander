@@ -20,6 +20,7 @@ from app.utils.db.executors.pool import get_thread_pool
 from app.utils.db.synchronization import db_lock
 from app.utils.db.tasks.base import DatabaseTask as _NewDatabaseTask
 from app.utils.db.tasks.base import TaskSignals as _NewTaskSignals
+from app.services import LinksService, StructureService
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +161,8 @@ class UpdateLinkWorker(BaseDbWorker):
             self.signals.loading_started.emit()
             with db_lock:
                 self.link["last_used"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                self.db.links.upsert_link(self.link)
+                # Выполняем upsert через сервисный слой с транзакцией
+                LinksService(self.db).create_or_update_link(self.link)
             self.signals.update_ui.emit(self.category_id)
             self.signals.update_favorites.emit()
             self.signals.update_recent_links.emit()
@@ -421,11 +423,12 @@ class CreateItemWorker(BaseDbWorker):
             self.signals.operation_started.emit(f"Создание {self.item_type}: {item_name}...")
             
             with db_lock:
+                service = StructureService(self.db)
                 if self.item_type == "section":
-                    item_id = self.db.sections.upsert_section(self.data)
+                    item_id = service.create_section(self.data)
                     parent_id = self.data.get('sphere_id', 0)
                 elif self.item_type == "category":
-                    item_id = self.db.categories.upsert_category(self.data)
+                    item_id = service.create_category(self.data)
                     parent_id = self.data.get('section_id', 0)
                 else:
                     raise ValueError(f"Неизвестный тип элемента: {self.item_type}")
@@ -460,10 +463,11 @@ class UpdateItemWorker(BaseDbWorker):
             self.signals.operation_started.emit(f"Обновление {self.item_type}: {item_name}...")
             
             with db_lock:
+                service = StructureService(self.db)
                 if self.item_type == "section":
-                    self.db.sections.upsert_section(self.data)
+                    service.update_section(self.item_id, self.data)
                 elif self.item_type == "category":
-                    self.db.categories.upsert_category(self.data)
+                    service.update_category(self.item_id, self.data)
                 else:
                     raise ValueError(f"Неизвестный тип элемента: {self.item_type}")
             
@@ -495,18 +499,19 @@ class DeleteItemWorker(BaseDbWorker):
             old_data = {}
             
             with db_lock:
+                service = StructureService(self.db)
                 if self.item_type == "section":
-                    # Получаем данные раздела перед удалением
+                    # Получаем данные раздела перед удалением (чтение напрямую допустимо)
                     section_data = self.db.sections.get_section_by_id(self.item_id)
                     if section_data:
                         old_data = dict(section_data)
-                    self.db.sections.delete_section(self.item_id)
+                    service.delete_section(self.item_id)
                 elif self.item_type == "category":
-                    # Получаем данные категории перед удалением
+                    # Получаем данные категории перед удалением (чтение напрямую допустимо)
                     category_data = self.db.categories.get_category_by_id(self.item_id)
                     if category_data:
                         old_data = dict(category_data)
-                    self.db.categories.delete_category(self.item_id)
+                    service.delete_category(self.item_id)
                 else:
                     raise ValueError(f"Неизвестный тип элемента: {self.item_type}")
             

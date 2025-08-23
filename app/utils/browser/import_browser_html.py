@@ -188,8 +188,8 @@ def import_browser_bookmarks_to_db(structure_business_logic, parent_widget, link
                 if links_business_logic:
                     link_id = links_business_logic.create_link_for_import(link_data)
                 else:
-                    # Fallback: прямой вызов модели структуры для обратной совместимости
-                    link_id = structure_business_logic.structure_model.create_link(link_data)
+                    # Используем LinksService через бизнес-логику
+                    link_id = structure_business_logic.links_business.create_link_for_import(link_data) if hasattr(structure_business_logic, 'links_business') else None
                     
                 if link_id:
                     logging.getLogger(__name__).debug(f"DEBUG: Добавлена ссылка '{link.get('name', '')}' в категорию '{cat_name}' (id={category_id})")

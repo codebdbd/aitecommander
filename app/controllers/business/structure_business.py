@@ -6,7 +6,7 @@
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Tuple
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
@@ -19,7 +19,6 @@ from app.controllers.structure_modules.async_operations import (
     AsyncOperations,
     AsyncSignalHandlers,
 )
-from app.controllers.structure_services.crud import CrudService
 from app.controllers.structure_services.exporter import ExportService
 from app.controllers.structure_services.importer import ImportService
 from app.controllers.structure_services.integrity import IntegrityService
@@ -29,6 +28,7 @@ from app.controllers.structure_services.utilities import UtilityService
 from app.controllers.structure_services.validation import ValidationService
 from app.models.db import Database
 from app.models.structure_model import StructureModel
+from app.services.structure_service import StructureService
 
 
 class StructureBusinessLogic(QObject):
@@ -62,6 +62,8 @@ class StructureBusinessLogic(QObject):
         
         self.db = db
         self.structure_model = StructureModel(db)
+        # Сервис структуры: маршрут к репозиторию через сервисный слой (без дублирования SQL)
+        self.structure_service = StructureService(db)
         self.logger = logger or logging.getLogger(__name__)
         
         # Состояние
@@ -76,7 +78,6 @@ class StructureBusinessLogic(QObject):
         self.loader_service = LoaderService()
         self.selection_service = SelectionService()
         self.validation_service = ValidationService()
-        self.crud_service = CrudService()
         self.import_service = ImportService()
         self.utility_service = UtilityService()
         
@@ -280,7 +281,7 @@ class StructureBusinessLogic(QObject):
         """Выбирает категорию."""
         self.category_selected.emit(category_id)
         self.logger.debug(f"Выбрана категория {category_id}")
-    
+        
     # =============================================================================
     # ОПЕРАЦИИ СО СФЕРАМИ (СОВМЕСТИМОСТЬ)
     # =============================================================================
@@ -292,28 +293,28 @@ class StructureBusinessLogic(QObject):
         cached_spheres = self.cache_manager.get(cache_key)
         if cached_spheres is not None:
             return cached_spheres
-        spheres = self.selection_service.get_spheres(self.structure_model, self.logger)
+        spheres = self.structure_service.get_spheres()
         self.cache_manager.set(cache_key, spheres)
         return spheres or []
 
     # --- Совместимые методы, ранее предоставлялись Mixin-ами ---
     def get_sections(self, sphere_id: int) -> List[Dict[str, Any]]:
-        """Получает разделы для сферы с кэшированием."""
+        """Получает разделы для сферы с кэшированием (чтение через сервис)."""
         cache_key = f"sections_{sphere_id}"
         cached = self.cache_manager.get(cache_key)
         if cached is not None:
             return cached
-        sections = self.selection_service.get_sections(self.structure_model, sphere_id, self.logger)
+        sections = self.structure_service.get_sections(sphere_id)
         self.cache_manager.set(cache_key, sections)
         return sections or []
 
     def get_categories(self, section_id: int) -> List[Dict[str, Any]]:
-        """Получает категории для раздела с кэшированием."""
+        """Получает категории для раздела с кэшированием (чтение через сервис)."""
         cache_key = f"categories_{section_id}"
         cached = self.cache_manager.get(cache_key)
         if cached is not None:
             return cached
-        categories = self.selection_service.get_categories(self.structure_model, section_id, self.logger)
+        categories = self.structure_service.get_categories(section_id)
         self.cache_manager.set(cache_key, categories)
         return categories or []
 
@@ -325,17 +326,17 @@ class StructureBusinessLogic(QObject):
     @handle_exceptions()
     def get_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
         """Совместимый метод получения данных раздела (для диалогов/операций UI)."""
-        return self.structure_model.get_section_data(section_id)
+        return self.structure_service.get_section_by_id(section_id)
 
     @handle_exceptions()
     def get_category_data(self, category_id: int) -> Optional[Dict[str, Any]]:
         """Совместимый метод получения данных категории (для диалогов/операций UI)."""
-        return self.structure_model.get_category_data(category_id)
+        return self.structure_service.get_category_by_id(category_id)
 
     @handle_exceptions()
     def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, Any]]:
         """Совместимый метод: возвращает {'sphere_id', 'section_id'} для категории."""
-        return self.structure_model.get_category_hierarchy(category_id)
+        return self.structure_service.get_category_hierarchy(category_id)
 
     def get_item_for_editing(self, item_id: int, item_type: Union[str, Any]) -> Optional[Dict[str, Any]]:
         """Совместимый метод получения данных элемента для редактирования."""
@@ -366,6 +367,112 @@ class StructureBusinessLogic(QObject):
             cache_get=self.cache_manager.get,
             cache_set=self.cache_manager.set,
         )
+    
+    # =============================================================================
+    # CRUD-ОПЕРАЦИИ ДЛЯ РАЗДЕЛОВ И КАТЕГОРИЙ (через StructureService)
+    # =============================================================================
+    @handle_exceptions()
+    def create_section(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Создаёт раздел через сервис, эмитит сигнал и инвалидирует кэш."""
+        section_id = self.structure_service.create_section(data)
+        if not section_id:
+            return None
+        section_data = self.structure_service.get_section_by_id(section_id) or {}
+        sphere_id = section_data.get('sphere_id') if isinstance(section_data, dict) else None
+        try:
+            self.item_added.emit('section', int(sphere_id) if sphere_id else 0, section_data)
+        finally:
+            # Инвалидируем кэш по разделам и структуре
+            if sphere_id:
+                self.cache_manager.invalidate(f"sections_{sphere_id}")
+            self._invalidate_structure_cache()
+        return section_data or None
+
+    @handle_exceptions()
+    def update_section(self, section_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Обновляет раздел через сервис, эмитит сигнал и инвалидирует кэш."""
+        ok = self.structure_service.update_section(section_id, data)
+        if not ok:
+            return None
+        section_data = self.structure_service.get_section_by_id(section_id) or {}
+        sphere_id = section_data.get('sphere_id') if isinstance(section_data, dict) else None
+        try:
+            self.item_updated.emit('section', section_id, section_data)
+        finally:
+            if sphere_id:
+                self.cache_manager.invalidate(f"sections_{sphere_id}")
+            self._invalidate_structure_cache()
+        return section_data or None
+
+    @handle_exceptions()
+    def delete_section(self, section_id: int) -> Tuple[bool, Dict[str, Any], int, int]:
+        """Удаляет раздел через сервис. Возвращает (успех, данные, кол-во категорий, кол-во ссылок).
+
+        Примечание: считаем количество категорий до удаления для обратной совместимости.
+        """
+        section_before = self.structure_service.get_section_by_id(section_id) or {}
+        if not section_before:
+            return False, {}, 0, 0
+        sphere_id = section_before.get('sphere_id') if isinstance(section_before, dict) else None
+        categories_before = self.structure_service.get_categories(section_before.get('id', section_id)) if section_before else []
+        categories_count = len(categories_before or [])
+        # Информации о ссылках на уровне раздела нет в сервисе — возвращаем 0 для совместимости
+        success = self.structure_service.delete_section(section_id)
+        if success:
+            try:
+                self.item_deleted.emit('section', section_id)
+            finally:
+                if sphere_id:
+                    self.cache_manager.invalidate(f"sections_{sphere_id}")
+                self._invalidate_structure_cache()
+        return success, section_before, categories_count, 0
+
+    @handle_exceptions()
+    def create_category(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Создаёт категорию через сервис, эмитит сигнал и инвалидирует кэш."""
+        category_id = self.structure_service.create_category(data)
+        if not category_id:
+            return None
+        category_data = self.structure_service.get_category_by_id(category_id) or {}
+        section_id = category_data.get('section_id') if isinstance(category_data, dict) else None
+        try:
+            # parent_id для категории — это section_id
+            self.item_added.emit('category', int(section_id) if section_id else 0, category_data)
+        finally:
+            self._invalidate_categories_cache(section_id)
+        return category_data or None
+
+    @handle_exceptions()
+    def update_category(self, category_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Обновляет категорию через сервис, эмитит сигнал и инвалидирует кэш."""
+        ok = self.structure_service.update_category(category_id, data)
+        if not ok:
+            return None
+        category_data = self.structure_service.get_category_by_id(category_id) or {}
+        section_id = category_data.get('section_id') if isinstance(category_data, dict) else None
+        try:
+            self.item_updated.emit('category', category_id, category_data)
+        finally:
+            self._invalidate_categories_cache(section_id)
+        return category_data or None
+
+    @handle_exceptions()
+    def delete_category(self, category_id: int) -> Tuple[bool, Dict[str, Any], int]:
+        """Удаляет категорию через сервис. Возвращает (успех, данные, кол-во ссылок).
+
+        Примечание: кол-во ссылок на уровне категории сейчас не подсчитываем — вернём 0.
+        """
+        category_before = self.structure_service.get_category_by_id(category_id) or {}
+        if not category_before:
+            return False, {}, 0
+        section_id = category_before.get('section_id') if isinstance(category_before, dict) else None
+        success = self.structure_service.delete_category(category_id)
+        if success:
+            try:
+                self.item_deleted.emit('category', category_id)
+            finally:
+                self._invalidate_categories_cache(section_id)
+        return success, category_before, 0
     
     # =============================================================================
     # ПУБЛИЧНЫЕ АСИНХРОННЫЕ ОБЁРТКИ ДЛЯ UI (совместимость)

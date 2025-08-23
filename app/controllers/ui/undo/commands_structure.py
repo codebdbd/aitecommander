@@ -6,6 +6,7 @@ from typing import Dict, Optional
 from PyQt6.QtGui import QUndoCommand
 
 from app.utils.ui.icon.cache_manager import clear_icon_cache
+from app.services.structure_service import StructureService
 
 
 class SaveSectionCmd(QUndoCommand):
@@ -16,6 +17,7 @@ class SaveSectionCmd(QUndoCommand):
         super().__init__("Save section")
         self.main = main_window
         self.db = main_window.db
+        self.structure_service = StructureService(self.db)
         self.new_data = dict(new_data) if new_data else {}
         self.old_data = dict(old_data) if old_data else None
         self.is_new = not bool(self.new_data.get("id"))
@@ -34,11 +36,14 @@ class SaveSectionCmd(QUndoCommand):
             pass
 
     def redo(self):
-        result = self.db.sections.upsert_section(self.new_data)
-        if result and not self.new_data.get("id"):
-            self.new_id = result
-            self.new_data["id"] = result
+        if self.is_new:
+            result = self.structure_service.create_section(self.new_data)
+            if result:
+                self.new_id = result
+                self.new_data["id"] = result
         else:
+            # update возвращает bool; ID уже известен
+            self.structure_service.update_section(self.new_data.get("id"), self.new_data)
             self.new_id = self.new_data.get("id")
         # UI выбор в дереве
         try:
@@ -51,7 +56,7 @@ class SaveSectionCmd(QUndoCommand):
         if self.is_new:
             # отменяем создание – удаляем раздел
             try:
-                self.db.sections.delete_section(self.new_id)
+                self.structure_service.delete_section(self.new_id)
             finally:
                 try:
                     self.main.structure.update_tree()
@@ -67,7 +72,7 @@ class SaveSectionCmd(QUndoCommand):
         else:
             # откат редактирования – восстанавливаем старые данные
             if self.old_data:
-                self.db.sections.upsert_section(self.old_data)
+                self.structure_service.update_section(self.old_data['id'], self.old_data)
                 try:
                     self.main.structure.update_tree(item_to_select=("section", self.old_data['id']))
                 except Exception:
@@ -87,15 +92,16 @@ class DeleteSectionCmd(QUndoCommand):
         super().__init__("Delete section")
         self.main = main_window
         self.db = main_window.db
+        self.structure_service = StructureService(self.db)
         self.section = dict(section_data) if section_data else {}
         # Бэкап полного дерева раздела
-        self._backup_tree = self.db.export_section_tree(self.section.get('id'))
+        self._backup_tree = self.structure_service.export_section_tree(self.section.get('id'))
 
     def redo(self):
         section_id = self.section.get('id')
         if section_id is None:
             return
-        self.db.sections.delete_section(section_id)
+        self.structure_service.delete_section(section_id)
         try:
             self.main.structure.update_tree()
         except Exception:
@@ -110,7 +116,7 @@ class DeleteSectionCmd(QUndoCommand):
 
     def undo(self):
         try:
-            self.db.import_section_tree(self._backup_tree)
+            self.structure_service.import_section_tree(self._backup_tree)
             section_id = self._backup_tree['section']['id']
             try:
                 self.main.structure.update_tree(item_to_select=("section", section_id))
@@ -134,6 +140,7 @@ class SaveCategoryCmd(QUndoCommand):
         super().__init__("Save category")
         self.main = main_window
         self.db = main_window.db
+        self.structure_service = StructureService(self.db)
         self.new_data = dict(new_data) if new_data else {}
         self.old_data = dict(old_data) if old_data else None
         self.is_new = not bool(self.new_data.get("id"))
@@ -162,11 +169,13 @@ class SaveCategoryCmd(QUndoCommand):
             pass
 
     def redo(self):
-        result = self.db.categories.upsert_category(self.new_data)
-        if result and not self.new_data.get("id"):
-            self.new_id = result
-            self.new_data["id"] = result
+        if self.is_new:
+            result = self.structure_service.create_category(self.new_data)
+            if result:
+                self.new_id = result
+                self.new_data["id"] = result
         else:
+            self.structure_service.update_category(self.new_data.get("id"), self.new_data)
             self.new_id = self.new_data.get("id")
         try:
             if not self.skip_reload:
@@ -179,7 +188,7 @@ class SaveCategoryCmd(QUndoCommand):
         if self.is_new:
             section_id = self.new_data.get('section_id')
             if self.new_id:
-                self.db.categories.delete_category(self.new_id)
+                self.structure_service.delete_category(self.new_id)
             try:
                 if not self.skip_reload:
                     self.main.structure.update_tree(item_to_select=("section", section_id))
@@ -194,7 +203,7 @@ class SaveCategoryCmd(QUndoCommand):
                 pass
         else:
             if self.old_data:
-                self.db.categories.upsert_category(self.old_data)
+                self.structure_service.update_category(self.old_data['id'], self.old_data)
                 try:
                     if not self.skip_reload:
                         self.main.structure.update_tree(item_to_select=("category", self.old_data['id']))
@@ -215,15 +224,16 @@ class DeleteCategoryCmd(QUndoCommand):
         super().__init__("Delete category")
         self.main = main_window
         self.db = main_window.db
+        self.structure_service = StructureService(self.db)
         self.category = dict(category_data) if category_data else {}
         # Бэкап поддерева категории
-        self._backup_tree = self.db.export_category_tree(self.category.get('id'))
+        self._backup_tree = self.structure_service.export_category_tree(self.category.get('id'))
 
     def redo(self):
         category_id = self.category.get('id')
         if category_id is None:
             return
-        self.db.categories.delete_category(category_id)
+        self.structure_service.delete_category(category_id)
         try:
             # Попробуем сместить фокус корректно
             section_id = self.category.get('section_id')
@@ -260,7 +270,7 @@ class DeleteCategoryCmd(QUndoCommand):
 
     def undo(self):
         try:
-            self.db.import_category_tree(self._backup_tree)
+            self.structure_service.import_category_tree(self._backup_tree)
             category_id = self.category.get('id')
             try:
                 self.main.structure.update_links_table(category_id)

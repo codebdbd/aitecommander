@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from app.models.structure_model import StructureModel
+from app.services.structure_service import StructureService
 
 from .base import BaseOperations, StructureItemType
 
@@ -44,6 +45,12 @@ class SectionOperations(BaseOperations):
         super().__init__(structure_model, logger, execute_with_error_handling)
         self._execute_with_validation = execute_with_validation
         self._emit_signal = emit_signal_callback
+        # Сервисный слой для транзакционных операций и чтений
+        try:
+            self._structure_service = StructureService(structure_model.db)
+        except Exception:
+            # Фоллбек на прямую модель (не должен использоваться при нормальной конфигурации)
+            self._structure_service = None
     
     def create_section(self, data: Dict[str, Any]) -> bool:
         """
@@ -137,7 +144,10 @@ class SectionOperations(BaseOperations):
     def _prepare_section_deletion(self, section_id: int) -> DeletionInfo:
         """Подготавливает данные для удаления раздела."""
         def _deletion_preparation():
-            section_data = self.structure_model.get_section_by_id(section_id)
+            section_data = (
+                self._structure_service.get_section_by_id(section_id)
+                if self._structure_service else self.structure_model.get_section_by_id(section_id)
+            )
             if not section_data:
                 self._log_section_not_found(section_id)
                 return DeletionInfo.create_empty()
@@ -146,7 +156,10 @@ class SectionOperations(BaseOperations):
             normalized_section_data = section_data
             
             # Подсчитываем вложенные объекты
-            categories_count, links_count = self._count_nested_objects(section_id)
+            if self._structure_service:
+                categories_count, links_count = self._structure_service.count_nested_objects_for_section(section_id)
+            else:
+                categories_count, links_count = self._count_nested_objects(section_id)
             
             self._log_deletion_preparation(section_id, categories_count, links_count)
             
@@ -166,7 +179,10 @@ class SectionOperations(BaseOperations):
     def _execute_section_deletion(self, section_id: int) -> bool:
         """Выполняет фактическое удаление раздела."""
         def _deletion_execution():
-            self.structure_model.delete_section(section_id)
+            # Удаление через сервисный слой (UnitOfWork)
+            if not self._structure_service:
+                raise RuntimeError("StructureService недоступен для удаления раздела")
+            self._structure_service.delete_section(section_id)
             self._emit_section_deleted_signal(section_id)
             self._log_successful_deletion(section_id)
             return True
@@ -180,7 +196,10 @@ class SectionOperations(BaseOperations):
     def _fetch_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
         """Получает данные раздела."""
         def _fetch_operation():
-            section_data = self.structure_model.get_section_by_id(section_id)
+            section_data = (
+                self._structure_service.get_section_by_id(section_id)
+                if self._structure_service else self.structure_model.get_section_by_id(section_id)
+            )
             if section_data:
                 self._log_section_found(section_id)
                 return section_data
@@ -197,7 +216,10 @@ class SectionOperations(BaseOperations):
     def _fetch_sections_for_sphere(self, sphere_id: int) -> List[Dict[str, Any]]:
         """Получает разделы для сферы."""
         def _fetch_operation():
-            sections_data = self.structure_model.get_sections(sphere_id)
+            sections_data = (
+                self._structure_service.get_sections(sphere_id)
+                if self._structure_service else self.structure_model.get_sections(sphere_id)
+            )
             result = sections_data if sections_data else []
             self._log_sections_loaded(len(result), sphere_id)
             return result
@@ -207,6 +229,62 @@ class SectionOperations(BaseOperations):
             f"загрузить разделы для сферы {sphere_id}",
             default_return=[]
         )
+    
+    def _process_item(
+        self,
+        data: Dict[str, Any],
+        item_type: StructureItemType,
+        item_id: Optional[int] = None,
+        is_update: bool = False,
+    ) -> bool:
+        """Переопределяем обработку для разделов: используем StructureService для мутаций.
+
+        Для других типов элементов передаём выполнение базовой реализации.
+        """
+        # Если это не раздел — используем базовую реализацию
+        if item_type is not StructureItemType.SECTION:
+            return super()._process_item(data, item_type, item_id, is_update)
+
+        # Если сервис недоступен — фоллбек на базовую реализацию (upsert в модели)
+        if not getattr(self, "_structure_service", None):
+            return super()._process_item(data, item_type, item_id, is_update)
+
+        def _operation():
+            if is_update:
+                # Обновление через сервис
+                self._structure_service.update_section(int(item_id), data)  # type: ignore[arg-type]
+                current = self._structure_service.get_section_by_id(int(item_id)) or {}
+                # Эмитим сигнал обновления (parent_or_id = id элемента)
+                self._emit_signal("item_updated", item_type.value, int(item_id), current)  # type: ignore[arg-type]
+                # Логирование
+                self.slogger.log_operation(
+                    "обновлен", item_type.value, current.get("name", "без имени"), "раздел"
+                )
+                return True
+            else:
+                # Создание через сервис
+                new_id = self._structure_service.create_section(data)
+                if not new_id:
+                    return False
+                current = self._structure_service.get_section_by_id(int(new_id)) or {**data, "id": int(new_id)}
+                parent_id = (current.get("sphere_id") if isinstance(current, dict) else None) or data.get("sphere_id") or 0
+                # Эмитим сигнал добавления (parent_or_id = sphere_id)
+                self._emit_signal("item_added", item_type.value, int(parent_id), current)
+                # Логирование
+                self.slogger.log_operation(
+                    "создан", item_type.value, current.get("name", "без имени"), "раздел"
+                )
+                return True
+
+        operation_name = "обновления" if is_update else "создания"
+        result = self._execute_with_validation(
+            _operation,
+            data,
+            item_type,
+            operation_name,
+            require_parent=not is_update,
+        )
+        return result if result is not None else False
     
     def _count_nested_objects(self, section_id: int) -> Tuple[int, int]:
         """
