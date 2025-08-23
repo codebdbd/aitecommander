@@ -8,6 +8,8 @@ from PyQt6.QtWidgets import QApplication
 
 from app.controllers.ui.dialogs import DialogManager
 
+logger = logging.getLogger(__name__)
+
 
 class ExceptionHandler:
     """Обработчик глобальных исключений."""
@@ -24,7 +26,7 @@ class ExceptionHandler:
             return
 
         # Логируем критическую ошибку
-        logging.critical(
+        logger.critical(
             "Непойманное исключение",
             exc_info=(exc_type, exc_value, exc_traceback)
         )
@@ -42,10 +44,10 @@ class ExceptionHandler:
                 error_details = ''.join(traceback.format_exception(
                     exc_type, exc_value, exc_traceback
                 ))
-                logging.getLogger(__name__).error(error_text)
-                logging.getLogger(__name__).error(error_info)
-                logging.getLogger(__name__).error("Подробности:")
-                logging.getLogger(__name__).error(error_details)
+                logger.error(error_text)
+                logger.error(error_info)
+                logger.error("Подробности:")
+                logger.error(error_details)
                 return
 
             error_text = f"Произошла критическая ошибка: {exc_type.__name__}"
@@ -63,6 +65,5 @@ class ExceptionHandler:
             )
         except Exception as e:
             # Если даже диалог не удается показать
-            logger = logging.getLogger(__name__)
             logger.critical(f"Критическая ошибка: {exc_type.__name__}: {exc_value}")
             logger.critical(f"Ошибка показа диалога: {e}", exc_info=True)
