@@ -4,6 +4,7 @@
 """
 
 import os
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -16,6 +17,8 @@ from app.utils.db.db_workers import LinkInfoWorker, StructureWorkerSignals
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.selection import choose_icon_and_copy
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
+
+logger = logging.getLogger(__name__)
 
 
 class LinkDialogHandlers:
@@ -231,8 +234,6 @@ class LinkDialogHandlers:
         
     def _on_profile(self) -> None:
         """Обработчик кнопки выбора профиля."""
-        import logging
-        logger = logging.getLogger(__name__)
         
         from app.views.dialogs.browser_profile_dialog import BrowserProfileDialog
         
@@ -381,8 +382,6 @@ class LinkDialogHandlers:
             
     def _collect_form_data(self) -> Dict[str, Any]:
         """Сбор данных из формы."""
-        import logging
-        logger = logging.getLogger(__name__)
         
         collected_name = self.dialog.ui.get_widget('name_le').text().strip()
         collected_args = self.dialog.ui.get_widget('args_le').text().strip()
@@ -454,8 +453,6 @@ class LinkDialogHandlers:
                 self._active_worker.cancel()
             except Exception as e:
                 # Логируем ошибку отмены воркера, но продолжаем выполнение
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.debug(f"Ошибка при отмене воркера: {e}")
                 
         worker = LinkInfoWorker(

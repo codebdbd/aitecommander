@@ -1,6 +1,7 @@
 import logging
 from urllib.parse import urlparse
 
+logger = logging.getLogger(__name__)
 
 def validate_name_and_url(name: str, url: str) -> bool:
     """Проверка: имя и путь/URL не пустые."""
@@ -23,7 +24,6 @@ def validate_favorite_limit(db, want_fav: bool, is_edit: bool, was_fav: bool) ->
 def validate_link_duplicate(url: str, link_type: str, args: str, existing_links: list, 
                           current_link_id: int = None) -> bool:
     """Проверяет, нет ли дубликата ссылки в категории."""
-    logger = logging.getLogger(__name__)
     for link in existing_links:
         # Пропускаем текущую редактируемую ссылку
         if current_link_id and link['id'] == current_link_id:

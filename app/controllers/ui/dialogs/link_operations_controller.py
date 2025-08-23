@@ -1,5 +1,6 @@
 # app/controllers/link_operations_controller.py
 
+import logging
 from PyQt6.QtWidgets import QDialog
 
 from app.config_data import app_config
@@ -13,6 +14,9 @@ from app.views.dialogs.link_dialog.link_dialog import LinkDialog
 
 # Константы для макросов отмены/повтора
 MACRO_DELETE_LINKS_TEXT = "Удаление {count} ссылок"
+
+
+logger = logging.getLogger(__name__)
 
 
 class LinkOperationsController:
@@ -85,8 +89,6 @@ class LinkOperationsController:
         if result:
             # Получаем данные через контроллер
             links_to_save = link_controller.get_result_data()
-            import logging
-            logger = logging.getLogger(__name__)
             logger.debug(f"show_link_dialog: got {len(links_to_save) if links_to_save else 0} links to save")
             if links_to_save:
                 for i, link in enumerate(links_to_save):
