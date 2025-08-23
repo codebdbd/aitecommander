@@ -10,6 +10,8 @@ from .clipboard import LinksUIClipboard
 from .handlers import LinksUIHandlers
 from .link_operations import LinksUILinkOperations
 
+logger = logging.getLogger(__name__)
+
 
 class LinksUIController(QObject):
     """UI-контроллер для управления таблицей ссылок."""
@@ -19,7 +21,6 @@ class LinksUIController(QObject):
         self.table = table_widget
         self.business = business_logic
         self.main = main_window
-        self.logger = logging.getLogger(self.__class__.__name__)
         self._row_by_link_id: dict[int, int] = {}
         
         # Инициализация подмодулей
@@ -35,7 +36,7 @@ class LinksUIController(QObject):
             if hasattr(self.table, 'table_populated'):
                 self.table.table_populated.connect(self.rebuild_row_index)
         except Exception as e:
-            self.logger.debug(f"Failed to connect table_populated: {e}")
+            logger.debug(f"Failed to connect table_populated: {e}")
         
         # ЦЕНТРАЛИЗОВАНО: начальная загрузка категории
         self._reload_current_category()
@@ -48,7 +49,7 @@ class LinksUIController(QObject):
             if hasattr(self.main, 'fav_widget') and self.main.fav_widget:
                 self._connect_favorites_widget_signals()
         except Exception as e:
-            self.logger.debug(f"Topbar widgets not ready yet: {e}")
+            logger.debug(f"Topbar widgets not ready yet: {e}")
     
     def shutdown(self, timeout: int = 2000):
         """Корректное завершение работы."""
@@ -126,7 +127,7 @@ class LinksUIController(QObject):
     
     def open_link(self, link: Dict):
         """Открыть ссылку."""
-        self.logger.info(f"open_link called with link: {link}")
+        logger.info(f"open_link called with link: {link}")
         self.link_ops._open_link(link)
     
     def toggle_favorite(self, link: Dict = None):
@@ -173,9 +174,9 @@ class LinksUIController(QObject):
                 except Exception:
                     pass
             else:
-                self.logger.debug(f"focus_on_link: link_id {link_id} not found in current table")
+                logger.debug(f"focus_on_link: link_id {link_id} not found in current table")
         except Exception as e:
-            self.logger.error(f"Failed to focus on link {link_id}: {e}")
+            logger.error(f"Failed to focus on link {link_id}: {e}")
 
     def rebuild_row_index(self) -> None:
         """Переcтроить индекс link_id -> row по текущему содержимому таблицы."""
@@ -187,7 +188,7 @@ class LinksUIController(QObject):
                 if link and 'id' in link:
                     self._row_by_link_id[link['id']] = row
         except Exception as e:
-            self.logger.debug(f"rebuild_row_index failed: {e}")
+            logger.debug(f"rebuild_row_index failed: {e}")
 
     def _reload_current_category(self) -> None:
         """Централизованная перезагрузка текущей категории через UIStateManager или бизнес-логику."""
@@ -201,7 +202,7 @@ class LinksUIController(QObject):
                 # Fallback: только бизнес-логика без UI координации
                 self.business.load_links(category_id)
         except Exception as e:
-            self.logger.error(f"Failed to reload category (id={category_id}): {e}")
+            logger.error(f"Failed to reload category (id={category_id}): {e}")
 
     # --- Handlers for Recent/Favorites widgets ---
     def _connect_recent_widget_signals(self):
@@ -210,7 +211,7 @@ class LinksUIController(QObject):
             rlw.refresh_requested.connect(self.on_recent_refresh_requested)
             # linkClicked уже подключен к window.open_link на уровне инициализатора
         except Exception as e:
-            self.logger.error(f"Failed to connect RecentLinksWidget signals: {e}")
+            logger.error(f"Failed to connect RecentLinksWidget signals: {e}")
 
     def _connect_favorites_widget_signals(self):
         try:
@@ -219,7 +220,7 @@ class LinksUIController(QObject):
             fw.clear_requested.connect(self.on_favorites_clear_requested)
             # linkClicked уже подключен к window.open_link на уровне инициализатора
         except Exception as e:
-            self.logger.error(f"Failed to connect FavoritesWidget signals: {e}")
+            logger.error(f"Failed to connect FavoritesWidget signals: {e}")
 
     def on_recent_refresh_requested(self, limit: int):
         """Получить последние ссылки и передать в виджет."""
@@ -228,7 +229,7 @@ class LinksUIController(QObject):
             if hasattr(self.main, 'recent_links_widget') and self.main.recent_links_widget:
                 self.main.recent_links_widget.set_recent_links(links)
         except Exception as e:
-            self.logger.error(f"Failed to refresh recent links: {e}")
+            logger.error(f"Failed to refresh recent links: {e}")
 
     def on_favorites_refresh_requested(self):
         """Получить избранные ссылки и передать в виджет."""
@@ -237,7 +238,7 @@ class LinksUIController(QObject):
             if hasattr(self.main, 'fav_widget') and self.main.fav_widget:
                 self.main.fav_widget.set_favorites(favs)
         except Exception as e:
-            self.logger.error(f"Failed to refresh favorites: {e}")
+            logger.error(f"Failed to refresh favorites: {e}")
 
     def on_favorites_clear_requested(self):
         """Очистить избранное и инициировать обновление."""
@@ -250,5 +251,5 @@ class LinksUIController(QObject):
             if category_id and hasattr(self.main, 'ui_state') and self.main.ui_state:
                 self.main.ui_state.update_category_without_stack_switch(category_id)
         except Exception as e:
-            self.logger.error(f"Failed to clear favorites: {e}")
+            logger.error(f"Failed to clear favorites: {e}")
     
