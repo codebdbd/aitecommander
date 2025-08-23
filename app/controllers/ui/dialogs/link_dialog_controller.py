@@ -306,8 +306,6 @@ class LinkDialogController:
     
     def get_result_data(self) -> List[Dict[str, Any]]:
         """Возвращает результирующие данные после сохранения."""
-        import logging
-        logger = logging.getLogger(__name__)
         logger.debug(f"get_result_data: returning {len(self.result_data) if self.result_data else 0} links")
         if self.result_data:
             for i, link in enumerate(self.result_data):

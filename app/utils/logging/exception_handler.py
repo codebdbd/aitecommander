@@ -63,5 +63,6 @@ class ExceptionHandler:
             )
         except Exception as e:
             # Если даже диалог не удается показать
-            print(f"Критическая ошибка: {exc_type.__name__}: {exc_value}")
-            print(f"Ошибка показа диалога: {e}")
+            logger = logging.getLogger(__name__)
+            logger.critical(f"Критическая ошибка: {exc_type.__name__}: {exc_value}")
+            logger.critical(f"Ошибка показа диалога: {e}", exc_info=True)

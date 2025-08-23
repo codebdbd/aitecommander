@@ -17,6 +17,8 @@ from PyQt6.QtWidgets import (
 from app.utils.browser.browser_profiles import get_profile_manager
 from app.utils.browser.browser_profiles.utils import get_browser_display_name
 
+logger = logging.getLogger(__name__)
+
 
 class BrowserProfileDialog(QDialog):
     def __init__(self, parent=None):
@@ -97,7 +99,6 @@ class BrowserProfileDialog(QDialog):
                 profile['browser_key'] = browser_key
                 profile['browser_name'] = get_browser_display_name(finder, browser_key)
 
-        logger = logging.getLogger(__name__)
         logger.debug(f"_populate_profiles: browser_key={browser_key}")
 
         if not profiles:
@@ -124,8 +125,6 @@ class BrowserProfileDialog(QDialog):
     
     def get_selected_profiles(self) -> List[Dict]:
         """Возвращает список выбранных профилей."""
-        logger = logging.getLogger(__name__)
-        
         selected = self.selected_profiles
         
         logger.debug(f"get_selected_profiles: returning {len(selected)} profiles")

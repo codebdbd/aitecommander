@@ -88,8 +88,6 @@ class BrowserProfileManager:
     
     def get_all_profiles(self) -> Dict[str, List[Dict]]:
         """Получает профили всех браузеров."""
-        import logging
-        logger = logging.getLogger(__name__)
         
         all_profiles = {}
         

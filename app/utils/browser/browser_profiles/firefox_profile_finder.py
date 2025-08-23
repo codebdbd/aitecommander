@@ -107,9 +107,6 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
     
     def parse_profile_from_args(self, args: str) -> Optional[Dict]:
         """Парсит профиль Firefox из аргументов командной строки."""
-        import logging
-        logger = logging.getLogger(__name__)
-        
         logger.debug(f"parse_profile_from_args: args={args}")
         
         if not args or '-P ' not in args:

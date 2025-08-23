@@ -23,7 +23,10 @@ def reveal_in_folder(file_path: str) -> bool:
     """Показать файл в проводнике/файндере. Возвращает True при успехе."""
     try:
         if platform.system() == "Windows":
-            subprocess.run(["explorer", "/select," + file_path], check=False)
+            # Explorer ожидает ключ как один аргумент: /select,<path>.
+            # Для путей с пробелами обязательно оборачиваем путь в кавычки.
+            norm_path = os.path.normpath(file_path)
+            subprocess.run(["explorer", f'/select,"{norm_path}"'], check=False)
             return True
         elif platform.system() == "Darwin":
             subprocess.run(["open", "-R", file_path], check=False)

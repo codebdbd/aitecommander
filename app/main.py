@@ -26,10 +26,9 @@ class ApplicationInitializer:
     def cleanup(self):
         """Очищает ресурсы приложения."""
         try:
-            if self.database and hasattr(self.database, 'thread_local') and hasattr(self.database.thread_local, 'conn'):
+            # Закрываем соединение, если база и метод close доступны
+            if self.database and hasattr(self.database, 'close'):
                 self.database.close()
-            elif self.database:
-                pass
         except Exception as e:
             logging.error(f"Ошибка при закрытии соединения с базой данных: {e}")
     

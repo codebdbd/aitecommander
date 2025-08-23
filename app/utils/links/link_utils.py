@@ -28,6 +28,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+logger = logging.getLogger(__name__)
+
 
 class LinkType(Enum):
     """Типы ссылок для обработки"""
@@ -51,7 +53,6 @@ class LinkInfo:
     @classmethod
     def from_dict(cls, link_dict: Dict[str, Any]) -> 'LinkInfo':
         """Создает объект LinkInfo из словаря"""
-        logger = logging.getLogger(__name__)
         logger.debug("Creating LinkInfo from dict")
         
         # Безопасное преобразование типа ссылки
@@ -177,7 +178,7 @@ class SecurityValidator:
         try:
             parsed = shlex.split(args)
         except ValueError:
-            logging.warning(f"Failed to parse arguments: {args}")
+            logger.warning(f"Failed to parse arguments: {args}")
             return []
         
         validated = []
@@ -187,7 +188,7 @@ class SecurityValidator:
         for arg in parsed:
             # Проверяем формат аргумента
             if not cls.CHROME_ARG_PATTERN.match(arg):
-                logging.warning(f"Invalid argument format: {arg}")
+                logger.warning(f"Invalid argument format: {arg}")
                 continue
             
             # Извлекаем имя аргумента
@@ -201,7 +202,7 @@ class SecurityValidator:
                 elif arg_name == '--new-window':
                     has_new_window = True
             else:
-                logging.warning(f"Argument not in whitelist: {arg_name}")
+                logger.warning(f"Argument not in whitelist: {arg_name}")
         
         # Если есть --incognito но нет --new-window, добавляем --new-window для принудительного создания нового окна
         if has_incognito and not has_new_window:
@@ -218,7 +219,7 @@ class SecurityValidator:
         try:
             return shlex.split(args)
         except ValueError:
-            logging.warning(f"Failed to parse arguments: {args}")
+            logger.warning(f"Failed to parse arguments: {args}")
             return []
 
 class BrowserConfig:

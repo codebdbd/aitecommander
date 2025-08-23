@@ -1,4 +1,5 @@
 import os
+import logging
 import platform
 import re
 import subprocess
@@ -277,7 +278,7 @@ class FileSearchDialog(BaseDialog):
     def _open_file_in_explorer(self, file_path):
         """Открыть файл в проводнике с выделением"""
         try:
-            print(f"Открываю в проводнике: {file_path}")
+            logging.getLogger(__name__).info(f"Открываю в проводнике: {file_path}")
             
             # Нормализуем путь
             file_path = os.path.normpath(file_path)
@@ -466,7 +467,10 @@ class FileSearchDialog(BaseDialog):
             self.status_label.setText(f"Найдено файлов: {self.table.rowCount()}")
             
         except OSError as e:
-            print(f"Ошибка при получении информации о файле {file_path}: {e}")
+            logging.getLogger(__name__).warning(
+                f"Ошибка при получении информации о файле {file_path}: {e}",
+                exc_info=True,
+            )
             
     def _on_search_finished(self):
         """Обработка завершения поиска"""
