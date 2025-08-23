@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 from PyQt6.QtGui import QUndoCommand
+from app.services import LinksService
 
 
 class SaveLinkCmd(QUndoCommand):
@@ -16,7 +17,12 @@ class SaveLinkCmd(QUndoCommand):
         self.created_id: Optional[int] = None
 
     def redo(self):
-        result = self.db.links.upsert_link(self.new_data)
+        # Сохраняем ссылку через сервисный слой (UnitOfWork внутри)
+        if hasattr(self.main, "links_business") and self.main.links_business:
+            result = self.main.links_business.links.create_or_update_link(self.new_data)
+        else:
+            # Фоллбек через сервисный слой
+            result = LinksService(self.db).create_or_update_link(self.new_data)
         if result and not self.new_data.get("id"):
             self.new_data["id"] = result
             self.created_id = result
@@ -39,11 +45,17 @@ class SaveLinkCmd(QUndoCommand):
         # Если создавали новую — удаляем
         link_id = self.new_data.get("id")
         if self.old_data is None and link_id:
-            self.db.links.delete_link(link_id)
+            if hasattr(self.main, "links_business") and self.main.links_business:
+                self.main.links_business.links.delete_link(link_id)
+            else:
+                LinksService(self.db).delete_link(link_id)
         else:
             # Иначе восстанавливаем старые данные
             if self.old_data:
-                self.db.links.upsert_link(self.old_data)
+                if hasattr(self.main, "links_business") and self.main.links_business:
+                    self.main.links_business.links.create_or_update_link(self.old_data)
+                else:
+                    LinksService(self.db).create_or_update_link(self.old_data)
                 if hasattr(self.main, "links_business") and self.main.links_business:
                     try:
                         self.main.links_business.link_updated.emit(self.old_data)
@@ -69,7 +81,12 @@ class DeleteLinkCmd(QUndoCommand):
     def redo(self):
         link_id = self.link.get("id")
         if link_id:
-            self.db.links.delete_link(link_id)
+            # Удаляем через сервисный слой, если доступен
+            if hasattr(self.main, "links_business") and self.main.links_business:
+                self.main.links_business.links.delete_link(link_id)
+            else:
+                # Фоллбек на прямой репозиторий
+                self.db.links.delete_link(link_id)
         # После удаления перезагружаем таблицу соответствующей категории, если не подавлено
         try:
             if hasattr(self.main, "links_business") and self.main.links_business and not getattr(self, "_suppress_ui", False):
@@ -81,7 +98,11 @@ class DeleteLinkCmd(QUndoCommand):
 
     def undo(self):
         # Восстанавливаем удалённую ссылку
-        self.db.links.upsert_link(self.link)
+        if hasattr(self.main, "links_business") and self.main.links_business:
+            self.main.links_business.links.create_or_update_link(self.link)
+        else:
+            # Фоллбек через сервисный слой
+            LinksService(self.db).create_or_update_link(self.link)
         if hasattr(self.main, "links_business") and self.main.links_business:
             try:
                 self.main.links_business.link_updated.emit(self.link)
@@ -108,7 +129,10 @@ class BatchSaveLinksCmd(QUndoCommand):
     def redo(self):
         self.created_ids.clear()
         for data in self.links_data:
-            result = self.db.links.upsert_link(data)
+            if hasattr(self.main, "links_business") and self.main.links_business:
+                result = self.main.links_business.links.create_or_update_link(data)
+            else:
+                result = LinksService(self.db).create_or_update_link(data)
             if result and not data.get("id"):
                 data["id"] = result
                 self.created_ids.append(result)
@@ -133,7 +157,10 @@ class BatchSaveLinksCmd(QUndoCommand):
         for data in self.links_data:
             link_id = data.get("id")
             if link_id in self.created_ids:
-                self.db.links.delete_link(link_id)
+                if hasattr(self.main, "links_business") and self.main.links_business:
+                    self.main.links_business.links.delete_link(link_id)
+                else:
+                    LinksService(self.db).delete_link(link_id)
         # Перезагрузить таблицу, если не подавлено
         try:
             if hasattr(self.main, "links_business") and self.main.links_business and not getattr(self, "_suppress_ui", False):

@@ -160,19 +160,10 @@ class MoveCategoryCommand(BaseCommand):
             "icon_path": current_category.get("icon_path", ""),
             "position": current_category.get("position", 0)
         }
-        # В актуальной архитектуре обновление выполняется через CrudService,
-        # затем эмитится сигнал item_updated для инвалидирования кэша и обновления UI
-        updated = structure_business.crud_service.update_category(
-            structure_business.structure_model,
-            self.category_id,
-            category_data,
-            structure_business.logger,
-        )
-        if updated is not None:
-            try:
-                structure_business.item_updated.emit('category', self.category_id, updated)
-            except Exception as e:
-                logging.warning(f"Не удалось эмитить item_updated для категории {self.category_id}: {e}")
+        # Теперь обновление делегируется в бизнес-слой, который вызывает StructureService
+        updated = structure_business.update_category(self.category_id, category_data)
+        if updated is None:
+            raise ValueError(f"Не удалось обновить категорию {self.category_id}")
 
     def redo(self):
         try:

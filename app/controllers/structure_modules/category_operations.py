@@ -6,6 +6,7 @@ import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from app.models.structure_model import StructureModel
+from app.services.structure_service import StructureService
 
 from .base import BaseOperations, StructureItemType
 
@@ -27,6 +28,11 @@ class CategoryOperations(BaseOperations):
         self._execute_with_validation = execute_with_validation
         self._emit_signal = emit_signal_callback
         self._cache_manager = cache_manager
+        # Сервисный слой: транзакции и чтения без дублирования SQL
+        try:
+            self._structure_service = StructureService(structure_model.db)
+        except Exception:
+            self._structure_service = None
     
     def create_category(self, data: Dict[str, Any]) -> bool:
         """Создает новую категорию."""
@@ -71,7 +77,10 @@ class CategoryOperations(BaseOperations):
         """Подтверждает и выполняет удаление категории."""
         
         def _confirm_delete_operation():
-            self.structure_model.delete_category(category_id)
+            # Удаление через сервисный слой (UnitOfWork)
+            if not self._structure_service:
+                raise RuntimeError("StructureService недоступен для удаления категории")
+            self._structure_service.delete_category(category_id)
             self._emit_item_signal(SignalTypes.ITEM_DELETED, StructureItemType.CATEGORY, category_id)
             self.logger.info(f"Удалена категория {category_id}")
             self._cache_manager.invalidate_first_category_cache()
@@ -104,7 +113,10 @@ class CategoryOperations(BaseOperations):
         """Получает список категорий для указанного раздела."""
         
         def _get_categories_operation():
-            categories_data = self.structure_model.get_categories(section_id)
+            categories_data = (
+                self._structure_service.get_categories(section_id)
+                if self._structure_service else self.structure_model.get_categories(section_id)
+            )
             result = categories_data if categories_data else []
             self.logger.debug(f"Загружено {len(result)} категорий для раздела {section_id}")
             return result
@@ -135,6 +147,63 @@ class CategoryOperations(BaseOperations):
         # Дополнительная валидация для batch операций
         return self._validate_batch_categories(normalized)
     
+    def _process_item(
+        self,
+        data: Dict[str, Any],
+        item_type: StructureItemType,
+        item_id: Optional[int] = None,
+        is_update: bool = False,
+    ) -> bool:
+        """Переопределяем обработку для категорий: используем StructureService для мутаций.
+
+        Для иных типов элементов используем базовую реализацию.
+        """
+        # Если это не категория — передаём вниз в базу
+        if item_type is not StructureItemType.CATEGORY:
+            return super()._process_item(data, item_type, item_id, is_update)
+
+        # Нет сервисного слоя — безопасный фоллбек на базовую реализацию
+        if not getattr(self, "_structure_service", None):
+            return super()._process_item(data, item_type, item_id, is_update)
+
+        def _operation():
+            if is_update:
+                # Обновление через сервис
+                self._structure_service.update_category(int(item_id), data)  # type: ignore[arg-type]
+                current = self._structure_service.get_category_by_id(int(item_id)) or {}
+                # parent_or_id = id элемента для updated
+                self._emit_item_signal(SignalTypes.ITEM_UPDATED, item_type, int(item_id), current)  # type: ignore[arg-type]
+                # Инвалидация лёгкого кэша первой категории
+                try:
+                    self._cache_manager.invalidate_first_category_cache()
+                except Exception:
+                    pass
+                return True
+            else:
+                # Создание через сервис
+                new_id = self._structure_service.create_category(data)
+                if not new_id:
+                    return False
+                current = self._structure_service.get_category_by_id(int(new_id)) or {**data, "id": int(new_id)}
+                parent_id = (current.get("section_id") if isinstance(current, dict) else None) or data.get("section_id") or 0
+                # parent_or_id = section_id для added
+                self._emit_item_signal(SignalTypes.ITEM_ADDED, item_type, int(parent_id), current)
+                try:
+                    self._cache_manager.invalidate_first_category_cache()
+                except Exception:
+                    pass
+                return True
+
+        operation_name = "обновления" if is_update else "создания"
+        result = self._execute_with_validation(
+            _operation,
+            data,
+            item_type,
+            operation_name,
+            require_parent=not is_update,
+        )
+        return result if result is not None else False
+
     def get_first_category_id(self) -> Optional[int]:
         """Получает ID первой категории с кэшированием для оптимизации."""
         # Проверяем кэш
@@ -144,6 +213,7 @@ class CategoryOperations(BaseOperations):
             return cached_id
         
         def _get_first_category_operation():
+            # Сервиса для этого метода пока нет — используем модель
             category_id = self.structure_model.get_first_category_id()
             if category_id:
                 self.logger.debug(f"Найдена первая категория с ID: {category_id}")
@@ -163,7 +233,10 @@ class CategoryOperations(BaseOperations):
         """Получает иерархию (sphere_id, section_id) для категории с гарантированной нормализацией."""
         
         def _get_hierarchy_operation():
-            hierarchy_data = self.structure_model.get_category_hierarchy(category_id)
+            hierarchy_data = (
+                self._structure_service.get_category_hierarchy(category_id)
+                if self._structure_service else self.structure_model.get_category_hierarchy(category_id)
+            )
             if hierarchy_data:
                 self.logger.debug(f"Найдена иерархия для категории {category_id}")
             else:
@@ -191,12 +264,17 @@ class CategoryOperations(BaseOperations):
     
     def create_category_for_import(self, category_data: Dict[str, Any]) -> Optional[int]:
         """Создает новую категорию для импорта."""
-        return self._create_item_for_import("category", category_data, self.structure_model.create_category)
+        if self._structure_service:
+            return self._structure_service.create_category(category_data)
+        else:
+            raise RuntimeError("StructureService недоступен для создания категории")
     
     # Приватные вспомогательные методы
     
     def _get_category_data_internal(self, category_id: int) -> Optional[Dict[str, Any]]:
         """Внутренний метод для получения данных категории."""
+        if self._structure_service:
+            return self._structure_service.get_category_by_id(category_id)
         return self.structure_model.get_category_by_id(category_id)
     
     def _count_category_links(self, category_id: int) -> int:

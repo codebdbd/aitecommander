@@ -1,6 +1,0 @@
-
-exclude = ["dist", "logs"]
-
-[lint]
-select = ["F", "E", "I"]
-ignore = ["E501"]

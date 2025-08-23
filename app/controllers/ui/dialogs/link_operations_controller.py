@@ -120,7 +120,9 @@ class LinkOperationsController:
                 data = links_to_save[0]
                 logger.debug(f"show_link_dialog: using SaveLinkCmd for single link: name={data.get('name')}, browser_key={data.get('browser_key')}")
                 if data.get("_action") == "delete":
-                    self.db.links.delete_link(data["id"])
+                    # Используем Undo-команду, которая делегирует удаление в сервисный слой
+                    cmd = DeleteLinkCmd(link_to_delete=data, main_window=self.main_window)
+                    self.undo_stack.push(cmd)
                 else:
                     # Переопределяем признак обновления для одиночного результата:
                     # если у данных нет id — это создание новой ссылки, не передаём old_data

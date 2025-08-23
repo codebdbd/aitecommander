@@ -4,6 +4,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from app.models.structure_model import StructureModel
+from app.services.structure_service import StructureService
 
 
 class ImportService:
@@ -17,7 +18,18 @@ class ImportService:
     ) -> Optional[int]:
         """Создает категорию в режиме импорта и возвращает ее ID."""
         try:
-            category_id = model.create_category(category_data)
+            # Пытаемся использовать сервисный слой с транзакцией UnitOfWork
+            try:
+                service = StructureService(model.db)
+            except Exception:
+                service = None
+
+            if service:
+                category_id = service.create_category(category_data)
+            else:
+                # Фоллбек на прямую модель (нежелательно, но сохраняет совместимость)
+                category_id = model.create_category(category_data)
+
             if logger and category_id:
                 logger.info(
                     f"Создана категория для импорта {category_id}: {category_data.get('name', 'Без названия')}"

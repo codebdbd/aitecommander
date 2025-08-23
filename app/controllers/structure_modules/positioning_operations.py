@@ -7,6 +7,7 @@ import time
 from typing import List, Optional, Tuple
 
 from .base import BaseOperations
+from app.services.structure_service import StructureService
 
 # Тип-алиас для батч-обновлений: (имя_таблицы, список_ID)
 UpdateSpec = Tuple[str, List[int]]
@@ -33,6 +34,14 @@ class PositioningOperations(BaseOperations):
         except Exception:
             # Тихо используем значение по умолчанию, чтобы не ломать выполнение
             pass
+        # Используем сервис структуры для атомарных перестановок (UnitOfWork)
+        try:
+            self._structure_service: Optional[StructureService] = (
+                StructureService(structure_model.db) if hasattr(structure_model, 'db') else None
+            )
+        except Exception:
+            # На случай проблем инициализации сервиса — сохраняем совместимость
+            self._structure_service = None
     
     def update_item_positions(self, table_name: str, ids_in_order: List[int]) -> bool:
         """Обновляет позиции элементов в указанной таблице.
@@ -81,8 +90,10 @@ class PositioningOperations(BaseOperations):
                     )
                     # Продолжаем выполнение для обратной совместимости
             
-            # Основная операция обновления
-            self.structure_model.update_item_positions(table_name, ids_in_order)
+            # Основная операция обновления через сервисный слой
+            if not self._structure_service:
+                raise RuntimeError("StructureService недоступен для обновления позиций")
+            self._structure_service.update_item_positions(table_name, ids_in_order)
             
             # Расчет времени выполнения
             duration = time.time() - start_time

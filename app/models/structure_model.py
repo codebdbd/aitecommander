@@ -213,7 +213,8 @@ class StructureModel:
     def create_link(self, link_data: Dict[str, Any]) -> Optional[int]:
         """Создает новую ссылку."""
         try:
-            return self.db.links.upsert_link(link_data)
+            # Прямое создание через БД для избежания циклических зависимостей
+            return self.db.links.insert_link(link_data)
         except Exception as e:
             self.logger.error(f"Ошибка создания ссылки: {e}")
             return None
