@@ -1,10 +1,13 @@
-# app/utils/dnd/link.py
+# app/utils/ui/dnd/link.py
 
-"""Централизованные утилиты DnD для таблиц/списков ссылок.
+"""Централизованные утилиты DnD для таблиц/списков ссылок (Model/View).
 
 Содержит:
-- Миксин для таблиц ссылок (совместим с существующими реализациями);
-- Переиспользуемые хелперы для извлечения выбранных строк и восстановления строк-источников из MIME.
+- Миксин для таблиц ссылок, работающий с QModelIndex и моделью;
+- Хелперы для извлечения выбранных строк и восстановления строк-источников из MIME через данные модели.
+
+Примечание: API ориентирован на QTableView + QAbstractItemModel. Прямых
+зависимостей от QTableWidget/QTableWidgetItem не осталось.
 """
 
 import logging
@@ -14,10 +17,15 @@ from PyQt6.QtCore import Qt
 
 
 class DragDropHandlerMixin:
-    """Миксин для обработки Drag & Drop в таблице ссылок."""
+    """Миксин для обработки Drag & Drop в таблице ссылок (QTableView)."""
 
     def _extract_item_ids_from_items(self, items) -> List[int]:
-        """Извлекает ID ссылок из выбранных индексов (QModelIndex)."""
+        """Извлекает ID ссылок из выбранных индексов (QModelIndex).
+
+        Ожидается, что ``items`` — это последовательность ``QModelIndex``
+        (например, из ``selectionModel().selectedIndexes()``). Идентификаторы
+        извлекаются через ``self.get_link_at(row)`` и роль ``UserRole`` модели.
+        """
         try:
             if not items:
                 return []
@@ -72,7 +80,7 @@ class DragDropHandlerMixin:
                     self._current_links[row] = link_data
 
     def _get_current_order(self) -> List[int]:
-        """Получает текущий порядок ссылок через модель."""
+        """Получает текущий порядок ID ссылок по фактическому порядку строк модели."""
         try:
             model = getattr(self, "model", lambda: None)()
             total = model.rowCount() if model is not None else 0
@@ -91,9 +99,11 @@ class DragDropHandlerMixin:
 
 
 def get_selected_rows(table) -> List[int]:
-    """Надёжно получает выбранные строки из QTableWidget/QTableView.
+    """Возвращает отсортированный список уникальных выбранных строк (QTableView).
 
-    Возвращает отсортированный список уникальных индексов.
+    Использует ``selectionModel().selectedIndexes()`` и агрегирует уникальные
+    номера строк. Совместимо с любой реализацией на базе ``QAbstractItemView``
+    и моделью ``QAbstractItemModel``.
     """
     try:
         selection_model = table.selectionModel()
@@ -119,10 +129,11 @@ def get_selected_rows(table) -> List[int]:
 
 
 def extract_source_rows_from_mime(table, event, mime_type: str) -> List[int]:
-    """Восстанавливает номера строк-источников из MIME данных с ID.
+    """Восстанавливает номера строк-источников из MIME-данных с ID.
 
-    Требует, чтобы у `table` был метод `_extract_item_id_from_item(item)`.
-    Если не удаётся — возвращает `get_selected_rows(table)` как фолбэк.
+    Идентификаторы извлекаются через ``MimeDataParser`` и сопоставляются с
+    данными модели (``UserRole``) по первой колонке. При ошибке возвращает
+    ``get_selected_rows(table)`` как фолбэк.
     """
     try:
         from app.utils.ui.dnd.mime import MimeDataParser

@@ -116,6 +116,61 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
             | Qt.ItemFlag.ItemIsDropEnabled
         )
 
+    def setData(
+        self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole
+    ) -> bool:  # type: ignore[override]
+        """Обновляет данные модели программно.
+
+        Разрешаем обновлять поля ссылки по колонкам:
+        0: is_favorite (bool)
+        1: name (str)
+        2: last_used (любой сериализуемый/сравнимый тип)
+        3: notes (str)
+        Также поддерживаем прямую замену всей ссылки через UserRole (value: dict).
+        """
+        if not index.isValid():
+            return False
+        row, col = index.row(), index.column()
+        if not (0 <= row < len(self._links)):
+            return False
+
+        link = self._links[row]
+
+        try:
+            if role == Qt.ItemDataRole.UserRole and isinstance(value, dict):
+                # Полная замена словаря ссылки
+                self._links[row] = dict(value)
+                top_left = self.index(row, 0)
+                bottom_right = self.index(row, len(self._headers) - 1)
+                self.dataChanged.emit(top_left, bottom_right, [])
+                return True
+
+            if role in (Qt.ItemDataRole.EditRole, Qt.ItemDataRole.DisplayRole):
+                if col == 0:
+                    link["is_favorite"] = bool(value)
+                elif col == 1:
+                    link["name"] = str(value)
+                elif col == 2:
+                    # Храним как есть; нормализация для сортировки выполняется в sort()
+                    link["last_used"] = value
+                elif col == 3:
+                    link["notes"] = str(value)
+                else:
+                    return False
+                self.dataChanged.emit(index, index, [role])
+                return True
+        except Exception:
+            return False
+
+        return False
+
+    def supportedDropActions(self) -> Qt.DropActions:  # type: ignore[override]
+        # Поддерживаем только перемещение строк
+        return Qt.DropAction.MoveAction
+
+    def supportedDragActions(self) -> Qt.DropActions:  # type: ignore[override]
+        return Qt.DropAction.MoveAction
+
     # --- Мутации данных ---
     def set_headers(self, headers: Sequence[str]) -> None:
         headers = list(headers)
@@ -217,21 +272,17 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
             self.endMoveRows()
             return
 
-        # Разреженный набор: перемещаем последовательно, сохраняя относительный порядок
-        # Стратегия: переносим снизу вверх, чтобы индексы меньше сдвигались
-        for i, row in enumerate(reversed(src)):
-            # при переносе вниз target сдвигается на -1 для каждой уже перенесённой строки ниже
-            insert_at = target_row
-            if row < target_row:
-                insert_at -= 1
-            if not self.beginMoveRows(QModelIndex(), row, row, QModelIndex(), insert_at):
-                continue
-            item = self._links.pop(row)
-            # корректируем позицию после pop
-            if insert_at > row:
-                insert_at -= 1
-            self._links.insert(insert_at, item)
-            self.endMoveRows()
+        # Разреженный набор: переупорядочиваем список одним проходом через layoutChanged
+        # Семантика: удаляем выбранные строки, затем вставляем их (в исходном порядке)
+        # в позицию target_row в оставшемся списке.
+        remaining: List[Dict[str, Any]] = [item for i, item in enumerate(self._links) if i not in set(src)]
+        segment: List[Dict[str, Any]] = [self._links[i] for i in src]
+        insert_at = max(0, min(target_row, len(remaining)))
+        self.layoutAboutToBeChanged.emit()
+        try:
+            self._links = remaining[:insert_at] + segment + remaining[insert_at:]
+        finally:
+            self.layoutChanged.emit()
 
     # --- Сортировка ---
     def sort(self, column: int, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder) -> None:  # type: ignore[override]
