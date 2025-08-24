@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import QDialog
 from app.config_data import app_config
 from app.controllers.ui.undo.commands_links import (
     BatchSaveLinksCmd,
+    BatchDeleteLinksCmd,
     DeleteLinkCmd,
     SaveLinkCmd,
 )
@@ -196,36 +197,61 @@ class LinkOperationsController:
         return result
 
     def delete_links_with_confirmation(self, links):
-        """Удалить ссылки с подтверждением пользователя."""
+        """Удалить ссылки БЕЗ подтверждения.
+
+        Приводим поведение к единому сценарию: как в контекстном меню —
+        выполняем немедленное удаление. Для нескольких ссылок используем
+        пакетную команду, для одной — одиночную команду. Диалогов
+        подтверждения больше нет.
+        """
         if not links:
             return
 
-        # Если выделена только одна ссылка — удаляем без подтверждения
+        # Одиночное удаление — без подтверждения
         if len(links) == 1:
             cmd = DeleteLinkCmd(link_to_delete=links[0], main_window=self.main_window)
+            # Подавляем внутренние обновления UI, внешний перезагрузчик/статусбар уже вызываются
+            try:
+                cmd._suppress_ui = True
+            except Exception:
+                pass
             self.undo_stack.push(cmd)
+            # Явное единичное обновление таблицы, как и при удалении через контекстное меню
+            try:
+                cat_id = links[0].get("category_id")
+                if isinstance(cat_id, int) and cat_id > 0:
+                    if hasattr(self.main_window, "ui_state") and self.main_window.ui_state:
+                        self.main_window.ui_state.update_category_without_stack_switch(cat_id)
+                    else:
+                        # Fallback: только бизнес-логика
+                        self.main_window.links_business.load_links(cat_id)
+                # Обновляем избранное, если виджет присутствует
+                if hasattr(self.main_window, "fav_widget") and self.main_window.fav_widget:
+                    self.main_window.fav_widget.update_favorites()
+            except Exception:
+                pass
             return
 
-        # Если выделено несколько — спрашиваем подтверждение
-        from .dialog_manager import DialogManager
-
-        reply = DialogManager.ask_confirmation(
-            self.main_window,
-            app_config.get(
-                "ui.delete_confirm_text",
-                "Вы уверены, что хотите удалить {count} ссылк(и/у)?",
-            ).format(count=len(links)),
-            app_config.get("ui.delete_confirm_title", "Подтверждение удаления"),
-            informative_text="Действие необратимо. Выбранные ссылки будут удалены из базы данных.",
-            details=f"count={len(links)}",
-        )
-
-        if reply:
-            with self.undo_stack.macro(
-                MACRO_DELETE_LINKS_TEXT.format(count=len(links))
-            ):
-                for link_to_delete in links:
-                    cmd = DeleteLinkCmd(
-                        link_to_delete=link_to_delete, main_window=self.main_window
-                    )
-                    self.undo_stack.push(cmd)
+        # Пакетное удаление — без подтверждения, с макросом для Undo
+        with self.undo_stack.macro(MACRO_DELETE_LINKS_TEXT.format(count=len(links))):
+            cmd = BatchDeleteLinksCmd(
+                links_to_delete=links, main_window=self.main_window
+            )
+            # Внутренний UI подавляется, внешний reload выполняется единоразово
+            try:
+                cmd._suppress_ui = True
+            except Exception:
+                pass
+            self.undo_stack.push(cmd)
+        # После батч-удаления выполним один внешний reload категории (см. поведение контекстного меню)
+        try:
+            cat_id = (links[0] if links else {}).get("category_id")
+            if isinstance(cat_id, int) and cat_id > 0:
+                if hasattr(self.main_window, "ui_state") and self.main_window.ui_state:
+                    self.main_window.ui_state.update_category_without_stack_switch(cat_id)
+                else:
+                    self.main_window.links_business.load_links(cat_id)
+            if hasattr(self.main_window, "fav_widget") and self.main_window.fav_widget:
+                self.main_window.fav_widget.update_favorites()
+        except Exception:
+            pass

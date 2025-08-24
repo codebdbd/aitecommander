@@ -87,6 +87,16 @@ class PopulationManagerMixin:
                 ids_to_add = new_ids - current_ids
                 ids_to_check = current_ids & new_ids
 
+                # Если изменений очень много — дешевле сделать полное обновление
+                bulk_changes = len(ids_to_add) + len(ids_to_remove)
+                if bulk_changes >= 30 or len(links) >= 200:
+                    logging.info(
+                        "[LinksTableView] Большой объём изменений (%s) — выполняем полное обновление",
+                        bulk_changes,
+                    )
+                    self._full_populate(links, mode)
+                    return
+
                 # Удаляем исчезнувшие ссылки (в обратном порядке)
                 rows_to_remove = []
                 # Создаем копию кэша для итерации, чтобы избежать проблем при изменении кэша во время итерации
@@ -121,7 +131,15 @@ class PopulationManagerMixin:
                             model = self.model()
                             total = model.rowCount() if model is not None else 0
                             target_row = (total if sort_col != -1 else min(i, total))
+                            # Оптимизация: не перестраиваем кэш на каждый insert — сделаем один раз ниже
                             self._add_row(target_row, link, mode)
+
+                # После пакетных операций — разовая перестройка кэша
+                try:
+                    if hasattr(self, "rebuild_cache_from_items"):
+                        self.rebuild_cache_from_items()
+                except Exception:
+                    pass
 
             except Exception as e:
                 logging.error(

@@ -45,6 +45,8 @@ class _CategoryListView(QListView):
     """QListView with custom drag that serialises category id from model UserRole."""
 
     MIME_TYPE = app_config.get_category_mime_type()
+    # Сигнал активации по клавише Enter/Return
+    enterActivated = pyqtSignal(object)
 
     def mousePressEvent(self, event: QMouseEvent):
         # Гарантируем установку currentIndex по месту клика (для DnD и контекстного меню)
@@ -104,6 +106,22 @@ class _CategoryListView(QListView):
         except Exception as e:
             logger.debug("CategoryListView.mouseMoveEvent: %s", e)
         super().mouseMoveEvent(event)
+
+    def keyPressEvent(self, event):
+        # Активация плитки по Enter/Return
+        try:
+            if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                idx = self.currentIndex()
+                if idx and idx.isValid():
+                    try:
+                        self.enterActivated.emit(idx)
+                    except Exception:
+                        pass
+                    event.accept()
+                    return
+        except Exception as e:
+            logger.debug("CategoryListView.keyPressEvent: %s", e)
+        super().keyPressEvent(event)
 
     def contextMenuEvent(self, event):
         # Всегда устанавливаем текущий индекс по правому клику и прокидываем сигнал
@@ -445,8 +463,15 @@ class CategoryTiles(QWidget):
         vp = self.view.viewport()
         vp.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         vp.customContextMenuRequested.connect(self._show_context_menu)
-        self.view.clicked.connect(self._on_index_activated)
-        self.view.doubleClicked.connect(self._on_index_activated)
+        # Открываем категорию ТОЛЬКО по двойному клику или Enter
+        try:
+            self.view.doubleClicked.connect(self._on_index_activated)
+        except Exception:
+            pass
+        try:
+            self.view.enterActivated.connect(self._on_index_activated)
+        except Exception:
+            pass
 
         try:
             if (

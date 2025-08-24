@@ -51,10 +51,12 @@ class BrowserProfileDialog(QDialog):
         layout.addLayout(top_layout)
 
         # 2. Линия: строка поиска
+        search_layout = QHBoxLayout()
         self.search_line = QLineEdit()
         self.search_line.setPlaceholderText("Поиск по имени/email…")
         self.search_line.textChanged.connect(self._populate_profiles)
-        layout.addWidget(self.search_line)
+        search_layout.addWidget(self.search_line, 1)
+        layout.addLayout(search_layout)
 
         # Список профилей
         self.scroll = QScrollArea()
@@ -65,12 +67,21 @@ class BrowserProfileDialog(QDialog):
         layout.addWidget(self.scroll)
 
         # Кнопки
-        # 4. Нижняя линия: статус слева, кнопки справа
+        # 4. Нижняя линия: слева выборные кнопки и статус, справа Сохранить/Отмена
         bottom_layout = QHBoxLayout()
+        left_bottom = QHBoxLayout()
+        # Кнопки выборных действий слева
+        self.select_all_btn = QPushButton("Добавить все")
+        self.select_all_btn.clicked.connect(self._select_all_profiles)
+        left_bottom.addWidget(self.select_all_btn)
+        self.deselect_all_btn = QPushButton("Отменить выделение")
+        self.deselect_all_btn.clicked.connect(self._deselect_all_profiles)
+        left_bottom.addWidget(self.deselect_all_btn)
         # Индикатор статуса/прогресса
         self.status_label = QLabel("")
-        self.status_label.setStyleSheet("color: gray;")
-        bottom_layout.addWidget(self.status_label, 1)
+        self.status_label.setStyleSheet("color: gray; margin-left: 8px;")
+        left_bottom.addWidget(self.status_label, 0)
+        bottom_layout.addLayout(left_bottom, 1)
 
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -79,7 +90,9 @@ class BrowserProfileDialog(QDialog):
         ok_btn = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
         cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
         if ok_btn is not None:
-            ok_btn.setText("Выбрать")
+            ok_btn.setText("Сохранить")
+            ok_btn.setEnabled(False)  # по умолчанию неактивна до выбора
+            self._ok_button = ok_btn
         if cancel_btn is not None:
             cancel_btn.setText("Отмена")
         self.button_box.accepted.connect(self.accept)
@@ -91,6 +104,14 @@ class BrowserProfileDialog(QDialog):
         self.browser_combo.setEnabled(enabled)
         self.search_line.setEnabled(enabled)
         self.refresh_btn.setEnabled(enabled)
+        self.select_all_btn.setEnabled(enabled)
+        self.deselect_all_btn.setEnabled(enabled)
+        # Кнопка сохранить зависит от наличия выбора, но при блокировке всего диалога тоже дизейблим
+        if hasattr(self, "_ok_button") and self._ok_button is not None:
+            if not enabled:
+                self._ok_button.setEnabled(False)
+            else:
+                self._update_save_enabled()
 
     def _populate_browsers(self):
         self.browser_combo.clear()
@@ -146,10 +167,17 @@ class BrowserProfileDialog(QDialog):
             text = f"{profile_name} ({browser_name})"
             cb = QCheckBox(text)
             cb.profile_data = profile
+            # Отслеживаем изменения для управления доступностью кнопки "Сохранить"
+            try:
+                cb.stateChanged.connect(self._update_save_enabled)
+            except Exception:
+                pass
             self.profile_layout.addWidget(cb)
             self.profile_checkboxes.append(cb)
         # Добавляем stretch, чтобы чекбоксы не растягивались по вертикали
         self.profile_layout.addStretch()
+        # Обновить состояние кнопки "Сохранить" после перестроения списка
+        self._update_save_enabled()
 
     def refresh_profiles(self):
         """Ручное обновление всех профилей: асинхронно, с сохранением кэша и обновлением UI."""
@@ -226,8 +254,19 @@ class BrowserProfileDialog(QDialog):
         """Выбрать все профили."""
         for cb in self.profile_checkboxes:
             cb.setChecked(True)
+        self._update_save_enabled()
 
     def _deselect_all_profiles(self):
         """Снять выделение со всех профилей."""
         for cb in self.profile_checkboxes:
             cb.setChecked(False)
+        self._update_save_enabled()
+
+    def _update_save_enabled(self):
+        """Включает кнопку "Сохранить", если выбран хотя бы один профиль."""
+        try:
+            any_checked = any(cb.isChecked() for cb in self.profile_checkboxes)
+            if hasattr(self, "_ok_button") and self._ok_button is not None:
+                self._ok_button.setEnabled(any_checked)
+        except Exception:
+            pass

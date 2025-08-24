@@ -130,12 +130,23 @@ class LinkDialogController:
         """Подготавливает данные ссылок для сохранения."""
         links_data = []
 
-        # Обработка Chrome профилей
-        if form_data.get("link_type") == "web" and form_data.get("selected_profiles"):
-            links_data.extend(self._prepare_profile_links(form_data))
+        # Режим редактирования: если web и заданы профили —
+        # использует профильную обработку (обновит текущую и добавит недостающие);
+        # иначе — одна запись
+        is_edit = form_data.get("link_id") is not None
+        if is_edit:
+            if form_data.get("link_type") == "web" and form_data.get("selected_profiles"):
+                links_data.extend(self._prepare_profile_links(form_data))
+            else:
+                links_data.append(self._prepare_regular_link(form_data))
         else:
-            # Обычная ссылка
-            links_data.append(self._prepare_regular_link(form_data))
+            # Режим создания: сохраняем текущее поведение —
+            #   web + выбранные профили -> несколько записей;
+            #   иначе -> одна запись
+            if form_data.get("link_type") == "web" and form_data.get("selected_profiles"):
+                links_data.extend(self._prepare_profile_links(form_data))
+            else:
+                links_data.append(self._prepare_regular_link(form_data))
 
         return links_data
 

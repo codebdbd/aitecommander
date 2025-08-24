@@ -104,22 +104,9 @@ class RowOperationsMixin:
                 self._current_links[row] = link
             except Exception:
                 pass
-            # Принудительно перерисовываем видимую область таблицы,
-            # чтобы гарантировать визуальное обновление иконок/текста
-            try:
-                viewport = getattr(self, "viewport", None)
-                if callable(viewport):
-                    vp = viewport()
-                    if hasattr(vp, "update"):
-                        vp.update()
-                # Как дополнительный вариант, если потребуется более жёсткая перерисовка:
-                # if hasattr(self, 'repaint'):
-                #     self.repaint()
-            except Exception as e:
-                logging.debug(
-                    f"[LinksTableView] Не удалось принудительно обновить viewport: {e}"
-                )
-            logging.info(f"Строка {row} успешно обновлена")
+            # Отказываемся от принудительной перерисовки viewport для снижения нагрузки —
+            # перерисовка произойдет по сигналам модели (dataChanged)
+            logging.debug(f"Строка {row} обновлена")
             return True
 
         except Exception as e:
