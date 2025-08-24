@@ -3,8 +3,6 @@ import logging
 import sqlite3
 from typing import Any, Dict, List, Optional
 
-from app.utils.db.synchronization import db_lock
-
 from .db_base import DatabaseBase, DatabaseError
 
 logger = logging.getLogger(__name__)
@@ -228,10 +226,9 @@ class LinkModel(DatabaseBase):
     def delete_link(self, link_id: int):
         """Удаляет ссылку по её ID."""
         try:
-            with db_lock:
-                self._execute_with_error_handling(
-                    "DELETE FROM link WHERE id= ?", (link_id,)
-                )
+            self._execute_with_error_handling(
+                "DELETE FROM link WHERE id= ?", (link_id,)
+            )
             self.commit()
             logger.info(f"Удалена ссылка с ID {link_id}")
         except Exception as e:
@@ -241,10 +238,9 @@ class LinkModel(DatabaseBase):
     def update_link_last_used(self, link_id: int):
         """Обновляет время последнего использования для ссылки."""
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with db_lock:
-            self._execute_with_error_handling(
-                "UPDATE link SET last_used = ? WHERE id = ?", (now, link_id)
-            )
+        self._execute_with_error_handling(
+            "UPDATE link SET last_used = ? WHERE id = ?", (now, link_id)
+        )
         self.commit()
 
     def count_favorites(self) -> int:
@@ -257,10 +253,9 @@ class LinkModel(DatabaseBase):
     def clear_favorites(self):
         """Сбрасывает признак избранного у всех ссылок."""
         try:
-            with db_lock:
-                self._execute_with_error_handling(
-                    "UPDATE link SET is_favorite=0 WHERE is_favorite=1"
-                )
+            self._execute_with_error_handling(
+                "UPDATE link SET is_favorite=0 WHERE is_favorite=1"
+            )
             self.commit()
             logger.info("Очищены все избранные ссылки")
         except Exception as e:
@@ -338,12 +333,11 @@ class LinkModel(DatabaseBase):
     def update_link_order(self, link_ids: List[int]) -> bool:
         """Обновить порядок ссылок."""
         try:
-            with db_lock:
+            with self.transaction():
                 for i, link_id in enumerate(link_ids):
                     self._execute_with_error_handling(
                         "UPDATE link SET position = ? WHERE id = ?", (i, link_id)
                     )
-            self.commit()
             return True
         except Exception as e:
             logger.error(f"Ошибка обновления порядка ссылок: {e}")

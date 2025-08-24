@@ -19,7 +19,6 @@ from app.services import LinksService, StructureService
 from app.utils.db.api import run_db as run_db  # re-export
 from app.utils.db.db_error_handler import handle_db_error
 from app.utils.db.executors.pool import get_thread_pool
-from app.utils.db.synchronization import db_lock
 from app.utils.db.tasks.base import DatabaseTask as _NewDatabaseTask
 from app.utils.db.tasks.base import TaskSignals as _NewTaskSignals
 
@@ -189,10 +188,9 @@ class UpdateLinkWorker(BaseDbWorker):
         """Обновляет ссылку в базе данных и отправляет сигналы для обновления UI."""
         try:
             self.signals.loading_started.emit()
-            with db_lock:
-                self.link["last_used"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                # Выполняем upsert через сервисный слой с транзакцией
-                LinksService(self.db).create_or_update_link(self.link)
+            self.link["last_used"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Выполняем upsert через сервисный слой с транзакцией
+            LinksService(self.db).create_or_update_link(self.link)
             self.signals.update_ui.emit(self.category_id)
             self.signals.update_favorites.emit()
             self.signals.update_recent_links.emit()
@@ -221,11 +219,10 @@ class LoadLinksWorker(BaseDbWorker):
             if self.cancelled:
                 return
             self.signals.loading_started.emit()
-            with db_lock:
-                raw_rows = self.db.links.get_links(self.category_id)
+            raw_rows = self.db.links.get_links(self.category_id)
             if self.cancelled:
                 return
-            links = [dict(row) for row in raw_rows] if raw_rows else []
+            links = raw_rows or []
             self.signals.links_loaded.emit(links, self.category_id, self.task_id)
         except Exception as e:
             if not handle_db_error(e, self):
@@ -244,9 +241,8 @@ class SearchLinksWorker(BaseDbWorker):
         """Выполняет поиск ссылок в базе данных по запросу."""
         try:
             self.signals.loading_started.emit()
-            with db_lock:
-                rows = self.db.links.search_links(self.query)
-            results = [dict(row) for row in rows] if rows else []
+            rows = self.db.links.search_links(self.query)
+            results = rows or []
             self.signals.search_results.emit(results)
         except Exception as e:
             if not handle_db_error(e, self):
@@ -266,8 +262,7 @@ class CountFavoritesWorker(BaseDbWorker):
         """Подсчитывает количество избранных ссылок."""
         try:
             self.signals.loading_started.emit()
-            with db_lock:
-                fav_count = self.db.links.count_favorites()
+            fav_count = self.db.links.count_favorites()
             self.signals.count_finished.emit(fav_count, self.links, self.link)
         except Exception as e:
             if not handle_db_error(e, self):
@@ -346,10 +341,7 @@ class LoadSpheresWorker(BaseDbWorker):
         try:
             self.signals.operation_started.emit("Загрузка сфер...")
 
-            with db_lock:
-                spheres_raw = self.db.spheres.get_spheres()
-
-            spheres = [dict(row) for row in spheres_raw] if spheres_raw else []
+            spheres = self.db.spheres.get_spheres() or []
 
             logger.debug(f"Загружено {len(spheres)} сфер")
             self.signals.spheres_loaded.emit(spheres)
@@ -372,25 +364,22 @@ class LoadStructureWorker(SphereIdWorker):
                 f"Загрузка структуры для сферы {self.sphere_id}..."
             )
 
-            with db_lock:
-                # Загружаем разделы
-                sections_raw = self.db.sections.get_sections(self.sphere_id)
-                if not sections_raw:
-                    self.signals.structure_loaded.emit([], self.sphere_id)
-                    self.signals.operation_finished.emit("Структура загружена (пустая)")
-                    return
+            # Загружаем разделы
+            sections_raw = self.db.sections.get_sections(self.sphere_id)
+            if not sections_raw:
+                self.signals.structure_loaded.emit([], self.sphere_id)
+                self.signals.operation_finished.emit("Структура загружена (пустая)")
+                return
 
-                sections_data = [dict(row) for row in sections_raw]
-                section_ids = [section["id"] for section in sections_data]
+            sections_data = sections_raw
+            section_ids = [section["id"] for section in sections_data]
 
-                # Загружаем все категории для всех разделов одним оптимизированным запросом
-                # Используем новый метод get_categories_for_sections для устранения N+1 проблемы
-                categories_raw = self.db.categories.get_categories_for_sections(
-                    section_ids
-                )
-                all_categories = (
-                    [dict(row) for row in categories_raw] if categories_raw else []
-                )
+            # Загружаем все категории для всех разделов одним оптимизированным запросом
+            # Используем новый метод get_categories_for_sections для устранения N+1 проблемы
+            categories_raw = self.db.categories.get_categories_for_sections(
+                section_ids
+            )
+            all_categories = categories_raw or []
 
             # Группируем категории по разделам
             categories_by_section = {}
@@ -427,10 +416,7 @@ class LoadSectionsWorker(SphereIdWorker):
                 f"Загрузка разделов для сферы {self.sphere_id}..."
             )
 
-            with db_lock:
-                sections_raw = self.db.sections.get_sections(self.sphere_id)
-
-            sections = [dict(row) for row in sections_raw] if sections_raw else []
+            sections = self.db.sections.get_sections(self.sphere_id) or []
 
             logger.debug(
                 f"Загружено {len(sections)} разделов для сферы {self.sphere_id}"
@@ -455,10 +441,7 @@ class LoadCategoriesWorker(SectionIdWorker):
                 f"Загрузка категорий для раздела {self.section_id}..."
             )
 
-            with db_lock:
-                categories_raw = self.db.categories.get_categories(self.section_id)
-
-            categories = [dict(row) for row in categories_raw] if categories_raw else []
+            categories = self.db.categories.get_categories(self.section_id) or []
 
             logger.debug(
                 f"Загружено {len(categories)} категорий для раздела {self.section_id}"
@@ -491,16 +474,15 @@ class CreateItemWorker(BaseDbWorker):
                 f"Создание {self.item_type}: {item_name}..."
             )
 
-            with db_lock:
-                service = StructureService(self.db)
-                if self.item_type == "section":
-                    item_id = service.create_section(self.data)
-                    parent_id = self.data.get("sphere_id", 0)
-                elif self.item_type == "category":
-                    item_id = service.create_category(self.data)
-                    parent_id = self.data.get("section_id", 0)
-                else:
-                    raise ValueError(f"Неизвестный тип элемента: {self.item_type}")
+            service = StructureService(self.db)
+            if self.item_type == "section":
+                item_id = service.create_section(self.data)
+                parent_id = self.data.get("sphere_id", 0)
+            elif self.item_type == "category":
+                item_id = service.create_category(self.data)
+                parent_id = self.data.get("section_id", 0)
+            else:
+                raise ValueError(f"Неизвестный тип элемента: {self.item_type}")
 
             # Обновляем данные с полученным ID
             self.data["id"] = item_id
@@ -542,14 +524,13 @@ class UpdateItemWorker(BaseDbWorker):
                 f"Обновление {self.item_type}: {item_name}..."
             )
 
-            with db_lock:
-                service = StructureService(self.db)
-                if self.item_type == "section":
-                    service.update_section(self.item_id, self.data)
-                elif self.item_type == "category":
-                    service.update_category(self.item_id, self.data)
-                else:
-                    raise ValueError(f"Неизвестный тип элемента: {self.item_type}")
+            service = StructureService(self.db)
+            if self.item_type == "section":
+                service.update_section(self.item_id, self.data)
+            elif self.item_type == "category":
+                service.update_category(self.item_id, self.data)
+            else:
+                raise ValueError(f"Неизвестный тип элемента: {self.item_type}")
 
             logger.info(f"Обновлен {self.item_type} с ID {self.item_id}: {item_name}")
             self.signals.item_updated.emit(self.item_type, self.item_id, self.data)
@@ -584,22 +565,21 @@ class DeleteItemWorker(BaseDbWorker):
             # Сначала получаем данные элемента для передачи в сигнале
             old_data = {}
 
-            with db_lock:
-                service = StructureService(self.db)
-                if self.item_type == "section":
-                    # Получаем данные раздела перед удалением (чтение напрямую допустимо)
-                    section_data = self.db.sections.get_section_by_id(self.item_id)
-                    if section_data:
-                        old_data = dict(section_data)
-                    service.delete_section(self.item_id)
-                elif self.item_type == "category":
-                    # Получаем данные категории перед удалением (чтение напрямую допустимо)
-                    category_data = self.db.categories.get_category_by_id(self.item_id)
-                    if category_data:
-                        old_data = dict(category_data)
-                    service.delete_category(self.item_id)
-                else:
-                    raise ValueError(f"Неизвестный тип элемента: {self.item_type}")
+            service = StructureService(self.db)
+            if self.item_type == "section":
+                # Получаем данные раздела перед удалением (чтение напрямую допустимо)
+                section_data = self.db.sections.get_section_by_id(self.item_id)
+                if section_data:
+                    old_data = dict(section_data)
+                service.delete_section(self.item_id)
+            elif self.item_type == "category":
+                # Получаем данные категории перед удалением (чтение напрямую допустимо)
+                category_data = self.db.categories.get_category_by_id(self.item_id)
+                if category_data:
+                    old_data = dict(category_data)
+                service.delete_category(self.item_id)
+            else:
+                raise ValueError(f"Неизвестный тип элемента: {self.item_type}")
 
             logger.info(f"Удален {self.item_type} с ID {self.item_id}")
             self.signals.item_deleted.emit(self.item_type, self.item_id, old_data)
@@ -624,17 +604,15 @@ class CountNestedObjectsWorker(SectionIdWorker):
                 f"Подсчет объектов в разделе {self.section_id}..."
             )
 
-            with db_lock:
-                categories_data = self.db.categories.get_categories(self.section_id)
-                categories_count = len(categories_data) if categories_data else 0
+            categories_data = self.db.categories.get_categories(self.section_id)
+            categories_count = len(categories_data) if categories_data else 0
 
-                links_count = 0
-                if categories_data:
-                    for category_dict in categories_data:
-                        category_dict = dict(category_dict)
-                        links_data = self.db.links.get_links(category_dict["id"])
-                        if links_data:
-                            links_count += len(links_data)
+            links_count = 0
+            if categories_data:
+                for category_dict in categories_data:
+                    links_data = self.db.links.get_links(category_dict["id"])
+                    if links_data:
+                        links_count += len(links_data)
 
             # Отправляем результат через специальный сигнал
             count_data = {

@@ -115,6 +115,26 @@ class DatabaseBase:
             logger.error(f"Ошибка выполнения SQL запроса: {query}, ошибка: {e}")
             raise DatabaseError(f"Ошибка базы данных: {e}")
 
+    def _execute_many_with_error_handling(
+        self, query: str, seq_of_params: List[tuple]
+    ):
+        """
+        Выполняет SQL-запрос executemany с обработкой ошибок и блокировкой.
+
+        Примечание: Коммит не выполняется автоматически, как и в
+        `_execute_with_error_handling`. Вызывающая сторона должна решать,
+        когда фиксировать транзакцию (commit) или использовать `self.transaction()`.
+        """
+        try:
+            with db_lock:
+                cursor = self.connection.executemany(query, seq_of_params)
+            return cursor
+        except sqlite3.Error as e:
+            logger.error(
+                f"Ошибка выполнения SQL executemany: {query}, кол-во пакетов={len(seq_of_params)}, ошибка: {e}"
+            )
+            raise DatabaseError(f"Ошибка базы данных (executemany): {e}")
+
     def _update_entity(
         self,
         table_name: str,

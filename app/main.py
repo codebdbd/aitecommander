@@ -11,8 +11,8 @@ from app.models.db import Database
 from app.settings import AppSettings
 from app.utils.logging.application_logger import ApplicationLogger
 from app.utils.logging.exception_handler import ExceptionHandler
-from app.utils.ui.icon.validation import validate_and_log_ui_icons_startup
 from app.views.main_window import MainWindow
+from app.utils.db.api import run_db
 
 
 class ApplicationInitializer:
@@ -158,11 +158,6 @@ def main():
     logging.info("=" * 60)
     logging.info("ЗАПУСК ПРИЛОЖЕНИЯ")
     logging.info("=" * 60)
-    if args.debug:
-        try:
-            validate_and_log_ui_icons_startup()
-        except Exception as _e:
-            logging.warning("Ошибка при стартап-валидации иконок: %s", _e)
     # Устанавливаем глобальный обработчик исключений
     ExceptionHandler()
 
@@ -187,6 +182,56 @@ def main():
                 app.quit()
             return 1
         initializer.main_window.show()
+        # Вариант B: мгновенно показать окно и инициализировать БД в фоне
+        try:
+            db = initializer.database
+            mw = initializer.main_window
+
+            # Показать статус в строке состояния (если доступно)
+            try:
+                if hasattr(mw, "message_label") and mw.message_label:
+                    mw.message_label.setText("Инициализация базы данных…")
+            except Exception:
+                pass
+
+            def _on_db_init_finished(_res=None):
+                try:
+                    # Создаём соединение в главном потоке по требованию
+                    _ = db.connection
+                except Exception as e:
+                    logging.warning("Не удалось открыть соединение в главном потоке: %s", e)
+                # Обновить статус-бар
+                try:
+                    if hasattr(mw, "update_statusbar"):
+                        mw.update_statusbar()
+                    if hasattr(mw, "message_label") and mw.message_label:
+                        mw.message_label.setText("Готово")
+                except Exception:
+                    pass
+
+            def _on_db_init_error(e: Exception):
+                logging.error("Ошибка инициализации БД в фоне: %s", e, exc_info=True)
+                try:
+                    if hasattr(mw, "message_label") and mw.message_label:
+                        mw.message_label.setText("Ошибка инициализации БД")
+                    if hasattr(mw, "update_statusbar"):
+                        mw.update_statusbar()
+                except Exception:
+                    pass
+
+            # Запуск тяжёлых операций инициализации в пуле потоков
+            def _do_db_init():
+                try:
+                    db.prepare_dirs()
+                    db.initialize_or_migrate()
+                    return True
+                except Exception:
+                    # Исключение обработается в on_error через run_db
+                    raise
+
+            run_db(_do_db_init, use_lock=False, description="db_init", on_finished=_on_db_init_finished, on_error=_on_db_init_error)
+        except Exception as e:
+            logging.debug("Не удалось запустить фоновую инициализацию БД: %s", e)
         # После показа окна: однажды фоново загрузить профили браузеров, если кеша нет
         try:
             from app.utils.browser.browser_profiles import profile_manager as _pm
