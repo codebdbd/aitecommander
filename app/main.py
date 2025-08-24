@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import argparse
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
@@ -136,14 +137,28 @@ def create_application() -> QApplication:
 
 def main():
     """Главная функция приложения."""
-    log_level = logging.DEBUG if "--debug" in sys.argv else logging.INFO
+    # Парсинг аргументов командной строки
+    parser = argparse.ArgumentParser(produces_usage_help=False, description="Запуск приложения")
+    parser.add_argument("--debug", action="store_true", help="Включить режим отладки")
+    parser.add_argument(
+        "--log-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Уровень логирования (перекрывает --debug)",
+    )
+    args = parser.parse_args()
+
+    # Определяем уровень логирования
+    if args.log_level:
+        log_level = getattr(logging, args.log_level)
+    else:
+        log_level = logging.DEBUG if args.debug else logging.INFO
 
     # Инициализируем систему логирования
     ApplicationLogger(log_level)
     logging.info("=" * 60)
     logging.info("ЗАПУСК ПРИЛОЖЕНИЯ")
     logging.info("=" * 60)
-    if "--debug" in sys.argv:
+    if args.debug:
         try:
             validate_and_log_ui_icons_startup()
         except Exception as _e:
@@ -159,10 +174,6 @@ def main():
         logging.info(f"PID процесса: {os.getpid()}")
         logging.info(f"Количество аргументов командной строки: {len(sys.argv)}")
         settings = AppSettings()
-        try:
-            settings.set_font_size(10)
-        except Exception as e:
-            logging.warning(f"Не удалось записать размер шрифта в настройки: {e}")
         initializer = ApplicationInitializer(settings)
         from PyQt6.QtCore import QRunnable, QThreadPool
 
