@@ -116,8 +116,13 @@ class LinksTableView(
             pass
         self.leaveEvent = self._on_leave_event
 
-        # Простое решение: очищаем кэш после сортировки
+        # Сортировка по клику в заголовке: если была отключена после DnD — включим и выполним один сорт
         self.horizontalHeader().sectionClicked.connect(self._on_sort_clicked)
+        # Перестраиваем кэш только по факту изменения layout модели (дешевле и корректнее)
+        try:
+            self.model().layoutChanged.connect(self._rebuild_cache_on_layout)
+        except Exception:
+            pass
 
         # Подключаем сигнал базового класса к нашему сигналу для совместимости
         self.items_reordered.connect(self.links_reordered.emit)
@@ -182,25 +187,23 @@ class LinksTableView(
         return DragDropHandlerMixin._get_current_order(self)
 
     def _on_sort_clicked(self, logical_index):
-        """Обработчик клика по заголовку - очищает кэш после сортировки."""
-        from PyQt6.QtCore import QTimer
+        """Включаем сортировку по клику, если она была отключена из-за ручного порядка."""
+        header = self.horizontalHeader()
+        if not self.isSortingEnabled():
+            self.setSortingEnabled(True)
+            try:
+                header.setSortIndicatorShown(True)
+            except Exception:
+                pass
+            # Выполняем один сорт по колонке (Ascending); дальше Qt сам будет
+            try:
+                self.sortByColumn(logical_index, Qt.SortOrder.AscendingOrder)
+            except Exception:
+                pass
 
-        logger.debug(f"[SORT] Клик по колонке {logical_index}, очищаем кэш")
-
-        # Отложенное очищение кэша после завершения сортировки
-        QTimer.singleShot(0, self._clear_cache_after_sort)
-
-    def _clear_cache_after_sort(self):
-        """Перестраивает кэш после сортировки по фактическому порядку строк."""
-        old_cache_size = len(self._current_links)
-        # Перестраиваем кэш, чтобы соответствовать отсортированным строкам
-        self.rebuild_cache_from_items()
-        new_cache_size = len(self._current_links)
-        logger.debug(
-            f"[SORT] Кэш перестроен: было {old_cache_size}, стало {new_cache_size}"
-        )
-        # Оповещаем подписчиков (например, контроллер) о том, что таблица обновлена
+    def _rebuild_cache_on_layout(self):
+        """Перестраиваем кэш после изменения layout модели (сортировка/перемещения)."""
         try:
-            self.table_populated.emit()
+            self.rebuild_cache_from_items()
         except Exception as e:
-            logger.debug(f"[SORT] Не удалось эмитить table_populated: {e}")
+            logger.debug(f"[SORT] Ошибка перестроения кэша по layoutChanged: {e}")
