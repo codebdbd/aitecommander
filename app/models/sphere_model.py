@@ -1,8 +1,6 @@
 import logging
 import sqlite3
 from typing import Any, Dict
-
-from app.utils.db.synchronization import db_lock
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 
 from .db_base import DatabaseBase, DatabaseError
@@ -17,31 +15,32 @@ class SphereModel(DatabaseBase):
     """Модель для работы со сферами"""
 
     def get_spheres(self):
-        """Возвращает список всех сфер."""
-        return self._execute_with_error_handling(
+        """Возвращает список всех сфер в формате dict."""
+        rows = self._execute_with_error_handling(
             "SELECT id, name, position, icon_path FROM sphere ORDER BY position",
             fetch_method="all",
         )
+        return [dict(row) for row in rows] if rows else []
 
     def get_sphere_by_id(self, sphere_id: int):
-        """Возвращает сферу по её ID."""
-        return self._execute_with_error_handling(
+        """Возвращает сферу по её ID в формате dict."""
+        row = self._execute_with_error_handling(
             "SELECT id, name, position, icon_path FROM sphere WHERE id = ?",
             (sphere_id,),
             fetch_method="one",
         )
+        return dict(row) if row else None
 
     def insert_sphere(self, data: Dict[str, Any]) -> int:
         """Вставляет новую сферу и возвращает её ID."""
         self._validate_required_fields(data, ["name"], "сферы")
 
         position = self._get_next_position("sphere")
-        with db_lock:
-            cursor = self._execute_with_error_handling(
-                "INSERT INTO sphere (name, icon_path, position) VALUES (?, ?, ?)",
-                (data["name"], data.get("icon_path", ""), position),
-            )
-            self.connection.commit()
+        cursor = self._execute_with_error_handling(
+            "INSERT INTO sphere (name, icon_path, position) VALUES (?, ?, ?)",
+            (data["name"], data.get("icon_path", ""), position),
+        )
+        self.connection.commit()
         logger.info(f"Добавлена новая сфера: {data['name']}")
         return cursor.lastrowid
 
@@ -65,63 +64,26 @@ class SphereModel(DatabaseBase):
         )
         return row[0] if row else ""
 
-    def seed_spheres(self):
-        """Заполняет таблицу sphere начальными данными, если она пуста."""
-        try:
-            cur = self.connection.execute("SELECT COUNT(*) FROM sphere")
-            count = cur.fetchone()[0]
-            if count == 0:
-                try:
-                    self.connection.execute(
-                        "ALTER TABLE sphere ADD COLUMN icon_path TEXT DEFAULT ''"
-                    )
-                except sqlite3.OperationalError:
-                    pass  # Игнорируем, если колонка уже существует
+    def initialize_default_spheres(self):
+        """Инициализирует начальные данные для таблицы sphere, если она пуста.
 
-                default = [
-                    ("AI", 0, resolve_icon_for_link({"type": "ai", "icon_path": ""})),
-                    (
-                        "Работа",
-                        1,
-                        resolve_icon_for_link({"type": "work", "icon_path": ""}),
-                    ),
-                    (
-                        "Учеба",
-                        2,
-                        resolve_icon_for_link({"type": "study", "icon_path": ""}),
-                    ),
-                    (
-                        "Личное",
-                        3,
-                        resolve_icon_for_link({"type": "personal", "icon_path": ""}),
-                    ),
-                ]
-                with db_lock:
-                    self.connection.executemany(
-                        "INSERT INTO sphere(name, position, icon_path) VALUES(?,?,?)",
-                        default,
-                    )
-                    self.connection.commit()
-                logger.info("Начальные данные для сфер добавлены")
-        except Exception as e:
-            logger.error(f"Ошибка заполнения начальных данных: {e}")
-            raise DatabaseError(f"Не удалось заполнить начальные данные: {e}")
-
-    def init_default_data(self):
-        """Инициализирует начальные данные для сфер."""
+        Включает добавление совместимой колонки icon_path (если её нет) и
+        вставку стандартного набора значений. Коммит выполняется в конце
+        операции. Повторный вызов безопасен: если данные уже есть, только логируем.
+        """
         try:
-            # Проверяем, есть ли уже данные
             cursor = self.connection.execute("SELECT COUNT(*) FROM sphere")
             count = cursor.fetchone()[0]
 
             if count == 0:
-                # Добавляем колонку icon_path если её нет (для совместимости)
+                # Совместимость: добавить колонку icon_path, если отсутствует
                 try:
                     self.connection.execute(
                         "ALTER TABLE sphere ADD COLUMN icon_path TEXT DEFAULT ''"
                     )
                 except sqlite3.OperationalError:
-                    pass  # Игнорируем, если колонка уже существует
+                    # Колонка уже существует — это не ошибка
+                    pass
 
                 default = [
                     ("AI", 0, resolve_icon_for_link({"type": "ai", "icon_path": ""})),
@@ -141,15 +103,14 @@ class SphereModel(DatabaseBase):
                         resolve_icon_for_link({"type": "personal", "icon_path": ""}),
                     ),
                 ]
-                with db_lock:
-                    self.connection.executemany(
-                        "INSERT INTO sphere(name, position, icon_path) VALUES(?,?,?)",
-                        default,
-                    )
-                    self.connection.commit()
+                self._execute_many_with_error_handling(
+                    "INSERT INTO sphere(name, position, icon_path) VALUES(?,?,?)",
+                    default,
+                )
+                self.connection.commit()
                 logger.info("Начальные данные для сфер добавлены")
             else:
-                logger.info("Начальные данные уже существуют")
+                logger.info("Начальные данные для сфер уже существуют")
         except Exception as e:
-            logger.error(f"Ошибка заполнения начальных данных: {e}")
-            raise DatabaseError(f"Не удалось заполнить начальные данные: {e}")
+            logger.error(f"Ошибка инициализации начальных данных сфер: {e}")
+            raise DatabaseError(f"Не удалось инициализировать начальные данные сфер: {e}")

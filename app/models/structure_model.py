@@ -19,39 +19,27 @@ class StructureModel:
 
     def get_spheres(self) -> List[Dict[str, Any]]:
         """Возвращает список всех сфер."""
-        spheres_raw = self.db.spheres.get_spheres()
-        # Нужно преобразовать в dict для совместимости с .get() методом
-        return [dict(sphere) for sphere in spheres_raw] if spheres_raw else []
+        return self.db.spheres.get_spheres() or []
 
     def get_sphere_by_id(self, sphere_id: int) -> Optional[Dict[str, Any]]:
         """Возвращает сферу по её ID."""
-        sphere_data = self.db.spheres.get_sphere_by_id(sphere_id)
-        # Нужно преобразовать в dict для совместимости с .get() методом
-        return dict(sphere_data) if sphere_data else None
+        return self.db.spheres.get_sphere_by_id(sphere_id)
 
     def get_sections(self, sphere_id: int) -> List[Dict[str, Any]]:
         """Возвращает список разделов для указанной сферы."""
-        sections_raw = self.db.sections.get_sections(sphere_id)
-        # Нужно преобразовать в dict для совместимости с .get() методом
-        return [dict(section) for section in sections_raw] if sections_raw else []
+        return self.db.sections.get_sections(sphere_id) or []
 
     def get_section_by_id(self, section_id: int) -> Optional[Dict[str, Any]]:
         """Возвращает раздел по его ID."""
-        section_data = self.db.sections.get_section_by_id(section_id)
-        # Нужно преобразовать в dict для совместимости с .get() методом
-        return dict(section_data) if section_data else None
+        return self.db.sections.get_section_by_id(section_id)
 
     def get_categories(self, section_id: int) -> List[Dict[str, Any]]:
         """Возвращает список категорий для указанного раздела."""
-        categories_raw = self.db.categories.get_categories(section_id)
-        # Нужно преобразовать в dict для совместимости с .get() методом
-        return [dict(category) for category in categories_raw] if categories_raw else []
+        return self.db.categories.get_categories(section_id) or []
 
     def get_category_by_id(self, category_id: int) -> Optional[Dict[str, Any]]:
         """Возвращает категорию по её ID."""
-        category_data = self.db.categories.get_category_by_id(category_id)
-        # Нужно преобразовать в dict для совместимости с .get() методом
-        return dict(category_data) if category_data else None
+        return self.db.categories.get_category_by_id(category_id)
 
     def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, Any]]:
         """Возвращает иерархию категории (sphere_id, section_id)."""
@@ -179,8 +167,7 @@ class StructureModel:
         try:
             # Используем оптимизированный метод БД вместо N+1 запросов
             categories_raw = self.db.categories.get_categories_for_sections(section_ids)
-            # Нужно преобразовать в dict для совместимости с .get() методом
-            return [dict(cat) for cat in categories_raw] if categories_raw else []
+            return categories_raw or []
         except Exception as e:
             self.logger.error(
                 f"Ошибка получения категорий для разделов {section_ids}: {e}"
@@ -219,10 +206,15 @@ class StructureModel:
             return None
 
     def create_link(self, link_data: Dict[str, Any]) -> Optional[int]:
-        """Создает новую ссылку."""
+        """Создает или обновляет ссылку (обертка для upsert_link).
+
+        Возвращает ID записи. Для новых записей модель ссылок выполняет
+        тихую проверку дубликатов по (category_id, name, url, args) и
+        возвращает ID существующей записи без ошибки, если дубликат найден.
+        """
         try:
             # Прямое создание через БД для избежания циклических зависимостей
-            return self.db.links.insert_link(link_data)
+            return self.db.links.upsert_link(link_data)
         except Exception as e:
             self.logger.error(f"Ошибка создания ссылки: {e}")
             return None
@@ -231,8 +223,7 @@ class StructureModel:
         """Получает список ссылок для указанной категории."""
         try:
             links_raw = self.db.links.get_links(category_id)
-            # Нужно преобразовать в dict для совместимости с .get() методом
-            return [dict(link) for link in links_raw] if links_raw else []
+            return links_raw or []
         except Exception as e:
             self.logger.error(
                 f"Ошибка получения ссылок для категории {category_id}: {e}"

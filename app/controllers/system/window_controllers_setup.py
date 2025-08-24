@@ -495,11 +495,30 @@ class DatabaseEventHandler:
         # Обновляем бизнес-логику структуры
         if hasattr(window, "structure_business"):
             window.structure_business.db = new_db
-            # Устанавливаем первую сферу как активную
-            spheres = window.structure_business.get_spheres()
-            if spheres:
-                first_sphere_id = spheres[0].get("id", 1)
-                window.structure_business.set_current_sphere(first_sphere_id)
+            # Переводим выбор первой сферы на асинхронный путь, чтобы не блокировать UI
+            try:
+                sb = window.structure_business
+
+                def _set_first_sphere_once(spheres_list):
+                    try:
+                        # Устанавливаем первую доступную сферу, если ещё не выбрана
+                        if spheres_list and getattr(sb, "get_current_sphere_id", None) and sb.get_current_sphere_id() is None:
+                            first_sphere_id = spheres_list[0].get("id", 1)
+                            sb.set_current_sphere(first_sphere_id)
+                    finally:
+                        # Одноразовое подключение
+                        try:
+                            sb.spheres_loaded.disconnect(_set_first_sphere_once)
+                        except Exception:
+                            pass
+
+                # Подключаем одноразовый обработчик и запускаем асинхронную загрузку сфер
+                sb.spheres_loaded.connect(_set_first_sphere_once)
+                if getattr(sb, "load_spheres_async", None):
+                    sb.load_spheres_async()
+            except Exception:
+                # В случае любой ошибки не ломаем процесс обновления контроллеров
+                pass
 
     @staticmethod
     def _restore_ui_state(window):

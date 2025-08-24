@@ -5,8 +5,6 @@ CategoryModel - модель для работы с категориями в б
 import logging
 from typing import Any, Dict, List, Optional
 
-from app.utils.db.synchronization import db_lock
-
 from .db_base import DatabaseBase
 
 logger = logging.getLogger(__name__)
@@ -20,16 +18,17 @@ class CategoryModel(DatabaseBase):
         super().__init__(database)
 
     def get_categories(self, section_id: int):
-        """Возвращает список категорий для указанного раздела."""
-        return self._execute_with_error_handling(
+        """Возвращает список категорий для указанного раздела в формате dict."""
+        rows = self._execute_with_error_handling(
             "SELECT id, name, section_id, position, icon_path FROM category "
             "WHERE section_id=? ORDER BY position",
             (section_id,),
             fetch_method="all",
         )
+        return [dict(row) for row in rows] if rows else []
 
     def get_categories_for_sections(self, section_ids: List[int]):
-        """Возвращает категории для нескольких разделов одним запросом."""
+        """Возвращает категории для нескольких разделов одним запросом в формате dict."""
         if not section_ids:
             return []
 
@@ -40,13 +39,15 @@ class CategoryModel(DatabaseBase):
             WHERE section_id IN ({placeholders}) 
             ORDER BY section_id, position
         """
-        return self._execute_with_error_handling(query, section_ids, fetch_method="all")
+        rows = self._execute_with_error_handling(query, section_ids, fetch_method="all")
+        return [dict(row) for row in rows] if rows else []
 
     def get_category_by_id(self, category_id: int):
-        """Возвращает категорию по её ID."""
-        return self._execute_with_error_handling(
-            "SELECT * FROM category WHERE id=?", (category_id,), fetch_method="one"
+        """Возвращает категорию по её ID в формате dict."""
+        row = self._execute_with_error_handling(
+            "SELECT * FROM category WHERE id= ?", (category_id,), fetch_method="one"
         )
+        return dict(row) if row else None
 
     def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, int]]:
         """Получить иерархию категории (сфера -> раздел -> категория).
@@ -99,12 +100,11 @@ class CategoryModel(DatabaseBase):
             return None
 
         position = self._get_next_position("category", "section_id", data["section_id"])
-        with db_lock:
-            cursor = self._execute_with_error_handling(
-                "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
-                (data["name"], data["section_id"], data.get("icon_path", ""), position),
-            )
-            self.connection_manager.connection.commit()
+        cursor = self._execute_with_error_handling(
+            "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
+            (data["name"], data["section_id"], data.get("icon_path", ""), position),
+        )
+        self.connection.commit()
         logger.info(f"Добавлена новая категория: {data['name']}")
         return cursor.lastrowid
 
@@ -113,8 +113,8 @@ class CategoryModel(DatabaseBase):
         return self._update_entity("category", category_id, data)
 
     def delete_category(self, category_id: int):
-        """Удаляет категорию по её ID."""
-        with db_lock:
+        """Удаляет категорию по её ID вместе со всеми её ссылками (атомарно)."""
+        with self.transaction():
             # Сначала удаляем все ссылки категории
             self._execute_with_error_handling(
                 "DELETE FROM link WHERE category_id=?", (category_id,)
@@ -123,38 +123,35 @@ class CategoryModel(DatabaseBase):
             self._execute_with_error_handling(
                 "DELETE FROM category WHERE id=?", (category_id,)
             )
-            self.connection_manager.connection.commit()
         logger.info(f"Удалена категория с ID {category_id} и все её ссылки")
 
     def upsert_category(self, category_data: Dict[str, Any]) -> int:
         """Вставляет или обновляет категорию. Если категории с таким id нет, вставляет новую с этим id."""
         if "id" in category_data and category_data["id"]:
-            with db_lock:
-                cursor = self._execute_with_error_handling(
-                    "UPDATE category SET name=?, section_id=?, icon_path=?, position=? WHERE id=?",
+            cursor = self._execute_with_error_handling(
+                "UPDATE category SET name=?, section_id=?, icon_path=?, position=? WHERE id=?",
+                (
+                    category_data["name"],
+                    category_data["section_id"],
+                    category_data.get("icon_path", ""),
+                    category_data.get("position", 0),
+                    category_data["id"],
+                ),
+            )
+            self.connection.commit()
+            if cursor.rowcount == 0:
+                # Записи не было, делаем вставку с нужным id
+                self.connection.execute(
+                    "INSERT INTO category (id, name, section_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
                     (
+                        category_data["id"],
                         category_data["name"],
                         category_data["section_id"],
                         category_data.get("icon_path", ""),
                         category_data.get("position", 0),
-                        category_data["id"],
                     ),
                 )
-                self.connection_manager.connection.commit()
-            if cursor.rowcount == 0:
-                # Записи не было, делаем вставку с нужным id
-                with db_lock:
-                    self.connection_manager.connection.execute(
-                        "INSERT INTO category (id, name, section_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
-                        (
-                            category_data["id"],
-                            category_data["name"],
-                            category_data["section_id"],
-                            category_data.get("icon_path", ""),
-                            category_data.get("position", 0),
-                        ),
-                    )
-                    self.connection_manager.connection.commit()
+                self.connection.commit()
             return category_data["id"]
         else:
             category_id = self.insert_category(category_data)

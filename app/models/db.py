@@ -28,9 +28,6 @@ BACKUP_DIR = PATHS.get_backups_dir()
 
 class Database(DatabaseBase):
     def __init__(self):
-        # Создаем пользовательские папки для данных
-        PATHS.ensure_user_data_dirs()
-
         self.db_path = str(DB_PATH)
         self.thread_local = threading.local()
 
@@ -43,13 +40,34 @@ class Database(DatabaseBase):
         self.categories = CategoryModel(self)
         self.links = LinkModel(self)
 
-        # Инициализация схемы и начальных данных, если БД новая
-        if not DB_PATH.exists():
-            self._init_schema()
-            self.spheres.seed_spheres()
-        else:
-            # Выполняем миграции для существующих БД
-            self._run_migrations()
+    def prepare_dirs(self) -> None:
+        """Создаёт необходимые пользовательские каталоги для данных.
+
+        Вызывать в фоне до первой работы с БД, чтобы не блокировать UI.
+        """
+        PATHS.ensure_user_data_dirs()
+
+    def initialize_or_migrate(self) -> None:
+        """Инициализирует новую БД или выполняет миграции для существующей.
+
+        Тяжёлая операция: запускать в фоне (QRunnable) с использованием глобальной
+        блокировки `db_lock` внутри методов, где это необходимо.
+        """
+        try:
+            # Инициализация схемы и начальных данных, если БД новая
+            if not DB_PATH.exists():
+                self._init_schema()
+                self.spheres.initialize_default_spheres()
+            else:
+                # Выполняем миграции для существующих БД
+                self._run_migrations()
+        finally:
+            # Закрываем соединение текущего потока (например, воркера),
+            # чтобы не держать открытым соединение из фонового потока.
+            try:
+                self.close()
+            except Exception:
+                pass
 
     def __enter__(self):
         """Позволяет использовать Database как context manager."""
@@ -265,23 +283,20 @@ class Database(DatabaseBase):
             spheres_data = []
             spheres = self.spheres.get_spheres()
             for sphere_row in spheres:
-                sphere = dict(sphere_row)
+                # Модели возвращают dict — берём копию для безопасности
+                sphere = sphere_row.copy()
                 sphere["sections"] = []
 
                 sections = self.sections.get_sections(sphere["id"])
                 for section_row in sections:
-                    section = dict(section_row)
+                    section = section_row.copy()
                     section["categories"] = []
 
                     categories = self.categories.get_categories(section["id"])
                     for category_row in categories:
-                        category = dict(category_row)
-                        category["links"] = []
-
-                        links = self.links.get_links(category["id"])
-                        for link_row in links:
-                            link = dict(link_row)
-                            category["links"].append(link)
+                        category = category_row.copy()
+                        # Ссылки уже приходят списком dict — присваиваем напрямую
+                        category["links"] = self.links.get_links(category["id"])
 
                         section["categories"].append(category)
 
@@ -359,33 +374,23 @@ class Database(DatabaseBase):
 
     def _get_max_backups(self) -> int:
         """Возвращает максимальное количество резервных копий из пользовательских настроек."""
-
         from app.config_data import app_config
-
         return app_config.get_max_backups()
 
     def export_section_tree(self, section_id: int) -> dict:
         """Экспортирует раздел вместе со всеми категориями и ссылками."""
-        section = dict(self.sections.get_section_by_id(section_id))
+        section = self.sections.get_section_by_id(section_id) or {}
         categories = []
         for cat_row in self.categories.get_categories(section_id):
-            cat = dict(cat_row)
-            links = [dict(link) for link in self.links.get_links(cat["id"])]
+            cat = cat_row.copy()
+            links = self.links.get_links(cat["id"])  # уже список dict
             categories.append({"category": cat, "links": links})
         return {"section": section, "categories": categories}
 
-    def import_section_tree(self, tree: dict):
-        """Восстанавливает раздел, все категории и ссылки из backup-структуры."""
-        self.sections.upsert_section(tree["section"])
-        for cat_block in tree["categories"]:
-            self.categories.upsert_category(cat_block["category"])
-            for link in cat_block["links"]:
-                self.links.upsert_link(link)
-
     def export_category_tree(self, category_id: int) -> dict:
         """Экспортирует категорию вместе со всеми ссылками."""
-        cat = dict(self.categories.get_category_by_id(category_id))
-        links = [dict(link) for link in self.links.get_links(category_id)]
+        cat = self.categories.get_category_by_id(category_id) or {}
+        links = self.links.get_links(category_id)
         return {"category": cat, "links": links}
 
     def import_category_tree(self, tree: dict):
