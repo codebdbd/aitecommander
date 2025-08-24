@@ -282,28 +282,29 @@ class BaseDragDropTableWidget(QTableView):
         """Извлекает номера строк источника из MIME-данных."""
         return dnd_extract_source_rows(self, event, self.MIME_TYPE)
 
-    def _extract_item_id_from_item(self, item) -> int:
-        """Возвращает ID из элемента таблицы (переопределяется в наследниках)."""
-        data = item.data(Qt.ItemDataRole.UserRole)
-        if data is not None:
-            try:
-                if isinstance(data, int):
-                    return data
-                if isinstance(data, dict):
-                    inner_id = data.get("id")
-                    if inner_id is not None:
-                        return int(inner_id)
-                return int(str(data))
-            except (TypeError, ValueError):
-                logging.warning(
-                    "[BaseTableView] Некорректный тип ID в UserRole: %r", data
-                )
-                raise NotImplementedError(
-                    "Subclasses must implement _extract_item_id_from_item"
-                )
-        raise NotImplementedError(
-            "Subclasses must implement _extract_item_id_from_item"
-        )
+    def _extract_id_from_index(self, index) -> int:
+        """Возвращает ID элемента из модели по переданному индексу (UserRole).
+
+        Требование: модель в ``UserRole`` первой колонки хранит dict ссылки
+        с ключом ``id`` или непосредственно целочисленный идентификатор.
+        """
+        if not index or not index.isValid():
+            raise ValueError("Invalid model index")
+        data = index.data(Qt.ItemDataRole.UserRole)
+        if data is None:
+            raise ValueError("UserRole data is None")
+        try:
+            if isinstance(data, int):
+                return data
+            if isinstance(data, dict):
+                inner_id = data.get("id")
+                if inner_id is not None:
+                    return int(inner_id)
+            # Фолбэк: попытка привести к int строковое значение
+            return int(str(data))
+        except (TypeError, ValueError) as e:
+            logging.warning("[BaseTableView] Некорректные данные ID в UserRole: %r", data)
+            raise ValueError("Cannot extract integer ID from UserRole data") from e
 
     def _get_drop_positions(self, event) -> tuple:
         """Возвращает позиции источника и цели для drop-операции."""

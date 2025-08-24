@@ -4,7 +4,8 @@ from typing import TYPE_CHECKING, Optional
 
 from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QUndoStack
-from PyQt6.QtWidgets import QMainWindow, QTableView, QWidget
+from PyQt6.QtWidgets import QMainWindow, QWidget
+from app.views.link import LinksTableView
 
 if TYPE_CHECKING:
     from app.controllers.ui.links.links_actions import LinksActions
@@ -35,7 +36,7 @@ class MainWindow(QMainWindow):
     ui_state: "UIStateManager"
     system_dialogs: object
     theme_ctrl: "ThemeController"
-    table: QTableView
+    table: LinksTableView
     left_panel: QWidget
     undo_stack: Optional[QUndoStack]
 
