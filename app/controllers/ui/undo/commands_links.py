@@ -121,12 +121,12 @@ class DeleteLinkCmd(QUndoCommand):
                 self.main.links_business.link_updated.emit(self.link)
             except Exception:
                 pass
-            # Перезагружаем таблицу, если не подавлено
+            # Перезагружаем таблицу после undo ВСЕГДА, чтобы UI отразил восстановление
+            # Даже если в redo использовалось подавление обновлений для пакетных операций
             try:
-                if not getattr(self, "_suppress_ui", False):
-                    cat_id = self.link.get("category_id")
-                    if isinstance(cat_id, int) and cat_id > 0:
-                        self.main.links_business.load_links(cat_id)
+                cat_id = self.link.get("category_id")
+                if isinstance(cat_id, int) and cat_id > 0:
+                    self.main.links_business.load_links(cat_id)
             except Exception:
                 pass
 

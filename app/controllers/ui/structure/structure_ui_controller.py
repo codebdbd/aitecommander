@@ -53,6 +53,10 @@ class StructureUIController(QObject):
         self.tree.setAcceptDrops(True)
         self.tree.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         self.tree.setDefaultDropAction(Qt.DropAction.MoveAction)
+        # Разрешаем множественное выделение, чтобы "Выделить все" сохранялось
+        self.tree.setSelectionMode(
+            QAbstractItemView.SelectionMode.ExtendedSelection
+        )
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._on_context_menu)
         self.tree.currentItemChanged.connect(self.selection_handler._on_current_changed)

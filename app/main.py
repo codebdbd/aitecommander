@@ -138,7 +138,7 @@ def create_application() -> QApplication:
 def main():
     """Главная функция приложения."""
     # Парсинг аргументов командной строки
-    parser = argparse.ArgumentParser(produces_usage_help=False, description="Запуск приложения")
+    parser = argparse.ArgumentParser(description="Запуск приложения")
     parser.add_argument("--debug", action="store_true", help="Включить режим отладки")
     parser.add_argument(
         "--log-level",
@@ -175,19 +175,6 @@ def main():
         logging.info(f"Количество аргументов командной строки: {len(sys.argv)}")
         settings = AppSettings()
         initializer = ApplicationInitializer(settings)
-        from PyQt6.QtCore import QRunnable, QThreadPool
-
-        from app.utils.browser.browser_profiles import get_profile_manager
-
-        class ProfilePreloader(QRunnable):
-            def run(self):
-                try:
-                    manager = get_profile_manager()
-                    manager.get_all_profiles()
-                except Exception as e:
-                    logging.warning(f"Ошибка предзагрузки профилей: {e}")
-
-        QThreadPool.globalInstance().start(ProfilePreloader())
         from PyQt6.QtGui import QFont
 
         font_size = (
@@ -200,6 +187,40 @@ def main():
                 app.quit()
             return 1
         initializer.main_window.show()
+        # После показа окна: однажды фоново загрузить профили браузеров, если кеша нет
+        try:
+            from app.utils.browser.browser_profiles import profile_manager as _pm
+            from app.utils.browser.browser_profiles import async_profile_manager as _apm
+            # Ленивый импорт профайл-кеша, чтобы избежать излишних зависимостей на старте
+            from app.utils.browser.browser_profiles import profile_cache as _pc
+
+            def _on_window_shown():
+                try:
+                    cache_path = _pc.get_cache_path()
+                    if not cache_path.exists():
+                        async_mgr = _apm.get_async_profile_manager()
+
+                        def _save_and_update(all_profiles: dict):
+                            try:
+                                # Сохранить JSON
+                                _pc.save_profiles(all_profiles)
+                                # Обновить кеш синхронного менеджера
+                                mgr = _pm.get_profile_manager()
+                                now = __import__("time").time()
+                                for key, profiles in (all_profiles or {}).items():
+                                    mgr._cache[key] = profiles
+                                    mgr._last_update[key] = now
+                            except Exception as e:
+                                logging.warning("Ошибка сохранения/обновления кеша профилей: %s", e)
+
+                        async_mgr.all_profiles_ready.connect(_save_and_update)
+                        async_mgr.load_all_profiles_async(use_cache=False)
+                except Exception as e:
+                    logging.debug("Ленивая загрузка профилей пропущена: %s", e)
+
+            initializer.main_window.shown.connect(_on_window_shown)
+        except Exception as _e:
+            logging.debug("Не удалось подключить ленивую загрузку профилей: %s", _e)
         QTimer.singleShot(100, lambda: logging.info("Приложение успешно запущено"))
         exit_code = app.exec()
         return exit_code

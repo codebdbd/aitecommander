@@ -184,6 +184,66 @@ class ItemOperations:
             self._delete_category(id_)
 
     def delete_selected_item(self) -> None:
+        try:
+            # Обрабатываем множественное выделение категорий
+            selected = list(getattr(self.tree, "selectedItems", lambda: [])())
+        except Exception:
+            selected = []
+
+        if selected and len(selected) > 1:
+            # Оставляем только категории
+            category_ids = []
+            for it in selected:
+                t = get_tree_tuple(it, 0)
+                if t and t[0] == "category" and isinstance(t[1], int):
+                    category_ids.append(t[1])
+
+            if category_ids:
+                # Считаем суммарное количество ссылок
+                total_links = 0
+                for cid in category_ids:
+                    try:
+                        cnt = int(self.business.structure_model.count_links_by_category(cid))
+                    except Exception:
+                        cnt = 0
+                    total_links += cnt
+
+                # Если ссылок нет ни в одной категории — удаляем без подтверждения
+                if total_links == 0:
+                    for idx, cid in enumerate(category_ids):
+                        try:
+                            data = self.business.get_category_data(cid)
+                            if data:
+                                # Все кроме последнего – без промежуточного reload
+                                skip = idx < (len(category_ids) - 1)
+                                cmd = DeleteCategoryCmd(data, self.main, skip_reload=skip)
+                                if cmd:
+                                    self.undo_stack.push(cmd)
+                        except Exception:
+                            logger.exception("Ошибка удаления категории %s", cid)
+                    return
+
+                # Иначе одно подтверждение на все
+                msg = (
+                    f"Будут удалены {len(category_ids)} категори(я/ии/й) "
+                    f"и {total_links} ссыл(ка/ки/ок) в сумме.\n\n"
+                    "Все вложенные ссылки будут удалены безвозвратно!\n\n"
+                    "Вы уверены, что хотите продолжить?"
+                )
+                if DialogManager.ask_confirmation(self.main, msg, "Подтвердите удаление"):
+                    for idx, cid in enumerate(category_ids):
+                        try:
+                            data = self.business.get_category_data(cid)
+                            if data:
+                                skip = idx < (len(category_ids) - 1)
+                                cmd = DeleteCategoryCmd(data, self.main, skip_reload=skip)
+                                if cmd:
+                                    self.undo_stack.push(cmd)
+                        except Exception:
+                            logger.exception("Ошибка удаления категории %s", cid)
+                return
+
+        # Fallback: одиночное удаление по текущему элементу
         current_item = self.tree.currentItem()
         if current_item:
             self.delete_item(current_item)

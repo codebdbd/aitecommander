@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -15,6 +16,9 @@ from PyQt6.QtWidgets import (
 )
 
 from app.utils.browser.browser_profiles import get_profile_manager
+from app.utils.browser.browser_profiles import async_profile_manager as _apm
+from app.utils.browser.browser_profiles import profile_manager as _pm
+from app.utils.browser.browser_profiles import profile_cache as _pc
 from app.utils.browser.browser_profiles.utils import get_browser_display_name
 
 logger = logging.getLogger(__name__)
@@ -35,23 +39,22 @@ class BrowserProfileDialog(QDialog):
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        # Браузер
-        browser_layout = QHBoxLayout()
-        browser_layout.addWidget(QLabel("Браузер:"))
+        # 1. Линия: Браузеры + Обновить
+        top_layout = QHBoxLayout()
+        top_layout.addWidget(QLabel("Браузеры:"))
         self.browser_combo = QComboBox()
         self.browser_combo.currentIndexChanged.connect(self._populate_profiles)
-        browser_layout.addWidget(self.browser_combo)
-        layout.addLayout(browser_layout)
+        top_layout.addWidget(self.browser_combo, 1)
+        self.refresh_btn = QPushButton("Обновить")
+        self.refresh_btn.clicked.connect(self.refresh_profiles)
+        top_layout.addWidget(self.refresh_btn, 0)
+        layout.addLayout(top_layout)
 
-        # Кнопки управления профилями
-        control_layout = QHBoxLayout()
-        self.select_all_btn = QPushButton("Выбрать все")
-        self.deselect_all_btn = QPushButton("Снять выделение")
-        self.select_all_btn.clicked.connect(self._select_all_profiles)
-        self.deselect_all_btn.clicked.connect(self._deselect_all_profiles)
-        control_layout.addWidget(self.select_all_btn)
-        control_layout.addWidget(self.deselect_all_btn)
-        layout.addLayout(control_layout)
+        # 2. Линия: строка поиска
+        self.search_line = QLineEdit()
+        self.search_line.setPlaceholderText("Поиск по имени/email…")
+        self.search_line.textChanged.connect(self._populate_profiles)
+        layout.addWidget(self.search_line)
 
         # Список профилей
         self.scroll = QScrollArea()
@@ -62,12 +65,32 @@ class BrowserProfileDialog(QDialog):
         layout.addWidget(self.scroll)
 
         # Кнопки
+        # 4. Нижняя линия: статус слева, кнопки справа
+        bottom_layout = QHBoxLayout()
+        # Индикатор статуса/прогресса
+        self.status_label = QLabel("")
+        self.status_label.setStyleSheet("color: gray;")
+        bottom_layout.addWidget(self.status_label, 1)
+
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
+        # Локализация подписей
+        ok_btn = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
+        cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
+        if ok_btn is not None:
+            ok_btn.setText("Выбрать")
+        if cancel_btn is not None:
+            cancel_btn.setText("Отмена")
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
-        layout.addWidget(self.button_box)
+        bottom_layout.addWidget(self.button_box, 0)
+        layout.addLayout(bottom_layout)
+
+    def _set_controls_enabled(self, enabled: bool):
+        self.browser_combo.setEnabled(enabled)
+        self.search_line.setEnabled(enabled)
+        self.refresh_btn.setEnabled(enabled)
 
     def _populate_browsers(self):
         self.browser_combo.clear()
@@ -93,8 +116,16 @@ class BrowserProfileDialog(QDialog):
         browser_key = self.browser_combo.currentData()
         profiles = []
 
-        # Загружаем только профили выбранного браузера
+        # Загружаем только профили выбранного браузера из кэша менеджера (без дискового сканирования)
         profiles = self.manager.get_profiles_by_browser(browser_key)
+        # Фильтрация по строке поиска
+        query = (self.search_line.text() or "").strip().lower()
+        if query:
+            def _match(p: Dict) -> bool:
+                name = str(p.get("email") or p.get("name") or "").lower()
+                path = str(p.get("path") or "").lower()
+                return query in name or query in path
+            profiles = [p for p in profiles if _match(p)]
         finder = self.manager.finders.get(browser_key)
         if finder:
             for profile in profiles:
@@ -119,6 +150,58 @@ class BrowserProfileDialog(QDialog):
             self.profile_checkboxes.append(cb)
         # Добавляем stretch, чтобы чекбоксы не растягивались по вертикали
         self.profile_layout.addStretch()
+
+    def refresh_profiles(self):
+        """Ручное обновление всех профилей: асинхронно, с сохранением кэша и обновлением UI."""
+        self._set_controls_enabled(False)
+        self.status_label.setText("Загрузка профилей…")
+        try:
+            async_mgr = _apm.get_async_profile_manager()
+
+            def _on_ready(all_profiles: Dict[str, List[Dict]]):
+                try:
+                    # Сохранить JSON кэш
+                    _pc.save_profiles(all_profiles or {})
+                    # Обновить кэш синхронного менеджера
+                    mgr = _pm.get_profile_manager()
+                    now = __import__("time").time()
+                    for key, profiles in (all_profiles or {}).items():
+                        mgr._cache[key] = profiles
+                        mgr._last_update[key] = now
+                    # Обновить списки в диалоге
+                    self._populate_browsers()
+                    self._populate_profiles()
+                finally:
+                    # Отписка и восстановление контролов
+                    try:
+                        async_mgr.all_profiles_ready.disconnect(_on_ready)
+                        async_mgr.loading_progress.disconnect(_on_progress)
+                        async_mgr.loading_error.disconnect(_on_error)
+                    except Exception:
+                        pass
+                    self._set_controls_enabled(True)
+                    self.status_label.setText("")
+
+            # Подписка и запуск загрузки без использования оперативного кэша воркера
+            async_mgr.all_profiles_ready.connect(_on_ready)
+            def _on_progress(operation: str, current: int, total: int):
+                # operation вида "Загрузка chrome" из менеджера
+                try:
+                    self.status_label.setText(f"{operation} ({current}/{total})…")
+                except Exception:
+                    pass
+
+            def _on_error(operation: str, message: str):
+                logging.warning("Ошибка во время %s: %s", operation, message)
+                self.status_label.setText("Ошибка загрузки профилей")
+
+            async_mgr.loading_progress.connect(_on_progress)
+            async_mgr.loading_error.connect(_on_error)
+            async_mgr.load_all_profiles_async(use_cache=False)
+        except Exception as e:
+            logging.warning("Не удалось запустить обновление профилей: %s", e)
+            self._set_controls_enabled(True)
+            self.status_label.setText("Ошибка запуска загрузки")
 
     def accept(self):
         """Переопределение accept для сохранения выбранных профилей."""

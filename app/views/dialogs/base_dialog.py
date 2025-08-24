@@ -73,11 +73,24 @@ def create_russian_context_menu(widget):
     copy_action.triggered.connect(widget.copy)
     copy_action.setShortcut("Ctrl+C")
 
-    paste_action = menu.addAction(
-        icon_cache.get_icon("paste", theme, "context_menu"), "Вставить"
-    )
-    paste_action.triggered.connect(widget.paste)
-    paste_action.setShortcut("Ctrl+V")
+    # Добавляем пункт "Вставить" только если в буфере есть текст
+    try:
+        from PyQt6.QtWidgets import QApplication
+
+        app = QApplication.instance()
+        clip_has_text = False
+        if app is not None:
+            md = app.clipboard().mimeData()
+            clip_has_text = bool(md and md.hasText() and md.text())
+        if clip_has_text:
+            paste_action = menu.addAction(
+                icon_cache.get_icon("paste", theme, "context_menu"), "Вставить"
+            )
+            paste_action.triggered.connect(widget.paste)
+            paste_action.setShortcut("Ctrl+V")
+    except Exception:
+        # В случае ошибки проверки буфера не добавляем пункт вставки
+        pass
 
     delete_action = menu.addAction(
         icon_cache.get_icon("delete", theme, "context_menu"), "Удалить"

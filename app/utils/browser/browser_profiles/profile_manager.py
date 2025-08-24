@@ -80,6 +80,23 @@ class BrowserProfileManager:
             f"Инициализирован менеджер профилей для {len(self.finders)} браузеров"
         )
 
+        # Попытка загрузить кэш профилей из пользовательского JSON при старте
+        try:
+            from . import profile_cache as _pc
+
+            cached = _pc.load_profiles()
+            if cached:
+                now = time.time()
+                for key, profiles in cached.items():
+                    if isinstance(profiles, list):
+                        self._cache[key] = profiles
+                        self._last_update[key] = now
+                logger.debug(
+                    "Инициализация кэша профилей из JSON: %d браузеров", len(self._cache)
+                )
+        except Exception as e:
+            logger.debug("Не удалось загрузить кэш профилей при старте: %s", e)
+
     def _get_cache_timeout(self) -> int:
         """Получает таймаут кеша из конфигурации."""
         try:

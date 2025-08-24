@@ -255,12 +255,13 @@ class SaveCategoryCmd(QUndoCommand):
 class DeleteCategoryCmd(QUndoCommand):
     """Удаление категории с восстановлением поддерева (категория+ссылки)."""
 
-    def __init__(self, category_data: Dict, main_window):
+    def __init__(self, category_data: Dict, main_window, *, skip_reload: bool = False):
         super().__init__("Delete category")
         self.main = main_window
         self.db = main_window.db
         self.structure_service = StructureService(self.db)
         self.category = dict(category_data) if category_data else {}
+        self.skip_reload = bool(skip_reload)
         # Бэкап поддерева категории
         self._backup_tree = self.structure_service.export_category_tree(
             self.category.get("id")
@@ -271,16 +272,28 @@ class DeleteCategoryCmd(QUndoCommand):
         if category_id is None:
             return
         self.structure_service.delete_category(category_id)
+        section_id = self.category.get("section_id")
+        business = getattr(self.main, "structure_business", None)
+
+        if self.skip_reload:
+            # Минимальные события без тяжёлых перезагрузок
+            try:
+                if business:
+                    # Точечно уведомляем UI о удалении
+                    business.item_deleted.emit("category", category_id)
+            except Exception:
+                pass
+            return
+
+        # Обычный одиночный сценарий: корректно обновляем UI и данные
         try:
             # Попробуем сместить фокус корректно
-            section_id = self.category.get("section_id")
             self.main.structure.update_tree(item_to_select=("section", section_id))
         except Exception:
             pass
         # Явно обновляем плитки категорий для выбранного раздела,
         # чтобы гарантировать отражение удаления в интерфейсе
         try:
-            business = getattr(self.main, "structure_business", None)
             if business:
                 # Критично: инвалидируем кэш категорий раздела, иначе select_section
                 # может взять устаревшие данные из categories_{section_id}
@@ -293,7 +306,6 @@ class DeleteCategoryCmd(QUndoCommand):
         except Exception:
             pass
         try:
-            business = getattr(self.main, "structure_business", None)
             if business:
                 # При удалении также сбрасываем кэш иконок категорий
                 try:

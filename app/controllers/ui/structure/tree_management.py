@@ -126,6 +126,11 @@ class TreeManagement:
                 # Для категории: выбираем родительский раздел
                 if item_type == "category":
                     next_item = parent
+                    # Запоминаем состояние раскрытия раздела ДО удаления
+                    try:
+                        was_expanded = parent.isExpanded()
+                    except Exception:
+                        was_expanded = True
                     # Принудительно обновляем плитки для родительского раздела, чтобы отразить удаление категории
                     try:
                         st = get_tree_tuple(parent, 0)
@@ -136,6 +141,12 @@ class TreeManagement:
                     except Exception:
                         pass
                 parent.removeChild(item)
+                # Держим раздел раскрытым после удаления дочернего элемента
+                try:
+                    if item_type == "category":
+                        parent.setExpanded(True if was_expanded else False)
+                except Exception:
+                    pass
             else:
                 # Для элементов верхнего уровня
                 index = self.tree.indexOfTopLevelItem(item)
