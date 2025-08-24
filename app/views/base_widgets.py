@@ -158,7 +158,15 @@ class BaseDragDropTableWidget(QTableView):
         """Настраивает параметры drag-and-drop."""
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
-        self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        try:
+            # Важно для QAbstractScrollArea-потомков: события приходят на viewport
+            self.viewport().setAcceptDrops(True)
+            # Перехватываем события DnD напрямую на viewport
+            self.viewport().installEventFilter(self)
+        except Exception:
+            pass
+        # Используем DragDrop: обработку перемещения делаем сами в dropEvent
+        self.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
         # Не перезаписываем ячейки при дропе, а перемещаем строки
         try:
             self.setDragDropOverwriteMode(False)
@@ -170,9 +178,44 @@ class BaseDragDropTableWidget(QTableView):
         except Exception:
             pass
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        try:
+            self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        except Exception:
+            pass
+        try:
+            self.setDropIndicatorShown(True)
+        except Exception:
+            pass
         self.setSortingEnabled(True)
         self.setTabKeyNavigation(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+    def eventFilter(self, obj, event):
+        """Форсируем обработку DnD-событий, приходящих на viewport().
+
+        Некоторые реализации Qt отправляют drag/drop события непосредственно на viewport,
+        поэтому перехватываем их и перенаправляем в наши обработчики.
+        """
+        try:
+            from PyQt6.QtCore import QEvent
+        except Exception:
+            return super().eventFilter(obj, event)
+
+        if obj is self.viewport():
+            et = event.type()
+            if et == QEvent.Type.DragEnter:
+                self.dragEnterEvent(event)
+                return event.isAccepted()
+            if et == QEvent.Type.DragMove:
+                self.dragMoveEvent(event)
+                return event.isAccepted()
+            if et == QEvent.Type.DragLeave:
+                self.dragLeaveEvent(event)
+                return True
+            if et == QEvent.Type.Drop:
+                self.dropEvent(event)
+                return event.isAccepted()
+        return super().eventFilter(obj, event)
 
     def mimeTypes(self):
         """Возвращает поддерживаемые MIME-типы."""
@@ -223,10 +266,16 @@ class BaseDragDropTableWidget(QTableView):
             drag.setPixmap(pixmap)
             drag.setHotSpot(pixmap.rect().center())
 
-        drag.exec(supportedActions)
+        # Форсируем поведение перемещения
+        try:
+            drag.exec(Qt.DropAction.MoveAction)
+        except Exception:
+            drag.exec(supportedActions)
 
-        if self._sorting_enabled_before_drag:
-            self.setSortingEnabled(True)
+        # Не включаем сортировку обратно здесь. Решение о состоянии сортировки
+        # принимается в dropEvent():
+        # - при успешном переносе сортировку оставляем ВЫКЛ, чтобы видно было ручной порядок
+        # - при неуспешном переносе возвращаем в исходное состояние
 
     def dragEnterEvent(self, event):
         """Обрабатывает начало drag-операции."""
@@ -237,6 +286,7 @@ class BaseDragDropTableWidget(QTableView):
         # Явно принимаем наш MIME при внутреннем переносе
         try:
             if self._is_internal_drop(event) and event.mimeData() and event.mimeData().hasFormat(self.MIME_TYPE):
+                logging.debug("[DROP] dragEnterEvent: accept internal with our MIME")
                 event.acceptProposedAction()
                 return
         except Exception:
@@ -247,6 +297,7 @@ class BaseDragDropTableWidget(QTableView):
         """Поддержка перетаскивания внутри виджета."""
         try:
             if self._is_internal_drop(event) and event.mimeData() and event.mimeData().hasFormat(self.MIME_TYPE):
+                logging.debug("[DROP] dragMoveEvent: accept internal with our MIME")
                 event.acceptProposedAction()
                 return
         except Exception:
@@ -270,7 +321,9 @@ class BaseDragDropTableWidget(QTableView):
             return
 
         source_rows, target_row = self._get_drop_positions(event)
+        logging.info(f"[DROP] dropEvent: source_rows={source_rows}, target_row={target_row}")
         if not self._is_valid_internal_drop(source_rows, target_row):
+            logging.info("[DROP] dropEvent: invalid internal drop, ignoring")
             event.ignore()
             return
 
@@ -278,12 +331,17 @@ class BaseDragDropTableWidget(QTableView):
         try:
             # Визуально перемещаем строки (поддержка множественного выделения)
             self._move_rows_visually(source_rows, target_row)
+            try:
+                event.setDropAction(Qt.DropAction.MoveAction)
+            except Exception:
+                pass
             event.acceptProposedAction()
             moved = True
 
             # Собираем ID в новом порядке и отправляем сигнал
             ids_in_order = self._get_current_order()
             if ids_in_order:
+                logging.info(f"[DROP] dropEvent: items_reordered -> {len(ids_in_order)} ids")
                 self.items_reordered.emit(ids_in_order)
             else:
                 logging.warning("[DROP] Не удалось собрать ID после перемещения")
@@ -308,8 +366,15 @@ class BaseDragDropTableWidget(QTableView):
                 delattr(self, "_sorting_disabled_for_drag")
 
     def _is_internal_drop(self, event) -> bool:
-        """Проверяет, является ли это внутренним перемещением."""
-        return event.source() == self
+        """Проверяет, является ли это внутренним перемещением.
+
+        Учитываем, что source() указывает на viewport(), а не на сам QTableView.
+        """
+        src = event.source()
+        try:
+            return src is self or src is self.viewport()
+        except Exception:
+            return False
 
     def _get_selected_rows(self) -> List[int]:
         """Возвращает список выбранных строк."""
@@ -407,6 +472,17 @@ class BaseDragDropTableWidget(QTableView):
     def _move_rows_visually(self, source_rows: list, target_row: int):
         """Визуально перемещает множество строк (централизовано)."""
         dnd_move_rows_visually(self, source_rows, target_row)
+        # Форсируем перерисовку после перемещения — на некоторых платформах
+        # beginMoveRows/endMoveRows недостаточно быстро триггерит repaint
+        try:
+            if hasattr(self, "viewport") and self.viewport() is not None:
+                self.viewport().update()
+        except Exception:
+            pass
+        try:
+            self.update()
+        except Exception:
+            pass
 
     def _get_current_order(self) -> List[int]:
         """Возвращает ID элементов в текущем порядке (централизовано)."""

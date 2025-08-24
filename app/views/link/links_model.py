@@ -274,10 +274,14 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
 
         # Разреженный набор: переупорядочиваем список одним проходом через layoutChanged
         # Семантика: удаляем выбранные строки, затем вставляем их (в исходном порядке)
-        # в позицию target_row в оставшемся списке.
-        remaining: List[Dict[str, Any]] = [item for i, item in enumerate(self._links) if i not in set(src)]
+        # в позицию target_row с учётом сдвига индексов после удаления исходных строк.
+        removed_before_target = sum(1 for r in src if r < target_row)
+        adjusted_target = target_row - removed_before_target
+        # Строим списки
+        src_set = set(src)
+        remaining: List[Dict[str, Any]] = [item for i, item in enumerate(self._links) if i not in src_set]
         segment: List[Dict[str, Any]] = [self._links[i] for i in src]
-        insert_at = max(0, min(target_row, len(remaining)))
+        insert_at = max(0, min(adjusted_target, len(remaining)))
         self.layoutAboutToBeChanged.emit()
         try:
             self._links = remaining[:insert_at] + segment + remaining[insert_at:]
@@ -291,52 +295,54 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
         Поддерживаются колонки:
         0: is_favorite (bool)
         1: name (str, casefold)
-        2: last_used (считается как timestamp/сравнимое значение)
+        2: last_used (нормализуется в float timestamp; None -> -inf)
         3: notes (str, casefold)
         """
         if not self._links:
             return
 
-        def key_for(link: Dict[str, Any]):
+        def normalize_last_used(v: Any) -> float:
+            """Возвращает числовой timestamp для last_used.
+            Возвращает -inf (очень старое), если значение отсутствует/непарсибельно.
+            """
+            from math import inf
+            if v is None:
+                return -inf
+            # Already numeric
             try:
-                if column == 0:
-                    # Сортируем по False/True; для Descending True пойдёт вверх
-                    return bool(link.get("is_favorite", False))
-                if column == 1:
-                    return str(link.get("name", "")).casefold()
-                if column == 2:
-                    v = link.get("last_used")
-                    # Нормализуем к числу/сравнимому значению
-                    if v is None:
-                        return 0
-                    # Частые варианты: int/float/str/datetime-like
-                    try:
-                        # Если уже число
-                        return float(v)  # type: ignore[arg-type]
-                    except Exception:
-                        pass
-                    try:
-                        # Попытка ISO-строки времени
-                        from datetime import datetime
-
-                        return datetime.fromisoformat(str(v)).timestamp()
-                    except Exception:
-                        pass
-                    # Фолбэк: строковое сравнение
-                    return str(v)
-                if column == 3:
-                    return str(link.get("notes", "")).casefold()
+                return float(v)  # type: ignore[arg-type]
             except Exception:
-                # Любая ошибка ключа не должна ломать сортировку
-                return 0
-            # Неизвестная колонка — сортируем по индексу для детерминизма
-            return 0
+                pass
+            # ISO datetime string
+            try:
+                from datetime import datetime
+                return datetime.fromisoformat(str(v)).timestamp()
+            except Exception:
+                pass
+            # Fallback: хеш-стабилизированное строковое представление -> число (детерминизм)
+            try:
+                return float(abs(hash(str(v))))
+            except Exception:
+                return -inf
+
+        def key_for(link: Dict[str, Any]):
+            if column == 0:
+                # Приводим к int для сравнения, чтобы исключить смешение типов
+                return 1 if bool(link.get("is_favorite", False)) else 0
+            if column == 1:
+                return str(link.get("name", "")).casefold()
+            if column == 2:
+                return normalize_last_used(link.get("last_used"))
+            if column == 3:
+                return str(link.get("notes", "")).casefold()
+            # Неизвестная колонка — сортируем по стабильному индексу id, иначе по позиции
+            lid = link.get("id")
+            try:
+                return int(lid)
+            except Exception:
+                return self._links.index(link)
 
         reverse = order == Qt.SortOrder.DescendingOrder
         self.layoutAboutToBeChanged.emit()
-        try:
-            self._links.sort(key=key_for, reverse=reverse)
-        except Exception:
-            # В случае ошибки сортировки не падаем, просто пропускаем
-            pass
+        self._links.sort(key=key_for, reverse=reverse)
         self.layoutChanged.emit()
