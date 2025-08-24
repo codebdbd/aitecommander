@@ -43,6 +43,13 @@ class LinksUIHandlers(BaseLinksUIComponent):
         except Exception:
             pass
         self.table.links_reordered.connect(self._on_links_reordered)
+        # Эксклюзивность выбора: любое выделение в таблице снимает выделение в дереве
+        try:
+            sel_model = self.table.selectionModel()
+            if sel_model is not None:
+                sel_model.selectionChanged.connect(self._on_table_selection_changed)
+        except Exception:
+            pass
         self._table_signals_connected = True
 
         # Обработка клавиш теперь централизована в KeyboardManager
@@ -186,3 +193,13 @@ class LinksUIHandlers(BaseLinksUIComponent):
     def _on_links_reordered(self, link_ids: list):
         """Обработка изменения порядка ссылок."""
         self.business.update_link_order(link_ids)
+
+    def _on_table_selection_changed(self, _selected, _deselected):
+        """Эксклюзивность: при выделении в таблице очищаем выделение в дереве."""
+        try:
+            structure = getattr(self.main, "structure", None)
+            tree = getattr(structure, "tree", None) if structure else None
+            if tree and hasattr(tree, "clearSelection"):
+                tree.clearSelection()
+        except Exception:
+            pass

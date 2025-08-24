@@ -88,6 +88,14 @@ class ClipboardKeyHandler(BaseKeyHandler):
             return
         table = self._safe_getattr(self.main_window, "table")
         if table:
+            # Эксклюзивность: при выделении в таблице снимаем выделение в дереве
+            try:
+                structure = self._safe_getattr(self.main_window, "structure")
+                tree = self._safe_getattr(structure, "tree") if structure else None
+                if tree and hasattr(tree, "clearSelection"):
+                    tree.clearSelection()
+            except Exception:
+                pass
             self._safe_call(table, "selectAll")
 
     def _handle_tree_select_all(self) -> None:
@@ -98,6 +106,13 @@ class ClipboardKeyHandler(BaseKeyHandler):
         tree = self._safe_getattr(structure, "tree")
         if not tree:
             return
+        # Эксклюзивность: при выделении в дереве снимаем выделение в таблице
+        try:
+            table = self._safe_getattr(self.main_window, "table")
+            if table and hasattr(table, "clearSelection"):
+                self._safe_call(table, "clearSelection")
+        except Exception:
+            pass
         try:
             item = tree.currentItem() if hasattr(tree, "currentItem") else None
         except Exception:
