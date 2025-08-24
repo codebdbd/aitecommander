@@ -1,20 +1,8 @@
-# Модуль генерации данных для таблицы ссылок (модельно-ролевая архитектура)
-# Ранее содержал создание QTableWidgetItem. Теперь предоставляет утилиты
-# для формирования текстов и tooltip'ов, совместимых с QAbstractTableModel.
+"""
+Утилиты генерации текстов и tooltip'ов для ролей модели (QAbstractTableModel).
+"""
 
-import logging
-from pathlib import Path
-from typing import Dict, List, Tuple
-
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor
-
-from app.utils.ui.icon.icon_operations.creators import (
-    create_icon_from_path,
-    themed_icon,
-)
-from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
-from app.utils.ui.icon.path_service import get_current_theme, icon_path_service
+from typing import Dict, Tuple
 
 # Константы для магических чисел
 MAX_NOTES_LENGTH = 462
@@ -25,10 +13,8 @@ PATH_SEPARATOR = " → "
 
 class ItemBuildersMixin:
     """Миксин-утилиты для генерации данных под роли модели.
-
-    ВНИМАНИЕ: Создание QTableWidgetItem БОЛЬШЕ НЕ ИСПОЛЬЗУЕТСЯ.
-    Вместо этого методы возвращают строки и тексты для ролей Display/ToolTip.
-    Иконки теперь обрабатываются моделью (`LinksTableModel.data(DecorationRole)`).
+    Методы возвращают строки и тексты для ролей Display/ToolTip.
+    Иконки обрабатываются в модели (`LinksTableModel.data(DecorationRole)`).
     """
 
     # --- DisplayRole генерация ---
@@ -78,13 +64,3 @@ class ItemBuildersMixin:
         """Tooltip для названия (URL/Путь)."""
         url_or_path = link.get("url", "") or link.get("path", "")
         return f"<b>URL/Путь:</b> {url_or_path}" if url_or_path else ""
-
-    def build_row(self, link: Dict, mode: str = "normal") -> List:
-        """DEPRECATED: ранее создавал список QTableWidgetItem.
-        В модельно-индексной архитектуре используйте методы:
-          - _star_display_text, _name_display_text, _last_used_display_text
-          - _notes_display_and_tooltip, _path_display_and_tooltip, _name_tooltip
-        Возвращает пустой список для совместимости.
-        """
-        logging.info("[ItemBuildersMixin] build_row() устарел и больше не используется")
-        return []

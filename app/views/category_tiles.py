@@ -36,7 +36,7 @@ from app.config_data import app_config
 from app.utils.ui.dnd.mime import MimeDataParser
 from app.utils.ui.icon import resolve_category_icon_path
 from app.utils.ui.icon.cache_manager import get_cached_category_icon
-from app.utils.ui.qt.roles import get_item_int
+from app.utils.ui.qt.roles_legacy import get_item_int
 
 logger = logging.getLogger("category_tiles")
 
