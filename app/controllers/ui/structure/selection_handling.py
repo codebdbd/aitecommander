@@ -139,6 +139,13 @@ class SelectionHandling:
         if self.is_suppressed():
             logger.debug("Handle selection while suppressed - skip")
             return
+        # Эксклюзивность: любое выделение в дереве очищает выделение таблицы
+        try:
+            table = getattr(self.main, "table", None)
+            if table and hasattr(table, "clearSelection"):
+                table.clearSelection()
+        except Exception:
+            pass
         try:
             t = get_tree_tuple(item, 0)
             if not t:
