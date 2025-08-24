@@ -146,9 +146,20 @@ class EditingKeyHandler(BaseKeyHandler):
         table = self._safe_getattr(self.main_window, "table")
         if not table:
             return False
-        current_row = self._safe_call(table, "currentRow", default=-1)
-        row_count = self._safe_call(table, "rowCount", default=0)
-        if current_row >= 0 and current_row < row_count:
+        # Для QTableView: используем текущий индекс и размер модели
+        try:
+            idx = table.currentIndex() if hasattr(table, "currentIndex") else None
+            current_row = idx.row() if idx and idx.isValid() else -1
+        except Exception:
+            current_row = -1
+        try:
+            model = table.model() if hasattr(table, "model") else None
+            row_count = model.rowCount() if model else 0
+        except Exception:
+            row_count = 0
+
+        if 0 <= current_row < row_count:
+            # get_link_at(row) унифицировано для QTableView и возвращает dict
             link = self._safe_call(table, "get_link_at", current_row)
             if link:
                 la = self._safe_getattr(self.main_window, "links_actions")
