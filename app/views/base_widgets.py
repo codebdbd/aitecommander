@@ -84,10 +84,7 @@ class BaseLinksPanelWidget(BasePanelWidget):
         button_size = app_config.get_top_panel_button_size()
         icon_size = app_config.get_top_panel_icon_size()
         button.setFixedSize(button_size, button_size)
-        try:
-            button.setIconSize(QSize(int(icon_size[0]), int(icon_size[1])))
-        except Exception:
-            button.setIconSize(QSize(32, 32))
+        button.setIconSize(QSize(icon_size[0], icon_size[1]))
         from PyQt6.QtWidgets import QSizePolicy
 
         button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)

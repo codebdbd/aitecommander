@@ -3,7 +3,7 @@
 import os
 import sys
 
-from PyQt6.QtCore import QEvent, QObject, Qt
+from PyQt6.QtCore import QEvent, QObject, Qt, QSize
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -363,27 +363,12 @@ class WindowUISetup:
         # Дерево структуры
         self.window.tree = StructureTreeWidget()
         self.window.tree.setHeaderHidden(True)
+        # Конфиг гарантирует list[int] -> берём ширину, ограничиваем высотой строки
         tree_icon_size = app_config.get_tree_icon_size()
-        # Нормализуем значение размера иконки к int, учитывая возможные типы: QSize, (w, h), число
-        try:
-            if hasattr(tree_icon_size, "width") and hasattr(tree_icon_size, "height"):
-                # QSize: берём минимальную сторону, чтобы гарантировать квадрат и не выходить за пределы строки
-                base_icon = int(max(0, min(tree_icon_size.width(), tree_icon_size.height())))
-            elif isinstance(tree_icon_size, (list, tuple)) and len(tree_icon_size) > 0:
-                base_icon = int(tree_icon_size[0])
-            else:
-                base_icon = int(tree_icon_size)
-        except Exception:
-            base_icon = 16
-        # Ограничиваем размер иконки деревьев, чтобы высота строки оставалась равной ui.row_height
-        try:
-            row_h = int(app_config.get_row_height())
-        except Exception:
-            row_h = 32
-        eff_icon = max(0, min(base_icon, max(0, row_h - 8)))  # 4px сверху + 4px снизу
-        from PyQt6 import QtCore
-
-        self.window.tree.setIconSize(QtCore.QSize(eff_icon, eff_icon))
+        row_h = app_config.get_row_height()
+        base_icon = int(tree_icon_size[0])
+        eff_icon = max(0, min(base_icon, max(0, int(row_h) - 8)))  # 4px сверху + 4px снизу
+        self.window.tree.setIconSize(QSize(eff_icon, eff_icon))
 
         font_size = (
             self.settings.get_font_size()
