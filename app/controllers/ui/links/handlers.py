@@ -29,8 +29,19 @@ class LinksUIHandlers(BaseLinksUIComponent):
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._on_context_menu)
 
-        self.table.cellDoubleClicked.connect(self._on_double_click)
-        self.table.cellClicked.connect(self._on_cell_clicked)
+        # QTableView: используем index-based сигналы и адаптируем к существующим обработчикам
+        try:
+            self.table.doubleClicked.connect(
+                lambda idx: self._on_double_click(idx.row(), idx.column())
+            )
+        except Exception:
+            pass
+        try:
+            self.table.clicked.connect(
+                lambda idx: self._on_cell_clicked(idx.row(), idx.column())
+            )
+        except Exception:
+            pass
         self.table.links_reordered.connect(self._on_links_reordered)
         self._table_signals_connected = True
 
@@ -131,8 +142,19 @@ class LinksUIHandlers(BaseLinksUIComponent):
         if column == self.COLUMNS["favorite"]:
             link_name = link.get("name", "Untitled")
 
-            name_item = self.table.item(row, self.COLUMNS["name"])
-            visible_name = name_item.text() if name_item else "Unknown"
+            # Получаем видимое имя через модель (DisplayRole)
+            try:
+                model = self.table.model()
+                idx = (
+                    model.index(row, self.COLUMNS["name"]) if model is not None else None
+                )
+                if idx and idx.isValid():
+                    val = model.data(idx, Qt.ItemDataRole.DisplayRole)
+                    visible_name = str(val) if val is not None else "Unknown"
+                else:
+                    visible_name = "Unknown"
+            except Exception:
+                visible_name = "Unknown"
 
             if link_name != visible_name:
                 logger.warning(

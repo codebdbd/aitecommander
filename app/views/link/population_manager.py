@@ -23,15 +23,22 @@ class PopulationManagerMixin:
 
         try:
             # Сохраняем состояние UI
-            current_selection = [item.row() for item in self.selectedItems()]
+            try:
+                sel = self.selectionModel()
+                current_selection = [i.row() for i in sel.selectedRows()] if sel else []
+            except Exception:
+                current_selection = []
             current_scroll_pos = self.verticalScrollBar().value()
 
             # Сохраняем текущую сортировку
-            header = self.horizontalHeader()
-            sort_col, sort_order = (
-                header.sortIndicatorSection(),
-                header.sortIndicatorOrder(),
-            )
+            try:
+                header = self.horizontalHeader()
+                sort_col, sort_order = (
+                    header.sortIndicatorSection(),
+                    header.sortIndicatorOrder(),
+                )
+            except Exception:
+                sort_col, sort_order = -1, Qt.SortOrder.AscendingOrder
 
             # Если режим изменился, делаем полное обновление
             if mode != self._current_mode:
@@ -54,7 +61,9 @@ class PopulationManagerMixin:
                 # Если нет активной сортировки и изменился порядок ID, проще и безопаснее сделать полное обновление
                 def _ids_from_table() -> List:
                     ids = []
-                    for row in range(self.rowCount()):
+                    model = self.model()
+                    total = model.rowCount() if model is not None else 0
+                    for row in range(total):
                         data = self.get_link_at(row)
                         if data and "id" in data:
                             ids.append(data["id"])
@@ -109,11 +118,9 @@ class PopulationManagerMixin:
                         if link_id in ids_to_add:
                             # Ищем правильную позицию для вставки
                             # Если есть активная сортировка, добавляем в конец и затем сортировка восстановится
-                            target_row = (
-                                self.rowCount()
-                                if sort_col != -1
-                                else min(i, self.rowCount())
-                            )
+                            model = self.model()
+                            total = model.rowCount() if model is not None else 0
+                            target_row = (total if sort_col != -1 else min(i, total))
                             self._add_row(target_row, link, mode)
 
             except Exception as e:
@@ -142,23 +149,17 @@ class PopulationManagerMixin:
                 )
 
     def _full_populate(self, links: List[Dict], mode: str):
-        """Выполняет полное обновление таблицы (fallback)."""
+        """Выполняет полное обновление таблицы через модель."""
         try:
-            self.clearContents()
-            self.setRowCount(len(links))
-            self.verticalHeader().setVisible(False)
-            self._current_links.clear()
-
-            # Заполняем строки
-            for row_idx, link in enumerate(links):
-                row_items = self.build_row(link, mode=mode)
-                if not row_items:
-                    continue
-
-                for col_idx, item in enumerate(row_items):
-                    self.setItem(row_idx, col_idx, item)
-
-                self._current_links[row_idx] = link
+            # Обновляем режим
+            self._current_mode = mode
+            # Передаём данные в модель одним вызовом
+            model = self.model()
+            if model is not None and hasattr(model, "set_links"):
+                model.set_links(links)
+            # Обновляем кэш из модели
+            if hasattr(self, "rebuild_cache_from_items"):
+                self.rebuild_cache_from_items()
 
         except Exception as e:
             logging.error(f"[LinksTableView] Ошибка при полном обновлении таблицы: {e}")
@@ -185,8 +186,14 @@ class PopulationManagerMixin:
         """Восстанавливает состояние UI после обновления."""
         try:
             # Восстанавливаем сортировку
-            if sort_col != -1 and sort_col < self.columnCount():
-                self.sortItems(sort_col, sort_order)
+            model = self.model()
+            total_cols = model.columnCount() if model is not None else 0
+            if sort_col != -1 and sort_col < total_cols:
+                # Для QTableView используем sortByColumn
+                try:
+                    self.sortByColumn(sort_col, sort_order)
+                except Exception:
+                    pass
                 # ВАЖНО: после сортировки строки меняют индексы —
                 # нужно синхронизировать кэш _current_links с фактическими элементами,
                 # иначе возможны визуальные дубликаты и неверные обновления строк

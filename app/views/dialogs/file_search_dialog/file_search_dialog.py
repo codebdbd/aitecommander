@@ -5,7 +5,7 @@ import re
 import subprocess
 import time
 
-from PyQt6.QtCore import QDate, QThreadPool, pyqtSignal
+from PyQt6.QtCore import QDate, QThreadPool, pyqtSignal, Qt, QAbstractTableModel, QModelIndex
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -17,8 +17,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QProgressBar,
     QPushButton,
-    QTableWidget,
-    QTableWidgetItem,
+    QTableView,
     QVBoxLayout,
 )
 
@@ -26,6 +25,62 @@ from ..base_dialog import BaseDialog
 from .search_worker import FileSearchWorker as ExternalFileSearchWorker
 
 logger = logging.getLogger(__name__)
+
+
+class _SearchResultsModel(QAbstractTableModel):
+    """Модель результатов поиска файлов для QTableView."""
+
+    HEADERS = ["Имя", "Путь", "Размер (КБ)", "Изменён", "Содержит"]
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._rows = []  # list of tuples: (name, path, size_kb, mtime_str, has_content)
+
+    def rowCount(self, parent=QModelIndex()):  # noqa: N802 Qt signature
+        return 0 if parent.isValid() else len(self._rows)
+
+    def columnCount(self, parent=QModelIndex()):  # noqa: N802
+        return 0 if parent.isValid() else len(self.HEADERS)
+
+    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if role != Qt.ItemDataRole.DisplayRole:
+            return None
+        if orientation == Qt.Orientation.Horizontal:
+            if 0 <= section < len(self.HEADERS):
+                return self.HEADERS[section]
+        return None
+
+    def flags(self, index):  # noqa: D401
+        # Не редактируемая таблица, только выбор строк
+        if not index.isValid():
+            return Qt.ItemFlag.NoItemFlags
+        return Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled
+
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
+        if not index.isValid():
+            return None
+        if role == Qt.ItemDataRole.DisplayRole:
+            row = index.row()
+            col = index.column()
+            try:
+                return self._rows[row][col]
+            except Exception:
+                return None
+        return None
+
+    # Мутации
+    def clear(self):
+        if not self._rows:
+            return
+        self.beginResetModel()
+        self._rows.clear()
+        self.endResetModel()
+
+    def add_result(self, name: str, path: str, size_kb: int, mtime_str: str, has_content: str):
+        row = len(self._rows)
+        self.beginInsertRows(QModelIndex(), row, row)
+        self._rows.append((name, path, str(size_kb), mtime_str, has_content))
+        self.endInsertRows()
 
 
 class FileSearchDialog(BaseDialog):
@@ -226,27 +281,22 @@ class FileSearchDialog(BaseDialog):
         self.progress_bar.setVisible(False)
         self.progress_bar.setRange(0, 0)  # Неопределенный прогресс
 
-        # --- Таблица результатов ---
-        self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(
-            ["Имя", "Путь", "Размер (КБ)", "Изменён", "Содержит"]
-        )
+        # --- Таблица результатов (QTableView + модель) ---
+        self.table = QTableView()
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setAlternatingRowColors(True)
+        self.model = _SearchResultsModel(self)
+        self.table.setModel(self.model)
 
         # Настройка размеров колонок
         header = self.table.horizontalHeader()
         header.setStretchLastSection(False)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # Имя
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Путь
-        header.setSectionResizeMode(
-            2, QHeaderView.ResizeMode.ResizeToContents
-        )  # Размер
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Размер
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Дата
-        header.setSectionResizeMode(
-            4, QHeaderView.ResizeMode.ResizeToContents
-        )  # Содержит
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)  # Содержит
 
         # Двойной клик для открытия в проводнике
         self.table.doubleClicked.connect(self._on_double_click)
@@ -281,8 +331,13 @@ class FileSearchDialog(BaseDialog):
         layout.addWidget(self.table)
         layout.addLayout(btns_layout)
 
-        # Подключение сигналов для обновления кнопок
-        self.table.itemSelectionChanged.connect(self._update_buttons)
+        # Подключение сигналов для обновления кнопок (model-view API)
+        try:
+            self.table.selectionModel().selectionChanged.connect(
+                lambda *_: self._update_buttons()
+            )
+        except Exception:
+            pass
 
     def _update_buttons(self):
         """Обновление состояния кнопок в зависимости от выбора"""
@@ -292,8 +347,10 @@ class FileSearchDialog(BaseDialog):
 
     def _get_full_file_path(self, row):
         """Получение полного пути к файлу из указанной строки таблицы"""
-        filename = self.table.item(row, 0).text()  # Имя файла
-        folder_path = self.table.item(row, 1).text()  # Путь к папке
+        idx_name = self.model.index(row, 0)
+        idx_path = self.model.index(row, 1)
+        filename = self.model.data(idx_name, Qt.ItemDataRole.DisplayRole) or ""
+        folder_path = self.model.data(idx_path, Qt.ItemDataRole.DisplayRole) or ""
 
         # Объединяем путь к папке и имя файла
         full_path = os.path.join(folder_path, filename)
@@ -467,7 +524,7 @@ class FileSearchDialog(BaseDialog):
             return
 
         # Очистка предыдущих результатов
-        self.table.setRowCount(0)
+        self.model.clear()
 
         # Переключение UI в режим поиска
         self.is_searching = True
@@ -526,31 +583,16 @@ class FileSearchDialog(BaseDialog):
             # Проверяем, есть ли поиск по содержимому
             has_content = "✓" if self.content_le.text().strip() else ""
 
-            row = self.table.rowCount()
-            self.table.insertRow(row)
-
-            # Заполняем ячейки
+            # Данные строки
             filename = os.path.basename(file_path)
             folder_path = os.path.dirname(file_path)
-
-            self.table.setItem(row, 0, QTableWidgetItem(filename))
-            self.table.setItem(row, 1, QTableWidgetItem(folder_path))
-            self.table.setItem(row, 2, QTableWidgetItem(str(size_kb)))
-            self.table.setItem(row, 3, QTableWidgetItem(mtime))
-            self.table.setItem(row, 4, QTableWidgetItem(has_content))
+            self.model.add_result(filename, folder_path, size_kb, mtime, has_content)
         except OSError as e:
             logger.warning(
                 f"Ошибка при получении информации о файле {file_path}: {e}",
                 exc_info=True,
             )
-        self.is_searching = False
-        self.search_btn.setEnabled(True)
-        self.stop_btn.setEnabled(False)
-        self.progress_bar.setVisible(False)
-
-        count = self.table.rowCount()
-        self.status_label.setText(f"Поиск завершен. Найдено файлов: {count}")
-
+        # Обновим кнопки в процессе (когда появляются строки)
         self._update_buttons()
 
     def _on_search_error(self, error_msg: str):
@@ -564,6 +606,16 @@ class FileSearchDialog(BaseDialog):
         if index.isValid():
             file_path = self._get_full_file_path(index.row())
             self._open_file_in_explorer(file_path)
+
+    def _on_search_finished(self):
+        """Завершение поиска: восстановить UI, показать итог."""
+        self.is_searching = False
+        self.search_btn.setEnabled(True)
+        self.stop_btn.setEnabled(False)
+        self.progress_bar.setVisible(False)
+        count = self.model.rowCount()
+        self.status_label.setText(f"Поиск завершен. Найдено файлов: {count}")
+        self._update_buttons()
 
 
 class FileSearchWorker(ExternalFileSearchWorker):

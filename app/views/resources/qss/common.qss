@@ -24,7 +24,7 @@
    - splitter_handle_width
    - spheres_bar_height, spheres_layout_margins, spheres_bar_margin_left/right
    - default_font_size (общая типографика; может применяться из кода)
-   - top_panel_icon_size, quick_button_size (размеры кнопок/иконок верхней панели — задаются из кода)
+   - top_panel_icon_size, quick_add_button_size (размеры кнопок/иконок верхней панели — задаются из кода)
    Примечание: часть параметров применяется из Python-кода (layout spacing/margins,
    фиксированные размеры виджетов) и здесь только документируется, чтобы было ясно,
    где искать настройку.
@@ -148,7 +148,7 @@ QWidget { font-family: "Segoe UI", sans-serif; }
    - ui.top_panel_container_height (fixedHeight контейнера)
    - ui.top_bar_margins (отступы layout сверху/снизу/слева/справа)
    - ui.layout.spacing.top_bar (расстояние между элементами тулбара)
-   - ui.top_panel_icon_size, ui.quick_button_size (размеры кнопок/иконок)
+   - ui.top_panel_icon_size, ui.quick_add_button_size (размеры кнопок/иконок)
    ========================= */
 QFrame#favPanelBg,
 QFrame#quickAddPanelBg {
@@ -196,7 +196,7 @@ QWidget#topPanelContainer QToolButton {
     min-height: 32px;
     max-height: 32px;
     /* Размеры кнопок и иконок верхней панели выставляются из кода
-       (например, ui.top_panel_icon_size, ui.quick_button_size) */
+       (например, ui.top_panel_icon_size, ui.quick_add_button_size) */
 }
 
 /* Кнопки верхней панели типа QPushButton — приводим к тем же размерам */
@@ -300,21 +300,21 @@ QLabel#pathLabel {
     padding: 2px 8px;
 }
 
-QTableWidget QTableCornerButton::section,
-QTableWidget QTableCornerButton::section:first {
+QTableView QTableCornerButton::section,
+QTableView QTableCornerButton::section:first {
 }
 
-QTableWidget QTableCornerButton::section:alternate {
+QTableView QTableCornerButton::section:alternate {
 }
 
 /* Таблицы — базовая раскладка без рамок (цвета — в темах) */
-QTableWidget {
+QTableView {
     border: none;
     border-radius: 0;
     outline: none;
 }
 
-QTableWidget::item {
+QTableView::item {
     border: none;
     border-radius: 0px;
 }
@@ -322,7 +322,7 @@ QTableWidget::item {
 
 
 QTreeWidget::item:selected,
-QTableWidget::item:selected {
+QTableView::item:selected {
     border-radius: 0px;
 }
 

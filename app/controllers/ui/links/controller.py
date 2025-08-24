@@ -81,7 +81,12 @@ class LinksUIController(QObject):
 
     def get_link_at(self, row: int) -> Optional[Dict]:
         """Получить ссылку по номеру строки."""
-        if 0 <= row < self.table.rowCount():
+        try:
+            model = self.table.model()
+            total = model.rowCount() if model is not None else 0
+        except Exception:
+            total = 0
+        if 0 <= row < total:
             link = self.table.get_link_at(row)
 
             # ДИАГНОСТИЧЕСКОЕ ЛОГИРОВАНИЕ ДЛЯ ARGS
@@ -91,15 +96,27 @@ class LinksUIController(QObject):
 
     def get_row_count(self) -> int:
         """Получить количество строк в таблице."""
-        return self.table.rowCount()
+        try:
+            model = self.table.model()
+            return model.rowCount() if model is not None else 0
+        except Exception:
+            return 0
 
     def has_selection(self) -> bool:
         """Проверить, есть ли выделение в таблице."""
-        return bool(self.table.selectedItems())
+        try:
+            sel = self.table.selectionModel()
+            return bool(sel and sel.hasSelection())
+        except Exception:
+            return False
 
     def current_row(self) -> int:
         """Получить номер текущей строки."""
-        return self.table.currentRow()
+        try:
+            idx = self.table.currentIndex()
+            return idx.row() if idx and idx.isValid() else -1
+        except Exception:
+            return -1
 
     def select_row(self, row: int) -> None:
         """Выделить строку по номеру."""
@@ -107,13 +124,27 @@ class LinksUIController(QObject):
 
     def set_current_cell(self, row: int, column: int) -> None:
         """Установить текущую ячейку."""
-        self.table.setCurrentCell(row, column)
+        try:
+            model = self.table.model()
+            if model is None:
+                return
+            index = model.index(row, column)
+            if index and index.isValid():
+                self.table.setCurrentIndex(index)
+        except Exception:
+            pass
 
     def scroll_to_row(self, row: int) -> None:
         """Прокрутить таблицу к строке."""
-        item = self.table.item(row, 0)
-        if item:
-            self.table.scrollToItem(item)
+        try:
+            model = self.table.model()
+            if model is None:
+                return
+            index = model.index(row, 0)
+            if index and index.isValid():
+                self.table.scrollTo(index)
+        except Exception:
+            pass
 
     # get_link_by_row удалён как дублирующий get_link_at
 

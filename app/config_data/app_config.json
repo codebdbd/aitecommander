@@ -46,7 +46,7 @@
     "delete_confirm_text": "Вы уверены, что хотите удалить {count} ссылк(и/у)?",
     "yes_text": "Да",
     "no_text": "Нет",
-    "quick_button_size": 32,
+    "quick_add_button_size": 32,
     "sphere_button_icon_size": 64,
     "tile_icon_size": 48,
     "tile_width": 110,

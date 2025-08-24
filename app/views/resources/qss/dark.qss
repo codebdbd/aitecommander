@@ -288,68 +288,20 @@ QHeaderView::section {
     color: #C9D1DA;
 }
 
-/* Шапка таблицы: вернуть вертикальные разделители колонок */
-QTableWidget QHeaderView::section:horizontal {
-    border: none;
-    border-right: 1px solid #252D3A; /* как горизонтальные сепараторы */
-    border-bottom: none;
-}
 QTableView QHeaderView::section:horizontal {
     border: none;
     border-right: 1px solid #252D3A; /* как горизонтальные сепараторы */
     border-bottom: none;
 }
-/* Удалены вспомогательные бордеры, чтобы не было удвоения толщины */
-/* Нижняя граница заголовка в цвет горизонтальных сепараторов */
-QTableWidget QHeaderView {
-    border-bottom: 1px solid #252D3A;
-}
 QTableView QHeaderView {
     border-bottom: 1px solid #252D3A;
 }
-
-/* Первая колонка с цифрами (вертикальный заголовок): убрать границы */
-QTableWidget QHeaderView::section:vertical {
-    background-color: #202731; /* как фон статус-бара */
-    border: none;
-    border-right: none;
-    border-bottom: none;
-}
-QTableWidget QHeaderView:vertical {
-    background-color: #202731; /* как фон статус-бара */
-    border: none;
-    border-right: none;
-}
-
-
-
 
 QLabel#pathLabel {
     color: #9EA9B7;
 }
 
-QTableWidget QTableCornerButton::section,
-QTableWidget QTableCornerButton::section:first {
-    background-color: #202731; /* как фон статус-бара */
-    border-right: none;
-    border-bottom: none;
-    border-top: none;
-    border-left: none;
-    margin: 0px;  /* чтобы бордер не прятался из-за отступов */
-    padding: 0px;
-}
-
-QTableWidget QTableCornerButton::section:alternate {
-    background-color: #202731; /* как фон статус-бара */
-    border-right: none;
-    border-bottom: none;
-    border-top: none;
-    border-left: none;
-    margin: 0px;
-    padding: 0px;
-}
-
-/* То же самое для QTableView (corner принадлежит представлению) */
+/* Corner для QTableView (corner принадлежит представлению) */
 QTableView QTableCornerButton::section,
 QTableView QTableCornerButton::section:first {
     background-color: #202731;
@@ -383,13 +335,6 @@ QTableView QHeaderView:vertical {
     border-right: none;
 }
 
-QTableWidget {
-    background-color: #2D2D2D;           /* теперь нечётные строки серые */
-    alternate-background-color: #1A1F26; /* чётные — тёмные */
-    gridline-color: transparent;
-}
-
-/* Для QTableView применяем ту же схему чередования */
 QTableView {
     background-color: #2D2D2D;
     alternate-background-color: #1A1F26;
@@ -401,7 +346,7 @@ QTreeWidget {
 }
 
 QTreeWidget::item:selected,
-QTableWidget::item:selected {
+QTableView::item:selected {
     background-color: #6A2E44;
     color: #FFFFFF;
 }

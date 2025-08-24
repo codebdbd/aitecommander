@@ -8,24 +8,29 @@
 """
 
 import logging
-from typing import List
+from typing import List, Optional
+
+from PyQt6.QtCore import Qt
 
 
 class DragDropHandlerMixin:
     """Миксин для обработки Drag & Drop в таблице ссылок."""
 
     def _extract_item_ids_from_items(self, items) -> List[int]:
-        """Извлекает ID ссылок из выбранных элементов."""
+        """Извлекает ID ссылок из выбранных индексов (QModelIndex)."""
         try:
             if not items:
                 return []
 
-            rows = sorted({item.row() for item in items})
+            rows = sorted({getattr(item, "row", lambda: -1)() for item in items})
             ids = []
+
+            model = getattr(self, "model", lambda: None)()
+            total = model.rowCount() if model is not None else getattr(self, "rowCount", lambda: 0)()
 
             for row in rows:
                 # Проверка границ
-                if not (0 <= row < self.rowCount()):
+                if not (0 <= row < total):
                     logging.warning(f"[DRAG] Некорректный индекс строки: {row}")
                     continue
 
@@ -41,72 +46,38 @@ class DragDropHandlerMixin:
             return []
 
     def _move_row_visually(self, source_row: int, target_row: int):
-        """Визуально перемещает строку в таблице."""
+        """Перемещает строку через модель (beginMoveRows/endMoveRows)."""
         try:
-            # Простое и безопасное перемещение строки
-            self.insertRow(target_row)
-
-            # Перемещаем элементы
-            for col in range(self.columnCount()):
-                current_source_row = (
-                    source_row if source_row < target_row else source_row + 1
-                )
-                item = self.takeItem(current_source_row, col)
-                if item:
-                    self.setItem(target_row, col, item)
-
-            # Безопасное обновление кэша - просто пересчитываем все
-            old_cache = dict(self._current_links)
-            new_cache = {}
-
-            # Пересчитываем позиции для всех строк
-            for row in range(self.rowCount()):
-                if row == target_row and source_row in old_cache:
-                    # Перемещаем данные в новую позицию
-                    new_cache[row] = old_cache[source_row]
-                elif source_row < target_row:
-                    # Сдвигаем строки вниз
-                    if row < source_row:
-                        new_cache[row] = old_cache.get(row)
-                    elif source_row < row <= target_row:
-                        new_cache[row] = old_cache.get(row - 1)
-                    elif row > target_row:
-                        new_cache[row] = old_cache.get(row - 1)
-                else:
-                    # Сдвигаем строки вверх
-                    if row < target_row:
-                        new_cache[row] = old_cache.get(row)
-                    elif target_row <= row < source_row:
-                        new_cache[row + 1] = old_cache.get(row)
-                    elif row >= source_row:
-                        new_cache[row + 1] = old_cache.get(row)
-
-            # Очищаем и обновляем кэш атомарно
+            model = getattr(self, "model", lambda: None)()
+            if model is None:
+                return
+            model.move_rows([source_row], target_row)
+            # Перестраиваем кэш на основе актуального порядка
             self._current_links.clear()
-            self._current_links.update(
-                {k: v for k, v in new_cache.items() if v is not None}
-            )
-
-            # Удаляем старую строку
-            old_row = source_row if source_row < target_row else source_row + 1
-            self.removeRow(old_row)
-
+            for row in range(model.rowCount()):
+                link_data = self.get_link_at(row)
+                if link_data:
+                    self._current_links[row] = link_data
         except Exception as e:
             logging.error(
                 f"[LinksTableView] Ошибка визуального перемещения строки {source_row} -> {target_row}: {e}"
             )
-            # В случае ошибки просто пересчитываем весь кэш
+            # Фолбэк: пересканирование кэша
             self._current_links.clear()
-            for row in range(self.rowCount()):
+            model = getattr(self, "model", lambda: None)()
+            total = model.rowCount() if model is not None else 0
+            for row in range(total):
                 link_data = self.get_link_at(row)
                 if link_data:
                     self._current_links[row] = link_data
 
     def _get_current_order(self) -> List[int]:
-        """Получает текущий порядок ссылок."""
+        """Получает текущий порядок ссылок через модель."""
         try:
+            model = getattr(self, "model", lambda: None)()
+            total = model.rowCount() if model is not None else 0
             ids_in_order = []
-            for row in range(self.rowCount()):
+            for row in range(total):
                 link_data = self.get_link_at(row)
                 if link_data and "id" in link_data:
                     ids_in_order.append(link_data["id"])
@@ -161,16 +132,20 @@ def extract_source_rows_from_mime(table, event, mime_type: str) -> List[int]:
             return []
 
         source_rows: List[int] = []
-        for row in range(table.rowCount()):
-            item = table.item(row, 0)
-            if not item:
-                continue
-            try:
-                item_id = table._extract_item_id_from_item(item)  # pylint: disable=protected-access
-                if item_id in item_ids:
-                    source_rows.append(row)
-            except Exception:
-                continue
+        model = getattr(table, "model", lambda: None)()
+        total = model.rowCount() if model is not None else 0
+        for row in range(total):
+            idx = model.index(row, 0)
+            data = model.data(idx, Qt.ItemDataRole.UserRole)
+            link_id: Optional[int] = None
+            if isinstance(data, dict):
+                val = data.get("id")
+                try:
+                    link_id = int(val) if val is not None else None
+                except Exception:
+                    link_id = None
+            if link_id is not None and link_id in item_ids:
+                source_rows.append(row)
         return sorted(source_rows)
     except Exception as e:
         logging.warning(f"[DROP] Ошибка извлечения строк из MIME: {e}")
@@ -178,65 +153,31 @@ def extract_source_rows_from_mime(table, event, mime_type: str) -> List[int]:
 
 
 def move_row_visually(table, source_row: int, target_row: int) -> None:
-    """Централизованно перемещает одну строку таблицы визуально и обновляет кэш.
-
-    Требования к таблице:
-    - методы: rowCount(), columnCount(), takeItem(r,c), setItem(r,c,item), insertRow(r), removeRow(r)
-    - поле-кэш: table._current_links: dict[int, dict] c данными строки (если есть)
-    - метод: table.get_link_at(row) -> dict | None
-    """
+    """Централизованно перемещает одну строку через модель и обновляет кэш."""
     try:
-        table.insertRow(target_row)
-
-        # Перенос ячеек
-        for col in range(table.columnCount()):
-            current_source_row = (
-                source_row if source_row < target_row else source_row + 1
-            )
-            item = table.takeItem(current_source_row, col)
-            if item:
-                table.setItem(target_row, col, item)
-
-        # Обновляем кэш, если присутствует
-        old_cache = dict(getattr(table, "_current_links", {}))
-        new_cache = {}
-
-        for row in range(table.rowCount()):
-            if row == target_row and source_row in old_cache:
-                new_cache[row] = old_cache[source_row]
-            elif source_row < target_row:
-                if row < source_row:
-                    new_cache[row] = old_cache.get(row)
-                elif source_row < row <= target_row:
-                    new_cache[row] = old_cache.get(row - 1)
-                elif row > target_row:
-                    new_cache[row] = old_cache.get(row - 1)
-            else:
-                if row < target_row:
-                    new_cache[row] = old_cache.get(row)
-                elif target_row <= row < source_row:
-                    new_cache[row + 1] = old_cache.get(row)
-                elif row >= source_row:
-                    new_cache[row + 1] = old_cache.get(row)
-
+        model = getattr(table, "model", lambda: None)()
+        if model is None:
+            return
+        model.move_rows([source_row], target_row)
+        # Перестроить кэш
         if hasattr(table, "_current_links"):
             table._current_links.clear()
-            table._current_links.update(
-                {k: v for k, v in new_cache.items() if v is not None}
-            )
-
-        # Удаляем прежнюю строку-«дырку»
-        old_row = source_row if source_row < target_row else source_row + 1
-        table.removeRow(old_row)
-
+            for row in range(model.rowCount()):
+                try:
+                    link_data = table.get_link_at(row)
+                except Exception:
+                    link_data = None
+                if link_data:
+                    table._current_links[row] = link_data
     except Exception as e:
         logging.error(
             f"[DnD] Ошибка визуального перемещения строки {source_row}->{target_row}: {e}"
         )
-        # Фолбэк: полное пересканирование кэша
         if hasattr(table, "_current_links"):
             table._current_links.clear()
-            for row in range(table.rowCount()):
+            model = getattr(table, "model", lambda: None)()
+            total = model.rowCount() if model is not None else 0
+            for row in range(total):
                 try:
                     link_data = table.get_link_at(row)
                 except Exception:
@@ -246,24 +187,22 @@ def move_row_visually(table, source_row: int, target_row: int) -> None:
 
 
 def move_rows_visually(table, source_rows: List[int], target_row: int) -> None:
-    """Перемещает набор строк внутри таблицы с сохранением относительного порядка."""
+    """Перемещает набор строк через модель, сохраняя относительный порядок."""
     if not source_rows:
         return
-    if len(source_rows) == 1:
-        move_row_visually(table, source_rows[0], target_row)
+    model = getattr(table, "model", lambda: None)()
+    if model is None:
         return
-    for i, source_row in enumerate(reversed(source_rows)):
-        adjusted_target = target_row + (len(source_rows) - 1 - i)
-        if source_row < target_row:
-            adjusted_target -= 1
-        move_row_visually(table, source_row, adjusted_target)
+    model.move_rows(list(source_rows), target_row)
 
 
 def get_current_order(table) -> List[int]:
     """Возвращает ID всех элементов в текущем порядке строк таблицы."""
     try:
         ids: List[int] = []
-        for row in range(table.rowCount()):
+        model = getattr(table, "model", lambda: None)()
+        total = model.rowCount() if model is not None else 0
+        for row in range(total):
             try:
                 link_data = table.get_link_at(row)
             except Exception:
