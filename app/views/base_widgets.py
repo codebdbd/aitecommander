@@ -159,6 +159,16 @@ class BaseDragDropTableWidget(QTableView):
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        # Не перезаписываем ячейки при дропе, а перемещаем строки
+        try:
+            self.setDragDropOverwriteMode(False)
+        except Exception:
+            pass
+        # По умолчанию перемещение
+        try:
+            self.setDefaultDropAction(Qt.DropAction.MoveAction)
+        except Exception:
+            pass
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setSortingEnabled(True)
         self.setTabKeyNavigation(True)
@@ -224,7 +234,24 @@ class BaseDragDropTableWidget(QTableView):
             self._sorting_disabled_for_drag = self.isSortingEnabled()
             if self._sorting_disabled_for_drag:
                 self.setSortingEnabled(False)
+        # Явно принимаем наш MIME при внутреннем переносе
+        try:
+            if self._is_internal_drop(event) and event.mimeData() and event.mimeData().hasFormat(self.MIME_TYPE):
+                event.acceptProposedAction()
+                return
+        except Exception:
+            pass
         super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event):
+        """Поддержка перетаскивания внутри виджета."""
+        try:
+            if self._is_internal_drop(event) and event.mimeData() and event.mimeData().hasFormat(self.MIME_TYPE):
+                event.acceptProposedAction()
+                return
+        except Exception:
+            pass
+        super().dragMoveEvent(event)
 
     def dragLeaveEvent(self, event):
         """Обрабатывает выход из drag-зоны."""
@@ -247,10 +274,12 @@ class BaseDragDropTableWidget(QTableView):
             event.ignore()
             return
 
+        moved = False
         try:
             # Визуально перемещаем строки (поддержка множественного выделения)
             self._move_rows_visually(source_rows, target_row)
             event.acceptProposedAction()
+            moved = True
 
             # Собираем ID в новом порядке и отправляем сигнал
             ids_in_order = self._get_current_order()
@@ -263,11 +292,19 @@ class BaseDragDropTableWidget(QTableView):
             logging.error(f"[DROP] Ошибка при перемещении строки: {e}")
             event.ignore()
         finally:
-            if (
-                hasattr(self, "_sorting_disabled_for_drag")
-                and self._sorting_disabled_for_drag
-            ):
-                self.setSortingEnabled(True)
+            if hasattr(self, "_sorting_disabled_for_drag"):
+                # Если реально перемещали — оставляем сортировку отключенной,
+                # чтобы пользователь видел результат ручного reorder
+                if not moved and self._sorting_disabled_for_drag:
+                    self.setSortingEnabled(True)
+                if hasattr(self, "horizontalHeader"):
+                    try:
+                        # При успешном переносе можно скрыть индикатор сортировки
+                        # чтобы визуально отразить режим ручного порядка
+                        if moved:
+                            self.horizontalHeader().setSortIndicatorShown(False)
+                    except Exception:
+                        pass
                 delattr(self, "_sorting_disabled_for_drag")
 
     def _is_internal_drop(self, event) -> bool:
@@ -307,7 +344,11 @@ class BaseDragDropTableWidget(QTableView):
             raise ValueError("Cannot extract integer ID from UserRole data") from e
 
     def _get_drop_positions(self, event) -> tuple:
-        """Возвращает позиции источника и цели для drop-операции."""
+        """Возвращает позиции источника и цели для drop-операции.
+
+        Учитывает позицию индикатора (Above/Below/OnItem) и дроп в пустую область
+        (append в конец).
+        """
         if self._is_internal_drop(event):
             source_rows = self._extract_source_rows_from_mime(event)
             logging.debug(f"[DROP] extracted rows from MIME: {len(source_rows)}")
@@ -319,19 +360,44 @@ class BaseDragDropTableWidget(QTableView):
             return [], -1
 
         target_index = self.indexAt(event.position().toPoint())
+        # Дроп в пустое место: вставка в конец
         if not target_index.isValid():
-            return source_rows, -1
+            try:
+                target_row = self.model().rowCount()
+            except Exception:
+                target_row = -1
+            logging.debug(f"[DROP] target_row (viewport append): {target_row}")
+            return source_rows, target_row
 
         target_row = target_index.row()
+        # Корректируем по индикатору
+        try:
+            pos = self.dropIndicatorPosition()
+        except Exception:
+            pos = None
+        if pos == QAbstractItemView.DropIndicatorPosition.AboveItem:
+            pass  # уже корректно
+        elif pos == QAbstractItemView.DropIndicatorPosition.BelowItem:
+            target_row += 1
+        # OnItem или Unknown — оставляем как есть
+
+        # Если целевая позиция попадает внутрь выбранного диапазона — подправим к границе,
+        # чтобы операция не считалась невалидной
+        if source_rows:
+            first, last = min(source_rows), max(source_rows)
+            if first <= target_row <= last + 1:
+                # Если дроп ниже — ставим после диапазона, иначе — перед диапазоном
+                target_row = last + 1 if pos == QAbstractItemView.DropIndicatorPosition.BelowItem else first
+
         logging.debug(f"[DROP] target_row: {target_row}")
         return source_rows, target_row
 
     def _is_valid_internal_drop(self, source_rows: list, target_row: int) -> bool:
-        """Проверяет валидность внутреннего перемещения."""
+        """Проверяет валидность внутреннего перемещения (более либерально)."""
         if target_row == -1 or not source_rows:
             return False
-        if target_row in source_rows:
-            return False
+        # Разрешаем цель, даже если она попадает внутрь исходного диапазона —
+        # вставка будет скорректирована в _get_drop_positions
         return True
 
     def _move_row_visually(self, source_row: int, target_row: int):
