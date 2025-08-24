@@ -20,7 +20,9 @@ class UtilityService:
             return links or []
         except Exception as e:
             if logger:
-                logger.error(f"Ошибка получения ссылок для категории {category_id}: {e}")
+                logger.error(
+                    f"Ошибка получения ссылок для категории {category_id}: {e}"
+                )
             return []
 
     def get_item_for_editing(

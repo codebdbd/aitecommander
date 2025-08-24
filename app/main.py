@@ -16,22 +16,22 @@ from app.views.main_window import MainWindow
 
 class ApplicationInitializer:
     """Класс для инициализации компонентов приложения."""
-    
+
     def __init__(self, settings=None):
         self.settings = settings
         self.database = None
         self.theme_controller = None
         self.main_window = None
-    
+
     def cleanup(self):
         """Очищает ресурсы приложения."""
         try:
             # Закрываем соединение, если база и метод close доступны
-            if self.database and hasattr(self.database, 'close'):
+            if self.database and hasattr(self.database, "close"):
                 self.database.close()
         except Exception as e:
             logging.error(f"Ошибка при закрытии соединения с базой данных: {e}")
-    
+
     def initialize_settings(self) -> bool:
         """Инициализирует настройки приложения."""
         try:
@@ -41,7 +41,7 @@ class ApplicationInitializer:
         except Exception as e:
             logging.error(f"Ошибка загрузки настроек: {e}", exc_info=True)
             return False
-    
+
     def initialize_database(self) -> bool:
         """Инициализирует подключение к базе данных."""
         try:
@@ -50,7 +50,7 @@ class ApplicationInitializer:
         except Exception as e:
             logging.error(f"Ошибка подключения к базе данных: {e}", exc_info=True)
             return False
-    
+
     def initialize_theme_controller(self) -> bool:
         """Инициализирует контроллер темы."""
         try:
@@ -59,16 +59,14 @@ class ApplicationInitializer:
         except Exception as e:
             logging.error(f"Ошибка создания контроллера темы: {e}", exc_info=True)
             return False
-    
+
     def initialize_main_window(self) -> bool:
         """Инициализирует главное окно приложения."""
         try:
             self.main_window = MainWindow(
-                self.database, 
-                self.settings, 
-                self.theme_controller
+                self.database, self.settings, self.theme_controller
             )
-            if hasattr(self.theme_controller, 'set_main_window'):
+            if hasattr(self.theme_controller, "set_main_window"):
                 self.theme_controller.set_main_window(self.main_window)
             else:
                 self.theme_controller.main_window = self.main_window
@@ -76,7 +74,7 @@ class ApplicationInitializer:
         except Exception as e:
             logging.error(f"Ошибка создания главного окна: {e}", exc_info=True)
             return False
-    
+
     def apply_initial_theme(self) -> bool:
         """Применяет начальную тему оформления."""
         try:
@@ -86,7 +84,7 @@ class ApplicationInitializer:
         except Exception as e:
             logging.error(f"Ошибка применения темы: {e}", exc_info=True)
             return False
-    
+
     def initialize_all(self) -> bool:
         """Выполняет полную инициализацию всех компонентов."""
         initialization_steps = [
@@ -102,12 +100,14 @@ class ApplicationInitializer:
                 return False
         return True
 
+
 def _log_system_info():
     """Логирует системную информацию для отладки."""
     import platform
 
     from PyQt6.QtCore import QT_VERSION_STR
     from PyQt6.QtGui import QGuiApplication
+
     try:
         logging.info(f"Операционная система: {platform.platform()}")
         logging.info(f"Версия Python: {sys.version}")
@@ -118,9 +118,12 @@ def _log_system_info():
         screens = QGuiApplication.screens()
         for i, screen in enumerate(screens):
             geometry = screen.geometry()
-            logging.info(f"Дисплей {i}: {geometry.width()}x{geometry.height()} @ {screen.devicePixelRatio()}x")
+            logging.info(
+                f"Дисплей {i}: {geometry.width()}x{geometry.height()} @ {screen.devicePixelRatio()}x"
+            )
     except Exception as e:
         logging.warning(f"Не удалось получить системную информацию: {e}")
+
 
 def create_application() -> QApplication:
     """Создает и настраивает QApplication."""
@@ -130,23 +133,24 @@ def create_application() -> QApplication:
     app.setOrganizationName("MyCompany")
     return app
 
+
 def main():
     """Главная функция приложения."""
-    log_level = logging.DEBUG if '--debug' in sys.argv else logging.INFO
-    
+    log_level = logging.DEBUG if "--debug" in sys.argv else logging.INFO
+
     # Инициализируем систему логирования
     ApplicationLogger(log_level)
     logging.info("=" * 60)
     logging.info("ЗАПУСК ПРИЛОЖЕНИЯ")
     logging.info("=" * 60)
-    if '--debug' in sys.argv:
+    if "--debug" in sys.argv:
         try:
             validate_and_log_ui_icons_startup()
         except Exception as _e:
             logging.warning("Ошибка при стартап-валидации иконок: %s", _e)
     # Устанавливаем глобальный обработчик исключений
     ExceptionHandler()
-    
+
     # Инициализируем инициализатор приложения
     initializer = None
     try:
@@ -163,6 +167,7 @@ def main():
         from PyQt6.QtCore import QRunnable, QThreadPool
 
         from app.utils.browser.browser_profiles import get_profile_manager
+
         class ProfilePreloader(QRunnable):
             def run(self):
                 try:
@@ -170,9 +175,13 @@ def main():
                     manager.get_all_profiles()
                 except Exception as e:
                     logging.warning(f"Ошибка предзагрузки профилей: {e}")
+
         QThreadPool.globalInstance().start(ProfilePreloader())
         from PyQt6.QtGui import QFont
-        font_size = settings.get_font_size() if hasattr(settings, 'get_font_size') else 12
+
+        font_size = (
+            settings.get_font_size() if hasattr(settings, "get_font_size") else 12
+        )
         app.setFont(QFont(app.font().family(), font_size))
         if not initializer.initialize_all():
             logging.critical("Не удалось инициализировать приложение")
@@ -192,6 +201,7 @@ def main():
         logging.info("=" * 60)
         logging.info("ЗАВЕРШЕНИЕ РАБОТЫ ПРИЛОЖЕНИЯ")
         logging.info("=" * 60)
+
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -3,4 +3,4 @@
 
 from .base_table import LinksTableView
 
-__all__ = ['LinksTableView']
+__all__ = ["LinksTableView"]

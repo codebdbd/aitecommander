@@ -3,7 +3,7 @@
 
 import logging
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QSize
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -51,38 +51,44 @@ class HoverHighlightDelegate(QStyledItemDelegate):
         # Рисуем стандартное содержимое
         super().paint(painter, option, index)
 
-class LinksTableView(BaseDragDropTableWidget, 
-                    ItemBuildersMixin,
-                    DataManagementMixin,
-                    RowOperationsMixin,
-                    PopulationManagerMixin,
-                    DragDropHandlerMixin):
+
+class LinksTableView(
+    BaseDragDropTableWidget,
+    ItemBuildersMixin,
+    DataManagementMixin,
+    RowOperationsMixin,
+    PopulationManagerMixin,
+    DragDropHandlerMixin,
+):
     """Основной класс таблицы ссылок с модульной архитектурой."""
-    
+
     # Сигнал оповещения о завершении массового обновления/заполнения таблицы
     table_populated: pyqtSignal = pyqtSignal()
 
     def update_font_size(self, font_size: int):
         """Применяет локальный размер шрифта ко всем ячейкам таблицы."""
         # Проверяем, изменился ли размер шрифта
-        if hasattr(self, '_current_font_size') and self._current_font_size == font_size:
+        if hasattr(self, "_current_font_size") and self._current_font_size == font_size:
             return
-        
+
         self._current_font_size = font_size
-        
+
         # Создаем новый шрифт и применяем к таблице
         from PyQt6.QtGui import QFont
+
         font = QFont(self.font().family(), font_size)
         self.setFont(font)
-        
+
         # Обновляем отображение
         self.viewport().update()
 
     # Переопределяем константы базового класса (выравниваем с централизованной функцией)
     MIME_TYPE = get_link_mime()
-    
+
     # Переименовываем сигнал для совместимости
-    links_reordered: pyqtSignal = pyqtSignal(list)  # List[int] - ID ссылок в новом порядке
+    links_reordered: pyqtSignal = pyqtSignal(
+        list
+    )  # List[int] - ID ссылок в новом порядке
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -113,7 +119,9 @@ class LinksTableView(BaseDragDropTableWidget,
             name_col = app_config.get_links_table_columns().get("name", 1)
             header_item = self.horizontalHeaderItem(name_col)
             if header_item is not None:
-                header_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                header_item.setTextAlignment(
+                    Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+                )
         except Exception as e:
             logger.debug(f"[Headers] Не удалось выровнять заголовок 'Имя': {e}")
         self.setAlternatingRowColors(True)
@@ -122,7 +130,11 @@ class LinksTableView(BaseDragDropTableWidget,
         col_widths = app_config.get_col_widths()
         self.setColumnWidth(0, col_widths[0])
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.setIconSize(app_config.get_icon_size())
+        try:
+            _icon_sz = app_config.get_icon_size()
+            self.setIconSize(QSize(int(_icon_sz[0]), int(_icon_sz[1])))
+        except Exception:
+            self.setIconSize(QSize(24, 24))
         self.verticalHeader().setDefaultSectionSize(app_config.get_row_height())
         header = self.horizontalHeader()
         header.setStretchLastSection(True)
@@ -140,39 +152,41 @@ class LinksTableView(BaseDragDropTableWidget,
         if self.delegate.hovered_row != -1:
             self.delegate.hovered_row = -1
         event.accept()
-    
+
     # Переопределяем абстрактные методы из BaseDragDropTableWidget
     def _extract_item_ids_from_items(self, items):
         """Извлекает ID ссылок из выбранных элементов."""
         # Используем реализацию из DragDropHandlerMixin
         return DragDropHandlerMixin._extract_item_ids_from_items(self, items)
-    
+
     def _move_row_visually(self, source_row: int, target_row: int):
         """Визуально перемещает строку в таблице."""
         # Используем реализацию из DragDropHandlerMixin
         return DragDropHandlerMixin._move_row_visually(self, source_row, target_row)
-    
+
     def _get_current_order(self):
         """Получает текущий порядок ссылок."""
         # Используем реализацию из DragDropHandlerMixin
         return DragDropHandlerMixin._get_current_order(self)
-    
+
     def _on_sort_clicked(self, logical_index):
         """Обработчик клика по заголовку - очищает кэш после сортировки."""
         from PyQt6.QtCore import QTimer
-        
+
         logger.debug(f"[SORT] Клик по колонке {logical_index}, очищаем кэш")
-        
+
         # Отложенное очищение кэша после завершения сортировки
         QTimer.singleShot(0, self._clear_cache_after_sort)
-    
+
     def _clear_cache_after_sort(self):
         """Перестраивает кэш после сортировки по фактическому порядку строк."""
         old_cache_size = len(self._current_links)
         # Перестраиваем кэш, чтобы соответствовать отсортированным строкам
         self.rebuild_cache_from_items()
         new_cache_size = len(self._current_links)
-        logger.debug(f"[SORT] Кэш перестроен: было {old_cache_size}, стало {new_cache_size}")
+        logger.debug(
+            f"[SORT] Кэш перестроен: было {old_cache_size}, стало {new_cache_size}"
+        )
         # Оповещаем подписчиков (например, контроллер) о том, что таблица обновлена
         try:
             self.table_populated.emit()

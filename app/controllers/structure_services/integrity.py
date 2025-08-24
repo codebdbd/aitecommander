@@ -93,7 +93,9 @@ class IntegrityService:
                         )
                         integrity_report["is_valid"] = False
 
-                    categories = get_categories(section_id) if section_id is not None else []
+                    categories = (
+                        get_categories(section_id) if section_id is not None else []
+                    )
                     for category in categories:
                         category_id = category.get("id")
                         if category.get("section_id") != section_id:

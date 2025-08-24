@@ -4,6 +4,7 @@ This module is safe to import even if Playwright is not installed.
 Provide render_html(url, config) -> Optional[str] that returns fully rendered HTML
 (or None on failure). Blocks heavy resources to be efficient.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -34,27 +35,31 @@ def _init_browser(config) -> bool:
         return True
     try:
         _pl = sync_playwright().start()
-        headless = bool(getattr(config, 'PLAYWRIGHT_HEADLESS', True))
+        headless = bool(getattr(config, "PLAYWRIGHT_HEADLESS", True))
         # По умолчанию используем встроенный Chromium, не указывая channel.
         # Если в конфиге явно задан PLAYWRIGHT_CHANNEL, применяем его.
         launch_kwargs = {"headless": headless}
-        cfg_channel = getattr(config, 'PLAYWRIGHT_CHANNEL', None)
+        cfg_channel = getattr(config, "PLAYWRIGHT_CHANNEL", None)
         if cfg_channel:
             launch_kwargs["channel"] = cfg_channel
         _browser = _pl.chromium.launch(**launch_kwargs)
         _context = _browser.new_context(
-            user_agent=getattr(config, 'USER_AGENT', None) or None,
+            user_agent=getattr(config, "USER_AGENT", None) or None,
             java_script_enabled=True,
-            ignore_https_errors=bool(getattr(config, 'PLAYWRIGHT_IGNORE_HTTPS_ERRORS', True)),
+            ignore_https_errors=bool(
+                getattr(config, "PLAYWRIGHT_IGNORE_HTTPS_ERRORS", True)
+            ),
             bypass_csp=True,
-            viewport={'width': 1280, 'height': 800},
+            viewport={"width": 1280, "height": 800},
         )
+
         # Block heavy resources
         def _route_intercept(route):
             req = route.request
             if req.resource_type in {"image", "media", "font", "stylesheet"}:
                 return route.abort()
             return route.continue_()
+
         _context.route("**/*", _route_intercept)
         return True
     except Exception as e:
@@ -83,8 +88,8 @@ def render_html(url: str, config) -> Optional[str]:
     """
     if not _init_browser(config):
         return None
-    nav_timeout_ms = int(getattr(config, 'PLAYWRIGHT_NAV_TIMEOUT_MS', 9000))
-    max_wait_ms = int(getattr(config, 'JS_RENDER_MAX_WAIT_MS', 1200))
+    nav_timeout_ms = int(getattr(config, "PLAYWRIGHT_NAV_TIMEOUT_MS", 9000))
+    max_wait_ms = int(getattr(config, "JS_RENDER_MAX_WAIT_MS", 1200))
     try:
         page = _context.new_page()
         page.set_default_navigation_timeout(nav_timeout_ms)

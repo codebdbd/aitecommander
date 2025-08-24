@@ -28,15 +28,19 @@ def _resize_image(img: Image.Image, size: int) -> Image.Image:
 
 # === СИНХРОННЫЕ ФУНКЦИИ КОПИРОВАНИЯ ===
 
+
 def _calculate_file_hash(file_path: Path) -> str:
     """Вычисляет SHA-256 хеш файла для проверки дублирования."""
     import hashlib
+
     hash_sha256 = hashlib.sha256()
     try:
-        with open(file_path, 'rb') as f:
+        with open(file_path, "rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):
                 hash_sha256.update(chunk)
-        return hash_sha256.hexdigest()[:16]  # Используем первые 16 символов для краткости
+        return hash_sha256.hexdigest()[
+            :16
+        ]  # Используем первые 16 символов для краткости
     except (OSError, IOError) as exc:
         logger.warning("Failed to calculate hash for %s: %s", file_path, exc)
         return ""
@@ -46,47 +50,59 @@ def _find_existing_icon_by_content(src_path: Path, dest_dir: Path) -> str | None
     """Ищет существующую иконку с таким же содержимым в целевой директории."""
     if not dest_dir.exists():
         return None
-        
+
     src_hash = _calculate_file_hash(src_path)
     if not src_hash:
         return None
-    
+
     # Проверяем все файлы в директории пользовательских иконок
     for existing_file in dest_dir.iterdir():
-        if existing_file.is_file() and existing_file.suffix.lower() in {'.png', '.ico', '.svg', '.jpg', '.jpeg'}:
+        if existing_file.is_file() and existing_file.suffix.lower() in {
+            ".png",
+            ".ico",
+            ".svg",
+            ".jpg",
+            ".jpeg",
+        }:
             if _calculate_file_hash(existing_file) == src_hash:
-                logger.debug("Found existing icon with same content: %s", existing_file.name)
+                logger.debug(
+                    "Found existing icon with same content: %s", existing_file.name
+                )
                 return existing_file.name
-    
+
     return None
 
 
-def copy_icon_smart(src_path: str, dest_dir: Path, avoid_duplicates: bool = True) -> str:
+def copy_icon_smart(
+    src_path: str, dest_dir: Path, avoid_duplicates: bool = True
+) -> str:
     """Умное копирование иконки с проверкой дублирования по содержимому.
-    
+
     Args:
         src_path: Путь к исходной иконке
         dest_dir: Директория назначения
         avoid_duplicates: Если True, проверяет существующие файлы по содержимому
-        
+
     Returns:
         str: Имя файла в директории назначения
     """
     if not is_valid_icon_file(src_path):
-        raise InvalidIconError(f"Невозможно скопировать невалидный файл иконки: {src_path}")
+        raise InvalidIconError(
+            f"Невозможно скопировать невалидный файл иконки: {src_path}"
+        )
 
     # Создаем директорию если она не существует
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     src_path_obj = Path(src_path)
-    
+
     # Проверяем дублирование по содержимому
     if avoid_duplicates:
         existing_icon = _find_existing_icon_by_content(src_path_obj, dest_dir)
         if existing_icon:
             logger.debug("Reusing existing icon: %s", existing_icon)
             return existing_icon
-    
+
     # Если файл с таким именем уже существует, генерируем уникальное имя
     dst = dest_dir / src_path_obj.name
     if dst.exists():
@@ -121,7 +137,7 @@ def copy_icon_smart(src_path: str, dest_dir: Path, avoid_duplicates: bool = True
 
 def copy_icon(src_path: str, dest_dir: Path) -> str:
     """Копировать иконку в директорию (обратная совместимость).
-    
+
     Использует умное копирование с проверкой дублирования.
     """
     return copy_icon_smart(src_path, dest_dir, avoid_duplicates=True)
@@ -149,11 +165,14 @@ def copy_icon_to_path(src_path: str, dst_path: str) -> bool:
         logger.error("Error copying icon from %s to %s: %s", src_path, dst_path, exc)
         return False
     except Exception as exc:
-        logger.error("Unexpected error copying icon from %s to %s: %s", src_path, dst_path, exc)
+        logger.error(
+            "Unexpected error copying icon from %s to %s: %s", src_path, dst_path, exc
+        )
         return False
 
 
 # === АСИНХРОННЫЕ ФУНКЦИИ КОПИРОВАНИЯ ===
+
 
 async def copy_icon_async(src_path: str, dest_dir: Path) -> str:
     """Асинхронно копировать иконку в директорию."""
@@ -168,6 +187,7 @@ async def copy_icon_to_path_async(src_path: str, dst_path: str) -> bool:
 
 
 # === СИНХРОННЫЕ ФУНКЦИИ КОНВЕРТАЦИИ ===
+
 
 def convert_icon_to_png_128(src_path: str, dst_path: str, size: int = 128) -> bool:
     """Конвертировать иконку в PNG заданного размера (по умолчанию 128x128).
@@ -286,65 +306,89 @@ def convert_raster_icon_to_png(src_path: str, dst_path: str, size: int = 32) -> 
             # Сохраняем в PNG
             img.save(dst_path, "PNG")
 
-        logger.debug("Successfully converted raster icon from %s to %s", src_path, dst_path)
+        logger.debug(
+            "Successfully converted raster icon from %s to %s", src_path, dst_path
+        )
         return True
     except (OSError, IOError, ValueError) as exc:
-        logger.error("Error converting raster icon from %s to %s: %s", src_path, dst_path, exc)
+        logger.error(
+            "Error converting raster icon from %s to %s: %s", src_path, dst_path, exc
+        )
         return False
     except Exception as exc:
-        logger.error("Unexpected error converting raster icon from %s to %s: %s", src_path, dst_path, exc)
+        logger.error(
+            "Unexpected error converting raster icon from %s to %s: %s",
+            src_path,
+            dst_path,
+            exc,
+        )
         return False
 
 
 # === АСИНХРОННЫЕ ФУНКЦИИ КОНВЕРТАЦИИ ===
 
-async def convert_icon_to_png_128_async(src_path: str, dst_path: str, size: int = 128) -> bool:
+
+async def convert_icon_to_png_128_async(
+    src_path: str, dst_path: str, size: int = 128
+) -> bool:
     """Асинхронно конвертировать иконку в PNG заданного размера."""
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, convert_icon_to_png_128, src_path, dst_path, size)
+    return await loop.run_in_executor(
+        None, convert_icon_to_png_128, src_path, dst_path, size
+    )
 
 
-async def convert_icon_to_png_32_async(src_path: str, dst_path: str, size: int = 32) -> bool:
+async def convert_icon_to_png_32_async(
+    src_path: str, dst_path: str, size: int = 32
+) -> bool:
     """Асинхронно конвертировать иконку в PNG 32x32."""
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, convert_icon_to_png_32, src_path, dst_path, size)
+    return await loop.run_in_executor(
+        None, convert_icon_to_png_32, src_path, dst_path, size
+    )
 
 
-async def convert_raster_icon_to_png_async(src_path: str, dst_path: str, size: int = 32) -> bool:
+async def convert_raster_icon_to_png_async(
+    src_path: str, dst_path: str, size: int = 32
+) -> bool:
     """Асинхронно конвертировать растровую иконку в PNG."""
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, convert_raster_icon_to_png, src_path, dst_path, size)
+    return await loop.run_in_executor(
+        None, convert_raster_icon_to_png, src_path, dst_path, size
+    )
 
 
 # === ПАКЕТНАЯ КОНВЕРТАЦИЯ ===
 
+
 async def batch_convert_icons_async(
-    conversions: list[tuple[str, str, int]], 
-    max_concurrent: int = 5
+    conversions: list[tuple[str, str, int]], max_concurrent: int = 5
 ) -> dict[str, bool]:
     """Пакетная асинхронная конвертация иконок.
-    
+
     Args:
         conversions: Список кортежей (src_path, dst_path, size)
         max_concurrent: Максимальное количество одновременных конвертаций
-        
+
     Returns:
         dict: Словарь {src_path: success_status}
     """
     semaphore = asyncio.Semaphore(max_concurrent)
-    
-    async def convert_with_semaphore(src_path: str, dst_path: str, size: int) -> tuple[str, bool]:
+
+    async def convert_with_semaphore(
+        src_path: str, dst_path: str, size: int
+    ) -> tuple[str, bool]:
         async with semaphore:
             success = await convert_icon_to_png_128_async(src_path, dst_path, size)
             return src_path, success
-    
+
     tasks = [
         convert_with_semaphore(src_path, dst_path, size)
         for src_path, dst_path, size in conversions
     ]
-    
+
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    
+
     result_dict = {}
     for result in results:
         if isinstance(result, Exception):
@@ -352,8 +396,10 @@ async def batch_convert_icons_async(
             continue
         src_path, success = result
         result_dict[src_path] = success
-    
+
     successful = sum(1 for success in result_dict.values() if success)
-    logger.info(f"Batch conversion completed: {successful}/{len(conversions)} successful")
-    
+    logger.info(
+        f"Batch conversion completed: {successful}/{len(conversions)} successful"
+    )
+
     return result_dict

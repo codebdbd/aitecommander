@@ -6,7 +6,7 @@ def validate_section_data(data: dict) -> bool:
     if not data:
         logging.warning("Не удалось получить данные раздела")
         return False
-    if not data.get('name'):
+    if not data.get("name"):
         logging.warning("Название раздела не может быть пустым")
         return False
     return True
@@ -37,5 +37,9 @@ def validate_category_data(data: dict) -> bool:
     """Проверяет, что у категории есть валидное имя (минимальные требования)."""
     if not isinstance(data, dict):
         return False
-    name = data.get('name', '')
-    return is_non_empty_name(name) and is_name_length_ok(name) and has_no_forbidden_chars(name)
+    name = data.get("name", "")
+    return (
+        is_non_empty_name(name)
+        and is_name_length_ok(name)
+        and has_no_forbidden_chars(name)
+    )

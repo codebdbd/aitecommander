@@ -6,6 +6,7 @@
     handle = run_db(lambda: db.links.upsert_link(data), on_finished=cb)
     handle.cancel()
 """
+
 from __future__ import annotations
 
 from typing import Callable, Optional, Protocol, TypeVar
@@ -59,7 +60,9 @@ def run_db(
                 return func()
         return func()
 
-    task = DatabaseTask[T](_wrapped, description=description, reporter=(on_progress or (lambda *_: None)))
+    task = DatabaseTask[T](
+        _wrapped, description=description, reporter=(on_progress or (lambda *_: None))
+    )
 
     if on_finished is not None:
         task.signals.finished.connect(on_finished)

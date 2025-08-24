@@ -7,7 +7,9 @@ if __name__ == "__main__":
         "--onefile",
         "--windowed",
         "app/main.py",
-        "--add-data", "app/views/resources/qss;app/views/resources/qss",
-        "--add-data", "app/views/resources/ui_icons;app/views/resources/ui_icons"
+        "--add-data",
+        "app/views/resources/qss;app/views/resources/qss",
+        "--add-data",
+        "app/views/resources/ui_icons;app/views/resources/ui_icons",
     ]
     run(opts)

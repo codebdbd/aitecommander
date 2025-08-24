@@ -10,5 +10,5 @@
 from .window_initializer import WindowInitializer
 
 __all__ = [
-    'WindowInitializer',
+    "WindowInitializer",
 ]

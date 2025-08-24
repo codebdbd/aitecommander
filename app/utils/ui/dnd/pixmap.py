@@ -4,6 +4,7 @@
 Provides small, readable functions to render drag previews for
 single-row and multi-row selections.
 """
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QFont, QFontMetrics, QImage, QPainter, QPixmap
 

@@ -2,6 +2,7 @@
 UI утилиты для работы с иконками.
 Функции для установки иконок на UI элементы.
 """
+
 from pathlib import Path
 from typing import Union
 
@@ -14,7 +15,7 @@ from .validation import is_valid_icon_file
 def set_icon_to_button(button, icon_path: Union[str, Path]) -> None:
     """
     Установить высококачественную иконку на кнопку.
-    
+
     Args:
         button: Кнопка для установки иконки
         icon_path: Путь к файлу иконки

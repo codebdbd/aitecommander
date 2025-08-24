@@ -18,7 +18,7 @@ __all__ = [
 @runtime_checkable
 class StructureController(Protocol):
     """Протокол для контроллера структурных элементов."""
-    
+
     def _upsert_and_emit(
         self,
         *,
@@ -30,11 +30,11 @@ class StructureController(Protocol):
     ) -> Any:
         """Создание/обновление элемента с отправкой сигнала."""
         ...
-    
+
     def _emit_signal(self, *args, **kwargs) -> None:
         """Отправка сигнала о событии."""
         ...
-    
+
     def _execute_with_validation(
         self,
         operation: Callable[[], Any],
@@ -48,45 +48,47 @@ class StructureController(Protocol):
         ...
 
 
-def process_item(controller: StructureController, data: Dict[str, Any], 
-                item_type: StructureItemType, item_id: Optional[int] = None, 
-                is_update: bool = False) -> bool:
+def process_item(
+    controller: StructureController,
+    data: Dict[str, Any],
+    item_type: StructureItemType,
+    item_id: Optional[int] = None,
+    is_update: bool = False,
+) -> bool:
     """
     Общий помощник для создания/обновления элементов структуры с валидацией.
-    
+
     Args:
         controller: Контроллер, реализующий протокол StructureController
         data: Данные для создания/обновления элемента
         item_type: Тип структурного элемента
         item_id: ID элемента для обновления (опционально)
         is_update: True для обновления, False для создания
-        
+
     Returns:
         bool: True в случае успеха, False в случае неудачи
-        
+
     Raises:
         TypeError: Если controller не реализует необходимый протокол
         ValueError: Если переданы некорректные данные
     """
     # Проверяем, что контроллер реализует необходимый протокол
     if not isinstance(controller, StructureController):
-        error_msg = (
-            f"Контроллер должен реализовывать протокол StructureController, получен {type(controller)}"
-        )
+        error_msg = f"Контроллер должен реализовывать протокол StructureController, получен {type(controller)}"
         logger.error(error_msg)
         raise TypeError(error_msg)
-    
+
     # Валидируем входные данные
     if not isinstance(data, dict):
         error_msg = f"Аргумент data должен быть dict, получен {type(data)}"
         logger.error(error_msg)
         raise ValueError(error_msg)
-    
+
     if is_update and item_id is None:
         error_msg = "Для операций обновления требуется item_id"
         logger.error(error_msg)
         raise ValueError(error_msg)
-    
+
     def _process_operation():
         """Внутренняя функция для выполнения операции создания/обновления."""
         try:
@@ -100,9 +102,9 @@ def process_item(controller: StructureController, data: Dict[str, Any],
         except Exception as e:
             logger.error(f"Error in _upsert_and_emit: {e}")
             raise
-    
+
     operation_name = "обновление" if is_update else "создание"
-    
+
     try:
         result = controller._execute_with_validation(
             _process_operation,
@@ -111,7 +113,7 @@ def process_item(controller: StructureController, data: Dict[str, Any],
             operation_name,
             require_parent=not is_update,
         )
-        
+
         # Явно обрабатываем различные типы результатов
         if result is None:
             logger.warning(
@@ -121,24 +123,26 @@ def process_item(controller: StructureController, data: Dict[str, Any],
                 item_id,
             )
             return False
-        
+
         # Преобразуем результат в boolean, учитывая различные типы
         success = bool(result)
-        
+
         log_level = logging.INFO if success else logging.WARNING
         logger.log(
             log_level,
             "Элемент: %s (%s)",
-            "успешно обновлён" if is_update and success else (
-                "не обновлён" if is_update and not success else (
-                    "успешно создан" if success else "не создан"
-                )
+            "успешно обновлён"
+            if is_update and success
+            else (
+                "не обновлён"
+                if is_update and not success
+                else ("успешно создан" if success else "не создан")
             ),
             getattr(item_type, "name", item_type),
         )
-        
+
         return success
-        
+
     except Exception as e:
         logger.exception("Ошибка во время операции %s: %s", operation_name, e)
         return False
@@ -146,8 +150,13 @@ def process_item(controller: StructureController, data: Dict[str, Any],
 
 # Обратная совместимость: алиас для старой сигнатуры
 # Это позволяет вызывать как process_item(self, data, ...) без изменения существующего кода
-def process_item_old_signature(self: Any, data: Dict[str, Any], item_type: StructureItemType,
-                              item_id: Optional[int] = None, is_update: bool = False) -> bool:
+def process_item_old_signature(
+    self: Any,
+    data: Dict[str, Any],
+    item_type: StructureItemType,
+    item_id: Optional[int] = None,
+    is_update: bool = False,
+) -> bool:
     """
     Версия с старой сигнатурой для полной обратной совместимости.
     Автоматически перенаправляет вызов на новую версию.

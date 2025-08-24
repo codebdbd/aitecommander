@@ -15,7 +15,9 @@ class SelectionService:
                 logger.error(f"Ошибка получения сфер: {e}")
             return []
 
-    def get_sections(self, structure_model, sphere_id: int, logger) -> List[Dict[str, Any]]:
+    def get_sections(
+        self, structure_model, sphere_id: int, logger
+    ) -> List[Dict[str, Any]]:
         try:
             sections = structure_model.get_sections(sphere_id) or []
             return sections
@@ -24,13 +26,17 @@ class SelectionService:
                 logger.error(f"Ошибка получения разделов для сферы {sphere_id}: {e}")
             return []
 
-    def get_categories(self, structure_model, section_id: int, logger) -> List[Dict[str, Any]]:
+    def get_categories(
+        self, structure_model, section_id: int, logger
+    ) -> List[Dict[str, Any]]:
         try:
             categories = structure_model.get_categories(section_id) or []
             return categories
         except Exception as e:  # noqa: BLE001
             if logger:
-                logger.error(f"Ошибка получения категорий для раздела {section_id}: {e}")
+                logger.error(
+                    f"Ошибка получения категорий для раздела {section_id}: {e}"
+                )
             return []
 
     def get_first_category_id(

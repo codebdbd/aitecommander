@@ -31,16 +31,16 @@ from .link_dialog.link_dialog import LinkDialog
 from .restore_db_dialog import RestoreDbDialog
 
 __all__ = [
-    'BaseDialog',
-    'BaseEntityDialog',
-    'SectionDialog',
-    'CategoryDialog',
-    'NoteDialog',
-    'SettingsDialog',
-    'ChromeProfileDialog',
-    'BrowserProfileDialog',
-    'LinkDialog',
-    'ImportBrowserDialog',
-    'RestoreDbDialog',
-    'FileSearchDialog',
+    "BaseDialog",
+    "BaseEntityDialog",
+    "SectionDialog",
+    "CategoryDialog",
+    "NoteDialog",
+    "SettingsDialog",
+    "ChromeProfileDialog",
+    "BrowserProfileDialog",
+    "LinkDialog",
+    "ImportBrowserDialog",
+    "RestoreDbDialog",
+    "FileSearchDialog",
 ]

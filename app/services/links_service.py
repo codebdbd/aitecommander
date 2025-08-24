@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from app.models.db import Database
+
 from .uow import UnitOfWork
 
 
@@ -47,7 +48,9 @@ class LinksService:
         return self.repo.get_next_position(category_id)
 
     # --- Проверки/утилиты ---
-    def find_duplicate(self, category_id: int, name: str, url: str, args: str = "") -> Optional[Dict[str, Any]]:
+    def find_duplicate(
+        self, category_id: int, name: str, url: str, args: str = ""
+    ) -> Optional[Dict[str, Any]]:
         return self.repo.get_link_by_name_url_args(category_id, name, url, args)
 
     # --- Мутации ---

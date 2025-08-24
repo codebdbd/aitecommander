@@ -100,7 +100,10 @@ CacheMetrics = _ExternalCacheMetrics or _FallbackCacheMetrics
 
 # --- Типы записей кэша ---
 
-def _is_entry_valid(timestamp: float, negative: bool, ttl_seconds: Optional[float]) -> bool:
+
+def _is_entry_valid(
+    timestamp: float, negative: bool, ttl_seconds: Optional[float]
+) -> bool:
     """Проверка валидности записи по TTL.
 
     minimal, предсказуемая логика: запись валидна, если ttl не задан или
@@ -118,9 +121,11 @@ def _is_entry_valid(timestamp: float, negative: bool, ttl_seconds: Optional[floa
     now = time.time()
     return (now - float(timestamp)) < ttl
 
+
 @dataclass
 class PathCacheEntry:
     """Запись кэша для путей к иконкам."""
+
     path: Optional[str]
     timestamp: float
     negative: bool = False
@@ -132,6 +137,7 @@ class PathCacheEntry:
 @dataclass
 class IconCacheEntry:
     """Запись кэша для QIcon."""
+
     icon: QIcon
     timestamp: float
     negative: bool = False
@@ -142,11 +148,16 @@ class IconCacheEntry:
 
 # --- Потокобезопасный кэш ---
 
+
 class ThreadSafeIconCache:
     """Потокобезопасный LRU-кэш путей и QIcon."""
 
     def __init__(self, maxsize: Optional[int] = None) -> None:
-        capacity = int(maxsize) if maxsize is not None else int(app_config.get_icon_cache_size())
+        capacity = (
+            int(maxsize)
+            if maxsize is not None
+            else int(app_config.get_icon_cache_size())
+        )
         if capacity <= 0:
             capacity = 1
 
@@ -203,7 +214,9 @@ class ThreadSafeIconCache:
             key = self._key(icon_name, theme)
 
             # Проверяем необходимость вытеснения
-            should_evict, old_key = self._path_lru.evict_if_needed(self._path_cache, key)
+            should_evict, old_key = self._path_lru.evict_if_needed(
+                self._path_cache, key
+            )
             if should_evict and old_key:
                 self._path_cache.pop(old_key, None)
 
@@ -224,7 +237,11 @@ class ThreadSafeIconCache:
             if entry is None:
                 return None
 
-            ttl = app_config.get_abs_icon_cache_ttl() if theme == "__abs__" else app_config.get_icon_cache_ttl()
+            ttl = (
+                app_config.get_abs_icon_cache_ttl()
+                if theme == "__abs__"
+                else app_config.get_icon_cache_ttl()
+            )
             if not entry.is_valid(ttl):
                 # Удаляем устаревшую запись
                 self._qicon_cache.pop(key, None)
@@ -235,14 +252,23 @@ class ThreadSafeIconCache:
             self._qicon_lru.access(key)
             return entry.icon
 
-    def set_qicon(self, icon_name: str, theme: str, icon: Optional[QIcon], *, negative: bool = False) -> None:
+    def set_qicon(
+        self,
+        icon_name: str,
+        theme: str,
+        icon: Optional[QIcon],
+        *,
+        negative: bool = False,
+    ) -> None:
         """Сохранить QIcon в кэше иконок."""
         with acquire_cache_lock():
             self._sync_qicon_structs()
             key = self._key(icon_name, theme)
 
             # Проверяем необходимость вытеснения
-            should_evict, old_key = self._qicon_lru.evict_if_needed(self._qicon_cache, key)
+            should_evict, old_key = self._qicon_lru.evict_if_needed(
+                self._qicon_cache, key
+            )
             if should_evict and old_key:
                 self._qicon_cache.pop(old_key, None)
 
@@ -271,13 +297,18 @@ class ThreadSafeIconCache:
                 "path_cache_size": len(self._path_cache),
                 "qicon_cache_size": len(self._qicon_cache),
                 "max_cache_size": self._capacity,
-                "path_cache_usage_percent": round(len(self._path_cache) / self._capacity * 100, 2),
-                "qicon_cache_usage_percent": round(len(self._qicon_cache) / self._capacity * 100, 2),
+                "path_cache_usage_percent": round(
+                    len(self._path_cache) / self._capacity * 100, 2
+                ),
+                "qicon_cache_usage_percent": round(
+                    len(self._qicon_cache) / self._capacity * 100, 2
+                ),
             }
             return {**base, **more}
 
 
 # --- Менеджер (Singleton) ---
+
 
 class IconManager:
     """Синглтон-обёртка над ThreadSafeIconCache."""
@@ -346,6 +377,7 @@ _icon_manager = IconManager()
 
 
 # --- Публичный API: функции-обёртки ---
+
 
 def clear_icon_cache() -> None:
     """Очистить кэш иконок."""

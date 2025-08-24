@@ -2,6 +2,8 @@
 
 import logging
 
+logger = logging.getLogger(__name__)
+
 
 class TreeHandlerBase:
     """Базовый класс для обработчиков дерева StructureTreeWidget.
@@ -10,4 +12,3 @@ class TreeHandlerBase:
 
     def __init__(self, tree_widget):
         self.tree_widget = tree_widget
-        self.logger = logging.getLogger(self.__class__.__name__)

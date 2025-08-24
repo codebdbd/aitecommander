@@ -40,6 +40,7 @@ _THEME_DIR_MTIME: dict[str, float] = {}
 _ICON_METRICS = CacheMetrics()
 _METRICS_LAST_LOG: float = 0.0
 
+
 def _maybe_log_metrics() -> None:
     global _METRICS_LAST_LOG
     try:
@@ -50,12 +51,21 @@ def _maybe_log_metrics() -> None:
     if now - _METRICS_LAST_LOG >= interval:
         try:
             stats = _ICON_METRICS.get_stats()
-            logger.info("Icon metrics: hits=%s misses=%s hit_rate=%s disk_loads=%s not_found=%s avg_load_time=%s load_count=%s uptime=%s",
-                        stats["hits"], stats["misses"], stats["hit_rate"], stats["disk_loads"],
-                        stats["not_found"], stats["avg_load_time"], stats["load_count"], stats["uptime"]) 
+            logger.info(
+                "Icon metrics: hits=%s misses=%s hit_rate=%s disk_loads=%s not_found=%s avg_load_time=%s load_count=%s uptime=%s",
+                stats["hits"],
+                stats["misses"],
+                stats["hit_rate"],
+                stats["disk_loads"],
+                stats["not_found"],
+                stats["avg_load_time"],
+                stats["load_count"],
+                stats["uptime"],
+            )
         except Exception:  # noqa: BLE001
             pass
         _METRICS_LAST_LOG = now
+
 
 def _build_theme_index(theme: str) -> None:
     """Построить индекс иконок для темы.
@@ -81,6 +91,7 @@ def _build_theme_index(theme: str) -> None:
         _THEME_ICON_INDEX[theme] = mapping
         _THEME_INDEX_TS[theme] = time.time()
         _THEME_DIR_MTIME[theme] = dir_mtime
+
 
 def _get_indexed_icon(theme: str, icon_name: str) -> Optional[Path]:
     """Вернуть Path из индекса или None. Создаёт/обновляет индекс по TTL."""
@@ -226,9 +237,11 @@ def get_icon_path(icon_name: str, theme: str = "light") -> Optional[str]:
         # Конфигурируемые базовый и максимальный TTL негативного кеша
         base_ttl = getattr(app_config, "icon_negative_cache_ttl", _NEG_TTL)
         max_ttl = getattr(app_config, "icon_negative_cache_ttl_max", _NEG_TTL_MAX)
-        ttl = min(base_ttl * (2 ** strikes), max_ttl)
+        ttl = min(base_ttl * (2**strikes), max_ttl)
         if ts and (now - ts) < ttl:
-            logger.debug("Negative cache HIT: %s (ttl=%.1fs, strikes=%d)", key, ttl, strikes)
+            logger.debug(
+                "Negative cache HIT: %s (ttl=%.1fs, strikes=%d)", key, ttl, strikes
+            )
             try:
                 _ICON_METRICS.record_not_found()
                 _ICON_METRICS.record_miss_without_increment(0.0)
@@ -309,9 +322,19 @@ def get_icon_path(icon_name: str, theme: str = "light") -> Optional[str]:
             path_str = str(themed_png)
             cache_path(icon_name, norm_theme, path_str)
             if dt_ms >= slow_ms:
-                logger.warning("Slow icon convert (%.1f ms): %s → %s", dt_ms, themed_svg, themed_png)
+                logger.warning(
+                    "Slow icon convert (%.1f ms): %s → %s",
+                    dt_ms,
+                    themed_svg,
+                    themed_png,
+                )
             else:
-                logger.debug("Converted SVG to PNG (%.1f ms): %s → %s", dt_ms, themed_svg, themed_png)
+                logger.debug(
+                    "Converted SVG to PNG (%.1f ms): %s → %s",
+                    dt_ms,
+                    themed_svg,
+                    themed_png,
+                )
             try:
                 _ICON_METRICS.record_disk_load()
                 _ICON_METRICS.record_miss_without_increment(dt_ms / 1000.0)
@@ -329,7 +352,9 @@ def get_icon_path(icon_name: str, theme: str = "light") -> Optional[str]:
                     if themed_png.stat().st_mtime >= light_svg.stat().st_mtime:
                         path_str = str(themed_png)
                         cache_path(icon_name, norm_theme, path_str)
-                        logger.debug("Using up-to-date PNG (from light SVG): %s", themed_png)
+                        logger.debug(
+                            "Using up-to-date PNG (from light SVG): %s", themed_png
+                        )
                         try:
                             _ICON_METRICS.record_disk_load()
                         finally:
@@ -337,16 +362,28 @@ def get_icon_path(icon_name: str, theme: str = "light") -> Optional[str]:
                         return path_str
                 except Exception:  # noqa: BLE001
                     pass
-            slow_ms = float(getattr(app_config, "icon_slow_convert_threshold_ms", 150.0))
+            slow_ms = float(
+                getattr(app_config, "icon_slow_convert_threshold_ms", 150.0)
+            )
             t0 = time.perf_counter()
             if convert_icon_to_png_128(str(light_svg), str(themed_png)):
                 dt_ms = (time.perf_counter() - t0) * 1000.0
                 path_str = str(themed_png)
                 cache_path(icon_name, norm_theme, path_str)
                 if dt_ms >= slow_ms:
-                    logger.warning("Slow icon convert (fallback, %.1f ms): %s → %s", dt_ms, light_svg, themed_png)
+                    logger.warning(
+                        "Slow icon convert (fallback, %.1f ms): %s → %s",
+                        dt_ms,
+                        light_svg,
+                        themed_png,
+                    )
                 else:
-                    logger.debug("Converted fallback SVG to PNG (%.1f ms): %s → %s", dt_ms, light_svg, themed_png)
+                    logger.debug(
+                        "Converted fallback SVG to PNG (%.1f ms): %s → %s",
+                        dt_ms,
+                        light_svg,
+                        themed_png,
+                    )
                 try:
                     _ICON_METRICS.record_disk_load()
                     _ICON_METRICS.record_miss_without_increment(dt_ms / 1000.0)
@@ -400,6 +437,7 @@ def get_current_theme() -> str:
 
     try:
         from PyQt6.QtWidgets import QApplication  # локальный импорт
+
         app = QApplication.instance()
         if app:
             for widget in app.topLevelWidgets():

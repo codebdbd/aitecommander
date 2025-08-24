@@ -13,28 +13,32 @@ class IconHandling:
         self.controller = controller
         self.tree = controller.tree
         self.business = controller.business
-    
+
     def _get_icon_for_item(self, item_type: str, icon_name: str) -> QIcon:
         # Централизованный резолвер: учитывает и заданный icon_name, и тип
         try:
-            resolved = resolve_icon_for_link({"type": item_type, "icon_path": icon_name or ""})
+            resolved = resolve_icon_for_link(
+                {"type": item_type, "icon_path": icon_name or ""}
+            )
             if resolved:
                 return create_icon_from_path(resolved)
         except Exception:
             pass
         # Пустая иконка, если ничего не найдено
         return QIcon()
-    
-    def _set_tree_item_icon(self, item: QTreeWidgetItem, item_type: str, data: dict) -> None:
+
+    def _set_tree_item_icon(
+        self, item: QTreeWidgetItem, item_type: str, data: dict
+    ) -> None:
         icon = self._get_icon_for_item(item_type, data.get("icon_path"))
         item.setIcon(0, icon)
-    
+
     def reload_icons(self) -> None:
         iterator = QTreeWidgetItemIterator(self.tree)
         while iterator.value():
             self._update_item_icon(iterator.value())
             iterator += 1
-    
+
     def _update_item_icon(self, item: QTreeWidgetItem) -> None:
         t = get_tree_tuple(item, 0)
         if not t:

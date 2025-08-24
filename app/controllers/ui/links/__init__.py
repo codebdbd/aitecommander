@@ -14,13 +14,13 @@ from .handlers import LinksUIHandlers
 from .link_operations import LinksUILinkOperations
 
 __all__ = [
-    'LinksUIController',
-    'LinksUIHandlers',
-    'LinksUIClipboard',
-    'LinksUILinkOperations',
-    'BaseLinksUIComponent',
-    'LinksUIError',
-    'CategoryNotFoundError',
-    'LinkValidationError',
-    'DatabaseError',
+    "LinksUIController",
+    "LinksUIHandlers",
+    "LinksUIClipboard",
+    "LinksUILinkOperations",
+    "BaseLinksUIComponent",
+    "LinksUIError",
+    "CategoryNotFoundError",
+    "LinkValidationError",
+    "DatabaseError",
 ]

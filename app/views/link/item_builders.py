@@ -25,7 +25,7 @@ PATH_SEPARATOR = " → "
 
 class ItemBuildersMixin:
     """Миксин для создания элементов таблицы ссылок."""
-    
+
     def _set_icon_if_exists(self, item: QTableWidgetItem, icon_name: str) -> bool:
         """Пытается установить иконку для элемента.
         Возвращает True, если иконка установлена, иначе False.
@@ -47,7 +47,7 @@ class ItemBuildersMixin:
 
             # Попытка через тему
             theme = get_current_theme()
-            icon = themed_icon(icon_name, theme, source='links_table')
+            icon = themed_icon(icon_name, theme, source="links_table")
             if icon and not icon.isNull():
                 item.setIcon(icon)
                 return True
@@ -62,14 +62,15 @@ class ItemBuildersMixin:
                     item.setIcon(fallback_icon)
                     return True
         except Exception as e:
-            logging.warning(f"[LinksTableView] Ошибка установки иконки {icon_name}: {e}")
+            logging.warning(
+                f"[LinksTableView] Ошибка установки иконки {icon_name}: {e}"
+            )
         return False
 
     def _create_star_item(self, is_favorite: bool) -> QTableWidgetItem:
         """Создает элемент со звездочкой для избранного."""
         star_text = STAR_SYMBOL if is_favorite else ""
 
-        
         star_item = QTableWidgetItem(star_text)
         star_item.setForeground(QColor(STAR_COLOR))
         star_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -78,15 +79,15 @@ class ItemBuildersMixin:
     def _create_name_item(self, link: Dict, mode: str) -> QTableWidgetItem:
         """Создает элемент с названием и иконкой."""
         name_text = link.get("name", "")
-        
+
         # Для режима поиска добавляем путь
         if mode == "search":
             trail = self._build_category_trail(link)
             if trail:
                 name_text = f"{name_text} ({trail})"
-        
+
         name_item = QTableWidgetItem(name_text)
-        
+
         # Централизованный выбор иконки для ссылки
         try:
             resolved_path = resolve_icon_for_link(link)
@@ -97,7 +98,7 @@ class ItemBuildersMixin:
         except Exception as _e:
             # Безопасно игнорируем: иконка необязательна
             pass
-        
+
         return name_item
 
     def _build_category_trail(self, link: Dict) -> str:
@@ -105,21 +106,24 @@ class ItemBuildersMixin:
         parts = [
             link.get("sphere_name", ""),
             link.get("section_name", ""),
-            link.get("category_name", "")
+            link.get("category_name", ""),
         ]
         return PATH_SEPARATOR.join(filter(None, parts))
 
     def _create_last_used_item(self, last_used) -> QTableWidgetItem:
         """Создает элемент с датой последнего использования."""
         from app.utils.system.date_utils import format_last_used
+
         last_used_item = QTableWidgetItem(format_last_used(last_used))
         last_used_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         return last_used_item
 
-    def _create_notes_item(self, notes: str, truncate: bool = False) -> QTableWidgetItem:
+    def _create_notes_item(
+        self, notes: str, truncate: bool = False
+    ) -> QTableWidgetItem:
         """Создает элемент с заметками."""
         notes_text = str(notes or "")
-        
+
         if truncate and len(notes_text) > MAX_NOTES_LENGTH:
             display_text = notes_text[:MAX_NOTES_LENGTH] + "..."
             notes_item = QTableWidgetItem(display_text)
@@ -128,21 +132,21 @@ class ItemBuildersMixin:
                 notes_item.setToolTip(notes)
         else:
             notes_item = QTableWidgetItem(notes_text)
-        
+
         # Устанавливаем иконку заметки, если текст не пустой
         if notes_text:
             self._set_icon_if_exists(notes_item, "notes.png")
-        
+
         return notes_item
 
     def _create_path_item(self, link: Dict) -> QTableWidgetItem:
         """Создает элемент с URL или путем."""
         url_or_path = link.get("url", "") or link.get("path", "")
         path_item = QTableWidgetItem(url_or_path)
-        
+
         if url_or_path:
             path_item.setToolTip(url_or_path)
-        
+
         return path_item
 
     def _add_tooltips_to_name_item(self, name_item: QTableWidgetItem, link: Dict):
@@ -155,10 +159,12 @@ class ItemBuildersMixin:
         """Строит строку таблицы для ссылки."""
         # Проверка входных параметров
         if not isinstance(link, dict):
-            logging.warning(f"[LinksTableView] Некорректные данные ссылки: {type(link)}")
+            logging.warning(
+                f"[LinksTableView] Некорректные данные ссылки: {type(link)}"
+            )
             return []
-        
-        if 'id' not in link:
+
+        if "id" not in link:
             logging.warning("[LinksTableView] Отсутствует ID в данных ссылки")
             return []
 
@@ -176,7 +182,9 @@ class ItemBuildersMixin:
             else:
                 # Режим поиска
                 path_item = self._create_path_item(link)
-                notes_item = self._create_notes_item(link.get("notes", ""), truncate=True)
+                notes_item = self._create_notes_item(
+                    link.get("notes", ""), truncate=True
+                )
                 self._add_tooltips_to_name_item(name_item, link)
                 items.extend([path_item, notes_item])
 
@@ -187,5 +195,7 @@ class ItemBuildersMixin:
             return items
 
         except Exception as e:
-            logging.error(f"[LinksTableView] Ошибка создания строки для ссылки {link.get('id', 'unknown')}: {e}")
+            logging.error(
+                f"[LinksTableView] Ошибка создания строки для ссылки {link.get('id', 'unknown')}: {e}"
+            )
             return []

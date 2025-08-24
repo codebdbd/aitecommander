@@ -21,7 +21,9 @@ def apply_uniform_height(dialog: QDialog):
     Finds specific widget types within a dialog and sets their height to a uniform 32px.
     Excludes special-cased QToolButtons used for link type selection.
     """
-    widgets_to_resize = dialog.findChildren((QLineEdit, QComboBox, QPushButton, QToolButton, QSpinBox))
+    widgets_to_resize = dialog.findChildren(
+        (QLineEdit, QComboBox, QPushButton, QToolButton, QSpinBox)
+    )
     for widget in widgets_to_resize:
         # Exclude the large link type selector buttons in LinkDialog
         if isinstance(widget, QToolButton) and widget.property("link_type"):
@@ -40,49 +42,65 @@ def apply_uniform_height(dialog: QDialog):
 
 def create_russian_context_menu(widget):
     menu = QMenu(widget)
-    
+
     # Получаем текущую тему для иконок (единый источник)
     theme = get_current_theme()
-    
+
     # Создаем действия с иконками
-    undo_action = menu.addAction(icon_cache.get_icon('undo', theme, 'context_menu'), "Отменить")
+    undo_action = menu.addAction(
+        icon_cache.get_icon("undo", theme, "context_menu"), "Отменить"
+    )
     undo_action.triggered.connect(widget.undo)
     undo_action.setShortcut("Ctrl+Z")
-    
-    redo_action = menu.addAction(icon_cache.get_icon('redo', theme, 'context_menu'), "Повторить")
+
+    redo_action = menu.addAction(
+        icon_cache.get_icon("redo", theme, "context_menu"), "Повторить"
+    )
     redo_action.triggered.connect(widget.redo)
     redo_action.setShortcut("Ctrl+Y")
-    
+
     menu.addSeparator()
-    
-    cut_action = menu.addAction(icon_cache.get_icon('cut', theme, 'context_menu'), "Вырезать")
+
+    cut_action = menu.addAction(
+        icon_cache.get_icon("cut", theme, "context_menu"), "Вырезать"
+    )
     cut_action.triggered.connect(widget.cut)
     cut_action.setShortcut("Ctrl+X")
-    
-    copy_action = menu.addAction(icon_cache.get_icon('copy', theme, 'context_menu'), "Копировать")
+
+    copy_action = menu.addAction(
+        icon_cache.get_icon("copy", theme, "context_menu"), "Копировать"
+    )
     copy_action.triggered.connect(widget.copy)
     copy_action.setShortcut("Ctrl+C")
-    
-    paste_action = menu.addAction(icon_cache.get_icon('paste', theme, 'context_menu'), "Вставить")
+
+    paste_action = menu.addAction(
+        icon_cache.get_icon("paste", theme, "context_menu"), "Вставить"
+    )
     paste_action.triggered.connect(widget.paste)
     paste_action.setShortcut("Ctrl+V")
-    
-    delete_action = menu.addAction(icon_cache.get_icon('delete', theme, 'context_menu'), "Удалить")
+
+    delete_action = menu.addAction(
+        icon_cache.get_icon("delete", theme, "context_menu"), "Удалить"
+    )
     delete_action.triggered.connect(widget.clear)
     delete_action.setShortcut("Del")
-    
+
     menu.addSeparator()
-    
-    select_all_action = menu.addAction(icon_cache.get_icon('select_all', theme, 'context_menu'), "Выделить всё")
+
+    select_all_action = menu.addAction(
+        icon_cache.get_icon("select_all", theme, "context_menu"), "Выделить всё"
+    )
     select_all_action.triggered.connect(widget.selectAll)
     select_all_action.setShortcut("Ctrl+A")
-    
+
     return menu
+
 
 class BaseDialog(QDialog):
     """
     A base dialog class that applies uniform widget heights when shown.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._styles_applied = False
@@ -102,7 +120,9 @@ class BaseDialog(QDialog):
         for widget in self.findChildren((QLineEdit, QTextEdit)):
             widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             widget.customContextMenuRequested.connect(
-                lambda pos, w=widget: create_russian_context_menu(w).popup(w.mapToGlobal(pos))
+                lambda pos, w=widget: create_russian_context_menu(w).popup(
+                    w.mapToGlobal(pos)
+                )
             )
 
     def _apply_combo_popup_styles(self):
@@ -135,8 +155,14 @@ class BaseDialog(QDialog):
             pass
 
     # --- Local message box helpers to avoid importing controllers in views ---
-    def show_info(self, text: str, title: str = "Информация", informative_text: str | None = None,
-                  details: str | None = None, silent: bool = False) -> None:
+    def show_info(
+        self,
+        text: str,
+        title: str = "Информация",
+        informative_text: str | None = None,
+        details: str | None = None,
+        silent: bool = False,
+    ) -> None:
         try:
             mb = QMessageBox(self)
             mb.setIcon(QMessageBox.Icon.Information)
@@ -152,8 +178,14 @@ class BaseDialog(QDialog):
         except Exception:
             pass
 
-    def show_warning(self, text: str, title: str = "Предупреждение", informative_text: str | None = None,
-                     details: str | None = None, silent: bool = False) -> None:
+    def show_warning(
+        self,
+        text: str,
+        title: str = "Предупреждение",
+        informative_text: str | None = None,
+        details: str | None = None,
+        silent: bool = False,
+    ) -> None:
         try:
             mb = QMessageBox(self)
             mb.setIcon(QMessageBox.Icon.Warning)
@@ -169,8 +201,14 @@ class BaseDialog(QDialog):
         except Exception:
             pass
 
-    def show_error(self, text: str, title: str = "Ошибка", informative_text: str | None = None,
-                   details: str | None = None, silent: bool = False) -> None:
+    def show_error(
+        self,
+        text: str,
+        title: str = "Ошибка",
+        informative_text: str | None = None,
+        details: str | None = None,
+        silent: bool = False,
+    ) -> None:
         try:
             mb = QMessageBox(self)
             mb.setIcon(QMessageBox.Icon.Critical)
@@ -186,8 +224,13 @@ class BaseDialog(QDialog):
         except Exception:
             pass
 
-    def ask_confirmation(self, text: str, title: str = "Подтверждение",
-                          informative_text: str | None = None, details: str | None = None) -> bool:
+    def ask_confirmation(
+        self,
+        text: str,
+        title: str = "Подтверждение",
+        informative_text: str | None = None,
+        details: str | None = None,
+    ) -> bool:
         try:
             mb = QMessageBox(self)
             mb.setIcon(QMessageBox.Icon.Question)
@@ -197,7 +240,9 @@ class BaseDialog(QDialog):
                 mb.setInformativeText(informative_text)
             if details:
                 mb.setDetailedText(details)
-            mb.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            mb.setStandardButtons(
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
             mb.setDefaultButton(QMessageBox.StandardButton.No)
             return mb.exec() == QMessageBox.StandardButton.Yes
         except Exception:

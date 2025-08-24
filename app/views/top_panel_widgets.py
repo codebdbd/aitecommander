@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, List, Literal, Optional
 
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import pyqtSignal, QSize
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
 
 from app.config_data import app_config
@@ -48,7 +48,12 @@ class TopPanelWidget(BaseLinksPanelWidget):
     clear_requested: pyqtSignal = pyqtSignal()
     quickAddRequested: pyqtSignal = pyqtSignal(object)
 
-    def __init__(self, main_window=None, mode: Mode = "favorites", category_provider: Optional[object] = None):
+    def __init__(
+        self,
+        main_window=None,
+        mode: Mode = "favorites",
+        category_provider: Optional[object] = None,
+    ):
         super().__init__(main_window)
         self._main_window = main_window
         self.mode: Mode = mode
@@ -82,7 +87,11 @@ class TopPanelWidget(BaseLinksPanelWidget):
         """Устанавливает данные панели (для favorites/recent)."""
         if self.mode == "quick":
             return
-        factory = self._create_favorite_button if self.mode == "favorites" else self._create_recent_button
+        factory = (
+            self._create_favorite_button
+            if self.mode == "favorites"
+            else self._create_recent_button
+        )
         self._populate_panel(items, factory)
         # Корректно выставим видимость панели в зависимости от наличия элементов
         try:
@@ -91,9 +100,10 @@ class TopPanelWidget(BaseLinksPanelWidget):
             pass
         # Попросим менеджер топ-бара пересчитать видимость кнопок/панелей
         try:
-            mgr = getattr(self._main_window, '_topbar_manager', None)
+            mgr = getattr(self._main_window, "_topbar_manager", None)
             if mgr:
                 from PyQt6.QtCore import QTimer
+
                 QTimer.singleShot(0, mgr.adjust)
         except Exception:
             pass
@@ -176,7 +186,9 @@ class TopPanelWidget(BaseLinksPanelWidget):
             self.refresh_requested[int].emit(RECENT_LINKS_LIMIT)
             self.refreshRequested.emit({"limit": RECENT_LINKS_LIMIT})
         except Exception as exc:
-            logging.warning("TopPanelWidget: failed to emit refresh after recent click: %s", exc)
+            logging.warning(
+                "TopPanelWidget: failed to emit refresh after recent click: %s", exc
+            )
 
     # ---------- Кнопки Quick Add ----------
 
@@ -190,7 +202,10 @@ class TopPanelWidget(BaseLinksPanelWidget):
             btn = QToolButton()
             btn.setObjectName("quickButton")
             btn.setFixedSize(button_size, button_size)
-            btn.setIconSize(icon_size)
+            try:
+                btn.setIconSize(QSize(int(icon_size[0]), int(icon_size[1])))
+            except Exception:
+                btn.setIconSize(QSize(32, 32))
             btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
             icon_path = icon_path_service.get_ui_icons_dir() / icon_name
             if icon_path.exists():
@@ -201,16 +216,28 @@ class TopPanelWidget(BaseLinksPanelWidget):
 
     def _handle_quick_add(self, link_type: str) -> None:
         category_id = None
-        if self.category_provider and hasattr(self.category_provider, 'get_current_category_id'):
+        if self.category_provider and hasattr(
+            self.category_provider, "get_current_category_id"
+        ):
             try:
                 category_id = self.category_provider.get_current_category_id()
             except Exception as exc:
-                logging.warning("TopPanelWidget: не удалось получить текущую категорию: %s", exc)
-        payload = {"type": "quick_add", "link_type": link_type, "category_id": category_id}
+                logging.warning(
+                    "TopPanelWidget: не удалось получить текущую категорию: %s", exc
+                )
+        payload = {
+            "type": "quick_add",
+            "link_type": link_type,
+            "category_id": category_id,
+        }
         try:
             # Совместимость
-            self.quickAddRequested.emit({"link_type": link_type, "category_id": category_id})
+            self.quickAddRequested.emit(
+                {"link_type": link_type, "category_id": category_id}
+            )
             # Унифицированный
             self.actionRequested.emit(payload)
         except Exception as exc:
-            logging.error("TopPanelWidget: не удалось эмитить сигналы quick add: %s", exc)
+            logging.error(
+                "TopPanelWidget: не удалось эмитить сигналы quick add: %s", exc
+            )

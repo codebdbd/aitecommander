@@ -44,7 +44,7 @@ class NeonEventFilter(QObject):
         y_offset: int = 0,
     ) -> None:
         super().__init__(parent)
-        self._color = color or QColor('#0194F0')
+        self._color = color or QColor("#0194F0")
         self._blur = blur_radius
         self._x = x_offset
         self._y = y_offset
@@ -125,10 +125,12 @@ class NeonEventFilter(QObject):
 
     def _maybe_connect_toggled(self, w: QWidget) -> None:
         try:
-            if hasattr(w, 'toggled') and callable(getattr(w, 'toggled')):
-                if not getattr(w, '_neon_toggled_connected', False):
-                    w.toggled.connect(lambda checked, ww=w: self._on_toggled(ww, checked))
-                    setattr(w, '_neon_toggled_connected', True)
+            if hasattr(w, "toggled") and callable(getattr(w, "toggled")):
+                if not getattr(w, "_neon_toggled_connected", False):
+                    w.toggled.connect(
+                        lambda checked, ww=w: self._on_toggled(ww, checked)
+                    )
+                    setattr(w, "_neon_toggled_connected", True)
         except Exception:
             pass
 
@@ -141,13 +143,13 @@ class NeonEventFilter(QObject):
             self._clear_effect(w)
 
     def _ensure_effect(self, w: QWidget) -> QGraphicsDropShadowEffect:
-        eff = getattr(w, '_neon_effect', None)
+        eff = getattr(w, "_neon_effect", None)
         if not isinstance(eff, QGraphicsDropShadowEffect):
             eff = QGraphicsDropShadowEffect(w)
             eff.setBlurRadius(self._blur)
             eff.setColor(self._color)
             eff.setOffset(self._x, self._y)
-            setattr(w, '_neon_effect', eff)
+            setattr(w, "_neon_effect", eff)
         return eff
 
     def _apply_effect(self, w: QWidget) -> None:
@@ -156,10 +158,14 @@ class NeonEventFilter(QObject):
         eff.setEnabled(True)
 
     def _clear_effect(self, w: QWidget) -> None:
-        eff = getattr(w, '_neon_effect', None)
+        eff = getattr(w, "_neon_effect", None)
         if isinstance(eff, QGraphicsDropShadowEffect):
             eff.setEnabled(False)
             # Эффект оставляем привязанным, чтобы не создавать его заново каждый раз
 
     def _is_active_checked_button(self, w: QWidget) -> bool:
-        return isinstance(w, (QPushButton, QToolButton)) and getattr(w, 'isCheckable', lambda: False)() and getattr(w, 'isChecked', lambda: False)()
+        return (
+            isinstance(w, (QPushButton, QToolButton))
+            and getattr(w, "isCheckable", lambda: False)()
+            and getattr(w, "isChecked", lambda: False)()
+        )

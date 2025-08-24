@@ -18,24 +18,24 @@ class TopPanelsController:
         self.refresh_recent()
 
     def refresh_favorites(self) -> None:
-        widget = getattr(self.main, 'fav_widget', None)
-        if widget and hasattr(widget, 'update_favorites'):
+        widget = getattr(self.main, "fav_widget", None)
+        if widget and hasattr(widget, "update_favorites"):
             try:
                 widget.update_favorites()
             except Exception:
                 pass
 
     def refresh_recent(self) -> None:
-        widget = getattr(self.main, 'recent_links_widget', None)
-        if widget and hasattr(widget, 'update_recent_links'):
+        widget = getattr(self.main, "recent_links_widget", None)
+        if widget and hasattr(widget, "update_recent_links"):
             try:
                 widget.update_recent_links()
             except Exception:
                 pass
 
     def clear_favorites(self) -> None:
-        widget = getattr(self.main, 'fav_widget', None)
-        if widget and hasattr(widget, 'clear_favorites'):
+        widget = getattr(self.main, "fav_widget", None)
+        if widget and hasattr(widget, "clear_favorites"):
             try:
                 widget.clear_favorites()
             except Exception:

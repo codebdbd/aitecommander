@@ -1,4 +1,5 @@
 """SVG to PNG conversion using Qt's QSvgRenderer."""
+
 from __future__ import annotations
 
 from PyQt6.QtCore import QBuffer, QByteArray, QIODevice, QSize

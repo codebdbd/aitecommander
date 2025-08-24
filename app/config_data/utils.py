@@ -7,7 +7,7 @@ def get_by_path(config: Dict[str, Any], key_path: str, default: Any = None) -> A
     Пример: key_path="ui.window.width"
     Возвращает default при отсутствии ключа или неверной структуре.
     """
-    keys = key_path.split('.') if key_path else []
+    keys = key_path.split(".") if key_path else []
     value: Any = config
     try:
         for key in keys:

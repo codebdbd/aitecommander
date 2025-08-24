@@ -1,6 +1,7 @@
 """
 Общие вспомогательные undo/redo-команды для централизованного использования.
 """
+
 from __future__ import annotations
 
 from typing import Callable, Optional

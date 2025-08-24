@@ -26,15 +26,15 @@ from app.views.status_bar import update_status_bar as _update_status_bar
 class MainWindow(QMainWindow):
     shown: pyqtSignal = pyqtSignal()
 
-    structure: 'StructureUIController'
-    menu_controller: 'MenuController'
-    action_controller: 'ActionController'
-    links_actions: 'LinksActions'
-    spheres_controller: 'SpheresBarController'
-    top_panels_controller: 'TopPanelsController'
-    ui_state: 'UIStateManager'
+    structure: "StructureUIController"
+    menu_controller: "MenuController"
+    action_controller: "ActionController"
+    links_actions: "LinksActions"
+    spheres_controller: "SpheresBarController"
+    top_panels_controller: "TopPanelsController"
+    ui_state: "UIStateManager"
     system_dialogs: object
-    theme_ctrl: 'ThemeController'
+    theme_ctrl: "ThemeController"
     table: QTableView
     left_panel: QWidget
     undo_stack: Optional[QUndoStack]
@@ -44,15 +44,15 @@ class MainWindow(QMainWindow):
 
     def get_current_category_id(self) -> Optional[int]:
         """Возвращает ID текущей категории или None до инициализации."""
-        structure = getattr(self, 'structure', None)
+        structure = getattr(self, "structure", None)
         if structure is None:
             return None
         return structure.get_current_category_id()
-    
+
     def edit_structure_item(self, item):
         """Редактирует элемент структуры."""
         self.structure.edit_item(item)
-    
+
     def add_new_category(self):
         """Добавляет новую категорию."""
         self.structure.add_new_category()
@@ -60,7 +60,7 @@ class MainWindow(QMainWindow):
     def reload_structure(self) -> None:
         """Перезагружает структуру."""
         self.structure.load()
-    
+
     def reload_current_category(self) -> None:
         """Перезагружает текущую категорию через UIStateManager."""
         category_id = self.get_current_category_id()
@@ -70,11 +70,11 @@ class MainWindow(QMainWindow):
     def get_link_at_row(self, row: int):
         """Возвращает ссылку по номеру строки."""
         return self.links_actions.get_link_at(row)
-    
+
     def select_all_links(self):
         """Выделяет все ссылки."""
         self.table.selectAll()
-    
+
     def get_selected_rows(self):
         """Возвращает номера выбранных строк."""
         return self.links_actions.get_selected_rows()
@@ -82,52 +82,51 @@ class MainWindow(QMainWindow):
     def get_available_themes(self):
         """Возвращает список доступных тем."""
         return self.theme_ctrl.available()
-    
+
     def apply_theme(self, theme_name: str):
         """Применяет тему."""
         self.theme_ctrl.apply(theme_name)
-    
+
     def get_undo_stack(self):
         """Возвращает undo stack или None."""
-        return getattr(self, 'undo_stack', None)
-    
+        return getattr(self, "undo_stack", None)
+
     def create_undo_redo_actions(self):
         """Создает действия Undo/Redo."""
-        us = getattr(self, 'undo_stack', None)
+        us = getattr(self, "undo_stack", None)
         if us is None:
             return None, None
-        
+
         undo_action = us.createUndoAction(self)
         undo_action.setText("&Отменить")
         undo_action.setShortcut(QKeySequence.StandardKey.Undo)
-        
+
         redo_action = us.createRedoAction(self)
         redo_action.setText("&Повторить")
         redo_action.setShortcut(QKeySequence.StandardKey.Redo)
-        
-        us.undoTextChanged.connect(
-            lambda *_: undo_action.setText("&Отменить")
-        )
-        us.redoTextChanged.connect(
-            lambda *_: redo_action.setText("&Повторить")
-        )
-        
+
+        us.undoTextChanged.connect(lambda *_: undo_action.setText("&Отменить"))
+        us.redoTextChanged.connect(lambda *_: redo_action.setText("&Повторить"))
+
         self.undo_action = undo_action
         self.redo_action = redo_action
-        
+
         return undo_action, redo_action
 
-    def __init__(self, db: Database, settings: AppSettings, theme_ctrl: ThemeController):
+    def __init__(
+        self, db: Database, settings: AppSettings, theme_ctrl: ThemeController
+    ):
         super().__init__()
-        
+
         from app.views.main_components import WindowInitializer
+
         initializer = WindowInitializer(self, db, settings, theme_ctrl)
         initializer.initialize_window()
 
     def _init_spheres_ui(self):
         """Инициализирует UI сфер (асинхронно)."""
         self.spheres_controller.init()
-    
+
     def _on_spheres_loaded_ui(self, spheres: list):
         """Обрабатывает завершение загрузки сфер."""
         self.spheres_controller._on_spheres_loaded_ui(spheres)
@@ -139,30 +138,35 @@ class MainWindow(QMainWindow):
 
     def show_link_dialog(self, link=None, category_id=None):
         """Показывает диалог создания/редактирования ссылки."""
-        selected_link_id = link.get('id') if link else None
-        
+        selected_link_id = link.get("id") if link else None
+
         result = self.links_actions.show_link_dialog(link, category_id)
         self.update_statusbar()
-        
+
         if result and selected_link_id:
             from app.controllers.ui.state.task_scheduler import (
                 schedule_selection_restore,
             )
+
             schedule_selection_restore(
-                lambda: getattr(self.links_actions, 'restore_selection', lambda *_: None)(selected_link_id),
-                f"table_selection_{selected_link_id}"
+                lambda: getattr(
+                    self.links_actions, "restore_selection", lambda *_: None
+                )(selected_link_id),
+                f"table_selection_{selected_link_id}",
             )
         # Возвращаем результат, чтобы внешние вызовы могли узнать об успешности
         return bool(result)
 
-    def show_link_dialog_for_category(self, category_id: int | None = None, link=None) -> bool:
+    def show_link_dialog_for_category(
+        self, category_id: int | None = None, link=None
+    ) -> bool:
         """Открывает диалог ссылки для указанной категории (используется плитками категорий)."""
         return bool(self.show_link_dialog(link=link, category_id=category_id))
 
     def _get_selected_links(self):
         """Возвращает список выбранных ссылок."""
         return self.links_actions.get_selected_links()
-    
+
     def _edit_selected_link(self):
         """Редактирует выбранную ссылку."""
         return self.links_actions.edit_selected_link()
@@ -228,15 +232,13 @@ class MainWindow(QMainWindow):
     def showEvent(self, event):
         """Эмитит сигнал shown при первом показе окна."""
         super().showEvent(event)
-        if not hasattr(self, '_shown_emitted'):
+        if not hasattr(self, "_shown_emitted"):
             self._shown_emitted = True
             QTimer.singleShot(200, self.shown.emit)
 
     def closeEvent(self, event):
         """Корректно завершает работу и закрывает ресурсы."""
-        if hasattr(self, 'app_shutdown') and self.app_shutdown:
+        if hasattr(self, "app_shutdown") and self.app_shutdown:
             self.app_shutdown.perform_shutdown(event)
             return
         super().closeEvent(event)
-
-

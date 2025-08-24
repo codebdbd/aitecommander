@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 from PyQt6.QtGui import QUndoCommand
+
 from app.services import LinksService
 
 
@@ -35,7 +36,9 @@ class SaveLinkCmd(QUndoCommand):
             # Перезагружаем таблицу текущей категории, если не подавлено
             try:
                 if not getattr(self, "_suppress_ui", False):
-                    cat_id = self.new_data.get("category_id") or (self.old_data or {}).get("category_id")
+                    cat_id = self.new_data.get("category_id") or (
+                        self.old_data or {}
+                    ).get("category_id")
                     if isinstance(cat_id, int) and cat_id > 0:
                         self.main.links_business.load_links(cat_id)
             except Exception:
@@ -63,8 +66,14 @@ class SaveLinkCmd(QUndoCommand):
                         pass
         # Перезагружаем таблицу соответствующей категории, если не подавлено
         try:
-            if hasattr(self.main, "links_business") and self.main.links_business and not getattr(self, "_suppress_ui", False):
-                cat_id = (self.old_data or {}).get("category_id") or self.new_data.get("category_id")
+            if (
+                hasattr(self.main, "links_business")
+                and self.main.links_business
+                and not getattr(self, "_suppress_ui", False)
+            ):
+                cat_id = (self.old_data or {}).get("category_id") or self.new_data.get(
+                    "category_id"
+                )
                 if isinstance(cat_id, int) and cat_id > 0:
                     self.main.links_business.load_links(cat_id)
         except Exception:
@@ -89,7 +98,11 @@ class DeleteLinkCmd(QUndoCommand):
                 self.db.links.delete_link(link_id)
         # После удаления перезагружаем таблицу соответствующей категории, если не подавлено
         try:
-            if hasattr(self.main, "links_business") and self.main.links_business and not getattr(self, "_suppress_ui", False):
+            if (
+                hasattr(self.main, "links_business")
+                and self.main.links_business
+                and not getattr(self, "_suppress_ui", False)
+            ):
                 cat_id = self.link.get("category_id")
                 if isinstance(cat_id, int) and cat_id > 0:
                     self.main.links_business.load_links(cat_id)
@@ -119,7 +132,9 @@ class DeleteLinkCmd(QUndoCommand):
 
 
 class BatchSaveLinksCmd(QUndoCommand):
-    def __init__(self, links_data: List[Dict], old_link_data: Optional[Dict], main_window):
+    def __init__(
+        self, links_data: List[Dict], old_link_data: Optional[Dict], main_window
+    ):
         super().__init__("Batch save links")
         self.main = main_window
         self.db = main_window.db
@@ -146,7 +161,9 @@ class BatchSaveLinksCmd(QUndoCommand):
             # Разовая перезагрузка таблицы по категории первой ссылки, если не подавлено
             try:
                 if not getattr(self, "_suppress_ui", False):
-                    cat_id = (self.links_data[0] if self.links_data else {}).get("category_id")
+                    cat_id = (self.links_data[0] if self.links_data else {}).get(
+                        "category_id"
+                    )
                     if isinstance(cat_id, int) and cat_id > 0:
                         self.main.links_business.load_links(cat_id)
             except Exception:
@@ -163,8 +180,14 @@ class BatchSaveLinksCmd(QUndoCommand):
                     LinksService(self.db).delete_link(link_id)
         # Перезагрузить таблицу, если не подавлено
         try:
-            if hasattr(self.main, "links_business") and self.main.links_business and not getattr(self, "_suppress_ui", False):
-                cat_id = (self.links_data[0] if self.links_data else {}).get("category_id")
+            if (
+                hasattr(self.main, "links_business")
+                and self.main.links_business
+                and not getattr(self, "_suppress_ui", False)
+            ):
+                cat_id = (self.links_data[0] if self.links_data else {}).get(
+                    "category_id"
+                )
                 if isinstance(cat_id, int) and cat_id > 0:
                     self.main.links_business.load_links(cat_id)
         except Exception:

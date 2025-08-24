@@ -14,7 +14,9 @@ def copy_link_to_clipboard(link_or_links: LinkData) -> None:
     """
     app = QApplication.instance()
     if app is None:
-        logging.error("QApplication is not initialized; clipboard operations are unavailable")
+        logging.error(
+            "QApplication is not initialized; clipboard operations are unavailable"
+        )
         return
 
     clipboard = app.clipboard()
@@ -38,7 +40,9 @@ def get_link_from_clipboard() -> Optional[LinkData]:
     """
     app = QApplication.instance()
     if app is None:
-        logging.error("QApplication is not initialized; clipboard operations are unavailable")
+        logging.error(
+            "QApplication is not initialized; clipboard operations are unavailable"
+        )
         return None
 
     clipboard = app.clipboard()

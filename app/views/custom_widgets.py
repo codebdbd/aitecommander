@@ -19,7 +19,7 @@ COLUMN_DATA = 0  # Индекс колонки с данными в таблиц
 
 class NoFocusRectDelegate(QStyledItemDelegate):
     """Делегат для убирания рамки фокуса с элементов."""
-    
+
     def paint(self, painter, option, index):
         option2 = QStyleOptionViewItem(option)
         option2.state &= ~QStyle.StateFlag.State_HasFocus
@@ -28,17 +28,18 @@ class NoFocusRectDelegate(QStyledItemDelegate):
 
 class HighQualityTreeDelegate(QStyledItemDelegate):
     """Делегат для высококачественной отрисовки иконок в дереве разделов."""
+
     def __init__(self, item_height: int | None = None, parent=None):
         super().__init__(parent)
         try:
             self._item_height = int(item_height) if item_height is not None else None
         except Exception:
             self._item_height = None
-    
+
     def paint(self, painter, option, index):
         # Убираем рамку фокуса у элементов дерева
         option.state &= ~QStyle.StateFlag.State_HasFocus
-        
+
         # Получаем иконку из модели
         icon = index.data(Qt.ItemDataRole.DecorationRole)
         if isinstance(icon, QIcon) and not icon.isNull():
@@ -46,43 +47,50 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
             icon_size = option.decorationSize
             if icon_size.width() <= 0 or icon_size.height() <= 0:
                 icon_size = option.widget.iconSize() if option.widget else QSize(16, 16)
-            
+
             # Создаем временную опцию с высококачественной иконкой
             temp_option = QStyleOptionViewItem(option)
-            
+
             # Создаем высококачественную иконку
-            device_pixel_ratio = painter.device().devicePixelRatio() if hasattr(painter.device(), 'devicePixelRatio') else 1.0
+            device_pixel_ratio = (
+                painter.device().devicePixelRatio()
+                if hasattr(painter.device(), "devicePixelRatio")
+                else 1.0
+            )
             actual_size = QSize(
                 int(icon_size.width() * device_pixel_ratio),
-                int(icon_size.height() * device_pixel_ratio)
+                int(icon_size.height() * device_pixel_ratio),
             )
             pixmap = icon.pixmap(actual_size)
             pixmap.setDevicePixelRatio(device_pixel_ratio)
-            
+
             # Масштабируем с высоким качеством если нужно
             if not pixmap.isNull():
                 pixmap_size = pixmap.size() / device_pixel_ratio
-                if pixmap_size.width() > icon_size.width() or pixmap_size.height() > icon_size.height():
+                if (
+                    pixmap_size.width() > icon_size.width()
+                    or pixmap_size.height() > icon_size.height()
+                ):
                     scale_factor = min(
-                        icon_size.width() / pixmap_size.width(), 
-                        icon_size.height() / pixmap_size.height()
+                        icon_size.width() / pixmap_size.width(),
+                        icon_size.height() / pixmap_size.height(),
                     )
                     new_size = QSize(
-                        int(pixmap_size.width() * scale_factor), 
-                        int(pixmap_size.height() * scale_factor)
+                        int(pixmap_size.width() * scale_factor),
+                        int(pixmap_size.height() * scale_factor),
                     )
                     pixmap = pixmap.scaled(
-                        new_size * device_pixel_ratio, 
-                        Qt.AspectRatioMode.KeepAspectRatio, 
-                        Qt.TransformationMode.SmoothTransformation
+                        new_size * device_pixel_ratio,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
                     )
                     pixmap.setDevicePixelRatio(device_pixel_ratio)
-            
+
             # Создаем высококачественную иконку и устанавливаем в опцию
             high_quality_icon = QIcon()
             high_quality_icon.addPixmap(pixmap)
             temp_option.icon = high_quality_icon
-            
+
             # Рисуем стандартным способом с улучшенной иконкой
             super().paint(painter, temp_option, index)
         else:
@@ -107,11 +115,13 @@ class StructureTreeWidget(QTreeWidget, AsyncTaskMixin):
     Кастомный QTreeWidget с правилами drag-and-drop для структуры приложения
     (Разделы и Категории).
     """
-    
+
     # Сигналы слабой связанности: внешний код подписывается и решает, что делать.
-    itemsMoved: pyqtSignal = pyqtSignal(object)     # payload: произвольная структура о перемещенных элементах
-    invalidDrop: pyqtSignal = pyqtSignal(str)       # причина недопустимого drop
-    dragFeedback: pyqtSignal = pyqtSignal(object)   # сведения для UI/логов о ходе DnD
+    itemsMoved: pyqtSignal = pyqtSignal(
+        object
+    )  # payload: произвольная структура о перемещенных элементах
+    invalidDrop: pyqtSignal = pyqtSignal(str)  # причина недопустимого drop
+    dragFeedback: pyqtSignal = pyqtSignal(object)  # сведения для UI/логов о ходе DnD
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -126,14 +136,18 @@ class StructureTreeWidget(QTreeWidget, AsyncTaskMixin):
             self.itemsMoved.emit(payload)
         except Exception as exc:
             # Без жестких зависимостей: просто даем обратную связь через сигнал dragFeedback
-            self.dragFeedback.emit({"type": "emit_error", "signal": "itemsMoved", "error": str(exc)})
+            self.dragFeedback.emit(
+                {"type": "emit_error", "signal": "itemsMoved", "error": str(exc)}
+            )
 
     def emit_invalid_drop(self, reason: str):
         """Эмитит сигнал о недопустимой операции drop (используется хендлерами)."""
         try:
             self.invalidDrop.emit(reason)
         except Exception as exc:
-            self.dragFeedback.emit({"type": "emit_error", "signal": "invalidDrop", "error": str(exc)})
+            self.dragFeedback.emit(
+                {"type": "emit_error", "signal": "invalidDrop", "error": str(exc)}
+            )
 
     def emit_drag_feedback(self, info):
         """Эмитит произвольные сведения о ходе DnD (лог/диагностика/UI)."""
@@ -166,14 +180,15 @@ class StructureTreeWidget(QTreeWidget, AsyncTaskMixin):
     def update_font_size(self, font_size: int):
         """Применяет локальный размер шрифта ко всем элементам дерева."""
         from PyQt6.QtGui import QFont
+
         font = QFont(self.font().family(), font_size)
         self.setFont(font)
-        
+
         def apply_font(item):
             item.setFont(0, font)
             for i in range(item.childCount()):
                 apply_font(item.child(i))
-        
+
         for i in range(self.topLevelItemCount()):
             apply_font(self.topLevelItem(i))
         self.viewport().update()
@@ -193,32 +208,3 @@ class StructureTreeWidget(QTreeWidget, AsyncTaskMixin):
     def dropEvent(self, event):
         """Основной обработчик drop событий."""
         self.drag_drop_handler.handle_drop_event(event)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

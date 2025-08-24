@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import QSize
 from PyQt6.QtWidgets import QToolButton
 
 from app.config_data import app_config
@@ -71,7 +72,11 @@ class SpheresBarController:
                 btn.setIcon(QIcon())
         else:
             btn.setIcon(QIcon())
-        btn.setIconSize(app_config.get_sphere_button_icon_size())
+        try:
+            _sz = app_config.get_sphere_button_icon_size()
+            btn.setIconSize(QSize(int(_sz[0]), int(_sz[1])))
+        except Exception:
+            btn.setIconSize(QSize(48, 48))
         btn.setToolTip(sphere["name"])
         self.w.sphere_group.addButton(btn, sphere_id)
         btn.clicked.connect(lambda _=False, sid=sphere_id: self._switch_sphere(sid))

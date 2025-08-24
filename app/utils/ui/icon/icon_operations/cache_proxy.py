@@ -17,7 +17,9 @@ logger = logging.getLogger(__name__)
 class IconCache:
     """Кеш иконок для меню с LRU и async поддержкой."""
 
-    def get_icon(self, name: str, theme: str | None = None, source: str = "menu") -> QIcon:
+    def get_icon(
+        self, name: str, theme: str | None = None, source: str = "menu"
+    ) -> QIcon:
         """Получить иконку с кешированием через прокси к глобальному менеджеру."""
         if theme is None:
             theme = get_current_theme()
@@ -33,7 +35,9 @@ class IconCache:
         # Это устраняет избыточную двойную проверку кэша
         return themed_icon(icon_name, theme, source)
 
-    async def get_icon_async(self, name: str, theme: str | None = None, source: str = "menu") -> QIcon:
+    async def get_icon_async(
+        self, name: str, theme: str | None = None, source: str = "menu"
+    ) -> QIcon:
         """Асинхронно получить иконку с кешированием."""
         if theme is None:
             theme = get_current_theme()
@@ -44,7 +48,7 @@ class IconCache:
 
         # Импортируем здесь чтобы избежать циклических импортов
         from .creators import themed_icon_async
-        
+
         return await themed_icon_async(icon_name, theme, source)
 
     def clear_cache(self) -> None:
@@ -53,6 +57,7 @@ class IconCache:
         # Очищаем глобальный кеш и кэш путей
         # Ленивая загрузка, чтобы избежать циклических импортов на уровне модуля
         from ..cache_manager import clear_icon_cache
+
         clear_icon_cache()
         # Очищаем кэш путей через сервис
         from ..path_service import icon_path_service
@@ -65,12 +70,14 @@ class IconCache:
         await asyncio.get_event_loop().run_in_executor(None, self.clear_cache)
         logger.debug("Icon cache cleared asynchronously")
 
-    async def preload_icons_async(self, icon_names: list[str], theme: str | None = None) -> dict[str, QIcon]:
+    async def preload_icons_async(
+        self, icon_names: list[str], theme: str | None = None
+    ) -> dict[str, QIcon]:
         """Предварительно загрузить множество иконок асинхронно."""
         if theme is None:
             theme = get_current_theme()
         theme = validate_theme(theme)
-        
+
         # Импортируем здесь чтобы избежать циклических импортов
         from .creators import themed_icon_async
 
@@ -80,6 +87,7 @@ class IconCache:
             from app.config_data import (
                 app_config,  # локальный импорт, чтобы избежать циклов
             )
+
             concurrency = int(getattr(app_config, "icon_preload_concurrency", 6))
         except Exception:  # noqa: BLE001
             concurrency = 6  # fall back
@@ -95,7 +103,7 @@ class IconCache:
 
         tasks = [_load(name) for name in icon_names]
         icons = await asyncio.gather(*tasks, return_exceptions=False)
-        
+
         result = {}
         for name, icon in zip(icon_names, icons):
             if isinstance(icon, Exception):
@@ -103,7 +111,7 @@ class IconCache:
                 result[name] = QIcon()  # Пустая иконка при ошибке
             else:
                 result[name] = icon
-                
+
         logger.info(f"Preloaded {len(result)} icons for theme {theme}")
         return result
 

@@ -1,8 +1,10 @@
 """Constants and logger used by parser modules."""
+
 import logging
 
 try:
     import lxml  # noqa: F401
+
     BS_PARSER = "lxml"
 except Exception:
     BS_PARSER = "html.parser"
