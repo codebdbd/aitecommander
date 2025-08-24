@@ -128,10 +128,6 @@ class AppConfig:
         """Получение максимального количества избранных ссылок."""
         return self.ui.get_max_favorites()
 
-    def get_link_table_headers(self) -> list:
-        """Получение заголовков колонок таблицы ссылок."""
-        return self.ui.get_link_table_headers()
-
     def get_fixed_button_width(self) -> int:
         """Получение фиксированной ширины стандартных кнопок."""
         return self.ui.get_fixed_button_width()

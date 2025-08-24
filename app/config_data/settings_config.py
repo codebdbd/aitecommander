@@ -72,133 +72,182 @@ class SettingsConfig(BaseConfig):
 
     def get_supported_icon_formats(self) -> list:
         """Получение списка поддерживаемых форматов файлов иконок."""
-        return self.get(
-            "settings.supported_icon_formats",
-            [".ico", ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".svg", ".svgz", ".webp"],
-        )
+        val = self.get("settings.supported_icon_formats")
+        if val is None:
+            val = self.get(
+                "ui.supported_icon_formats",
+                [
+                    ".ico",
+                    ".png",
+                    ".jpg",
+                    ".jpeg",
+                    ".bmp",
+                    ".gif",
+                    ".svg",
+                    ".svgz",
+                    ".webp",
+                ],
+            )
+        return val
 
     def get_valid_themes(self) -> list:
         """Получение списка допустимых тем оформления."""
-        return self.get("settings.valid_themes", ["light", "dark"])
+        val = self.get("settings.valid_themes")
+        if val is None:
+            val = self.get("ui.valid_themes", ["light", "dark"])
+        return val
 
     # === Типы ссылок ===
 
     def get_link_types(self) -> list:
         """Получение справочника поддерживаемых типов ссылок."""
-        return self.get(
-            "settings.link_types",
-            [
-                ["web", "Веб-ссылка"],
-                ["file", "Файл"],
-                ["program", "Программа"],
-                ["script", "Скрипт"],
-                ["chromeapp", "Chrome App"],
-                ["folder", "Папка"],
-            ],
-        )
+        val = self.get("settings.link_types")
+        if val is None:
+            val = self.get(
+                "ui.link_types",
+                [
+                    ["web", "Веб-ссылка"],
+                    ["file", "Файл"],
+                    ["program", "Программа"],
+                    ["script", "Скрипт"],
+                    ["chromeapp", "Chrome App"],
+                    ["folder", "Папка"],
+                ],
+            )
+        return val
 
     def get_default_icons(self) -> dict:
         """Получение иконок по умолчанию для различных типов элементов."""
-        return self.get(
-            "settings.default_icons",
-            {
-                "default": "default.ico",
-                "folder": "folder_icon.png",
-                "web": "web_icon.png",
-                "program": "program_icon.png",
-                "script": "script_icon.png",
-                "chrome": "chrome_icon.png",
-                "chromeapp": "chrome_icon.png",
-                "file": "documents_icon.png",
-                "category": "category.png",
-                "section": "section.png",
-                "ai": "ai_icon.png",
-                "work": "work_icon.png",
-                "study": "study_icon.png",
-                "personal": "personal_icon.png",
-            },
-        )
+        val = self.get("settings.default_icons")
+        if val is None:
+            val = self.get(
+                "ui.default_icons",
+                {
+                    "default": "default.ico",
+                    "folder": "folder_icon.png",
+                    "web": "web_icon.png",
+                    "program": "program_icon.png",
+                    "script": "script_icon.png",
+                    "chrome": "chrome_icon.png",
+                    "chromeapp": "chrome_icon.png",
+                    "file": "documents_icon.png",
+                    "category": "category.png",
+                    "section": "section.png",
+                    "ai": "ai_icon.png",
+                    "work": "work_icon.png",
+                    "study": "study_icon.png",
+                    "personal": "personal_icon.png",
+                },
+            )
+        return val
 
     def get_quick_types(self) -> list:
         """Получение списка быстрых типов ссылок."""
-        return self.get(
-            "settings.quick_types",
-            [
-                ["web", "web_icon.png", "Веб-ссылка"],
-                ["file", "documents_icon.png", "Файл"],
-                ["program", "program_icon.png", "Программа"],
-                ["script", "script_icon.png", "Скрипт"],
-                ["chromeapp", "chrome_icon.png", "Chrome App"],
-            ],
-        )
+        val = self.get("settings.quick_types")
+        if val is None:
+            val = self.get(
+                "ui.quick_types",
+                [
+                    ["web", "web_icon.png", "Веб-ссылка"],
+                    ["file", "documents_icon.png", "Файл"],
+                    ["program", "program_icon.png", "Программа"],
+                    ["script", "script_icon.png", "Скрипт"],
+                    ["chromeapp", "chrome_icon.png", "Chrome App"],
+                ],
+            )
+        return val
 
     def get_quick_type_tooltips(self) -> dict:
         """Получение подсказок для быстрых типов ссылок."""
-        return self.get(
-            "settings.quick_type_tooltips",
-            {
-                "web": "Веб-ссылка",
-                "file": "Файл",
-                "program": "Программа",
-                "script": "Скрипт",
-                "chromeapp": "Chrome App",
-            },
-        )
+        val = self.get("settings.quick_type_tooltips")
+        if val is None:
+            val = self.get(
+                "ui.quick_type_tooltips",
+                {
+                    "web": "Веб-ссылка",
+                    "file": "Файл",
+                    "program": "Программа",
+                    "script": "Скрипт",
+                    "chromeapp": "Chrome App",
+                },
+            )
+        return val
 
     def get_default_browse_paths(self) -> dict:
         """Получение путей по умолчанию для диалогов выбора файлов/папок."""
-        return self.get(
-            "settings.default_browse_paths",
-            {
-                "file": "%USERPROFILE%",
-                "folder": "",
-                "program": "%PROGRAMDATA%\\Microsoft\\Windows\\Start Menu\\Programs",
-                "script": "",
-                "chromeapp": "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Приложения Chrome",
-            },
-        )
+        val = self.get("settings.default_browse_paths")
+        if val is None:
+            val = self.get(
+                "ui.default_browse_paths",
+                {
+                    "file": "%USERPROFILE%",
+                    "folder": "",
+                    "program": "%PROGRAMDATA%\\Microsoft\\Windows\\Start Menu\\Programs",
+                    "script": "",
+                    "chromeapp": "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Приложения Chrome",
+                },
+            )
+        return val
 
     # === Браузеры ===
 
     def get_browser_profile_settings(self) -> dict:
         """Получение настроек профилей браузеров."""
-        return self.get(
-            "settings.browser_profile_settings",
-            {
-                "supported_browsers": [
-                    "chrome",
-                    "firefox",
-                    "edge",
-                    "brave",
-                    "vivaldi",
-                    "opera",
-                    "yandex",
-                ]
-            },
-        )
+        val = self.get("settings.browser_profile_settings")
+        if val is None:
+            val = self.get(
+                "ui.browser_profile_settings",
+                {
+                    "supported_browsers": [
+                        "chrome",
+                        "firefox",
+                        "edge",
+                        "brave",
+                        "vivaldi",
+                        "opera",
+                        "yandex",
+                    ]
+                },
+            )
+        return val
 
     def get_supported_browsers(self) -> list:
         """Получение списка поддерживаемых браузеров."""
-        return self.get(
-            "settings.browser_profile_settings.supported_browsers",
-            ["chrome", "firefox", "edge", "brave", "vivaldi", "opera", "yandex"],
-        )
+        val = self.get("settings.browser_profile_settings.supported_browsers")
+        if val is None:
+            val = self.get(
+                "ui.browser_profile_settings.supported_browsers",
+                ["chrome", "firefox", "edge", "brave", "vivaldi", "opera", "yandex"],
+            )
+        return val
 
     def get_browser_config(self) -> dict:
         """Получение конфигурации браузеров для текущей ОС."""
         os_type = "windows" if platform.system() == "Windows" else "other"
-        return self.get(f"settings.browser_config.{os_type}", {})
+        cfg = self.get(f"settings.browser_config.{os_type}")
+        if cfg is None:
+            cfg = self.get(f"ui.browser_config.{os_type}", {})
+        return cfg
 
     # === MIME типы ===
 
     def get_mime_types(self) -> dict:
         """Получение MIME-типов приложения."""
-        return self.get("settings.mime_types", {})
+        val = self.get("settings.mime_types")
+        if val is None:
+            val = self.get("ui.mime_types", {})
+        return val
 
     def get_link_mime_type(self) -> str:
         """Получение MIME-типа для ссылок."""
-        return self.get("settings.mime_types.link", "application/x-link-id")
+        val = self.get("settings.mime_types.link")
+        if val is None:
+            val = self.get("ui.mime_types.link", "application/x-link-id")
+        return val
 
     def get_category_mime_type(self) -> str:
         """Получение MIME-типа для категорий."""
-        return self.get("settings.mime_types.category", "application/x-category-id")
+        val = self.get("settings.mime_types.category")
+        if val is None:
+            val = self.get("ui.mime_types.category", "application/x-category-id")
+        return val

@@ -87,14 +87,6 @@ class UIConfig(BaseConfig):
         """Получение максимального количества избранных ссылок."""
         return self.get("ui.max_favorites", 20)
 
-    def get_link_table_headers(self) -> list:
-        """Получение заголовков колонок таблицы ссылок."""
-        # Исторически существовало два ключа: link_table_headers и links_table_headers.
-        # Используем единый источник правды: ui.links_table_headers
-        return self.get(
-            "ui.links_table_headers", ["★", "Название", "Последний запуск", "Заметки"]
-        )
-
     def get_fixed_button_width(self) -> int:
         """Получение фиксированной ширины стандартных кнопок."""
         return self.get("ui.fixed_button_width", 100)
@@ -207,11 +199,8 @@ class UIConfig(BaseConfig):
 
     def get_quick_add_button_size(self) -> list:
         """Получение размера кнопок быстрого доступа."""
-        # Поддерживаем оба ключа для обратной совместимости:
-        # ui.quick_add_button_size (новый) и ui.quick_button_size (старый, int)
-        size = self.get("ui.quick_add_button_size")
-        if size is None:
-            size = self.get("ui.quick_button_size", 32)
+        # Единый ключ: ui.quick_add_button_size
+        size = self.get("ui.quick_add_button_size", 32)
         if isinstance(size, int):
             return [size, size]
         if isinstance(size, (list, tuple)) and len(size) >= 2:

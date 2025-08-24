@@ -169,21 +169,21 @@ QLabel#pathLabel {
     color: #555555;
 }
 
-QTableWidget QTableCornerButton::section,
-QTableWidget QTableCornerButton::section:first {
+QTableView QTableCornerButton::section,
+QTableView QTableCornerButton::section:first {
     background-color: #F0F0F0;
 }
 
-QTableWidget QTableCornerButton::section:alternate {
+QTableView QTableCornerButton::section:alternate {
     background-color: #E8E8E8;
 }
 
-QTableWidget {
+QTableView {
     alternate-background-color: #F0F0F0;
 }
 
 QTreeWidget::item:selected,
-QTableWidget::item:selected {
+QTableView::item:selected {
     background-color: #0078d7;
     color: white;
 }

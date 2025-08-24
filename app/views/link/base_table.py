@@ -3,7 +3,7 @@
 
 import logging
 
-from PyQt6.QtCore import Qt, pyqtSignal, QSize
+from PyQt6.QtCore import Qt, pyqtSignal, QSize, QModelIndex
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -16,6 +16,7 @@ from app.config_data import app_config
 from app.utils.ui.dnd.link import DragDropHandlerMixin
 from app.utils.ui.dnd.mime import get_link_mime
 from app.views.base_widgets import BaseDragDropTableWidget
+from app.views.link.links_model import LinksTableModel
 
 from .data_management import DataManagementMixin
 
@@ -96,12 +97,23 @@ class LinksTableView(
         self._current_mode = "normal"  # Текущий режим отображения
         self._setup_table()
 
+        # Включаем сортировку и индикатор в заголовке
         self.setSortingEnabled(True)
-        self.horizontalHeader().setSortIndicatorShown(False)
+        header = self.horizontalHeader()
+        header.setSortIndicatorShown(True)
+        # Базовый порядок по умолчанию: по названию по возрастанию
+        try:
+            self.sortByColumn(1, Qt.SortOrder.AscendingOrder)
+        except Exception:
+            pass
         self.delegate = HoverHighlightDelegate(self)
         self.setItemDelegate(self.delegate)
         self.setMouseTracking(True)
-        self.cellEntered.connect(self._on_cell_entered)
+        # QTableView: используем сигнал entered(QModelIndex) вместо cellEntered
+        try:
+            self.entered.connect(self._on_index_entered)
+        except Exception:
+            pass
         self.leaveEvent = self._on_leave_event
 
         # Простое решение: очищаем кэш после сортировки
@@ -112,36 +124,39 @@ class LinksTableView(
 
     def _setup_table(self):
         headers = app_config.get_links_table_headers()
-        self.setColumnCount(len(headers))
-        self.setHorizontalHeaderLabels(headers)
-        # Точечное выравнивание только заголовка колонки "Имя" по левому краю
-        try:
-            name_col = app_config.get_links_table_columns().get("name", 1)
-            header_item = self.horizontalHeaderItem(name_col)
-            if header_item is not None:
-                header_item.setTextAlignment(
-                    Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-                )
-        except Exception as e:
-            logger.debug(f"[Headers] Не удалось выровнять заголовок 'Имя': {e}")
+        model = LinksTableModel([])
+        model.set_headers(headers)
+        self.setModel(model)
+
+        # Визуальные настройки
         self.setAlternatingRowColors(True)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setShowGrid(False)
         col_widths = app_config.get_col_widths()
-        self.setColumnWidth(0, col_widths[0])
+        try:
+            self.setColumnWidth(0, col_widths[0])
+        except Exception:
+            pass
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         _icon_sz = app_config.get_icon_size()
         self.setIconSize(QSize(_icon_sz[0], _icon_sz[1]))
         self.verticalHeader().setDefaultSectionSize(app_config.get_row_height())
         header = self.horizontalHeader()
         header.setStretchLastSection(True)
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        self.setColumnWidth(1, col_widths[1])
-        self.setColumnWidth(2, col_widths[2])
+        try:
+            header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        except Exception:
+            pass
+        try:
+            self.setColumnWidth(1, col_widths[1])
+            self.setColumnWidth(2, col_widths[2])
+        except Exception:
+            pass
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
 
-    def _on_cell_entered(self, row, column):
+    def _on_index_entered(self, index: QModelIndex):
+        row = index.row()
         if self.delegate.hovered_row != row:
             self.delegate.hovered_row = row
 

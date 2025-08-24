@@ -4,8 +4,6 @@
 import logging
 from typing import Dict
 
-from app.utils.ui.qt.roles import get_item_dict
-
 
 class RowOperationsMixin:
     """Миксин для операций со строками таблицы ссылок."""
@@ -30,19 +28,33 @@ class RowOperationsMixin:
                 )
                 return False
 
-            # НАДЕЖНОЕ РЕШЕНИЕ: Ищем по реальным данным таблицы, а не по кэшу
-            for row in range(self.rowCount()):
-                item = self.item(row, 0)
-                if not item:
-                    continue
+            # Используем модель для поиска строки по ID
+            try:
+                model = self.model()
+            except Exception:
+                model = None
+            row = -1
+            if model is not None and hasattr(model, "find_row_by_id"):
+                try:
+                    row = model.find_row_by_id(link_id)
+                except Exception:
+                    row = -1
+            else:
+                # Фолбэк: линейный поиск через get_link_at
+                try:
+                    m = model if model is not None else None
+                    total = m.rowCount() if m is not None else 0
+                except Exception:
+                    total = 0
+                for r in range(total):
+                    row_data = self.get_link_at(r)
+                    if isinstance(row_data, dict) and row_data.get("id") == link_id:
+                        row = r
+                        break
 
-                row_data = get_item_dict(item)
-                if not isinstance(row_data, dict):
-                    continue
-
-                if row_data.get("id") == link_id:
-                    success = self._update_row(row, link, mode)
-                    return success
+            if row >= 0:
+                success = self._update_row(row, link, mode)
+                return success
 
             logging.debug(f"Ссылка с ID {link_id} не найдена в таблице")
             return False
@@ -51,7 +63,7 @@ class RowOperationsMixin:
             return False
 
     def _update_row(self, row: int, link: Dict, mode: str):
-        """Обновляет существующую строку новыми данными."""
+        """Обновляет существующую строку новыми данными через модель."""
         try:
             # Проверка входных параметров
             if not isinstance(link, dict):
@@ -60,38 +72,38 @@ class RowOperationsMixin:
                 )
                 return False
 
-            if row < 0 or row >= self.rowCount():
+            # Проверяем границы по модели
+            try:
+                model = self.model()
+                total = model.rowCount() if model is not None else 0
+            except Exception:
+                model = None
+                total = 0
+
+            if row < 0 or row >= total:
                 logging.warning(
                     f"[LinksTableView] Некорректный индекс строки для обновления: {row}"
                 )
                 return False
 
-            link_id = link.get("id")
-            link_name = link.get("name", "Без названия")
-            is_favorite = link.get("is_favorite", False)
-            logging.info(
-                f"_update_row: строка {row}, ID {link_id}, '{link_name}', избранное={is_favorite}"
-            )
+            # Пытаемся обновить через модель
+            updated = False
+            if model is not None and hasattr(model, "update_link"):
+                try:
+                    updated = bool(model.update_link(row, link))
+                except Exception as e:
+                    logging.debug(f"[LinksTableView] model.update_link исключение: {e}")
+                    updated = False
 
-            row_items = self.build_row(link, mode=mode)
-            if not row_items:
-                logging.warning("build_row вернул пустой список")
+            if not updated:
+                logging.warning("[LinksTableView] model.update_link недоступен — обновление пропущено")
                 return False
 
-            logging.info(f"Получено {len(row_items)} элементов для обновления")
-
-            # Обновляем элементы таблицы
-            for col_idx, item in enumerate(row_items):
-                if col_idx == 0:  # Звездочка
-                    old_item = self.item(row, col_idx)
-                    old_text = old_item.text() if old_item else "Нет"
-                    new_text = item.text()
-                    logging.info(f"Обновление звездочки: '{old_text}' -> '{new_text}'")
-
-                self.setItem(row, col_idx, item)
-
-            # Обновляем кэш (пока оставляем для совместимости)
-            self._current_links[row] = link
+            # Обновляем кэш (для совместимости)
+            try:
+                self._current_links[row] = link
+            except Exception:
+                pass
             # Принудительно перерисовываем видимую область таблицы,
             # чтобы гарантировать визуальное обновление иконок/текста
             try:
@@ -115,7 +127,7 @@ class RowOperationsMixin:
             return False
 
     def _add_row(self, row: int, link: Dict, mode: str):
-        """Добавляет новую строку."""
+        """Добавляет новую строку через модель."""
         try:
             # Проверка входных параметров
             if not isinstance(link, dict):
@@ -124,67 +136,75 @@ class RowOperationsMixin:
                 )
                 return False
 
-            if row < 0 or row > self.rowCount():
+            try:
+                model = self.model()
+                total = model.rowCount() if model is not None else 0
+            except Exception:
+                model = None
+                total = 0
+
+            if row < 0 or row > total:
                 logging.warning(
                     f"[LinksTableView] Некорректный индекс строки для добавления: {row}"
                 )
                 return False
 
-            self.insertRow(row)
-            row_items = self.build_row(link, mode=mode)
-            if not row_items:
-                # Удаляем пустую строку в случае ошибки
-                self.removeRow(row)
+            inserted = False
+            if model is not None and hasattr(model, "insert_link"):
+                try:
+                    inserted = bool(model.insert_link(row, link))
+                except Exception as e:
+                    logging.debug(f"[LinksTableView] model.insert_link исключение: {e}")
+                    inserted = False
+
+            if not inserted:
                 return False
 
-            for col_idx, item in enumerate(row_items):
-                self.setItem(row, col_idx, item)
-
-            # Обновляем кэш (сдвигаем индексы)
-            new_cache = {}
-            for cached_row, cached_link in self._current_links.items():
-                if cached_row >= row:
-                    new_cache[cached_row + 1] = cached_link
-                else:
-                    new_cache[cached_row] = cached_link
-            new_cache[row] = link
-            self._current_links = new_cache
+            # Обновляем кэш по фактическим данным
+            try:
+                self.rebuild_cache_from_items()
+            except Exception:
+                pass
 
             return True
 
         except Exception as e:
             logging.error(f"[LinksTableView] Ошибка добавления строки {row}: {e}")
-            # Пытаемся откатить изменения
-            try:
-                if row < self.rowCount():
-                    self.removeRow(row)
-            except Exception as rollback_error:
-                logging.error(
-                    f"[LinksTableView] Ошибка отката добавления строки {row}: {rollback_error}"
-                )
             return False
 
     def _remove_row(self, row: int):
-        """Удаляет строку."""
+        """Удаляет строку через модель."""
         try:
             # Проверка входных параметров
-            if row < 0 or row >= self.rowCount():
+            try:
+                model = self.model()
+                total = model.rowCount() if model is not None else 0
+            except Exception:
+                model = None
+                total = 0
+
+            if row < 0 or row >= total:
                 logging.warning(
                     f"[LinksTableView] Некорректный индекс строки для удаления: {row}"
                 )
                 return
 
-            self.removeRow(row)
+            removed = False
+            if model is not None and hasattr(model, "remove_row"):
+                try:
+                    removed = bool(model.remove_row(row))
+                except Exception as e:
+                    logging.debug(f"[LinksTableView] model.remove_row исключение: {e}")
+                    removed = False
 
-            # Обновляем кэш (сдвигаем индексы)
-            new_cache = {}
-            for cached_row, cached_link in self._current_links.items():
-                if cached_row < row:
-                    new_cache[cached_row] = cached_link
-                elif cached_row > row:
-                    new_cache[cached_row - 1] = cached_link
-                # cached_row == row - удаляем
-            self._current_links = new_cache
+            if not removed:
+                return
+
+            # Перестроить кэш по актуальным данным
+            try:
+                self.rebuild_cache_from_items()
+            except Exception:
+                pass
 
         except Exception as e:
             logging.error(f"[LinksTableView] Ошибка удаления строки {row}: {e}")

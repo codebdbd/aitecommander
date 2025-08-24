@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLayout,
     QSizePolicy,
-    QTableWidget,
+    QTableView,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -138,8 +138,12 @@ class BaseLinksPanelWidget(BasePanelWidget):
         return get_default_icon_path()
 
 
-class BaseDragDropTableWidget(QTableWidget):
-    """Базовый класс таблиц с поддержкой drag-and-drop."""
+class BaseDragDropTableWidget(QTableView):
+    """Базовый класс таблиц с поддержкой drag-and-drop (QTableView).
+
+    Важно: класс сохраняет имя для обратной совместимости, но теперь наследуется от QTableView
+    и использует модельно-индексный подход.
+    """
 
     items_reordered: pyqtSignal = pyqtSignal(list)
 
@@ -165,7 +169,10 @@ class BaseDragDropTableWidget(QTableWidget):
         return [self.MIME_TYPE]
 
     def mimeData(self, items):
-        """Создаёт MIME-данные для перетаскивания."""
+        """Создаёт MIME-данные для перетаскивания.
+
+        items может быть списком QModelIndex.
+        """
         try:
             item_ids = self._extract_item_ids_from_items(items)
             return MimeDataParser.create_mime_data(item_ids, self.MIME_TYPE)
@@ -181,7 +188,10 @@ class BaseDragDropTableWidget(QTableWidget):
 
     def startDrag(self, supportedActions):
         """Начинает операцию перетаскивания."""
-        items = self.selectedItems()
+        sm = self.selectionModel()
+        if not sm:
+            return
+        items = sm.selectedIndexes()
         if not items:
             return
 
@@ -307,11 +317,11 @@ class BaseDragDropTableWidget(QTableWidget):
         if not source_rows:
             return [], -1
 
-        target_item = self.itemAt(event.position().toPoint())
-        if not target_item:
+        target_index = self.indexAt(event.position().toPoint())
+        if not target_index.isValid():
             return source_rows, -1
 
-        target_row = self.row(target_item)
+        target_row = target_index.row()
         logging.debug(f"[DROP] target_row: {target_row}")
         return source_rows, target_row
 
@@ -339,7 +349,7 @@ class BaseDragDropTableWidget(QTableWidget):
         """Создаёт pixmap предпросмотра для drag-операции."""
         try:
             if items:
-                rows = sorted(set(self.row(item) for item in items if item))
+                rows = sorted({idx.row() for idx in items if idx and idx.isValid()})
             else:
                 rows = self._get_selected_rows()
 
@@ -363,13 +373,20 @@ class BaseDragDropTableWidget(QTableWidget):
         """Создаёт pixmap для одной строки (первые колонки)."""
         try:
             texts = []
-            max_cols = min(3, self.columnCount())
+            model = self.model()
+            if model is None:
+                return self._create_default_pixmap()
+            max_cols = min(3, max(0, model.columnCount()))
 
             for col in range(max_cols):
-                item = self.item(row, col)
-                if item and item.text().strip():
-                    text = item.text()[:30]
-                    if len(item.text()) > 30:
+                idx = model.index(row, col)
+                if not idx.isValid():
+                    continue
+                val = model.data(idx, Qt.ItemDataRole.DisplayRole)
+                s = str(val or "").strip()
+                if s:
+                    text = s[:30]
+                    if len(s) > 30:
                         text += "..."
                     texts.append(text)
 
