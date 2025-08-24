@@ -255,13 +255,21 @@ class SaveCategoryCmd(QUndoCommand):
 class DeleteCategoryCmd(QUndoCommand):
     """Удаление категории с восстановлением поддерева (категория+ссылки)."""
 
-    def __init__(self, category_data: Dict, main_window, *, skip_reload: bool = False):
+    def __init__(
+        self,
+        category_data: Dict,
+        main_window,
+        *,
+        skip_reload: bool = False,
+        lightweight_reload: bool = False,
+    ):
         super().__init__("Delete category")
         self.main = main_window
         self.db = main_window.db
         self.structure_service = StructureService(self.db)
         self.category = dict(category_data) if category_data else {}
         self.skip_reload = bool(skip_reload)
+        self.lightweight_reload = bool(lightweight_reload)
         # Бэкап поддерева категории
         self._backup_tree = self.structure_service.export_category_tree(
             self.category.get("id")
@@ -280,6 +288,25 @@ class DeleteCategoryCmd(QUndoCommand):
             try:
                 if business:
                     # Точечно уведомляем UI о удалении
+                    business.item_deleted.emit("category", category_id)
+            except Exception:
+                pass
+            return
+
+        if self.lightweight_reload:
+            # Облегчённый режим: точечные обновления без полной перезагрузки структуры
+            try:
+                self.main.structure.update_tree(item_to_select=("section", section_id))
+            except Exception:
+                pass
+            try:
+                if business:
+                    try:
+                        business._invalidate_categories_cache(section_id)
+                    except Exception:
+                        pass
+                    business.select_section(section_id)
+                    # В lightweight-режиме не вызываем clear_icon_cache() и load_structure()
                     business.item_deleted.emit("category", category_id)
             except Exception:
                 pass
@@ -349,4 +376,175 @@ class DeleteCategoryCmd(QUndoCommand):
                 pass
         except Exception:
             # В случае сбоя восстановления — оставляем как есть
+            pass
+
+
+class DeleteCategoriesBatchCmd(QUndoCommand):
+    """Пакетное удаление нескольких категорий одной операцией.
+
+    - Удаляет категории по списку ID через сервис без промежуточной перезагрузки UI
+    - Эмитит business.item_deleted для каждой категории
+    - В конце выполняет ОДНУ финальную перезагрузку UI/плиток
+    - Поддерживает undo через восстановление сохранённых бэкапов поддеревьев
+    """
+
+    def __init__(self, categories_data: list[Dict], main_window):
+        super().__init__("Delete categories (batch)")
+        self.main = main_window
+        self.db = main_window.db
+        self.structure_service = StructureService(self.db)
+        # Сохраним плоский список данных категорий и их бэкапы для undo
+        self.categories = [dict(c) for c in (categories_data or [])]
+        self._backups = []
+        for cat in self.categories:
+            try:
+                backup = self.structure_service.export_category_tree(cat.get("id"))
+            except Exception:
+                backup = None
+            self._backups.append(backup)
+
+    def redo(self):
+        business = getattr(self.main, "structure_business", None)
+        section_id_for_focus = None
+        # Подавляем всплеск сигналов выбора на время пакетной операции
+        tree = None
+        selection = None
+        try:
+            struct = getattr(self.main, "structure", None)
+            tree = getattr(struct, "tree", None)
+            selection = getattr(struct, "selection_handler", None)
+            if selection is not None:
+                try:
+                    selection.begin_suppress_selection()
+                except Exception:
+                    pass
+            if tree is not None:
+                tree.blockSignals(True)
+        except Exception:
+            tree = None
+        try:
+            # 1) Удаляем все категории и эмитим точечные события
+            for cat in self.categories:
+                cid = cat.get("id")
+                if cid is None:
+                    continue
+                try:
+                    self.structure_service.delete_category(cid)
+                except Exception:
+                    continue
+                try:
+                    if business:
+                        business.item_deleted.emit("category", cid)
+                except Exception:
+                    pass
+                # Используем последний встретившийся section_id для финального фокуса
+                section_id_for_focus = cat.get("section_id") or section_id_for_focus
+        finally:
+            # 2) Одна финальная перезагрузка/фокус
+            # ВАЖНО: перед финальными обновлениями возвращаем сигналы/обработку
+            try:
+                if tree is not None:
+                    tree.blockSignals(False)
+            except Exception:
+                pass
+            try:
+                if selection is not None:
+                    selection.end_suppress_selection()
+            except Exception:
+                pass
+        try:
+            if section_id_for_focus is not None:
+                self.main.structure.update_tree(
+                    item_to_select=("section", section_id_for_focus)
+                )
+        except Exception:
+            pass
+        try:
+            if business:
+                try:
+                    clear_icon_cache()
+                except Exception:
+                    pass
+                if section_id_for_focus is not None:
+                    try:
+                        business._invalidate_categories_cache(section_id_for_focus)
+                    except Exception:
+                        pass
+                    business.select_section(section_id_for_focus)
+                business.load_structure()
+        except Exception:
+            pass
+
+    def undo(self):
+        # Восстанавливаем категории из бэкапов в исходном порядке (только данные),
+        # без тяжёлых перезагрузок/сигналов на каждом элементе
+        business = getattr(self.main, "structure_business", None)
+        section_id_for_focus = None
+        # Подавляем сигналы выбора на время восстановления
+        tree = None
+        selection = None
+        try:
+            struct = getattr(self.main, "structure", None)
+            tree = getattr(struct, "tree", None)
+            selection = getattr(struct, "selection_handler", None)
+            if selection is not None:
+                try:
+                    selection.begin_suppress_selection()
+                except Exception:
+                    pass
+            if tree is not None:
+                tree.blockSignals(True)
+        except Exception:
+            tree = None
+        try:
+            for backup in self._backups:
+                if not backup:
+                    continue
+                try:
+                    self.structure_service.import_category_tree(backup)
+                except Exception:
+                    # Плохой бэкап — пропускаем, не ломаем общую операцию
+                    continue
+                # Запомним раздел для финального фокуса
+                section_id_for_focus = (
+                    backup.get("category", {}).get("section_id", section_id_for_focus)
+                )
+        finally:
+            # Одна финальная перезагрузка/фокус и очистка кэша
+            # Перед финальными действиями возвращаем сигналы и обработку
+            try:
+                if tree is not None:
+                    tree.blockSignals(False)
+            except Exception:
+                pass
+            try:
+                if selection is not None:
+                    selection.end_suppress_selection()
+            except Exception:
+                pass
+        try:
+            # Иконки могли измениться — очищаем кэш один раз
+            clear_icon_cache()
+        except Exception:
+            pass
+
+        try:
+            if section_id_for_focus is not None:
+                self.main.structure.update_tree(
+                    item_to_select=("section", section_id_for_focus)
+                )
+        except Exception:
+            pass
+
+        try:
+            if business:
+                # По аналогии с redo: инвалидация кэша категорий выбранного раздела
+                if section_id_for_focus is not None:
+                    try:
+                        business._invalidate_categories_cache(section_id_for_focus)
+                    except Exception:
+                        pass
+                    business.select_section(section_id_for_focus)
+                business.load_structure()
+        except Exception:
             pass

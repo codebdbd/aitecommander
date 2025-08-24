@@ -9,9 +9,11 @@ from app.controllers.ui.undo.commands_structure import (
     DeleteSectionCmd,
     SaveCategoryCmd,
     SaveSectionCmd,
+    DeleteCategoriesBatchCmd,
 )
 from app.utils.ui.qt.roles import get_tree_tuple
 from app.views.dialogs.entity_dialogs import CategoryDialog, SectionDialog
+from app.utils.ui.icon.cache_manager import clear_icon_cache
 
 logger = logging.getLogger(__name__)
 
@@ -191,12 +193,14 @@ class ItemOperations:
             selected = []
 
         if selected and len(selected) > 1:
+            logger.debug("[Delete] selected items: %s", len(selected))
             # Оставляем только категории
             category_ids = []
             for it in selected:
                 t = get_tree_tuple(it, 0)
                 if t and t[0] == "category" and isinstance(t[1], int):
                     category_ids.append(t[1])
+            logger.debug("[Delete] selected category_ids: %s", category_ids)
 
             if category_ids:
                 # Считаем суммарное количество ссылок
@@ -210,17 +214,17 @@ class ItemOperations:
 
                 # Если ссылок нет ни в одной категории — удаляем без подтверждения
                 if total_links == 0:
-                    for idx, cid in enumerate(category_ids):
-                        try:
-                            data = self.business.get_category_data(cid)
-                            if data:
-                                # Все кроме последнего – без промежуточного reload
-                                skip = idx < (len(category_ids) - 1)
-                                cmd = DeleteCategoryCmd(data, self.main, skip_reload=skip)
-                                if cmd:
-                                    self.undo_stack.push(cmd)
-                        except Exception:
-                            logger.exception("Ошибка удаления категории %s", cid)
+                    logger.debug("[Delete] batch without confirmation, count=%s", len(category_ids))
+                    try:
+                        cats_data = [
+                            self.business.get_category_data(cid) for cid in category_ids
+                        ]
+                        cats_data = [c for c in cats_data if c]
+                        if cats_data:
+                            cmd = DeleteCategoriesBatchCmd(cats_data, self.main)
+                            self.undo_stack.push(cmd)
+                    except Exception:
+                        logger.exception("Ошибка пакетного удаления категорий")
                     return
 
                 # Иначе одно подтверждение на все
@@ -231,16 +235,17 @@ class ItemOperations:
                     "Вы уверены, что хотите продолжить?"
                 )
                 if DialogManager.ask_confirmation(self.main, msg, "Подтвердите удаление"):
-                    for idx, cid in enumerate(category_ids):
-                        try:
-                            data = self.business.get_category_data(cid)
-                            if data:
-                                skip = idx < (len(category_ids) - 1)
-                                cmd = DeleteCategoryCmd(data, self.main, skip_reload=skip)
-                                if cmd:
-                                    self.undo_stack.push(cmd)
-                        except Exception:
-                            logger.exception("Ошибка удаления категории %s", cid)
+                    logger.debug("[Delete] batch with confirmation, count=%s", len(category_ids))
+                    try:
+                        cats_data = [
+                            self.business.get_category_data(cid) for cid in category_ids
+                        ]
+                        cats_data = [c for c in cats_data if c]
+                        if cats_data:
+                            cmd = DeleteCategoriesBatchCmd(cats_data, self.main)
+                            self.undo_stack.push(cmd)
+                    except Exception:
+                        logger.exception("Ошибка пакетного удаления категорий")
                 return
 
         # Fallback: одиночное удаление по текущему элементу
@@ -347,16 +352,26 @@ class ItemOperations:
         except Exception:
             links_count = 0
 
-        # Если в категории нет ссылок — удаляем без подтверждения
+        # Если в категории нет ссылок — удаляем без подтверждения (облегчённый режим UI внутри команды)
         if links_count == 0:
-            cmd = DeleteCategoryCmd(category_data, self.main)
+            cmd = DeleteCategoryCmd(
+                category_data,
+                self.main,
+                skip_reload=False,
+                lightweight_reload=True,
+            )
             if cmd:
                 self.undo_stack.push(cmd)
             return
 
         # Иначе требуется подтверждение, т.к. будут удалены ссылки
         if self._confirm_category_deletion(category_data, links_count):
-            cmd = DeleteCategoryCmd(category_data, self.main)
+            cmd = DeleteCategoryCmd(
+                category_data,
+                self.main,
+                skip_reload=False,
+                lightweight_reload=True,
+            )
             if cmd:
                 self.undo_stack.push(cmd)
 

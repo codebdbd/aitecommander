@@ -6,6 +6,7 @@ from typing import Any, Optional, TypeVar
 from PyQt6.QtCore import QObject, Qt, QTimer
 from PyQt6.QtGui import QKeyEvent, QKeySequence, QShortcut
 from PyQt6.QtWidgets import QApplication, QWidget
+from app.utils.ui.qt.roles import get_tree_tuple
 
 # =====================
 # Встроенные обработчики
@@ -80,9 +81,56 @@ class ClipboardKeyHandler(BaseKeyHandler):
     """Обработчик клавиш буфера обмена."""
 
     def handle_select_all(self) -> None:
+        # Контекстно: дерево -> выделить все категории раздела; таблица -> selectAll()
+        focused_widget = QApplication.focusWidget()
+        if self._is_tree_focused(focused_widget):
+            self._handle_tree_select_all()
+            return
         table = self._safe_getattr(self.main_window, "table")
         if table:
             self._safe_call(table, "selectAll")
+
+    def _handle_tree_select_all(self) -> None:
+        """Выделяет все категории текущего раздела в дереве структуры."""
+        structure = self._safe_getattr(self.main_window, "structure")
+        if not structure:
+            return
+        tree = self._safe_getattr(structure, "tree")
+        if not tree:
+            return
+        try:
+            item = tree.currentItem() if hasattr(tree, "currentItem") else None
+        except Exception:
+            item = None
+        if not item:
+            return
+        try:
+            t = get_tree_tuple(item, 0)
+        except Exception:
+            t = None
+        # Если выделена категория — используем её родителя (раздел)
+        parent = item.parent() if item else None
+        if not parent:
+            # Если у элемента нет родителя, предполагаем, что это раздел
+            parent = item
+        # Снимаем текущее выделение
+        try:
+            tree.clearSelection()
+        except Exception:
+            pass
+        # Выделяем всех детей раздела (категории)
+        try:
+            for i in range(parent.childCount()):
+                child = parent.child(i)
+                try:
+                    child_tuple = get_tree_tuple(child, 0)
+                except Exception:
+                    child_tuple = None
+                if child_tuple and child_tuple[0] in ("category", "CATEGORY"):
+                    child.setSelected(True)
+        except Exception:
+            pass
+
 
     def handle_copy(self) -> None:
         la = self._safe_getattr(self.main_window, "links_actions")
