@@ -146,7 +146,44 @@ class StructureMenuBuilder:
             )
         )
 
-        # 4. Вставить (только если в буфере есть текст)
+        # 4. Вырезать (одиночно/массово)
+        def _cut_action():
+            # Определим множественный выбор категорий
+            try:
+                selected = [
+                    it
+                    for it in self.tree_widget.selectedItems()
+                    if get_tree_tuple(it, 0) and get_tree_tuple(it, 0)[0] == StructureItemType.CATEGORY
+                ]
+            except Exception:
+                selected = []
+
+            if len(selected) > 1:
+                # Массово: сначала скопировать все выбранные категории в буфер, потом пакетно удалить
+                self._copy_selected_categories_to_clipboard(selected)
+                try:
+                    if hasattr(self.main_window, "structure") and self.main_window.structure:
+                        self.main_window.structure.delete_selected_item()
+                        return
+                except Exception:
+                    pass
+            else:
+                # Одиночная категория
+                self._copy_category_tree_to_clipboard(item, id_)
+                # Затем удалить текущий элемент
+                # Используем тот же callback, что и для "Удалить категорию"
+                delete_item_cb(item)
+
+        menu.addAction(
+            self.actions.create(
+                "Вырезать",
+                _cut_action,
+                Shortcuts.CTRL_X,
+                get_menu_icon("cut", self.theme),
+            )
+        )
+
+        # 5. Вставить (только если в буфере есть текст)
         if self._clipboard_has_text():
             menu.addAction(
                 self.actions.create(
@@ -157,11 +194,46 @@ class StructureMenuBuilder:
                 )
             )
 
-        # 5. Удалить категорию
+        # 6. Удалить категорию / Удлаить выбранное (если выделено несколько)
+        def _delete_action():
+            try:
+                selected = [
+                    it
+                    for it in self.tree_widget.selectedItems()
+                    if get_tree_tuple(it, 0) and get_tree_tuple(it, 0)[0] == StructureItemType.CATEGORY
+                ]
+            except Exception:
+                selected = []
+            # Если в выделении несколько категорий — используем пакетное удаление
+            if len(selected) > 1:
+                logger.debug("[CtxMenu] Batch delete for %s selected categories", len(selected))
+                try:
+                    # Контроллер доступен как main_window.structure
+                    if hasattr(self.main_window, "structure") and self.main_window.structure:
+                        self.main_window.structure.delete_selected_item()
+                        return
+                except Exception:
+                    pass
+            # Иначе — одиночное удаление конкретного элемента
+            delete_item_cb(item)
+
+        action_text = "Удалить категорию"
+        try:
+            # Меняем подпись, если выделено больше одной категории (необязательно, но удобнее пользователю)
+            selected_count = len([
+                it
+                for it in self.tree_widget.selectedItems()
+                if get_tree_tuple(it, 0) and get_tree_tuple(it, 0)[0] == StructureItemType.CATEGORY
+            ])
+            if selected_count > 1:
+                action_text = "Удлаить выбранное"
+        except Exception:
+            pass
+
         menu.addAction(
             self.actions.create(
-                "Удалить категорию",
-                lambda: delete_item_cb(item),
+                action_text,
+                _delete_action,
                 Shortcuts.DELETE,
                 get_menu_icon("delete", self.theme),
             )
@@ -169,7 +241,7 @@ class StructureMenuBuilder:
 
         menu.addSeparator()
 
-        # 6. Выделить все (категории раздела)
+        # 7. Выделить все (категории раздела)
         menu.addAction(
             self.actions.create(
                 "Выделить все",

@@ -21,6 +21,36 @@ class SelectionHandling:
         # Запоминаем последний обработанный выбор, чтобы игнорировать дубликаты подряд
         # Формат: ("section"|"category", int id)
         self._last_handled = None
+        # Счётчик подавления обработки выбора (реентерабельный)
+        self._suppress_counter = 0
+
+    # --- Централизованное подавление обработки выбора во время батч-операций ---
+    def begin_suppress_selection(self) -> None:
+        """Увеличить счётчик подавления обработки выбора.
+
+        Пока счётчик > 0, методы обработки выбора будут игнорировать события.
+        """
+        try:
+            self._suppress_counter += 1
+            logger.debug(
+                "Selection handling suppressed (level=%s)", self._suppress_counter
+            )
+        except Exception:
+            # На всякий случай не ломаем поток
+            self._suppress_counter = max(1, getattr(self, "_suppress_counter", 0))
+
+    def end_suppress_selection(self) -> None:
+        """Снизить счётчик подавления обработки выбора до минимума 0."""
+        try:
+            self._suppress_counter = max(0, self._suppress_counter - 1)
+            logger.debug(
+                "Selection handling resumed (level=%s)", self._suppress_counter
+            )
+        except Exception:
+            self._suppress_counter = 0
+
+    def is_suppressed(self) -> bool:
+        return bool(self._suppress_counter > 0)
 
     def _on_section_selected(self, section_id: int, categories_data: list) -> None:
         if hasattr(self.main, "ui_state") and self.main.ui_state:
@@ -66,6 +96,10 @@ class SelectionHandling:
     def _on_current_changed(
         self, current: QTreeWidgetItem, _prev: QTreeWidgetItem
     ) -> None:
+        # Глобальное подавление во время пакетных операций
+        if self.is_suppressed():
+            logger.debug("Selection changed while suppressed - ignoring event")
+            return
         if current is None:
             # Во время перезагрузки структуры (update_structure_tree/load_structure) текущее
             # выделение может кратковременно становиться None. Очищать плитки в этот момент
@@ -101,6 +135,10 @@ class SelectionHandling:
 
     @signal_guard()
     def _handle_item_selection(self, item: QTreeWidgetItem) -> None:
+        # Глобальное подавление во время пакетных операций
+        if self.is_suppressed():
+            logger.debug("Handle selection while suppressed - skip")
+            return
         try:
             t = get_tree_tuple(item, 0)
             if not t:
