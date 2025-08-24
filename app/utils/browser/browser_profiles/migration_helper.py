@@ -27,11 +27,10 @@ class ProfileMigrationHelper:
     def migrate_existing_chrome_links(self) -> int:
         """Мигрирует существующие Chrome ссылки в новый формат."""
         try:
-            # Находим все ссылки с Chrome профилями
-            chrome_links = self.database.connection.execute("""
-                SELECT * FROM links 
-                WHERE type = 'web' AND args LIKE '--profile-directory=%'
-            """).fetchall()
+            # Находим все ссылки с Chrome профилями через модель ссылок
+            chrome_links = self.database.links.get_links_by_args_pattern(
+                "--profile-directory=%"
+            )
 
             migrated_count = 0
             for link in chrome_links:
@@ -46,14 +45,8 @@ class ProfileMigrationHelper:
                             new_notes += "\n"
                         new_notes += "Browser: Chrome"
 
-                        self.database.connection.execute(
-                            """
-                            UPDATE links 
-                            SET notes = ?
-                            WHERE id = ?
-                        """,
-                            (new_notes, link["id"]),
-                        )
+                        # Обновляем заметки через модель ссылок
+                        self.database.links.update_link_notes(link["id"], new_notes)
 
                         migrated_count += 1
                         logger.debug(
@@ -64,8 +57,7 @@ class ProfileMigrationHelper:
                     logger.error(f"Ошибка миграции ссылки {link['id']}: {e}")
                     continue
 
-            # Сохраняем изменения
-            self.database.connection.commit()
+            # Коммит выполняется внутри модели ссылок
 
             logger.info(f"Мигрировано {migrated_count} Chrome ссылок")
             return migrated_count
@@ -79,10 +71,8 @@ class ProfileMigrationHelper:
         browsers_stats = {}
 
         try:
-            # Анализируем аргументы командной строки
-            links_with_args = self.database.connection.execute("""
-                SELECT args FROM links WHERE args IS NOT NULL AND args != ''
-            """).fetchall()
+            # Анализируем аргументы командной строки через модель ссылок
+            links_with_args = self.database.links.get_links_args_nonempty()
 
             for link in links_with_args:
                 args = link.get("args", "")

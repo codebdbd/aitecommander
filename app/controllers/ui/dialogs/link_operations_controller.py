@@ -64,11 +64,9 @@ class LinkOperationsController:
         cat_id = category_id or self.main_window.get_current_category_id()
         if not cat_id:
             # Попробовать взять первую доступную категорию из базы
-            cats = self.db.connection.execute(
-                "SELECT id FROM category ORDER BY id LIMIT 1"
-            ).fetchone()
-            if cats:
-                cat_id = cats["id"]
+            first_cat_id = self.db.categories.get_first_category_id()
+            if first_cat_id:
+                cat_id = first_cat_id
 
         # Создаем контроллер для диалога
         from .link_dialog_controller import LinkDialogController

@@ -288,6 +288,46 @@ class LinkModel(DatabaseBase):
             logger.error(f"Ошибка поиска ссылок: {e}")
             raise
 
+    def get_links_by_args_pattern(self, pattern: str) -> List[Dict[str, Any]]:
+        """Возвращает ссылки типа 'web', где args LIKE pattern.
+
+        Пример pattern: '--profile-directory=%'
+        """
+        try:
+            rows = self._execute_with_error_handling(
+                "SELECT * FROM link WHERE type = 'web' AND args LIKE ?",
+                (pattern,),
+                fetch_method="all",
+            )
+            return [dict(row) for row in rows] if rows else []
+        except Exception as e:
+            logger.error(f"Ошибка выборки ссылок по шаблону args: {e}")
+            raise
+
+    def update_link_notes(self, link_id: int, new_notes: str) -> None:
+        """Обновляет поле notes для указанной ссылки."""
+        try:
+            self._execute_with_error_handling(
+                "UPDATE link SET notes = ? WHERE id = ?",
+                (new_notes, link_id),
+            )
+            self.commit()
+        except Exception as e:
+            logger.error(f"Ошибка обновления заметок для ссылки {link_id}: {e}")
+            raise
+
+    def get_links_args_nonempty(self) -> List[Dict[str, Any]]:
+        """Возвращает строки с непустыми args (только столбец args)."""
+        try:
+            rows = self._execute_with_error_handling(
+                "SELECT args FROM link WHERE args IS NOT NULL AND TRIM(args) != ''",
+                fetch_method="all",
+            )
+            return [dict(row) for row in rows] if rows else []
+        except Exception as e:
+            logger.error(f"Ошибка получения непустых args: {e}")
+            raise
+
     # === Высокоуровневые методы для удобства использования ===
 
     def get_recent_links(self, limit: int = 10) -> List[Dict[str, Any]]:
