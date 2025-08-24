@@ -55,23 +55,25 @@ class UIConfig(BaseConfig):
 
     # === Иконки и размеры ===
 
-    def get_icon_size(self) -> Any:
+    def get_icon_size(self) -> list[int]:
         """Получение размера иконок в таблице ссылок.
         Возвращает список [w, h] для изоляции от Qt-типов.
         """
         from .qt_adapters import to_size_list
 
         size = self.get("ui.icon_size", 24)
-        return to_size_list(size)
+        w, h = to_size_list(size)
+        return [max(1, int(w)), max(1, int(h))]
 
-    def get_tree_icon_size(self) -> Any:
+    def get_tree_icon_size(self) -> list[int]:
         """Получение размера иконок в дереве категорий.
         Возвращает список [w, h] для изоляции от Qt-типов.
         """
         from .qt_adapters import to_size_list
 
         size = self.get("ui.tree_icon_size", 24)
-        return to_size_list(size)
+        w, h = to_size_list(size)
+        return [max(1, int(w)), max(1, int(h))]
 
     def get_row_height(self) -> int:
         """Получение высоты строки в таблице ссылок."""
@@ -186,7 +188,7 @@ class UIConfig(BaseConfig):
         """Получение расстояния между элементами на панели сфер."""
         return self.get("ui.spheres_bar_spacing", 12)
 
-    def get_sphere_button_icon_size(self) -> Any:
+    def get_sphere_button_icon_size(self) -> list[int]:
         """Получение размера иконки кнопки сферы.
         Возвращает список [w, h] для изоляции от Qt-типов.
         """
@@ -194,7 +196,8 @@ class UIConfig(BaseConfig):
 
         # Запрашиваем размер больше для качественного уменьшения Qt
         size = self.get("ui.sphere_button_icon_size", 64)  # Увеличено с 48 до 64
-        return to_size_list(size)
+        w, h = to_size_list(size)
+        return [max(1, int(w)), max(1, int(h))]
 
     # === Топпанель ===
 
@@ -219,14 +222,15 @@ class UIConfig(BaseConfig):
         """Единый размер для ВСЕХ кнопок в топпанели."""
         return self.get("ui.top_panel_button_size", 36)
 
-    def get_top_panel_icon_size(self) -> Any:
+    def get_top_panel_icon_size(self) -> list[int]:
         """Единый размер иконок для ВСЕХ кнопок в топпанели.
         Возвращает список [w, h] для изоляции от Qt-типов.
         """
         from .qt_adapters import to_size_list
 
         size = self.get("ui.top_panel_icon_size", 32)
-        return to_size_list(size)
+        w, h = to_size_list(size)
+        return [max(1, int(w)), max(1, int(h))]
 
     # === Дерево структуры ===
 

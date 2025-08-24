@@ -130,11 +130,8 @@ class LinksTableView(
         col_widths = app_config.get_col_widths()
         self.setColumnWidth(0, col_widths[0])
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        try:
-            _icon_sz = app_config.get_icon_size()
-            self.setIconSize(QSize(int(_icon_sz[0]), int(_icon_sz[1])))
-        except Exception:
-            self.setIconSize(QSize(24, 24))
+        _icon_sz = app_config.get_icon_size()
+        self.setIconSize(QSize(_icon_sz[0], _icon_sz[1]))
         self.verticalHeader().setDefaultSectionSize(app_config.get_row_height())
         header = self.horizontalHeader()
         header.setStretchLastSection(True)

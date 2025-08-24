@@ -202,10 +202,7 @@ class TopPanelWidget(BaseLinksPanelWidget):
             btn = QToolButton()
             btn.setObjectName("quickButton")
             btn.setFixedSize(button_size, button_size)
-            try:
-                btn.setIconSize(QSize(int(icon_size[0]), int(icon_size[1])))
-            except Exception:
-                btn.setIconSize(QSize(32, 32))
+            btn.setIconSize(QSize(icon_size[0], icon_size[1]))
             btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
             icon_path = icon_path_service.get_ui_icons_dir() / icon_name
             if icon_path.exists():

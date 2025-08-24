@@ -72,11 +72,8 @@ class SpheresBarController:
                 btn.setIcon(QIcon())
         else:
             btn.setIcon(QIcon())
-        try:
-            _sz = app_config.get_sphere_button_icon_size()
-            btn.setIconSize(QSize(int(_sz[0]), int(_sz[1])))
-        except Exception:
-            btn.setIconSize(QSize(48, 48))
+        _sz = app_config.get_sphere_button_icon_size()
+        btn.setIconSize(QSize(_sz[0], _sz[1]))
         btn.setToolTip(sphere["name"])
         self.w.sphere_group.addButton(btn, sphere_id)
         btn.clicked.connect(lambda _=False, sid=sphere_id: self._switch_sphere(sid))
