@@ -123,24 +123,33 @@ class TreeManagement:
             next_item = None
 
             if parent:
-                # Для категории: выбираем родительский раздел
+                # Для категории: сохраняем развёрнутость и вычисляем соседа для фокуса
                 if item_type == "category":
-                    next_item = parent
                     # Запоминаем состояние раскрытия раздела ДО удаления
                     try:
                         was_expanded = parent.isExpanded()
                     except Exception:
                         was_expanded = True
-                    # Принудительно обновляем плитки для родительского раздела, чтобы отразить удаление категории
+
+                    # Определяем целевой элемент фокуса среди соседей категории
                     try:
-                        st = get_tree_tuple(parent, 0)
-                        if st and st[0] == "section":
-                            section_id = st[1]
-                            if hasattr(self.controller, "business"):
-                                self.controller.business.select_section(section_id)
+                        idx = parent.indexOfChild(item)
+                        siblings_count = parent.childCount()
+                        if siblings_count > 1 and idx != -1:
+                            # Сначала пробуем следующего соседа
+                            if idx < siblings_count - 1:
+                                next_item = parent.child(idx + 1)
+                            # Иначе берём предыдущего
+                            elif idx > 0:
+                                next_item = parent.child(idx - 1)
+                        else:
+                            # Соседей нет — фокус на раздел
+                            next_item = parent
                     except Exception:
-                        pass
+                        next_item = parent
+
                 parent.removeChild(item)
+
                 # Держим раздел раскрытым после удаления дочернего элемента
                 try:
                     if item_type == "category":
