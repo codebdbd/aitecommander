@@ -3,7 +3,12 @@
 import logging
 from typing import Dict, List
 
-from app.controllers.ui.undo.commands_links import DeleteLinkCmd, SaveLinkCmd
+from app.controllers.ui.undo.commands_links import (
+    DeleteLinkCmd,
+    SaveLinkCmd,
+    BatchDeleteLinksCmd,
+    BatchSaveLinksCmd,
+)
 from app.utils.ui.clipboard import copy_link_to_clipboard, get_link_from_clipboard
 
 from .base_component import BaseLinksUIComponent
@@ -72,18 +77,18 @@ class LinksUIClipboard(BaseLinksUIComponent):
         category_id = links[0].get("category_id")
 
         if len(links) > 1:
+            # Пакетная команда: одна транзакция и один внеш. reload
             with self.main.undo_stack.macro(f"Удаление {len(links)} ссылок"):
-                for link in links:
-                    command = DeleteLinkCmd(link_to_delete=link, main_window=self.main)
-                    command._suppress_ui = True
-                    self.main.undo_stack.push(command)
+                command = BatchDeleteLinksCmd(links_to_delete=links, main_window=self.main)
+                command._suppress_ui = True
+                self.main.undo_stack.push(command)
         else:
             for link in links:
                 command = DeleteLinkCmd(link_to_delete=link, main_window=self.main)
                 command._suppress_ui = True
                 self.main.undo_stack.push(command)
 
-        # Обновляем отображение
+        # Обновляем отображение (команда подавляет внутренний UI, здесь — один reload)
         if category_id is not None:
             try:
                 self._update_category_safe(category_id)
@@ -125,13 +130,15 @@ class LinksUIClipboard(BaseLinksUIComponent):
     def _insert_links(self, links: List[Dict]):
         """Вставка списка ссылок с поддержкой undo."""
         if len(links) > 1:
+            # Пакетная вставка: одна транзакция, один reload в команде
             with self.main.undo_stack.macro(f"Вставка {len(links)} ссылок"):
-                for link_data in links:
-                    self.main.undo_stack.push(
-                        SaveLinkCmd(
-                            new_data=link_data, old_data=None, main_window=self.main
-                        )
-                    )
+                cmd = BatchSaveLinksCmd(
+                    links_data=links,
+                    old_link_data=None,
+                    main_window=self.main,
+                )
+                # Команда сама выполнит единичный reload; внешние обновления не нужны
+                self.main.undo_stack.push(cmd)
         else:
             for link_data in links:
                 self.main.undo_stack.push(

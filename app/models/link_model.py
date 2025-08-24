@@ -400,3 +400,127 @@ class LinkModel(DatabaseBase):
         except Exception as e:
             logger.error(f"Ошибка получения ссылок для категории {category_id}: {e}")
             return []
+
+    def batch_upsert_links(self, links_data: List[Dict[str, Any]]) -> List[int]:
+        """Пакетное создание/обновление ссылок в одной транзакции.
+
+        - Не выполняет commit после каждой записи — транзакция завершится единым commit.
+        - Обновляет входные словари (links_data) установленными ID для новых записей.
+        - Возвращает список ID, созданных в рамках этой операции (только для новых записей).
+        """
+        if not links_data:
+            return []
+
+        created_ids: List[int] = []
+
+        # Определяем полный набор полей, синхронно с upsert_link
+        all_possible_fields = [
+            "id",
+            "category_id",
+            "name",
+            "url",
+            "type",
+            "notes",
+            "is_favorite",
+            "last_used",
+            "icon_path",
+            "args",
+            "position",
+            "browser_key",
+        ]
+
+        try:
+            with self.transaction():
+                for raw in links_data:
+                    # Подготовка данных, аналогично upsert_link, но без промежуточных commit()
+                    self._validate_required_fields(raw, ["category_id"], "ссылки")
+                    data = {field: raw.get(field) for field in all_possible_fields}
+                    data["is_favorite"] = int(data.get("is_favorite", 0) or 0)
+
+                    if data.get("id"):
+                        # Обновление существующей записи
+                        if data["position"] is None:
+                            data["position"] = 0
+                        update_fields = [f for f in all_possible_fields if f != "id"]
+                        update_placeholders = ", ".join([f"{f}=?" for f in update_fields])
+                        update_values = [data[f] for f in update_fields]
+                        cursor = self._execute_with_error_handling(
+                            f"UPDATE link SET {update_placeholders} WHERE id=?",
+                            tuple(update_values + [data["id"]]),
+                        )
+                        # Если не обновили ни одной строки — вставим с заданным ID (восстановление)
+                        if cursor.rowcount == 0:
+                            insert_fields = all_possible_fields
+                            insert_placeholders = ", ".join(["?"] * len(insert_fields))
+                            insert_values = [data[f] for f in insert_fields]
+                            self._execute_with_error_handling(
+                                f"INSERT INTO link ({', '.join(insert_fields)}) VALUES ({insert_placeholders})",
+                                tuple(insert_values),
+                            )
+                    else:
+                        # Новая запись — проверка на дубликат и вставка
+                        # Назначим позицию только если не указана явно
+                        if data.get("position") is None:
+                            data["position"] = self._get_next_position(
+                                "link", "category_id", data["category_id"]
+                            )
+
+                        # Тихая проверка дубликата (category_id,name,url,args)
+                        existing = self.get_link_by_name_url_args(
+                            data["category_id"],
+                            data.get("name", ""),
+                            data.get("url", ""),
+                            data.get("args", ""),
+                        )
+                        if existing:
+                            # Заполняем исходный словарь найденным id и пропускаем вставку
+                            raw["id"] = existing.get("id")
+                            continue
+
+                        columns = [f for f in all_possible_fields if f != "id"]
+                        placeholders = ", ".join(["?"] * len(columns))
+                        values = [data[c] for c in columns]
+                        cursor = self._execute_with_error_handling(
+                            f"INSERT INTO link ({', '.join(columns)}) VALUES ({placeholders})",
+                            tuple(values),
+                        )
+                        new_id = cursor.lastrowid
+                        if new_id:
+                            created_ids.append(new_id)
+                            # Обновляем входные структуры, чтобы вызывающая сторона знала ID
+                            raw["id"] = new_id
+            return created_ids
+        except sqlite3.IntegrityError as e:
+            # Если что-то пошло не так с уникальностью — пробрасываем как DatabaseError
+            raise DatabaseError(f"UNIQUE constraint failed during batch_upsert_links: {e}")
+        except Exception as e:
+            logger.error(f"Ошибка пакетного сохранения ссылок: {e}")
+            raise
+
+    def batch_delete_links(self, link_ids: List[int]) -> int:
+        """Пакетное удаление ссылок по списку ID в одной транзакции.
+
+        Возвращает количество фактически удалённых записей.
+        """
+        if not link_ids:
+            return 0
+
+        deleted = 0
+        try:
+            with self.transaction():
+                for link_id in link_ids:
+                    if not isinstance(link_id, int) or link_id <= 0:
+                        continue
+                    cursor = self._execute_with_error_handling(
+                        "DELETE FROM link WHERE id = ?",
+                        (link_id,),
+                    )
+                    try:
+                        # rowcount поддерживается sqlite3 для execute
+                        deleted += int(getattr(cursor, "rowcount", 0) or 0)
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.error(f"Ошибка пакетного удаления ссылок: {e}")
+            raise DatabaseError(f"Не удалось выполнить пакетное удаление: {e}")
+        return deleted

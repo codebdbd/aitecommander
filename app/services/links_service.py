@@ -82,3 +82,21 @@ class LinksService:
         # через self.transaction(). Оборачивать в UnitOfWork нельзя — это приведёт
         # к вложенной транзакции (SQLite: "cannot start a transaction within a transaction").
         return self.repo.batch_update_links(links_data)
+
+    def batch_create_or_update_links(self, links_data: List[Dict[str, Any]]) -> List[int]:
+        """Пакетное создание/обновление ссылок с возвратом созданных ID.
+
+        Оборачивает repo.batch_upsert_links в UnitOfWork для атомарности операции.
+        Обновляет входные элементы links_data установленными ID для новых ссылок.
+        """
+        # ВАЖНО: batch_upsert_links сам управляет транзакцией через self.transaction()
+        # Оборачивание в UnitOfWork приведёт к вложенной транзакции в SQLite.
+        return self.repo.batch_upsert_links(links_data)
+
+    def batch_delete_links(self, link_ids: List[int]) -> int:
+        """Пакетное удаление ссылок. Возвращает количество удалённых записей.
+
+        ВАЖНО: repo.batch_delete_links сам управляет транзакцией, поэтому
+        оборачивать в UnitOfWork нельзя (иначе будет вложенная транзакция в SQLite).
+        """
+        return self.repo.batch_delete_links(link_ids)
