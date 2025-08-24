@@ -27,8 +27,7 @@ class ExceptionHandler:
 
         # Логируем критическую ошибку
         logger.critical(
-            "Непойманное исключение",
-            exc_info=(exc_type, exc_value, exc_traceback)
+            "Непойманное исключение", exc_info=(exc_type, exc_value, exc_traceback)
         )
 
         # Показываем пользователю информацию об ошибке
@@ -41,9 +40,9 @@ class ExceptionHandler:
             if QApplication.instance() is None:
                 error_text = f"Произошла критическая ошибка: {exc_type.__name__}"
                 error_info = str(exc_value)
-                error_details = ''.join(traceback.format_exception(
-                    exc_type, exc_value, exc_traceback
-                ))
+                error_details = "".join(
+                    traceback.format_exception(exc_type, exc_value, exc_traceback)
+                )
                 logger.error(error_text)
                 logger.error(error_info)
                 logger.error("Подробности:")
@@ -52,9 +51,9 @@ class ExceptionHandler:
 
             error_text = f"Произошла критическая ошибка: {exc_type.__name__}"
             error_info = str(exc_value)
-            error_details = ''.join(traceback.format_exception(
-                exc_type, exc_value, exc_traceback
-            ))
+            error_details = "".join(
+                traceback.format_exception(exc_type, exc_value, exc_traceback)
+            )
 
             DialogManager.show_error(
                 None,

@@ -12,16 +12,16 @@ class AppSettings:
             QSettings.Format.IniFormat,
             QSettings.Scope.UserScope,
             app_config.get_org_name(),
-            app_config.get_app_name()
+            app_config.get_app_name(),
         )
         self.theme = self.get_theme()
+
     def get_theme(self) -> str:
         return self._qs.value("Appearance/Theme", "light")
 
     def set_theme(self, theme: str):
         self._qs.setValue("Appearance/Theme", theme)
         self.theme = theme
-
 
     def get_max_backups(self) -> int:
         default_value = app_config.get_max_backups()

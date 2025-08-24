@@ -3,6 +3,7 @@
 This implementation is self-contained and uses only modules within parser/.
 Supports deferred icon loading for responsive UIs.
 """
+
 from __future__ import annotations
 
 import os
@@ -38,11 +39,11 @@ def fetch_web_link_info(
             return u
         s = u.strip()
         low = s.lower()
-        prefix = 'view-source:'
+        prefix = "view-source:"
         if low.startswith(prefix):
-            s = s[len(prefix):].lstrip()
+            s = s[len(prefix) :].lstrip()
         # remove redundant trailing question marks like '???'
-        while s.endswith('?'):
+        while s.endswith("?"):
             s = s[:-1]
         # prepend https:// if scheme is missing
         try:
@@ -62,7 +63,10 @@ def fetch_web_link_info(
         host = ""
     existing_icon_path = None
     if host:
-        cand = os.path.join(str(icon_path_service.get_user_icons_dir()), f"web_{host.replace('.', '_')}.png")
+        cand = os.path.join(
+            str(icon_path_service.get_user_icons_dir()),
+            f"web_{host.replace('.', '_')}.png",
+        )
         if os.path.exists(cand):
             existing_icon_path = cand
     # 1) Cache
@@ -71,7 +75,9 @@ def fetch_web_link_info(
         if cached:
             # Если в кэше дефолтная иконка, но в папке уже есть сохранённая — подставим её (без перезаписи кэша)
             try:
-                default_icon_path = resolve_icon_for_link({"type": "web", "icon_path": ""}) or ""
+                default_icon_path = (
+                    resolve_icon_for_link({"type": "web", "icon_path": ""}) or ""
+                )
             except Exception:
                 default_icon_path = ""
             if (not cached.get("icon")) or (cached.get("icon") == default_icon_path):
@@ -81,9 +87,11 @@ def fetch_web_link_info(
 
     # 2) HTTP fetch page (best-effort)
     # Allow overriding HTML fetch timeout via config.HTML_FETCH_TIMEOUT
-    html_timeout = getattr(config, 'HTML_FETCH_TIMEOUT', None)
+    html_timeout = getattr(config, "HTML_FETCH_TIMEOUT", None)
     try:
-        logger.debug(f"[fetch] start url={url} force={force_refresh} defer_icon={defer_icon} html_timeout={html_timeout}")
+        logger.debug(
+            f"[fetch] start url={url} force={force_refresh} defer_icon={defer_icon} html_timeout={html_timeout}"
+        )
     except Exception:
         pass
     resp = http_request(url, config, timeout_override=html_timeout)
@@ -91,19 +99,26 @@ def fetch_web_link_info(
     if resp:
         try:
             # Robust decode (avoid ISO-8859-1 defaults)
-            enc = getattr(resp, 'encoding', None)
+            enc = getattr(resp, "encoding", None)
             if not enc or str(enc).lower() == "iso-8859-1":
                 try:
                     # Попытка детектировать кодировку через charset-normalizer
                     try:
                         from charset_normalizer import from_bytes  # type: ignore
+
                         best = from_bytes(resp.content).best()
                         if best is not None:
                             txt = str(best)
                         else:
-                            txt = resp.content.decode(getattr(resp, 'apparent_encoding', None) or 'utf-8', errors='replace')
+                            txt = resp.content.decode(
+                                getattr(resp, "apparent_encoding", None) or "utf-8",
+                                errors="replace",
+                            )
                     except Exception:
-                        txt = resp.content.decode(getattr(resp, 'apparent_encoding', None) or 'utf-8', errors='replace')
+                        txt = resp.content.decode(
+                            getattr(resp, "apparent_encoding", None) or "utf-8",
+                            errors="replace",
+                        )
                 except Exception:
                     txt = resp.text
             else:
@@ -112,7 +127,7 @@ def fetch_web_link_info(
             try:
                 soup = BeautifulSoup(txt, BS_PARSER)
             except Exception:
-                soup = BeautifulSoup(txt, 'html.parser')
+                soup = BeautifulSoup(txt, "html.parser")
         except Exception as e:
             logger.debug(f"bs4 parse failed for {url}: {e}")
     else:
@@ -131,18 +146,24 @@ def fetch_web_link_info(
     # 4) Icon (sync or deferred)
     # host рассчитан выше
     icon_path = None
+
     def _resolve_icon_async(html_soup: Optional[BeautifulSoup]) -> None:
         if html_soup is None:
             # Best-effort: re-fetch quickly for icon-only if soup missing
             # Allow overriding icon fetch HTML timeout via config.ICON_HTML_TIMEOUT, fallback to HTML_FETCH_TIMEOUT
-            icon_html_timeout = getattr(config, 'ICON_HTML_TIMEOUT', getattr(config, 'HTML_FETCH_TIMEOUT', None))
+            icon_html_timeout = getattr(
+                config, "ICON_HTML_TIMEOUT", getattr(config, "HTML_FETCH_TIMEOUT", None)
+            )
             resp2 = http_request(url, config, timeout_override=icon_html_timeout)
             if resp2:
                 try:
-                    enc2 = getattr(resp2, 'encoding', None)
+                    enc2 = getattr(resp2, "encoding", None)
                     if not enc2 or str(enc2).lower() == "iso-8859-1":
                         try:
-                            txt2 = resp2.content.decode(getattr(resp2, 'apparent_encoding', None) or 'utf-8', errors='replace')
+                            txt2 = resp2.content.decode(
+                                getattr(resp2, "apparent_encoding", None) or "utf-8",
+                                errors="replace",
+                            )
                         except Exception:
                             txt2 = resp2.text
                     else:
@@ -154,7 +175,9 @@ def fetch_web_link_info(
             return
         resolved = None
         try:
-            resolved = pick_icon_parallel(html_soup, url, host, config, force_refresh=force_refresh)
+            resolved = pick_icon_parallel(
+                html_soup, url, host, config, force_refresh=force_refresh
+            )
         except Exception as ex:
             logger.debug(f"pick_icon (async) failed for {url}: {ex}")
         if not resolved:
@@ -180,7 +203,7 @@ def fetch_web_link_info(
                     lambda: on_icon_ready(resolved),
                     task_type=TaskType.GENERAL,
                     delay=0,
-                    operation_id=f"icon_ready:{url}"
+                    operation_id=f"icon_ready:{url}",
                 )
             except Exception as ex:
                 logger.debug(f"on_icon_ready scheduling failed for {url}: {ex}")
@@ -193,7 +216,9 @@ def fetch_web_link_info(
             if existing_icon_path:
                 icon_path = existing_icon_path
             else:
-                icon_path = pick_icon_parallel(soup_for_icon, url, host, config, force_refresh=force_refresh)
+                icon_path = pick_icon_parallel(
+                    soup_for_icon, url, host, config, force_refresh=force_refresh
+                )
         except Exception as e:
             logger.debug(f"pick_icon failed for {url}: {e}")
 
@@ -214,7 +239,9 @@ def fetch_web_link_info(
         "ttl": apply_jitter(CACHE_TTL, config),
     }
     try:
-        logger.debug(f"[fetch] icon={'custom' if icon_path else 'default'} for host={host}")
+        logger.debug(
+            f"[fetch] icon={'custom' if icon_path else 'default'} for host={host}"
+        )
     except Exception:
         pass
 

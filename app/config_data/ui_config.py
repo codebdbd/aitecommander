@@ -1,6 +1,7 @@
 """
 Конфигурация пользовательского интерфейса.
 """
+
 from typing import Any, Dict
 
 from .base_config import BaseConfig
@@ -8,9 +9,9 @@ from .base_config import BaseConfig
 
 class UIConfig(BaseConfig):
     """Конфигурация параметров пользовательского интерфейса."""
-    
+
     # === Основные UI параметры ===
-    
+
     def get_default_font_size(self) -> int:
         """Получение размера шрифта по умолчанию."""
         return self.get("ui.default_font_size", 12)
@@ -18,25 +19,25 @@ class UIConfig(BaseConfig):
     def get_default_icon_size(self) -> int:
         """Получение размера иконки по умолчанию."""
         return self.get("ui.default_icon_size", 24)
-    
+
     # === Окно приложения ===
-    
+
     def get_window_width(self) -> int:
         """Получение ширины окна приложения."""
         return self.get("ui.window.width", 1024)
-    
+
     def get_window_height(self) -> int:
         """Получение высоты окна приложения."""
         return self.get("ui.window.height", 768)
-    
+
     def get_window_min_width(self) -> int:
         """Получение минимальной ширины окна приложения."""
         return self.get("ui.window.min_width", 800)
-    
+
     def get_window_min_height(self) -> int:
         """Получение минимальной высоты окна приложения."""
         return self.get("ui.window.min_height", 600)
-    
+
     def get_main_window_title(self) -> str:
         """Получение заголовка главного окна приложения."""
         # Новый ключ в конфиге: ui.main_window_title; обратная совместимость: ui.window.title
@@ -44,27 +45,33 @@ class UIConfig(BaseConfig):
         if title is None:
             title = self.get("ui.window.title", "Aite Commander")
         return title
-    
+
     def get_main_window_size(self) -> tuple:
         """Получение размеров главного окна при запуске."""
         # Единый источник: ui.window.width/height
         width = self.get("ui.window.width", 1024)
         height = self.get("ui.window.height", 768)
         return (width, height)
-    
+
     # === Иконки и размеры ===
-    
+
     def get_icon_size(self) -> Any:
-        """Получение размера иконок в таблице ссылок."""
-        from .qt_adapters import to_qsize
+        """Получение размера иконок в таблице ссылок.
+        Возвращает список [w, h] для изоляции от Qt-типов.
+        """
+        from .qt_adapters import to_size_list
+
         size = self.get("ui.icon_size", 24)
-        return to_qsize(size)
+        return to_size_list(size)
 
     def get_tree_icon_size(self) -> Any:
-        """Получение размера иконок в дереве категорий."""
-        from .qt_adapters import to_qsize
+        """Получение размера иконок в дереве категорий.
+        Возвращает список [w, h] для изоляции от Qt-типов.
+        """
+        from .qt_adapters import to_size_list
+
         size = self.get("ui.tree_icon_size", 24)
-        return to_qsize(size)
+        return to_size_list(size)
 
     def get_row_height(self) -> int:
         """Получение высоты строки в таблице ссылок."""
@@ -82,12 +89,14 @@ class UIConfig(BaseConfig):
         """Получение заголовков колонок таблицы ссылок."""
         # Исторически существовало два ключа: link_table_headers и links_table_headers.
         # Используем единый источник правды: ui.links_table_headers
-        return self.get("ui.links_table_headers", ["★", "Название", "Последний запуск", "Заметки"])
+        return self.get(
+            "ui.links_table_headers", ["★", "Название", "Последний запуск", "Заметки"]
+        )
 
     def get_fixed_button_width(self) -> int:
         """Получение фиксированной ширины стандартных кнопок."""
         return self.get("ui.fixed_button_width", 100)
-    
+
     # === Плитки категорий ===
 
     def get_tile_size(self) -> list:
@@ -142,7 +151,7 @@ class UIConfig(BaseConfig):
     def get_tile_margins(self) -> list:
         """Получение отступов плиток категорий."""
         return self.get("ui.tile_margins", [20, 20, 20, 20])
-    
+
     def get_tile_width(self) -> int:
         """Получение ширины плитки категории."""
         return self.get("ui.tile_width", 110)
@@ -162,7 +171,7 @@ class UIConfig(BaseConfig):
     def get_tile_border_margin(self) -> int:
         """Получение отступа для границы плитки."""
         return self.get("ui.tile_border_margin", 2)
-    
+
     # === Панель сфер ===
 
     def get_spheres_bar_height(self) -> int:
@@ -176,14 +185,17 @@ class UIConfig(BaseConfig):
     def get_spheres_bar_spacing(self) -> int:
         """Получение расстояния между элементами на панели сфер."""
         return self.get("ui.spheres_bar_spacing", 12)
-    
+
     def get_sphere_button_icon_size(self) -> Any:
-        """Получение размера иконки кнопки сферы."""
-        from .qt_adapters import to_qsize
+        """Получение размера иконки кнопки сферы.
+        Возвращает список [w, h] для изоляции от Qt-типов.
+        """
+        from .qt_adapters import to_size_list
+
         # Запрашиваем размер больше для качественного уменьшения Qt
         size = self.get("ui.sphere_button_icon_size", 64)  # Увеличено с 48 до 64
-        return to_qsize(size)
-    
+        return to_size_list(size)
+
     # === Топпанель ===
 
     def get_tiles_layout_margins(self) -> list:
@@ -202,28 +214,22 @@ class UIConfig(BaseConfig):
         if isinstance(size, (list, tuple)) and len(size) >= 2:
             return [size[0], size[1]]
         return [32, 32]
-    
+
     def get_top_panel_button_size(self) -> int:
         """Единый размер для ВСЕХ кнопок в топпанели."""
         return self.get("ui.top_panel_button_size", 36)
 
     def get_top_panel_icon_size(self) -> Any:
-        """Единый размер иконок для ВСЕХ кнопок в топпанели."""
-        from .qt_adapters import to_qsize
+        """Единый размер иконок для ВСЕХ кнопок в топпанели.
+        Возвращает список [w, h] для изоляции от Qt-типов.
+        """
+        from .qt_adapters import to_size_list
+
         size = self.get("ui.top_panel_icon_size", 32)
-        return to_qsize(size)
-    
+        return to_size_list(size)
+
     # === Дерево структуры ===
 
-    def get_tree_icon_size(self) -> list:
-        """Получение размера иконок в дереве структуры."""
-        size = self.get("ui.tree_icon_size", [28, 28])
-        if isinstance(size, int):
-            return [size, size]
-        if isinstance(size, (list, tuple)) and len(size) >= 2:
-            return [size[0], size[1]]
-        return [28, 28]
-    
     # === Сплиттер ===
 
     def get_splitter_handle_width(self) -> int:
@@ -273,7 +279,7 @@ class UIConfig(BaseConfig):
     def get_thread_pool_shutdown_timeout(self) -> int:
         """Получение таймаута завершения потоков при выключении."""
         return self.get("ui.thread_pool_shutdown_timeout", 2000)
-    
+
     # === Диалоги ===
 
     def get_delete_confirm_title(self) -> str:
@@ -282,7 +288,10 @@ class UIConfig(BaseConfig):
 
     def get_delete_confirm_text(self) -> str:
         """Получение текста диалога подтверждения удаления."""
-        return self.get("ui.delete_confirm_text", "Вы уверены, что хотите удалить {count} ссылк(и/у)?")
+        return self.get(
+            "ui.delete_confirm_text",
+            "Вы уверены, что хотите удалить {count} ссылк(и/у)?",
+        )
 
     def get_yes_text(self) -> str:
         """Получение текста кнопки 'Да'."""
@@ -291,7 +300,7 @@ class UIConfig(BaseConfig):
     def get_no_text(self) -> str:
         """Получение текста кнопки 'Нет'."""
         return self.get("ui.no_text", "Нет")
-    
+
     def get_link_dialog_width(self) -> int:
         """Получение ширины диалога добавления/редактирования ссылки."""
         return self.get("ui.link_dialog_width", 600)
@@ -307,55 +316,64 @@ class UIConfig(BaseConfig):
     def get_link_dialog_spacing(self) -> int:
         """Получение расстояния между элементами в диалоге ссылок."""
         return self.get("ui.link_dialog_spacing", 10)
-    
+
     # === Нижняя панель ===
 
     def get_bottom_actions(self) -> list:
         """Получение списка действий на нижней панели."""
-        return self.get("ui.bottom_actions", [
-            ["Добавить раздел (F3)", "show_section_dialog"],
-            ["Добавить категорию (F4)", "show_category_dialog"],
-            ["Добавить ссылку (F1)", "show_link_dialog"],
-            ["Редактировать (F2)", "edit_current"],
-            ["Удалить (Del)", "delete_current"]
-        ])
+        return self.get(
+            "ui.bottom_actions",
+            [
+                ["Добавить раздел (F3)", "show_section_dialog"],
+                ["Добавить категорию (F4)", "show_category_dialog"],
+                ["Добавить ссылку (F1)", "show_link_dialog"],
+                ["Редактировать (F2)", "edit_current"],
+                ["Удалить (Del)", "delete_current"],
+            ],
+        )
 
     def get_links_table_headers(self) -> list:
         """Получение заголовков колонок таблицы ссылок."""
-        return self.get("ui.links_table_headers", ["★", "Название", "Последний запуск", "Заметки"])
-    
+        return self.get(
+            "ui.links_table_headers", ["★", "Название", "Последний запуск", "Заметки"]
+        )
+
     def get_links_table_columns(self) -> Dict[str, int]:
         """Получение индексов колонок таблицы ссылок."""
-        return self.get("ui.links_table_columns", {
-            "favorite": 0, "name": 1, "last_used": 2, "notes": 3
-        })
-    
+        return self.get(
+            "ui.links_table_columns",
+            {"favorite": 0, "name": 1, "last_used": 2, "notes": 3},
+        )
+
     def get_links_table_messages(self) -> Dict[str, str]:
         """Получение сообщений для UI таблицы ссылок."""
-        return self.get("ui.links_table_messages", {
-            "no_categories": "Нет доступных категорий. Создай категорию сначала.",
-            "select_category": "Выберите категорию для вставки ссылки",
-            "error_saving": "Ошибка сохранения заметки",
-            "database_error": "Ошибка базы данных",
-            "validation_error": "Ошибка валидации",
-            "warning_title": "Предупреждение",
-            "error_title": "Ошибка"
-        })
-    
+        return self.get(
+            "ui.links_table_messages",
+            {
+                "no_categories": "Нет доступных категорий. Создай категорию сначала.",
+                "select_category": "Выберите категорию для вставки ссылки",
+                "error_saving": "Ошибка сохранения заметки",
+                "database_error": "Ошибка базы данных",
+                "validation_error": "Ошибка валидации",
+                "warning_title": "Предупреждение",
+                "error_title": "Ошибка",
+            },
+        )
+
     # === Отступы и расстояния ===
-    
+
     def get_layout_margins(self, margin_type: str) -> tuple[int, int, int, int]:
         """Получение отступов для указанного типа layout."""
         margins = self.get(f"ui.layout.margins.{margin_type}")
         if margins and len(margins) == 4:
             return tuple(margins)
         default_margins = {
-            'main': (0, 0, 0, 0),
-            'mid': (0, 0, 0, 0),
-            'left': (0, 0, 0, 0),
-            'right': (0, 0, 0, 0),
-            'bottom': (0, 0, 0, 0),
-            'top': (0, 0, 0, 0)
+            "main": (0, 0, 0, 0),
+            "mid": (0, 0, 0, 0),
+            "left": (0, 0, 0, 0),
+            "right": (0, 0, 0, 0),
+            "bottom": (0, 0, 0, 0),
+            "top": (0, 0, 0, 0),
         }
         return default_margins.get(margin_type, (0, 0, 0, 0))
 
@@ -370,7 +388,10 @@ class UIConfig(BaseConfig):
 
     def get_top_bar_buttons_spacing(self) -> int:
         """Внутренний spacing между кнопками внутри панелей топбара."""
-        return self.get("ui.layout.spacing.top_bar_buttons", self.get("ui.layout.spacing.top_bar", 8))
+        return self.get(
+            "ui.layout.spacing.top_bar_buttons",
+            self.get("ui.layout.spacing.top_bar", 8),
+        )
 
     def get_top_bar_widgets_side_spacing(self) -> int:
         """Боковой отступ (с каждой стороны) для виджетов топ-бара. Между соседями = 2*side."""
@@ -413,7 +434,7 @@ class UIConfig(BaseConfig):
         """Получение отступов layout сфер."""
         margins = self.get("ui.spheres_layout_margins", [5, 5, 5, 5])
         return tuple(margins)
-    
+
     def get_spheres_bar_margins(self) -> tuple[int, int, int, int]:
         """Отступы панели сфер с возможной подменой левого/правого значений.
         Источники:
@@ -428,7 +449,7 @@ class UIConfig(BaseConfig):
         if isinstance(right_override, int):
             base[2] = right_override
         return tuple(base)
-    
+
     # === Поиск и интерфейс ===
 
     def get_search_placeholder(self) -> str:
@@ -438,7 +459,7 @@ class UIConfig(BaseConfig):
     def get_qss_path(self) -> str:
         """Получение пути к файлу темы оформления по умолчанию."""
         return self.get("ui.qss_path", "dark.qss")
-    
+
     # === Макросы и статусы ===
 
     def get_macro_add_links_text(self) -> str:
@@ -452,7 +473,7 @@ class UIConfig(BaseConfig):
     def get_db_connected_text(self) -> str:
         """Получение текста статуса подключения к БД."""
         return self.get("ui.db_connected_text", "DB: Connected")
-    
+
     def get_db_disconnected_text(self) -> str:
         """Получение текста статуса отключения от БД."""
         return self.get("ui.db_disconnected_text", "DB: Disconnected")
@@ -476,45 +497,45 @@ class UIConfig(BaseConfig):
     def get_favorite_icon_size(self) -> int:
         """Получение размера иконок избранного."""
         return self.get("ui.favorite_icon_size", 24)
-    
+
     # === Дополнительные UI параметры для устранения дублирования с QSS ===
-    
+
     def get_menu_font_size(self) -> int:
         """Получение размера шрифта меню."""
         return self.get("ui.menu_font_size", 12)
-    
+
     def get_menubar_font_size(self) -> int:
         """Получение размера шрифта панели меню."""
         return self.get("ui.menubar_font_size", 9)
-    
+
     def get_menubar_item_height(self) -> int:
         """Получение высоты элементов панели меню."""
         return self.get("ui.menubar_item_height", 24)
-    
+
     def get_menu_icon_size(self) -> int:
         """Получение размера иконок в меню."""
         return self.get("ui.menu_icon_size", 20)
-    
+
     def get_menu_indicator_size(self) -> int:
         """Получение размера индикаторов в меню."""
         return self.get("ui.menu_indicator_size", 16)
-    
+
     def get_scrollbar_width(self) -> int:
         """Получение ширины вертикального скроллбара."""
         return self.get("ui.scrollbar_width", 12)
-    
+
     def get_scrollbar_height(self) -> int:
         """Получение высоты горизонтального скроллбара."""
         return self.get("ui.scrollbar_height", 12)
-    
+
     def get_tree_item_height(self) -> int:
         """Получение высоты элементов дерева."""
         return self.get("ui.tree_item_height", 32)
-    
+
     def get_table_item_height(self) -> int:
-        """Получение высоты элементов таблицы.""" 
+        """Получение высоты элементов таблицы."""
         return self.get("ui.table_item_height", 28)
-    
+
     def get_separator_height(self) -> int:
         """Получение высоты разделителей."""
         return self.get("ui.separator_height", 24)

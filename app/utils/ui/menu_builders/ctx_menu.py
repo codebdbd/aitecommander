@@ -6,6 +6,7 @@
 Иконки берутся через icon_cache.get_icon(<name>, <theme>, 'context_menu').
 Тема определяется через app.utils.icon.path_service.get_current_theme().
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -56,7 +57,9 @@ def enable(widget: QWidget) -> None:
         return
 
     widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-    widget.customContextMenuRequested.connect(lambda pos, w=widget: _show_patched_menu(w, pos))
+    widget.customContextMenuRequested.connect(
+        lambda pos, w=widget: _show_patched_menu(w, pos)
+    )
 
 
 def _show_patched_menu(widget: QWidget, pos: QPoint) -> None:
@@ -83,7 +86,7 @@ def _apply_theme_icons(menu: QMenu) -> None:
         if not icon_name:
             continue
         try:
-            icon = icon_cache.get_icon(icon_name, theme, 'context_menu')
+            icon = icon_cache.get_icon(icon_name, theme, "context_menu")
             if icon:
                 action.setIcon(icon)
         except Exception:
@@ -100,7 +103,14 @@ def _guess_icon_name(action: QAction) -> Optional[str]:
             return _SHORTCUT_TO_ICON[key]
 
     # 2) Пытаемся по тексту (без амперсандов и троеточий)
-    text = (action.text() or "").replace("&", "").replace("…", "").replace("...", "").strip().lower()
+    text = (
+        (action.text() or "")
+        .replace("&", "")
+        .replace("…", "")
+        .replace("...", "")
+        .strip()
+        .lower()
+    )
     if text in _TEXT_TO_ICON:
         return _TEXT_TO_ICON[text]
 

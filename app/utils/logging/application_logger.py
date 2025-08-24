@@ -36,7 +36,7 @@ class ApplicationLogger:
 
     def _get_app_directory(self):
         """Определяет корневую директорию приложения (работает в упакованном виде)."""
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, "frozen", False):
             # Упакованное приложение (PyInstaller, cx_Freeze, etc.)
             return Path(sys.executable).parent
         else:
@@ -46,9 +46,11 @@ class ApplicationLogger:
     def _get_config_path(self):
         """Определяет путь к конфигурации логирования с приоритетами."""
         # Приоритет 1: Переменная окружения (для продвинутых пользователей)
-        env_path = os.getenv('LOGGING_CONFIG_PATH')
+        env_path = os.getenv("LOGGING_CONFIG_PATH")
         if env_path and Path(env_path).exists():
-            logging.info(f"Используется конфигурация из переменной окружения: {env_path}")
+            logging.info(
+                f"Используется конфигурация из переменной окружения: {env_path}"
+            )
             return Path(env_path)
 
         # Приоритет 2: Рядом с исполняемым файлом (портативность)
@@ -66,45 +68,47 @@ class ApplicationLogger:
             return dev_path
 
         # Если ничего не найдено
-        logging.warning("Конфигурационный файл логирования не найден, используются настройки по умолчанию")
+        logging.warning(
+            "Конфигурационный файл логирования не найден, используются настройки по умолчанию"
+        )
         return None
 
     def _get_embedded_config(self):
         """Возвращает встроенную конфигурацию логирования как fallback."""
         return {
-            'version': 1,
-            'disable_existing_loggers': False,
-            'formatters': {
-                'standard': {
-                    'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "standard": {
+                    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
                 },
-                'detailed': {
-                    'format': '%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s'
+                "detailed": {
+                    "format": "%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s"
                 },
             },
-            'handlers': {
-                'console': {
-                    'level': 'INFO',
-                    'class': 'logging.StreamHandler',
-                    'formatter': 'standard'
+            "handlers": {
+                "console": {
+                    "level": "INFO",
+                    "class": "logging.StreamHandler",
+                    "formatter": "standard",
                 },
-                'file': {
-                    'level': 'DEBUG',
-                    'class': 'logging.handlers.RotatingFileHandler',
-                    'filename': str(self.log_file_path),
-                    'maxBytes': 10485760,  # 10MB
-                    'backupCount': 5,
-                    'formatter': 'detailed',
-                    'encoding': 'utf-8'
+                "file": {
+                    "level": "DEBUG",
+                    "class": "logging.handlers.RotatingFileHandler",
+                    "filename": str(self.log_file_path),
+                    "maxBytes": 10485760,  # 10MB
+                    "backupCount": 5,
+                    "formatter": "detailed",
+                    "encoding": "utf-8",
+                },
+            },
+            "loggers": {
+                "": {
+                    "handlers": ["console", "file"],
+                    "level": self.log_level,
+                    "propagate": False,
                 }
             },
-            'loggers': {
-                '': {
-                    'handlers': ['console', 'file'],
-                    'level': self.log_level,
-                    'propagate': False
-                }
-            }
         }
 
     def _setup_logging(self):
@@ -115,16 +119,16 @@ class ApplicationLogger:
 
             if config_path:
                 # Загружаем конфигурацию из файла
-                with open(config_path, 'r', encoding='utf-8') as f:
+                with open(config_path, "r", encoding="utf-8") as f:
                     log_config = json.load(f)
 
                 # Обновляем путь к файлу лога в конфигурации
-                if 'handlers' in log_config and 'file' in log_config['handlers']:
-                    log_config['handlers']['file']['filename'] = str(self.log_file_path)
+                if "handlers" in log_config and "file" in log_config["handlers"]:
+                    log_config["handlers"]["file"]["filename"] = str(self.log_file_path)
 
                 # Применяем уровень логирования
-                if 'loggers' in log_config and '' in log_config['loggers']:
-                    log_config['loggers']['']['level'] = self.log_level
+                if "loggers" in log_config and "" in log_config["loggers"]:
+                    log_config["loggers"][""]["level"] = self.log_level
 
                 # Настраиваем логирование через dictConfig
                 logging.config.dictConfig(log_config)
@@ -133,30 +137,40 @@ class ApplicationLogger:
                 # Используем встроенную конфигурацию
                 log_config = self._get_embedded_config()
                 logging.config.dictConfig(log_config)
-                logging.info(f"Логирование настроено через встроенную конфигурацию. Файл: {self.log_file_path}")
+                logging.info(
+                    f"Логирование настроено через встроенную конфигурацию. Файл: {self.log_file_path}"
+                )
 
         except (FileNotFoundError, PermissionError, json.JSONDecodeError) as e:
             # Если возникла ошибка при загрузке конфигурации, используем встроенную
-            logging.warning(f"Ошибка при загрузке конфигурации логирования: {e}. Используется встроенная конфигурация.")
+            logging.warning(
+                f"Ошибка при загрузке конфигурации логирования: {e}. Используется встроенная конфигурация."
+            )
             try:
                 log_config = self._get_embedded_config()
                 logging.config.dictConfig(log_config)
-                logging.info("Логирование настроено через встроенную конфигурацию (fallback)")
+                logging.info(
+                    "Логирование настроено через встроенную конфигурацию (fallback)"
+                )
             except Exception as fallback_error:
                 # Последний резерв - базовая настройка
                 logging.basicConfig(
                     level=self.log_level,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
                     handlers=[
                         logging.StreamHandler(),
-                        logging.FileHandler(self.log_file_path, encoding='utf-8')
-                    ]
+                        logging.FileHandler(self.log_file_path, encoding="utf-8"),
+                    ],
                 )
-                logging.error(f"Критическая ошибка настройки логирования: {fallback_error}. Используется базовая конфигурация.")
+                logging.error(
+                    f"Критическая ошибка настройки логирования: {fallback_error}. Используется базовая конфигурация."
+                )
         except Exception as e:
             # Общий обработчик для непредвиденных ошибок
-            logging.error(f"Неожиданная ошибка при настройке логирования: {e}. Используется базовая конфигурация.")
+            logging.error(
+                f"Неожиданная ошибка при настройке логирования: {e}. Используется базовая конфигурация."
+            )
             logging.basicConfig(
                 level=self.log_level,
-                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             )

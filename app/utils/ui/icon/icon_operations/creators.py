@@ -80,7 +80,9 @@ def _ensure_gui_thread(context: str = "") -> bool:
                 # Откладываем выполнение в GUI-поток
                 # Возвращаем False, чтобы вызывающая функция могла принять решение
                 return False
-            logger.warning("Попытка выполнения %s до инициализации QApplication", context)
+            logger.warning(
+                "Попытка выполнения %s до инициализации QApplication", context
+            )
         except (ImportError, RuntimeError):
             logger.warning(
                 "Попытка выполнения %s до инициализации QApplication (ImportError/RuntimeError)",
@@ -91,6 +93,7 @@ def _ensure_gui_thread(context: str = "") -> bool:
 
 
 # === СОЗДАНИЕ SVG ИКОНОК ===
+
 
 def _create_svg_icon(svg_path: str) -> QIcon:
     """Создать QIcon из SVG файла.
@@ -129,9 +132,13 @@ def _create_svg_icon(svg_path: str) -> QIcon:
             painter.end()
 
     except (OSError, IOError, RuntimeError) as exc:
-        raise InvalidIconError(f"Error creating SVG icon from {svg_path}: {exc}") from exc
+        raise InvalidIconError(
+            f"Error creating SVG icon from {svg_path}: {exc}"
+        ) from exc
     except Exception as exc:
-        raise InvalidIconError(f"Unexpected error creating SVG icon from {svg_path}: {exc}") from exc
+        raise InvalidIconError(
+            f"Unexpected error creating SVG icon from {svg_path}: {exc}"
+        ) from exc
 
 
 async def _create_svg_icon_async(svg_path: str) -> QIcon:
@@ -143,7 +150,7 @@ async def _create_svg_icon_async(svg_path: str) -> QIcon:
 def _create_icon_from_file_path(file_path: str) -> QIcon:
     """Общая функция создания иконки из файла с высоким качеством."""
     path_obj = Path(file_path)
-    
+
     if path_obj.suffix.lower() == ".svg":
         # Специальная обработка SVG
         try:
@@ -152,13 +159,13 @@ def _create_icon_from_file_path(file_path: str) -> QIcon:
                 return icon
         except InvalidIconError as exc:
             logger.debug("Error creating SVG icon from %s: %s", file_path, exc)
-        
+
         # Fallback на PNG версию иконки
         png_path = path_obj.with_suffix(".png")
         if png_path.exists() and is_valid_icon_file(str(png_path)):
             logger.debug("Falling back to PNG version: %s", png_path)
             return _create_icon_from_file_path(str(png_path))
-        
+
         return QIcon()
     else:
         # Обычные форматы изображений - создаем QIcon напрямую
@@ -173,7 +180,7 @@ def _create_icon_from_file_path(file_path: str) -> QIcon:
 async def _create_icon_from_file_path_async(file_path: str) -> QIcon:
     """Асинхронная версия общей функции создания иконки из файла."""
     path_obj = Path(file_path)
-    
+
     if path_obj.suffix.lower() == ".svg":
         # Специальная обработка SVG
         try:
@@ -182,28 +189,34 @@ async def _create_icon_from_file_path_async(file_path: str) -> QIcon:
                 return icon
         except InvalidIconError as exc:
             logger.debug("Error creating SVG icon from %s: %s", file_path, exc)
-        
+
         # Fallback на PNG версию иконки
         png_path = path_obj.with_suffix(".png")
         if png_path.exists() and is_valid_icon_file(str(png_path)):
             logger.debug("Falling back to PNG version: %s", png_path)
             # Создаем иконку строго в GUI-потоке
             return await run_in_gui_thread_async(lambda: QIcon(str(png_path)))
-        
+
         # Если PNG версия недоступна, возвращаем пустую иконку
         return QIcon()
     else:
         # Обычные форматы изображений - создаем строго в GUI-потоке
-        return await run_in_gui_thread_async(lambda: _create_icon_from_file_path(str(path_obj)))
+        return await run_in_gui_thread_async(
+            lambda: _create_icon_from_file_path(str(path_obj))
+        )
 
 
 # === ОСНОВНЫЕ ФУНКЦИИ СОЗДАНИЯ ИКОНОК ===
+
 
 def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -> QIcon:
     """Создать QIcon с кешированием и поддержкой SVG."""
     # Проверка на потокобезопасность: QIcon должен создаваться только в GUI-потоке
     if not _ensure_gui_thread(f"создания themed_icon ({icon_name})"):
-        logger.warning("themed_icon called from non-GUI thread for %s, returning empty icon", icon_name)
+        logger.warning(
+            "themed_icon called from non-GUI thread for %s, returning empty icon",
+            icon_name,
+        )
         return QIcon()
 
     # Валидация параметров
@@ -241,7 +254,9 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
             load_time = time.time() - start_time
             record_actual_miss(load_time)
             record_not_found()
-            logger.debug("Icon not found: %s (theme: %s, source: %s)", icon_name, theme, source)
+            logger.debug(
+                "Icon not found: %s (theme: %s, source: %s)", icon_name, theme, source
+            )
             return QIcon()
 
         # Используем общую функцию создания иконки
@@ -253,7 +268,9 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
 
         # Кешируем результат
         cache_qicon(icon_name, theme, icon)
-        if load_time > 0.1:  # Если загрузка заняла более 100 мс, логируем на уровне INFO
+        if (
+            load_time > 0.1
+        ):  # Если загрузка заняла более 100 мс, логируем на уровне INFO
             logger.info(
                 "Slow disk load: icon '%s' for theme '%s' took %.2fms",
                 icon_name,
@@ -283,7 +300,9 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
         load_time = time.time() - start_time
         metrics_record_miss(load_time)
 
-        logger.error("Unexpected error creating icon '%s' from %s: %s", icon_name, source, exc)
+        logger.error(
+            "Unexpected error creating icon '%s' from %s: %s", icon_name, source, exc
+        )
         # Кэшируем пустую иконку с флагом negative=True и отдельным TTL
         cache_qicon(icon_name, theme, None, negative=True)
         return QIcon()
@@ -291,7 +310,9 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
         leave_sync(key)
 
 
-async def themed_icon_async(icon_name: str, theme: str = "light", source: str = "unknown") -> QIcon:
+async def themed_icon_async(
+    icon_name: str, theme: str = "light", source: str = "unknown"
+) -> QIcon:
     """Асинхронно создать QIcon с кешированием и поддержкой SVG."""
     # Валидация параметров
     if not _validate_icon_name(icon_name):
@@ -321,7 +342,11 @@ async def themed_icon_async(icon_name: str, theme: str = "light", source: str = 
         except Exception:
             return QIcon()
         cached_after = get_qicon_from_cache(icon_name, theme)
-        return cached_after if cached_after is not None else (icon_res if icon_res is not None else QIcon())
+        return (
+            cached_after
+            if cached_after is not None
+            else (icon_res if icon_res is not None else QIcon())
+        )
 
     try:
         # Асинхронно получаем путь к иконке
@@ -330,7 +355,9 @@ async def themed_icon_async(icon_name: str, theme: str = "light", source: str = 
         if not path:
             load_time = time.time() - start_time
             metrics_record_not_found(load_time)
-            logger.debug("Icon not found: %s (theme: %s, source: %s)", icon_name, theme, source)
+            logger.debug(
+                "Icon not found: %s (theme: %s, source: %s)", icon_name, theme, source
+            )
             leave_async_success(akey, None)
             return QIcon()
 
@@ -366,7 +393,9 @@ async def themed_icon_async(icon_name: str, theme: str = "light", source: str = 
         record_actual_miss(load_time)
         record_not_found()
 
-        logger.error("Error creating async icon '%s' from %s: %s", icon_name, source, exc)
+        logger.error(
+            "Error creating async icon '%s' from %s: %s", icon_name, source, exc
+        )
         # Кэшируем пустую иконку с флагом negative=True и отдельным TTL
         cache_qicon(icon_name, theme, None, negative=True)
         leave_async_error(akey, exc)
@@ -377,7 +406,12 @@ async def themed_icon_async(icon_name: str, theme: str = "light", source: str = 
         record_actual_miss(load_time)
         record_not_found()
 
-        logger.error("Unexpected error creating async icon '%s' from %s: %s", icon_name, source, exc)
+        logger.error(
+            "Unexpected error creating async icon '%s' from %s: %s",
+            icon_name,
+            source,
+            exc,
+        )
         # Кэшируем пустую иконку с флагом negative=True и отдельным TTL
         cache_qicon(icon_name, theme, None, negative=True)
         leave_async_error(akey, exc)
@@ -386,11 +420,15 @@ async def themed_icon_async(icon_name: str, theme: str = "light", source: str = 
 
 # === СОЗДАНИЕ ИКОНОК ИЗ АБСОЛЮТНЫХ ПУТЕЙ ===
 
+
 def create_icon_from_path(icon_path: str) -> QIcon:
     """Создать QIcon из пути к файлу с кэшированием."""
     # Проверка на потокобезопасность: QIcon должен создаваться только в GUI-потоке
     if not _ensure_gui_thread(f"создания иконки из пути ({icon_path})"):
-        logger.warning("create_icon_from_path called from non-GUI thread for %s, returning empty icon", icon_path)
+        logger.warning(
+            "create_icon_from_path called from non-GUI thread for %s, returning empty icon",
+            icon_path,
+        )
         return QIcon()
 
     # Используем namespaced ключ чтобы избежать коллизий
@@ -454,14 +492,14 @@ async def create_icon_from_path_async(icon_path: str) -> QIcon:
 
     # Асинхронно создаем новую иконку
     loop = asyncio.get_event_loop()
-    
+
     def create_icon():
         if Path(icon_path).exists():
             return QIcon(icon_path)
         else:
             logger.debug("Created empty icon for non-existent file: %s", icon_path)
             return QIcon()
-    
+
     icon = await loop.run_in_executor(None, create_icon)
 
     # Замеряем время загрузки и записываем успешную загрузку с диска

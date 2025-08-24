@@ -1,6 +1,7 @@
 """
 Базовые типы и классы для фоновых задач работы с БД.
 """
+
 from __future__ import annotations
 
 from typing import Callable, Generic, Optional, TypeVar
@@ -44,7 +45,9 @@ class DatabaseTask(QRunnable, Generic[T]):
         self._canceled = False
         self.description = description
         # Если передан репортёр прогресса — прокидываем в него сигнал
-        self._reporter = reporter or (lambda value: self.signals.progress.emit(int(value)))
+        self._reporter = reporter or (
+            lambda value: self.signals.progress.emit(int(value))
+        )
 
     def cancel(self) -> None:
         self._canceled = True

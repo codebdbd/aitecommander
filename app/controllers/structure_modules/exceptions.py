@@ -11,6 +11,7 @@ def handle_exceptions(default_return=None):
 
     Ожидает, что у self есть атрибуты logger и метод _emit_error(title, message).
     """
+
     def decorator(func: Callable[..., Any]):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
@@ -25,5 +26,7 @@ def handle_exceptions(default_return=None):
                 if callable(emit_error):
                     emit_error(f"Ошибка в {func.__name__}", str(e))
                 return default_return
+
         return wrapper
+
     return decorator

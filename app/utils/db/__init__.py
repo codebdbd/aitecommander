@@ -8,6 +8,7 @@
 Совместимость:
 - Старый модуль db_workers.py остаётся, но рекомендуется переход на run_db.
 """
+
 from __future__ import annotations
 
 from app.utils.db.api import run_db

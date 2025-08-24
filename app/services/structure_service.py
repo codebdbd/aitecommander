@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from app.models.db import Database
 from app.models.structure_model import StructureModel
+
 from .uow import UnitOfWork
 
 

@@ -1,13 +1,17 @@
 import logging
 
 
-def validate_required_fields(data: dict, required_fields: list, entity_name: str = "") -> bool:
+def validate_required_fields(
+    data: dict, required_fields: list, entity_name: str = ""
+) -> bool:
     """Проверяет наличие обязательных полей в словаре данных.
     Логирует ошибку, если поля отсутствуют.
     """
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
-        logging.error(f"Отсутствуют обязательные поля для {entity_name}: {missing_fields}")
+        logging.error(
+            f"Отсутствуют обязательные поля для {entity_name}: {missing_fields}"
+        )
         return False
     return True
 

@@ -2,6 +2,7 @@
 Главный загрузчик конфигурации приложения.
 Объединяет все специализированные конфигурационные модули.
 """
+
 import json
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -15,40 +16,40 @@ from .utils import get_by_path
 
 class AppConfig:
     """Управление конфигурацией приложения из JSON файла."""
-    
+
     def __init__(self, config_path: Optional[str] = None):
         """Инициализация загрузчика конфигурации."""
         if config_path is None:
             config_path = Path(__file__).parent / "app_config.json"
         self._config_path = Path(config_path)
         self._config = self._load_config()
-        
+
         # Инициализация специализированных конфигураций
         self.ui = UIConfig(self._config)
         self.paths = PathConfig(self._config)
         self.limits = LimitsConfig(self._config)
         self.settings = SettingsConfig(self._config)
-    
+
     def _load_config(self) -> Dict[str, Any]:
         """Загрузка конфигурации из JSON файла."""
         if not self._config_path.exists():
             raise FileNotFoundError(f"Файл конфигурации не найден: {self._config_path}")
-        with open(self._config_path, 'r', encoding='utf-8') as f:
+        with open(self._config_path, "r", encoding="utf-8") as f:
             return json.load(f)
-    
+
     def get(self, key_path: str, default: Any = None) -> Any:
         """Получение значения из конфигурации по пути к ключу."""
         return get_by_path(self._config, key_path, default)
-    
+
     def get_full_config(self) -> Dict[str, Any]:
         """Получение полной конфигурации."""
         return self._config.copy()
-    
+
     # === МЕТОДЫ ОБРАТНОЙ СОВМЕСТИМОСТИ ===
     # Все старые методы делегируются к соответствующим модулям
-    
+
     # === Основные настройки приложения ===
-    
+
     def get_app_name(self) -> str:
         """Получение названия приложения."""
         return self.settings.get_app_name()
@@ -56,27 +57,27 @@ class AppConfig:
     def get_org_name(self) -> str:
         """Получение названия организации."""
         return self.settings.get_org_name()
-    
+
     def get_app_version(self) -> str:
         """Получение версии приложения."""
         return self.settings.get_app_version()
-    
+
     def is_debug_mode(self) -> bool:
         """Получение признака режима отладки."""
         return self.settings.is_debug_mode()
-    
+
     def get_log_level(self) -> str:
         """Получение уровня логирования."""
         return self.settings.get_log_level()
-    
+
     def get_max_backups(self) -> int:
         """Получение максимального количества резервных копий базы данных."""
         return self.settings.get_max_backups()
-    
+
     def is_backup_enabled(self) -> bool:
         """Получение признака включения резервного копирования."""
         return self.settings.is_backup_enabled()
-    
+
     def get_about_title(self) -> str:
         """Получение заголовка диалога 'О программе'."""
         return self.settings.get_about_title()
@@ -84,9 +85,9 @@ class AppConfig:
     def get_about_text(self) -> str:
         """Получение текста диалога 'О программе'."""
         return self.settings.get_about_text()
-    
+
     # === UI параметры ===
-    
+
     def get_default_font_size(self) -> int:
         """Получение размера шрифта по умолчанию."""
         return self.ui.get_default_font_size()
@@ -94,19 +95,19 @@ class AppConfig:
     def get_default_icon_size(self) -> int:
         """Получение размера иконки по умолчанию."""
         return self.ui.get_default_icon_size()
-    
+
     def get_window_width(self) -> int:
         """Получение ширины окна приложения."""
         return self.ui.get_window_width()
-    
+
     def get_window_height(self) -> int:
         """Получение высоты окна приложения."""
         return self.ui.get_window_height()
-    
+
     def get_window_min_width(self) -> int:
         """Получение минимальной ширины окна приложения."""
         return self.ui.get_window_min_width()
-    
+
     def get_window_min_height(self) -> int:
         """Получение минимальной высоты окна приложения."""
         return self.ui.get_window_min_height()
@@ -386,7 +387,7 @@ class AppConfig:
     def get_db_connected_text(self) -> str:
         """Получение текста статуса подключения к БД."""
         return self.ui.get_db_connected_text()
-    
+
     def get_db_disconnected_text(self) -> str:
         """Получение текста статуса отключения от БД."""
         return self.ui.get_db_disconnected_text()
@@ -422,39 +423,39 @@ class AppConfig:
     def get_menu_font_size(self) -> int:
         """Получение размера шрифта меню."""
         return self.ui.get_menu_font_size()
-    
+
     def get_menubar_font_size(self) -> int:
         """Получение размера шрифта панели меню."""
         return self.ui.get_menubar_font_size()
-    
+
     def get_menubar_item_height(self) -> int:
         """Получение высоты элементов панели меню."""
         return self.ui.get_menubar_item_height()
-    
+
     def get_menu_icon_size(self) -> int:
         """Получение размера иконок в меню."""
         return self.ui.get_menu_icon_size()
-    
+
     def get_menu_indicator_size(self) -> int:
         """Получение размера индикаторов в меню."""
         return self.ui.get_menu_indicator_size()
-    
+
     def get_scrollbar_width(self) -> int:
         """Получение ширины вертикального скроллбара."""
         return self.ui.get_scrollbar_width()
-    
+
     def get_scrollbar_height(self) -> int:
         """Получение высоты горизонтального скроллбара."""
         return self.ui.get_scrollbar_height()
-    
+
     def get_tree_item_height(self) -> int:
         """Получение высоты элементов дерева."""
         return self.ui.get_tree_item_height()
-    
+
     def get_table_item_height(self) -> int:
-        """Получение высоты элементов таблицы.""" 
+        """Получение высоты элементов таблицы."""
         return self.ui.get_table_item_height()
-    
+
     def get_separator_height(self) -> int:
         """Получение высоты разделителей."""
         return self.ui.get_separator_height()
@@ -462,13 +463,13 @@ class AppConfig:
     def get_separator_width(self) -> int:
         """Получение толщины (ширины) вертикальных разделителей."""
         return self.ui.get_separator_width()
-    
+
     # === Пути ===
-    
+
     def get_base_path(self):
         """Получение базового пути приложения."""
         return self.paths.get_base_path()
-    
+
     def get_ui_icons_dir(self):
         """Получение пути к директории с иконками интерфейса."""
         return self.paths.get_ui_icons_dir()
@@ -527,7 +528,7 @@ class AppConfig:
         """Получение пути к директории профилей Yandex."""
         p = self.paths.get_yandex_profiles_dir()
         return str(p) if p else None
-    
+
     # === Лимиты ===
 
     def get_max_icon_size(self) -> int:
@@ -553,7 +554,7 @@ class AppConfig:
     def get_abs_icon_cache_ttl(self) -> int:
         """Получение времени жизни кэша иконок по абсолютным путям в секундах."""
         return self.limits.get_abs_icon_cache_ttl()
-    
+
     # === Настройки ===
 
     def get_supported_icon_formats(self) -> list:
@@ -579,7 +580,7 @@ class AppConfig:
     def get_quick_type_tooltips(self) -> dict:
         """Получение подсказок для быстрых типов ссылок."""
         return self.settings.get_quick_type_tooltips()
-    
+
     def get_default_browse_paths(self) -> dict:
         """Получение путей по умолчанию для диалогов выбора файлов/папок."""
         return self.settings.get_default_browse_paths()
@@ -587,23 +588,23 @@ class AppConfig:
     def get_browser_profile_settings(self) -> dict:
         """Получение настроек профилей браузеров."""
         return self.settings.get_browser_profile_settings()
-    
+
     def get_supported_browsers(self) -> list:
         """Получение списка поддерживаемых браузеров."""
         return self.settings.get_supported_browsers()
-    
+
     def get_browser_config(self) -> dict:
         """Получение конфигурации браузеров для текущей ОС."""
         return self.settings.get_browser_config()
-    
+
     def get_mime_types(self) -> dict:
         """Получение MIME-типов приложения."""
         return self.settings.get_mime_types()
-    
+
     def get_link_mime_type(self) -> str:
         """Получение MIME-типа для ссылок."""
         return self.settings.get_link_mime_type()
-    
+
     def get_category_mime_type(self) -> str:
         """Получение MIME-типа для категорий."""
         return self.settings.get_category_mime_type()

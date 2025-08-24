@@ -1,4 +1,5 @@
 """Создание действий для меню."""
+
 import logging
 from typing import Callable, Optional
 
@@ -11,15 +12,20 @@ logger = logging.getLogger(__name__)
 
 class ActionBuilder:
     """Строитель действий меню с обработкой ошибок."""
-    
+
     def __init__(self, parent: QWidget):
         self.parent = parent
-    
-    def create(self, text: str, callback: Optional[Callable] = None, 
-               shortcut: Optional[str] = None, icon: Optional[QIcon] = None) -> QAction:
+
+    def create(
+        self,
+        text: str,
+        callback: Optional[Callable] = None,
+        shortcut: Optional[str] = None,
+        icon: Optional[QIcon] = None,
+    ) -> QAction:
         """Создать действие меню."""
         action = QAction(text, self.parent)
-        
+
         if icon:
             action.setIcon(icon)
         if shortcut:
@@ -28,16 +34,16 @@ class ActionBuilder:
             action.setShortcutContext(Qt.ShortcutContext.WidgetShortcut)
         if callback:
             action.triggered.connect(lambda: self._safe_call(callback))
-        
+
         return action
-    
+
     def _safe_call(self, callback: Callable):
         """Безопасный вызов коллбека с обработкой ошибок."""
         try:
             callback()
         except Exception as e:
             logger.error(f"Ошибка выполнения действия меню: {e}")
-            if hasattr(self.parent, 'show_error_message'):
+            if hasattr(self.parent, "show_error_message"):
                 self.parent.show_error_message(f"Ошибка: {str(e)}")
 
 
@@ -62,5 +68,6 @@ class Shortcuts:
 
 class StructureItemType:
     """Типы элементов в дереве структуры."""
+
     SECTION = "section"
     CATEGORY = "category"

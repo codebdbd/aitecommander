@@ -5,6 +5,7 @@ from datetime import datetime
 def format_last_used(last_used: str) -> str:
     if not last_used:
         return "Никогда"
+
     def pluralize(n, one, few, many):
         if n % 10 == 1 and n % 100 != 11:
             return one
@@ -12,6 +13,7 @@ def format_last_used(last_used: str) -> str:
             return few
         else:
             return many
+
     try:
         last_time = datetime.fromisoformat(last_used)
         now = datetime.now(last_time.tzinfo)
@@ -36,5 +38,7 @@ def format_last_used(last_used: str) -> str:
             return f"{weeks} {unit} назад"
         return last_time.strftime("%d.%m.%Y")
     except (ValueError, TypeError) as e:
-        logging.error(f"[format_last_used] Ошибка форматирования времени: {e}", exc_info=True)
+        logging.error(
+            f"[format_last_used] Ошибка форматирования времени: {e}", exc_info=True
+        )
         return "Неизвестно"

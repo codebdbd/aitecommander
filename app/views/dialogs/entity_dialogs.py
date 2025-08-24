@@ -26,7 +26,9 @@ from app.utils.ui.icon.path_service import icon_path_service
 from .base_dialog import BaseDialog
 
 
-def _populate_spheres_common(structure_business: StructureBusinessLogic, sphere_cb: QComboBox) -> None:
+def _populate_spheres_common(
+    structure_business: StructureBusinessLogic, sphere_cb: QComboBox
+) -> None:
     """Общий помощник для заполнения комбобокса сферами.
     Не очищает список — повторяет текущее поведение вызывающих мест.
     """
@@ -39,7 +41,14 @@ class BaseEntityDialog(BaseDialog):
     """
     Базовый диалог для сущностей с именем и иконкой (Раздел, Категория).
     """
-    def __init__(self, structure_business: StructureBusinessLogic, entity_name: str, entity_id: Optional[int] = None, parent=None):
+
+    def __init__(
+        self,
+        structure_business: StructureBusinessLogic,
+        entity_name: str,
+        entity_id: Optional[int] = None,
+        parent=None,
+    ):
         super().__init__(parent)
         self.structure_business = structure_business
         self.entity_id = entity_id
@@ -61,9 +70,13 @@ class BaseEntityDialog(BaseDialog):
         except Exception:
             pass
         self.icon_btn = QPushButton("Иконка")
-        self.icon_btn.setFixedWidth(app_config.get('ui.fixed_button_width', 100))
+        self.icon_btn.setFixedWidth(app_config.get("ui.fixed_button_width", 100))
         self.icon_btn.setIconSize(QSize(24, 24))
-        self.icon_btn.setIcon(create_icon_from_path(str(icon_path_service.get_ui_icons_dir() / self._icon_filename)))
+        self.icon_btn.setIcon(
+            create_icon_from_path(
+                str(icon_path_service.get_ui_icons_dir() / self._icon_filename)
+            )
+        )
         self.icon_btn.clicked.connect(self._choose_icon)
 
         name_layout = QHBoxLayout()
@@ -78,7 +91,7 @@ class BaseEntityDialog(BaseDialog):
         )
         ok_btn = bb.button(QDialogButtonBox.StandardButton.Ok)
         ok_btn.setText("Сохранить")
-        ok_btn.setFixedWidth(app_config.get('ui.fixed_button_width', 100))
+        ok_btn.setFixedWidth(app_config.get("ui.fixed_button_width", 100))
         # Не делаем кнопку по умолчанию, чтобы не было подсветки default/autoDefault без фокуса
         try:
             ok_btn.setDefault(False)
@@ -90,7 +103,7 @@ class BaseEntityDialog(BaseDialog):
 
         cancel_btn = bb.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_btn.setText("Отмена")
-        cancel_btn.setFixedWidth(app_config.get('ui.fixed_button_width', 100))
+        cancel_btn.setFixedWidth(app_config.get("ui.fixed_button_width", 100))
         # Также убираем default/autoDefault у Cancel, чтобы кнопки не перехватывали фокус по умолчанию
         try:
             cancel_btn.setDefault(False)
@@ -101,10 +114,12 @@ class BaseEntityDialog(BaseDialog):
 
         # Блокируем кнопку Сохранить, пока имя пустое; обновляем по мере ввода
         try:
-            name_text = self.name_le.text().strip() if hasattr(self, 'name_le') else ""
+            name_text = self.name_le.text().strip() if hasattr(self, "name_le") else ""
             ok_btn.setEnabled(bool(name_text))
-            if hasattr(self, 'name_le'):
-                self.name_le.textChanged.connect(lambda _t: ok_btn.setEnabled(bool(self.name_le.text().strip())))
+            if hasattr(self, "name_le"):
+                self.name_le.textChanged.connect(
+                    lambda _t: ok_btn.setEnabled(bool(self.name_le.text().strip()))
+                )
         except Exception:
             pass
 
@@ -123,7 +138,7 @@ class BaseEntityDialog(BaseDialog):
     def _on_return_pressed(self):
         """Локальная обработка Enter на поле имени: триггерим сохранение только при валидном имени."""
         try:
-            if hasattr(self, 'name_le') and self.name_le.text().strip():
+            if hasattr(self, "name_le") and self.name_le.text().strip():
                 # Делегируем основную валидацию в _on_accept (наследники проверят остальные поля)
                 self._on_accept()
         except Exception:
@@ -148,7 +163,7 @@ class BaseEntityDialog(BaseDialog):
 
             self.icon_btn.setIcon(icon)
             self._icon_filename = fname
-                
+
         except Exception as e:
             self.show_error(
                 "Не удалось установить выбранную иконку.",
@@ -167,10 +182,7 @@ class BaseEntityDialog(BaseDialog):
                 informative_text="Введите имя сущности (минимум 1 символ).",
             )
             return None
-        return {
-            "name": name,
-            "icon_path": self._icon_filename
-        }
+        return {"name": name, "icon_path": self._icon_filename}
 
     def get_result(self):
         return self._result
@@ -181,8 +193,14 @@ class BaseEntityDialog(BaseDialog):
 
 
 class SectionDialog(BaseEntityDialog):
-    def __init__(self, structure_business: StructureBusinessLogic, section_id: Optional[int] = None, default_sphere_id: Optional[int] = None, parent=None):
-        super().__init__(structure_business, 'section', section_id, parent)
+    def __init__(
+        self,
+        structure_business: StructureBusinessLogic,
+        section_id: Optional[int] = None,
+        default_sphere_id: Optional[int] = None,
+        parent=None,
+    ):
+        super().__init__(structure_business, "section", section_id, parent)
         self.default_sphere_id = default_sphere_id
         self.resize(400, 150)
         self._init_ui()
@@ -213,8 +231,6 @@ class SectionDialog(BaseEntityDialog):
         vbox.addLayout(form)
         vbox.addWidget(self._create_button_box())
 
-    
-
     def _set_sphere_selection(self, sphere_id: int):
         """Устанавливает выбранную сферу по ID."""
         idx = self.sphere_cb.findData(sphere_id)
@@ -224,7 +240,7 @@ class SectionDialog(BaseEntityDialog):
     def _load_section(self):
         """Загружает данные раздела для редактирования."""
         section_data = self.structure_business.get_section_for_editing(self.entity_id)
-        
+
         if not section_data:
             self.show_warning(
                 "Раздел для редактирования не найден.",
@@ -232,10 +248,10 @@ class SectionDialog(BaseEntityDialog):
                 informative_text=f"Возможно, раздел был удалён. ID: {self.entity_id}",
             )
             return
-            
+
         self.name_le.setText(section_data["name"])
         self._set_sphere_selection(section_data["sphere_id"])
-        
+
         icon = section_data["icon_path"] or f"{self.entity_name}.ico"
         self._icon_filename = icon
         icon_path = self._get_icon_path(icon)
@@ -245,7 +261,7 @@ class SectionDialog(BaseEntityDialog):
         base_result = self._on_accept_base()
         if base_result is None:
             return
-        
+
         sphere_id = self.sphere_cb.currentData()
         if sphere_id is None:
             self.show_warning(
@@ -254,15 +270,20 @@ class SectionDialog(BaseEntityDialog):
                 informative_text="Выберите сферу из выпадающего списка, затем нажмите 'Сохранить'.",
             )
             return
-            
+
         self._result = base_result
         self._result["sphere_id"] = sphere_id
         self.accept()
 
 
 class CategoryDialog(BaseEntityDialog):
-    def __init__(self, structure_business: StructureBusinessLogic, category_id: Optional[int] = None, parent=None):
-        super().__init__(structure_business, 'category', category_id, parent)
+    def __init__(
+        self,
+        structure_business: StructureBusinessLogic,
+        category_id: Optional[int] = None,
+        parent=None,
+    ):
+        super().__init__(structure_business, "category", category_id, parent)
         self.resize(400, 200)
         self._init_ui()
         # Фокус на поле имени при открытии
@@ -299,7 +320,7 @@ class CategoryDialog(BaseEntityDialog):
         sphere_id = self.sphere_cb.currentData()
         if sphere_id is None:
             return
-        
+
         self.section_cb.clear()
         try:
             sections = self.structure_business.get_sections(sphere_id)
@@ -316,7 +337,7 @@ class CategoryDialog(BaseEntityDialog):
     def _load_category(self):
         """Загружает данные категории для редактирования."""
         category_data = self.structure_business.get_category_for_editing(self.entity_id)
-        
+
         if not category_data:
             self.show_warning(
                 "Категория для редактирования не найдена.",
@@ -324,13 +345,13 @@ class CategoryDialog(BaseEntityDialog):
                 informative_text=f"Возможно, категория была удалена. ID: {self.entity_id}",
             )
             return
-            
+
         self.name_le.setText(category_data["name"])
         section_id = category_data["section_id"]
-        
+
         # Получаем иерархию через бизнес-логику
         hierarchy = self.structure_business.get_category_hierarchy(self.entity_id)
-        
+
         if hierarchy:
             sphere_id = hierarchy["sphere_id"]
             # Устанавливаем сферу
@@ -342,7 +363,7 @@ class CategoryDialog(BaseEntityDialog):
                 section_idx = self.section_cb.findData(section_id)
                 if section_idx >= 0:
                     self.section_cb.setCurrentIndex(section_idx)
-        
+
         # Устанавливаем иконку
         icon = category_data["icon_path"] or f"{self.entity_name}.ico"
         self._icon_filename = icon
@@ -371,13 +392,13 @@ class CategoryDialog(BaseEntityDialog):
         """Устанавливает результат диалога на основе переданных данных."""
         if "section_id" not in data:
             return
-            
+
         section_id = data.get("section_id")
         if not section_id:
             return
-            
+
         section_data = self.structure_business.get_section_for_editing(section_id)
-        
+
         if section_data:
             sphere_id = section_data["sphere_id"]
             sphere_idx = self.sphere_cb.findData(sphere_id)
@@ -400,7 +421,7 @@ class NoteDialog(BaseDialog):
     def _init_ui(self):
         """Инициализирует интерфейс диалога заметок."""
         vbox = QVBoxLayout(self)
-        
+
         self.notes_te = QTextEdit(self.link.get("notes", ""))
         # Не перехватывать Tab внутри многострочного поля — Tab должен переключать фокус
         try:
@@ -408,7 +429,7 @@ class NoteDialog(BaseDialog):
         except Exception:
             pass
         vbox.addWidget(self.notes_te)
-        
+
         bb = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
@@ -448,7 +469,6 @@ class SettingsDialog(BaseDialog):
         form = QFormLayout()
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
-
         # Настройка максимального количества бэкапов через выпадающий список
         self.max_backups_combo = QComboBox()
         self.max_backups_combo.addItems([str(i) for i in range(1, 11)])
@@ -475,9 +495,8 @@ class SettingsDialog(BaseDialog):
             self.font_size_combo.setCurrentIndex(3)
         form.addRow("Размер шрифта:", self.font_size_combo)
 
-
         vbox.addLayout(form)
-        
+
         bb = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
@@ -500,9 +519,11 @@ class SettingsDialog(BaseDialog):
             parent = self.parent()
             # Применяем размер шрифта только локально для дерева и таблицы
             if parent is not None:
-                if hasattr(parent, 'tree') and hasattr(parent.tree, 'update_font_size'):
+                if hasattr(parent, "tree") and hasattr(parent.tree, "update_font_size"):
                     parent.tree.update_font_size(font_size)
-                if hasattr(parent, 'table') and hasattr(parent.table, 'update_font_size'):
+                if hasattr(parent, "table") and hasattr(
+                    parent.table, "update_font_size"
+                ):
                     parent.table.update_font_size(font_size)
 
             self.accept()
@@ -518,6 +539,7 @@ class SettingsDialog(BaseDialog):
 
 class ChromeProfilesWorker(QRunnable):
     """Воркер для асинхронной загрузки профилей Chrome."""
+
     def __init__(self, callback):
         super().__init__()
         self.callback = callback
@@ -527,8 +549,9 @@ class ChromeProfilesWorker(QRunnable):
         """Выполняет поиск профилей Chrome в отдельном потоке."""
         try:
             from app.utils.browser.browser_profiles import get_profile_manager
+
             manager = get_profile_manager()
-            profiles = manager.get_browser_profiles('chrome')
+            profiles = manager.get_browser_profiles("chrome")
             self.callback(profiles)
         except ImportError:
             self.callback([])  # Возвращаем пустой список если модуль недоступен
@@ -541,6 +564,7 @@ class ChromeProfileDialog(BaseDialog):
     """
     Диалог выбора профиля Chrome с чекбоксами, кнопками "Выбрать все", "Снять все", "Обновить профили" и нижними кнопками "Сохранить", "Отмена".
     """
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Выбор профиля Chrome")
@@ -556,13 +580,13 @@ class ChromeProfileDialog(BaseDialog):
     def _setup_size(self):
         """Устанавливает размер диалога."""
         base_width, base_height = 600, 500
-        scale = getattr(self, 'scale_factor', 1.0)
+        scale = getattr(self, "scale_factor", 1.0)
         self.resize(int(base_width * scale), int(base_height * scale))
 
     def _setup_ui(self):
         """Настраивает интерфейс диалога."""
         main_layout = QVBoxLayout(self)
-        
+
         label = QLabel("Выберите профиль Chrome:")
         main_layout.addWidget(label)
 
@@ -578,15 +602,15 @@ class ChromeProfileDialog(BaseDialog):
 
         # Кнопки "Выбрать все", "Снять все"
         btns_layout = QHBoxLayout()
-        
+
         self.select_all_btn = QPushButton("Выбрать все")
         self.select_all_btn.clicked.connect(self._on_select_all)
         btns_layout.addWidget(self.select_all_btn)
-        
+
         self.deselect_all_btn = QPushButton("Снять все")
         self.deselect_all_btn.clicked.connect(self._on_deselect_all)
         btns_layout.addWidget(self.deselect_all_btn)
-        
+
         main_layout.addLayout(btns_layout)
 
         # Кнопка "Обновить профили"
@@ -596,7 +620,8 @@ class ChromeProfileDialog(BaseDialog):
 
         # Нижние кнопки "Сохранить" и "Отмена"
         button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+            QDialogButtonBox.StandardButton.Save
+            | QDialogButtonBox.StandardButton.Cancel
         )
         button_box.button(QDialogButtonBox.StandardButton.Save).setText("Сохранить")
         button_box.button(QDialogButtonBox.StandardButton.Cancel).setText("Отмена")
@@ -609,7 +634,7 @@ class ChromeProfileDialog(BaseDialog):
         # Блокируем кнопку обновления во время загрузки
         self.refresh_btn.setEnabled(False)
         self.refresh_btn.setText("Загрузка...")
-        
+
         worker = ChromeProfilesWorker(self._on_profiles_loaded)
         self.threadpool.start(worker)
 
@@ -618,7 +643,7 @@ class ChromeProfileDialog(BaseDialog):
         # Восстанавливаем кнопку обновления
         self.refresh_btn.setEnabled(True)
         self.refresh_btn.setText("Обновить профили")
-        
+
         # Передаем результат в главный поток через сигнал
         self.profiles_loaded.emit(profiles)
 
@@ -626,13 +651,13 @@ class ChromeProfileDialog(BaseDialog):
         """Заполняет список профилей чекбоксами."""
         # Очищаем старые чекбоксы
         self._clear_profile_checkboxes()
-        
+
         if not profiles:
             no_profiles_label = QLabel("Профили Chrome не найдены")
             no_profiles_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.profiles_layout.addWidget(no_profiles_label)
             return
-        
+
         # Создаем чекбоксы для каждого профиля
         for profile in profiles:
             email = profile.get("email", "(без email)")

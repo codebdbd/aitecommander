@@ -49,6 +49,7 @@ def get_valid_themes() -> Iterable[str]:
 
 class Theme(Enum):
     """Тема оформления."""
+
     LIGHT = "light"
     DARK = "dark"
 
@@ -306,7 +307,9 @@ def validate_ui_icon_environment() -> bool:
                 count = sum(1 for _ in theme_dir.iterdir())
                 logger.info("Тема '%s': %s (элементов: %d)", t, theme_dir, count)
             except OSError as exc:  # noqa: BLE001
-                logger.debug("Не удалось просканировать папку темы %s: %s", theme_dir, exc)
+                logger.debug(
+                    "Не удалось просканировать папку темы %s: %s", theme_dir, exc
+                )
 
     return ok
 
@@ -320,5 +323,7 @@ def validate_and_log_ui_icons_startup() -> bool:
     if result:
         logger.info("Проверка окружения UI-иконок: OK")
     else:
-        logger.warning("Проверка окружения UI-иконок завершена с ошибками. Проверьте путь и темы.")
+        logger.warning(
+            "Проверка окружения UI-иконок завершена с ошибками. Проверьте путь и темы."
+        )
     return result

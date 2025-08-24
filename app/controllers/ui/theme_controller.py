@@ -12,13 +12,21 @@ from PyQt6.QtWidgets import QApplication
 from app.config_data import app_config
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 
+logger = logging.getLogger(__name__)
+
 
 class ThemeController:
-    def __init__(self, settings, main_window=None, logger=None,
-                 stylesheet_applier: Optional[callable] = None,
-                 gui_scheduler: Optional[callable] = None):
+    def __init__(
+        self,
+        settings,
+        main_window=None,
+        logger=None,
+        stylesheet_applier: Optional[callable] = None,
+        gui_scheduler: Optional[callable] = None,
+    ):
         """Инициализация контроллера тем."""
-        self.logger = logger or logging.getLogger(self.__class__.__name__)
+        # Deprecated: параметр logger больше не используется; логирование ведётся модульным логгером
+        self._deprecated_logger_param = logger
         self.settings = settings
         self.main_window = main_window
         self._qss_cache: OrderedDict[str, str] = OrderedDict()
@@ -33,7 +41,7 @@ class ThemeController:
         self._cache_lock = RLock()
         # Инъекция зависимостей для тестируемости
         self._stylesheet_applier = stylesheet_applier  # Callable[[str], None]
-        self._gui_scheduler = gui_scheduler            # Callable[[Callable[[], None]], None]
+        self._gui_scheduler = gui_scheduler  # Callable[[Callable[[], None]], None]
 
         self._load_themes_manifest()
 
@@ -61,81 +69,109 @@ class ThemeController:
             manifest_path = app_config.get_themes_manifest_path()
             if manifest_path.exists():
                 try:
-                    with manifest_path.open('r', encoding='utf-8') as f:
+                    with manifest_path.open("r", encoding="utf-8") as f:
                         data = json.load(f)
-                    
+
                     # Проверяем структуру данных
                     if not isinstance(data, dict):
-                        self.logger.error("Неверный формат манифеста тем: ожидается объект")
+                        logger.error("Неверный формат манифеста тем: ожидается объект")
                         self._load_default_themes()
                         return
-                    
+
                     themes = data.get("themes", [])
                     if not isinstance(themes, list):
-                        self.logger.error("Неверный формат тем в манифесте: ожидается массив")
+                        logger.error(
+                            "Неверный формат тем в манифесте: ожидается массив"
+                        )
                         self._load_default_themes()
                         return
-                    
+
                     # Проверяем каждую тему на корректность
                     validated_themes = []
                     seen_names_lc = set()
                     for i, theme in enumerate(themes):
                         if not isinstance(theme, dict):
-                            self.logger.warning("Пропущена неверная тема #%d: ожидается объект", i)
+                            logger.warning(
+                                "Пропущена неверная тема #%d: ожидается объект", i
+                            )
                             continue
                         # Централизованная валидация конфигурации
                         if not self._validate_theme_config(theme):
-                            self.logger.warning("Тема #%d не прошла валидацию и будет пропущена", i)
+                            logger.warning(
+                                "Тема #%d не прошла валидацию и будет пропущена", i
+                            )
                             continue
                         # Проверяем уникальность имени (без учета регистра)
                         name_lc = str(theme.get("name", "")).lower()
                         if name_lc in seen_names_lc:
-                            self.logger.warning("Пропущен дубликат темы #%d (%s): имя уже встречалось", i, theme.get("name", "без имени"))
+                            logger.warning(
+                                "Пропущен дубликат темы #%d (%s): имя уже встречалось",
+                                i,
+                                theme.get("name", "без имени"),
+                            )
                             continue
                         seen_names_lc.add(name_lc)
                         validated_themes.append(theme)
-                    
+
                     self._themes = validated_themes
-                    self.logger.info("Загружено %d тем из манифеста (валидных: %d)", len(themes), len(validated_themes))
+                    logger.info(
+                        "Загружено %d тем из манифеста (валидных: %d)",
+                        len(themes),
+                        len(validated_themes),
+                    )
                 except json.JSONDecodeError as exc:
-                    self.logger.error("Ошибка декодирования JSON манифеста тем: %s", exc)
+                    logger.error("Ошибка декодирования JSON манифеста тем: %s", exc)
                     self._load_default_themes()
                 except PermissionError as exc:
-                    self.logger.error("Ошибка доступа к файлу манифеста тем: %s", exc)
+                    logger.error("Ошибка доступа к файлу манифеста тем: %s", exc)
                     self._load_default_themes()
                 except OSError as exc:
-                    self.logger.error("Ошибка загрузки манифеста тем: %s", exc)
+                    logger.error("Ошибка загрузки манифеста тем: %s", exc)
                     self._load_default_themes()
                 except Exception as exc:
-                    self.logger.error("Неожиданная ошибка при загрузке манифеста тем: %s", exc)
+                    logger.error(
+                        "Неожиданная ошибка при загрузке манифеста тем: %s", exc
+                    )
                     self._load_default_themes()
             else:
-                self.logger.info("Манифест тем не найден, используются значения по умолчанию")
+                logger.info(
+                    "Манифест тем не найден, используются значения по умолчанию"
+                )
                 self._load_default_themes()
         except Exception as exc:
-            self.logger.error("Неожиданная ошибка при проверке манифеста тем: %s", exc)
+            logger.error("Неожиданная ошибка при проверке манифеста тем: %s", exc)
             self._load_default_themes()
 
     def _load_default_themes(self) -> None:
         """Загружает конфигурацию тем по умолчанию."""
         self._themes = [
-            {"name": "light", "display_name": "Светлая", "qss_file": "light.qss", "is_dark": False},
-            {"name": "dark", "display_name": "Тёмная", "qss_file": "dark.qss", "is_dark": True}
+            {
+                "name": "light",
+                "display_name": "Светлая",
+                "qss_file": "light.qss",
+                "is_dark": False,
+            },
+            {
+                "name": "dark",
+                "display_name": "Тёмная",
+                "qss_file": "dark.qss",
+                "is_dark": True,
+            },
         ]
-    
+
     def _is_safe_filename(self, filename: str) -> bool:
         """Проверяет, является ли имя файла безопасным (предотвращает path traversal)."""
         # Проверяем, что имя файла не содержит опасных символов
         if not filename or re.search(r'[<>:"/\\|?*]', filename):
             return False
         # Проверяем, что путь не содержит подкаталогов
-        if '..' in filename or '/' in filename or '\\' in filename:
+        if ".." in filename or "/" in filename or "\\" in filename:
             return False
         # Проверяем, что расширение файла .qss
-        if not filename.endswith('.qss'):
+        if not filename.endswith(".qss"):
             return False
         return True
-    
+
     def _manage_cache_size(self) -> None:
         """Управляет размером кэша по политике LRU: удаляет самые старые записи."""
         with self._cache_lock:
@@ -144,14 +180,16 @@ class ThemeController:
                 key, _ = self._qss_cache.popitem(last=False)  # удаляем LRU
                 removed += 1
             if removed:
-                self.logger.debug("Кэш тем уменьшен по LRU, удалено %d записей", removed)
+                logger.debug("Кэш тем уменьшен по LRU, удалено %d записей", removed)
 
     def is_dark(self) -> bool:
         """Проверяет, является ли текущая тема тёмной."""
         try:
             current_theme = self.settings.get_theme()
             if not current_theme:
-                self.logger.warning("Текущая тема не установлена, используется светлая тема по умолчанию")
+                logger.warning(
+                    "Текущая тема не установлена, используется светлая тема по умолчанию"
+                )
                 return False
             # Нормализуем имя и пытаемся найти конфиг
             norm = self._normalize_theme_input(current_theme)
@@ -161,7 +199,7 @@ class ThemeController:
             # Если тема не найдена в конфигурации, определяем по нормализованному имени
             return norm == "dark"
         except Exception as exc:
-            self.logger.error("Ошибка при определении темной темы: %s", exc)
+            logger.error("Ошибка при определении темной темы: %s", exc)
             return False
 
     def _get_theme_by_name(self, name: str) -> Optional[Dict[str, Any]]:
@@ -169,23 +207,27 @@ class ThemeController:
         if not name:
             return None
         name_lc = str(name).lower()
-        return next((theme for theme in self._themes if str(theme.get("name", "")).lower() == name_lc), None)
+        return next(
+            (
+                theme
+                for theme in self._themes
+                if str(theme.get("name", "")).lower() == name_lc
+            ),
+            None,
+        )
 
     def available(self) -> List[Tuple[str, str]]:
         """Получает список доступных тем."""
         try:
             if not self._themes:
-                self.logger.warning("Список тем пуст, возвращаются темы по умолчанию")
-                return [
-                    ("light", "Светлая"),
-                    ("dark", "Тёмная")
-                ]
+                logger.warning("Список тем пуст, возвращаются темы по умолчанию")
+                return [("light", "Светлая"), ("dark", "Тёмная")]
             result: List[Tuple[str, str]] = []
             for theme in self._themes:
                 name = theme.get("name")
                 if not name:
                     # Пропускаем некорректные записи
-                    self.logger.warning("Пропущена тема без имени в конфигурации")
+                    logger.warning("Пропущена тема без имени в конфигурации")
                     continue
                 display_name = theme.get("display_name")
                 if not display_name:
@@ -195,8 +237,8 @@ class ThemeController:
                     elif name == "dark":
                         display_name = "Тёмная"
                     else:
-                        display_name = str(name).replace('_', ' ').title()
-                    self.logger.warning(
+                        display_name = str(name).replace("_", " ").title()
+                    logger.warning(
                         "Тема '%s' не имеет display_name в манифесте, использовано значение по умолчанию: %s",
                         name,
                         display_name,
@@ -204,12 +246,9 @@ class ThemeController:
                 result.append((name, display_name))
             return result
         except Exception as exc:
-            self.logger.error("Ошибка при получении списка тем: %s", exc)
+            logger.error("Ошибка при получении списка тем: %s", exc)
             # Возвращаем темы по умолчанию в случае ошибки
-            return [
-                ("light", "Светлая"),
-                ("dark", "Тёмная")
-            ]
+            return [("light", "Светлая"), ("dark", "Тёмная")]
 
     def _load_common_qss(self) -> bool:
         """Загружает общие QSS стили."""
@@ -218,34 +257,34 @@ class ThemeController:
                 return True
         common_path = app_config.paths.get_qss_dir() / "common.qss"
         if not common_path.exists():
-            self.logger.warning("Файл общих стилей не найден: %s", common_path)
+            logger.warning("Файл общих стилей не найден: %s", common_path)
             with self._cache_lock:
                 self._common_qss = ""
             return False
         try:
-            with common_path.open('r', encoding='utf-8') as f:
+            with common_path.open("r", encoding="utf-8") as f:
                 content = f.read()
             with self._cache_lock:
                 self._common_qss = content
-            self.logger.debug("Загружены общие стили из %s", common_path)
+            logger.debug("Загружены общие стили из %s", common_path)
             return True
         except UnicodeDecodeError as exc:
-            self.logger.error("Ошибка декодирования файла общих стилей: %s", exc)
+            logger.error("Ошибка декодирования файла общих стилей: %s", exc)
             with self._cache_lock:
                 self._common_qss = ""
             return False
         except PermissionError as exc:
-            self.logger.error("Ошибка доступа к файлу общих стилей: %s", exc)
+            logger.error("Ошибка доступа к файлу общих стилей: %s", exc)
             with self._cache_lock:
                 self._common_qss = ""
             return False
         except OSError as exc:
-            self.logger.error("Ошибка загрузки общих стилей: %s", exc)
+            logger.error("Ошибка загрузки общих стилей: %s", exc)
             with self._cache_lock:
                 self._common_qss = ""
             return False
         except Exception as exc:
-            self.logger.error("Неожиданная ошибка при загрузке общих стилей: %s", exc)
+            logger.error("Неожиданная ошибка при загрузке общих стилей: %s", exc)
             with self._cache_lock:
                 self._common_qss = ""
             return False
@@ -257,15 +296,15 @@ class ThemeController:
                 # Помечаем как недавно использованную запись (LRU)
                 self._qss_cache.move_to_end(theme_name, last=True)
                 return self._qss_cache[theme_name]
-        
+
         # Управляем размером кэша
         self._manage_cache_size()
-        
+
         if not theme_path.exists():
-            self.logger.error("Файл темы не найден: %s", theme_path)
+            logger.error("Файл темы не найден: %s", theme_path)
             return None
         try:
-            with theme_path.open('r', encoding='utf-8') as f:
+            with theme_path.open("r", encoding="utf-8") as f:
                 theme_qss = f.read()
             self._load_common_qss()
             with self._cache_lock:
@@ -281,24 +320,26 @@ class ThemeController:
                         combined_qss = f"{combined_qss}\n\n/* ==== AppConfig overrides (auto-generated) ==== */\n{overrides}"
                 except Exception as exc:
                     # Не валим применение темы из‑за ошибок построения оверрайдов
-                    self.logger.warning("Не удалось построить QSS-оверрайды из конфигурации: %s", exc)
+                    logger.warning(
+                        "Не удалось построить QSS-оверрайды из конфигурации: %s", exc
+                    )
                 self._qss_cache[theme_name] = combined_qss
                 # Помечаем как недавно использованную и следим за размером
                 self._qss_cache.move_to_end(theme_name, last=True)
                 self._manage_cache_size()
-            self.logger.debug("Загружена и кэширована тема: %s", theme_name)
+            logger.debug("Загружена и кэширована тема: %s", theme_name)
             return combined_qss
         except UnicodeDecodeError as exc:
-            self.logger.error("Ошибка декодирования файла темы %s: %s", theme_name, exc)
+            logger.error("Ошибка декодирования файла темы %s: %s", theme_name, exc)
             return None
         except PermissionError as exc:
-            self.logger.error("Ошибка доступа к файлу темы %s: %s", theme_name, exc)
+            logger.error("Ошибка доступа к файлу темы %s: %s", theme_name, exc)
             return None
         except OSError as exc:
-            self.logger.error("Ошибка загрузки темы %s: %s", theme_name, exc)
+            logger.error("Ошибка загрузки темы %s: %s", theme_name, exc)
             return None
         except Exception as exc:
-            self.logger.error("Неожиданная ошибка при загрузке темы %s: %s", theme_name, exc)
+            logger.error("Неожиданная ошибка при загрузке темы %s: %s", theme_name, exc)
             return None
 
     def apply(self, name: str) -> bool:
@@ -306,39 +347,41 @@ class ThemeController:
         normalized_name = self._normalize_theme_input(name)
         theme_config = self._get_theme_by_name(normalized_name)
         if not theme_config:
-            self.logger.error("Тема не найдена: %s", name)
+            logger.error("Тема не найдена: %s", name)
             return False
         qss_file = theme_config.get("qss_file")
         if not qss_file:
-            self.logger.error("QSS файл не указан для темы: %s", name)
+            logger.error("QSS файл не указан для темы: %s", name)
             return False
-        
+
         # Проверяем, что имя файла безопасно
         if not self._is_safe_filename(qss_file):
-            self.logger.error("Небезопасное имя файла темы: %s", qss_file)
+            logger.error("Небезопасное имя файла темы: %s", qss_file)
             return False
-        
+
         theme_path = app_config.paths.get_qss_dir() / qss_file
-        
+
         # Дополнительная проверка пути
         try:
             # Проверяем, что путь находится внутри директории тем
             qss_dir = app_config.paths.get_qss_dir().resolve()
             full_path = theme_path.resolve()
             if not str(full_path).startswith(str(qss_dir)):
-                self.logger.error("Попытка доступа к файлу вне директории тем: %s", theme_path)
+                logger.error(
+                    "Попытка доступа к файлу вне директории тем: %s", theme_path
+                )
                 return False
         except Exception as exc:
-            self.logger.error("Ошибка проверки пути к файлу темы %s: %s", theme_path, exc)
+            logger.error("Ошибка проверки пути к файлу темы %s: %s", theme_path, exc)
             return False
-        
+
         # Кэшируем и ищем по каноническому имени, чтобы избежать дублей ключей
         canonical_name = theme_config.get("name", normalized_name)
         qss_content = self._load_theme_qss(canonical_name, theme_path)
         if qss_content is None:
-            self.logger.error("Не удалось загрузить QSS для темы: %s", name)
+            logger.error("Не удалось загрузить QSS для темы: %s", name)
             return False
-        
+
         try:
             # Применяем QSS
             if self._stylesheet_applier is not None:
@@ -346,24 +389,24 @@ class ThemeController:
             else:
                 app = QApplication.instance()
                 if not app:
-                    self.logger.error("QApplication instance не найден")
+                    logger.error("QApplication instance не найден")
                     return False
                 app.setStyleSheet(qss_content)
-            
+
             # Инициализируем тему иконок Qt
             try:
                 self._apply_qt_icon_theme(canonical_name)
             except Exception as icon_exc:
-                self.logger.warning("Не удалось применить тему иконок Qt: %s", icon_exc)
-            
+                logger.warning("Не удалось применить тему иконок Qt: %s", icon_exc)
+
             # Обновляем настройки и окно
-            self.logger.info("Применена тема: %s", canonical_name)
+            logger.info("Применена тема: %s", canonical_name)
             self.settings.set_theme(canonical_name)
-            if self.main_window and hasattr(self.main_window, 'update_theme'):
+            if self.main_window and hasattr(self.main_window, "update_theme"):
                 self.main_window.update_theme()
             return True
         except Exception as exc:
-            self.logger.error("Ошибка применения темы %s: %s", name, exc)
+            logger.error("Ошибка применения темы %s: %s", name, exc)
             return False
 
     def clear_cache(self) -> None:
@@ -372,7 +415,7 @@ class ThemeController:
             cache_size = len(self._qss_cache)
             self._qss_cache.clear()
             self._common_qss = None
-        self.logger.debug("Кэш тем очищен, удалено %d записей", cache_size)
+        logger.debug("Кэш тем очищен, удалено %d записей", cache_size)
 
     def apply_and_refresh_ui(self) -> None:
         """Централизованно обновляет UI после применения темы.
@@ -386,70 +429,79 @@ class ThemeController:
         try:
             clear_icon_cache()
         except Exception as exc:
-            self.logger.warning("Не удалось очистить кэш иконок: %s", exc)
+            logger.warning("Не удалось очистить кэш иконок: %s", exc)
 
-        mw = getattr(self, 'main_window', None)
+        mw = getattr(self, "main_window", None)
         if not mw:
             return
 
         # Пересоздание главного меню
         try:
-            menu_ctrl = getattr(mw, 'menu_controller', None)
+            menu_ctrl = getattr(mw, "menu_controller", None)
             if menu_ctrl:
                 menu_ctrl.rebuild_after_theme_change()
         except Exception as exc:
-            self.logger.warning("Ошибка пересборки меню после смены темы: %s", exc)
+            logger.warning("Ошибка пересборки меню после смены темы: %s", exc)
 
         # Перезагрузка иконок в структуре
         try:
-            structure = getattr(mw, 'structure', None)
-            if structure and hasattr(structure, 'reload_icons'):
+            structure = getattr(mw, "structure", None)
+            if structure and hasattr(structure, "reload_icons"):
                 structure.reload_icons()
         except Exception as exc:
-            self.logger.warning("Ошибка перезагрузки иконок структуры: %s", exc)
+            logger.warning("Ошибка перезагрузки иконок структуры: %s", exc)
 
         # Обновление верхних панелей
         try:
-            top_ctrl = getattr(mw, 'top_panels_controller', None)
-            if top_ctrl and hasattr(top_ctrl, 'refresh_all'):
+            top_ctrl = getattr(mw, "top_panels_controller", None)
+            if top_ctrl and hasattr(top_ctrl, "refresh_all"):
                 top_ctrl.refresh_all()
         except Exception as exc:
-            self.logger.warning("Ошибка обновления верхних панелей: %s", exc)
-    
+            logger.warning("Ошибка обновления верхних панелей: %s", exc)
+
     def _validate_theme_config(self, theme: Dict[str, Any]) -> bool:
         """Проверяет корректность конфигурации темы."""
         try:
             if not isinstance(theme, dict):
-                self.logger.warning("Конфигурация темы должна быть словарем")
+                logger.warning("Конфигурация темы должна быть словарем")
                 return False
-            
+
             # Проверяем обязательные поля
             if not theme.get("name"):
-                self.logger.warning("Отсутствует имя темы")
+                logger.warning("Отсутствует имя темы")
                 return False
             # display_name допускается отсутствующим — available() подставит fallback
             if not theme.get("display_name"):
-                self.logger.warning("Отсутствует отображаемое имя темы — будет использовано значение по умолчанию")
-            
+                logger.warning(
+                    "Отсутствует отображаемое имя темы — будет использовано значение по умолчанию"
+                )
+
             qss_file = theme.get("qss_file")
             if not qss_file:
-                self.logger.warning("Отсутствует файл QSS для темы %s", theme.get("name", "без имени"))
+                logger.warning(
+                    "Отсутствует файл QSS для темы %s", theme.get("name", "без имени")
+                )
                 return False
-            
+
             # Проверяем, что имя файла безопасно
             if not self._is_safe_filename(qss_file):
-                self.logger.warning("Небезопасное имя файла QSS для темы %s", theme.get("name", "без имени"))
+                logger.warning(
+                    "Небезопасное имя файла QSS для темы %s",
+                    theme.get("name", "без имени"),
+                )
                 return False
-            
+
             # Проверяем опциональные поля
             is_dark = theme.get("is_dark")
             if is_dark is not None and not isinstance(is_dark, bool):
-                self.logger.warning("Поле is_dark должно быть булевым для темы %s", theme["name"])
+                logger.warning(
+                    "Поле is_dark должно быть булевым для темы %s", theme["name"]
+                )
                 return False
-            
+
             return True
         except Exception as exc:
-            self.logger.error("Ошибка валидации конфигурации темы: %s", exc)
+            logger.error("Ошибка валидации конфигурации темы: %s", exc)
             return False
 
     def _apply_qt_icon_theme(self, theme_name: str) -> None:
@@ -460,7 +512,7 @@ class ThemeController:
         # Формируем пути поиска: UI-иконки приложения как тема Qt
         ui_icons_dir = app_config.paths.get_ui_icons_dir()
         if not ui_icons_dir.exists():
-            self.logger.debug("UI icons dir does not exist: %s", ui_icons_dir)
+            logger.debug("UI icons dir does not exist: %s", ui_icons_dir)
             return
         # Проверяем наличие директории темы, при отсутствии — используем fallback 'light'
         theme_dir = ui_icons_dir / theme_name
@@ -468,10 +520,17 @@ class ThemeController:
             fallback = "light"
             fallback_dir = ui_icons_dir / fallback
             if fallback_dir.exists():
-                self.logger.warning("Тема иконок '%s' не найдена, используется fallback '%s'", theme_name, fallback)
+                logger.warning(
+                    "Тема иконок '%s' не найдена, используется fallback '%s'",
+                    theme_name,
+                    fallback,
+                )
                 theme_name = fallback
             else:
-                self.logger.warning("Директория темы иконок не найдена: %s, fallback 'light' также отсутствует", theme_dir)
+                logger.warning(
+                    "Директория темы иконок не найдена: %s, fallback 'light' также отсутствует",
+                    theme_dir,
+                )
         search_paths = [str(ui_icons_dir)]
         try:
             # Добавляем существующие ранее пути поиска, чтобы не терять системные
@@ -484,7 +543,7 @@ class ThemeController:
         QIcon.setThemeSearchPaths(search_paths)
         # Имя темы — каноническое имя, ожидая поддиректории ui_icons_dir/<theme_name>
         QIcon.setThemeName(theme_name)
-    
+
     def _build_config_overrides_qss(self) -> str:
         """Формирует блок QSS c параметрами из конфигурации для перекрытия темовых значений.
 
@@ -556,7 +615,7 @@ class ThemeController:
                 lines.append("QMenuBar::item:hover { " + " ".join(item_rules) + " }")
                 lines.append("QMenuBar::item:pressed { " + " ".join(item_rules) + " }")
         return "\n".join(lines)
-    
+
     def get_cache_stats(self) -> Dict[str, Any]:
         """Возвращает статистику кэша тем."""
         with self._cache_lock:
@@ -564,5 +623,5 @@ class ThemeController:
                 "cache_size": len(self._qss_cache),
                 "max_size": self._max_cache_size,
                 "cached_themes": list(self._qss_cache.keys()),
-                "common_qss_loaded": self._common_qss is not None
+                "common_qss_loaded": self._common_qss is not None,
             }

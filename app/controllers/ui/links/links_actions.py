@@ -13,11 +13,17 @@ class LinksActions:
     def __init__(self, main_window, links=None, link_ops=None):
         self.main = main_window
         # Инъекция контроллеров напрямую (без зависимости от полей окна)
-        self.links = links if links is not None else getattr(main_window, 'links', None)
-        self.link_ops = link_ops if link_ops is not None else getattr(main_window, 'link_operations', None)
+        self.links = links if links is not None else getattr(main_window, "links", None)
+        self.link_ops = (
+            link_ops
+            if link_ops is not None
+            else getattr(main_window, "link_operations", None)
+        )
 
     # --- Диалог ссылки ---
-    def show_link_dialog(self, link: Optional[Dict] = None, category_id: Optional[int] = None) -> bool:
+    def show_link_dialog(
+        self, link: Optional[Dict] = None, category_id: Optional[int] = None
+    ) -> bool:
         if not self.link_ops:
             return False
         return bool(self.link_ops.show_link_dialog(link=link, category_id=category_id))
@@ -62,7 +68,7 @@ class LinksActions:
             self.links.on_search(text)
 
     def restore_selection(self, link_id: int):
-        if self.links and hasattr(self.links, 'focus_on_link'):
+        if self.links and hasattr(self.links, "focus_on_link"):
             self.links.focus_on_link(link_id)
 
     def focus_on_link(self, link_id: int):
@@ -87,15 +93,15 @@ class LinksActions:
         if not self.links:
             return None
         # Предпочитаем прямой вызов актуального метода
-        if hasattr(self.links, 'get_link_at'):
+        if hasattr(self.links, "get_link_at"):
             return self.links.get_link_at(row)
         # Fallback на случай наличия старого метода где-то ещё
-        if hasattr(self.links, 'get_link_by_row'):
+        if hasattr(self.links, "get_link_by_row"):
             return self.links.get_link_by_row(row)
         return None
 
     def current_row(self) -> Optional[int]:
-        if not self.links or not hasattr(self.links, 'current_row'):
+        if not self.links or not hasattr(self.links, "current_row"):
             return None
         return self.links.current_row()
 
@@ -119,20 +125,20 @@ class LinksActions:
         result = self.show_link_dialog(link=link)
         if result:
             # Уведомить статусбар через MainWindow
-            if hasattr(self.main, 'update_statusbar'):
+            if hasattr(self.main, "update_statusbar"):
                 self.main.update_statusbar()
             return True
         return False
 
     # --- Делегаты для пассивных виджетов (Recent/Favorites) ---
     def on_recent_refresh_requested(self, limit: int):
-        if self.links and hasattr(self.links, 'on_recent_refresh_requested'):
+        if self.links and hasattr(self.links, "on_recent_refresh_requested"):
             return self.links.on_recent_refresh_requested(limit)
 
     def on_favorites_refresh_requested(self):
-        if self.links and hasattr(self.links, 'on_favorites_refresh_requested'):
+        if self.links and hasattr(self.links, "on_favorites_refresh_requested"):
             return self.links.on_favorites_refresh_requested()
 
     def on_favorites_clear_requested(self):
-        if self.links and hasattr(self.links, 'on_favorites_clear_requested'):
+        if self.links and hasattr(self.links, "on_favorites_clear_requested"):
             return self.links.on_favorites_clear_requested()

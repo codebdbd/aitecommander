@@ -9,7 +9,7 @@
 
 Использование:
     from app.utils.browser.browser_profiles import get_profile_manager
-    
+
     manager = get_profile_manager()
     all_profiles = manager.get_all_profiles()
     chrome_profiles = manager.get_browser_profiles('chrome')
@@ -30,17 +30,17 @@ from .universal_profile_processor import UniversalProfileProcessor
 from .validator import BrowserProfileValidator
 
 __all__ = [
-    'BrowserProfileManager',
-    'get_profile_manager',
-    'UniversalProfileProcessor', 
-    'BaseBrowserProfileFinder',
-    'ChromeProfileFinder',
-    'FirefoxProfileFinder',
-    'EdgeProfileFinder',
-    'BraveProfileFinder',
-    'VivaldiProfileFinder',
-    'ChromiumBaseBrowserFinder',
-    'ProfileMigrationHelper',
-    'BrowserProfileValidator',
-    'BrowserProfileDevTools'
+    "BrowserProfileManager",
+    "get_profile_manager",
+    "UniversalProfileProcessor",
+    "BaseBrowserProfileFinder",
+    "ChromeProfileFinder",
+    "FirefoxProfileFinder",
+    "EdgeProfileFinder",
+    "BraveProfileFinder",
+    "VivaldiProfileFinder",
+    "ChromiumBaseBrowserFinder",
+    "ProfileMigrationHelper",
+    "BrowserProfileValidator",
+    "BrowserProfileDevTools",
 ]

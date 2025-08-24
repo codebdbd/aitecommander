@@ -35,7 +35,9 @@ class LRUPolicy:
             self.access_order[key] = None
             self.access_order.move_to_end(key)
 
-    def evict_if_needed(self, cache: Dict[str, Any], key: str) -> Tuple[bool, Optional[str]]:
+    def evict_if_needed(
+        self, cache: Dict[str, Any], key: str
+    ) -> Tuple[bool, Optional[str]]:
         """Проверить переполнение и вернуть ключ для удаления.
 
         Возвращает:

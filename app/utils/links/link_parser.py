@@ -34,6 +34,7 @@ from app.utils.validators import (
 _provider_lock = threading.Lock()
 _provider = None
 
+
 def _get_icon_provider():
     """Получает thread-safe instance QFileIconProvider"""
     global _provider
@@ -50,7 +51,7 @@ def _validate_exe_path(exe_path: str) -> bool:
         return False
     if not os.path.isfile(exe_path):
         return False
-    if not exe_path.lower().endswith('.exe'):
+    if not exe_path.lower().endswith(".exe"):
         return False
     # Проверяем доступ на чтение
     if not os.access(exe_path, os.R_OK):
@@ -63,6 +64,7 @@ def _validate_exe_path(exe_path: str) -> bool:
     except OSError:
         return False
     return True
+
 
 @contextmanager
 def com_context():
@@ -79,6 +81,7 @@ def com_context():
         except pythoncom.com_error:
             pass
 
+
 @contextmanager
 def gdi_context():
     """Контекстный менеджер для GDI ресурсов"""
@@ -86,22 +89,23 @@ def gdi_context():
     try:
         yield resources
     finally:
-        if 'hdc_compat' in resources:
+        if "hdc_compat" in resources:
             try:
-                resources['hdc_compat'].DeleteDC()
+                resources["hdc_compat"].DeleteDC()
             except (win32ui.error, AttributeError):
                 pass
-        if 'hdc' in resources:
+        if "hdc" in resources:
             try:
-                resources['hdc'].DeleteDC()
+                resources["hdc"].DeleteDC()
             except (win32ui.error, AttributeError):
                 pass
-        if 'icons' in resources:
-            for icon in resources['icons']:
+        if "icons" in resources:
+            for icon in resources["icons"]:
                 try:
                     win32gui.DestroyIcon(icon)
                 except win32gui.error:
                     pass
+
 
 def _get_default_icon(icon_type: str, config) -> str:
     """Возвращает ПОЛНЫЙ путь к иконке по умолчанию для указанного типа через icon_resolver."""
@@ -110,6 +114,7 @@ def _get_default_icon(icon_type: str, config) -> str:
         return resolved or ""
     except Exception:
         return ""
+
 
 def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
     """Извлекает иконку из EXE файла с улучшенной обработкой ошибок"""
@@ -132,27 +137,27 @@ def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
             if not large:
                 logging.debug(f"No icon found in {exe_path}")
                 return None
-            resources['icons'] = large + small
+            resources["icons"] = large + small
             hicon = large[0]
             ico_x = win32api.GetSystemMetrics(win32con.SM_CXICON)
-            resources['hdc'] = win32ui.CreateDCFromHandle(win32gui.GetDC(0))
+            resources["hdc"] = win32ui.CreateDCFromHandle(win32gui.GetDC(0))
             hbmp = win32ui.CreateBitmap()
-            hbmp.CreateCompatibleBitmap(resources['hdc'], ico_x, ico_x)
-            resources['hdc_compat'] = resources['hdc'].CreateCompatibleDC()
-            resources['hdc_compat'].SelectObject(hbmp)
-            resources['hdc_compat'].DrawIcon((0, 0), hicon)
+            hbmp.CreateCompatibleBitmap(resources["hdc"], ico_x, ico_x)
+            resources["hdc_compat"] = resources["hdc"].CreateCompatibleDC()
+            resources["hdc_compat"].SelectObject(hbmp)
+            resources["hdc_compat"].DrawIcon((0, 0), hicon)
             bmpinfo = hbmp.GetInfo()
             bmpstr = hbmp.GetBitmapBits(True)
             img = Image.frombuffer(
-                'RGBA', 
-                (bmpinfo['bmWidth'], bmpinfo['bmHeight']), 
-                bmpstr, 
-                'raw', 
-                'BGRA', 
-                0, 
-                1
+                "RGBA",
+                (bmpinfo["bmWidth"], bmpinfo["bmHeight"]),
+                bmpstr,
+                "raw",
+                "BGRA",
+                0,
+                1,
             )
-            img.save(save_path, format='ICO')
+            img.save(save_path, format="ICO")
             logging.debug(f"Extracted EXE icon saved: {save_path}")
             return save_path
     except win32ui.error as e:
@@ -163,19 +168,20 @@ def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
         logging.error(f"Unexpected error extracting icon from {exe_path}: {e}")
     return None
 
+
 def _parse_lnk(lnk_path: str) -> Dict[str, str]:
     """Парсит .lnk файл с улучшенной обработкой ошибок"""
     if not lnk_path or not isinstance(lnk_path, str):
         return {}
-    if not os.path.exists(lnk_path) or not lnk_path.lower().endswith('.lnk'):
+    if not os.path.exists(lnk_path) or not lnk_path.lower().endswith(".lnk"):
         return {}
     try:
         with com_context():
             shortcut = pythoncom.CoCreateInstance(
-                shell.CLSID_ShellLink, 
+                shell.CLSID_ShellLink,
                 None,
-                pythoncom.CLSCTX_INPROC_SERVER, 
-                shell.IID_IShellLink
+                pythoncom.CLSCTX_INPROC_SERVER,
+                shell.IID_IShellLink,
             )
             persist_file = shortcut.QueryInterface(pythoncom.IID_IPersistFile)
             persist_file.Load(lnk_path)
@@ -186,7 +192,7 @@ def _parse_lnk(lnk_path: str) -> Dict[str, str]:
                 "path": path or "",
                 "args": args or "",
                 "icon_path": icon_path or "",
-                "icon_index": str(icon_index) if icon_index else "0"
+                "icon_index": str(icon_index) if icon_index else "0",
             }
             logging.debug(f"Parsed .lnk: {result}")
             return result
@@ -197,6 +203,7 @@ def _parse_lnk(lnk_path: str) -> Dict[str, str]:
     except Exception as e:
         logging.error(f"Unexpected error parsing .lnk file {lnk_path}: {e}")
     return {}
+
 
 def _get_name_for_link_type(link_type: str, path: str, lnk_info: Dict[str, str]) -> str:
     """Определяет имя для ссылки в зависимости от типа"""
@@ -218,6 +225,7 @@ def _get_name_for_link_type(link_type: str, path: str, lnk_info: Dict[str, str])
         logging.error(f"Error getting name for {link_type}, path {path}: {e}")
         return "Unknown"
 
+
 def _handle_folder_icon(config) -> str:
     """Обрабатывает иконку для папки через централизованный резолвер."""
     try:
@@ -228,12 +236,13 @@ def _handle_folder_icon(config) -> str:
         logging.debug(f"folder icon resolve failed, fallback: {e}")
     return _get_default_icon("folder", config)
 
+
 def _handle_chromeapp_icon(lnk_info: Dict[str, str], icons_dir: str) -> Optional[str]:
     """Обрабатывает иконку для Chrome-приложения"""
     args = lnk_info.get("args", "")
     if not args:
         return None
-    app_id_match = re.search(r'--app-id=([a-z0-9]{32})', args)
+    app_id_match = re.search(r"--app-id=([a-z0-9]{32})", args)
     if not app_id_match:
         return None
     app_id = app_id_match.group(1)
@@ -253,19 +262,23 @@ def _handle_chromeapp_icon(lnk_info: Dict[str, str], icons_dir: str) -> Optional
             logging.error(f"Failed to copy chromeapp icon: {e}")
     return None
 
-def _handle_program_icon(path: str, lnk_info: Dict[str, str], icons_dir: str) -> Optional[str]:
+
+def _handle_program_icon(
+    path: str, lnk_info: Dict[str, str], icons_dir: str
+) -> Optional[str]:
     """Обрабатывает иконку для программы"""
     target_path = lnk_info.get("path") if lnk_info else path
-    if target_path and target_path.lower().endswith('.exe'):
+    if target_path and target_path.lower().endswith(".exe"):
         return _extract_icon_from_exe(target_path, icons_dir)
     return None
+
 
 def _handle_file_icon(path: str, icons_dir: str) -> Optional[str]:
     """Обрабатывает иконку для файла"""
     if not path:
         return None
     try:
-        ext = Path(path).suffix.lower().replace('.', '')
+        ext = Path(path).suffix.lower().replace(".", "")
         if not ext:
             return None
         icon_path = os.path.join(icons_dir, f"file_{ext}.png")
@@ -283,7 +296,10 @@ def _handle_file_icon(path: str, icons_dir: str) -> Optional[str]:
         logging.error(f"Failed to extract file icon for {path}: {e}")
     return None
 
-def _get_icon_for_link_type(link_type: str, path: str, lnk_info: Dict[str, str], config, icons_dir: str) -> str:
+
+def _get_icon_for_link_type(
+    link_type: str, path: str, lnk_info: Dict[str, str], config, icons_dir: str
+) -> str:
     """Определяет иконку для ссылки в зависимости от типа"""
     icon = None
     try:
@@ -302,7 +318,10 @@ def _get_icon_for_link_type(link_type: str, path: str, lnk_info: Dict[str, str],
         logging.debug(f"Fallback to default icon: {icon}")
     return icon or ""
 
-def parse_local_link(link_type: str, path: str, config, args: str = None) -> Dict[str, str]:
+
+def parse_local_link(
+    link_type: str, path: str, config, args: str = None
+) -> Dict[str, str]:
     """Парсит локальную ссылку и возвращает информацию о ней, включая имя и иконку."""
     if not validate_link_type(link_type):
         logging.error(f"Invalid link_type: {link_type!r}")
@@ -315,7 +334,7 @@ def parse_local_link(link_type: str, path: str, config, args: str = None) -> Dic
         return None
     icons_dir = str(icon_path_service.get_user_icons_dir())
     lnk_info = {}
-    if path.lower().endswith('.lnk'):
+    if path.lower().endswith(".lnk"):
         lnk_info = _parse_lnk(path)
     name = _get_name_for_link_type(link_type, path, lnk_info)
     icon = _get_icon_for_link_type(link_type, path, lnk_info, config, icons_dir)

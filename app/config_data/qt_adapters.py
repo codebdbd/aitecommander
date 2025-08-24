@@ -2,13 +2,14 @@
 Адаптеры для преобразования конфигурационных данных в Qt-объекты.
 Изолирует PyQt6 зависимости от основного конфигурационного модуля.
 """
-from typing import Any, Union, List, Tuple
+
+from typing import Any, List, Tuple, Union
 
 
 def to_qsize(size_data: Union[int, List[int], Tuple[int, int]]) -> Any:
     """Преобразует размер из конфигурации в QSize объект."""
     from PyQt6.QtCore import QSize
-    
+
     if isinstance(size_data, (list, tuple)) and len(size_data) >= 2:
         return QSize(int(size_data[0]), int(size_data[1]))
     elif isinstance(size_data, int):

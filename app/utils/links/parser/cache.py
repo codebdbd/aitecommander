@@ -1,4 +1,5 @@
 """Cache helpers for link metadata (title/icon)."""
+
 from __future__ import annotations
 
 import shelve

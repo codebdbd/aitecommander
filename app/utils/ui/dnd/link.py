@@ -30,8 +30,8 @@ class DragDropHandlerMixin:
                     continue
 
                 link_data = self.get_link_at(row)
-                if link_data and 'id' in link_data:
-                    ids.append(link_data['id'])
+                if link_data and "id" in link_data:
+                    ids.append(link_data["id"])
                 else:
                     logging.warning(f"[DRAG] Отсутствует ID в строке {row}")
 
@@ -48,7 +48,9 @@ class DragDropHandlerMixin:
 
             # Перемещаем элементы
             for col in range(self.columnCount()):
-                current_source_row = source_row if source_row < target_row else source_row + 1
+                current_source_row = (
+                    source_row if source_row < target_row else source_row + 1
+                )
                 item = self.takeItem(current_source_row, col)
                 if item:
                     self.setItem(target_row, col, item)
@@ -81,14 +83,18 @@ class DragDropHandlerMixin:
 
             # Очищаем и обновляем кэш атомарно
             self._current_links.clear()
-            self._current_links.update({k: v for k, v in new_cache.items() if v is not None})
+            self._current_links.update(
+                {k: v for k, v in new_cache.items() if v is not None}
+            )
 
             # Удаляем старую строку
             old_row = source_row if source_row < target_row else source_row + 1
             self.removeRow(old_row)
 
         except Exception as e:
-            logging.error(f"[LinksTableView] Ошибка визуального перемещения строки {source_row} -> {target_row}: {e}")
+            logging.error(
+                f"[LinksTableView] Ошибка визуального перемещения строки {source_row} -> {target_row}: {e}"
+            )
             # В случае ошибки просто пересчитываем весь кэш
             self._current_links.clear()
             for row in range(self.rowCount()):
@@ -102,8 +108,8 @@ class DragDropHandlerMixin:
             ids_in_order = []
             for row in range(self.rowCount()):
                 link_data = self.get_link_at(row)
-                if link_data and 'id' in link_data:
-                    ids_in_order.append(link_data['id'])
+                if link_data and "id" in link_data:
+                    ids_in_order.append(link_data["id"])
             return ids_in_order
         except Exception as e:
             logging.error(f"[DRAG] Ошибка получения текущего порядка ссылок: {e}")
@@ -111,6 +117,7 @@ class DragDropHandlerMixin:
 
 
 # --- Переиспользуемые хелперы для таблиц ---
+
 
 def get_selected_rows(table) -> List[int]:
     """Надёжно получает выбранные строки из QTableWidget/QTableView.
@@ -183,7 +190,9 @@ def move_row_visually(table, source_row: int, target_row: int) -> None:
 
         # Перенос ячеек
         for col in range(table.columnCount()):
-            current_source_row = source_row if source_row < target_row else source_row + 1
+            current_source_row = (
+                source_row if source_row < target_row else source_row + 1
+            )
             item = table.takeItem(current_source_row, col)
             if item:
                 table.setItem(target_row, col, item)
@@ -212,14 +221,18 @@ def move_row_visually(table, source_row: int, target_row: int) -> None:
 
         if hasattr(table, "_current_links"):
             table._current_links.clear()
-            table._current_links.update({k: v for k, v in new_cache.items() if v is not None})
+            table._current_links.update(
+                {k: v for k, v in new_cache.items() if v is not None}
+            )
 
         # Удаляем прежнюю строку-«дырку»
         old_row = source_row if source_row < target_row else source_row + 1
         table.removeRow(old_row)
 
     except Exception as e:
-        logging.error(f"[DnD] Ошибка визуального перемещения строки {source_row}->{target_row}: {e}")
+        logging.error(
+            f"[DnD] Ошибка визуального перемещения строки {source_row}->{target_row}: {e}"
+        )
         # Фолбэк: полное пересканирование кэша
         if hasattr(table, "_current_links"):
             table._current_links.clear()
@@ -255,8 +268,8 @@ def get_current_order(table) -> List[int]:
                 link_data = table.get_link_at(row)
             except Exception:
                 link_data = None
-            if link_data and 'id' in link_data:
-                ids.append(link_data['id'])
+            if link_data and "id" in link_data:
+                ids.append(link_data["id"])
         return ids
     except Exception as e:
         logging.error(f"[DnD] Ошибка получения порядка IDs: {e}")

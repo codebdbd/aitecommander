@@ -59,21 +59,25 @@ def update_status_bar(window) -> None:
     """
     try:
         # Счётчик ссылок
-        links = getattr(window, 'links', None)
+        links = getattr(window, "links", None)
         if links is not None:
             window.links_count_label.setText(f"Ссылок: {links.get_row_count()}")
         else:
             window.links_count_label.setText("Ссылок: 0")
 
         # Статус БД
-        db = getattr(window, 'db', None)
+        db = getattr(window, "db", None)
         if db is not None and db.is_connected():
             window.db_status_label.setText(app_config.get_db_connected_text())
         else:
             window.db_status_label.setText(app_config.get_db_disconnected_text())
 
         # Путь в дереве + активная сфера
-        item = getattr(window, 'tree', None).currentItem() if hasattr(window, 'tree') and window.tree else None
+        item = (
+            getattr(window, "tree", None).currentItem()
+            if hasattr(window, "tree") and window.tree
+            else None
+        )
         if item:
             parts = []
             node = item
@@ -82,18 +86,24 @@ def update_status_bar(window) -> None:
                 if text:
                     parts.insert(0, text)
                 node = node.parent()
-            sb = getattr(window, 'structure_business', None)
-            if sb is not None and getattr(sb, 'current_sphere_id', None):
+            sb = getattr(window, "structure_business", None)
+            if sb is not None and getattr(sb, "current_sphere_id", None):
                 sphere_data = sb.get_sphere_by_id(sb.current_sphere_id)
                 if sphere_data:
-                    parts.insert(0, sphere_data['name'])
+                    parts.insert(0, sphere_data["name"])
 
             # Добавляем имя выбранной ссылки из таблицы (колонка 1 — name), если есть выделение
             try:
-                table = getattr(window, 'table', None)
+                table = getattr(window, "table", None)
                 if table is not None:
                     selection_model = table.selectionModel()
-                    idx = table.currentIndex() if table.currentIndex().isValid() else (selection_model.currentIndex() if selection_model else None)
+                    idx = (
+                        table.currentIndex()
+                        if table.currentIndex().isValid()
+                        else (
+                            selection_model.currentIndex() if selection_model else None
+                        )
+                    )
                     if idx and idx.isValid():
                         name_idx = idx.sibling(idx.row(), 1)
                         name_data = name_idx.data() if name_idx.isValid() else None
@@ -105,9 +115,9 @@ def update_status_bar(window) -> None:
             window.path_label.setText("Путь: " + " > ".join(parts))
         else:
             # Если нет текущего элемента — очищаем путь
-            if hasattr(window, 'path_label') and window.path_label:
+            if hasattr(window, "path_label") and window.path_label:
                 window.path_label.setText("Путь: ")
     except Exception:
         # В случае неожиданных ошибок не роняем UI, просто очищаем путь
-        if hasattr(window, 'path_label') and window.path_label:
+        if hasattr(window, "path_label") and window.path_label:
             window.path_label.setText("Путь: ")

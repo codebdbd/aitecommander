@@ -5,4 +5,4 @@ def get_menu_icon(name: str, theme: str):
     """Возвращает иконку для контекстного меню с учётом темы.
     Централизованная точка для кеширования и будущих изменений.
     """
-    return icon_cache.get_icon(name, theme, 'context_menu')
+    return icon_cache.get_icon(name, theme, "context_menu")

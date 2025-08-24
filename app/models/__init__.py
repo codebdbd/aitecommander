@@ -8,10 +8,10 @@ from .sphere_model import SphereModel
 from .structure_model import StructureModel
 
 __all__ = [
-    'Database', 
-    'StructureModel', 
-    'SphereModel', 
-    'SectionModel', 
-    'CategoryModel', 
-    'LinkModel'
+    "Database",
+    "StructureModel",
+    "SphereModel",
+    "SectionModel",
+    "CategoryModel",
+    "LinkModel",
 ]
