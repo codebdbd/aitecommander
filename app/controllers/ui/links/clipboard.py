@@ -29,8 +29,8 @@ class LinksUIClipboard(BaseLinksUIComponent):
         if not links:
             return
 
-        copy_link_to_clipboard(links[0] if len(links) == 1 else links)
-        if is_cut:
+        success = copy_link_to_clipboard(links[0] if len(links) == 1 else links)
+        if is_cut and success:
             self.delete_links(links)
 
     def paste_link(self):
