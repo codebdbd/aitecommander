@@ -10,22 +10,24 @@
 
 import logging
 
-from PyQt6.QtCore import QPoint, QPointF, QRect, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QPoint, QPointF, QRect, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import (
     QBrush,
     QDrag,
+    QCursor,
     QFont,
     QFontMetrics,
     QIcon,
+    QMouseEvent,
     QPen,
     QTextLayout,
     QTextOption,
 )
 from PyQt6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QLabel,
-    QListWidget,
-    QListWidgetItem,
+    QListView,
     QStyledItemDelegate,
     QToolTip,
     QVBoxLayout,
@@ -34,47 +36,93 @@ from PyQt6.QtWidgets import (
 
 from app.config_data import app_config
 from app.utils.ui.dnd.mime import MimeDataParser
-from app.utils.ui.icon import resolve_category_icon_path
-from app.utils.ui.icon.cache_manager import get_cached_category_icon
-from app.utils.ui.qt.roles_legacy import get_item_int
+from app.models.categories_list_model import CategoriesListModel
 
 logger = logging.getLogger("category_tiles")
 
 
-class _CategoryListWidget(QListWidget):
-    """QListWidget with custom drag that serialises category id."""
+class _CategoryListView(QListView):
+    """QListView with custom drag that serialises category id from model UserRole."""
 
     MIME_TYPE = app_config.get_category_mime_type()
 
+    def mousePressEvent(self, event: QMouseEvent):
+        # Гарантируем установку currentIndex по месту клика (для DnD и контекстного меню)
+        try:
+            p = event.position().toPoint()
+            self._press_pos = p
+            idx = self.indexAt(p)
+            if idx.isValid():
+                self.setCurrentIndex(idx)
+                self.selectionModel().setCurrentIndex(
+                    idx, QAbstractItemView.SelectionFlag.ClearAndSelect
+                )
+        except Exception as e:
+            logger.debug("CategoryListView.mousePressEvent: %s", e)
+        super().mousePressEvent(event)
+
     def startDrag(self, supportedActions):
-        item = self.currentItem()
-        if not item:
-            logger.debug("CategoryListWidget.startDrag: no current item")
+        index = self.currentIndex()
+        if not index or not index.isValid():
+            logger.debug("CategoryListView.startDrag: no current index")
             return
-        cat_id = get_item_int(item)
+        cat_id = index.data(Qt.ItemDataRole.UserRole)
         if cat_id is None:
-            logger.debug("CategoryListWidget.startDrag: no category id")
+            logger.debug("CategoryListView.startDrag: no category id in UserRole")
             return
 
+        name = index.data(Qt.ItemDataRole.DisplayRole)
         logger.debug(
-            "CategoryListWidget.startDrag: starting drag for category %s (%s)",
+            "CategoryListView.startDrag: starting drag for category %s (%s)",
             cat_id,
-            item.text(),
+            name,
         )
         drag = QDrag(self)
         mime = MimeDataParser.create_mime_data([int(cat_id)], self.MIME_TYPE)
         drag.setMimeData(mime)
         logger.debug(
-            "CategoryListWidget.startDrag: MIME type = %s, data = %s",
+            "CategoryListView.startDrag: MIME type = %s, data = %s",
             self.MIME_TYPE,
             cat_id,
         )
 
         result = drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.MoveAction)
-        logger.debug("CategoryListWidget.startDrag: drag result = %s", result)
+        logger.debug("CategoryListView.startDrag: drag result = %s", result)
 
     def mouseMoveEvent(self, event):
+        # Явный запуск DnD при достаточном смещении курсора
+        try:
+            if event.buttons() & Qt.MouseButton.LeftButton:
+                idx = self.currentIndex()
+                if idx.isValid():
+                    # Порог из системных настроек
+                    threshold = QApplication.startDragDistance()
+                    start = getattr(self, "_press_pos", event.position().toPoint())
+                    if (event.position().toPoint() - start).manhattanLength() >= threshold:
+                        self.startDrag(Qt.DropAction.CopyAction | Qt.DropAction.MoveAction)
+                        return
+        except Exception as e:
+            logger.debug("CategoryListView.mouseMoveEvent: %s", e)
         super().mouseMoveEvent(event)
+
+    def contextMenuEvent(self, event):
+        # Всегда устанавливаем текущий индекс по правому клику и прокидываем сигнал
+        try:
+            idx = self.indexAt(event.pos())
+            if idx.isValid():
+                self.setCurrentIndex(idx)
+                self.selectionModel().setCurrentIndex(
+                    idx, QAbstractItemView.SelectionFlag.ClearAndSelect
+                )
+        except Exception as e:
+            logger.debug("CategoryListView.contextMenuEvent: %s", e)
+        try:
+            self.customContextMenuRequested.emit(event.pos())
+            event.accept()
+            return
+        except Exception:
+            pass
+        super().contextMenuEvent(event)
 
 
 class CategoryTileDelegate(QStyledItemDelegate):
@@ -355,40 +403,50 @@ class CategoryTiles(QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
 
-        self.list_widget = _CategoryListWidget()
-        self.list_widget.setObjectName("categoryTiles")
-        self.list_widget.setViewMode(QListWidget.ViewMode.IconMode)
-        self.list_widget.setResizeMode(QListWidget.ResizeMode.Adjust)
-        self.list_widget.setMovement(QListWidget.Movement.Static)
-        self.list_widget.setMouseTracking(True)
-        vp = self.list_widget.viewport()
+        self.view = _CategoryListView()
+        self.view.setObjectName("categoryTiles")
+        self.view.setViewMode(QListView.ViewMode.IconMode)
+        self.view.setResizeMode(QListView.ResizeMode.Adjust)
+        self.view.setMovement(QListView.Movement.Static)
+        self.view.setMouseTracking(True)
+        vp = self.view.viewport()
         try:
             vp.setMouseTracking(True)
             vp.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
         except (AttributeError, RuntimeError) as e:
             logger.debug("Viewport hover setup skipped: %s", e)
-        self.delegate = CategoryTileDelegate(parent=self)
-        self.list_widget.setItemDelegate(self.delegate)
-
-        self.list_widget.setUniformItemSizes(False)
+        # Перехват контекстного меню даже если оно блокируется родителями/стилями
         try:
-            self.list_widget.setWordWrap(True)
+            vp.installEventFilter(self)
+        except Exception as e:
+            logger.debug("Failed to install event filter on viewport: %s", e)
+        self.delegate = CategoryTileDelegate(parent=self)
+        self.view.setItemDelegate(self.delegate)
+
+        self.view.setUniformItemSizes(False)
+        try:
+            self.view.setWordWrap(True)
         except (AttributeError, RuntimeError) as e:
             logger.debug("WordWrap not supported on list widget: %s", e)
-        self.list_widget.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
-        self.list_widget.setSpacing(8)
+        self.view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.view.setSpacing(8)
 
-        self.list_widget.setDragEnabled(True)
-        self.list_widget.setAcceptDrops(False)
-        self.list_widget.setDropIndicatorShown(False)
-        self.list_widget.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self.view.setDragEnabled(True)
+        self.view.setAcceptDrops(False)
+        self.view.setDropIndicatorShown(False)
+        self.view.setDefaultDropAction(Qt.DropAction.MoveAction)
 
-        self.list_widget.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.list_widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.list_widget.customContextMenuRequested.connect(self._show_context_menu)
-        self.list_widget.itemDoubleClicked.connect(self._on_item_clicked)
-        self.list_widget.itemClicked.connect(self._on_item_selected)
-        self.list_widget.currentItemChanged.connect(self._on_item_selected)
+        self.view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        # Контекстное меню: обрабатываем и сигнал от view, и от viewport
+        # a) от view — координаты в системе view
+        self.view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.view.customContextMenuRequested.connect(self._show_context_menu)
+        # b) от viewport — координаты в системе viewport
+        vp = self.view.viewport()
+        vp.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        vp.customContextMenuRequested.connect(self._show_context_menu)
+        self.view.clicked.connect(self._on_index_activated)
+        self.view.doubleClicked.connect(self._on_index_activated)
 
         try:
             if (
@@ -404,68 +462,43 @@ class CategoryTiles(QWidget):
         except (AttributeError, RuntimeError) as e:
             logger.debug("Debug font sample init skipped: %s", e)
 
-        self.layout.addWidget(self.list_widget, 1)
+        self.layout.addWidget(self.view, 1)
+        # Явно включаем режим только перетаскивания (DragOnly) для стабильной работы DnD
+        try:
+            self.view.setDragDropMode(QAbstractItemView.DragDropMode.DragOnly)
+        except Exception as e:
+            logger.debug("Failed to set DragOnly mode: %s", e)
 
         # Контекстное меню строит контроллер — вид только генерирует сигнал
 
     def set_categories(self, categories: list):
-        """Простое обновление списка категорий."""
+        """Обновление списка категорий через модель."""
         logger.debug("Loading %d categories", len(categories))
+        model = getattr(self, "_model", None)
+        if model is None:
+            model = CategoriesListModel(categories)
+            self._model = model
+            self.view.setModel(model)
+        else:
+            model.set_categories(categories)
 
-        self.list_widget.clear()
-
-        for category in categories:
-            name = category.get("name", "")
-            icon_path = category.get("icon_path", "")
-            raw_id = category.get("id")
-            category_id = None
-            try:
-                if raw_id is None:
-                    raise ValueError("id is None")
-                if isinstance(raw_id, int):
-                    category_id = raw_id
-                elif isinstance(raw_id, str):
-                    category_id = int(raw_id)
-                else:
-                    category_id = int(raw_id)  # попытка для типов вроде numpy.int64 etc
-            except Exception:
-                logger.warning(
-                    "Skip category with invalid id '%s' and name '%s'", raw_id, name
-                )
-                continue
-
-            if icon_path:
-                resolved_path = resolve_category_icon_path(icon_path)
-                icon = get_cached_category_icon(resolved_path)
-            else:
-                icon = QIcon()
-
-            item = QListWidgetItem(icon, name)
-            item.setData(Qt.ItemDataRole.UserRole, category_id)
-            self.list_widget.addItem(item)
-
-    def _on_item_selected(self, item, previous=None):
-        """Обновляем текущий выбранный элемент при клике."""
-        if item is None:
-            logger.debug("No item selected")
-            # Избегаем жёсткой зависимости от UIStateManager API здесь
+    def _on_index_activated(self, index):
+        if not index or not index.isValid():
+            logger.debug("No index selected")
             self._current_item_id = None
             return
-
-        item_id = get_item_int(item)
-        if item_id is None:
-            logger.debug("No item_id found in item data")
+        cat_id = index.data(Qt.ItemDataRole.UserRole)
+        name = index.data(Qt.ItemDataRole.DisplayRole)
+        if cat_id is None:
+            logger.debug("No category id in UserRole for index")
             return
-
-        self._current_item_id = item_id
-        logger.debug("Selected category tile ID %s (%s)", item_id, item.text())
-
-    def _on_item_clicked(self, item):
-        logger.debug("Category tile activated: %s", item.text())
-        cat_id = get_item_int(item)
-        if cat_id is not None:
-            self._current_item_id = cat_id
-            self.category_selected.emit(cat_id)
+        self._current_item_id = int(cat_id)
+        logger.debug("Selected category tile ID %s (%s)", cat_id, name)
+        # Эмитим сигнал на активацию (клик/даблклик)
+        try:
+            self.category_selected.emit(int(cat_id))
+        except Exception as e:
+            logger.warning("Failed to emit category_selected: %s", e)
 
     def inject_dependencies(
         self, structure_controller=None, ui_state_manager=None, dialog_provider=None
@@ -478,49 +511,87 @@ class CategoryTiles(QWidget):
         if dialog_provider:
             self.dialog_provider = dialog_provider
 
+    def eventFilter(self, obj, event):
+        # Гарантированный перехват QContextMenuEvent из viewport()
+        try:
+            if obj is self.view.viewport() and event.type() == QEvent.Type.ContextMenu:
+                pos = event.pos()
+                logger.debug("Viewport eventFilter: ContextMenu at %s", pos)
+                self._show_context_menu(pos)
+                event.accept()
+                return True
+        except Exception as e:
+            logger.debug("eventFilter failed: %s", e)
+        return super().eventFilter(obj, event)
+
     def _show_context_menu(self, pos: QPoint):
         """Запрашивает показ контекстного меню через контроллер (сигнал)."""
         logger.debug("Context menu requested at position %s", pos)
-
-        index = self.list_widget.indexAt(pos)
+        index = self.view.indexAt(pos)
+        source = "viewport"
+        if not index.isValid():
+            # Возможно, pos пришёл в координатах view — конвертируем
+            vpos = self.view.viewport().mapFrom(self.view, pos)
+            index = self.view.indexAt(vpos)
+            source = "view"
+        if not index.isValid():
+            # Fallback: берём позицию курсора и маппим в viewport
+            try:
+                gpos = QCursor.pos()
+                vpos2 = self.view.viewport().mapFromGlobal(gpos)
+                index = self.view.indexAt(vpos2)
+                source = "cursor"
+            except Exception:
+                pass
         if not index.isValid():
             logger.debug("Invalid index at position")
             return
 
-        item = self.list_widget.itemFromIndex(index)
-        if not item:
-            logger.debug("No item found at index")
-            return
-
-        item_id = get_item_int(item)
+        item_id = index.data(Qt.ItemDataRole.UserRole)
         if item_id is None:
-            logger.debug("No item_id found in item data")
+            logger.debug("No item_id found in UserRole")
             return
 
-        self._current_item_id = item_id
+        self._current_item_id = int(item_id)
         logger.debug(
-            "Emitting contextMenuRequested for category %s (%s)", item_id, item.text()
+            "Emitting contextMenuRequested for category %s (%s)",
+            item_id,
+            index.data(Qt.ItemDataRole.DisplayRole),
         )
+        # Определяем глобальные координаты показа
+        if source == "viewport":
+            global_pos = self.view.viewport().mapToGlobal(pos)
+        elif source == "view":
+            global_pos = self.view.mapToGlobal(pos)
+        else:
+            global_pos = QCursor.pos()
+
+        # Чисто сигнальный путь: внешний контроллер строит меню
         try:
-            self.contextMenuRequested.emit(item_id, self.list_widget.mapToGlobal(pos))
+            self.contextMenuRequested.emit(int(item_id), global_pos)
         except Exception as e:
             logger.warning("Failed to emit contextMenuRequested: %s", e)
 
     def select_category(self, category_id: int) -> None:
         """Выбрать категорию по ID."""
-        for i in range(self.list_widget.count()):
-            item = self.list_widget.item(i)
-            if item and item.data(Qt.ItemDataRole.UserRole) == category_id:
-                self.list_widget.setCurrentItem(item)
-                self._current_item_id = category_id
-                self.list_widget.scrollToItem(item)
-                logger.debug("Selected category tile ID %s", category_id)
-                return
+        model = getattr(self, "_model", None)
+        if not model:
+            logger.debug("Model is not set; cannot select category")
+            return
+        row = model.find_row_by_id(category_id)
+        if row >= 0:
+            idx = model.index(row, 0)
+            self.view.setCurrentIndex(idx)
+            self._current_item_id = category_id
+            self.view.scrollTo(idx)
+            logger.debug("Selected category tile ID %s", category_id)
+            return
         logger.debug("Could not find category tile ID %s", category_id)
 
     def get_categories_count(self) -> int:
         """Получить общее количество категорий."""
-        return self.list_widget.count()
+        model = getattr(self, "_model", None)
+        return int(model.rowCount()) if model else 0
 
     def _execute_edit_category(self, category_id: int):
         """Устаревший путь: теперь просто эмитим сигнал для контроллера."""

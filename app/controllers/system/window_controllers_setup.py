@@ -199,7 +199,8 @@ def _inject_to_category_tiles(window, controllers: Dict[str, Any]) -> None:
         # Контекстное меню через CategoryMenuBuilder
         def on_tiles_context_menu(category_id: int, global_pos):
             try:
-                builder = CategoryMenuBuilder(tiles.list_widget, window)
+                # CategoryTiles использует QListView в поле `view`; list_widget отсутствует
+                builder = CategoryMenuBuilder(tiles.view, window)
                 menu, edit_action, delete_action, add_link_action = builder.build(
                     category_id,
                     edit_cb=lambda cid: structure_ctrl.handle_edit_category(cid),

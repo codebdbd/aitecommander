@@ -125,6 +125,7 @@ QLineEdit#mainSearch {
 }
 
 /* Category Tiles Styles */
+/* Legacy selector kept for backward compatibility */
 QListWidget#categoryTiles {
     background: transparent;
     border: none;
@@ -137,20 +138,35 @@ QListWidget#categoryTiles::item {
     border-radius: 4px;
 }
 
+/* New QListView-based tiles (IconMode) */
+QListView#categoryTiles {
+    background: transparent;
+    border: none;
+}
+
+QListView#categoryTiles::item {
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: 4px;
+}
+
 /* Hover: синий контур и светло-серый фон, как у сфер */
-QListWidget#categoryTiles::item:hover {
+QListWidget#categoryTiles::item:hover,
+QListView#categoryTiles::item:hover {
     background: #E0E0E0;
     border: 2px solid #0078d7;
 }
 
 /* Selected: как активная кнопка (нейтральная обводка/фон) */
-QListWidget#categoryTiles::item:selected {
+QListWidget#categoryTiles::item:selected,
+QListView#categoryTiles::item:selected {
     background: #F0F0F0;
     border: 2px solid #E0E0E0;
 }
 
 /* Selected + Hover: сохраняем синий контур */
-QListWidget#categoryTiles::item:selected:hover {
+QListWidget#categoryTiles::item:selected:hover,
+QListView#categoryTiles::item:selected:hover {
     border: 2px solid #0078d7;
 }
 
