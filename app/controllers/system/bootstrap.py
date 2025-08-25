@@ -56,3 +56,23 @@ def build_controllers(window) -> ControllersFacade:
         system_dialogs=sys_dialogs,
         app_shutdown=app_shutdown,
     )
+
+
+def create_main_window(settings, theme_ctrl, db):
+    """
+    Создаёт главное окно без передачи Database в конструктор и запускает инициализацию UI.
+
+    Это соответствует требованию: окно принимает только готовые зависимости верхнего уровня,
+    а низкоуровневые детали (Database) не проходят через конструктор окна.
+    """
+    from app.views.main_window import MainWindow
+    from app.views.main_components import WindowInitializer
+
+    # 1) Создаём окно с безопасной сигнатурой (без Database)
+    window = MainWindow(settings, theme_ctrl)
+
+    # 2) Выполняем инициализацию UI и контроллеров через WindowInitializer
+    initializer = WindowInitializer(window, db, settings, theme_ctrl)
+    initializer.initialize_window()
+
+    return window

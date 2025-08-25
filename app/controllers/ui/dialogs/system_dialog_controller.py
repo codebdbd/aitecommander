@@ -27,7 +27,10 @@ class SystemDialogController:
         if success:
             # Создаем резервную копию после большой операции импорта
             try:
-                self.main_window.db.backup()
+                dc = getattr(self.main_window, "database_controller", None)
+                db = getattr(dc, "db", None)
+                if db is not None:
+                    db.backup()
             except Exception as backup_err:
                 logger.warning(
                     f"Не удалось создать резервную копию после импорта закладок: {backup_err}"

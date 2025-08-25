@@ -65,56 +65,63 @@ def update_status_bar(window) -> None:
         else:
             window.links_count_label.setText("Ссылок: 0")
 
-        # Статус БД
-        db = getattr(window, "db", None)
-        if db is not None and db.is_connected():
+        # Статус БД (через DatabaseController)
+        dc = getattr(window, "database_controller", None)
+        db = getattr(dc, "db", None)
+        if db is not None and getattr(db, "is_connected", lambda: False)():
             window.db_status_label.setText(app_config.get_db_connected_text())
         else:
             window.db_status_label.setText(app_config.get_db_disconnected_text())
 
-        # Путь в дереве + активная сфера
-        item = (
-            getattr(window, "tree", None).currentItem()
-            if hasattr(window, "tree") and window.tree
-            else None
-        )
-        if item:
+        # Путь в дереве + активная сфера (QTreeView-only)
+        parts = []
+        tree = getattr(window, "tree", None)
+        try:
+            if tree is not None:
+                # Используем currentIndex и обходим родителей
+                idx = tree.currentIndex()
+                if idx and idx.isValid():
+                    cur = idx
+                    while cur.isValid():
+                        text = cur.data()
+                        if isinstance(text, str) and text:
+                            parts.insert(0, text)
+                        cur = cur.parent()
+        except Exception:
+            # Игнорируем сбои в построении пути
             parts = []
-            node = item
-            while node:
-                text = node.text(0)
-                if text:
-                    parts.insert(0, text)
-                node = node.parent()
+
+        # Префикс: активная сфера
+        try:
             sb = getattr(window, "structure_business", None)
             if sb is not None and getattr(sb, "current_sphere_id", None):
                 sphere_data = sb.get_sphere_by_id(sb.current_sphere_id)
-                if sphere_data:
+                if sphere_data and isinstance(sphere_data.get("name"), str):
                     parts.insert(0, sphere_data["name"])
+        except Exception:
+            pass
 
-            # Добавляем имя выбранной ссылки из таблицы (колонка 1 — name), если есть выделение
-            try:
-                table = getattr(window, "table", None)
-                if table is not None:
-                    selection_model = table.selectionModel()
-                    idx = (
-                        table.currentIndex()
-                        if table.currentIndex().isValid()
-                        else (
-                            selection_model.currentIndex() if selection_model else None
-                        )
-                    )
-                    if idx and idx.isValid():
-                        name_idx = idx.sibling(idx.row(), 1)
-                        name_data = name_idx.data() if name_idx.isValid() else None
-                        if isinstance(name_data, str) and name_data.strip():
-                            parts.append(name_data.strip())
-            except Exception:
-                pass
+        # Добавляем имя выбранной ссылки из таблицы (колонка 1 — name), если есть выделение
+        try:
+            table = getattr(window, "table", None)
+            if table is not None:
+                selection_model = table.selectionModel()
+                idx = (
+                    table.currentIndex()
+                    if table.currentIndex().isValid()
+                    else (selection_model.currentIndex() if selection_model else None)
+                )
+                if idx and idx.isValid():
+                    name_idx = idx.sibling(idx.row(), 1)
+                    name_data = name_idx.data() if name_idx.isValid() else None
+                    if isinstance(name_data, str) and name_data.strip():
+                        parts.append(name_data.strip())
+        except Exception:
+            pass
 
+        if parts:
             window.path_label.setText("Путь: " + " > ".join(parts))
         else:
-            # Если нет текущего элемента — очищаем путь
             if hasattr(window, "path_label") and window.path_label:
                 window.path_label.setText("Путь: ")
     except Exception:

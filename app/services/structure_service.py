@@ -77,8 +77,11 @@ class StructureService:
             return self._model.update_category(category_id, data)
 
     def delete_category(self, category_id: int) -> bool:
-        with UnitOfWork(self.db):
-            return self._model.delete_category(category_id)
+        # ВАЖНО: CategoryModel.delete_category() уже использует self.transaction()
+        # и управляет транзакцией самостоятельно (BEGIN/COMMIT). Оборачивание
+        # во внешний UnitOfWork приведёт к вложенным транзакциям в SQLite и
+        # ошибке вида "cannot start a transaction within a transaction".
+        return self._model.delete_category(category_id)
 
     # --- Импорт/экспорт ---
     def export_full_structure(self) -> Dict[str, List]:
@@ -101,3 +104,14 @@ class StructureService:
     def import_category_tree(self, tree: Dict[str, Any]) -> None:
         with UnitOfWork(self.db):
             self.db.import_category_tree(tree)
+
+    # --- Bulk operations ---
+    def import_category_trees_bulk(self, trees: List[Dict[str, Any]]) -> None:
+        """Импортирует несколько поддеревьев категорий в одной транзакции.
+        Используется для быстрого undo пакетного удаления категорий.
+        """
+        with UnitOfWork(self.db):
+            for tree in trees or []:
+                if not tree:
+                    continue
+                self.db.import_category_tree(tree)

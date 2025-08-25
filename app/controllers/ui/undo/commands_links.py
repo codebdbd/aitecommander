@@ -12,7 +12,8 @@ class SaveLinkCmd(QUndoCommand):
     def __init__(self, new_data: Dict, old_data: Optional[Dict], main_window):
         super().__init__("Save link")
         self.main = main_window
-        self.db = main_window.db
+        dc = getattr(main_window, "database_controller", None)
+        self.db = getattr(dc, "db", None)
         self.new_data = dict(new_data) if new_data else {}
         self.old_data = dict(old_data) if old_data else None
         self.created_id: Optional[int] = None
@@ -84,7 +85,8 @@ class BatchDeleteLinksCmd(QUndoCommand):
     def __init__(self, links_to_delete: List[Dict], main_window):
         super().__init__("Batch delete links")
         self.main = main_window
-        self.db = main_window.db
+        dc = getattr(main_window, "database_controller", None)
+        self.db = getattr(dc, "db", None)
         # Храним полные данные для возможного восстановления
         self.links: List[Dict] = [dict(x) for x in (links_to_delete or [])]
 
@@ -128,7 +130,8 @@ class DeleteLinkCmd(QUndoCommand):
     def __init__(self, link_to_delete: Dict, main_window):
         super().__init__("Delete link")
         self.main = main_window
-        self.db = main_window.db
+        dc = getattr(main_window, "database_controller", None)
+        self.db = getattr(dc, "db", None)
         self.link = dict(link_to_delete) if link_to_delete else {}
 
     def redo(self):
@@ -138,8 +141,8 @@ class DeleteLinkCmd(QUndoCommand):
             if hasattr(self.main, "links_business") and self.main.links_business:
                 self.main.links_business.links.delete_link(link_id)
             else:
-                # Фоллбек на прямой репозиторий
-                self.db.links.delete_link(link_id)
+                # Фоллбек через сервисный слой
+                LinksService(self.db).delete_link(link_id)
         # После удаления перезагружаем таблицу соответствующей категории, если не подавлено
         try:
             if (
@@ -181,7 +184,8 @@ class BatchSaveLinksCmd(QUndoCommand):
     ):
         super().__init__("Batch save links")
         self.main = main_window
-        self.db = main_window.db
+        dc = getattr(main_window, "database_controller", None)
+        self.db = getattr(dc, "db", None)
         self.links_data = [dict(x) for x in (links_data or [])]
         self.created_ids: List[int] = []
 

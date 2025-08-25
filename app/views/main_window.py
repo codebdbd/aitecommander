@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from app.controllers.ui.theme_controller import ThemeController
     from app.controllers.ui.top_panels_controller import TopPanelsController
 
-from app.models.db import Database
 from app.settings import AppSettings
 from app.utils.db.synchronization import signal_guard
 from app.views.status_bar import update_status_bar as _update_status_bar
@@ -114,15 +113,11 @@ class MainWindow(QMainWindow):
 
         return undo_action, redo_action
 
-    def __init__(
-        self, db: Database, settings: AppSettings, theme_ctrl: ThemeController
-    ):
+    def __init__(self, settings: AppSettings, theme_ctrl: ThemeController):
         super().__init__()
-
-        from app.views.main_components import WindowInitializer
-
-        initializer = WindowInitializer(self, db, settings, theme_ctrl)
-        initializer.initialize_window()
+        # Инициализация перенесена в bootstrap. Здесь только приём базовых зависимостей.
+        self.settings = settings
+        self.theme_ctrl = theme_ctrl
 
     def _init_spheres_ui(self):
         """Инициализирует UI сфер (асинхронно)."""

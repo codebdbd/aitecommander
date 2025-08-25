@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 class TreeHandlerBase:
-    """Базовый класс для обработчиков дерева StructureTreeWidget.
+    """Базовый класс для обработчиков дерева StructureTreeView.
     Инкапсулирует общую инициализацию: ссылку на виджет и логгер.
     """
 

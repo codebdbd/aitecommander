@@ -11,7 +11,7 @@ from app.models.db import Database
 from app.settings import AppSettings
 from app.utils.logging.application_logger import ApplicationLogger
 from app.utils.logging.exception_handler import ExceptionHandler
-from app.views.main_window import MainWindow
+from app.controllers.system.bootstrap import create_main_window
 from app.utils.db.api import run_db
 
 
@@ -64,8 +64,9 @@ class ApplicationInitializer:
     def initialize_main_window(self) -> bool:
         """Инициализирует главное окно приложения."""
         try:
-            self.main_window = MainWindow(
-                self.database, self.settings, self.theme_controller
+            # Создание окна через bootstrap: окно не принимает Database в конструктор
+            self.main_window = create_main_window(
+                self.settings, self.theme_controller, self.database
             )
             if hasattr(self.theme_controller, "set_main_window"):
                 self.theme_controller.set_main_window(self.main_window)

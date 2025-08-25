@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
 
 from PyQt6.QtCore import QModelIndex
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QListWidget, QMenu, QMenuBar, QTreeWidget, QWidget
+from PyQt6.QtWidgets import QListWidget, QMenu, QMenuBar, QWidget
 
 from app.utils.ui.menu_builders import (
     CategoryMenuBuilder,
@@ -38,7 +38,7 @@ class MenuController:
 
     def create_structure_context_menu(
         self,
-        tree_widget: QTreeWidget,
+        tree_widget: QWidget,
         item: Optional[Any],
         delete_item_cb: Callable,
         add_new_section_cb: Callable,

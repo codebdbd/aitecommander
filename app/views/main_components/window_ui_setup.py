@@ -25,7 +25,8 @@ from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.controllers.ui.undo.stack import UndoManager
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.views.category_tiles import CategoryTiles
-from app.views.custom_widgets import StructureTreeWidget
+from app.views.custom_widgets import StructureTreeView
+from app.views.models.structure_tree_model import StructureTreeModel
 from app.views.effects.neon_effect import NeonEventFilter
 from app.views.link import LinksTableView
 from app.views.main_components.top_bar_layout_manager import TopBarLayoutManager
@@ -156,7 +157,6 @@ class WindowUISetup:
 
     def setup_basic_attributes(self):
         """Настройка базовых атрибутов окна."""
-        self.window.db = self.window_initializer.db
         self.window.settings = self.window_initializer.settings
         self.window.theme_ctrl = self.window_initializer.theme_ctrl
         self.window.current_category_id = None
@@ -360,9 +360,13 @@ class WindowUISetup:
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(*app_config.get_layout_margins("left"))
 
-        # Дерево структуры
-        self.window.tree = StructureTreeWidget()
+        # Дерево структуры: используем QTreeView + QAbstractItemModel
+        self.window.tree = StructureTreeView()
         self.window.tree.setHeaderHidden(True)
+        # Пустая модель, будет заполняться контроллерами позже
+        self.window.tree_model = StructureTreeModel(self.window.tree)
+        self.window.tree.setModel(self.window.tree_model)
+
         # Конфиг гарантирует list[int] -> берём ширину, ограничиваем высотой строки
         tree_icon_size = app_config.get_tree_icon_size()
         row_h = app_config.get_row_height()

@@ -198,13 +198,13 @@ QTableView {
     alternate-background-color: #F0F0F0;
 }
 
-QTreeWidget::item:selected,
+QTreeView::item:selected,
 QTableView::item:selected {
     background-color: #0078d7;
     color: white;
 }
 
-QTreeWidget::item:!selected:hover {
+QTreeView::item:!selected:hover {
     background-color: #444444;
 }
 

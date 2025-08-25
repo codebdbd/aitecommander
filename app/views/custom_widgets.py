@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QStyle,
     QStyledItemDelegate,
     QStyleOptionViewItem,
-    QTreeWidget,
+    QTreeView,
 )
 
 from app.config_data import app_config
@@ -110,101 +110,87 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
         return QSize(base.width(), row_h)
 
 
-class StructureTreeWidget(QTreeWidget, AsyncTaskMixin):
+class StructureTreeView(QTreeView, AsyncTaskMixin):
     """
-    Кастомный QTreeWidget с правилами drag-and-drop для структуры приложения
-    (Разделы и Категории).
+    Итоговый QTreeView для дерева структуры на Model/View.
+    Сохраняет визуальные параметры и делегаты; сигналы оставлены для совместимости с прежним API.
     """
 
-    # Сигналы слабой связанности: внешний код подписывается и решает, что делать.
-    itemsMoved: pyqtSignal = pyqtSignal(
-        object
-    )  # payload: произвольная структура о перемещенных элементах
-    invalidDrop: pyqtSignal = pyqtSignal(str)  # причина недопустимого drop
-    dragFeedback: pyqtSignal = pyqtSignal(object)  # сведения для UI/логов о ходе DnD
+    # Совместимость: заготовленные сигналы, будут задействованы после DnD-рефактора
+    itemsMoved: pyqtSignal = pyqtSignal(object)
+    invalidDrop: pyqtSignal = pyqtSignal(str)
+    dragFeedback: pyqtSignal = pyqtSignal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._setup_tree_widget()
+        self._setup_tree_view()
+        # Интеграция обработчиков для совместимости с прежним API
         self.move_operations_handler = MoveOperationsHandler(self)
         self.drag_drop_handler = DragDropHandler(self)
 
-    # --- Emit helpers for handlers/внутренних методов ---
-    def emit_items_moved(self, payload):
-        """Эмитит сигнал о перемещении элементов (используется хендлерами)."""
-        try:
-            self.itemsMoved.emit(payload)
-        except Exception as exc:
-            # Без жестких зависимостей: просто даем обратную связь через сигнал dragFeedback
-            self.dragFeedback.emit(
-                {"type": "emit_error", "signal": "itemsMoved", "error": str(exc)}
-            )
-
-    def emit_invalid_drop(self, reason: str):
-        """Эмитит сигнал о недопустимой операции drop (используется хендлерами)."""
-        try:
-            self.invalidDrop.emit(reason)
-        except Exception as exc:
-            self.dragFeedback.emit(
-                {"type": "emit_error", "signal": "invalidDrop", "error": str(exc)}
-            )
-
-    def emit_drag_feedback(self, info):
-        """Эмитит произвольные сведения о ходе DnD (лог/диагностика/UI)."""
-        try:
-            self.dragFeedback.emit(info)
-        except Exception:
-            pass
-
-    def _setup_tree_widget(self):
-        """Настройка параметров дерева."""
+    def _setup_tree_view(self):
+        """Настройка параметров QTreeView под текущие UX-требования."""
+        # DnD включен на уровне вида (логика обработчиков находится в обработчиках)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
-        # Явно применяем высоту строк из конфигурации через делегат (используем ui.row_height)
+
+        # Делегат высокого качества (иконки, высота строки)
         try:
             item_h = int(app_config.get_row_height())
         except Exception:
             item_h = None
         self.setItemDelegate(HighQualityTreeDelegate(item_height=item_h))
-        # Для производительности и единообразия высоты
+
+        # Производительность: одинаковая высота строк
         try:
             self.setUniformRowHeights(True)
         except Exception:
             pass
-        # Включаем отслеживание мыши, чтобы работал hover без нажатий
+
+        # Hover-поведение как в прежней версии
         self.setMouseTracking(True)
-        # Убираем специальные hover-обработчики (возврат к стандартному поведению)
 
-    def update_font_size(self, font_size: int):
-        """Применяет локальный размер шрифта ко всем элементам дерева."""
-        from PyQt6.QtGui import QFont
+    # --- Emit helpers (совместимость с прежним API) ---
+    def emit_items_moved(self, payload):
+        try:
+            self.itemsMoved.emit(payload)
+        except Exception:
+            # Без жестких зависимостей: даем обратную связь через dragFeedback
+            try:
+                self.dragFeedback.emit(
+                    {"type": "emit_error", "signal": "itemsMoved", "error": "emit failed"}
+                )
+            except Exception:
+                pass
 
-        font = QFont(self.font().family(), font_size)
-        self.setFont(font)
+    def emit_invalid_drop(self, reason: str):
+        try:
+            self.invalidDrop.emit(reason)
+        except Exception:
+            try:
+                self.dragFeedback.emit(
+                    {"type": "emit_error", "signal": "invalidDrop", "error": reason}
+                )
+            except Exception:
+                pass
 
-        def apply_font(item):
-            item.setFont(0, font)
-            for i in range(item.childCount()):
-                apply_font(item.child(i))
+    def emit_drag_feedback(self, info):
+        try:
+            self.dragFeedback.emit(info)
+        except Exception:
+            pass
 
-        for i in range(self.topLevelItemCount()):
-            apply_font(self.topLevelItem(i))
-        self.viewport().update()
-
+    # --- DnD события делегируем обработчику ---
     def dragEnterEvent(self, event):
-        """Обработка входа drag операции."""
         self.drag_drop_handler.handle_drag_enter_event(event)
 
     def dragMoveEvent(self, event):
-        """Визуальная обратная связь во время перетаскивания."""
         self.drag_drop_handler.handle_drag_move_event(event)
 
     def dragLeaveEvent(self, event):
-        """Обработка выхода из drag зоны."""
         self.drag_drop_handler.handle_drag_leave_event(event)
 
     def dropEvent(self, event):
-        """Основной обработчик drop событий."""
         self.drag_drop_handler.handle_drop_event(event)

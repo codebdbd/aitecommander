@@ -387,6 +387,19 @@ class Database(DatabaseBase):
             categories.append({"category": cat, "links": links})
         return {"section": section, "categories": categories}
 
+    def import_section_tree(self, tree: dict):
+        """Восстанавливает раздел, его категории и все ссылки из backup-структуры."""
+        # Вставляем/обновляем сам раздел
+        self.sections.upsert_section(tree["section"])
+        # Восстанавливаем категории и их ссылки
+        for item in tree.get("categories", []):
+            cat = item.get("category", {})
+            links = item.get("links", [])
+            if cat:
+                self.categories.upsert_category(cat)
+            for link in links:
+                self.links.upsert_link(link)
+
     def export_category_tree(self, category_id: int) -> dict:
         """Экспортирует категорию вместе со всеми ссылками."""
         cat = self.categories.get_category_by_id(category_id) or {}

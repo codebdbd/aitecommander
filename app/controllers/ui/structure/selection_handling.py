@@ -1,8 +1,7 @@
 # app/controllers/structure/selection_handling.py
 
 import logging
-
-from PyQt6.QtWidgets import QTreeWidgetItem
+from PyQt6.QtCore import QModelIndex
 
 from app.utils.db.synchronization import signal_guard
 from app.utils.ui.qt.roles import get_tree_tuple
@@ -87,20 +86,27 @@ class SelectionHandling:
         )
 
     def _select_first_item_if_needed(self) -> None:
-        if not self.tree.selectedItems() and self.tree.topLevelItemCount() > 0:
-            self.tree.setCurrentItem(self.tree.topLevelItem(0))
-            # Устанавливаем фокус на дерево для корректной работы клавиатурного управления
-            self.tree.setFocus()
+        try:
+            sel_model = self.tree.selectionModel()
+            model = self.tree.model()
+            if not model:
+                return
+            has_selection = bool(sel_model and sel_model.hasSelection())
+            if not has_selection and model.rowCount() > 0:
+                first = model.index(0, 0)
+                if first.isValid():
+                    sel_model.setCurrentIndex(first, sel_model.SelectionFlag.ClearAndSelect)
+                    self.tree.setFocus()
+        except Exception:
+            pass
 
     @signal_guard()
-    def _on_current_changed(
-        self, current: QTreeWidgetItem, _prev: QTreeWidgetItem
-    ) -> None:
+    def _on_current_changed(self, current: QModelIndex, _prev: QModelIndex) -> None:
         # Глобальное подавление во время пакетных операций
         if self.is_suppressed():
             logger.debug("Selection changed while suppressed - ignoring event")
             return
-        if current is None:
+        if not current or not current.isValid():
             # Во время перезагрузки структуры (update_structure_tree/load_structure) текущее
             # выделение может кратковременно становиться None. Очищать плитки в этот момент
             # приводит к "промежуточному пустому окну" справа. Ничего не делаем и выходим.
@@ -122,19 +128,19 @@ class SelectionHandling:
 
         self._handle_item_selection(current)
 
-    def _on_single_click(self, item: QTreeWidgetItem, _col: int) -> None:
+    def _on_single_click(self, index: QModelIndex, _col: int = 0) -> None:
         # Избегаем дублирующей обработки: если клик пришёл по уже текущему элементу,
-        # то событие currentItemChanged уже покроет этот кейс или переключения нет вовсе.
+        # то событие currentChanged уже покроет этот кейс или переключения нет вовсе.
         try:
-            cur = self.tree.currentItem()
+            cur = self.tree.currentIndex()
         except Exception:
-            cur = None
-        if item is cur:
+            cur = QModelIndex()
+        if index == cur:
             return
-        self._handle_item_selection(item)
+        self._handle_item_selection(index)
 
     @signal_guard()
-    def _handle_item_selection(self, item: QTreeWidgetItem) -> None:
+    def _handle_item_selection(self, index: QModelIndex) -> None:
         # Глобальное подавление во время пакетных операций
         if self.is_suppressed():
             logger.debug("Handle selection while suppressed - skip")
@@ -147,7 +153,7 @@ class SelectionHandling:
         except Exception:
             pass
         try:
-            t = get_tree_tuple(item, 0)
+            t = get_tree_tuple(index, 0)
             if not t:
                 logger.warning("Invalid item data: None")
                 return
@@ -179,26 +185,32 @@ class SelectionHandling:
             logger.error(f"Error handling item selection: {e}", exc_info=True)
 
     def _restore_selection_after_load(self, item_type: str, item_id: int) -> None:
-        item = self.controller.tree_manager._find_item_by_id(item_type, item_id)
-        if item:
+        model = self.tree.model()
+        if not model or not hasattr(model, "index_for"):
+            return
+        index = model.index_for(item_type, item_id)
+        if index and index.isValid():
+            sel = self.tree.selectionModel()
             self.tree.blockSignals(True)
-            self.tree.setCurrentItem(item)
-            self.tree.scrollToItem(item)
+            sel.setCurrentIndex(index, sel.SelectionFlag.ClearAndSelect)
+            self.tree.scrollTo(index)
             self.tree.blockSignals(False)
             # Явно обрабатываем выбор после перезагрузки, т.к. сигналы были заблокированы
-            self._handle_item_selection(item)
+            self._handle_item_selection(index)
 
     def _set_focus_on_new_item_by_id(self, item_type: str, item_id: int) -> None:
-        item = self.controller.tree_manager._find_item_by_id(item_type, item_id)
-        if item:
-            self.tree.setCurrentItem(item)
-            self.tree.scrollToItem(item)
+        model = self.tree.model()
+        if not model or not hasattr(model, "index_for"):
+            return
+        index = model.index_for(item_type, item_id)
+        if index and index.isValid():
+            sel = self.tree.selectionModel()
+            sel.setCurrentIndex(index, sel.SelectionFlag.ClearAndSelect)
+            self.tree.scrollTo(index)
             if item_type == "category":
                 # ЦЕНТРАЛИЗОВАНО: Для новой категории показываем таблицу ссылок
                 if hasattr(self.main, "ui_state") and self.main.ui_state:
-                    self.main.ui_state.load_category(
-                        item_id, source="SelectionHandling._handle_item_selection"
-                    )
+                    self.main.ui_state.load_category(item_id, source="SelectionHandling._handle_item_selection")
                 else:
                     logger.error(
                         "UIStateManager not available in _handle_item_selection"
@@ -214,11 +226,15 @@ class SelectionHandling:
             )
 
     def _restore_category_selection(self, category_id: int) -> None:
-        item = self.controller.tree_manager._find_item_by_id("category", category_id)
-        if item:
+        model = self.tree.model()
+        if not model or not hasattr(model, "index_for"):
+            return
+        index = model.index_for("category", category_id)
+        if index and index.isValid():
+            sel = self.tree.selectionModel()
             self.tree.blockSignals(True)
-            self.tree.setCurrentItem(item)
-            self.tree.scrollToItem(item)
+            sel.setCurrentIndex(index, sel.SelectionFlag.ClearAndSelect)
+            self.tree.scrollTo(index)
             self.tree.blockSignals(False)
             # Гарантируем полную обработку выбора и переключение UI
-            self._handle_item_selection(item)
+            self._handle_item_selection(index)

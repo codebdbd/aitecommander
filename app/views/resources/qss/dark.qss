@@ -357,17 +357,18 @@ QTableView {
     gridline-color: transparent;
 }
 
-QTreeWidget {
+/* TreeView background */
+QTreeView {
     background-color: transparent;
 }
 
-QTreeWidget::item:selected,
+QTreeView::item:selected,
 QTableView::item:selected {
     background-color: #6A2E44;
     color: #FFFFFF;
 }
 
-QTreeWidget::item:!selected:hover {
+QTreeView::item:!selected:hover {
     background-color: #444444;
 }
 

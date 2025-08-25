@@ -6,7 +6,7 @@ from PyQt6.QtCore import (  # Импортируем Qt и QSize из QtCore
     Qt,
     pyqtSignal,
 )
-from PyQt6.QtWidgets import QAbstractItemView, QTreeWidget
+from PyQt6.QtWidgets import QAbstractItemView, QTreeView
 
 from app.config_data import app_config
 
@@ -24,7 +24,7 @@ class StructureUIController(QObject):
         str, int, dict
     )  # Исправлено: object → int для согласованности с Business Layer
 
-    def __init__(self, tree_widget: QTreeWidget, business_logic, main_window):
+    def __init__(self, tree_widget: QTreeView, business_logic, main_window):
         super().__init__()
         self.tree = tree_widget
         self.business = business_logic
@@ -59,7 +59,12 @@ class StructureUIController(QObject):
         )
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._on_context_menu)
-        self.tree.currentItemChanged.connect(self.selection_handler._on_current_changed)
+        # Переключение выделения для QTreeView через QItemSelectionModel
+        sel_model = getattr(self.tree, "selectionModel", None)
+        if callable(sel_model):
+            sel_model = self.tree.selectionModel()
+        if sel_model:
+            sel_model.currentChanged.connect(self.selection_handler._on_current_changed)
 
     def _connect_business_signals(self) -> None:
         self.business.structure_loaded.connect(self.tree_manager._on_structure_loaded)
@@ -75,7 +80,14 @@ class StructureUIController(QObject):
         self.business.error_occurred.connect(self.selection_handler._on_error_occurred)
 
     def _on_context_menu(self, pos):
-        item = self.tree.itemAt(pos)
+        # QTreeView-only: определяем элемент по QModelIndex
+        item = None
+        try:
+            idx = self.tree.indexAt(pos)
+            item = idx if (idx and idx.isValid()) else None
+        except Exception:
+            item = None
+
         menu = self.main.menu_controller.create_structure_context_menu(
             self.tree,
             item,
@@ -157,11 +169,11 @@ class StructureUIController(QObject):
 
         # 2) Текущий элемент в дереве структуры
         try:
-            item = self.tree.currentItem()
-            if item is not None:
+            index = self.tree.currentIndex()
+            if index and index.isValid():
                 from app.utils.ui.qt.roles import get_tree_tuple
 
-                t = get_tree_tuple(item, 0)
+                t = get_tree_tuple(index, 0)
                 if t:
                     item_type, item_id = t
                     if item_type == "category" and isinstance(item_id, int):

@@ -17,7 +17,8 @@ class SaveSectionCmd(QUndoCommand):
     def __init__(self, new_data: Dict, old_data: Optional[Dict], main_window):
         super().__init__("Save section")
         self.main = main_window
-        self.db = main_window.db
+        dc = getattr(main_window, "database_controller", None)
+        self.db = getattr(dc, "db", None)
         self.structure_service = StructureService(self.db)
         self.new_data = dict(new_data) if new_data else {}
         self.old_data = dict(old_data) if old_data else None
@@ -32,7 +33,7 @@ class SaveSectionCmd(QUndoCommand):
                     business.item_added.emit("section", self.new_id, self.new_data)
                 else:
                     business.item_updated.emit("section", self.new_id, self.new_data)
-                business.load_structure()
+                # Полная перезагрузка больше не требуется — модель обновится через сигналы
         except Exception:
             pass
 
@@ -48,9 +49,11 @@ class SaveSectionCmd(QUndoCommand):
                 self.new_data.get("id"), self.new_data
             )
             self.new_id = self.new_data.get("id")
-        # UI выбор в дереве
+        # Наводим фокус на раздел через бизнес-логику
         try:
-            self.main.structure.update_tree(item_to_select=("section", self.new_id))
+            business = getattr(self.main, "structure_business", None)
+            if business:
+                business.select_section(self.new_id)
         except Exception:
             pass
         self._emit_reload()
@@ -62,14 +65,10 @@ class SaveSectionCmd(QUndoCommand):
                 self.structure_service.delete_section(self.new_id)
             finally:
                 try:
-                    self.main.structure.update_tree()
-                except Exception:
-                    pass
-                try:
                     business = getattr(self.main, "structure_business", None)
                     if business:
                         business.item_deleted.emit("section", self.new_id)
-                        business.load_structure()
+                        # Инкрементальное обновление — без полной перезагрузки
                 except Exception:
                     pass
         else:
@@ -79,9 +78,9 @@ class SaveSectionCmd(QUndoCommand):
                     self.old_data["id"], self.old_data
                 )
                 try:
-                    self.main.structure.update_tree(
-                        item_to_select=("section", self.old_data["id"])
-                    )
+                    business = getattr(self.main, "structure_business", None)
+                    if business:
+                        business.select_section(self.old_data["id"])
                 except Exception:
                     pass
                 try:
@@ -90,7 +89,7 @@ class SaveSectionCmd(QUndoCommand):
                         business.item_updated.emit(
                             "section", self.old_data["id"], self.old_data
                         )
-                        business.load_structure()
+                        # Инкрементальное обновление — без полной перезагрузки
                 except Exception:
                     pass
 
@@ -101,7 +100,8 @@ class DeleteSectionCmd(QUndoCommand):
     def __init__(self, section_data: Dict, main_window):
         super().__init__("Delete section")
         self.main = main_window
-        self.db = main_window.db
+        dc = getattr(main_window, "database_controller", None)
+        self.db = getattr(dc, "db", None)
         self.structure_service = StructureService(self.db)
         self.section = dict(section_data) if section_data else {}
         # Бэкап полного дерева раздела
@@ -115,14 +115,10 @@ class DeleteSectionCmd(QUndoCommand):
             return
         self.structure_service.delete_section(section_id)
         try:
-            self.main.structure.update_tree()
-        except Exception:
-            pass
-        try:
             business = getattr(self.main, "structure_business", None)
             if business:
                 business.item_deleted.emit("section", section_id)
-                business.load_structure()
+                # Инкрементальное обновление — без полной перезагрузки
         except Exception:
             pass
 
@@ -131,7 +127,9 @@ class DeleteSectionCmd(QUndoCommand):
             self.structure_service.import_section_tree(self._backup_tree)
             section_id = self._backup_tree["section"]["id"]
             try:
-                self.main.structure.update_tree(item_to_select=("section", section_id))
+                business = getattr(self.main, "structure_business", None)
+                if business:
+                    business.select_section(section_id)
             except Exception:
                 pass
             try:
@@ -140,7 +138,7 @@ class DeleteSectionCmd(QUndoCommand):
                     business.item_added.emit(
                         "section", section_id, self._backup_tree["section"]
                     )
-                    business.load_structure()
+                    # Инкрементальное обновление — без полной перезагрузки
             except Exception:
                 pass
         except Exception:
@@ -161,7 +159,8 @@ class SaveCategoryCmd(QUndoCommand):
     ):
         super().__init__("Save category")
         self.main = main_window
-        self.db = main_window.db
+        dc = getattr(main_window, "database_controller", None)
+        self.db = getattr(dc, "db", None)
         self.structure_service = StructureService(self.db)
         self.new_data = dict(new_data) if new_data else {}
         self.old_data = dict(old_data) if old_data else None
@@ -186,7 +185,7 @@ class SaveCategoryCmd(QUndoCommand):
                     business.item_added.emit("category", parent_id, self.new_data)
                 else:
                     business.item_updated.emit("category", self.new_id, self.new_data)
-                business.load_structure()
+                # Полная перезагрузка больше не требуется — модель обновится через сигналы
         except Exception:
             pass
 
@@ -203,9 +202,9 @@ class SaveCategoryCmd(QUndoCommand):
             self.new_id = self.new_data.get("id")
         try:
             if not self.skip_reload:
-                self.main.structure.update_tree(
-                    item_to_select=("category", self.new_id)
-                )
+                business = getattr(self.main, "structure_business", None)
+                if business:
+                    business.select_category(self.new_id)
         except Exception:
             pass
         self._emit_reload()
@@ -217,16 +216,16 @@ class SaveCategoryCmd(QUndoCommand):
                 self.structure_service.delete_category(self.new_id)
             try:
                 if not self.skip_reload:
-                    self.main.structure.update_tree(
-                        item_to_select=("section", section_id)
-                    )
+                    business = getattr(self.main, "structure_business", None)
+                    if business:
+                        business.select_section(section_id)
             except Exception:
                 pass
             try:
                 business = getattr(self.main, "structure_business", None)
                 if business:
                     business.item_deleted.emit("category", self.new_id)
-                    business.load_structure()
+                    # Инкрементальное обновление — без полной перезагрузки
             except Exception:
                 pass
         else:
@@ -236,9 +235,9 @@ class SaveCategoryCmd(QUndoCommand):
                 )
                 try:
                     if not self.skip_reload:
-                        self.main.structure.update_tree(
-                            item_to_select=("category", self.old_data["id"])
-                        )
+                        business = getattr(self.main, "structure_business", None)
+                        if business:
+                            business.select_category(self.old_data["id"])
                 except Exception:
                     pass
                 try:
@@ -247,7 +246,7 @@ class SaveCategoryCmd(QUndoCommand):
                         business.item_updated.emit(
                             "category", self.old_data["id"], self.old_data
                         )
-                        business.load_structure()
+                        # Инкрементальное обновление — без полной перезагрузки
                 except Exception:
                     pass
 
@@ -265,7 +264,8 @@ class DeleteCategoryCmd(QUndoCommand):
     ):
         super().__init__("Delete category")
         self.main = main_window
-        self.db = main_window.db
+        dc = getattr(main_window, "database_controller", None)
+        self.db = getattr(dc, "db", None)
         self.structure_service = StructureService(self.db)
         self.category = dict(category_data) if category_data else {}
         self.skip_reload = bool(skip_reload)
@@ -295,8 +295,10 @@ class DeleteCategoryCmd(QUndoCommand):
 
         if self.lightweight_reload:
             # Облегчённый режим: точечные обновления без полной перезагрузки структуры
+            # Фокус на раздел без полной перезагрузки дерева
             try:
-                self.main.structure.update_tree(item_to_select=("section", section_id))
+                if business:
+                    business.select_section(section_id)
             except Exception:
                 pass
             try:
@@ -314,8 +316,9 @@ class DeleteCategoryCmd(QUndoCommand):
 
         # Обычный одиночный сценарий: корректно обновляем UI и данные
         try:
-            # Попробуем сместить фокус корректно
-            self.main.structure.update_tree(item_to_select=("section", section_id))
+            # Попробуем сместить фокус корректно без полной перезагрузки
+            if business:
+                business.select_section(section_id)
         except Exception:
             pass
         # Явно обновляем плитки категорий для выбранного раздела,
@@ -340,7 +343,7 @@ class DeleteCategoryCmd(QUndoCommand):
                 except Exception:
                     pass
                 business.item_deleted.emit("category", category_id)
-                business.load_structure()
+                # Инкрементальное обновление — без полной перезагрузки
         except Exception:
             pass
 
@@ -353,9 +356,9 @@ class DeleteCategoryCmd(QUndoCommand):
             except Exception:
                 pass
             try:
-                self.main.structure.update_tree(
-                    item_to_select=("category", category_id)
-                )
+                business = getattr(self.main, "structure_business", None)
+                if business:
+                    business.select_category(category_id)
             except Exception:
                 pass
             try:
@@ -371,7 +374,7 @@ class DeleteCategoryCmd(QUndoCommand):
                         self.category.get("section_id"),
                         self._backup_tree["category"],
                     )
-                    business.load_structure()
+                    # Инкрементальное обновление — без полной перезагрузки
             except Exception:
                 pass
         except Exception:
@@ -391,7 +394,8 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
     def __init__(self, categories_data: list[Dict], main_window):
         super().__init__("Delete categories (batch)")
         self.main = main_window
-        self.db = main_window.db
+        dc = getattr(main_window, "database_controller", None)
+        self.db = getattr(dc, "db", None)
         self.structure_service = StructureService(self.db)
         # Сохраним плоский список данных категорий и их бэкапы для undo
         self.categories = [dict(c) for c in (categories_data or [])]
@@ -453,10 +457,8 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
             except Exception:
                 pass
         try:
-            if section_id_for_focus is not None:
-                self.main.structure.update_tree(
-                    item_to_select=("section", section_id_for_focus)
-                )
+            if section_id_for_focus is not None and business:
+                business.select_section(section_id_for_focus)
         except Exception:
             pass
         try:
@@ -471,12 +473,12 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
                     except Exception:
                         pass
                     business.select_section(section_id_for_focus)
-                business.load_structure()
+                # Инкрементальное обновление — без полной перезагрузки
         except Exception:
             pass
 
     def undo(self):
-        # Восстанавливаем категории из бэкапов в исходном порядке (только данные),
+        # Восстанавливаем категории из бэкапов одним bulk-вызовом (одна транзакция),
         # без тяжёлых перезагрузок/сигналов на каждом элементе
         business = getattr(self.main, "structure_business", None)
         section_id_for_focus = None
@@ -497,18 +499,18 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
         except Exception:
             tree = None
         try:
+            # 1) Импорт всех деревьев в одной транзакции
+            try:
+                self.structure_service.import_category_trees_bulk(self._backups)
+            except Exception:
+                # Если bulk не удался, частично ничего не делаем (UI продолжит жить)
+                pass
+            # 2) Определим раздел для финального фокуса (берём из первого валидного бэкапа)
             for backup in self._backups:
-                if not backup:
-                    continue
-                try:
-                    self.structure_service.import_category_tree(backup)
-                except Exception:
-                    # Плохой бэкап — пропускаем, не ломаем общую операцию
-                    continue
-                # Запомним раздел для финального фокуса
-                section_id_for_focus = (
-                    backup.get("category", {}).get("section_id", section_id_for_focus)
-                )
+                if backup and backup.get("category"):
+                    section_id_for_focus = backup["category"].get("section_id")
+                    if section_id_for_focus is not None:
+                        break
         finally:
             # Одна финальная перезагрузка/фокус и очистка кэша
             # Перед финальными действиями возвращаем сигналы и обработку
@@ -529,10 +531,9 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
             pass
 
         try:
-            if section_id_for_focus is not None:
-                self.main.structure.update_tree(
-                    item_to_select=("section", section_id_for_focus)
-                )
+            # Фокусируем раздел без полной перезагрузки дерева
+            if section_id_for_focus is not None and business:
+                business.select_section(section_id_for_focus)
         except Exception:
             pass
 
@@ -545,6 +546,6 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
                     except Exception:
                         pass
                     business.select_section(section_id_for_focus)
-                business.load_structure()
+                # Инкрементальное обновление — без полной перезагрузки
         except Exception:
             pass

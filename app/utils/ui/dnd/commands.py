@@ -221,10 +221,8 @@ class MoveCategoryCommand(BaseCommand):
 
     def _refresh_structure_ui(self):
         """Обновляет UI структуры после операции."""
-        if hasattr(self.main, "structure") and self.main.structure:
-            self.main.structure.load()  # Перезагружаем структуру
-
-        # Переключаем фокус на перемещенную категорию
+        # Полная перезагрузка дерева больше не требуется — модель обновляется инкрементально
+        # через сигналы бизнес-логики (item_updated и пр.). Сфокусируем нужную категорию.
         if hasattr(self.main, "structure_business") and self.main.structure_business:
             try:
                 self.main.structure_business.select_category(self.category_id)

@@ -53,8 +53,12 @@ class ItemOperations:
         self.business.set_current_sphere(sphere_id)
         # Мгновенно очищаем дерево, чтобы UI отразил смену сферы до прихода данных
         try:
-            if hasattr(self.controller, "tree") and self.controller.tree:
-                self.controller.tree.clear()
+            tree = getattr(self.controller, "tree", None)
+            if tree:
+                # QTreeView: очищаем модель снимком
+                model = getattr(tree, "model", lambda: None)()
+                if model and hasattr(model, "set_snapshot"):
+                    model.set_snapshot([])
         except Exception:
             pass
         # Предпочтительно используем реальный асинхронный слой воркеров
@@ -76,7 +80,7 @@ class ItemOperations:
                     schedule_selection_restore(
                         lambda: (
                             self.business.load_structure()
-                            if self.controller.tree.topLevelItemCount() == 0
+                            if not self._has_any_items_in_tree()
                             else None
                         ),
                         f"ensure_tree_{current_id}",
@@ -169,9 +173,14 @@ class ItemOperations:
             self._edit_category(id_)
 
     def edit_selected_item(self) -> None:
-        current_item = self.tree.currentItem()
-        if current_item:
-            self.edit_item(current_item)
+        # QTreeView: используем текущий индекс
+        try:
+            cur = getattr(self.tree, "currentIndex", lambda: None)()
+            if cur and cur.isValid():
+                self.edit_item(cur)
+                return
+        except Exception:
+            pass
 
     def delete_item(self, item) -> None:
         if not item:
@@ -187,8 +196,11 @@ class ItemOperations:
 
     def delete_selected_item(self) -> None:
         try:
-            # Обрабатываем множественное выделение категорий
-            selected = list(getattr(self.tree, "selectedItems", lambda: [])())
+            # QTreeView: множественное выделение через selectionModel
+            if hasattr(self.tree, "selectionModel") and hasattr(self.tree, "model"):
+                sel_model = self.tree.selectionModel()
+                rows = sel_model.selectedRows(0) if sel_model else []
+                selected = rows or []
         except Exception:
             selected = []
 
@@ -248,10 +260,14 @@ class ItemOperations:
                         logger.exception("Ошибка пакетного удаления категорий")
                 return
 
-        # Fallback: одиночное удаление по текущему элементу
-        current_item = self.tree.currentItem()
-        if current_item:
-            self.delete_item(current_item)
+        # Fallback: одиночное удаление по текущему элементу/индексу
+        try:
+            cur = getattr(self.tree, "currentIndex", lambda: None)()
+            if cur and cur.isValid():
+                self.delete_item(cur)
+                return
+        except Exception:
+            pass
 
     def _edit_section(self, section_id: int) -> None:
         try:
@@ -412,22 +428,32 @@ class ItemOperations:
             self.delete_item(item)
 
     def _get_selected_section_id(self) -> int:
-        current_item = self.tree.currentItem()
-        if not current_item:
-            return None
-        t = get_tree_tuple(current_item, 0)
-        if not t:
-            return None
-        typ, id_ = t
-        if typ == "section":
-            return id_
-        if typ == "category":
-            parent_item = current_item.parent()
-            if parent_item:
-                pt = get_tree_tuple(parent_item, 0)
-                if not pt:
+        # Ветка для QTreeView
+        try:
+            cur = getattr(self.tree, "currentIndex", lambda: None)()
+            if cur and cur.isValid():
+                t = get_tree_tuple(cur, 0)
+                if not t:
                     return None
-                parent_typ, parent_id = pt
-                if parent_typ == "section":
-                    return parent_id
-        return None
+                typ, id_ = t
+                if typ == "section":
+                    return id_
+                if typ == "category":
+                    parent = cur.parent()
+                    if parent and parent.isValid():
+                        pt = get_tree_tuple(parent, 0)
+                        if pt and pt[0] == "section":
+                            return pt[1]
+                return None
+        except Exception:
+            return None
+
+    def _has_any_items_in_tree(self) -> bool:
+        """Возвращает True, если в дереве (QTreeView) есть хотя бы один элемент."""
+        try:
+            model = getattr(self.tree, "model", lambda: None)()
+            if model is not None:
+                return (model.rowCount() or 0) > 0
+        except Exception:
+            pass
+        return False
