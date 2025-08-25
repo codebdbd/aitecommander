@@ -380,10 +380,16 @@ class DeleteCategoryCmd(QUndoCommand):
                         clear_icon_cache()
                     except Exception:
                         pass
+                    # Проставим флаг '__from_undo__' в данные, чтобы UI не переключал фокус
+                    cat_payload = dict(self._backup_tree.get("category") or {})
+                    try:
+                        cat_payload["__from_undo__"] = True
+                    except Exception:
+                        pass
                     business.item_added.emit(
                         "category",
                         self.category.get("section_id"),
-                        self._backup_tree["category"],
+                        cat_payload,
                     )
                     # Инкрементальное обновление — без полной перезагрузки
             except Exception:
@@ -574,5 +580,18 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
                         pass
                     business.select_section(section_id_for_focus)
                 # Инкрементальное обновление — без полной перезагрузки
+        except Exception:
+            pass
+
+        # ВАЖНО: дерево должно получить событие полной перезагрузки,
+        # т.к. в bulk-Undo мы не эмитили item_added для каждой категории
+        try:
+            if business:
+                try:
+                    business._invalidate_structure_cache()
+                except Exception:
+                    pass
+                # Немедленная перезагрузка структуры сферы -> придёт structure_loaded
+                business._schedule_structure_reload(0)
         except Exception:
             pass
