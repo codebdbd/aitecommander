@@ -47,7 +47,7 @@
     "yes_text": "Да",
     "no_text": "Нет",
     "quick_add_button_size": 32,
-    "sphere_button_icon_size": 64,
+    "sphere_button_icon_size": 48,
     "tile_icon_size": 48,
     "tile_width": 110,
     "tile_height": 110,
