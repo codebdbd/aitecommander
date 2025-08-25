@@ -75,8 +75,9 @@ class TreeManagement:
             elif item_type == "category" and isinstance(parent_id, int):
                 row = int(data.get("row")) if isinstance(data.get("row"), int) else -1
                 model.insert_categories(parent_id, row, [data])
-                # Обновим плитки выбранного раздела
-                if hasattr(self.controller, "business"):
+                # Обновим плитки выбранного раздела, если это не Undo вставка
+                # Флаг '__from_undo__' добавляется отправителем сигнала, чтобы избежать смены фокуса
+                if not bool(data.get("__from_undo__")) and hasattr(self.controller, "business"):
                     self.controller.business.select_section(parent_id)
         except Exception:
             # В случае ошибки оставим обработку на полную перезагрузку структуры
