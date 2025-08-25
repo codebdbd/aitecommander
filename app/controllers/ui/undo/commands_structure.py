@@ -141,6 +141,17 @@ class DeleteSectionCmd(QUndoCommand):
                     # Инкрементальное обновление — без полной перезагрузки
             except Exception:
                 pass
+            # Гарантируем немедленное обновление дерева после Undo за счёт перезагрузки структуры
+            try:
+                business = getattr(self.main, "structure_business", None)
+                if business:
+                    try:
+                        business._invalidate_structure_cache()
+                    except Exception:
+                        pass
+                    business._schedule_structure_reload(0)
+            except Exception:
+                pass
         except Exception:
             # В случае сбоя восстановления — оставляем как есть, без исключений в UI
             pass
@@ -375,6 +386,22 @@ class DeleteCategoryCmd(QUndoCommand):
                         self._backup_tree["category"],
                     )
                     # Инкрементальное обновление — без полной перезагрузки
+            except Exception:
+                pass
+            # Гарантируем немедленное обновление дерева после Undo за счёт перезагрузки структуры и категорий раздела
+            try:
+                section_id = self.category.get("section_id")
+                business = getattr(self.main, "structure_business", None)
+                if business:
+                    try:
+                        business._invalidate_categories_cache(section_id)
+                    except Exception:
+                        pass
+                    try:
+                        business._invalidate_structure_cache()
+                    except Exception:
+                        pass
+                    business._schedule_structure_reload(0)
             except Exception:
                 pass
         except Exception:
