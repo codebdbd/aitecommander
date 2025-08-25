@@ -11,6 +11,7 @@ from app.config_data import app_config
 from app.utils.db.db_workers import AsyncTaskMixin
 from app.utils.ui.dnd.tree import DragDropHandler
 from app.views.tree_components.move_operations_handler import MoveOperationsHandler
+import logging
 
 # Используем строковые литералы "section" и "category"
 
@@ -33,8 +34,29 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
         super().__init__(parent)
         try:
             self._item_height = int(item_height) if item_height is not None else None
-        except Exception:
+        except (TypeError, ValueError) as e:
+            logging.warning("HighQualityTreeDelegate.__init__: invalid item_height=%r: %s", item_height, e)
             self._item_height = None
+        # Кэш подготовленных пиксмапов: ключ = (icon_cache_key, width, height, dpr)
+        # Это значительно снижает количество перерасчётов и аллокаций в paint()
+        self._pixmap_cache: dict[tuple, QIcon] = {}
+
+    def clear_cache(self):
+        """Очистить кэш иконок (например, при смене параметров размера/масштаба)."""
+        try:
+            self._pixmap_cache.clear()
+        except AttributeError as e:
+            logging.warning("HighQualityTreeDelegate.clear_cache: cache attribute missing, recreating: %s", e)
+            self._pixmap_cache = {}
+
+    def set_item_height(self, item_height: int | None):
+        """Установить новую высоту элемента и очистить кэш."""
+        try:
+            self._item_height = int(item_height) if item_height is not None else None
+        except (TypeError, ValueError) as e:
+            logging.warning("HighQualityTreeDelegate.set_item_height: invalid item_height=%r: %s", item_height, e)
+            self._item_height = None
+        self.clear_cache()
 
     def paint(self, painter, option, index):
         # Убираем рамку фокуса у элементов дерева
@@ -43,55 +65,80 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
         # Получаем иконку из модели
         icon = index.data(Qt.ItemDataRole.DecorationRole)
         if isinstance(icon, QIcon) and not icon.isNull():
+            # Если по какой-то причине QPainter не активен, не пытаемся рисовать
+            if hasattr(painter, "isActive") and not painter.isActive():
+                logging.error(
+                    "HighQualityTreeDelegate.paint: painter is not active; index=%r", index
+                )
+                return
             # Вычисляем размер иконки
             icon_size = option.decorationSize
             if icon_size.width() <= 0 or icon_size.height() <= 0:
                 icon_size = option.widget.iconSize() if option.widget else QSize(16, 16)
 
-            # Создаем временную опцию с высококачественной иконкой
+            # DPR устройства вывода
+            device_pixel_ratio = 1.0
+            # Предпочитаем DPR от виджета/экрана, чтобы не обращаться к painter.device()
+            try:
+                if option.widget is not None and hasattr(option.widget, "devicePixelRatioF"):
+                    device_pixel_ratio = float(option.widget.devicePixelRatioF())
+                elif hasattr(painter, "device") and painter.device() is not None and hasattr(painter.device(), "devicePixelRatio"):
+                    device_pixel_ratio = float(painter.device().devicePixelRatio())
+            except Exception as e:
+                logging.warning("HighQualityTreeDelegate.paint: failed to get devicePixelRatio, fallback to 1.0: %s", e)
+
+            # Ключ кэша: используем cacheKey() QIcon, размеры и DPR
+            try:
+                icon_key = icon.cacheKey()  # int
+            except AttributeError as e:
+                logging.warning("HighQualityTreeDelegate.paint: icon has no cacheKey(), using id(): %s", e)
+                icon_key = id(icon)
+            cache_key = (icon_key, icon_size.width(), icon_size.height(), float(device_pixel_ratio))
+
+            cached_icon = self._pixmap_cache.get(cache_key)
+            if cached_icon is None:
+                # Создаем временную опцию с высококачественной иконкой
+                temp_option = QStyleOptionViewItem(option)
+
+                # Создаём исходный пиксмап с учётом DPR
+                actual_size = QSize(
+                    int(icon_size.width() * device_pixel_ratio),
+                    int(icon_size.height() * device_pixel_ratio),
+                )
+                pixmap = icon.pixmap(actual_size)
+                pixmap.setDevicePixelRatio(device_pixel_ratio)
+
+                # Масштабируем с высоким качеством если нужно
+                if not pixmap.isNull():
+                    pixmap_size = pixmap.size() / device_pixel_ratio
+                    if (
+                        pixmap_size.width() > icon_size.width()
+                        or pixmap_size.height() > icon_size.height()
+                    ):
+                        scale_factor = min(
+                            icon_size.width() / pixmap_size.width(),
+                            icon_size.height() / pixmap_size.height(),
+                        )
+                        new_size = QSize(
+                            int(pixmap_size.width() * scale_factor),
+                            int(pixmap_size.height() * scale_factor),
+                        )
+                        pixmap = pixmap.scaled(
+                            new_size * device_pixel_ratio,
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation,
+                        )
+                        pixmap.setDevicePixelRatio(device_pixel_ratio)
+
+                # Создаем QIcon на основе подготовленного пиксмапа и кладём в кэш
+                high_quality_icon = QIcon()
+                high_quality_icon.addPixmap(pixmap)
+                self._pixmap_cache[cache_key] = high_quality_icon
+                cached_icon = high_quality_icon
+
+            # Рисуем стандартным способом с кэшированной иконкой
             temp_option = QStyleOptionViewItem(option)
-
-            # Создаем высококачественную иконку
-            device_pixel_ratio = (
-                painter.device().devicePixelRatio()
-                if hasattr(painter.device(), "devicePixelRatio")
-                else 1.0
-            )
-            actual_size = QSize(
-                int(icon_size.width() * device_pixel_ratio),
-                int(icon_size.height() * device_pixel_ratio),
-            )
-            pixmap = icon.pixmap(actual_size)
-            pixmap.setDevicePixelRatio(device_pixel_ratio)
-
-            # Масштабируем с высоким качеством если нужно
-            if not pixmap.isNull():
-                pixmap_size = pixmap.size() / device_pixel_ratio
-                if (
-                    pixmap_size.width() > icon_size.width()
-                    or pixmap_size.height() > icon_size.height()
-                ):
-                    scale_factor = min(
-                        icon_size.width() / pixmap_size.width(),
-                        icon_size.height() / pixmap_size.height(),
-                    )
-                    new_size = QSize(
-                        int(pixmap_size.width() * scale_factor),
-                        int(pixmap_size.height() * scale_factor),
-                    )
-                    pixmap = pixmap.scaled(
-                        new_size * device_pixel_ratio,
-                        Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation,
-                    )
-                    pixmap.setDevicePixelRatio(device_pixel_ratio)
-
-            # Создаем высококачественную иконку и устанавливаем в опцию
-            high_quality_icon = QIcon()
-            high_quality_icon.addPixmap(pixmap)
-            temp_option.icon = high_quality_icon
-
-            # Рисуем стандартным способом с улучшенной иконкой
+            temp_option.icon = cached_icon
             super().paint(painter, temp_option, index)
         else:
             # Рисуем без иконки
@@ -105,7 +152,8 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
         # Жёстко возвращаем единую высоту строки из глобальной конфигурации (ui.row_height)
         try:
             row_h = int(app_config.get_row_height())
-        except Exception:
+        except (AttributeError, TypeError, ValueError) as e:
+            logging.warning("HighQualityTreeDelegate.sizeHint: using fallback height due to config error: %s", e)
             row_h = self._item_height if self._item_height else base.height()
         return QSize(base.width(), row_h)
 
@@ -139,15 +187,16 @@ class StructureTreeView(QTreeView, AsyncTaskMixin):
         # Делегат высокого качества (иконки, высота строки)
         try:
             item_h = int(app_config.get_row_height())
-        except Exception:
+        except (AttributeError, TypeError, ValueError) as e:
+            logging.warning("StructureTreeView._setup_tree_view: invalid row_height in config, fallback to None: %s", e)
             item_h = None
         self.setItemDelegate(HighQualityTreeDelegate(item_height=item_h))
 
         # Производительность: одинаковая высота строк
         try:
             self.setUniformRowHeights(True)
-        except Exception:
-            pass
+        except AttributeError as e:
+            logging.warning("StructureTreeView._setup_tree_view: setUniformRowHeights not available: %s", e)
 
         # Hover-поведение как в прежней версии
         self.setMouseTracking(True)
@@ -156,31 +205,33 @@ class StructureTreeView(QTreeView, AsyncTaskMixin):
     def emit_items_moved(self, payload):
         try:
             self.itemsMoved.emit(payload)
-        except Exception:
+        except (RuntimeError, TypeError, AttributeError) as e:
+            logging.error("StructureTreeView.emit_items_moved: emit failed: payload=%r, error=%s", payload, e)
             # Без жестких зависимостей: даем обратную связь через dragFeedback
             try:
                 self.dragFeedback.emit(
-                    {"type": "emit_error", "signal": "itemsMoved", "error": "emit failed"}
+                    {"type": "emit_error", "signal": "itemsMoved", "error": str(e)}
                 )
-            except Exception:
-                pass
+            except (RuntimeError, TypeError, AttributeError) as e2:
+                logging.error("StructureTreeView.emit_items_moved: dragFeedback emit failed: %s", e2)
 
     def emit_invalid_drop(self, reason: str):
         try:
             self.invalidDrop.emit(reason)
-        except Exception:
+        except (RuntimeError, TypeError, AttributeError) as e:
+            logging.error("StructureTreeView.emit_invalid_drop: emit failed: reason=%r, error=%s", reason, e)
             try:
                 self.dragFeedback.emit(
                     {"type": "emit_error", "signal": "invalidDrop", "error": reason}
                 )
-            except Exception:
-                pass
+            except (RuntimeError, TypeError, AttributeError) as e2:
+                logging.error("StructureTreeView.emit_invalid_drop: dragFeedback emit failed: %s", e2)
 
     def emit_drag_feedback(self, info):
         try:
             self.dragFeedback.emit(info)
-        except Exception:
-            pass
+        except (RuntimeError, TypeError, AttributeError) as e:
+            logging.error("StructureTreeView.emit_drag_feedback: emit failed: info=%r, error=%s", info, e)
 
     # --- DnD события делегируем обработчику ---
     def dragEnterEvent(self, event):
