@@ -1,7 +1,7 @@
 # app/controllers/structure/icon_handling.py
 
 from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QTreeWidgetItem, QTreeWidgetItemIterator
+from PyQt6.QtCore import Qt
 
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
@@ -27,35 +27,59 @@ class IconHandling:
         # Пустая иконка, если ничего не найдено
         return QIcon()
 
-    def _set_tree_item_icon(
-        self, item: QTreeWidgetItem, item_type: str, data: dict
-    ) -> None:
-        icon = self._get_icon_for_item(item_type, data.get("icon_path"))
-        item.setIcon(0, icon)
-
     def reload_icons(self) -> None:
-        iterator = QTreeWidgetItemIterator(self.tree)
-        while iterator.value():
-            self._update_item_icon(iterator.value())
-            iterator += 1
+        """Переустанавливает иконки для всех элементов дерева.
 
-    def _update_item_icon(self, item: QTreeWidgetItem) -> None:
-        t = get_tree_tuple(item, 0)
-        if not t:
-            item.setIcon(0, QIcon())
-            return
-        item_type, item_id = t
+        Обходим модель QTreeView и выставляем иконки через DecorationRole.
+        """
+        # Ветвь для QTreeView — обходим модель и выставляем DecorationRole
         try:
-            if item_type == "section":
-                data = self.business.get_section_data(item_id)
-            elif item_type == "category":
-                data = self.business.get_category_data(item_id)
-            else:
-                item.setIcon(0, QIcon())
+            model = getattr(self.tree, "model", lambda: None)()
+            if not model:
                 return
-            if data:
-                self._set_tree_item_icon(item, item_type, data)
-            else:
-                item.setIcon(0, QIcon())
+
+            # Локальная рекурсивная функция обхода
+            def iter_indexes(parent_index=None):
+                from PyQt6.QtCore import QModelIndex
+
+                if parent_index is None:
+                    parent_index = QModelIndex()
+                rows = model.rowCount(parent_index)
+                for r in range(rows):
+                    idx = model.index(r, 0, parent_index)
+                    if idx.isValid():
+                        yield idx
+                        yield from iter_indexes(idx)
+
+            from app.utils.ui.qt.roles import get_tree_tuple
+
+            for idx in iter_indexes():
+                t = get_tree_tuple(idx, 0)
+                if not t:
+                    # Сбрасываем иконку, если нет валидных данных
+                    try:
+                        model.setData(idx, QIcon(), Qt.ItemDataRole.DecorationRole)
+                    except Exception:
+                        pass
+                    continue
+                item_type, item_id = t
+                try:
+                    if item_type == "section":
+                        data = self.business.get_section_data(item_id)
+                    elif item_type == "category":
+                        data = self.business.get_category_data(item_id)
+                    else:
+                        data = None
+                    if data:
+                        icon = self._get_icon_for_item(item_type, data.get("icon_path"))
+                        model.setData(idx, icon, Qt.ItemDataRole.DecorationRole)
+                    else:
+                        model.setData(idx, QIcon(), Qt.ItemDataRole.DecorationRole)
+                except Exception:
+                    try:
+                        model.setData(idx, QIcon(), Qt.ItemDataRole.DecorationRole)
+                    except Exception:
+                        pass
         except Exception:
-            item.setIcon(0, QIcon())
+            # В случае любой ошибки не прерываем UI
+            pass

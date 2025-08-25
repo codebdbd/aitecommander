@@ -3,7 +3,7 @@
 import time
 from typing import Any, Optional, TypeVar
 
-from PyQt6.QtCore import QObject, Qt, QTimer
+from PyQt6.QtCore import QObject, Qt, QTimer, QItemSelection, QItemSelectionModel
 from PyQt6.QtGui import QKeyEvent, QKeySequence, QShortcut
 from PyQt6.QtWidgets import QApplication, QWidget
 from app.utils.ui.qt.roles import get_tree_tuple
@@ -15,7 +15,7 @@ T = TypeVar("T")
 
 # Константы для идентификации виджетов по классам/именам
 WIDGET_CLASSES = {
-    "STRUCTURE_TREE": "StructureTreeWidget",
+    "STRUCTURE_TREE": "StructureTreeView",
     "LINKS_TABLE": "LinksTableView",
     "CATEGORY_TILES": "CategoryTiles",
 }
@@ -113,36 +113,42 @@ class ClipboardKeyHandler(BaseKeyHandler):
                 self._safe_call(table, "clearSelection")
         except Exception:
             pass
+        # QTreeView: используем модель и selectionModel
         try:
-            item = tree.currentItem() if hasattr(tree, "currentItem") else None
-        except Exception:
-            item = None
-        if not item:
-            return
-        try:
-            t = get_tree_tuple(item, 0)
-        except Exception:
-            t = None
-        # Если выделена категория — используем её родителя (раздел)
-        parent = item.parent() if item else None
-        if not parent:
-            # Если у элемента нет родителя, предполагаем, что это раздел
-            parent = item
-        # Снимаем текущее выделение
-        try:
-            tree.clearSelection()
-        except Exception:
-            pass
-        # Выделяем всех детей раздела (категории)
-        try:
-            for i in range(parent.childCount()):
-                child = parent.child(i)
+            if hasattr(tree, "currentIndex") and callable(getattr(tree, "currentIndex")):
+                idx = tree.currentIndex()
+                if not (idx and idx.isValid()):
+                    return
                 try:
-                    child_tuple = get_tree_tuple(child, 0)
+                    tt = get_tree_tuple(idx, 0)
                 except Exception:
-                    child_tuple = None
-                if child_tuple and child_tuple[0] in ("category", "CATEGORY"):
-                    child.setSelected(True)
+                    tt = None
+                # Если выделена категория — берем её родителя (раздел), иначе предполагаем раздел
+                parent_idx = idx.parent() if (tt and tt[0] == "category") else idx
+                if not parent_idx or not parent_idx.isValid():
+                    return
+                model = tree.model() if hasattr(tree, "model") else None
+                if not model:
+                    return
+                rows = model.rowCount(parent_idx)
+                if rows <= 0:
+                    return
+                # Очистить текущее выделение и выделить все строки-раздела (категории)
+                try:
+                    sel_model = tree.selectionModel()
+                    if sel_model:
+                        sel_model.clearSelection()
+                        top_left = model.index(0, 0, parent_idx)
+                        bottom_right = model.index(rows - 1, 0, parent_idx)
+                        selection = QItemSelection(top_left, bottom_right)
+                        sel_model.select(
+                            selection,
+                            QItemSelectionModel.SelectionFlag.Select
+                            | QItemSelectionModel.SelectionFlag.Rows,
+                        )
+                        return
+                except Exception:
+                    pass
         except Exception:
             pass
 

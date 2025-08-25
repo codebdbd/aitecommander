@@ -37,17 +37,17 @@ class SetupError(Exception):
     pass
 
 
-def setup_controllers(window, controllers: Dict[str, Any]) -> None:
+def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     """Создание и настройка основных контроллеров."""
     # Прямое создание контроллеров/бизнес-логики (без фасада)
-    structure_business = StructureBusinessLogic(window.db)
-    links_business = LinksBusinessLogic(window.db)
+    structure_business = StructureBusinessLogic(db)
+    links_business = LinksBusinessLogic(db)
 
     structure_ctrl = StructureUIController(window.tree, structure_business, window)
     links_ctrl = LinksUIController(window.table, links_business, window)
 
-    link_ops = LinkOperationsController(window.db, window.undo_stack, window)
-    db_ctrl = DatabaseController(window.db, window)
+    link_ops = LinkOperationsController(db, window.undo_stack, window)
+    db_ctrl = DatabaseController(db, window)
     sys_dialogs = SystemDialogController(window)
     app_shutdown = AppShutdownController(window)
 
@@ -421,7 +421,14 @@ def _connect_ui_signals(window) -> None:
         return
     try:
         if hasattr(window, "tree") and window.tree:
-            window.tree.currentItemChanged.connect(lambda *_: window.update_statusbar())
+            tree = window.tree
+            # QTreeView-only: используем selectionModel().currentChanged
+            try:
+                sel_model = getattr(tree, "selectionModel", lambda: None)()
+                if sel_model:
+                    sel_model.currentChanged.connect(lambda *_: window.update_statusbar())
+            except Exception:
+                pass
     except Exception as e:
         logger.warning(f"Failed to connect tree signals: {e}")
 
@@ -570,7 +577,7 @@ class WindowControllersSetup:
 
         # Шаг 1. Критичный: контроллеры
         try:
-            setup_controllers(self.window, controllers)
+            setup_controllers(self.window, controllers, self.db)
             logger.info("Controllers setup completed")
         except Exception as e:
             logger.error(f"Failed to setup controllers: {e}")

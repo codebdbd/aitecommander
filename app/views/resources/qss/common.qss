@@ -321,12 +321,12 @@ QTableView::item {
 
 
 
-QTreeWidget::item:selected,
+QTreeView::item:selected,
 QTableView::item:selected {
     border-radius: 0px;
 }
 
-QTreeWidget::item:hover {
+QTreeView::item:hover {
     border-radius: 0px;
 }
 
@@ -383,7 +383,7 @@ QSplitter::handle:vertical {
     padding: 0;
 }
 
-QTreeWidget::item {
+QTreeView::item {
     /* min-height: из ui.tree_item_height (config_loader.get_tree_item_height()) */
 }
 

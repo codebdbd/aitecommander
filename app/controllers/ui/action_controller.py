@@ -43,8 +43,14 @@ class ActionController:
             self._edit_selected_link()
             return
 
-        # Проверяем фокус на дереве структуры
-        if self.main_window.tree.hasFocus() and self.main_window.tree.currentItem():
+        # Проверяем фокус на дереве структуры (QTreeView-only)
+        has_tree_sel = False
+        try:
+            tree = self.main_window.tree
+            has_tree_sel = hasattr(tree, "currentIndex") and tree.currentIndex().isValid()
+        except Exception:
+            has_tree_sel = False
+        if self.main_window.tree.hasFocus() and has_tree_sel:
             self.main_window.structure.edit_selected_item()
             return
 
@@ -55,8 +61,13 @@ class ActionController:
             self._edit_selected_link()
             return
 
-        # Fallback: проверяем наличие выбранного элемента в дереве
-        if self.main_window.tree.currentItem():
+        # Fallback: проверяем наличие выбранного элемента в дереве (QTreeView-only)
+        try:
+            tree = self.main_window.tree
+            has_sel = hasattr(tree, "currentIndex") and tree.currentIndex().isValid()
+        except Exception:
+            has_sel = False
+        if has_sel:
             self.main_window.structure.edit_selected_item()
             return
 
@@ -77,11 +88,17 @@ class ActionController:
                 self.main_window.update_statusbar()
             return
 
-        # Проверяем фокус на дереве структуры
+        # Проверяем фокус на дереве структуры (QTreeView-only)
+        has_tree_sel = False
+        try:
+            tree = self.main_window.tree
+            has_tree_sel = hasattr(tree, "currentIndex") and tree.currentIndex().isValid()
+        except Exception:
+            has_tree_sel = False
         if (
             self.main_window.tree.hasFocus()
             or self.main_window.tree.isAncestorOf(self.main_window.focusWidget())
-        ) and self.main_window.tree.currentItem():
+        ) and has_tree_sel:
             self.main_window.structure.delete_selected_item()
             self.main_window.update_statusbar()
             return
@@ -94,8 +111,13 @@ class ActionController:
                 self.main_window.update_statusbar()
             return
 
-        # Fallback: проверяем наличие выбранного элемента в дереве
-        if self.main_window.tree.currentItem():
+        # Fallback: проверяем наличие выбранного элемента в дереве (QTreeView-only)
+        try:
+            tree = self.main_window.tree
+            has_sel = hasattr(tree, "currentIndex") and tree.currentIndex().isValid()
+        except Exception:
+            has_sel = False
+        if has_sel:
             self.main_window.structure.delete_selected_item()
             self.main_window.update_statusbar()
 

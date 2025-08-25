@@ -3,7 +3,7 @@
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
-from PyQt6.QtWidgets import QMenu, QTreeWidget
+from PyQt6.QtWidgets import QMenu
 from PyQt6.QtWidgets import QApplication
 import json
 
@@ -19,6 +19,7 @@ from .base import get_menu_icon
 # Сервисы для работы с деревом и ссылками
 from app.services.structure_service import StructureService
 from app.services.links_service import LinksService
+from app.utils.ui.icon.cache_manager import clear_icon_cache
 
 if TYPE_CHECKING:
     from app.main_window import MainWindow
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 class StructureMenuBuilder:
     """Строитель контекстного меню для дерева структуры."""
 
-    def __init__(self, tree_widget: QTreeWidget, main_window: "MainWindow"):
+    def __init__(self, tree_widget, main_window: "MainWindow"):
         self.tree_widget = tree_widget
         self.main_window = main_window
         self.actions = ActionBuilder(tree_widget)
@@ -148,16 +149,8 @@ class StructureMenuBuilder:
 
         # 4. Вырезать (одиночно/массово)
         def _cut_action():
-            # Определим множественный выбор категорий
-            try:
-                selected = [
-                    it
-                    for it in self.tree_widget.selectedItems()
-                    if get_tree_tuple(it, 0) and get_tree_tuple(it, 0)[0] == StructureItemType.CATEGORY
-                ]
-            except Exception:
-                selected = []
-
+            # Определим множественный выбор категорий (QTreeView)
+            selected = self._get_selected_category_nodes()
             if len(selected) > 1:
                 # Массово: сначала скопировать все выбранные категории в буфер, потом пакетно удалить
                 self._copy_selected_categories_to_clipboard(selected)
@@ -197,11 +190,7 @@ class StructureMenuBuilder:
         # 6. Удалить категорию / Удлаить выбранное (если выделено несколько)
         def _delete_action():
             try:
-                selected = [
-                    it
-                    for it in self.tree_widget.selectedItems()
-                    if get_tree_tuple(it, 0) and get_tree_tuple(it, 0)[0] == StructureItemType.CATEGORY
-                ]
+                selected = self._get_selected_category_nodes()
             except Exception:
                 selected = []
             # Если в выделении несколько категорий — используем пакетное удаление
@@ -219,12 +208,8 @@ class StructureMenuBuilder:
 
         action_text = "Удалить категорию"
         try:
-            # Меняем подпись, если выделено больше одной категории (необязательно, но удобнее пользователю)
-            selected_count = len([
-                it
-                for it in self.tree_widget.selectedItems()
-                if get_tree_tuple(it, 0) and get_tree_tuple(it, 0)[0] == StructureItemType.CATEGORY
-            ])
+            # Меняем подпись, если выделено больше одной категории
+            selected_count = len(self._get_selected_category_nodes())
             if selected_count > 1:
                 action_text = "Удлаить выбранное"
         except Exception:
@@ -288,19 +273,26 @@ class StructureMenuBuilder:
         data = self._clipboard_get_json()
         if not data:
             return False
-        # Поддержка двух форматов: старый (type=category,id,...) и новый (полный tree)
-        if isinstance(data, dict) and {
-            "category",
-            "links",
-        }.issubset(set(data.keys())):
-            return True
-        if data.get("type") == "category" and data.get("id"):
-            return True
-        if data.get("type") == "category_tree" and isinstance(data.get("tree"), dict):
-            return True
-        # Несколько категорий
-        if data.get("type") == "category_trees" and isinstance(data.get("trees"), list):
-            return True
+        # Поддержка словаря и списка
+        if isinstance(data, dict):
+            # Полный формат дерева
+            if {"category", "links"}.issubset(set(data.keys())):
+                return True
+            # Старый формат по id
+            if data.get("type") == "category" and data.get("id"):
+                return True
+            # Один tree по ключу tree
+            if data.get("type") == "category_tree" and isinstance(data.get("tree"), dict):
+                return True
+            # Несколько деревьев по ключу trees
+            if data.get("type") == "category_trees" and isinstance(data.get("trees"), list):
+                return True
+        elif isinstance(data, list):
+            # Список полных деревьев
+            return any(
+                isinstance(t, dict) and {"category", "links"}.issubset(set(t.keys()))
+                for t in data
+            )
         return False
 
     def _copy_category_tree_to_clipboard(self, item: Any, cat_id: Any) -> None:
@@ -309,15 +301,12 @@ class StructureMenuBuilder:
             app = QApplication.instance()
             if not app:
                 return
-            # Экспортируем полную категорию через сервис
-            ss = StructureService(self.main_window.db)
+            dc = getattr(self.main_window, "database_controller", None)
+            db = getattr(dc, "db", None)
+            ss = StructureService(db)
             # Если выделено несколько категорий — копируем их все одним действием
             try:
-                selected = [
-                    it
-                    for it in self.tree_widget.selectedItems()
-                    if get_tree_tuple(it, 0) and get_tree_tuple(it, 0)[0] == StructureItemType.CATEGORY
-                ]
+                selected = self._get_selected_category_nodes()
             except Exception:
                 selected = []
 
@@ -350,7 +339,9 @@ class StructureMenuBuilder:
             app = QApplication.instance()
             if not app:
                 return
-            ss = StructureService(self.main_window.db)
+            dc = getattr(self.main_window, "database_controller", None)
+            db = getattr(dc, "db", None)
+            ss = StructureService(db)
             trees: list[dict] = []
             for it in items:
                 t = get_tree_tuple(it, 0)
@@ -379,102 +370,195 @@ class StructureMenuBuilder:
             if not data:
                 return
 
-            def normalize_to_tree_list(payload: dict) -> list[dict]:
-                ss_local = StructureService(self.main_window.db)
-                # Уже полный формат
-                if isinstance(payload, dict) and {"category", "links"}.issubset(set(payload.keys())):
-                    return [payload]
-                if payload.get("type") == "category_tree" and isinstance(payload.get("tree"), dict):
-                    return [payload.get("tree")]
-                if payload.get("type") == "category" and payload.get("id"):
-                    return [ss_local.export_category_tree(int(payload["id"]))]
-                if payload.get("type") == "category_trees" and isinstance(payload.get("trees"), list):
-                    out: list[dict] = []
-                    for t in payload.get("trees", []):
-                        if isinstance(t, dict) and {"category", "links"}.issubset(set(t.keys())):
-                            out.append(t)
-                    return out
+            def normalize_to_tree_list(payload: object) -> list[dict]:
+                """Нормализует данные буфера в список деревьев категорий.
+                Поддерживает dict-форматы и список полных деревьев. Для {type:category,id} делает экспорт через сервис.
+                """
+                ss_local = StructureService(self.main_window.database_controller.db)
+                if isinstance(payload, dict):
+                    if {"category", "links"}.issubset(set(payload.keys())):
+                        return [payload]
+                    if payload.get("type") == "category_tree" and isinstance(payload.get("tree"), dict):
+                        return [payload.get("tree")]
+                    if payload.get("type") == "category" and payload.get("id"):
+                        return [ss_local.export_category_tree(int(payload["id"]))]
+                    if payload.get("type") == "category_trees" and isinstance(payload.get("trees"), list):
+                        out: list[dict] = []
+                        for t in payload.get("trees", []):
+                            if isinstance(t, dict) and {"category", "links"}.issubset(set(t.keys())):
+                                out.append(t)
+                        return out
+                    return []
+                if isinstance(payload, list):
+                    return [t for t in payload if isinstance(t, dict) and {"category", "links"}.issubset(set(t.keys()))]
                 return []
 
             trees: list[dict] = normalize_to_tree_list(data)
             if not trees:
                 return
 
-            ss = StructureService(self.main_window.db)
-            ls = LinksService(self.main_window.db)
-            last_new_cat_id: Optional[int] = None
+            dc2 = getattr(self.main_window, "database_controller", None)
+            db2 = getattr(dc2, "db", None)
+            ss = StructureService(db2)
+            ls = LinksService(db2)
 
-            for tree in trees:
-                src_cat = dict(tree.get("category", {}))
-                src_links = list(tree.get("links", []))
+            business = getattr(self.main_window, "structure_business", None)
+            struct = getattr(self.main_window, "structure", None)
+            tree_widget = getattr(struct, "tree", None)
+            selection = getattr(struct, "selection_handler", None)
 
-                new_cat_data = {k: v for k, v in src_cat.items() if k not in {"id", "section_id"}}
-                new_cat_data["section_id"] = int(section_id)
-                new_cat_id = ss.create_category(new_cat_data)
-                if not new_cat_id:
-                    continue
-
-                last_new_cat_id = int(new_cat_id)
-
-                for link in src_links:
-                    src = dict(link)
-                    # Обязательные поля
-                    name = src.get("name") or ""
-                    url = src.get("url") or ""
-                    ltype = src.get("type") or "web"
-
-                    # Пропускаем некорректные записи без URL или имени
-                    if not url or not name:
-                        continue
-
-                    # Опциональные поля с дефолтами
-                    notes = src.get("notes") or ""
-                    is_favorite = int(src.get("is_favorite") or 0)
-                    icon_path = src.get("icon_path") or "default.ico"
-                    args = src.get("args") or ""
-                    browser_key = src.get("browser_key")
-
-                    link_data = {
-                        "category_id": int(new_cat_id),
-                        "name": name,
-                        "url": url,
-                        "type": ltype,
-                        "notes": notes,
-                        "is_favorite": is_favorite,
-                        "icon_path": icon_path,
-                        "args": args,
-                    }
-                    if browser_key is not None:
-                        link_data["browser_key"] = browser_key
-                    ls.create_or_update_link(link_data)
-
-            # Обновляем UI: полная перезагрузка дерева. Выделяем последнюю созданную категорию, если есть.
+            # Подавляем сигналы выбора/дерева на время пакетной операции
             try:
-                if hasattr(self.main_window, "structure") and self.main_window.structure:
-                    if last_new_cat_id:
-                        self.main_window.structure.load(item_to_select=("category", int(last_new_cat_id)))
-                    else:
-                        self.main_window.structure.load()
+                if selection is not None:
+                    try:
+                        selection.begin_suppress_selection()
+                    except Exception:
+                        pass
+                if tree_widget is not None:
+                    tree_widget.blockSignals(True)
             except Exception:
                 pass
+
+            created_any = False
+            created_categories: list[dict] = []
+            try:
+                for tree in trees:
+                    src_cat = dict(tree.get("category", {}))
+                    src_links = list(tree.get("links", []))
+
+                    new_cat_data = {k: v for k, v in src_cat.items() if k not in {"id", "section_id"}}
+                    new_cat_data["section_id"] = int(section_id)
+                    new_cat_id = ss.create_category(new_cat_data)
+                    if not new_cat_id:
+                        continue
+                    created_any = True
+                    new_cat_data["id"] = int(new_cat_id)
+                    created_categories.append(dict(new_cat_data))
+
+                    # Подготовим данные ссылок и выполним один пакетный апсерт без вложенных транзакций
+                    batch_links: list[dict] = []
+                    for link in src_links:
+                        src = dict(link)
+                        name = src.get("name") or ""
+                        url = src.get("url") or ""
+                        ltype = src.get("type") or "web"
+                        if not url or not name:
+                            continue
+                        notes = src.get("notes") or ""
+                        is_favorite = int(src.get("is_favorite") or 0)
+                        icon_path = src.get("icon_path") or "default.ico"
+                        args = src.get("args") or ""
+                        browser_key = src.get("browser_key")
+
+                        link_data = {
+                            "category_id": int(new_cat_id),
+                            "name": name,
+                            "url": url,
+                            "type": ltype,
+                            "notes": notes,
+                            "is_favorite": is_favorite,
+                            "icon_path": icon_path,
+                            "args": args,
+                        }
+                        if browser_key is not None:
+                            link_data["browser_key"] = browser_key
+                        batch_links.append(link_data)
+
+                    if batch_links:
+                        # ВАЖНО: метод batch_upsert_links сам управляет транзакцией.
+                        # Здесь не должно быть внешнего UnitOfWork.
+                        try:
+                            ls.batch_upsert_links(batch_links)
+                        except Exception:
+                            # Не прерываем всю операцию из-за ссылок одной категории
+                            pass
+            finally:
+                # Возвращаем сигналы
+                try:
+                    if tree_widget is not None:
+                        tree_widget.blockSignals(False)
+                except Exception:
+                    pass
+                try:
+                    if selection is not None:
+                        selection.end_suppress_selection()
+                except Exception:
+                    pass
+
+            # Инкрементальное обновление UI без полной перезагрузки
+            if created_any:
+                try:
+                    if business:
+                        # Очистим кэш иконок один раз, если требуется обновление плиток
+                        try:
+                            clear_icon_cache()
+                        except Exception:
+                            pass
+                        # Инвалидируем кэш категорий раздела перед выбором
+                        try:
+                            business._invalidate_categories_cache(int(section_id))
+                        except Exception:
+                            pass
+                        # Эмитим добавление по каждой созданной категории
+                        for cat in created_categories:
+                            try:
+                                business.item_added.emit("category", int(section_id), cat)
+                            except Exception:
+                                pass
+                        # Фокус на раздел, чтобы перечитать и отрисовать категории
+                        business.select_section(int(section_id))
+                except Exception:
+                    pass
         except Exception:
             # Не роняем UI из-за ошибок вставки
             pass
 
     def _select_all_categories_in_section(self, item: Any) -> None:
+        """Выделить все категории внутри раздела (QTreeView-only)."""
         try:
-            parent = item.parent()
-            if parent is None:
-                # Если сам раздел выбран (на всякий случай), используем его
-                parent = item
-            # Снимаем текущее выделение и выделяем всех детей раздела
-            self.tree_widget.clearSelection()
-            for i in range(parent.childCount()):
-                child = parent.child(i)
-                # Выделяем только категории (дети раздела)
-                child.setSelected(True)
+            if not (hasattr(self.tree_widget, "selectionModel") and hasattr(self.tree_widget, "model")):
+                return
+            model = self.tree_widget.model()
+            sel_model = self.tree_widget.selectionModel()
+            if not (model and sel_model):
+                return
+            # item — QModelIndex категории или раздела
+            idx = item if getattr(item, "isValid", lambda: False)() else None
+            if idx is None:
+                return
+            t = get_tree_tuple(idx, 0)
+            if not t:
+                return
+            typ, _ = t
+            section_index = idx if typ == StructureItemType.SECTION else idx.parent()
+            if not (section_index and section_index.isValid()):
+                return
+            # Снимаем выделение
+            sel_model.clearSelection()
+            # Выделяем все дочерние элементы раздела (категории)
+            row_count = model.rowCount(section_index)
+            for r in range(row_count):
+                child = model.index(r, 0, section_index)
+                if child and child.isValid():
+                    tchild = get_tree_tuple(child, 0)
+                    if tchild and tchild[0] == StructureItemType.CATEGORY:
+                        sel_model.select(child, sel_model.SelectionFlag.Select | sel_model.SelectionFlag.Rows)
         except Exception:
             pass
+
+    # --- Универсальные хелперы выбора категорий ---
+    def _get_selected_category_nodes(self) -> list[Any]:
+        """Возвращает список выделенных узлов категорий для QTreeView (QModelIndex)."""
+        try:
+            if hasattr(self.tree_widget, "selectionModel") and hasattr(self.tree_widget, "model"):
+                sel_model = self.tree_widget.selectionModel()
+                if not sel_model:
+                    return []
+                rows = sel_model.selectedRows(0) or []
+                return [idx for idx in rows if (get_tree_tuple(idx, 0) and get_tree_tuple(idx, 0)[0] == StructureItemType.CATEGORY)]
+        except Exception:
+            return []
+        return []
 
     def _add_root_actions(
         self, menu: QMenu, add_new_section_cb: Callable, sort_tree_cb: Callable

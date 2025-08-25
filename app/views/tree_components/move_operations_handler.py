@@ -1,6 +1,6 @@
 # app/views/tree_components/move_operations_handler.py
 
-"""Обработчик операций перемещения для StructureTreeWidget."""
+"""Обработчик операций перемещения для дерева структуры (QTreeView-only)."""
 
 import logging
 from typing import Any, Dict, List
@@ -197,31 +197,65 @@ class MoveOperationsHandler(TreeHandlerBase):
     def _prepare_position_params(
         self, source_type: str, source_id: int, parent
     ) -> Dict[str, Any]:
-        """Подготавливает параметры для обновления позиций."""
-        if source_type == "section":
-            ids_in_order: list[int] = []
-            for i in range(self.tree_widget.topLevelItemCount()):
-                item = self.tree_widget.topLevelItem(i)
-                t = get_tree_tuple(item, 0)
-                if t:
-                    typ, id_ = t
-                    if typ == "section" and isinstance(id_, int):
-                        ids_in_order.append(id_)
-            if not ids_in_order:
+        """Подготавливает параметры для обновления позиций (QTreeView)."""
+
+        # Используем модель и бизнес-логику
+        try:
+            model = getattr(self.tree_widget, "model", lambda: None)()
+            if not model:
                 return {}
-            return {"table_name": "section", "ids_in_order": ids_in_order}
-        elif source_type == "category" and parent:
-            ids_in_order: list[int] = []
-            for i in range(parent.childCount()):
-                item = parent.child(i)
-                t = get_tree_tuple(item, 0)
-                if t:
-                    typ, id_ = t
-                    if typ == "category" and isinstance(id_, int):
-                        ids_in_order.append(id_)
-            if not ids_in_order:
-                return {}
-            return {"table_name": "category", "ids_in_order": ids_in_order}
+
+            # Секции: верхний уровень модели
+            if source_type == "section":
+                ids_in_order: list[int] = []
+                rows = model.rowCount()
+                for r in range(rows):
+                    idx = model.index(r, 0)
+                    t = get_tree_tuple(idx, 0)
+                    if t and t[0] == "section" and isinstance(t[1], int):
+                        ids_in_order.append(int(t[1]))
+                if not ids_in_order:
+                    return {}
+                return {"table_name": "section", "ids_in_order": ids_in_order}
+
+            # Категории: определяем раздел-родитель через бизнес-логику
+            if source_type == "category" and isinstance(source_id, int):
+                try:
+                    hierarchy = None
+                    main_window = self.tree_widget.window()
+                    if hasattr(main_window, "structure_business") and main_window.structure_business:
+                        hierarchy = main_window.structure_business.get_category_hierarchy(source_id)
+                except Exception:
+                    hierarchy = None
+                section_id = None
+                if isinstance(hierarchy, dict):
+                    section_id = hierarchy.get("section_id")
+                if not isinstance(section_id, int):
+                    # Фолбэк: попытаемся взять текущий индекс и его родителя
+                    cur = getattr(self.tree_widget, "currentIndex", lambda: None)()
+                    if cur and cur.isValid():
+                        parent_idx = cur.parent()
+                        pt = get_tree_tuple(parent_idx, 0) if parent_idx and parent_idx.isValid() else None
+                        if pt and pt[0] == "section" and isinstance(pt[1], int):
+                            section_id = pt[1]
+                if not isinstance(section_id, int):
+                    return {}
+                # Идём по детям индекса раздела
+                sec_idx = model.index_for("section", int(section_id)) if hasattr(model, "index_for") else None
+                if not (sec_idx and sec_idx.isValid()):
+                    return {}
+                ids_in_order: list[int] = []
+                rows = model.rowCount(sec_idx)
+                for r in range(rows):
+                    idx = model.index(r, 0, sec_idx)
+                    t = get_tree_tuple(idx, 0)
+                    if t and t[0] == "category" and isinstance(t[1], int):
+                        ids_in_order.append(int(t[1]))
+                if not ids_in_order:
+                    return {}
+                return {"table_name": "category", "ids_in_order": ids_in_order}
+        except Exception:
+            pass
         return {}
 
     def _on_internal_move_finished(self, result=None) -> None:
@@ -255,34 +289,38 @@ class MoveOperationsHandler(TreeHandlerBase):
         """Обновляет интерфейс после перемещения."""
         main_win = self.tree_widget.window()
 
-        # Переключаемся на текущую сферу для обновления
+        # После перемещения, если текущая сфера не соответствует целевой — переключаем
         if (
             hasattr(main_win, "structure_business")
-            and main_win.structure_business.current_sphere_id
+            and main_win.structure_business
         ):
-            main_win._switch_sphere(main_win.structure_business.current_sphere_id)
+            if (
+                hasattr(main_win, "_switch_sphere")
+                and callable(getattr(main_win, "_switch_sphere"))
+            ):
+                main_win._switch_sphere(main_win.structure_business.current_sphere_id)
 
-        # Обновляем дерево структуры
-        if hasattr(main_win, "structure"):
-            main_win.structure.load()
+        # Полная перезагрузка дерева больше не требуется — модель обновляется инкрементально
 
         # Дополнительно: принудительно обновим плитки категорий, переустановив текущий раздел
         try:
             tw = self.tree_widget
-            current = tw.currentItem() if hasattr(tw, "currentItem") else None
             section_id = None
-            if current:
-                t = get_tree_tuple(current, 0)
-                if t:
-                    typ, id_ = t
-                    if typ == "section" and isinstance(id_, int):
-                        section_id = id_
-                    elif typ == "category":
-                        parent = current.parent()
-                        if parent:
-                            pt = get_tree_tuple(parent, 0)
-                            if pt and pt[0] == "section" and isinstance(pt[1], int):
-                                section_id = pt[1]
+            # QTreeView (используем QModelIndex)
+            if hasattr(tw, "currentIndex"):
+                index = tw.currentIndex()
+                if index and index.isValid():
+                    t = get_tree_tuple(index, 0)
+                    if t:
+                        typ, id_ = t
+                        if typ == "section" and isinstance(id_, int):
+                            section_id = id_
+                        elif typ == "category":
+                            parent_index = index.parent()
+                            if parent_index and parent_index.isValid():
+                                pt = get_tree_tuple(parent_index, 0)
+                                if pt and pt[0] == "section" and isinstance(pt[1], int):
+                                    section_id = pt[1]
             if (
                 section_id
                 and hasattr(main_win, "structure_business")
