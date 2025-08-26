@@ -602,30 +602,41 @@ class LinkModel(DatabaseBase):
                 except sqlite3.IntegrityError as e:
                     raise DatabaseError(f"UNIQUE constraint failed during batch update: {e}")
 
-                # Для отсутствующих id (rowcount по executemany не даёт пометки по каждой строке),
-                # выполним точечные проверки и подготовим вставки с фиксированным id
-                # Это редкий путь (восстановление), допускаем компактный цикл
-                verify_sql = "SELECT 1 FROM link WHERE id=?"
-                for params in updates:
-                    iid = params[-1]
-                    row = self._execute_with_error_handling(verify_sql, (iid,)).fetchone()
-                    if not row:
-                        inserts_with_id.append(
-                            {
-                                "id": iid,
-                                "category_id": params[0],
-                                "name": params[1],
-                                "url": params[2],
-                                "type": params[3],
-                                "notes": params[4],
-                                "is_favorite": params[5],
-                                "last_used": params[6],
-                                "icon_path": params[7],
-                                "args": params[8],
-                                "browser_key": params[9],
-                                "position": params[10],
-                            }
-                        )
+                # Определяем какие id отсутствуют после обновления одним запросом IN (...)
+                update_ids = [int(p[-1]) for p in updates]
+                if update_ids:
+                    placeholders = ",".join(["?"] * len(update_ids))
+                    existed_rows = self._execute_with_error_handling(
+                        f"SELECT id FROM link WHERE id IN ({placeholders})",
+                        tuple(update_ids),
+                        fetch_method="all",
+                    )
+                    existed_ids = {int(r[0] if isinstance(r, tuple) else r["id"]) for r in (existed_rows or [])}
+                    missing_ids = [iid for iid in update_ids if iid not in existed_ids]
+
+                    if missing_ids:
+                        # Подготовим записи к вставке с фиксированным id на базе исходных параметров updates
+                        params_by_id = {int(p[-1]): p for p in updates}
+                        for iid in missing_ids:
+                            params = params_by_id.get(int(iid))
+                            if not params:
+                                continue
+                            inserts_with_id.append(
+                                {
+                                    "id": int(iid),
+                                    "category_id": params[0],
+                                    "name": params[1],
+                                    "url": params[2],
+                                    "type": params[3],
+                                    "notes": params[4],
+                                    "is_favorite": params[5],
+                                    "last_used": params[6],
+                                    "icon_path": params[7],
+                                    "args": params[8],
+                                    "browser_key": params[9],
+                                    "position": params[10],
+                                }
+                            )
 
             # 6) Вставки: сначала с фиксированным id (executemany), затем массовая вставка без id через временную таблицу
             if inserts_with_id:
@@ -639,6 +650,14 @@ class LinkModel(DatabaseBase):
                     )
                 except sqlite3.IntegrityError as e:
                     raise DatabaseError(f"Integrity error on inserts_with_id: {e}")
+                # Добавляем созданные фиксированные ID
+                for rec in inserts_with_id:
+                    try:
+                        iid = int(rec.get("id") or 0)
+                        if iid:
+                            created_ids.append(iid)
+                    except Exception:
+                        pass
 
             if inserts_no_id:
                 columns = [f for f in all_fields if f != "id"]
@@ -684,22 +703,24 @@ class LinkModel(DatabaseBase):
         if not link_ids:
             return 0
 
-        deleted = 0
+        # Фильтрация валидных положительных целых и дедупликация (с сохранением порядка)
+        valid_ids = [int(x) for x in link_ids if isinstance(x, int) and x > 0]
+        unique_ids = list(dict.fromkeys(valid_ids))
+        if not unique_ids:
+            return 0
+
+        placeholders = ",".join(["?"] * len(unique_ids))
         try:
             with self.transaction():
-                for link_id in link_ids:
-                    if not isinstance(link_id, int) or link_id <= 0:
-                        continue
-                    cursor = self._execute_with_error_handling(
-                        "DELETE FROM link WHERE id = ?",
-                        (link_id,),
-                    )
-                    try:
-                        # rowcount поддерживается sqlite3 для execute
-                        deleted += int(getattr(cursor, "rowcount", 0) or 0)
-                    except Exception:
-                        pass
+                cursor = self._execute_with_error_handling(
+                    f"DELETE FROM link WHERE id IN ({placeholders})",
+                    tuple(unique_ids),
+                )
+                try:
+                    deleted = int(getattr(cursor, "rowcount", 0) or 0)
+                except Exception:
+                    deleted = 0
+            return deleted
         except Exception as e:
             logger.error(f"Ошибка пакетного удаления ссылок: {e}")
             raise DatabaseError(f"Не удалось выполнить пакетное удаление: {e}")
-        return deleted

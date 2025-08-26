@@ -141,9 +141,26 @@ class CategoryModel(DatabaseBase):
         batched_params: List[tuple] = []
         try:
             with self.transaction():
+                # Предзагружаем текущие MAX(position) для всех разделов одним запросом
+                section_ids = list(by_section.keys())
+                max_pos_map: Dict[int, Optional[int]] = {}
+                if section_ids:
+                    placeholders = ",".join(["?"] * len(section_ids))
+                    query = (
+                        f"SELECT section_id, MAX(position) AS max_pos "
+                        f"FROM category WHERE section_id IN ({placeholders}) "
+                        f"GROUP BY section_id"
+                    )
+                    rows = self._execute_with_error_handling(
+                        query, tuple(section_ids), fetch_method="all"
+                    )
+                    for row in (rows or []):
+                        max_pos_map[row["section_id"]] = row["max_pos"]
+
                 for section_id, group in by_section.items():
-                    # Получаем стартовую позицию для раздела
-                    start_pos = self._get_next_position("category", "section_id", section_id)
+                    # Стартовая позиция: (MAX(position) + 1) или 0, если записей нет
+                    max_pos = max_pos_map.get(section_id)
+                    start_pos = (max_pos + 1) if (max_pos is not None) else 0
                     pos = start_pos
                     for it in group:
                         name = it.get("name")
@@ -207,21 +224,23 @@ class CategoryModel(DatabaseBase):
 
         # Оставляем только валидные положительные целые ID и удаляем дубликаты
         ids = [int(x) for x in category_ids if isinstance(x, int) and x > 0]
-        if not ids:
+        # Дедупликация с сохранением порядка первой встречаемости
+        unique_ids = list(dict.fromkeys(ids))
+        if not unique_ids:
             return 0
 
-        placeholders = ",".join(["?"] * len(ids))
+        placeholders = ",".join(["?"] * len(unique_ids))
         deleted_categories = 0
         with self.transaction():
             # 1) Удаляем все ссылки, принадлежащие этим категориям
             self._execute_with_error_handling(
                 f"DELETE FROM link WHERE category_id IN ({placeholders})",
-                tuple(ids),
+                tuple(unique_ids),
             )
             # 2) Удаляем сами категории и считаем, сколько реально удалили
             cursor = self._execute_with_error_handling(
                 f"DELETE FROM category WHERE id IN ({placeholders})",
-                tuple(ids),
+                tuple(unique_ids),
             )
             try:
                 deleted_categories = int(getattr(cursor, "rowcount", 0) or 0)
@@ -229,7 +248,7 @@ class CategoryModel(DatabaseBase):
                 deleted_categories = 0
 
         logger.info(
-            f"Пакетно удалены категории (шт={deleted_categories}), ids={ids}"
+            f"Пакетно удалены категории (шт={deleted_categories}), ids={unique_ids}"
         )
         return deleted_categories
 
