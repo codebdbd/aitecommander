@@ -5,7 +5,7 @@ CategoryModel - модель для работы с категориями в б
 import logging
 from typing import Any, Dict, List, Optional
 
-from .db_base import DatabaseBase
+from .db_base import DatabaseBase, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -174,25 +174,37 @@ class CategoryModel(DatabaseBase):
                     batched_params,
                 )
 
-                # Возвращаем актуальные записи для всех переданных имён в разрезе разделов
-                result: List[Dict[str, Any]] = []
+                # Единый запрос для всех пар (section_id, name)
+                pairs: List[tuple] = []
+                seen = set()
                 for section_id, group in by_section.items():
-                    names = [g.get("name") for g in group if g.get("name") is not None]
-                    if not names:
-                        continue
-                    placeholders = ",".join(["?"] * len(names))
-                    query = (
-                        "SELECT id, name, section_id, position, icon_path "
-                        "FROM category WHERE section_id = ? AND name IN (" + placeholders + ") "
-                        "ORDER BY position"
-                    )
-                    rows = self._execute_with_error_handling(
-                        query, tuple([section_id, *names]), fetch_method="all"
-                    )
-                    if rows:
-                        result.extend([dict(r) for r in rows])
+                    for g in group:
+                        name = g.get("name")
+                        if name is None:
+                            continue
+                        key = (section_id, name)
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        pairs.append(key)
 
-                return result
+                if not pairs:
+                    return []
+
+                placeholders = ",".join(["(?, ?)"] * len(pairs))
+                flat_params: List[Any] = []
+                for sid, nm in pairs:
+                    flat_params.extend([sid, nm])
+
+                query = (
+                    "SELECT id, name, section_id, position, icon_path "
+                    "FROM category WHERE (section_id, name) IN (" + placeholders + ") "
+                    "ORDER BY section_id, position"
+                )
+                rows = self._execute_with_error_handling(
+                    query, tuple(flat_params), fetch_method="all"
+                )
+                return [dict(r) for r in (rows or [])]
         except Exception:
             # Инициируем откат и пробрасываем далее
             raise

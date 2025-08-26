@@ -173,6 +173,42 @@ class SelectionHandling:
                 self.business.select_section(id_)
                 logger.debug(f"Section #{id_} selected - categories will be loaded")
             elif typ == "category":
+                # Гард: категория могла быть удалена батч-операцией; проверяем существование
+                try:
+                    exists = bool(self.business.get_category_data(id_) or {})
+                except Exception:
+                    exists = False
+                if not exists:
+                    logger.info(
+                        f"Category #{id_} not found after selection event - applying fallback"
+                    )
+                    # Пытаемся выбрать первую доступную категорию
+                    try:
+                        fallback_cat = self.business.get_first_category_id()
+                    except Exception:
+                        fallback_cat = None
+                    if isinstance(fallback_cat, int) and fallback_cat > 0:
+                        self.business.select_category(fallback_cat)
+                        logger.debug(
+                            f"Fallback: selected first available category #{fallback_cat}"
+                        )
+                    else:
+                        # Если категорий нет — переключаемся на плитки целевого раздела
+                        try:
+                            target_section = self.business.get_target_section_id()
+                        except Exception:
+                            target_section = None
+                        if isinstance(target_section, int) and target_section > 0:
+                            self.business.select_section(target_section)
+                            logger.debug(
+                                f"Fallback: switched to section #{target_section} tiles"
+                            )
+                        else:
+                            logger.debug(
+                                "Fallback: no categories/sections available to select"
+                            )
+                    return
+                # Нормальный путь выбора категории
                 self.business.select_category(id_)
                 logger.debug(f"Category #{id_} selected - links will be loaded")
             else:

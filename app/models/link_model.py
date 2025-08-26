@@ -388,19 +388,37 @@ class LinkModel(DatabaseBase):
         if not links_data:
             return True
 
+        # Готовим параметры для executemany: только валидные записи с id
+        params: List[tuple] = []
+        for link_data in links_data:
+            link_id = link_data.get("id")
+            if not isinstance(link_id, int) or link_id <= 0:
+                continue
+            params.append(
+                (
+                    link_data.get("position"),
+                    link_data.get("category_id"),
+                    link_id,
+                )
+            )
+
+        if not params:
+            return True
+
+        sql = "UPDATE link SET position = ?, category_id = ? WHERE id = ?"
+
         try:
             with self.transaction():
-                for link_data in links_data:
-                    link_id = link_data.get("id")
-                    if not link_id:
-                        continue
-                    self._execute_with_error_handling(
-                        "UPDATE link SET position = ?, category_id = ? WHERE id = ?",
-                        (
-                            link_data.get("position"),
-                            link_data.get("category_id"),
-                            link_id,
-                        ),
+                cursor = self._execute_many_with_error_handling(sql, params)
+                # rowcount может быть -1 для некоторых драйверов; оборачиваем безопасно
+                try:
+                    affected = int(getattr(cursor, "rowcount", 0) or 0)
+                except Exception:
+                    affected = 0
+                # Опционально: если затронуто меньше, чем передано, можно залогировать
+                if affected < len(params):
+                    logger.debug(
+                        f"batch_update_links: обновлено строк {affected} из {len(params)}"
                     )
             return True
         except Exception as e:

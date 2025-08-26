@@ -373,29 +373,44 @@ async def batch_convert_icons_async(
     Returns:
         dict: Словарь {src_path: success_status}
     """
-    semaphore = asyncio.Semaphore(max_concurrent)
+    # Очередь задач, чтобы не создавать все корутины сразу
+    queue: asyncio.Queue[tuple[str, str, int]] = asyncio.Queue()
+    result_dict: dict[str, bool] = {}
 
-    async def convert_with_semaphore(
-        src_path: str, dst_path: str, size: int
-    ) -> tuple[str, bool]:
-        async with semaphore:
-            success = await convert_icon_to_png_128_async(src_path, dst_path, size)
-            return src_path, success
-
-    tasks = [
-        convert_with_semaphore(src_path, dst_path, size)
-        for src_path, dst_path, size in conversions
-    ]
-
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-
-    result_dict = {}
-    for result in results:
-        if isinstance(result, Exception):
-            logger.error(f"Batch conversion error: {result}")
+    # Предзаполняем очередь входными заданиями
+    for item in conversions:
+        try:
+            src_path, dst_path, size = item
+        except Exception:  # защита от неправильного входа
+            logger.error("Invalid conversion tuple: %s", item)
             continue
-        src_path, success = result
-        result_dict[src_path] = success
+        queue.put_nowait((src_path, dst_path, size))
+
+    async def worker(worker_id: int) -> None:
+        while True:
+            try:
+                src_path, dst_path, size = await queue.get()
+            except asyncio.CancelledError:
+                break
+            try:
+                success = await convert_icon_to_png_128_async(src_path, dst_path, size)
+                result_dict[src_path] = success
+            except Exception as e:
+                logger.error("Batch conversion error for %s: %s", src_path, e)
+                result_dict[src_path] = False
+            finally:
+                queue.task_done()
+
+    # Поднимаем ограниченное число воркеров
+    workers = [asyncio.create_task(worker(i)) for i in range(max(1, int(max_concurrent)))]
+
+    # Ждём завершения всех задач в очереди
+    await queue.join()
+
+    # Останавливаем воркеров
+    for w in workers:
+        w.cancel()
+    await asyncio.gather(*workers, return_exceptions=True)
 
     successful = sum(1 for success in result_dict.values() if success)
     logger.info(
