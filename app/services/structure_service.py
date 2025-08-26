@@ -83,6 +83,15 @@ class StructureService:
         # ошибке вида "cannot start a transaction within a transaction".
         return self._model.delete_category(category_id)
 
+    def delete_categories_bulk(self, category_ids: List[int]) -> int:
+        """Пакетное удаление категорий в одной транзакции (делегирование модели).
+
+        ВАЖНО: метод модели сам управляет транзакцией, поэтому здесь НЕ используем UnitOfWork,
+        чтобы избежать вложенных транзакций в SQLite.
+        Возвращает число удалённых категорий.
+        """
+        return self.db.categories.delete_categories_bulk(category_ids or [])
+
     def create_categories_bulk(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Пакетное создание категорий (единая транзакция).
 
@@ -117,11 +126,9 @@ class StructureService:
 
     # --- Bulk operations ---
     def import_category_trees_bulk(self, trees: List[Dict[str, Any]]) -> None:
-        """Импортирует несколько поддеревьев категорий в одной транзакции.
-        Используется для быстрого undo пакетного удаления категорий.
+        """Импортирует несколько поддеревьев категорий одной операцией (одна транзакция).
+
+        Делегирует в Database.import_category_trees_bulk, чтобы избежать вложенных транзакций.
+        Используется, например, для быстрого undo пакетного удаления категорий.
         """
-        with UnitOfWork(self.db):
-            for tree in trees or []:
-                if not tree:
-                    continue
-                self.db.import_category_tree(tree)
+        self.db.import_category_trees_bulk(trees or [])
