@@ -159,22 +159,31 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 link_dict.get("url", ""),
                 link_dict.get("type", ""),
                 link_dict.get("args", ""),
+                link_dict.get("name", ""),  # Учитываем name, как в UNIQUE(category_id,name,url,args)
             )
             existing_keys.add(key)
 
         new_links = []
+        filtered_count = 0
         for link in links:
             new_data = self._prepare_link_data(link, category_id)
             candidate_key = (
                 new_data.get("url", ""),
                 new_data.get("type", ""),
                 new_data.get("args", ""),
+                new_data.get("name", ""),
             )
 
             if candidate_key not in existing_keys:
                 new_links.append(new_data)
                 existing_keys.add(candidate_key)  # Добавляем для следующих проверок
+            else:
+                filtered_count += 1
 
+        if filtered_count:
+            logger.info(
+                f"[Paste] Отфильтровано дубликатов: {filtered_count} из {len(links)} по ключу (url,type,args,name)"
+            )
         return new_links
 
     def _is_duplicate(self, candidate: Dict, links: List[Dict]) -> bool:
