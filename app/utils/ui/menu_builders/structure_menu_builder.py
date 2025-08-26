@@ -366,6 +366,7 @@ class StructureMenuBuilder:
         Поддерживаются форматы: {category,links}, {type:category_tree,tree}, {type:category,id}, {type:category_trees,trees:[...]}
         """
         try:
+            logger.debug("[PasteCategories] start paste into section_id=%s", section_id)
             data = self._clipboard_get_json()
             if not data:
                 return
@@ -396,6 +397,10 @@ class StructureMenuBuilder:
             trees: list[dict] = normalize_to_tree_list(data)
             if not trees:
                 return
+            try:
+                logger.debug("[PasteCategories] normalized trees count=%s", len(trees))
+            except Exception:
+                pass
 
             dc2 = getattr(self.main_window, "database_controller", None)
             db2 = getattr(dc2, "db", None)
@@ -409,6 +414,12 @@ class StructureMenuBuilder:
 
             # Подавляем сигналы выбора/дерева на время пакетной операции
             try:
+                # ВАЖНО: на время вставки подавляем любые попытки удаления (горячие клавиши/хендлеры)
+                try:
+                    setattr(self.main_window, "_suppress_deletes", True)
+                    logger.debug("[PasteCategories] _suppress_deletes set=True")
+                except Exception:
+                    pass
                 if selection is not None:
                     try:
                         selection.begin_suppress_selection()
@@ -422,56 +433,82 @@ class StructureMenuBuilder:
             created_any = False
             created_categories: list[dict] = []
             try:
+                # 1) Пакетно создаём категории
+                batch_cats: list[dict] = []
                 for tree in trees:
+                    try:
+                        src_cat_name = (tree.get("category") or {}).get("name")
+                    except Exception:
+                        src_cat_name = None
+                    logger.debug("[PasteCategories] processing category '%s'", src_cat_name)
                     src_cat = dict(tree.get("category", {}))
-                    src_links = list(tree.get("links", []))
-
                     new_cat_data = {k: v for k, v in src_cat.items() if k not in {"id", "section_id"}}
                     new_cat_data["section_id"] = int(section_id)
-                    new_cat_id = ss.create_category(new_cat_data)
-                    if not new_cat_id:
-                        continue
-                    created_any = True
-                    new_cat_data["id"] = int(new_cat_id)
-                    created_categories.append(dict(new_cat_data))
+                    batch_cats.append(new_cat_data)
 
-                    # Подготовим данные ссылок и выполним один пакетный апсерт без вложенных транзакций
-                    batch_links: list[dict] = []
-                    for link in src_links:
-                        src = dict(link)
-                        name = src.get("name") or ""
-                        url = src.get("url") or ""
-                        ltype = src.get("type") or "web"
-                        if not url or not name:
-                            continue
-                        notes = src.get("notes") or ""
-                        is_favorite = int(src.get("is_favorite") or 0)
-                        icon_path = src.get("icon_path") or "default.ico"
-                        args = src.get("args") or ""
-                        browser_key = src.get("browser_key")
+                if batch_cats:
+                    try:
+                        created_list = ss.create_categories_bulk(batch_cats) or []
+                        # Построим индекс по именам (с учётом возможных дублей — списки)
+                        index_by_name: dict[str, list[dict]] = {}
+                        for c in created_list:
+                            nm = c.get("name")
+                            if nm is None:
+                                continue
+                            index_by_name.setdefault(nm, []).append(c)
 
-                        link_data = {
-                            "category_id": int(new_cat_id),
-                            "name": name,
-                            "url": url,
-                            "type": ltype,
-                            "notes": notes,
-                            "is_favorite": is_favorite,
-                            "icon_path": icon_path,
-                            "args": args,
-                        }
-                        if browser_key is not None:
-                            link_data["browser_key"] = browser_key
-                        batch_links.append(link_data)
+                        # 2) Собираем все ссылки в один батч, сопоставляя категории по имени
+                        all_links: list[dict] = []
+                        for tree in trees:
+                            src_cat = dict(tree.get("category", {}))
+                            src_links = list(tree.get("links", []))
+                            nm = src_cat.get("name")
+                            cat_row: Optional[dict] = None
+                            if nm in index_by_name and index_by_name[nm]:
+                                cat_row = index_by_name[nm].pop(0)
+                            if not cat_row:
+                                # На крайний случай — пропускаем эту категорию
+                                continue
+                            created_any = True
+                            created_categories.append(dict(cat_row))
+                            new_cat_id = int(cat_row.get("id"))
 
-                    if batch_links:
-                        # ВАЖНО: метод batch_upsert_links сам управляет транзакцией.
-                        # Здесь не должно быть внешнего UnitOfWork.
-                        try:
-                            ls.batch_upsert_links(batch_links)
-                        except Exception:
-                            # Не прерываем всю операцию из-за ссылок одной категории
-                            pass
+                            for link in src_links:
+                                src = dict(link)
+                                name = src.get("name") or ""
+                                url = src.get("url") or ""
+                                ltype = src.get("type") or "web"
+                                if not url or not name:
+                                    continue
+                                notes = src.get("notes") or ""
+                                is_favorite = int(src.get("is_favorite") or 0)
+                                icon_path = src.get("icon_path") or "default.ico"
+                                args = src.get("args") or ""
+                                browser_key = src.get("browser_key")
+
+                                link_data = {
+                                    "category_id": new_cat_id,
+                                    "name": name,
+                                    "url": url,
+                                    "type": ltype,
+                                    "notes": notes,
+                                    "is_favorite": is_favorite,
+                                    "icon_path": icon_path,
+                                    "args": args,
+                                }
+                                if browser_key is not None:
+                                    link_data["browser_key"] = browser_key
+                                all_links.append(link_data)
+
+                        if all_links:
+                            try:
+                                logger.debug("[PasteCategories] upserting total %s links in single batch", len(all_links))
+                                ls.batch_create_or_update_links(all_links)
+                            except Exception:
+                                pass
+                    except Exception:
+                        # В случае ошибки пакетного создания — fallback не выполняем, чтобы сохранить атомарность
+                        pass
             finally:
                 # Возвращаем сигналы
                 try:
@@ -484,6 +521,12 @@ class StructureMenuBuilder:
                         selection.end_suppress_selection()
                 except Exception:
                     pass
+                # Снимаем флаг подавления удалений
+                try:
+                    setattr(self.main_window, "_suppress_deletes", False)
+                    logger.debug("[PasteCategories] _suppress_deletes set=False")
+                except Exception:
+                    pass
 
             # Инкрементальное обновление UI без полной перезагрузки
             if created_any:
@@ -494,21 +537,21 @@ class StructureMenuBuilder:
                             clear_icon_cache()
                         except Exception:
                             pass
-                        # Инвалидируем кэш категорий раздела перед выбором
+                        # Инвалидируем кэш категорий раздела и выполним единственное перечитывание раздела
                         try:
                             business._invalidate_categories_cache(int(section_id))
                         except Exception:
                             pass
-                        # Эмитим добавление по каждой созданной категории
-                        for cat in created_categories:
-                            try:
-                                business.item_added.emit("category", int(section_id), cat)
-                            except Exception:
-                                pass
-                        # Фокус на раздел, чтобы перечитать и отрисовать категории
+                        # Планируем единственную перезагрузку структуры, чтобы обновилось дерево слева
+                        try:
+                            business._schedule_structure_reload(0)
+                            logger.debug("[PasteCategories] scheduled structure reload (debounced)")
+                        except Exception:
+                            pass
                         business.select_section(int(section_id))
                 except Exception:
                     pass
+            logger.debug("[PasteCategories] done, created=%s items", len(created_categories))
         except Exception:
             # Не роняем UI из-за ошибок вставки
             pass

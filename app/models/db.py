@@ -389,16 +389,77 @@ class Database(DatabaseBase):
 
     def import_section_tree(self, tree: dict):
         """Восстанавливает раздел, его категории и все ссылки из backup-структуры."""
-        # Вставляем/обновляем сам раздел
-        self.sections.upsert_section(tree["section"])
-        # Восстанавливаем категории и их ссылки
-        for item in tree.get("categories", []):
-            cat = item.get("category", {})
-            links = item.get("links", [])
-            if cat:
-                self.categories.upsert_category(cat)
-            for link in links:
-                self.links.upsert_link(link)
+        section = (tree or {}).get("section") or {}
+        categories = (tree or {}).get("categories") or []
+        if not section:
+            return
+
+        # Одна транзакция на весь импорт раздела
+        with self.connection:
+            # --- Upsert раздела с сохранением ID ---
+            sec_id = section.get("id")
+            name = section.get("name")
+            sphere_id = section.get("sphere_id")
+            icon_path = section.get("icon_path", "")
+            position = section.get("position", 0)
+
+            if sec_id:
+                cur = self.connection.execute(
+                    "UPDATE section SET name=?, sphere_id=?, icon_path=?, position=? WHERE id=?",
+                    (name, sphere_id, icon_path, position, sec_id),
+                )
+                if cur.rowcount == 0:
+                    self.connection.execute(
+                        "INSERT INTO section (id, name, sphere_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
+                        (sec_id, name, sphere_id, icon_path, position),
+                    )
+            else:
+                cur = self.connection.execute(
+                    "INSERT INTO section (name, sphere_id, icon_path, position) VALUES (?, ?, ?, ?)",
+                    (name, sphere_id, icon_path, position),
+                )
+                sec_id = cur.lastrowid
+
+            # --- Восстановление категорий и их ссылок ---
+            for item in categories:
+                cat = (item or {}).get("category") or {}
+                if not cat:
+                    continue
+                links = (item or {}).get("links") or []
+
+                cat_id = cat.get("id")
+                c_name = cat.get("name")
+                c_section_id = cat.get("section_id", sec_id)
+                c_icon_path = cat.get("icon_path", "")
+                c_position = cat.get("position", 0)
+
+                if cat_id:
+                    ccur = self.connection.execute(
+                        "UPDATE category SET name=?, section_id=?, icon_path=?, position=? WHERE id=?",
+                        (c_name, c_section_id, c_icon_path, c_position, cat_id),
+                    )
+                    if ccur.rowcount == 0:
+                        self.connection.execute(
+                            "INSERT INTO category (id, name, section_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
+                            (cat_id, c_name, c_section_id, c_icon_path, c_position),
+                        )
+                else:
+                    ccur = self.connection.execute(
+                        "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
+                        (c_name, c_section_id, c_icon_path, c_position),
+                    )
+                    cat_id = ccur.lastrowid
+
+                # Upsert ссылок для категории без вложенных транзакций
+                raw_links = []
+                for link in links:
+                    if not isinstance(link, dict):
+                        continue
+                    l = dict(link)
+                    l["category_id"] = cat_id
+                    raw_links.append(l)
+                if raw_links:
+                    self.links._upsert_links_no_tx(raw_links)
 
     def export_category_tree(self, category_id: int) -> dict:
         """Экспортирует категорию вместе со всеми ссылками."""
@@ -408,9 +469,46 @@ class Database(DatabaseBase):
 
     def import_category_tree(self, tree: dict):
         """Восстанавливает категорию и все ссылки из backup-структуры."""
-        self.categories.upsert_category(tree["category"])
-        for link in tree["links"]:
-            self.links.upsert_link(link)
+        cat = (tree or {}).get("category") or {}
+        links = (tree or {}).get("links") or []
+        if not cat:
+            return
+
+        with self.connection:
+            # --- Upsert категории с сохранением ID ---
+            cat_id = cat.get("id")
+            name = cat.get("name")
+            section_id = cat.get("section_id")
+            icon_path = cat.get("icon_path", "")
+            position = cat.get("position", 0)
+
+            if cat_id:
+                cur = self.connection.execute(
+                    "UPDATE category SET name=?, section_id=?, icon_path=?, position=? WHERE id=?",
+                    (name, section_id, icon_path, position, cat_id),
+                )
+                if cur.rowcount == 0:
+                    self.connection.execute(
+                        "INSERT INTO category (id, name, section_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
+                        (cat_id, name, section_id, icon_path, position),
+                    )
+            else:
+                cur = self.connection.execute(
+                    "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
+                    (name, section_id, icon_path, position),
+                )
+                cat_id = cur.lastrowid
+
+            # --- Upsert ссылок без вложенных транзакций ---
+            raw_links = []
+            for link in links:
+                if not isinstance(link, dict):
+                    continue
+                l = dict(link)
+                l["category_id"] = cat_id
+                raw_links.append(l)
+            if raw_links:
+                self.links._upsert_links_no_tx(raw_links)
 
     def import_category_trees_bulk(self, trees: List[dict]) -> None:
         """Импортирует несколько поддеревьев категорий в ОДНОЙ транзакции.

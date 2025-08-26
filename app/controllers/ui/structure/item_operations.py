@@ -183,6 +183,13 @@ class ItemOperations:
             pass
 
     def delete_item(self, item) -> None:
+        # Глобальная защита от удалений на время чувствительных операций (например, вставки)
+        try:
+            if getattr(self.main, "_suppress_deletes", False):
+                logger.debug("[DeleteGuard] delete_item suppressed by _suppress_deletes flag")
+                return
+        except Exception:
+            pass
         if not item:
             return
         t = get_tree_tuple(item, 0)
@@ -195,6 +202,13 @@ class ItemOperations:
             self._delete_category(id_)
 
     def delete_selected_item(self) -> None:
+        # Глобальная защита от удалений на время чувствительных операций (например, вставки)
+        try:
+            if getattr(self.main, "_suppress_deletes", False):
+                logger.debug("[DeleteGuard] delete_selected_item suppressed by _suppress_deletes flag")
+                return
+        except Exception:
+            pass
         try:
             # QTreeView: множественное выделение через selectionModel
             if hasattr(self.tree, "selectionModel") and hasattr(self.tree, "model"):

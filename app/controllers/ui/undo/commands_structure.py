@@ -1,6 +1,7 @@
 # app/utils/system/undo/commands_structure.py
 from __future__ import annotations
 
+import logging
 from typing import Dict, Optional
 
 from PyQt6.QtGui import QUndoCommand
@@ -8,6 +9,7 @@ from PyQt6.QtGui import QUndoCommand
 from app.services.structure_service import StructureService
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 
+logger = logging.getLogger(__name__)
 
 class SaveSectionCmd(QUndoCommand):
     """Сохранение (создание/редактирование) раздела.
@@ -38,6 +40,13 @@ class SaveSectionCmd(QUndoCommand):
             pass
 
     def redo(self):
+        # Глобальная защита от удалений на время чувствительных операций (например, вставки)
+        try:
+            if getattr(self.main, "_suppress_deletes", False):
+                logger.debug("[DeleteGuard] DeleteSectionCmd.redo suppressed by _suppress_deletes flag")
+                return
+        except Exception:
+            pass
         if self.is_new:
             result = self.structure_service.create_section(self.new_data)
             if result:
@@ -310,6 +319,13 @@ class DeleteCategoryCmd(QUndoCommand):
         )
 
     def redo(self):
+        # Глобальная защита от удалений на время чувствительных операций (например, вставки)
+        try:
+            if getattr(self.main, "_suppress_deletes", False):
+                logger.debug("[DeleteGuard] DeleteCategoryCmd.redo suppressed by _suppress_deletes flag")
+                return
+        except Exception:
+            pass
         category_id = self.category.get("id")
         if category_id is None:
             return
@@ -465,6 +481,13 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
             self._backups.append(backup)
 
     def redo(self):
+        # Глобальная защита от удалений на время чувствительных операций (например, вставки)
+        try:
+            if getattr(self.main, "_suppress_deletes", False):
+                logger.debug("[DeleteGuard] DeleteCategoriesBatchCmd.redo suppressed by _suppress_deletes flag")
+                return
+        except Exception:
+            pass
         business = getattr(self.main, "structure_business", None)
         section_id_for_focus = None
         # Подавляем всплеск сигналов выбора на время пакетной операции
