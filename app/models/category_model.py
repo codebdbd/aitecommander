@@ -108,6 +108,78 @@ class CategoryModel(DatabaseBase):
         logger.info(f"Добавлена новая категория: {data['name']}")
         return cursor.lastrowid
 
+    def insert_categories_bulk(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Пакетная вставка категорий с атомарной транзакцией.
+
+        - Ожидает список словарей с ключами минимум: 'name', 'section_id'.
+        - Дополнительно поддерживается 'icon_path'.
+        - Дубликаты (UNIQUE(section_id, name)) игнорируются тихо (INSERT OR IGNORE).
+        - Позиции вычисляются эффективно: последовательно для каждой группы section_id
+          от текущего MAX(position) + 1.
+
+        Возвращает список категорий (dict) для всех переданных имён по секциям
+        после операции (как новые, так и существующие), чтобы вызывающая сторона могла
+        синхронизировать UI. Порядок в результате: по section_id, затем по position.
+        """
+        if not items:
+            return []
+
+        # Валидация входных данных
+        for it in items:
+            self._validate_required_fields(it or {}, ["name", "section_id"], "категории")
+
+        # Группируем по section_id для расчёта позиций
+        by_section: Dict[int, List[Dict[str, Any]]] = {}
+        for it in items:
+            try:
+                sid = int(it.get("section_id"))
+            except Exception:
+                raise ValidationError("Некорректный section_id в одном из элементов пакета")
+            by_section.setdefault(sid, []).append(it)
+
+        # Формируем батч вставки
+        batched_params: List[tuple] = []
+        try:
+            with self.transaction():
+                for section_id, group in by_section.items():
+                    # Получаем стартовую позицию для раздела
+                    start_pos = self._get_next_position("category", "section_id", section_id)
+                    pos = start_pos
+                    for it in group:
+                        name = it.get("name")
+                        icon_path = it.get("icon_path", "")
+                        batched_params.append((name, section_id, icon_path, pos))
+                        pos += 1
+
+                # Вставляем одним executemany с тихим игнорированием дублей
+                self._execute_many_with_error_handling(
+                    "INSERT OR IGNORE INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
+                    batched_params,
+                )
+
+                # Возвращаем актуальные записи для всех переданных имён в разрезе разделов
+                result: List[Dict[str, Any]] = []
+                for section_id, group in by_section.items():
+                    names = [g.get("name") for g in group if g.get("name") is not None]
+                    if not names:
+                        continue
+                    placeholders = ",".join(["?"] * len(names))
+                    query = (
+                        "SELECT id, name, section_id, position, icon_path "
+                        "FROM category WHERE section_id = ? AND name IN (" + placeholders + ") "
+                        "ORDER BY position"
+                    )
+                    rows = self._execute_with_error_handling(
+                        query, tuple([section_id, *names]), fetch_method="all"
+                    )
+                    if rows:
+                        result.extend([dict(r) for r in rows])
+
+                return result
+        except Exception:
+            # Инициируем откат и пробрасываем далее
+            raise
+
     def update_category(self, category_id: int, data: Dict[str, Any]):
         """Обновляет существующую категорию."""
         return self._update_entity("category", category_id, data)

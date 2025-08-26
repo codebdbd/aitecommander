@@ -83,6 +83,16 @@ class StructureService:
         # ошибке вида "cannot start a transaction within a transaction".
         return self._model.delete_category(category_id)
 
+    def create_categories_bulk(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Пакетное создание категорий (единая транзакция).
+
+        ВАЖНО: insert_categories_bulk в CategoryModel/Repository уже управляет
+        транзакцией самостоятельно. Оборачивание здесь в UnitOfWork приведёт к
+        вложенным транзакциям в SQLite и ошибке вида
+        "cannot start a transaction within a transaction".
+        """
+        return self._model.create_categories_bulk(items)
+
     # --- Импорт/экспорт ---
     def export_full_structure(self) -> Dict[str, List]:
         return self.db.export_full_structure()

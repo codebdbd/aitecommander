@@ -21,7 +21,7 @@ from app.utils.ui.icon.inflight import (
     leave_async_success,
     leave_sync,
 )
-from app.utils.ui.qt.gui_exec import run_in_gui_thread_async
+from app.utils.ui.qt.gui_exec import run_in_gui_thread_async, is_gui_thread
 
 from ..cache_manager import (
     cache_qicon,
@@ -47,19 +47,6 @@ from ..validation import (
 logger = logging.getLogger(__name__)
 
 
-def _is_gui_thread() -> bool:
-    """Проверить, выполняется ли код в GUI-потоке."""
-    try:
-        app = QApplication.instance()
-        if app:
-            return QThread.currentThread() == app.thread()
-        # Если QApplication не существует, поток НЕ является GUI-потоком
-        return False
-    except (ImportError, RuntimeError):
-        # Если QApplication не доступен, поток НЕ является GUI-потоком
-        return False
-
-
 def _ensure_gui_thread(context: str = "") -> bool:
     """Убедиться, что код выполняется в GUI-потоке. True, если в GUI-потоке.
 
@@ -67,7 +54,7 @@ def _ensure_gui_thread(context: str = "") -> bool:
       QImage и QPainter могут использоваться вне GUI-потока для рендеринга в QImage.
       QPixmap и QIcon должны создаваться только в GUI-потоке.
     """
-    if not _is_gui_thread():
+    if not is_gui_thread():
         try:
             app = QApplication.instance()
             if app:

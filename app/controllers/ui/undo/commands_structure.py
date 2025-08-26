@@ -126,6 +126,29 @@ class DeleteSectionCmd(QUndoCommand):
         try:
             self.structure_service.import_section_tree(self._backup_tree)
             section_id = self._backup_tree["section"]["id"]
+            # Если есть восстановленные категории — выберем первую и обновим таблицу ссылок
+            try:
+                categories = self._backup_tree.get("categories") or []
+                first_cat = None
+                for item in categories:
+                    cat = (item or {}).get("category") or {}
+                    if cat.get("id") is not None:
+                        first_cat = cat
+                        break
+                if first_cat is not None:
+                    cat_id = first_cat.get("id")
+                    try:
+                        self.main.structure.update_links_table(cat_id)
+                    except Exception:
+                        pass
+                    try:
+                        business = getattr(self.main, "structure_business", None)
+                        if business:
+                            business.select_category(cat_id)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
             try:
                 business = getattr(self.main, "structure_business", None)
                 if business:
@@ -362,6 +385,7 @@ class DeleteCategoryCmd(QUndoCommand):
         try:
             self.structure_service.import_category_tree(self._backup_tree)
             category_id = self.category.get("id")
+            # После восстановления сразу обновим таблицу ссылок для восстановленной категории
             try:
                 self.main.structure.update_links_table(category_id)
             except Exception:
@@ -515,6 +539,7 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
         # без тяжёлых перезагрузок/сигналов на каждом элементе
         business = getattr(self.main, "structure_business", None)
         section_id_for_focus = None
+        category_id_for_focus = None
         # Подавляем сигналы выбора на время восстановления
         tree = None
         selection = None
@@ -542,6 +567,7 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
             for backup in self._backups:
                 if backup and backup.get("category"):
                     section_id_for_focus = backup["category"].get("section_id")
+                    category_id_for_focus = backup["category"].get("id")
                     if section_id_for_focus is not None:
                         break
         finally:
@@ -579,6 +605,16 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
                     except Exception:
                         pass
                     business.select_section(section_id_for_focus)
+                # ВАЖНО: также выберем одну из восстановленных категорий, чтобы таблица ссылок обновилась сразу
+                try:
+                    if category_id_for_focus is not None:
+                        business.select_category(category_id_for_focus)
+                        try:
+                            self.main.structure.update_links_table(category_id_for_focus)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
                 # Инкрементальное обновление — без полной перезагрузки
         except Exception:
             pass

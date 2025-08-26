@@ -15,8 +15,13 @@ from PyQt6.QtWidgets import QApplication
 
 T = TypeVar("T")
 
+__all__ = [
+    "is_gui_thread",
+    "run_in_gui_thread_sync",
+    "run_in_gui_thread_async",
+]
 
-def _is_gui_thread() -> bool:
+def is_gui_thread() -> bool:
     try:
         app = QApplication.instance()
         if not app:
@@ -28,7 +33,7 @@ def _is_gui_thread() -> bool:
 
 def run_in_gui_thread_sync(func: Callable[[], T]) -> T:
     """Выполнить функцию в GUI-потоке и вернуть результат (блокирующе)."""
-    if _is_gui_thread():
+    if is_gui_thread():
         return func()
 
     app = QApplication.instance()
@@ -61,7 +66,7 @@ def run_in_gui_thread_sync(func: Callable[[], T]) -> T:
 
 async def run_in_gui_thread_async(func: Callable[[], T]) -> T:
     """Асинхронно выполнить функцию в GUI-потоке и вернуть результат."""
-    if _is_gui_thread():
+    if is_gui_thread():
         return func()
 
     app = QApplication.instance()

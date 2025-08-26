@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from app.utils.common import get_value
 
 logger = logging.getLogger(__name__)
 
@@ -605,24 +606,7 @@ def open_link_from_dict(link_dict: Dict[str, Any], powershell_path: str = None) 
     opener.open_link(link_info)
 
 
-def get_value(link: Dict[str, Any], key: str, default: Any = None) -> Any:
-    """
-    Безопасно извлекает значение из словаря ссылки.
-
-    Args:
-        link: Словарь с данными ссылки
-        key: Ключ для извлечения
-        default: Значение по умолчанию
-
-    Returns:
-        Значение из словаря или значение по умолчанию
-    """
-    if hasattr(link, "get"):
-        return link.get(key, default)
-    elif isinstance(link, dict):
-        return link.get(key, default)
-    else:
-        return getattr(link, key, default)
+# get_value импортируется из app.utils.common
 
 
 def validate_link_path(path: str, link_type: LinkType) -> bool:

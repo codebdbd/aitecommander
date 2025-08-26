@@ -10,7 +10,7 @@ from app.models.structure_model import StructureModel
 
 from .base import StructureItemType, ValidationError
 from .normalization import normalize_row, normalize_rows, validate_normalized_data
-from .validation import validate_item_data
+from app.controllers.structure_services.validation import ValidationService
 
 # Константы для валидации
 SECTION_REQUIRED_KEYS = ["id"]
@@ -35,6 +35,8 @@ class OperationCoordinator:
     ):
         self.structure_model = structure_model
         self.logger = logger or globals().get("logger") or logging.getLogger(__name__)
+        # Централизованный сервис валидации
+        self.validation_service = ValidationService()
 
     def load_structure_with_categories(
         self,
@@ -230,7 +232,41 @@ class OperationCoordinator:
             Результат операции или None при ошибке
         """
         try:
-            validate_item_data(data, item_type, require_parent=require_parent)
+            # Делегируем валидацию в ValidationService с необходимыми коллбеками
+            if item_type == StructureItemType.SECTION:
+                def _get_sections(sphere_id: int):
+                    try:
+                        return self.structure_model.get_sections(sphere_id)
+                    except Exception:
+                        return []
+
+                vr = self.validation_service.validate_section_data(
+                    data=data,
+                    section_id=data.get("id"),
+                    get_sections=_get_sections,
+                )
+            elif item_type == StructureItemType.CATEGORY:
+                def _has_duplicate(section_id: int, name: str, exclude_id: Optional[int]) -> bool:
+                    try:
+                        cats = self.structure_model.get_categories(section_id)
+                        for c in cats or []:
+                            if c.get("name", "").lower() == (name or "").lower() and c.get("id") != exclude_id:
+                                return True
+                        return False
+                    except Exception:
+                        return False
+
+                vr = self.validation_service.validate_category_data(
+                    data=data,
+                    category_id=data.get("id"),
+                    has_duplicate_category=_has_duplicate,
+                )
+            else:
+                raise ValidationError(f"Неизвестный тип элемента: {item_type}")
+
+            if not vr.is_valid:
+                raise ValidationError("; ".join(vr.errors))
+
             self.logger.debug(f"Валидация прошла успешно для {operation_name}")
             return operation_func()
         except ValidationError as e:

@@ -36,7 +36,6 @@ from .converters import (  # Синхронные функции копиров�
 from .creators import (  # Основные функции создания иконок; Создание иконок из абсолютных путей; Внутренние функции (для совместимости)
     _create_svg_icon,
     _ensure_gui_thread,
-    _is_gui_thread,
     create_icon_from_path,
     create_icon_from_path_async,
     themed_icon,
@@ -73,7 +72,6 @@ __all__ = [
     "create_icon_from_path_async",
     # Внутренние функции (для совместимости)
     "_create_svg_icon",
-    "_is_gui_thread",
     "_ensure_gui_thread",
     # Функции валидации (для совместимости)
     "is_valid_icon_file",
