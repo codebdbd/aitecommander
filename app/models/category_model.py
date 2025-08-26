@@ -197,6 +197,42 @@ class CategoryModel(DatabaseBase):
             )
         logger.info(f"Удалена категория с ID {category_id} и все её ссылки")
 
+    def delete_categories_bulk(self, category_ids: List[int]) -> int:
+        """Пакетное удаление нескольких категорий (и их ссылок) в одной транзакции.
+
+        Возвращает количество удалённых категорий. Игнорирует невалидные ID.
+        """
+        if not category_ids:
+            return 0
+
+        # Оставляем только валидные положительные целые ID и удаляем дубликаты
+        ids = [int(x) for x in category_ids if isinstance(x, int) and x > 0]
+        if not ids:
+            return 0
+
+        placeholders = ",".join(["?"] * len(ids))
+        deleted_categories = 0
+        with self.transaction():
+            # 1) Удаляем все ссылки, принадлежащие этим категориям
+            self._execute_with_error_handling(
+                f"DELETE FROM link WHERE category_id IN ({placeholders})",
+                tuple(ids),
+            )
+            # 2) Удаляем сами категории и считаем, сколько реально удалили
+            cursor = self._execute_with_error_handling(
+                f"DELETE FROM category WHERE id IN ({placeholders})",
+                tuple(ids),
+            )
+            try:
+                deleted_categories = int(getattr(cursor, "rowcount", 0) or 0)
+            except Exception:
+                deleted_categories = 0
+
+        logger.info(
+            f"Пакетно удалены категории (шт={deleted_categories}), ids={ids}"
+        )
+        return deleted_categories
+
     def upsert_category(self, category_data: Dict[str, Any]) -> int:
         """Вставляет или обновляет категорию. Если категории с таким id нет, вставляет новую с этим id."""
         if "id" in category_data and category_data["id"]:

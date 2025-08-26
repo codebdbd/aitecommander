@@ -412,6 +412,79 @@ class Database(DatabaseBase):
         for link in tree["links"]:
             self.links.upsert_link(link)
 
+    def import_category_trees_bulk(self, trees: List[dict]) -> None:
+        """Импортирует несколько поддеревьев категорий в ОДНОЙ транзакции.
+
+        Требования:
+        - Атомарность: одна транзакция на весь импорт.
+        - Сохранение ID категорий и ссылок, если они заданы в данных.
+        - Без вложенных транзакций: не использовать методы моделей, которые
+          выполняют commit() или открывают свою транзакцию.
+        - Толерантность к дубликатам ссылок по UNIQUE(category_id,name,url,args):
+          при конфликте обновляем остальные поля существующей записи.
+        """
+        if not trees:
+            return
+
+        try:
+            with self.connection:  # Единая транзакция на весь импорт
+                for tree in trees:
+                    if not tree:
+                        continue
+                    cat = (tree or {}).get("category") or {}
+                    if not cat:
+                        continue
+                    # --- Upsert категории с сохранением ID ---
+                    # Поля категории
+                    cat_id = cat.get("id")
+                    name = cat.get("name")
+                    section_id = cat.get("section_id")
+                    icon_path = cat.get("icon_path", "")
+                    position = cat.get("position", 0)
+
+                    if cat_id:
+                        cur = self.connection.execute(
+                            "UPDATE category SET name=?, section_id=?, icon_path=?, position=? WHERE id=?",
+                            (name, section_id, icon_path, position, cat_id),
+                        )
+                        if cur.rowcount == 0:
+                            # Вставка с заданным ID (восстановление)
+                            self.connection.execute(
+                                "INSERT INTO category (id, name, section_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
+                                (cat_id, name, section_id, icon_path, position),
+                            )
+                    else:
+                        # Без ID — обычная вставка, позицию оставляем как в бэкапе
+                        cur = self.connection.execute(
+                            "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
+                            (name, section_id, icon_path, position),
+                        )
+                        cat_id = cur.lastrowid
+
+                    # --- Upsert ссылок для категории через LinkModel без собственной транзакции ---
+                    raw_links = []
+                    for link in (tree or {}).get("links", []) or []:
+                        if not isinstance(link, dict):
+                            continue
+                        l = dict(link)
+                        l["category_id"] = cat_id
+                        raw_links.append(l)
+
+                    # Переиспользуем единую логику апсерта без вложенных транзакций
+                    if raw_links:
+                        self.links._upsert_links_no_tx(raw_links)
+
+            # Резервная копия после успешного bulk-импорта
+            try:
+                self.backup()
+            except Exception as backup_err:
+                logger.warning(
+                    f"Не удалось создать резервную копию после bulk-импорта: {backup_err}"
+                )
+        except Exception as e:
+            logger.error(f"Ошибка bulk-импорта деревьев категорий: {e}")
+            raise DatabaseError(f"Не удалось импортировать деревья категорий: {e}")
+
     def is_connected(self) -> bool:
         """Проверяет, установлено ли соединение с базой данных."""
         try:

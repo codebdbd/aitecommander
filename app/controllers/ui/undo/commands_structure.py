@@ -484,22 +484,29 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
         except Exception:
             tree = None
         try:
-            # 1) Удаляем все категории и эмитим точечные события
+            # 1) Удаляем все категории одной операцией и эмитим точечные события
+            ids = [c.get("id") for c in self.categories if c.get("id") is not None]
+            # Сохраним section_id для финального фокуса (берём последний валидный)
             for cat in self.categories:
-                cid = cat.get("id")
-                if cid is None:
-                    continue
-                try:
-                    self.structure_service.delete_category(cid)
-                except Exception:
-                    continue
+                sid = cat.get("section_id")
+                if sid is not None:
+                    section_id_for_focus = sid
+            try:
+                self.structure_service.delete_categories_bulk(ids)
+            except Exception:
+                # Если bulk не удался, пробуем поштучно как fallback
+                for cid in ids:
+                    try:
+                        self.structure_service.delete_category(cid)
+                    except Exception:
+                        pass
+            # Точечные события для UI по каждому ID
+            for cid in ids:
                 try:
                     if business:
                         business.item_deleted.emit("category", cid)
                 except Exception:
                     pass
-                # Используем последний встретившийся section_id для финального фокуса
-                section_id_for_focus = cat.get("section_id") or section_id_for_focus
         finally:
             # 2) Одна финальная перезагрузка/фокус
             # ВАЖНО: перед финальными обновлениями возвращаем сигналы/обработку

@@ -446,9 +446,31 @@ class LinkModel(DatabaseBase):
             return []
 
         created_ids: List[int] = []
+        try:
+            with self.transaction():
+                created_ids.extend(self._upsert_links_no_tx(links_data))
+            return created_ids
+        except sqlite3.IntegrityError as e:
+            # Если что-то пошло не так с уникальностью — пробрасываем как DatabaseError
+            raise DatabaseError(f"UNIQUE constraint failed during batch_upsert_links: {e}")
+        except Exception as e:
+            logger.error(f"Ошибка пакетного сохранения ссылок: {e}")
+            raise
+
+    def _upsert_links_no_tx(self, links_data: List[Dict[str, Any]]) -> List[int]:
+        """Внутренний хелпер: апсерт ссылок без открытия транзакции и без commit().
+
+        - Идентичная логика batch_upsert_links, но предполагает внешнюю транзакцию.
+        - Обновляет входные словари `links_data` установленными ID для новых записей.
+        - Возвращает список созданных ID.
+        """
+        if not links_data:
+            return []
+
+        created_ids: List[int] = []
 
         # Определяем полный набор полей, синхронно с upsert_link
-        all_possible_fields = [
+        all_fields = [
             "id",
             "category_id",
             "name",
@@ -463,73 +485,196 @@ class LinkModel(DatabaseBase):
             "browser_key",
         ]
 
-        try:
-            with self.transaction():
-                for raw in links_data:
-                    # Подготовка данных, аналогично upsert_link, но без промежуточных commit()
-                    self._validate_required_fields(raw, ["category_id"], "ссылки")
-                    data = {field: raw.get(field) for field in all_possible_fields}
-                    data["is_favorite"] = int(data.get("is_favorite", 0) or 0)
+        # 1) Валидация и нормализация входа, группировка по category_id
+        by_cat: Dict[int, List[Dict[str, Any]]] = {}
+        for raw in links_data:
+            self._validate_required_fields(raw, ["category_id"], "ссылки")
+            # Нормализуем значения и оставим только ожидаемые поля
+            data = {field: raw.get(field) for field in all_fields}
+            data["name"] = data.get("name", "") or ""
+            data["url"] = data.get("url", "") or ""
+            data["args"] = data.get("args", "") or ""
+            data["type"] = data.get("type", "web") or "web"
+            data["notes"] = data.get("notes", "") or ""
+            data["is_favorite"] = int(data.get("is_favorite", 0) or 0)
+            data["icon_path"] = data.get("icon_path", "default.ico") or "default.ico"
+            # position и browser_key оставляем как есть (могут быть None)
 
-                    if data.get("id"):
-                        # Обновление существующей записи
-                        if data["position"] is None:
-                            data["position"] = 0
-                        update_fields = [f for f in all_possible_fields if f != "id"]
-                        update_placeholders = ", ".join([f"{f}=?" for f in update_fields])
-                        update_values = [data[f] for f in update_fields]
-                        cursor = self._execute_with_error_handling(
-                            f"UPDATE link SET {update_placeholders} WHERE id=?",
-                            tuple(update_values + [data["id"]]),
+            raw.clear()
+            raw.update(data)  # Сохраняем нормализованные данные обратно во входную структуру
+
+            by_cat.setdefault(int(data["category_id"]), []).append(raw)
+
+        # 2) Для каждой категории одним запросом получаем существующие ссылки и max(position)
+        for category_id, items in by_cat.items():
+            rows = self._execute_with_error_handling(
+                "SELECT id, name, url, args, position FROM link WHERE category_id=?",
+                (category_id,),
+            ).fetchall()
+
+            existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+            existing_by_id: Dict[int, Dict[str, Any]] = {}
+            max_pos = -1
+            for rid, rname, rurl, rargs, rpos in rows:
+                existing_by_id[int(rid)] = {
+                    "id": int(rid),
+                    "name": rname or "",
+                    "url": rurl or "",
+                    "args": rargs or "",
+                    "position": rpos if rpos is not None else -1,
+                }
+                existing_by_key[(rname or "", rurl or "", rargs or "")] = existing_by_id[int(rid)]
+                if rpos is not None:
+                    try:
+                        if int(rpos) > max_pos:
+                            max_pos = int(rpos)
+                    except Exception:
+                        pass
+
+            # 3) Рассчитываем позиции для тех, у кого position не задан
+            next_pos = max_pos + 1
+            for item in items:
+                if item.get("position") is None:
+                    item["position"] = next_pos
+                    next_pos += 1
+
+            # 4) Разделяем операции на обновления и вставки
+            updates: List[Tuple[Any, ...]] = []
+            inserts_no_id: List[Dict[str, Any]] = []
+            inserts_with_id: List[Dict[str, Any]] = []
+
+            for item in items:
+                key = (item.get("name", ""), item.get("url", ""), item.get("args", ""))
+                iid = item.get("id")
+
+                if iid:
+                    # Попытка обновления по id; если не существует — позже вставим с заданным id
+                    updates.append(
+                        (
+                            item.get("category_id"),
+                            item.get("name"),
+                            item.get("url"),
+                            item.get("type"),
+                            item.get("notes"),
+                            int(item.get("is_favorite", 0) or 0),
+                            item.get("last_used"),
+                            item.get("icon_path"),
+                            item.get("args"),
+                            item.get("browser_key"),
+                            item.get("position", 0) if item.get("position") is not None else 0,
+                            int(iid),
                         )
-                        # Если не обновили ни одной строки — вставим с заданным ID (восстановление)
-                        if cursor.rowcount == 0:
-                            insert_fields = all_possible_fields
-                            insert_placeholders = ", ".join(["?"] * len(insert_fields))
-                            insert_values = [data[f] for f in insert_fields]
-                            self._execute_with_error_handling(
-                                f"INSERT INTO link ({', '.join(insert_fields)}) VALUES ({insert_placeholders})",
-                                tuple(insert_values),
+                    )
+                else:
+                    # Нет id — проверим дубликат по ключу
+                    ex = existing_by_key.get(key)
+                    if ex:
+                        # Свяжем с существующей записью
+                        item["id"] = ex["id"]
+                        # Выполним обновление значимых полей
+                        updates.append(
+                            (
+                                item.get("category_id"),
+                                item.get("name"),
+                                item.get("url"),
+                                item.get("type"),
+                                item.get("notes"),
+                                int(item.get("is_favorite", 0) or 0),
+                                item.get("last_used"),
+                                item.get("icon_path"),
+                                item.get("args"),
+                                item.get("browser_key"),
+                                item.get("position", 0) if item.get("position") is not None else 0,
+                                ex["id"],
                             )
+                        )
                     else:
-                        # Новая запись — проверка на дубликат и вставка
-                        # Назначим позицию только если не указана явно
-                        if data.get("position") is None:
-                            data["position"] = self._get_next_position(
-                                "link", "category_id", data["category_id"]
-                            )
+                        inserts_no_id.append(item)
 
-                        # Тихая проверка дубликата (category_id,name,url,args)
-                        existing = self.get_link_by_name_url_args(
-                            data["category_id"],
-                            data.get("name", ""),
-                            data.get("url", ""),
-                            data.get("args", ""),
-                        )
-                        if existing:
-                            # Заполняем исходный словарь найденным id и пропускаем вставку
-                            raw["id"] = existing.get("id")
-                            continue
+            # 5) Выполняем батч-обновления (executemany)
+            if updates:
+                update_sql = (
+                    "UPDATE link SET category_id=?, name=?, url=?, type=?, notes=?, "
+                    "is_favorite=?, last_used=?, icon_path=?, args=?, browser_key=?, position=? WHERE id=?"
+                )
+                try:
+                    cur = self.connection.executemany(update_sql, updates)
+                except sqlite3.IntegrityError as e:
+                    raise DatabaseError(f"UNIQUE constraint failed during batch update: {e}")
 
-                        columns = [f for f in all_possible_fields if f != "id"]
-                        placeholders = ", ".join(["?"] * len(columns))
-                        values = [data[c] for c in columns]
-                        cursor = self._execute_with_error_handling(
-                            f"INSERT INTO link ({', '.join(columns)}) VALUES ({placeholders})",
-                            tuple(values),
+                # Для отсутствующих id (rowcount по executemany не даёт пометки по каждой строке),
+                # выполним точечные проверки и подготовим вставки с фиксированным id
+                # Это редкий путь (восстановление), допускаем компактный цикл
+                verify_sql = "SELECT 1 FROM link WHERE id=?"
+                for params in updates:
+                    iid = params[-1]
+                    row = self._execute_with_error_handling(verify_sql, (iid,)).fetchone()
+                    if not row:
+                        inserts_with_id.append(
+                            {
+                                "id": iid,
+                                "category_id": params[0],
+                                "name": params[1],
+                                "url": params[2],
+                                "type": params[3],
+                                "notes": params[4],
+                                "is_favorite": params[5],
+                                "last_used": params[6],
+                                "icon_path": params[7],
+                                "args": params[8],
+                                "browser_key": params[9],
+                                "position": params[10],
+                            }
                         )
-                        new_id = cursor.lastrowid
+
+            # 6) Вставки: сначала с фиксированным id (executemany), затем массовая вставка без id через временную таблицу
+            if inserts_with_id:
+                insert_fields = all_fields
+                placeholders = ", ".join(["?"] * len(insert_fields))
+                params_with_id = [tuple(rec.get(f) for f in insert_fields) for rec in inserts_with_id]
+                try:
+                    self.connection.executemany(
+                        f"INSERT INTO link ({', '.join(insert_fields)}) VALUES ({placeholders})",
+                        params_with_id,
+                    )
+                except sqlite3.IntegrityError as e:
+                    raise DatabaseError(f"Integrity error on inserts_with_id: {e}")
+
+            if inserts_no_id:
+                columns = [f for f in all_fields if f != "id"]
+                placeholders = ", ".join(["?"] * len(columns))
+                insert_sql = f"INSERT INTO link ({', '.join(columns)}) VALUES ({placeholders})"
+                for rec in inserts_no_id:
+                    params = tuple(rec.get(c) for c in columns)
+                    try:
+                        cur = self._execute_with_error_handling(insert_sql, params)
+                        try:
+                            new_id = int(getattr(cur, "lastrowid", 0) or 0)
+                        except Exception:
+                            new_id = 0
                         if new_id:
-                            created_ids.append(new_id)
-                            # Обновляем входные структуры, чтобы вызывающая сторона знала ID
-                            raw["id"] = new_id
-            return created_ids
-        except sqlite3.IntegrityError as e:
-            # Если что-то пошло не так с уникальностью — пробрасываем как DatabaseError
-            raise DatabaseError(f"UNIQUE constraint failed during batch_upsert_links: {e}")
-        except Exception as e:
-            logger.error(f"Ошибка пакетного сохранения ссылок: {e}")
-            raise
+                            rec["id"] = new_id
+                            key_simple = (rec.get("name", ""), rec.get("url", ""), rec.get("args", ""))
+                            if key_simple not in existing_by_key:
+                                created_ids.append(new_id)
+                                # Обновим карту существующих, чтобы исключить повторные вставки в рамках категории
+                                existing_by_key[key_simple] = {"id": new_id, "position": rec.get("position", 0)}
+                    except sqlite3.IntegrityError:
+                        # На случай гонки/погрешности, попробуем получить id существующей записи
+                        row = self._execute_with_error_handling(
+                            "SELECT id FROM link WHERE category_id=? AND name=? AND url=? AND args=?",
+                            (
+                                rec.get("category_id"),
+                                rec.get("name", ""),
+                                rec.get("url", ""),
+                                rec.get("args", ""),
+                            ),
+                            fetch_method="one",
+                        )
+                        if row:
+                            rec["id"] = row[0] if isinstance(row, tuple) else row["id"]
+
+        return created_ids
 
     def batch_delete_links(self, link_ids: List[int]) -> int:
         """Пакетное удаление ссылок по списку ID в одной транзакции.
