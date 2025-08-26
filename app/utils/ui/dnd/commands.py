@@ -3,17 +3,13 @@
 """
 
 import logging
+from app.utils.common import get_value
 
 from app.controllers.ui.undo.base import BaseCommand
 
 logger = logging.getLogger(__name__)
 
-
-def get_value(row, key, default=None):
-    try:
-        return row[key]
-    except (KeyError, IndexError, TypeError):
-        return default
+# get_value импортируется из app.utils.common
 
 
 class MoveLinksCommand(BaseCommand):

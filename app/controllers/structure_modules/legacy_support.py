@@ -6,10 +6,10 @@ import inspect
 import logging
 import threading
 import warnings
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 
 from .base import StructureItemType, ValidationError
-from .validation import validate_item_data
+from app.controllers.structure_services.validation import ValidationService
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,8 @@ class LegacySupport:
         self.sphere_operations = sphere_operations
         self.section_operations = section_operations
         self.category_operations = category_operations
+        # Централизованный сервис валидации
+        self.validation_service = ValidationService()
 
         # Счетчик использования для аналитики
         self._usage_stats = {
@@ -128,23 +130,45 @@ class LegacySupport:
         self, data: Dict[str, Any], item_type: StructureItemType, method_name: str
     ) -> Tuple[bool, str]:
         """
-        Универсальный метод валидации данных.
-
-        Args:
-            data: Данные для валидации
-            item_type: Тип структурного элемента
-            method_name: Имя вызывающего метода для логирования
-
-        Returns:
-            Tuple[bool, str]: (результат_валидации, сообщение_об_ошибке)
+        Универсальный метод валидации данных через ValidationService.
+        Возвращает кортеж для обратной совместимости.
         """
         try:
-            validate_item_data(data, item_type)
-            return True, ""
-        except ValidationError as e:
-            return False, str(e)
+            if item_type == StructureItemType.SECTION:
+                # Требуется коллбек для получения разделов по sphere_id
+                def _get_sections(sphere_id: int):
+                    try:
+                        return self.section_operations.get_sections(sphere_id)
+                    except Exception:
+                        return []
+
+                vr = self.validation_service.validate_section_data(
+                    data=data,
+                    section_id=data.get("id"),
+                    get_sections=_get_sections,
+                )
+            elif item_type == StructureItemType.CATEGORY:
+                # Требуется проверка дубликатов в рамках раздела
+                def _has_duplicate(section_id: int, name: str, exclude_id: Optional[int]) -> bool:
+                    try:
+                        categories = self.category_operations.get_categories(section_id)
+                        for cat in categories or []:
+                            if cat.get("name", "").lower() == (name or "").lower() and cat.get("id") != exclude_id:
+                                return True
+                        return False
+                    except Exception:
+                        return False
+
+                vr = self.validation_service.validate_category_data(
+                    data=data,
+                    category_id=data.get("id"),
+                    has_duplicate_category=_has_duplicate,
+                )
+            else:
+                return False, f"Неизвестный тип элемента: {item_type}"
+
+            return (vr.is_valid, "; ".join(vr.errors))
         except Exception as e:
-            # Дополнительная обработка неожиданных ошибок
             return False, f"Неожиданная ошибка валидации: {str(e)}"
 
     def validate_section_data(self, data: Dict[str, Any]) -> Tuple[bool, str]:

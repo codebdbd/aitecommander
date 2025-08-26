@@ -233,15 +233,26 @@ class StructureTreeView(QTreeView, AsyncTaskMixin):
         except (RuntimeError, TypeError, AttributeError) as e:
             logging.error("StructureTreeView.emit_drag_feedback: emit failed: info=%r, error=%s", info, e)
 
-    # --- DnD события делегируем обработчику ---
+    # --- DnD события: сначала собственный обработчик, затем (при необходимости) стандартная обработка ---
+    # Подход сочетает кастомную логику (DragDropHandler) и базовое поведение Qt.
+    # Если пользовательский обработчик НЕ принял событие (event.isAccepted() == False),
+    # передаём его родительскому классу для стандартной обработки.
     def dragEnterEvent(self, event):
         self.drag_drop_handler.handle_drag_enter_event(event)
+        if not event.isAccepted():
+            super().dragEnterEvent(event)
 
     def dragMoveEvent(self, event):
         self.drag_drop_handler.handle_drag_move_event(event)
+        if not event.isAccepted():
+            super().dragMoveEvent(event)
 
     def dragLeaveEvent(self, event):
         self.drag_drop_handler.handle_drag_leave_event(event)
+        if not event.isAccepted():
+            super().dragLeaveEvent(event)
 
     def dropEvent(self, event):
         self.drag_drop_handler.handle_drop_event(event)
+        if not event.isAccepted():
+            super().dropEvent(event)

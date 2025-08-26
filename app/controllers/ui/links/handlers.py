@@ -42,6 +42,9 @@ class LinksUIHandlers(BaseLinksUIComponent):
             )
         except Exception:
             pass
+        # Флаг реентрантности для защиты от зацикливания при переупорядочивании
+        # (например, когда обновление порядка в БД приводит к перезагрузке UI)
+        self._handling_reorder: bool = False
         self.table.links_reordered.connect(self._on_links_reordered)
         # Эксклюзивность выбора: любое выделение в таблице снимает выделение в дереве
         try:
@@ -191,8 +194,26 @@ class LinksUIHandlers(BaseLinksUIComponent):
     # Метод _handle_key_press удален - обработка клавиш централизована в KeyboardManager
 
     def _on_links_reordered(self, link_ids: list):
-        """Обработка изменения порядка ссылок."""
-        self.business.update_link_order(link_ids)
+        """Обработка изменения порядка ссылок с защитой от реентрантности."""
+        try:
+            # Предотвращаем повторные входы, если обработчик уже выполняется
+            if getattr(self, "_handling_reorder", False):
+                logger.debug("[Reorder] Suppressed recursive _on_links_reordered call")
+                return
+
+            self._handling_reorder = True
+
+            # Пустые или тривиальные входные данные игнорируем
+            if not link_ids or not isinstance(link_ids, list):
+                return
+
+            # Выполняем обновление порядка через бизнес-логику
+            self.business.update_link_order(link_ids)
+
+        except Exception as e:
+            logger.error(f"[Reorder] Error while handling links_reordered: {e}")
+        finally:
+            self._handling_reorder = False
 
     def _on_table_selection_changed(self, _selected, _deselected):
         """Эксклюзивность: при выделении в таблице очищаем выделение в дереве."""

@@ -1,51 +1,75 @@
 # app/controllers/structure_modules/validation.py
 
-"""Модуль для валидации данных элементов структуры."""
+"""Централизованные хелперы валидации, делегирующие в ValidationService.
 
-from typing import Any, Dict
+Возвращают единый ValidationResult.
+"""
 
-from .base import StructureItemType, ValidationError
+from typing import Any, Callable, Dict, Optional
+
+from .validation_result import ValidationResult
+from app.controllers.structure_services.validation import ValidationService
 
 
-def validate_item_data(
-    data: Dict[str, Any], item_type: StructureItemType, *, require_parent: bool = True
-) -> None:
-    """Универсальная валидация данных элементов структуры.
+_service = ValidationService()
+
+
+def validate_section_data(
+    data: Dict[str, Any],
+    *,
+    section_id: Optional[int] = None,
+    get_sections: Callable[[int], list],
+) -> ValidationResult:
+    """Валидация данных раздела через ValidationService.
 
     Args:
-        data: Данные для валидации
-        item_type: Тип элемента структуры
-        require_parent: Требовать ли parent_id поля (True для создания, False для обновления)
+        data: данные раздела
+        section_id: id редактируемого раздела (для исключения себя при проверках)
+        get_sections: коллбек получения разделов по sphere_id
 
-    Raises:
-        ValidationError: При некорректных данных
+    Returns:
+        ValidationResult
     """
-    if not isinstance(data, dict):
-        raise ValidationError("Данные должны быть словарем")
-
-    if not data.get("name", "").strip():
-        item_name = "раздела" if item_type == StructureItemType.SECTION else "категории"
-        raise ValidationError(f"Имя {item_name} не может быть пустым")
-
-    if (
-        item_type == StructureItemType.SECTION
-        and require_parent
-        and data.get("sphere_id") is None
-    ):
-        raise ValidationError("Не указана сфера для раздела")
-    if (
-        item_type == StructureItemType.CATEGORY
-        and require_parent
-        and data.get("section_id") is None
-    ):
-        raise ValidationError("Не указан родительский раздел")
+    return _service.validate_section_data(
+        data=data, section_id=section_id, get_sections=get_sections
+    )
 
 
-def validate_section_data(data: Dict[str, Any]) -> None:
-    """Устаревший метод валидации данных раздела."""
-    validate_item_data(data, StructureItemType.SECTION)
+def validate_category_data(
+    data: Dict[str, Any],
+    *,
+    category_id: Optional[int] = None,
+    has_duplicate_category: Callable[[int, str, Optional[int]], bool],
+) -> ValidationResult:
+    """Валидация данных категории через ValidationService.
+
+    Args:
+        data: данные категории
+        category_id: id редактируемой категории
+        has_duplicate_category: коллбек проверки дубликатов в разделе
+
+    Returns:
+        ValidationResult
+    """
+    return _service.validate_category_data(
+        data=data,
+        category_id=category_id,
+        has_duplicate_category=has_duplicate_category,
+    )
 
 
-def validate_category_data(data: Dict[str, Any]) -> None:
-    """Устаревший метод валидации данных категории."""
-    validate_item_data(data, StructureItemType.CATEGORY)
+# Устаревшее API: validate_item_data — сохранено как заглушка на случай редких вызовов
+def validate_item_data(*args: Any, **kwargs: Any) -> ValidationResult:  # type: ignore[override]
+    """Deprecated: используйте validate_section_data/validate_category_data.
+
+    Возвращает ValidationResult вместо исключений.
+    """
+    import warnings
+
+    warnings.warn(
+        "validate_item_data устарел. Используйте validate_section_data/validate_category_data",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    # Недостаточно контекста, возвращаем валидный результат
+    return ValidationResult(is_valid=True)

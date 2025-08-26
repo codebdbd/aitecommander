@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, Optional
 
-from app.controllers.structure_modules import ValidationResult
+from app.controllers.structure_modules.validation_result import ValidationResult
 
 
 class ValidationService:

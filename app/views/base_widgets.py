@@ -152,6 +152,8 @@ class BaseDragDropTableWidget(QTableView):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._sorting_enabled_before_drag = True
+        # Флаг состояния временного отключения сортировки во время DnD
+        self._sorting_disabled_for_drag: bool = False
         self._setup_drag_drop()
 
     def _setup_drag_drop(self):
@@ -163,29 +165,32 @@ class BaseDragDropTableWidget(QTableView):
             self.viewport().setAcceptDrops(True)
             # Перехватываем события DnD напрямую на viewport
             self.viewport().installEventFilter(self)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logging.warning("_setup_drag_drop: viewport DnD setup failed: %s", e)
+            # Критично: без viewport acceptDrops/eFilter DnD может работать некорректно
+            # Пробрасываем дальше, чтобы не скрывать проблему окружения/платформы
+            raise
         # Используем DragDrop: обработку перемещения делаем сами в dropEvent
         self.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
         # Не перезаписываем ячейки при дропе, а перемещаем строки
         try:
             self.setDragDropOverwriteMode(False)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logging.warning("_setup_drag_drop: setDragDropOverwriteMode unsupported: %s", e)
         # По умолчанию перемещение
         try:
             self.setDefaultDropAction(Qt.DropAction.MoveAction)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logging.warning("_setup_drag_drop: setDefaultDropAction unsupported: %s", e)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         try:
             self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logging.warning("_setup_drag_drop: setSelectionMode unsupported: %s", e)
         try:
             self.setDropIndicatorShown(True)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logging.warning("_setup_drag_drop: setDropIndicatorShown unsupported: %s", e)
         self.setSortingEnabled(True)
         self.setTabKeyNavigation(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -279,7 +284,8 @@ class BaseDragDropTableWidget(QTableView):
 
     def dragEnterEvent(self, event):
         """Обрабатывает начало drag-операции."""
-        if not hasattr(self, "_sorting_disabled_for_drag"):
+        if not self._sorting_disabled_for_drag:
+            # Запоминаем, была ли включена сортировка, и временно отключаем её
             self._sorting_disabled_for_drag = self.isSortingEnabled()
             if self._sorting_disabled_for_drag:
                 self.setSortingEnabled(False)
@@ -289,8 +295,29 @@ class BaseDragDropTableWidget(QTableView):
                 logging.debug("[DROP] dragEnterEvent: accept internal with our MIME")
                 event.acceptProposedAction()
                 return
-        except Exception:
-            pass
+        except Exception as exc:
+            # Диагностика MIME и параметров события для упрощения расследования
+            try:
+                md = event.mimeData() if hasattr(event, "mimeData") else None
+                formats = list(md.formats()) if md and hasattr(md, "formats") else []
+                has_our_mime = bool(md and hasattr(md, "hasFormat") and md.hasFormat(self.MIME_TYPE))
+                pos = getattr(event, "position", None)
+                pos_tuple = (int(pos.x()), int(pos.y())) if pos is not None else None
+                proposed = getattr(event, "proposedAction", None)
+                proposed_val = proposed() if callable(proposed) else proposed
+            except Exception as info_exc:
+                formats, has_our_mime, pos_tuple, proposed_val = [], False, None, None
+                logging.debug("[DROP] dragEnterEvent: failed to collect diagnostic info: %s", info_exc)
+            logging.warning(
+                "[DROP] dragEnterEvent: handler error: %s; mime_formats=%r has_our_mime=%s pos=%r proposed=%r",
+                exc,
+                formats,
+                has_our_mime,
+                pos_tuple,
+                proposed_val,
+            )
+            event.ignore()
+            raise
         super().dragEnterEvent(event)
 
     def dragMoveEvent(self, event):
@@ -300,18 +327,37 @@ class BaseDragDropTableWidget(QTableView):
                 logging.debug("[DROP] dragMoveEvent: accept internal with our MIME")
                 event.acceptProposedAction()
                 return
-        except Exception:
-            pass
+        except Exception as exc:
+            # Диагностика MIME и параметров события для упрощения расследования
+            try:
+                md = event.mimeData() if hasattr(event, "mimeData") else None
+                formats = list(md.formats()) if md and hasattr(md, "formats") else []
+                has_our_mime = bool(md and hasattr(md, "hasFormat") and md.hasFormat(self.MIME_TYPE))
+                pos = getattr(event, "position", None)
+                pos_tuple = (int(pos.x()), int(pos.y())) if pos is not None else None
+                proposed = getattr(event, "proposedAction", None)
+                proposed_val = proposed() if callable(proposed) else proposed
+            except Exception as info_exc:
+                formats, has_our_mime, pos_tuple, proposed_val = [], False, None, None
+                logging.debug("[DROP] dragMoveEvent: failed to collect diagnostic info: %s", info_exc)
+            logging.warning(
+                "[DROP] dragMoveEvent: handler error: %s; mime_formats=%r has_our_mime=%s pos=%r proposed=%r",
+                exc,
+                formats,
+                has_our_mime,
+                pos_tuple,
+                proposed_val,
+            )
+            event.ignore()
+            raise
         super().dragMoveEvent(event)
 
     def dragLeaveEvent(self, event):
         """Обрабатывает выход из drag-зоны."""
-        if (
-            hasattr(self, "_sorting_disabled_for_drag")
-            and self._sorting_disabled_for_drag
-        ):
+        if self._sorting_disabled_for_drag:
+            # Возвращаем сортировку, если она была включена до начала DnD
             self.setSortingEnabled(True)
-            delattr(self, "_sorting_disabled_for_drag")
+            self._sorting_disabled_for_drag = False
         super().dragLeaveEvent(event)
 
     def dropEvent(self, event: QDropEvent):
@@ -350,20 +396,20 @@ class BaseDragDropTableWidget(QTableView):
             logging.error(f"[DROP] Ошибка при перемещении строки: {e}")
             event.ignore()
         finally:
-            if hasattr(self, "_sorting_disabled_for_drag"):
-                # Если реально перемещали — оставляем сортировку отключенной,
-                # чтобы пользователь видел результат ручного reorder
-                if not moved and self._sorting_disabled_for_drag:
-                    self.setSortingEnabled(True)
-                if hasattr(self, "horizontalHeader"):
-                    try:
-                        # При успешном переносе можно скрыть индикатор сортировки
-                        # чтобы визуально отразить режим ручного порядка
-                        if moved:
-                            self.horizontalHeader().setSortIndicatorShown(False)
-                    except Exception:
-                        pass
-                delattr(self, "_sorting_disabled_for_drag")
+            # Если реально перемещали — оставляем сортировку отключенной,
+            # чтобы пользователь видел результат ручного reorder
+            if not moved and self._sorting_disabled_for_drag:
+                self.setSortingEnabled(True)
+            if hasattr(self, "horizontalHeader"):
+                try:
+                    # При успешном переносе можно скрыть индикатор сортировки
+                    # чтобы визуально отразить режим ручного порядка
+                    if moved:
+                        self.horizontalHeader().setSortIndicatorShown(False)
+                except Exception:
+                    pass
+            # Сбрасываем флаг независимо от результата
+            self._sorting_disabled_for_drag = False
 
     def _is_internal_drop(self, event) -> bool:
         """Проверяет, является ли это внутренним перемещением.

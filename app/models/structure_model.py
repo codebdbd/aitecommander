@@ -205,6 +205,19 @@ class StructureModel:
             self.logger.error(f"Ошибка создания категории: {e}")
             return None
 
+    def create_categories_bulk(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Пакетное создание категорий (атомарно).
+
+        Делегирует в `CategoryModel.insert_categories_bulk` и возвращает список
+        фактических записей категорий после операции (как новые, так и существующие
+        из набора имён), для синхронизации UI/кеша.
+        """
+        try:
+            return self.db.categories.insert_categories_bulk(items or []) or []
+        except Exception as e:
+            self.logger.error(f"Ошибка пакетного создания категорий: {e}")
+            return []
+
     def create_link(self, link_data: Dict[str, Any]) -> Optional[int]:
         """Создает или обновляет ссылку (обертка для upsert_link).
 

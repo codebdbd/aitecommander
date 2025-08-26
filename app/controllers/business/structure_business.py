@@ -497,6 +497,28 @@ class StructureBusinessLogic(QObject):
             self._invalidate_categories_cache(section_id)
         return category_data or None
 
+    @handle_exceptions(default_return=[])
+    def create_categories_bulk(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Пакетно создаёт категории через сервис и эмитит сигналы для UI.
+
+        Возвращает список фактических категорий после операции (как новые, так и
+        существующие из набора имён), упорядоченных по position.
+        """
+        if not items:
+            return []
+        # Выполняем пакетное создание
+        created_or_existing = self.structure_service.create_categories_bulk(items)
+        # Инвалидируем кэш и планируем одну перезагрузку структуры.
+        try:
+            touched_sections = {c.get("section_id") for c in (created_or_existing or []) if isinstance(c, dict)}
+            for sid in touched_sections:
+                if sid:
+                    self._invalidate_categories_cache(sid)
+            self._schedule_structure_reload(0)
+        except Exception:
+            pass
+        return created_or_existing or []
+
     @handle_exceptions()
     def update_category(
         self, category_id: int, data: Dict[str, Any]

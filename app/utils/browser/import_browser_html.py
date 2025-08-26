@@ -12,9 +12,32 @@ logger = logging.getLogger(__name__)
 
 
 def parse_browser_bookmarks(html_path):
-    with open(html_path, "r", encoding="utf-8") as f:
-        text = f.read()
-        logger.debug(f"DEBUG: file head = {text[:500]}")
+    # Пытаемся определить корректную кодировку, чтобы избежать 
+    # обрезанных символов (\ufffd) в названиях категорий.
+    encodings_to_try = ("utf-8", "utf-8-sig", "cp1251", "latin-1")
+    last_err = None
+    text = None
+    used_encoding = None
+    for enc in encodings_to_try:
+        try:
+            with open(html_path, "r", encoding=enc) as f:
+                text = f.read()
+                used_encoding = enc
+                break
+        except Exception as e:
+            last_err = e
+            continue
+    if text is None:
+        # Последняя попытка — читаем байты и декодируем с заменой символов
+        try:
+            with open(html_path, "rb") as fb:
+                raw = fb.read()
+                text = raw.decode("utf-8", errors="replace")
+                used_encoding = "utf-8(replace)"
+        except Exception as e:
+            raise last_err or e
+    logger.debug(f"DEBUG: using encoding = {used_encoding}")
+    logger.debug(f"DEBUG: file head = {text[:500]}")
     soup = BeautifulSoup(text, "html.parser")
     categories = defaultdict(list)
     icons_dir = app_config.paths.get_link_icons_dir()
@@ -85,7 +108,7 @@ def import_browser_bookmarks_to_db(
     from app.views.dialogs.import_browser_dialog import ImportBrowserDialog
 
     path, _ = QFileDialog.getOpenFileName(
-        parent_widget, "Импорт из браузера", "", "HTML Files (*.html)"
+        parent_widget, "Импорт из браузера", "", "HTML Files (*.html *.htm)"
     )
     if not path:
         return False, "Файл не выбран"
@@ -122,58 +145,74 @@ def import_browser_bookmarks_to_db(
             informative_text="Выберите раздел, в который будут добавлены категории и ссылки.",
         )
         return False, "Не выбран раздел для импорта."
+    # === Оптимизация: создаём недостающие категории пакетно ===
+    # 1) Получаем список существующих категорий раздела единым запросом
+    existing_categories = structure_business_logic.get_categories(section_id) or []
+    existing_names = {c.get("name") for c in existing_categories}
+
+    # 2) Определяем, какие категории отсутствуют
+    incoming_names = set(categories.keys())
+    missing_names = [n for n in incoming_names if n not in existing_names]
+
+    # 3) Готовим батч для вставки недостающих категорий
+    try:
+        default_icon = resolve_icon_for_link({"type": "category", "icon_path": ""})
+    except Exception:
+        default_icon = ""
+    bulk_items = [
+        {"name": name, "section_id": section_id, "icon_path": default_icon}
+        for name in missing_names
+    ]
+    if bulk_items:
+        try:
+            created = structure_business_logic.create_categories_bulk(bulk_items) or []
+            logger.debug(
+                f"DEBUG: Пакетно создано/подтверждено категорий: {len(created)} для раздела {section_id}"
+            )
+        except Exception as e:
+            logger.error(f"ERROR: Пакетное создание категорий завершилось ошибкой: {e}")
+            created = []
+        QApplication.processEvents()
+    else:
+        created = []
+
+    # 4) Строим маппинг имя -> id по актуальному состоянию (после bulk)
+    #    Чтобы гарантированно иметь id для всех parsed категорий, перечитаем список
+    categories_after = structure_business_logic.get_categories(section_id) or []
+    name_to_id = {c.get("name"): c.get("id") for c in categories_after}
+
     added = 0
     for cat_name, links in categories.items():
         logger.debug(f"DEBUG: Обработка категории '{cat_name}', ссылок: {len(links)}")
+        category_id = name_to_id.get(cat_name)
+        if not category_id:
+            logger.error(
+                f"ERROR: Не найден ID категории '{cat_name}' после пакетной вставки; пропуск ссылок"
+            )
+            continue
 
-        # Получаем существующие категории через бизнес-логику
-        categories_list = structure_business_logic.get_categories(section_id)
-        cat_row = next(
-            (
-                c
-                for c in categories_list
-                if c["name"] == cat_name and c["section_id"] == section_id
-            ),
-            None,
-        )
+        # Подготовим набор уже существующих (name, url) для быстрого поиска дубликатов
+        existing_name_url = set()
+        try:
+            if links_business_logic:
+                existing_links = links_business_logic.get_links_for_category(category_id)
+            elif hasattr(structure_business_logic, "links_business"):
+                existing_links = structure_business_logic.links_business.get_links_for_category(category_id)
+            else:
+                existing_links = []
+        except Exception as e:
+            logger.warning(
+                f"Не удалось получить существующие ссылки для категории {category_id}: {e}"
+            )
+            existing_links = []
 
-        if not cat_row:
-            logger.debug(f"DEBUG: Категория '{cat_name}' не найдена, создаю новую...")
+        for el in existing_links:
             try:
-                category_icon = resolve_icon_for_link(
-                    {"type": "category", "icon_path": ""}
-                )
+                existing_name_url.add((str(el.get("name", "")).strip(), str(el.get("url", "")).strip()))
             except Exception:
-                category_icon = ""
+                # Игнорируем некорректные записи
+                pass
 
-            # Создаем категорию через бизнес-логику
-            category_data = {
-                "name": cat_name,
-                "section_id": section_id,
-                "icon_path": category_icon,
-            }
-
-            try:
-                category_id = structure_business_logic.create_category_for_import(
-                    category_data
-                )
-                if category_id:
-                    cat_row = {
-                        "id": category_id,
-                        "name": cat_name,
-                        "section_id": section_id,
-                    }
-                    logger.debug(f"DEBUG: Категория '{cat_name}' создана: {cat_row}")
-                else:
-                    logger.error(f"ERROR: Не удалось создать категорию '{cat_name}'!")
-                    continue
-            except Exception as e:
-                logger.error(f"ERROR: Ошибка создания категории '{cat_name}': {e}")
-                continue
-            QApplication.processEvents()
-        else:
-            logger.debug(f"DEBUG: Категория '{cat_name}' уже существует: {cat_row}")
-            category_id = cat_row["id"]
         for link in links:
             QApplication.processEvents()
             icon_path = link.get("icon_path", "")
@@ -184,19 +223,8 @@ def import_browser_bookmarks_to_db(
                 f"DEBUG: Проверка дубликата: name='{name}', url='{url}', category_id={category_id}"
             )
 
-            # Проверка на дубликат через бизнес-логику
-            existing_links = structure_business_logic.get_links(category_id)
-            existing = next(
-                (
-                    link_item
-                    for link_item in existing_links
-                    if link_item["url"] == url and link_item["name"] == name
-                ),
-                None,
-            )
-
-            logger.debug(f"DEBUG: Результат поиска дубликата: {existing}")
-            if existing:
+            # Быстрая проверка на дубликат
+            if (name.strip(), url.strip()) in existing_name_url:
                 logger.debug(
                     f"DEBUG: Пропущен дубликат '{name}' ({url}) в категории '{cat_name}' (id={category_id})"
                 )
