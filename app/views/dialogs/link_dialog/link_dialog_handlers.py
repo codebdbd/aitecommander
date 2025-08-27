@@ -8,17 +8,26 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from PyQt6.QtCore import QThreadPool
+from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QDialog, QFileDialog
 
 from app.config_data import app_config
-from app.utils.db.db_workers import LinkInfoWorker, StructureWorkerSignals
+from app.utils.db.api import run_db
+from app.utils.links.link_parser import parse_local_link
+from app.utils.links.parser.fetcher import fetch_web_link_info
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.selection import choose_icon_and_copy
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
 
 logger = logging.getLogger(__name__)
+
+
+class LinkDialogSignals(QObject):
+    """Локальные сигналы для LinkDialog (совместимы с легаси-слотами)."""
+
+    link_info_finished: pyqtSignal = pyqtSignal(dict)
+    simple_error: pyqtSignal = pyqtSignal(str)
 
 
 class LinkDialogHandlers:
@@ -31,8 +40,8 @@ class LinkDialogHandlers:
         self._is_processing = False
         self._worker_task_id = 0
         self._active_worker = None
-        # Создаем сигналы для воркеров
-        self.signals = StructureWorkerSignals()
+        # Локальные сигналы (замена StructureWorkerSignals)
+        self.signals = LinkDialogSignals()
         # Подключаем сигналы
         self.signals.link_info_finished.connect(
             lambda info: self._on_link_info_fetched(info)
@@ -108,7 +117,7 @@ class LinkDialogHandlers:
         self._last_processed_path = ""
         self._is_processing = False
 
-        # Отмена активного воркера при смене типа ссылки (используем переменные из dialog)
+        # Отмена активной задачи при смене типа ссылки
         if hasattr(self.dialog, "_active_worker") and self.dialog._active_worker:
             try:
                 self.dialog._active_worker.cancel()
@@ -499,7 +508,7 @@ class LinkDialogHandlers:
         self._worker_task_id += 1
         task_id = self._worker_task_id
 
-        # Отмена активного воркера
+        # Отмена активной задачи
         if self._active_worker:
             try:
                 self._active_worker.cancel()
@@ -507,20 +516,43 @@ class LinkDialogHandlers:
                 # Логируем ошибку отмены воркера, но продолжаем выполнение
                 logger.debug(f"Ошибка при отмене воркера: {e}")
 
-        worker = LinkInfoWorker(
-            link_type=self.dialog.link_type,
-            path=path,
-            args=self.dialog.ui.get_widget("args_le").text().strip(),
-            config_module=app_config,
-            signals=self.signals,
+        link_type = self.dialog.link_type
+        args_val = self.dialog.ui.get_widget("args_le").text().strip()
+
+        def _do_work() -> Dict[str, Any]:
+            try:
+                if link_type == "web":
+                    # Иконку подберём отложенно, чтобы не блокировать UI
+                    info = fetch_web_link_info(
+                        path,
+                        app_config,
+                        force_refresh=False,
+                        defer_icon=True,
+                        on_icon_ready=lambda icon_path: self.signals.link_info_finished.emit(
+                            {"name": "", "icon": icon_path}
+                        ),
+                    )
+                    return {"name": info.get("name"), "icon": info.get("icon")}
+                # Локальные пути
+                info = parse_local_link(link_type, path, app_config, args=args_val)
+                return info or {"name": "", "icon": ""}
+            except Exception as e:
+                # Пробросим как исключение, on_error обработает
+                raise e
+
+        handle = run_db(
+            _do_work,
+            description=f"link_info:{link_type}",
+            on_finished=lambda info: self.signals.link_info_finished.emit(info),
+            on_error=lambda e: self.signals.simple_error.emit(str(e)),
         )
-        worker.task_id = task_id
 
-        # Сигналы теперь подключены через self.signals
-        pass
-
-        self._active_worker = worker
-        QThreadPool.globalInstance().start(worker)
+        # Совместимость: храним handle в том же атрибуте и на объекте диалога
+        self._active_worker = handle
+        try:
+            self.dialog._active_worker = handle
+        except Exception:
+            pass
 
     def _trigger_link_processing(self) -> None:
         """Внутренний метод для запуска обработки ссылки из таймера."""

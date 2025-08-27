@@ -1,26 +1,66 @@
 # app/controllers/structure_modules/async_operations.py
 
-"""Модуль для асинхронных операций структуры."""
+"""Модуль для асинхронных операций структуры.
+
+Переведён на новый фасад `run_db` вместо легаси-воркеров из
+`app.utils.db.db_workers`. Для сохранения совместимости определён локальный
+класс сигналов с тем же интерфейсом, что и `StructureWorkerSignals`.
+"""
 
 import logging
 import time
 from typing import Any, Dict, List, Optional
 
+from PyQt6.QtCore import QObject, pyqtSignal
+
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.models.db import Database
-from app.utils.db.db_workers import (
-    CountNestedObjectsWorker,
-    CreateItemWorker,
-    DeleteItemWorker,
-    LoadCategoriesWorker,
-    LoadSectionsWorker,
-    LoadSpheresWorker,
-    LoadStructureWorker,
-    StructureWorkerSignals,
-    UpdateItemWorker,
-)
+from app.services import StructureService
+from app.utils.db.api import run_db
 
 logger = logging.getLogger(__name__)
+
+
+class StructureSignals(QObject):
+    """Сигналы для асинхронных операций со структурой (совместимы с легаси).
+
+    Повторяет интерфейс `StructureWorkerSignals` из app.utils.db.db_workers.
+    """
+
+    # Загрузка данных
+    spheres_loaded: pyqtSignal = pyqtSignal(list)  # List[Dict]
+    structure_loaded: pyqtSignal = pyqtSignal(list, int)  # List[Dict], sphere_id
+    sections_loaded: pyqtSignal = pyqtSignal(list, int)  # List[Dict], sphere_id
+    categories_loaded: pyqtSignal = pyqtSignal(list, int)  # List[Dict], section_id
+    links_loaded: pyqtSignal = pyqtSignal(list, int, int)  # совместимость
+
+    # Поиск
+    search_results: pyqtSignal = pyqtSignal(list)
+
+    # Подсчет
+    count_finished: pyqtSignal = pyqtSignal(int, list, object)
+
+    # CRUD
+    item_created: pyqtSignal = pyqtSignal(str, int, dict)
+    item_updated: pyqtSignal = pyqtSignal(str, int, dict)
+    item_deleted: pyqtSignal = pyqtSignal(str, int, dict)
+
+    # Состояние операций
+    operation_started: pyqtSignal = pyqtSignal(str)
+    operation_finished: pyqtSignal = pyqtSignal(str)
+    loading_started: pyqtSignal = pyqtSignal()
+
+    # Обновление UI
+    update_ui: pyqtSignal = pyqtSignal(int)
+    update_favorites: pyqtSignal = pyqtSignal()
+    update_recent_links: pyqtSignal = pyqtSignal()
+
+    # Информация о ссылках
+    link_info_finished: pyqtSignal = pyqtSignal(dict)
+
+    # Ошибки
+    error: pyqtSignal = pyqtSignal(str, str)
+    simple_error: pyqtSignal = pyqtSignal(str)
 
 
 class AsyncOperations:
@@ -31,10 +71,10 @@ class AsyncOperations:
         self.logger = logger or globals().get("logger") or logging.getLogger(__name__)
         # Единый глобальный планировщик задач вместо QThreadPool.globalInstance()
         self._scheduler = get_task_scheduler()
-        self._worker_signals = StructureWorkerSignals()
+        self._worker_signals = StructureSignals()
         self._pending_tasks = {}
 
-    def get_worker_signals(self) -> StructureWorkerSignals:
+    def get_worker_signals(self) -> StructureSignals:
         """Возвращает объект сигналов воркеров для подключения."""
         return self._worker_signals
 
@@ -117,46 +157,109 @@ class AsyncOperations:
             pass
 
     def load_spheres_async(self) -> None:
-        """Асинхронная загрузка всех сфер."""
-        worker = LoadSpheresWorker(self.db, self._worker_signals)
-        self._scheduler.submit_task(worker)
-        self.logger.info("Запущена асинхронная загрузка сфер")
+        """Асинхронная загрузка всех сфер через run_db."""
+        self._worker_signals.operation_started.emit("Загрузка сфер...")
+
+        def _fetch():
+            return self.db.spheres.get_spheres() or []
+
+        run_db(
+            _fetch,
+            description="load_spheres",
+            on_finished=lambda spheres: (
+                self._worker_signals.spheres_loaded.emit(spheres),
+                self._worker_signals.operation_finished.emit("Сферы загружены"),
+            ),
+            on_error=lambda e: self._worker_signals.error.emit(
+                "Ошибка загрузки", f"Ошибка загрузки сфер: {e}"
+            ),
+        )
 
     def load_structure_async(self, current_sphere_id: int) -> None:
-        """Асинхронная загрузка структуры для сферы."""
+        """Асинхронная загрузка структуры для сферы через run_db."""
         if not isinstance(current_sphere_id, int) or current_sphere_id <= 0:
             self.logger.error(f"Некорректный ID сферы: {current_sphere_id}")
             return
-        worker = LoadStructureWorker(self.db, current_sphere_id, self._worker_signals)
-        self._scheduler.submit_task(worker)
-        self.logger.debug(
-            f"Запущена асинхронная загрузка структуры для сферы {current_sphere_id}"
+
+        desc = f"Загрузка структуры для сферы {current_sphere_id}..."
+        self._worker_signals.operation_started.emit(desc)
+
+        def _fetch():
+            sections_raw = self.db.sections.get_sections(current_sphere_id)
+            if not sections_raw:
+                return [], current_sphere_id
+            sections_data = sections_raw
+            section_ids = [s["id"] for s in sections_data]
+            categories_raw = self.db.categories.get_categories_for_sections(section_ids)
+            all_categories = categories_raw or []
+            categories_by_section = {}
+            for category in all_categories:
+                sid = category["section_id"]
+                categories_by_section.setdefault(sid, []).append(category)
+            for section in sections_data:
+                section["categories"] = categories_by_section.get(section["id"], [])
+            return sections_data, current_sphere_id
+
+        def _on_finished(payload):
+            sections_data, sphere_id = payload
+            self._worker_signals.structure_loaded.emit(sections_data, sphere_id)
+            self._worker_signals.operation_finished.emit("Структура загружена")
+
+        run_db(
+            _fetch,
+            description=f"load_structure(sphere_id={current_sphere_id})",
+            on_finished=_on_finished,
+            on_error=lambda e: self._worker_signals.error.emit(
+                "Ошибка загрузки", f"Ошибка загрузки структуры: {e}"
+            ),
         )
 
     def load_sections_async(self, sphere_id: int) -> None:
-        """Асинхронная загрузка разделов для сферы."""
+        """Асинхронная загрузка разделов для сферы через run_db."""
         if not isinstance(sphere_id, int) or sphere_id <= 0:
             self.logger.error(f"Некорректный ID сферы: {sphere_id}")
             return
-        worker = LoadSectionsWorker(self.db, sphere_id, self._worker_signals)
-        self._scheduler.submit_task(worker)
-        self.logger.info(
-            f"Запущена асинхронная загрузка разделов для сферы {sphere_id}"
+
+        self._worker_signals.operation_started.emit(
+            f"Загрузка разделов для сферы {sphere_id}..."
+        )
+
+        run_db(
+            lambda: self.db.sections.get_sections(sphere_id) or [],
+            description=f"load_sections(sphere_id={sphere_id})",
+            on_finished=lambda sections: (
+                self._worker_signals.sections_loaded.emit(sections, sphere_id),
+                self._worker_signals.operation_finished.emit("Разделы загружены"),
+            ),
+            on_error=lambda e: self._worker_signals.error.emit(
+                "Ошибка загрузки", f"Ошибка загрузки разделов: {e}"
+            ),
         )
 
     def load_categories_async(self, section_id: int) -> None:
-        """Асинхронная загрузка категорий для раздела."""
+        """Асинхронная загрузка категорий для раздела через run_db."""
         if not isinstance(section_id, int) or section_id <= 0:
             self.logger.error(f"Некорректный ID раздела: {section_id}")
             return
-        worker = LoadCategoriesWorker(self.db, section_id, self._worker_signals)
-        self._scheduler.submit_task(worker)
-        self.logger.info(
-            f"Запущена асинхронная загрузка категорий для раздела {section_id}"
+
+        self._worker_signals.operation_started.emit(
+            f"Загрузка категорий для раздела {section_id}..."
+        )
+
+        run_db(
+            lambda: self.db.categories.get_categories(section_id) or [],
+            description=f"load_categories(section_id={section_id})",
+            on_finished=lambda categories: (
+                self._worker_signals.categories_loaded.emit(categories, section_id),
+                self._worker_signals.operation_finished.emit("Категории загружены"),
+            ),
+            on_error=lambda e: self._worker_signals.error.emit(
+                "Ошибка загрузки", f"Ошибка загрузки категорий: {e}"
+            ),
         )
 
     def create_section_async(self, data: Dict[str, Any]) -> None:
-        """Асинхронное создание раздела."""
+        """Асинхронное создание раздела через run_db."""
         if not isinstance(data, dict):
             self.logger.error("Данные раздела должны быть словарём")
             return
@@ -184,14 +287,32 @@ class AsyncOperations:
         except Exception as e:
             # Не блокируем создание при сбое проверки, только логируем
             self.logger.warning(f"Не удалось выполнить предчек дубликатов раздела: {e}")
-        worker = CreateItemWorker(self.db, "section", data, self._worker_signals)
-        self._scheduler.submit_task(worker)
-        self.logger.info(
-            f"Запущено асинхронное создание раздела: {data.get('name', 'Unnamed')}"
+        def _create():
+            service = StructureService(self.db)
+            item_id = service.create_section(dict(data))
+            parent_id = sphere_id
+            payload = dict(data)
+            payload["id"] = item_id
+            return ("section", parent_id, payload)
+
+        self._worker_signals.operation_started.emit(
+            f"Создание section: {name or 'Без названия'}..."
+        )
+
+        run_db(
+            _create,
+            description=f"create_section(name={name!r})",
+            on_finished=lambda res: (
+                self._worker_signals.item_created.emit(*res),
+                self._worker_signals.operation_finished.emit("Section создан"),
+            ),
+            on_error=lambda e: self._worker_signals.error.emit(
+                "Ошибка создания", f"Ошибка создания section: {e}"
+            ),
         )
 
     def create_category_async(self, data: Dict[str, Any]) -> None:
-        """Асинхронное создание категории."""
+        """Асинхронное создание категории через run_db."""
         if not isinstance(data, dict):
             self.logger.error("Данные категории должны быть словарём")
             return
@@ -205,14 +326,32 @@ class AsyncOperations:
                 "ID раздела обязателен и должен быть > 0 для создания категории"
             )
             return
-        worker = CreateItemWorker(self.db, "category", data, self._worker_signals)
-        self._scheduler.submit_task(worker)
-        self.logger.info(
-            f"Запущено асинхронное создание категории: {data.get('name', 'Unnamed')}"
+        def _create():
+            service = StructureService(self.db)
+            item_id = service.create_category(dict(data))
+            parent_id = section_id
+            payload = dict(data)
+            payload["id"] = item_id
+            return ("category", parent_id, payload)
+
+        self._worker_signals.operation_started.emit(
+            f"Создание category: {name or 'Без названия'}..."
+        )
+
+        run_db(
+            _create,
+            description=f"create_category(name={name!r})",
+            on_finished=lambda res: (
+                self._worker_signals.item_created.emit(*res),
+                self._worker_signals.operation_finished.emit("Category создана"),
+            ),
+            on_error=lambda e: self._worker_signals.error.emit(
+                "Ошибка создания", f"Ошибка создания category: {e}"
+            ),
         )
 
     def update_section_async(self, section_id: int, data: Dict[str, Any]) -> None:
-        """Асинхронное обновление раздела."""
+        """Асинхронное обновление раздела через run_db."""
         if not isinstance(section_id, int) or section_id <= 0:
             self.logger.error(f"Некорректный ID раздела: {section_id}")
             return
@@ -223,14 +362,28 @@ class AsyncOperations:
         if name is not None and not str(name).strip():
             self.logger.error("Имя раздела должно быть непустой строкой")
             return
-        worker = UpdateItemWorker(
-            self.db, "section", section_id, data, self._worker_signals
+        self._worker_signals.operation_started.emit(
+            f"Обновление section: {data.get('name', f'ID {section_id}')}..."
         )
-        self._scheduler.submit_task(worker)
-        self.logger.info(f"Запущено асинхронное обновление раздела {section_id}")
+
+        def _update():
+            StructureService(self.db).update_section(section_id, dict(data))
+            return ("section", section_id, dict(data))
+
+        run_db(
+            _update,
+            description=f"update_section(id={section_id})",
+            on_finished=lambda res: (
+                self._worker_signals.item_updated.emit(*res),
+                self._worker_signals.operation_finished.emit("Section обновлён"),
+            ),
+            on_error=lambda e: self._worker_signals.error.emit(
+                "Ошибка обновления", f"Ошибка обновления section: {e}"
+            ),
+        )
 
     def update_category_async(self, category_id: int, data: Dict[str, Any]) -> None:
-        """Асинхронное обновление категории."""
+        """Асинхронное обновление категории через run_db."""
         if not isinstance(category_id, int) or category_id <= 0:
             self.logger.error(f"Некорректный ID категории: {category_id}")
             return
@@ -241,20 +394,57 @@ class AsyncOperations:
         if name is not None and not str(name).strip():
             self.logger.error("Имя категории должно быть непустой строкой")
             return
-        worker = UpdateItemWorker(
-            self.db, "category", category_id, data, self._worker_signals
+        self._worker_signals.operation_started.emit(
+            f"Обновление category: {data.get('name', f'ID {category_id}')}..."
         )
-        self._scheduler.submit_task(worker)
-        self.logger.info(f"Запущено асинхронное обновление категории {category_id}")
+
+        def _update():
+            StructureService(self.db).update_category(category_id, dict(data))
+            return ("category", category_id, dict(data))
+
+        run_db(
+            _update,
+            description=f"update_category(id={category_id})",
+            on_finished=lambda res: (
+                self._worker_signals.item_updated.emit(*res),
+                self._worker_signals.operation_finished.emit("Category обновлена"),
+            ),
+            on_error=lambda e: self._worker_signals.error.emit(
+                "Ошибка обновления", f"Ошибка обновления category: {e}"
+            ),
+        )
 
     def delete_section_async(self, section_id: int) -> None:
-        """Асинхронное удаление раздела."""
+        """Асинхронное удаление раздела через run_db."""
         if not isinstance(section_id, int) or section_id <= 0:
             self.logger.error(f"Некорректный ID раздела: {section_id}")
             return
-        worker = DeleteItemWorker(self.db, "section", section_id, self._worker_signals)
-        self._scheduler.submit_task(worker)
-        self.logger.info(f"Запущено асинхронное удаление раздела {section_id}")
+        self._worker_signals.operation_started.emit(
+            f"Удаление section ID {section_id}..."
+        )
+
+        def _delete():
+            old_data = {}
+            try:
+                row = self.db.sections.get_section_by_id(section_id)
+                if row:
+                    old_data = dict(row)
+            except Exception:
+                old_data = {}
+            StructureService(self.db).delete_section(section_id)
+            return ("section", section_id, old_data)
+
+        run_db(
+            _delete,
+            description=f"delete_section(id={section_id})",
+            on_finished=lambda res: (
+                self._worker_signals.item_deleted.emit(*res),
+                self._worker_signals.operation_finished.emit("Section удалён"),
+            ),
+            on_error=lambda e: self._worker_signals.error.emit(
+                "Ошибка удаления", f"Ошибка удаления section: {e}"
+            ),
+        )
 
     def delete_category_async(self, category_id: int) -> Optional[str]:
         """Асинхронное удаление категории с улучшенной обработкой ошибок
@@ -269,7 +459,6 @@ class AsyncOperations:
             if not isinstance(category_id, int) or category_id <= 0:
                 error_msg = f"Invalid category ID: {category_id}"
                 self.logger.error(error_msg)
-                # Сигнал error ожидает (title: str, message: str)
                 self._worker_signals.error.emit("Ошибка удаления", error_msg)
                 return None
 
@@ -278,32 +467,77 @@ class AsyncOperations:
                 f"delete_category_{category_id}"
             )
 
-            worker = DeleteItemWorker(
-                self.db, "category", category_id, self._worker_signals
-            )
+            def _delete():
+                old_data = {}
+                try:
+                    row = self.db.categories.get_category_by_id(category_id)
+                    if row:
+                        old_data = dict(row)
+                except Exception:
+                    old_data = {}
+                StructureService(self.db).delete_category(category_id)
+                return ("category", category_id, old_data)
 
             task_id = f"del_cat_{category_id}_{time.time()}"
-            self._pending_tasks[task_id] = worker
-            self._scheduler.submit_task(worker)
+            self._pending_tasks[task_id] = True
+
+            run_db(
+                _delete,
+                description=f"delete_category(id={category_id})",
+                on_finished=lambda res: (
+                    self._worker_signals.item_deleted.emit(*res),
+                    self._worker_signals.operation_finished.emit("Category удалена"),
+                ),
+                on_error=lambda e: self._worker_signals.error.emit(
+                    "Ошибка удаления", f"Failed to delete category: {e}"
+                ),
+            )
 
             return task_id
 
         except Exception as e:
-            error_msg = f"Failed to start deletion worker: {str(e)}"
+            error_msg = f"Failed to start deletion task: {str(e)}"
             self.logger.error(error_msg, exc_info=True)
-            # Сигнал error ожидает (title: str, message: str)
             self._worker_signals.error.emit("Ошибка удаления", error_msg)
             return None
 
     def count_nested_objects_async(self, section_id: int) -> None:
-        """Асинхронный подсчет вложенных объектов (категорий и ссылок)."""
+        """Асинхронный подсчет вложенных объектов (категорий и ссылок) через run_db."""
         if not isinstance(section_id, int) or section_id <= 0:
             self.logger.error(f"Некорректный ID раздела: {section_id}")
             return
-        worker = CountNestedObjectsWorker(self.db, section_id, self._worker_signals)
-        self._scheduler.submit_task(worker)
-        self.logger.info(
-            f"Запущен асинхронный подсчет вложенных объектов для раздела {section_id}"
+
+        self._worker_signals.operation_started.emit(
+            f"Подсчет объектов в разделе {section_id}..."
+        )
+
+        def _count():
+            categories_data = self.db.categories.get_categories(section_id)
+            categories_count = len(categories_data) if categories_data else 0
+            links_count = 0
+            if categories_data:
+                for category_dict in categories_data:
+                    links_data = self.db.links.get_links(category_dict["id"])
+                    if links_data:
+                        links_count += len(links_data)
+            return {
+                "section_id": section_id,
+                "categories_count": categories_count,
+                "links_count": links_count,
+            }
+
+        run_db(
+            _count,
+            description=f"count_nested(section_id={section_id})",
+            on_finished=lambda count_data: (
+                self._worker_signals.item_updated.emit(
+                    "section_count", section_id, count_data
+                ),
+                self._worker_signals.operation_finished.emit("Подсчёт завершен"),
+            ),
+            on_error=lambda e: self._worker_signals.error.emit(
+                "Ошибка подсчета", f"Ошибка подсчета объектов: {e}"
+            ),
         )
 
 

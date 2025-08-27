@@ -9,17 +9,7 @@ from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.models.db import Database
 from app.services import LinksService
 from app.utils.db.db_error_handler import handle_db_error
-from app.utils.db.db_workers import (
-    CountFavoritesWorker,
-    LoadLinksWorker,
-    SearchLinksWorker,
-)
-from app.utils.db.db_workers import (
-    StructureWorkerSignals as CountFavoritesWorkerSignals,
-)
-from app.utils.db.db_workers import StructureWorkerSignals as LoadLinksWorkerSignals
-from app.utils.db.db_workers import StructureWorkerSignals as SearchLinksWorkerSignals
-from app.utils.db.db_workers import StructureWorkerSignals as UpdateLinkWorkerSignals
+from app.utils.db.api import run_db
 from app.utils.db.synchronization import tasks_lock
 
 
@@ -51,29 +41,7 @@ class LinksBusinessLogic(QObject):
         self.pending_tasks = set()
         self.task_counter = 0
         self.logger = logger or logging.getLogger(self.__class__.__name__)
-        self._setup_worker_signals()
-
-    def _setup_worker_signals(self):
-        """Настройка сигналов для воркеров."""
-        # Сигналы для загрузки ссылок
-        self.load_signals = LoadLinksWorkerSignals()
-        self.load_signals.links_loaded.connect(self._on_links_loaded)
-        self.load_signals.error.connect(self._on_worker_error)
-
-        # Сигналы для поиска
-        self.search_signals = SearchLinksWorkerSignals()
-        self.search_signals.search_results.connect(self._on_search_finished)
-        self.search_signals.error.connect(self._on_worker_error)
-
-        # Сигналы для обновления ссылок
-        self.update_signals = UpdateLinkWorkerSignals()
-        self.update_signals.update_ui.connect(self._on_update_finished)
-        self.update_signals.error.connect(self._on_worker_error)
-
-        # Сигналы для подсчета избранного
-        self.count_signals = CountFavoritesWorkerSignals()
-        self.count_signals.count_finished.connect(self._on_favorites_counted)
-        self.count_signals.error.connect(self._on_worker_error)
+        # worker-сигналы не требуются: используем собственные сигналы класса + run_db
 
     def shutdown(self, timeout: int = 2000):
         """Корректное завершение работы."""
@@ -96,8 +64,16 @@ class LinksBusinessLogic(QObject):
             f"Loading links for category {category_id}, task_id={task_id}"
         )
 
-        worker = LoadLinksWorker(self.db, category_id, self.load_signals, task_id)
-        self.scheduler.submit_task(worker)
+        def _fetch():
+            rows = self.db.links.get_links(category_id)
+            return rows or []
+
+        run_db(
+            _fetch,
+            description=f"load_links(category_id={category_id})",
+            on_finished=lambda links: self._on_links_loaded(links, category_id, task_id),
+            on_error=lambda e: self._on_worker_error(str(e)),
+        )
 
     def search_links(self, query: str):
         """Поиск ссылок по запросу."""
@@ -106,8 +82,12 @@ class LinksBusinessLogic(QObject):
 
         self.logger.debug(f"Searching links for query: {query}")
 
-        worker = SearchLinksWorker(self.db, query, self.search_signals)
-        self.scheduler.submit_task(worker)
+        run_db(
+            lambda: self.db.links.search_links(query) or [],
+            description=f"search_links(query={query!r})",
+            on_finished=self._on_search_finished,
+            on_error=lambda e: self._on_worker_error(str(e)),
+        )
 
     def update_link_order(self, link_ids: list):
         """Обновить порядок ссылок."""
@@ -129,9 +109,17 @@ class LinksBusinessLogic(QObject):
         # Получаем список всех ссылок для CountFavoritesWorker
         all_links = self._get_all_links_safe()
 
-        worker = CountFavoritesWorker(self.db, all_links, link, self.count_signals)
-        # Используем единый планировщик задач, как и в других операциях
-        self.scheduler.submit_task(worker)
+        def _count():
+            return self.db.links.count_favorites()
+
+        run_db(
+            _count,
+            description="count_favorites()",
+            on_finished=lambda fav_count: self._on_favorites_counted(
+                int(fav_count), all_links, link
+            ),
+            on_error=lambda e: self._on_worker_error(str(e)),
+        )
 
     def get_links_for_category(self, category_id: int) -> List[Dict]:
         """Получить ссылки для категории синхронно."""
