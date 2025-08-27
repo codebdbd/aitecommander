@@ -8,7 +8,11 @@ from typing import Any, Dict, List
 from PyQt6.QtWidgets import QMessageBox
 
 from app.utils.ui.dnd.base import TreeHandlerBase
-from app.utils.ui.dnd.commands import MoveCategoryCommand, MoveLinksCommand
+from app.utils.ui.dnd.commands import (
+    MoveCategoryCommand,
+    MoveLinksCommand,
+    MoveCategoriesCommand,
+)
 from app.utils.ui.qt.roles import get_tree_tuple
 
 logger = logging.getLogger(__name__)
@@ -107,6 +111,27 @@ class MoveOperationsHandler(TreeHandlerBase):
             )
         else:
             logger.warning("Undo stack не найден для перемещения ссылок")
+
+    def execute_move_categories_command(
+        self, category_ids: List[int], new_section_id: int, base_row: int
+    ) -> None:
+        """Выполняет пакетную команду перемещения категорий одной записью в undo."""
+        main_win = self.tree_widget.window()
+
+        if hasattr(main_win, "undo_stack"):
+            main_win.undo_stack.push(
+                MoveCategoriesCommand(category_ids, new_section_id, base_row, main_win)
+            )
+            logger.info(
+                f"Выполнена пакетная команда перемещения категорий {category_ids} в раздел {new_section_id} с base_row={base_row}"
+            )
+        else:
+            self._show_warning(
+                "История действий недоступна. Массовое перемещение отменено.",
+                "Недоступна история действий",
+                informative_text="Включите поддержку undo/redo или инициализируйте undo_stack в главном окне.",
+            )
+            logger.warning("Undo stack не найден для массового перемещения категорий")
 
     def handle_internal_move(self, source_item) -> None:
         """Обработка внутреннего перемещения элементов."""

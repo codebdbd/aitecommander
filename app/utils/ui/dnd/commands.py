@@ -229,3 +229,162 @@ class MoveCategoryCommand(BaseCommand):
                 logger.warning(
                     f"Не удалось переключить фокус на категорию {self.category_id}: {e}"
                 )
+
+
+class MoveCategoriesCommand(BaseCommand):
+    """Пакетное перемещение нескольких категорий в один раздел с единым undo/redo.
+
+    - Сохраняет исходные состояния (section_id, position, name, icon_path)
+    - Redo: переносит в целевой раздел, проставляя позиции base_row + i
+    - Undo: восстанавливает исходные section_id и position
+    - Дубликаты в целевом разделе пропускаются молча (DEBUG)
+    """
+
+    def __init__(self, category_ids, new_section_id, base_row, main_window):
+        super().__init__(f"Перемещение {len(category_ids)} категорий", main_window)
+        self.category_ids = list(category_ids or [])
+        self.new_section_id = int(new_section_id) if isinstance(new_section_id, int) else new_section_id
+        self.base_row = int(base_row) if isinstance(base_row, int) else 0
+        self._old_states = []  # [{id, name, section_id, position, icon_path}]
+        self._new_states = []  # такой же формат, но с целевыми section/position
+        self._prepared = False
+
+    def _prepare_data(self):
+        if self._prepared:
+            return
+        sb = self.main.structure_business
+        # Загружаем исходные состояния
+        old_states = []
+        for cid in self.category_ids:
+            data = sb.get_category_data(cid)
+            if not data:
+                logger.debug(f"Категория {cid} не найдена, пропуск")
+                continue
+            old_states.append({
+                "id": data["id"],
+                "name": data.get("name", ""),
+                "section_id": data.get("section_id"),
+                "position": data.get("position", 0),
+                "icon_path": data.get("icon_path", ""),
+            })
+        # Стабильный порядок по исходной позиции, затем по id
+        old_states.sort(key=lambda x: (x.get("position", 0), x.get("id", 0)))
+
+        # Формируем целевые состояния с проверкой дубликатов имени в целевом разделе
+        new_states = []
+        offset = 0
+        for st in old_states:
+            cid = st["id"]
+            name = st.get("name", "")
+            # Дубликаты имени в целевом разделе — пропускаем
+            try:
+                if sb.has_duplicate_category(self.new_section_id, name, cid):
+                    logger.debug(
+                        f"Duplicate category '{name}' in target section {self.new_section_id}, skipping id={cid}"
+                    )
+                    continue
+            except Exception:
+                # В случае ошибки проверки — не блокируем операцию, пробуем переместить
+                pass
+            ns = {
+                "id": cid,
+                "name": name,
+                "section_id": self.new_section_id,
+                "position": self.base_row + offset,
+                "icon_path": st.get("icon_path", ""),
+            }
+            new_states.append(ns)
+            offset += 1
+
+        self._old_states = old_states
+        self._new_states = new_states
+        self._prepared = True
+
+    def _apply_states(self, states):
+        if not states:
+            return
+        sb = self.main.structure_business
+        # Подавляем лишние сигналы выбора/перерисовки дерева на время пакетного применения
+        struct = getattr(self.main, "structure", None)
+        tree = getattr(struct, "tree", None)
+        selection = getattr(struct, "selection_handler", None)
+        try:
+            if selection is not None:
+                try:
+                    selection.begin_suppress_selection()
+                except Exception:
+                    pass
+            if tree is not None:
+                try:
+                    tree.blockSignals(True)
+                except Exception:
+                    pass
+
+            for st in states:
+                try:
+                    cid = st["id"]
+                    payload = {
+                        "name": st.get("name", ""),
+                        "section_id": st.get("section_id"),
+                        "icon_path": st.get("icon_path", ""),
+                        "position": st.get("position", 0),
+                    }
+                    sb.update_category(cid, payload)
+                except Exception as e:
+                    logger.error(f"Ошибка обновления категории {st.get('id')}: {e}")
+        finally:
+            # Возвращаем обычную обработку сигналов
+            try:
+                if tree is not None:
+                    tree.blockSignals(False)
+            except Exception:
+                pass
+            try:
+                if selection is not None:
+                    selection.end_suppress_selection()
+            except Exception:
+                pass
+
+    def _refresh_ui(self, focus_section_id=None, focus_category_id=None):
+        sb = getattr(self.main, "structure_business", None)
+        if not sb:
+            return
+        try:
+            if focus_section_id is not None:
+                sb.select_section(focus_section_id)
+        except Exception:
+            pass
+        try:
+            if focus_category_id is not None:
+                sb.select_category(focus_category_id)
+        except Exception:
+            pass
+
+        # Информативный лог
+        try:
+            logger.info(
+                f"Переключен фокус на раздел {focus_section_id} после пакетного перемещения категорий"
+            )
+        except Exception:
+            pass
+
+    def redo(self):
+        self._prepare_data()
+        # Применяем новые состояния
+        self._apply_states(self._new_states)
+        # Фокус на целевом разделе и первой успешно перенесённой категории
+        first_new_id = self._new_states[0]["id"] if self._new_states else None
+        self._refresh_ui(self.new_section_id, first_new_id)
+
+    def undo(self):
+        # Восстановление исходных состояний
+        self._apply_states(self._old_states)
+        # Фокус на исходном разделе первой категории (если доступен)
+        focus_section = None
+        focus_category = None
+        for st in self._old_states:
+            if st.get("section_id") is not None:
+                focus_section = st["section_id"]
+                focus_category = st.get("id")
+                break
+        self._refresh_ui(focus_section, focus_category)
