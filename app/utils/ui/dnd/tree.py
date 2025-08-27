@@ -66,9 +66,11 @@ class DragDropHandler(TreeHandlerBase):
         target_index: QModelIndex = self.tree_widget.indexAt(event.position().toPoint())
         if mime.hasFormat(app_config.get_category_mime_type()):
             self._handle_category_drop_index(mime, target_index)
+            event.accept()
             return
         if mime.hasFormat(app_config.get_link_mime_type()):
             self._handle_link_drop_index(mime, target_index)
+            event.accept()
             return
         if event.source() == self.tree_widget:
             self._handle_internal_drop_event_index(event)
@@ -131,23 +133,34 @@ class DragDropHandler(TreeHandlerBase):
                     )
 
     def _handle_internal_drop_event_index(self, event) -> None:
-        """Внутренний drop для QTreeView: перенос категорий между/внутри разделов."""
-        src_index: QModelIndex = self.tree_widget.currentIndex()
-        if not src_index or not src_index.isValid():
+        """Внутренний drop для QTreeView: массовый перенос категорий между/внутри разделов."""
+        selection_model = getattr(self.tree_widget, "selectionModel", lambda: None)()
+        selected_indexes: list[QModelIndex] = []
+        if selection_model and hasattr(selection_model, "selectedRows"):
             try:
-                self.tree_widget.invalidDrop.emit("Нет выбранного элемента для перемещения")
+                selected_indexes = selection_model.selectedRows(0) or []
             except Exception:
-                pass
-            event.ignore()
-            return
-        stuple = get_tree_tuple(src_index, 0)
-        if not (stuple and stuple[0] == "category"):
+                selected_indexes = []
+        # Фолбэк на текущий индекс, если множественный выбор пуст
+        if not selected_indexes:
+            cur = self.tree_widget.currentIndex()
+            if cur and cur.isValid():
+                selected_indexes = [cur]
+
+        # Фильтруем только категории
+        category_indices: list[QModelIndex] = []
+        for idx in selected_indexes:
+            t = get_tree_tuple(idx, 0)
+            if t and t[0] == "category":
+                category_indices.append(idx)
+        if not category_indices:
             try:
                 self.tree_widget.invalidDrop.emit("Перемещать можно только категории")
             except Exception:
                 pass
             event.ignore()
             return
+
         target_index: QModelIndex = self.tree_widget.indexAt(event.position().toPoint())
         drop_pos = self.tree_widget.dropIndicatorPosition()
         if not target_index or not target_index.isValid():
@@ -159,13 +172,13 @@ class DragDropHandler(TreeHandlerBase):
             return
         target_type, _ = ttuple
 
-        # Определяем целевую секцию и позицию
         model = self.tree_widget.model()
+        # Определяем целевой раздел и базовую позицию вставки
         if target_type == "section" and drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
             new_section_index = target_index
             new_section_tuple = get_tree_tuple(new_section_index, 0)
             new_section_id = new_section_tuple[1] if new_section_tuple else None
-            new_row = model.rowCount(new_section_index)
+            base_row = model.rowCount(new_section_index)
         elif target_type == "category":
             parent_index = target_index.parent()
             parent_tuple = get_tree_tuple(parent_index, 0)
@@ -175,12 +188,11 @@ class DragDropHandler(TreeHandlerBase):
             new_section_id = parent_tuple[1]
             tgt_row = target_index.row()
             if drop_pos == QAbstractItemView.DropIndicatorPosition.AboveItem:
-                new_row = tgt_row
+                base_row = tgt_row
             elif drop_pos == QAbstractItemView.DropIndicatorPosition.BelowItem:
-                new_row = tgt_row + 1
+                base_row = tgt_row + 1
             elif drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
-                # Перенос на категорию трактуем как перенос в её раздел в конец
-                new_row = model.rowCount(parent_index)
+                base_row = model.rowCount(parent_index)
             else:
                 event.ignore()
                 return
@@ -188,29 +200,61 @@ class DragDropHandler(TreeHandlerBase):
             event.ignore()
             return
 
-        src_tuple = get_tree_tuple(src_index, 0)
-        if not (src_tuple and isinstance(src_tuple[1], int) and isinstance(new_section_id, int)):
+        if not isinstance(new_section_id, int):
             event.ignore()
             return
-        category_id = int(src_tuple[1])
-        # Выполним перенос через модель
-        try:
-            moved = hasattr(model, "move_category") and model.move_category(category_id, int(new_section_id), int(new_row))
-        except Exception:
-            moved = False
-        if moved:
+
+        # Стабильный порядок: по возрастанию row в текущем представлении
+        category_indices.sort(key=lambda i: i.row())
+
+        # Если выбрано несколько категорий — используем атомарную команду с единым undo
+        if len(category_indices) > 1 and hasattr(self.tree_widget, "move_operations_handler"):
+            ids: list[int] = []
+            for idx in category_indices:
+                st = get_tree_tuple(idx, 0)
+                if st and isinstance(st[1], int):
+                    ids.append(int(st[1]))
+            if ids:
+                try:
+                    self.tree_widget.move_operations_handler.execute_move_categories_command(
+                        ids, int(new_section_id), int(base_row)
+                    )
+                    event.accept()
+                    return
+                except Exception:
+                    # Fallback ниже — поштучные перемещения
+                    pass
+
+        # Обычный путь: одиночный перенос (или fallback)
+        moved_any = False
+        insert_offset = 0
+        for idx in category_indices:
+            st = get_tree_tuple(idx, 0)
+            if not (st and isinstance(st[1], int)):
+                continue
+            category_id = int(st[1])
+            target_row = int(base_row + insert_offset)
             try:
-                self.tree_widget.itemsMoved.emit(
-                    {
-                        "type": "internal_move",
-                        "source_type": "category",
-                        "category_id": category_id,
-                        "section_id": int(new_section_id),
-                        "new_row": int(new_row),
-                    }
-                )
+                ok = hasattr(model, "move_category") and model.move_category(category_id, int(new_section_id), target_row)
             except Exception:
-                pass
+                ok = False
+            if ok:
+                moved_any = True
+                insert_offset += 1
+                try:
+                    self.tree_widget.itemsMoved.emit(
+                        {
+                            "type": "internal_move",
+                            "source_type": "category",
+                            "category_id": category_id,
+                            "section_id": int(new_section_id),
+                            "new_row": target_row,
+                        }
+                    )
+                except Exception:
+                    pass
+
+        if moved_any:
             event.accept()
         else:
             try:
@@ -220,31 +264,37 @@ class DragDropHandler(TreeHandlerBase):
             event.ignore()
 
     def _handle_category_drop_index(self, mime, target_index: QModelIndex) -> None:
-        """Перенос категории (из плиток) на раздел для QTreeView."""
+        """Перенос одной или нескольких категорий (из плиток) на раздел для QTreeView."""
         ids = MimeDataParser.extract_item_ids(mime, app_config.get_category_mime_type())
         if not ids:
             logger.warning("Не удалось извлечь ID категории из MIME данных")
             return
-        category_id = ids[0]
         ttuple = get_tree_tuple(target_index, 0)
         if not (ttuple and ttuple[0] == "section" and isinstance(ttuple[1], int)):
             return
         section_id = int(ttuple[1])
-        # Выполняем перенос через обработчик операций (бизнес-логика)
-        try:
-            self.tree_widget.move_operations_handler.execute_move_category_command(category_id, section_id)
-        except Exception:
-            pass
-        try:
-            self.tree_widget.itemsMoved.emit(
-                {
-                    "type": "category_to_section",
-                    "category_id": category_id,
-                    "section_id": section_id,
-                }
-            )
-        except Exception:
-            pass
+        moved_count = 0
+        for category_id in ids:
+            if not isinstance(category_id, int):
+                continue
+            # Выполняем перенос через обработчик операций (бизнес-логика)
+            try:
+                self.tree_widget.move_operations_handler.execute_move_category_command(category_id, section_id)
+                moved_count += 1
+            except Exception:
+                continue
+            try:
+                self.tree_widget.itemsMoved.emit(
+                    {
+                        "type": "category_to_section",
+                        "category_id": category_id,
+                        "section_id": section_id,
+                    }
+                )
+            except Exception:
+                pass
+        if moved_count > 1:
+            logger.info(f"Перенесено категорий: {moved_count} в раздел {section_id}")
 
     def _handle_link_drop_index(self, mime, target_index: QModelIndex) -> None:
         """Перенос ссылок на категорию (QTreeView)."""
