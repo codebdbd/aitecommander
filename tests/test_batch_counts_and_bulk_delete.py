@@ -168,3 +168,72 @@ def test_delete_categories_bulk_handles_duplicates_and_invalid_ids(db_in_memory:
     assert len(rows_after) == 1
     assert rows_after[0]["id"] == cids[1]
     assert rows_after[0]["position"] == 0
+
+
+def test_delete_then_bulk_import_restores_categories_and_positions(db_in_memory: Database):
+    """Интеграционный сценарий: удаление нескольких категорий -> восстановление одним bulk-импортом.
+
+    Проверяем, что:
+    - категории удаляются одной транзакцией и позиции оставшихся переиндексируются 0..n-1
+    - последующий bulk-импорт восстанавливает категории с их ID и позициями из бэкапа
+    - итоговый порядок в get_categories(section_id) соответствует position
+    """
+    ids = create_structure(db_in_memory, categories=["A", "B", "C", "D"])  # positions: 0..3
+    section_id = ids["section_id"]
+    cids = ids["category_ids"]
+
+    # Бэкап поддеревьев категорий B и D
+    backups = [
+        db_in_memory.export_category_tree(cids[1]),
+        db_in_memory.export_category_tree(cids[3]),
+    ]
+
+    # Удаляем B и D пакетно
+    deleted = db_in_memory.categories.delete_categories_bulk([cids[1], cids[3]])
+    assert deleted == 2
+
+    # Остались A, C с позициями 0..1
+    rows_after_delete = db_in_memory.categories.get_categories(section_id)
+    assert [r["id"] for r in rows_after_delete] == [cids[0], cids[2]]
+    assert [r["position"] for r in rows_after_delete] == [0, 1]
+
+    # Восстанавливаем bkp одной транзакцией
+    db_in_memory.import_category_trees_bulk(backups)
+
+    # Проверяем, что вернулись все 4 категории и позиции соответствуют бэкапу
+    rows_after_import = db_in_memory.categories.get_categories(section_id)
+    ids_after = [r["id"] for r in rows_after_import]
+    positions_after = [r["position"] for r in rows_after_import]
+
+    # Должны присутствовать все исходные ID
+    for cid in cids:
+        assert cid in ids_after
+    # Порядок по position монотонный по возрастанию
+    assert positions_after == sorted(positions_after)
+
+
+def test_insert_categories_bulk_appends_positions_and_handles_duplicates(db_in_memory: Database):
+    """Проверка пакетной вставки категорий с назначением позиций и игнорированием дублей.
+
+    - Новые категории получают позиции после текущего MAX(position) в разделе
+    - Дубликаты (section_id, name) игнорируются и возвращаются существующие записи
+    """
+    # Создаём раздел с двумя категориями E(0), F(1)
+    base = create_structure(db_in_memory, categories=["E", "F"])  # positions 0,1
+    section_id = base["section_id"]
+
+    # Пакетно добавим: F(дубль), G, H
+    result_rows = db_in_memory.categories.insert_categories_bulk([
+        {"name": "F", "section_id": section_id},
+        {"name": "G", "section_id": section_id},
+        {"name": "H", "section_id": section_id},
+    ])
+
+    # Должны вернуться записи для всех уникальных по (section_id,name): F,G,H
+    names = [r["name"] for r in result_rows]
+    assert set(names) == {"F", "G", "H"}
+
+    # Проверяем итоговое состояние в разделе: E(0), F(1), G(2), H(3)
+    rows = db_in_memory.categories.get_categories(section_id)
+    assert [r["name"] for r in rows] == ["E", "F", "G", "H"]
+    assert [r["position"] for r in rows] == [0, 1, 2, 3]

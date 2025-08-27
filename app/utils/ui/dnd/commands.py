@@ -66,9 +66,11 @@ class MoveLinksCommand(BaseCommand):
     def _is_duplicate(self, candidate, links):
         """Проверяет, является ли ссылка дубликатом."""
         for link in links:
+            # Дубликат по требованию пользователя: совпадают name, url, args в рамках категории
+            # Тип (type) не учитывается
             if (
-                get_value(link, "url", "") == get_value(candidate, "url", "")
-                and get_value(link, "type", "") == get_value(candidate, "type", "")
+                get_value(link, "name", "") == get_value(candidate, "name", "")
+                and get_value(link, "url", "") == get_value(candidate, "url", "")
                 and get_value(link, "args", "") == get_value(candidate, "args", "")
             ):
                 return True
