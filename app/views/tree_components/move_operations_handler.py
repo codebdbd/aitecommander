@@ -14,6 +14,7 @@ from app.utils.ui.dnd.commands import (
     MoveCategoriesCommand,
 )
 from app.utils.ui.qt.roles import get_tree_tuple
+from app.utils.db.api import run_db
 
 logger = logging.getLogger(__name__)
 
@@ -273,9 +274,10 @@ class MoveOperationsHandler(TreeHandlerBase):
             if not success:
                 raise Exception("Ошибка обновления позиций через бизнес-логику")
 
-        self.tree_widget.run_async(
+        run_db(
             internal_move_task,
-            on_success=self._on_internal_move_finished,
+            description="update_item_positions",
+            on_finished=self._on_internal_move_finished,
             on_error=self._on_db_error,
         )
 

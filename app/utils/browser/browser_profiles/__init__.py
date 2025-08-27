@@ -24,10 +24,8 @@ from .chromium_base_finder import (
     VivaldiProfileFinder,
 )
 from .firefox_profile_finder import FirefoxProfileFinder
-from .migration_helper import ProfileMigrationHelper
 from .profile_manager import BrowserProfileManager, get_profile_manager
 from .universal_profile_processor import UniversalProfileProcessor
-from .validator import BrowserProfileValidator
 
 __all__ = [
     "BrowserProfileManager",
@@ -40,7 +38,5 @@ __all__ = [
     "BraveProfileFinder",
     "VivaldiProfileFinder",
     "ChromiumBaseBrowserFinder",
-    "ProfileMigrationHelper",
-    "BrowserProfileValidator",
     "BrowserProfileDevTools",
 ]

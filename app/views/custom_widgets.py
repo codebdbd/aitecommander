@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data import app_config
-from app.utils.db.db_workers import AsyncTaskMixin
 from app.utils.ui.dnd.tree import DragDropHandler
 from app.views.tree_components.move_operations_handler import MoveOperationsHandler
 import logging
@@ -158,7 +157,7 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
         return QSize(base.width(), row_h)
 
 
-class StructureTreeView(QTreeView, AsyncTaskMixin):
+class StructureTreeView(QTreeView):
     """
     Итоговый QTreeView для дерева структуры на Model/View.
     Сохраняет визуальные параметры и делегаты; сигналы оставлены для совместимости с прежним API.
