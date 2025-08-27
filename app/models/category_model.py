@@ -287,6 +287,108 @@ class CategoryModel(DatabaseBase):
         )
         return deleted_categories
 
+    def move_categories_to_section_bulk(
+        self, category_ids: List[int], target_section_id: int, base_row: int = 0
+    ) -> List[int]:
+        """Атомарно переносит несколько категорий в целевой раздел одной транзакцией.
+
+        - Пропускает категории, которые вызвали бы дубликат имени в целевом разделе
+          (UNIQUE(section_id, name)).
+        - Позиции для переносимых категорий назначаются последовательно, начиная с base_row.
+        - Переиндексирует позиции в затронутых исходных разделах и в целевом разделе.
+
+        Возвращает список фактически перенесённых id в порядке применения.
+        """
+        # Валидация входных данных
+        if not category_ids or not isinstance(target_section_id, int) or target_section_id <= 0:
+            return []
+
+        # Оставляем только валидные положительные целые ID и удаляем дубликаты (сохраняя порядок)
+        ids = [int(x) for x in category_ids if isinstance(x, int) and x > 0]
+        unique_ids = list(dict.fromkeys(ids))
+        if not unique_ids:
+            return []
+
+        # Получаем данные категорий (id, name, section_id, position), фильтруем существующие
+        placeholders = ",".join(["?"] * len(unique_ids))
+        rows = self._execute_with_error_handling(
+            f"SELECT id, name, section_id, position FROM category WHERE id IN ({placeholders})",
+            tuple(unique_ids),
+            fetch_method="all",
+        )
+        if not rows:
+            return []
+
+        # Словарь по id
+        data_by_id: dict[int, dict] = {int(r["id"]): dict(r) for r in rows}
+
+        # Сортируем переносимые по их текущему порядку (section_id, position, id) для стабильности
+        ordered_existing_ids = [cid for cid in unique_ids if cid in data_by_id]
+        ordered_existing_ids.sort(
+            key=lambda cid: (
+                int(data_by_id[cid].get("section_id", 0) or 0),
+                int(data_by_id[cid].get("position", 0) or 0),
+                int(cid),
+            )
+        )
+
+        # Имена, уже занятые в целевом разделе
+        existing_names_rows = self._execute_with_error_handling(
+            "SELECT LOWER(name) AS name FROM category WHERE section_id = ?",
+            (target_section_id,),
+            fetch_method="all",
+        )
+        existing_names = {str(r["name"]).strip().lower() for r in (existing_names_rows or [])}
+
+        # Отфильтруем по дубликатам имён (в целевом разделе)
+        to_move_ids: List[int] = []
+        for cid in ordered_existing_ids:
+            nm = str(data_by_id[cid].get("name", "")).strip().lower()
+            # Если уже есть дубликат в целевом — пропускаем
+            if nm in existing_names:
+                continue
+            to_move_ids.append(cid)
+            existing_names.add(nm)  # зарезервировать имя, чтобы исключить повторы внутри набора
+
+        if not to_move_ids:
+            return []
+
+        # Соберём исходные разделы для переиндексации после переноса
+        source_sections = [int(data_by_id[cid].get("section_id", 0) or 0) for cid in to_move_ids]
+        source_sections = [sid for sid in source_sections if sid and sid != target_section_id]
+        uniq_source_sections = list(dict.fromkeys(source_sections))
+
+        # Применяем обновления одной транзакцией
+        with self.transaction():
+            # Обновляем section_id и временные позиции для переносимых категорий
+            updates = []
+            pos = int(base_row) if isinstance(base_row, int) and base_row >= 0 else 0
+            for cid in to_move_ids:
+                updates.append((target_section_id, pos, cid))
+                pos += 1
+            self._execute_many_with_error_handling(
+                "UPDATE category SET section_id = ?, position = ? WHERE id = ?",
+                updates,
+            )
+
+            # Переиндексируем исходные разделы (закрыть дыры)
+            try:
+                for sid in uniq_source_sections:
+                    self._reindex_positions(sid)
+            except Exception:
+                logger.warning("Не удалось переиндексировать исходные разделы после переноса", exc_info=False)
+
+            # Переиндексируем целевой раздел, чтобы согласовать позиции
+            try:
+                self._reindex_positions(target_section_id)
+            except Exception:
+                logger.warning("Не удалось переиндексировать целевой раздел после переноса", exc_info=False)
+
+        logger.info(
+            f"Пакетный перенос категорий (шт={len(to_move_ids)}) в раздел {target_section_id}, ids={to_move_ids}"
+        )
+        return to_move_ids
+
     def _reindex_positions(self, section_id: int) -> None:
         """Переиндексировать поле position для всех категорий раздела последовательно от 0.
 

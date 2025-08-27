@@ -133,6 +133,66 @@ class MoveOperationsHandler(TreeHandlerBase):
             )
             logger.warning("Undo stack не найден для массового перемещения категорий")
 
+    def execute_move_categories_batch(
+        self, category_ids: List[int], target_section_id: int, base_row: int = 0
+    ) -> None:
+        """Выполняет реальный батч-перенос категорий одним вызовом бизнес-логики.
+
+        Подавляет сигналы выбора и дерева на время операции, затем обновляет только
+        целевой раздел одним вызовом `select_section(target_section_id)`.
+        """
+        if not category_ids or not isinstance(target_section_id, int):
+            return
+
+        main_win = self.tree_widget.window()
+        if not (hasattr(main_win, "structure_business") and main_win.structure_business):
+            logger.warning("Бизнес-логика структуры недоступна для батч-переноса категорий")
+            return
+
+        sb = main_win.structure_business
+        struct = getattr(main_win, "structure", None)
+        selection = getattr(struct, "selection_handler", None)
+        tree = getattr(struct, "tree", None)
+
+        # Подавляем лавину selection/дерево сигналов на время операции
+        try:
+            if selection is not None:
+                try:
+                    selection.begin_suppress_selection()
+                except Exception:
+                    pass
+            if tree is not None:
+                try:
+                    tree.blockSignals(True)
+                except Exception:
+                    pass
+
+            # Выполняем батч-перенос одной транзакцией через бизнес-логику
+            moved_ids = sb.move_categories_batch(category_ids, int(target_section_id), int(base_row))
+            logger.info(
+                f"Батч-перенос категорий завершён: перенесено {len(moved_ids)} из {len(category_ids)} в раздел {target_section_id}"
+            )
+
+            # Финальное точечное обновление UI: только целевой раздел
+            try:
+                sb.select_section(int(target_section_id))
+            except Exception:
+                pass
+        except Exception as e:
+            logger.error(f"Ошибка батч-переноса категорий: {e}")
+            self._on_db_error(e)
+        finally:
+            if tree is not None:
+                try:
+                    tree.blockSignals(False)
+                except Exception:
+                    pass
+            if selection is not None:
+                try:
+                    selection.end_suppress_selection()
+                except Exception:
+                    pass
+
     def handle_internal_move(self, source_item) -> None:
         """Обработка внутреннего перемещения элементов."""
         if not source_item:
