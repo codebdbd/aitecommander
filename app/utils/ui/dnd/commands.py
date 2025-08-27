@@ -309,6 +309,12 @@ class MoveCategoriesCommand(BaseCommand):
         tree = getattr(struct, "tree", None)
         selection = getattr(struct, "selection_handler", None)
         try:
+            # Включаем батч-режим бизнес-слоя (если поддерживается)
+            try:
+                if hasattr(sb, "begin_batch"):
+                    sb.begin_batch()
+            except Exception:
+                pass
             if selection is not None:
                 try:
                     selection.begin_suppress_selection()
@@ -344,21 +350,54 @@ class MoveCategoriesCommand(BaseCommand):
                     selection.end_suppress_selection()
             except Exception:
                 pass
+            # Завершаем батч-режим, чтобы выполнить одну консолидацию перезагрузок
+            try:
+                if hasattr(sb, "end_batch"):
+                    sb.end_batch()
+            except Exception:
+                pass
 
     def _refresh_ui(self, focus_section_id=None, focus_category_id=None):
         sb = getattr(self.main, "structure_business", None)
         if not sb:
             return
+        # Подавляем лавину selection-событий на время финального переключения фокуса
+        struct = getattr(self.main, "structure", None)
+        selection = getattr(struct, "selection_handler", None)
+        tree = getattr(struct, "tree", None)
         try:
-            if focus_section_id is not None:
-                sb.select_section(focus_section_id)
-        except Exception:
-            pass
-        try:
-            if focus_category_id is not None:
-                sb.select_category(focus_category_id)
-        except Exception:
-            pass
+            if selection is not None:
+                try:
+                    selection.begin_suppress_selection()
+                except Exception:
+                    pass
+            if tree is not None:
+                try:
+                    tree.blockSignals(True)
+                except Exception:
+                    pass
+
+            try:
+                if focus_section_id is not None:
+                    sb.select_section(focus_section_id)
+            except Exception:
+                pass
+            try:
+                if focus_category_id is not None:
+                    sb.select_category(focus_category_id)
+            except Exception:
+                pass
+        finally:
+            if tree is not None:
+                try:
+                    tree.blockSignals(False)
+                except Exception:
+                    pass
+            if selection is not None:
+                try:
+                    selection.end_suppress_selection()
+                except Exception:
+                    pass
 
         # Информативный лог
         try:

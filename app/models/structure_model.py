@@ -253,6 +253,19 @@ class StructureModel:
             )
             return 0
 
+    def count_links_by_categories(self, category_ids: List[int]) -> Dict[int, int]:
+        """Пакетный подсчёт ссылок для нескольких категорий одним запросом.
+
+        Возвращает словарь {category_id: count}. В случае ошибки возвращает пустой словарь.
+        """
+        try:
+            return self.db.links.count_links_by_categories(category_ids or [])
+        except Exception as e:
+            self.logger.error(
+                f"Ошибка пакетного подсчёта ссылок для категорий {category_ids}: {e}"
+            )
+            return {}
+
     def has_duplicate_category(
         self, section_id: int, category_name: str, exclude_id: Optional[int] = None
     ) -> bool:

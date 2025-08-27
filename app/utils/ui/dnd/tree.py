@@ -200,6 +200,21 @@ class DragDropHandler(TreeHandlerBase):
             event.ignore()
             return
 
+        # Нормализуем base_row в допустимый диапазон [0..rowCount]
+        try:
+            parent_for_count = new_section_index if (target_type == "section") else parent_index
+            total_rows = model.rowCount(parent_for_count) if parent_for_count and parent_for_count.isValid() else 0
+            if not isinstance(base_row, int):
+                base_row = 0
+            if base_row < 0:
+                base_row = 0
+            if base_row > total_rows:
+                base_row = total_rows
+        except Exception:
+            # В случае любой ошибки безопасно отклоняем операцию, чтобы не повредить модель
+            event.ignore()
+            return
+
         if not isinstance(new_section_id, int):
             event.ignore()
             return

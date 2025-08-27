@@ -543,11 +543,7 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
                     selection.end_suppress_selection()
             except Exception:
                 pass
-        try:
-            if section_id_for_focus is not None and business:
-                business.select_section(section_id_for_focus)
-        except Exception:
-            pass
+        # Убираем ранний вызов select_section: фокус устанавливается ниже, после очистки кэша
         try:
             if business:
                 try:
@@ -561,6 +557,17 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
                         pass
                     business.select_section(section_id_for_focus)
                 # Инкрементальное обновление — без полной перезагрузки
+                # ВАЖНО: после пакетного удаления и переиндексации позиций
+                # модель дерева может рассинхронизироваться. Гарантируем
+                # полное обновление структуры одним событием.
+                try:
+                    business._invalidate_structure_cache()
+                except Exception:
+                    pass
+                try:
+                    business._schedule_structure_reload(0)
+                except Exception:
+                    pass
         except Exception:
             pass
 

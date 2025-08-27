@@ -50,6 +50,10 @@ class StructureService:
     def count_nested_objects_for_section(self, section_id: int) -> Tuple[int, int]:
         return self._model.count_nested_objects_for_section(section_id)
 
+    def count_links_by_categories(self, category_ids: List[int]) -> dict[int, int]:
+        """Пакетный подсчёт ссылок по категориям (проксирование к модели)."""
+        return self._model.count_links_by_categories(category_ids or [])
+
     # --- Мутации (с транзакциями) ---
     def update_item_positions(self, table_name: str, ids_in_order: List[int]) -> None:
         # Гарантируем атомарность перестановки
