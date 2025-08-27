@@ -95,6 +95,10 @@ class StructureBusinessLogic(QObject):
         self._structure_reload_timer.setSingleShot(True)
         self._structure_reload_timer.timeout.connect(self._perform_structure_reload)
 
+        # Режим батч-обновлений: коалесцирует множественные item_updated(category)
+        self._batch_mode: bool = False
+        self._batch_touched_sections: set[int] = set()
+
         # Инициализация
         self._initialize_system()
 
@@ -247,6 +251,15 @@ class StructureBusinessLogic(QObject):
                     item_data.get("section_id") if isinstance(item_data, dict) else None
                 )
                 self._invalidate_categories_cache(section_id)
+                # Если активен батч-режим — не запускаем загрузки/перезагрузку сразу
+                if self._batch_mode:
+                    try:
+                        if isinstance(section_id, int) and section_id > 0:
+                            self._batch_touched_sections.add(int(section_id))
+                    except Exception:
+                        pass
+                    return
+                # Обычный режим: сразу подгрузим категории раздела
                 if isinstance(section_id, int) and section_id > 0:
                     self.async_operations.load_categories_async(section_id)
             self._invalidate_structure_cache()
@@ -256,6 +269,46 @@ class StructureBusinessLogic(QObject):
             self.logger.error(
                 f"Ошибка в обработчике _on_item_updated: {e}", exc_info=True
             )
+
+    # =============================================================================
+    # BATСH-РЕЖИМ ДЛЯ КОНСОЛИДАЦИИ МНОЖЕСТВЕННЫХ ОБНОВЛЕНИЙ
+    # =============================================================================
+    def begin_batch(self) -> None:
+        """Включает батч-режим: пер-item обновления коалесцируются."""
+        try:
+            self._batch_mode = True
+            self._batch_touched_sections.clear()
+        except Exception:
+            # Даже при ошибке не падаем
+            self._batch_mode = True
+
+    def end_batch(self) -> None:
+        """Завершает батч-режим: выполняет одну консолидацию загрузок/перезагрузки."""
+        try:
+            touched = set(self._batch_touched_sections)
+        except Exception:
+            touched = set()
+        finally:
+            self._batch_touched_sections.clear()
+            self._batch_mode = False
+
+        # Единожды загрузим категории для затронутых разделов
+        try:
+            for sid in touched:
+                try:
+                    if isinstance(sid, int) and sid > 0:
+                        self.async_operations.load_categories_async(int(sid))
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+        # И одна коалесцированная перезагрузка структуры сферы
+        try:
+            self._invalidate_structure_cache()
+            self._schedule_structure_reload(0)
+        except Exception:
+            pass
 
     def _schedule_structure_reload(self, delay_ms: int = 200) -> None:
         """Планирует отложенную перезагрузку структуры (дебаунсирует частые события)."""

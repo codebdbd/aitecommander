@@ -352,7 +352,33 @@ class MoveOperationsHandler(TreeHandlerBase):
                 and main_win.structure_business
             ):
                 # Это приведет к загрузке актуальных категорий и вызову switch_to_category_tiles()
-                main_win.structure_business.select_section(section_id)
+                # Подавляем лавину selection-событий на время этого выбора
+                struct = getattr(main_win, "structure", None)
+                selection = getattr(struct, "selection_handler", None)
+                tree = getattr(struct, "tree", None)
+                try:
+                    if selection is not None:
+                        try:
+                            selection.begin_suppress_selection()
+                        except Exception:
+                            pass
+                    if tree is not None:
+                        try:
+                            tree.blockSignals(True)
+                        except Exception:
+                            pass
+                    main_win.structure_business.select_section(section_id)
+                finally:
+                    if tree is not None:
+                        try:
+                            tree.blockSignals(False)
+                        except Exception:
+                            pass
+                    if selection is not None:
+                        try:
+                            selection.end_suppress_selection()
+                        except Exception:
+                            pass
         except Exception:
             # Не прерываем UI-поток из-за вспомогательного обновления плиток
             pass

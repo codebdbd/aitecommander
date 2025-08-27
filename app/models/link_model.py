@@ -47,6 +47,39 @@ class LinkModel(DatabaseBase):
             logger.error(f"Ошибка подсчета ссылок для категории {category_id}: {e}")
             return 0
 
+    def count_links_by_categories(self, category_ids: List[int]) -> Dict[int, int]:
+        """Возвращает словарь {category_id: count} для набора категорий одним запросом.
+
+        Безопасно обрабатывает пустой список, возвращая пустой словарь. В случае ошибки
+        возвращает пустой словарь и логирует проблему, сохраняя стабильность UI.
+        """
+        if not category_ids:
+            return {}
+        try:
+            # Убираем дубликаты и некорректные значения
+            ids = [int(cid) for cid in category_ids if isinstance(cid, int) and cid > 0]
+            if not ids:
+                return {}
+            placeholders = ",".join(["?"] * len(ids))
+            rows = self._execute_with_error_handling(
+                f"SELECT category_id, COUNT(*) AS cnt FROM link WHERE category_id IN ({placeholders}) GROUP BY category_id",
+                tuple(ids),
+                fetch_method="all",
+            )
+            result: Dict[int, int] = {}
+            for r in rows or []:
+                # r может быть tuple или Row/Mapping
+                try:
+                    cat_id = int(r[0] if isinstance(r, tuple) else r["category_id"])  # type: ignore[index]
+                    cnt = int(r[1] if isinstance(r, tuple) else r["cnt"])  # type: ignore[index]
+                    result[cat_id] = cnt
+                except Exception:
+                    continue
+            return result
+        except Exception as e:
+            logger.error(f"Ошибка пакетного подсчета ссылок для категорий {category_ids}: {e}")
+            return {}
+
     def upsert_link(self, link: Dict[str, Any]) -> int:
         """Вставляет или обновляет запись о ссылке. Возвращает ID записи."""
         self._validate_required_fields(link, ["category_id"], "ссылки")

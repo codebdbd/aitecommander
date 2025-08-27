@@ -242,6 +242,18 @@ class CategoryModel(DatabaseBase):
             return 0
 
         placeholders = ",".join(["?"] * len(unique_ids))
+        # Собираем затронутые разделы до удаления, чтобы потом переиндексировать позиции
+        affected_sections: List[int] = []
+        try:
+            rows = self._execute_with_error_handling(
+                f"SELECT DISTINCT section_id FROM category WHERE id IN ({placeholders})",
+                tuple(unique_ids),
+                fetch_method="all",
+            )
+            affected_sections = [int(r["section_id"]) for r in (rows or [])]
+        except Exception:
+            affected_sections = []
+
         deleted_categories = 0
         with self.transaction():
             # 1) Удаляем все ссылки, принадлежащие этим категориям
@@ -259,10 +271,42 @@ class CategoryModel(DatabaseBase):
             except Exception:
                 deleted_categories = 0
 
+            # 3) Переиндексация позиций в затронутых разделах, чтобы убрать "дыры"
+            # Выполняем внутри той же транзакции
+            try:
+                # Дедупликация и фильтр валидных id
+                uniq_sections = list(dict.fromkeys([s for s in affected_sections if isinstance(s, int) and s > 0]))
+                for sid in uniq_sections:
+                    self._reindex_positions(sid)
+            except Exception:
+                # Не прерываем удаление, но логируем на верхнем уровне
+                logger.warning("Не удалось переиндексировать позиции категорий после удаления")
+
         logger.info(
             f"Пакетно удалены категории (шт={deleted_categories}), ids={unique_ids}"
         )
         return deleted_categories
+
+    def _reindex_positions(self, section_id: int) -> None:
+        """Переиндексировать поле position для всех категорий раздела последовательно от 0.
+
+        Выполняется без собственного begin/commit, предполагая внешний контекст транзакции.
+        """
+        # Получаем id категорий в нужном порядке
+        rows = self._execute_with_error_handling(
+            "SELECT id FROM category WHERE section_id = ? ORDER BY position, id",
+            (section_id,),
+            fetch_method="all",
+        )
+        ids_in_order = [int(r["id"]) for r in (rows or [])]
+        if not ids_in_order:
+            return
+        # Готовим батч обновлений позиций 0..n-1
+        updates = [(pos, cid) for pos, cid in enumerate(ids_in_order)]
+        self._execute_many_with_error_handling(
+            "UPDATE category SET position = ? WHERE id = ?",
+            updates,
+        )
 
     def upsert_category(self, category_data: Dict[str, Any]) -> int:
         """Вставляет или обновляет категорию. Если категории с таким id нет, вставляет новую с этим id."""

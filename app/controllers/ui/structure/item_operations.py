@@ -230,13 +230,11 @@ class ItemOperations:
 
             if category_ids:
                 # Считаем суммарное количество ссылок
-                total_links = 0
-                for cid in category_ids:
-                    try:
-                        cnt = int(self.business.structure_model.count_links_by_category(cid))
-                    except Exception:
-                        cnt = 0
-                    total_links += cnt
+                try:
+                    counts_map = self.business.structure_model.count_links_by_categories(category_ids)
+                except Exception:
+                    counts_map = {}
+                total_links = sum(int(c) for c in (counts_map or {}).values())
 
                 # Если ссылок нет ни в одной категории — удаляем без подтверждения
                 if total_links == 0:
