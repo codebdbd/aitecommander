@@ -328,18 +328,48 @@ class MoveCategoriesCommand(BaseCommand):
                 except Exception:
                     pass
 
-            for st in states:
+            # Попытка использовать настоящую батч-операцию, если все элементы переносятся в один раздел
+            try:
+                target_ids = [int(st.get("id")) for st in states if isinstance(st.get("id"), int)]
+                targets = {st.get("section_id") for st in states}
+                single_target = (len(targets) == 1)
+                target_section_id = next(iter(targets)) if single_target else None
+            except Exception:
+                target_ids = []
+                single_target = False
+                target_section_id = None
+
+            batch_done = False
+            if single_target and isinstance(target_section_id, int):
                 try:
-                    cid = st["id"]
-                    payload = {
-                        "name": st.get("name", ""),
-                        "section_id": st.get("section_id"),
-                        "icon_path": st.get("icon_path", ""),
-                        "position": st.get("position", 0),
-                    }
-                    sb.update_category(cid, payload)
-                except Exception as e:
-                    logger.error(f"Ошибка обновления категории {st.get('id')}: {e}")
+                    # Вычислим base_row как минимальную позицию среди целевых состояний
+                    base_row = 0
+                    try:
+                        base_row = min(int(st.get("position", 0) or 0) for st in states) if states else 0
+                    except Exception:
+                        base_row = 0
+                    moved = sb.move_categories_batch(target_ids, int(target_section_id), int(base_row))
+                    batch_done = True
+                    if len(moved) != len(target_ids):
+                        logger.debug("Часть категорий пропущена батч-переносом (дубликаты имён в целевом разделе)")
+                except Exception:
+                    # Безопасный фолбэк на поштучное обновление
+                    batch_done = False
+
+            if not batch_done:
+                # Фолбэк: поштучное обновление категорий (старое поведение)
+                for st in states:
+                    try:
+                        cid = st["id"]
+                        payload = {
+                            "name": st.get("name", ""),
+                            "section_id": st.get("section_id"),
+                            "icon_path": st.get("icon_path", ""),
+                            "position": st.get("position", 0),
+                        }
+                        sb.update_category(cid, payload)
+                    except Exception as e:
+                        logger.error(f"Ошибка обновления категории {st.get('id')}: {e}")
         finally:
             # Возвращаем обычную обработку сигналов
             try:

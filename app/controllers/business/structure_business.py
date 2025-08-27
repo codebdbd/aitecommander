@@ -551,6 +551,55 @@ class StructureBusinessLogic(QObject):
         return category_data or None
 
     @handle_exceptions(default_return=[])
+    def move_categories_batch(
+        self, category_ids: List[int], target_section_id: int, base_row: int = 0
+    ) -> List[int]:
+        """Пакетно переносит категории в целевой раздел одним батчем (одна транзакция).
+
+        - Не эмитит per-item сигналы, чтобы избежать лавины обновлений.
+        - Инвалидирует кэши затронутых разделов и выполняет одну коалесцированную перезагрузку.
+        Возвращает список фактически перенесённых id (дубликаты имён пропускаются).
+        """
+        if not category_ids or not isinstance(target_section_id, int) or target_section_id <= 0:
+            return []
+
+        # Соберём исходные разделы (минимально необходимое для инвалидирования)
+        source_sections: set[int] = set()
+        try:
+            for cid in category_ids:
+                try:
+                    cdata = self.structure_service.get_category_by_id(int(cid))
+                except Exception:
+                    cdata = None
+                if isinstance(cdata, dict):
+                    sid = cdata.get("section_id")
+                    if isinstance(sid, int) and sid > 0 and sid != target_section_id:
+                        source_sections.add(int(sid))
+        except Exception:
+            # В случае ошибки просто продолжим без источников
+            source_sections = set()
+
+        # Включаем батч-режим для консолидации последующих загрузок
+        self.begin_batch()
+        try:
+            moved_ids = self.structure_service.move_categories_to_section_bulk(
+                category_ids, target_section_id, base_row
+            )
+
+            # Инвалидируем кэш категорий: источники + целевой раздел
+            try:
+                for sid in source_sections:
+                    self._invalidate_categories_cache(sid)
+            except Exception:
+                pass
+            self._invalidate_categories_cache(target_section_id)
+
+            return moved_ids or []
+        finally:
+            # Одна консолидация загрузок/перезагрузки структуры
+            self.end_batch()
+
+    @handle_exceptions(default_return=[])
     def create_categories_bulk(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Пакетно создаёт категории через сервис и эмитит сигналы для UI.
 

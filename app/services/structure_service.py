@@ -106,6 +106,19 @@ class StructureService:
         """
         return self._model.create_categories_bulk(items)
 
+    def move_categories_to_section_bulk(
+        self, category_ids: List[int], target_section_id: int, base_row: int = 0
+    ) -> List[int]:
+        """Атомарно переносит категории в целевой раздел одной транзакцией.
+
+        ВАЖНО: метод модели сам управляет транзакцией; не оборачиваем в UnitOfWork.
+        Возвращает список фактически перенесённых ID (дубликаты по именам пропускаются).
+        """
+        # Делегируем в CategoryModel через Database
+        return self.db.categories.move_categories_to_section_bulk(
+            category_ids or [], int(target_section_id), int(base_row) if isinstance(base_row, int) else 0
+        )
+
     # --- Импорт/экспорт ---
     def export_full_structure(self) -> Dict[str, List]:
         return self.db.export_full_structure()
