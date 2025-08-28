@@ -232,7 +232,6 @@ QWidget#topPanelContainer QToolButton:pressed,
 QWidget#topPanelContainer QToolButton:checked {
     border: 1px solid;
     border-color: transparent;
-    border-radius: 8px;
 }
 
 /* Кнопки верхней панели типа QPushButton — приводим к тем же размерам */
