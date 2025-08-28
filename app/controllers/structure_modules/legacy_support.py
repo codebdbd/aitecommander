@@ -379,38 +379,4 @@ class StructureBusinessLogicLegacy:
         return self.legacy_support.get_usage_statistics_detailed()
 
 
-# Вспомогательные функции для миграции
-def create_migration_guide() -> str:
-    """
-    Создает руководство по миграции с legacy API на новый.
-
-    Returns:
-        str: Текстовое руководство по миграции
-    """
-    return """
-    Руководство по миграции с Legacy API:
     
-    1. validate_section_data(data) -> validate_item_data(data, StructureItemType.SECTION)
-    2. validate_category_data(data) -> validate_item_data(data, StructureItemType.CATEGORY)  
-    3. get_sphere_data() -> sphere_operations.get_spheres()
-    4. StructureBusinessLogicLegacy -> используйте основной контроллер напрямую
-    
-    Временные рамки:
-    - v1.1: Предупреждения об устаревании (текущая версия)
-    - v1.5: Методы помечены как deprecated в документации
-    - v2.0: Полное удаление legacy-кода
-    """
-
-
-def check_legacy_usage(legacy_support: LegacySupport) -> bool:
-    """
-    Проверяет, используются ли legacy-методы в текущем сеансе.
-
-    Args:
-        legacy_support: Экземпляр LegacySupport для проверки
-
-    Returns:
-        bool: True если legacy-методы использовались
-    """
-    stats = legacy_support.get_usage_statistics()
-    return any(count > 0 for count in stats.values())
