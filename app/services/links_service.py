@@ -74,8 +74,9 @@ class LinksService:
             self.repo.clear_favorites()
 
     def reorder(self, link_ids: List[int]) -> bool:
-        with UnitOfWork(self.db):
-            return self.repo.update_link_order(link_ids)
+        # ВАЖНО: update_link_order в репозитории сам управляет транзакцией через self.transaction()
+        # Оборачивание в UnitOfWork приведёт к вложенной транзакции (SQLite: cannot start a transaction within a transaction)
+        return self.repo.update_link_order(link_ids)
 
     def batch_update(self, links_data: List[Dict[str, Any]]) -> bool:
         # ВАЖНО: batch_update_links внутри репозитория уже управляет транзакцией

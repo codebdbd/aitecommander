@@ -393,12 +393,6 @@ class LinksBusinessLogic(QObject):
         """Обработка результатов поиска."""
         self.search_results_ready.emit(search_results)
 
-    def _on_update_finished(self, category_id: int):
-        """Обработка завершения обновления."""
-        self.logger.debug(
-            f"Links order updated successfully for category {category_id}"
-        )
-
     def _on_favorites_counted(
         self, fav_count: int, links: List[Dict], link: Optional[Dict]
     ):
