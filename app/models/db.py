@@ -2,6 +2,9 @@ import datetime
 import logging
 import sqlite3
 import threading
+import argparse
+import json
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -196,6 +199,37 @@ class Database(DatabaseBase):
             except Exception as mig_err:
                 logger.error(
                     f"Ошибка при подготовке миграции уникальности link: {mig_err}"
+                )
+            # Миграция: добавить уникальные индексы с COLLATE NOCASE для case-insensitive уникальности
+            try:
+                with db_lock:
+                    # Для сфер: уникальность имени без учёта регистра
+                    self.connection.execute(
+                        """
+                        CREATE UNIQUE INDEX IF NOT EXISTS idx_sphere_name_nocase
+                        ON sphere(name COLLATE NOCASE)
+                        """
+                    )
+                    # Для разделов: уникальность (sphere_id, name) без учёта регистра
+                    self.connection.execute(
+                        """
+                        CREATE UNIQUE INDEX IF NOT EXISTS idx_section_sphere_name_nocase
+                        ON section(sphere_id, name COLLATE NOCASE)
+                        """
+                    )
+                    # Для категорий: уникальность (section_id, name) без учёта регистра
+                    self.connection.execute(
+                        """
+                        CREATE UNIQUE INDEX IF NOT EXISTS idx_category_section_name_nocase
+                        ON category(section_id, name COLLATE NOCASE)
+                        """
+                    )
+                    self.connection.commit()
+                logger.info("Миграция: добавлены case-insensitive уникальные индексы для sphere/section/category")
+            except sqlite3.OperationalError as e:
+                # Если в данных уже есть дубликаты, создание индекса упадёт — логируем и продолжаем
+                logger.warning(
+                    f"Не удалось создать NOCASE-индексы (возможны дубликаты по регистру): {e}"
                 )
         except Exception as e:
             logger.error(f"Ошибка выполнения миграций: {e}")
@@ -653,3 +687,241 @@ class Database(DatabaseBase):
                 logger.debug("Соединение с базой данных закрыто")
         except Exception as e:
             logger.error(f"Ошибка закрытия соединения: {e}")
+
+    def detect_case_insensitive_duplicates(self) -> dict:
+        """Ищет case-insensitive дубликаты имён.
+
+        Возвращает dict с ключами 'sphere', 'section', 'category'. Значения — список групп,
+        где каждая группа описана как dict с полями:
+          - scope: None | sphere_id | section_id
+          - lname: нижний регистр имени
+          - ids: список int ID записей в конфликте (в произвольном порядке)
+        """
+        result = {"sphere": [], "section": [], "category": []}
+        with db_lock:
+            # Сферы: глобальная область
+            rows = self.connection.execute(
+                """
+                SELECT LOWER(name) AS lname, GROUP_CONCAT(id) AS ids, COUNT(*) AS cnt
+                FROM sphere
+                GROUP BY LOWER(name)
+                HAVING cnt > 1
+                """
+            ).fetchall()
+            for r in rows or []:
+                ids = [int(x) for x in (r["ids"] or "").split(",") if x]
+                result["sphere"].append({"scope": None, "lname": r["lname"], "ids": ids})
+
+            # Разделы: внутри одной сферы
+            rows = self.connection.execute(
+                """
+                SELECT sphere_id AS scope, LOWER(name) AS lname, GROUP_CONCAT(id) AS ids, COUNT(*) AS cnt
+                FROM section
+                GROUP BY sphere_id, LOWER(name)
+                HAVING cnt > 1
+                """
+            ).fetchall()
+            for r in rows or []:
+                ids = [int(x) for x in (r["ids"] or "").split(",") if x]
+                result["section"].append({"scope": int(r["scope"]), "lname": r["lname"], "ids": ids})
+
+            # Категории: внутри одного раздела
+            rows = self.connection.execute(
+                """
+                SELECT section_id AS scope, LOWER(name) AS lname, GROUP_CONCAT(id) AS ids, COUNT(*) AS cnt
+                FROM category
+                GROUP BY section_id, LOWER(name)
+                HAVING cnt > 1
+                """
+            ).fetchall()
+            for r in rows or []:
+                ids = [int(x) for x in (r["ids"] or "").split(",") if x]
+                result["category"].append({"scope": int(r["scope"]), "lname": r["lname"], "ids": ids})
+
+        return result
+
+    def resolve_case_insensitive_duplicates(self, strategy: str = "rename") -> dict:
+        """Разрешает case-insensitive дубликаты.
+
+        strategy:
+          - 'rename': оставить запись с минимальным id, остальные переименовать, добавив ' (#{id})'.
+          - 'remove': удалить все кроме записи с минимальным id.
+
+        Возвращает отчёт: dict с количеством обработанных записей по таблицам.
+        """
+        if strategy not in {"rename", "remove"}:
+            raise ValueError("Недопустимая стратегия: 'rename' или 'remove'")
+
+        report = {"sphere": 0, "section": 0, "category": 0}
+        dups = self.detect_case_insensitive_duplicates()
+
+        with db_lock:
+            with self.connection:
+                # Вспомогательная функция получить текущее имя по id/таблице
+                def get_name(table: str, rec_id: int) -> str:
+                    row = self.connection.execute(
+                        f"SELECT name FROM {table} WHERE id=?", (rec_id,)
+                    ).fetchone()
+                    return row[0] if row else ""
+
+                # Обработчик группы
+                def process_group(table: str, ids: list[int]):
+                    ids_sorted = sorted(int(i) for i in ids)
+                    keep = ids_sorted[0]
+                    to_change = ids_sorted[1:]
+                    affected = 0
+                    if strategy == "rename":
+                        for rid in to_change:
+                            base_name = get_name(table, rid)
+                            new_name = f"{base_name} (#{rid})"
+                            self.connection.execute(
+                                f"UPDATE {table} SET name=? WHERE id=?", (new_name, rid)
+                            )
+                            affected += 1
+                    else:  # remove
+                        for rid in to_change:
+                            self.connection.execute(
+                                f"DELETE FROM {table} WHERE id=?", (rid,)
+                            )
+                            affected += 1
+                    return affected
+
+                for grp in dups.get("sphere", []):
+                    report["sphere"] += process_group("sphere", grp["ids"])
+                for grp in dups.get("section", []):
+                    report["section"] += process_group("section", grp["ids"])
+                for grp in dups.get("category", []):
+                    report["category"] += process_group("category", grp["ids"])
+
+        return report
+
+    def create_nocase_unique_indexes(self) -> None:
+        """Пере-создаёт case-insensitive уникальные индексы для sphere/section/category.
+
+        Полезно вызвать после устранения дубликатов, если индексы ранее не удалось создать.
+        """
+        with db_lock:
+            self.connection.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_sphere_name_nocase
+                ON sphere(name COLLATE NOCASE)
+                """
+            )
+            self.connection.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_section_sphere_name_nocase
+                ON section(sphere_id, name COLLATE NOCASE)
+                """
+            )
+            self.connection.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_category_section_name_nocase
+                ON category(section_id, name COLLATE NOCASE)
+                """
+            )
+            self.connection.commit()
+
+def _print_duplicates_human(dups: dict) -> None:
+    print("== Дубликаты (регистронезависимые) ==")
+    for table in ("sphere", "section", "category"):
+        groups = dups.get(table, []) or []
+        print(f"{table}: {len(groups)} групп(ы)")
+        for g in groups:
+            scope = g.get("scope")
+            lname = g.get("lname")
+            ids = ",".join(str(i) for i in g.get("ids", []))
+            print(f"  - scope={scope}, lname='{lname}', ids=[{ids}]")
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="python -m app.models.db",
+        description="CLI для диагностики и устранения регистронезависимых дубликатов и обслуживания БД",
+    )
+
+    mx = parser.add_mutually_exclusive_group(required=True)
+    mx.add_argument(
+        "--detect-duplicates",
+        action="store_true",
+        help="Найти case-insensitive дубликаты (sphere/section/category)",
+    )
+    mx.add_argument(
+        "--resolve-duplicates",
+        choices=["rename", "remove"],
+        help="Разрешить дубликаты стратегией: rename (переименовать) или remove (удалить)",
+    )
+    mx.add_argument(
+        "--create-indexes",
+        action="store_true",
+        help="Создать уникальные индексы с COLLATE NOCASE (если их нет)",
+    )
+    mx.add_argument(
+        "--backup",
+        action="store_true",
+        help="Создать резервную копию БД",
+    )
+
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Вывод в JSON (для detect/resolve)",
+    )
+    parser.add_argument(
+        "--db-path",
+        type=str,
+        default=None,
+        help="Путь к файлу БД (по умолчанию — из настроек приложения)",
+    )
+    parser.add_argument(
+        "--create-indexes-after",
+        action="store_true",
+        help="После resolve запустить создание NOCASE-индексов",
+    )
+
+    args = parser.parse_args(argv)
+
+    try:
+        with Database() as db:
+            if args.db_path:
+                db.db_path = args.db_path
+
+            if args.detect_duplicates:
+                dups = db.detect_case_insensitive_duplicates()
+                if args.json:
+                    print(json.dumps(dups, ensure_ascii=False, indent=2))
+                else:
+                    _print_duplicates_human(dups)
+                return 0
+
+            if args.resolve_duplicates:
+                report = db.resolve_case_insensitive_duplicates(args.resolve_duplicates)
+                if args.create_indexes_after:
+                    db.create_nocase_unique_indexes()
+                if args.json:
+                    print(json.dumps(report, ensure_ascii=False, indent=2))
+                else:
+                    print("== Итог resolve ==")
+                    for k, v in (report or {}).items():
+                        print(f"{k}: {v}")
+                return 0
+
+            if args.create_indexes:
+                db.create_nocase_unique_indexes()
+                print("NOCASE-индексы созданы (если отсутствовали)")
+                return 0
+
+            if args.backup:
+                db.backup()
+                print("Резервная копия создана")
+                return 0
+
+            parser.print_help()
+            return 0
+    except Exception as e:
+        logger.error(f"CLI ошибка: {e}")
+        print(f"Ошибка: {e}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

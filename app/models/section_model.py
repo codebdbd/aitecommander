@@ -36,7 +36,6 @@ class SectionModel(DatabaseBase):
             "INSERT INTO section (name, sphere_id, icon_path, position) VALUES (?, ?, ?, ?)",
             (data["name"], data["sphere_id"], data.get("icon_path", ""), position),
         )
-        self.connection.commit()
         logger.info(f"Добавлен новый раздел: {data['name']}")
         return cursor.lastrowid
 
@@ -50,7 +49,6 @@ class SectionModel(DatabaseBase):
         self._execute_with_error_handling(
             "DELETE FROM section WHERE id=?", (section_id,)
         )
-        self.connection.commit()
         logger.info(f"Удален раздел с ID {section_id}")
 
     def upsert_section(self, section_data: Dict[str, Any]) -> int:
@@ -66,7 +64,6 @@ class SectionModel(DatabaseBase):
                     section_data["id"],
                 ),
             )
-            self.connection.commit()
             if cursor.rowcount == 0:
                 # Записи не было, делаем вставку с нужным id
                 self.connection.execute(
@@ -79,7 +76,6 @@ class SectionModel(DatabaseBase):
                         section_data.get("position", 0),
                     ),
                 )
-                self.connection.commit()
             return section_data["id"]
         else:
             return self.insert_section(section_data)

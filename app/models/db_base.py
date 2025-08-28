@@ -94,16 +94,18 @@ class DatabaseBase:
         """Получает следующую позицию для элемента в таблице."""
         try:
             if parent_field and parent_id is not None:
-                cursor = self.connection.execute(
-                    f"SELECT MAX(position) FROM {table_name} WHERE {parent_field} = ?",
+                row = self._execute_with_error_handling(
+                    f"SELECT MAX(position) AS max_pos FROM {table_name} WHERE {parent_field} = ?",
                     (parent_id,),
+                    fetch_method="one",
                 )
             else:
-                cursor = self.connection.execute(
-                    f"SELECT MAX(position) FROM {table_name}"
+                row = self._execute_with_error_handling(
+                    f"SELECT MAX(position) AS max_pos FROM {table_name}",
+                    fetch_method="one",
                 )
 
-            max_pos = cursor.fetchone()[0]
+            max_pos = None if row is None else row["max_pos"] if isinstance(row, dict) else row[0]
             return (max_pos + 1) if max_pos is not None else 0
         except Exception as e:
             logger.error(f"Ошибка получения позиции для таблицы {table_name}: {e}")
@@ -170,7 +172,6 @@ class DatabaseBase:
         try:
             with db_lock:
                 self.connection.execute(query, tuple(params))
-                self.connection.commit()
             logger.debug(f"Обновлен {table_name} с ID {entity_id}")
         except Exception as e:
             logger.error(f"Ошибка обновления {table_name}: {e}")

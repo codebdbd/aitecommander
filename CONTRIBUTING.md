@@ -97,3 +97,67 @@ class BarService:
 - `db_lock` — реентерабельный (`RLock`), поэтому вызовы, которые внутри транзакции также используют `db_lock` (например, `_execute_with_error_handling`, прямые `SELECT/UPDATE`), безопасны и не приводят к дедлокам.
 - Не создавайте вложенных транзакций на уровне SQLite внутри `transaction()` (повторные `BEGIN`). При необходимости используйте один общий блок транзакции и/или `SAVEPOINT`.
 - Операции, связанные с массовым обновлением позиций или импортом, должны выполняться либо под `transaction()`, либо явно под `with db_lock:` для консистентности.
+
+---
+
+## Регистронезависимая уникальность (NOCASE)
+
+- В БД добавлены уникальные индексы с `COLLATE NOCASE` для согласованности с логикой интерфейса и сервисов:
+  - `sphere(name)` → индекс `idx_sphere_name_nocase`.
+  - `section(sphere_id, name)` → индекс `idx_section_sphere_name_nocase`.
+  - `category(section_id, name)` → индекс `idx_category_section_name_nocase`.
+- Это предотвращает одновременное существование записей вроде `"Brand"` и `"brand"` в одной области.
+- Если индексы не создаются (из-за уже существующих дублей по регистру), используйте CLI ниже для детекта/устранения и повторного создания индексов.
+
+## CLI для диагностики и обслуживания БД
+
+Запускать из корня проекта:
+
+```bash
+python -m app.models.db --detect-duplicates [--json] [--db-path PATH]
+python -m app.models.db --resolve-duplicates rename|remove [--json] [--create-indexes-after] [--db-path PATH]
+python -m app.models.db --create-indexes [--db-path PATH]
+python -m app.models.db --backup [--db-path PATH]
+```
+
+- `--detect-duplicates` — показывает группы регистронезависимых дублей в `sphere/section/category`.
+- `--resolve-duplicates rename` — оставляет запись с минимальным id, остальные переименовывает: `name -> "name (#{id})"`.
+- `--resolve-duplicates remove` — оставляет запись с минимальным id, остальные удаляет.
+- `--create-indexes-after` — после `resolve` сразу создаёт NOCASE-индексы.
+- `--json` — вывод в JSON, удобно для логов/CI.
+- `--db-path` — путь к пользовательской БД. По умолчанию берётся из конфигурации приложения.
+
+Рекомендуемая безопасная последовательность:
+
+```bash
+python -m app.models.db --backup
+python -m app.models.db --detect-duplicates
+# Если есть группы дублей, выбрать стратегию (обычно "rename")
+python -m app.models.db --resolve-duplicates rename --create-indexes-after
+python -m app.models.db --detect-duplicates
+```
+
+## Миграции и поведение при дублях
+
+- При инициализации/миграции (`Database.initialize_or_migrate()`):
+  - Добавляется поле `link.browser_key` (если отсутствует).
+  - Изменяется уникальность `link` на `UNIQUE(category_id,name,url,args)`.
+  - Создаются NOCASE-индексы для `sphere/section/category`.
+- Если при создании NOCASE-индексов возникает ошибка (из-за дублей), в лог пишется предупреждение. Затем используйте CLI для устранения дублей и вызовите `--create-indexes`.
+
+## Восстановление и импорт/экспорт
+
+- Резервные копии: `python -m app.models.db --backup` создаёт консистентную копию через `sqlite3.Connection.backup`.
+- Экспорт/импорт структуры для разделов/категорий: методы `Database.export_section_tree()`, `Database.import_section_tree()`, `Database.export_category_tree()`, `Database.import_category_tree()`.
+- Массовый импорт категорий: `Database.import_category_trees_bulk()` выполняет апсерт в одной транзакции, сохраняет ID/позиции, толерантен к уникальности ссылок.
+
+## Порядок при массовом перемещении категорий
+
+- `CategoryModel.move_categories_to_section_bulk()` сохраняет входной порядок `category_ids`. Позиции в целевом разделе назначаются последовательно, начиная с базовой позиции, строго по порядку ввода.
+
+## Отладка и тесты
+
+- Запуск тестов: `pytest -q`.
+- Добавляйте тесты на:
+  - NOCASE-уникальность в `sphere/section/category` (вставки `"Brand"`/`"brand"` должны конфликтовать).
+  - Сохранение порядка в `move_categories_to_section_bulk()`.

@@ -64,6 +64,8 @@ def create_structure(db: Database, *,
         cat_id = db.categories.insert_category({"name": name, "section_id": section_id})
         assert isinstance(cat_id, int) and cat_id > 0
         cat_ids.append(cat_id)
+    # Фиксируем изменения, так как insert_category больше не коммитит самостоятельно
+    db.connection.commit()
     return {"sphere_id": sphere_id, "section_id": section_id, "category_ids": cat_ids}
 
 

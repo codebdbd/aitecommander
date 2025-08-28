@@ -40,7 +40,6 @@ class SphereModel(DatabaseBase):
             "INSERT INTO sphere (name, icon_path, position) VALUES (?, ?, ?)",
             (data["name"], data.get("icon_path", ""), position),
         )
-        self.connection.commit()
         logger.info(f"Добавлена новая сфера: {data['name']}")
         return cursor.lastrowid
 
