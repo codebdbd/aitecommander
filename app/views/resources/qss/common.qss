@@ -61,6 +61,14 @@ QWidget#spheres_bar QToolButton {
     border-radius: 4px;
 }
 
+/* Сферы: на hover/pressed/checked оставляем ту же геометрию рамки (цвет в теме) */
+QWidget#spheres_bar QToolButton:hover,
+QWidget#spheres_bar QToolButton:pressed,
+QWidget#spheres_bar QToolButton:checked {
+    border: 1px solid;
+    border-color: transparent;
+}
+
 /* 1.2) Любые QToolButton внутри левой панели: базово без рамки (цвет добавит тема) */
 QWidget#LeftPanel QToolButton {
     border: none;
@@ -209,7 +217,8 @@ QWidget#topPanelContainer > QWidget {
 
 QWidget#topPanelContainer QToolButton {
     border: 1px solid;
-    border-radius: 6px;
+    border-color: transparent;
+    border-radius: 8px;
     padding: 0;
     margin: 0;
     min-height: 32px;
@@ -218,14 +227,29 @@ QWidget#topPanelContainer QToolButton {
        (например, ui.top_panel_icon_size, ui.quick_add_button_size) */
 }
 
+QWidget#topPanelContainer QToolButton:hover,
+QWidget#topPanelContainer QToolButton:pressed,
+QWidget#topPanelContainer QToolButton:checked {
+    border: 1px solid;
+    border-color: transparent;
+    border-radius: 8px;
+}
+
 /* Кнопки верхней панели типа QPushButton — приводим к тем же размерам */
 QWidget#topPanelContainer QPushButton {
     border: 1px solid;
-    border-radius: 6px;
+    border-color: transparent;
+    border-radius: 8px;
     padding: 0;
     margin: 0;
     min-height: 32px;
     max-height: 32px;
+}
+QWidget#topPanelContainer QPushButton:hover,
+QWidget#topPanelContainer QPushButton:pressed,
+QWidget#topPanelContainer QPushButton:checked {
+    border: 1px solid;
+    border-color: transparent;
 }
 
 /* Поле поиска — альтернативный профиль размеров (используется в некоторых конфигурациях) */
@@ -244,6 +268,11 @@ QLineEdit#mainSearch {
     min-height: 32px;
     max-height: 32px;
     padding: 0 8px;
+}
+QLineEdit#mainSearch:hover,
+QLineEdit#mainSearch:focus {
+    border: 1px solid;
+    border-color: transparent;
 }
 
 /* =========================
@@ -289,6 +318,12 @@ QLineEdit, QTextEdit, QComboBox, QSpinBox {
     border: 1px solid;
     border-radius: 0;
     padding: 2px;
+}
+
+/* 7.0a) Дополнительный левый отступ у текста в QComboBox,
+   чтобы не прилипал к левой рамке (цвет задаёт тема) */
+QComboBox {
+    padding-left: 8px;
 }
 
 
@@ -382,6 +417,7 @@ QWidget[class="separator"] {
    ========================= */
 QStatusBar {
     border-top: 1px solid;
+    border-top-color: transparent;
 }
 
 QStatusBar::item {
@@ -391,8 +427,9 @@ QStatusBar::item {
 /* Нижняя панель (контейнер) */
 QWidget#bottomBarContainer {
     border: none !important;
-    border-top: 1px solid;
-    border-bottom: 1px solid;
+    /* Геометрия контейнера: без внешних/внутренних отступов */
+    margin: 0;
+    padding: 0;
 }
 
 /* =========================
@@ -502,14 +539,31 @@ QListWidget#categoryTiles::item {
     background: transparent;
     border: 1px solid;
     border-color: transparent;
-    border-radius: 4px;
+    border-radius: 8px;
 }
 QListView#categoryTiles { border: none; background: transparent; }
 QListView#categoryTiles::item {
     background: transparent;
     border: 1px solid;
     border-color: transparent;
-    border-radius: 4px;
+    border-radius: 8px;
+}
+
+QListWidget#categoryTiles::item:hover,
+QListView#categoryTiles::item:hover,
+QWidget#spheres_bar QToolButton:hover,
+QWidget#spheres_bar QToolButton:pressed,
+QWidget#spheres_bar QToolButton:checked,
+QWidget#topPanelContainer QToolButton:hover,
+QWidget#topPanelContainer QToolButton:pressed,
+QWidget#topPanelContainer QToolButton:checked,
+QLineEdit#mainSearch:hover,
+QLineEdit#mainSearch:focus,
+QDialog QToolButton#linkTypeBtn:hover,
+QDialog QToolButton#linkTypeBtn:pressed,
+QDialog QToolButton#linkTypeBtn:checked {
+    border: 1px solid;
+    border-color: transparent;
 }
 
 /* =========================
@@ -530,11 +584,21 @@ QWidget#bottomBarContainer QPushButton[last="1"] { border-right: none; }
    ========================= */
 QDialog QPushButton,
 QDialog QToolButton {
-    /* base border presence, radius; цвет задаёт тема */
+    /* base border presence, radius; цвет задаст тема */
     border: 1px solid;
     border-color: transparent;
     border-radius: 4px;
     outline: none;
+}
+/* Диалоговые кнопки: при hover/pressed/checked толщина рамки неизменна */
+QDialog QPushButton:hover,
+QDialog QPushButton:pressed,
+QDialog QPushButton:checked,
+QDialog QToolButton:hover,
+QDialog QToolButton:pressed,
+QDialog QToolButton:checked {
+    border: 1px solid;
+    border-color: transparent;
 }
 /* Специфика кнопок выбора типа ссылки: размеры и фон без цветов */
 QDialog QToolButton#linkTypeBtn {
@@ -556,6 +620,11 @@ QDialog QTimeEdit {
     border: 1px solid;
     border-color: transparent;
     border-radius: 0;
+}
+
+/* 15.0a) Такой же левый отступ у QDialog QComboBox */
+QDialog QComboBox {
+    padding-left: 8px;
 }
 
 /* 16) База для всех полей (вне диалогов) — рамка присутствует, но прозрачная */
