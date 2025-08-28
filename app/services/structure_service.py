@@ -77,8 +77,12 @@ class StructureService:
             return self._model.create_category(data)
 
     def update_category(self, category_id: int, data: Dict[str, Any]) -> bool:
-        with UnitOfWork(self.db):
-            return self._model.update_category(category_id, data)
+        # ВАЖНО: StructureModel.update_category -> upsert_category категории
+        # использует внутреннюю транзакцию (см. CategoryModel.upsert_category with self.transaction()).
+        # Оборачивание здесь в UnitOfWork приведёт к вложенной транзакции в SQLite
+        # (ошибка "cannot start a transaction within a transaction") и апдейт не сохранится.
+        # Поэтому вызываем напрямую без внешнего UnitOfWork.
+        return self._model.update_category(category_id, data)
 
     def delete_category(self, category_id: int) -> bool:
         # ВАЖНО: CategoryModel.delete_category() уже использует self.transaction()

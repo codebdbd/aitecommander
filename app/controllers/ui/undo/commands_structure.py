@@ -239,6 +239,18 @@ class SaveCategoryCmd(QUndoCommand):
                 self.new_id = result
                 self.new_data["id"] = result
         else:
+            # Диалог может вернуть неполный payload. Для корректного апдейта
+            # гарантируем наличие обязательных полей.
+            try:
+                if self.old_data:
+                    for k in ("id", "section_id", "position", "icon_path"):
+                        if k not in self.new_data and k in self.old_data:
+                            self.new_data[k] = self.old_data[k]
+                    # Подставим name, если диалог его не вернул вовсе
+                    if "name" not in self.new_data and "name" in self.old_data:
+                        self.new_data["name"] = self.old_data["name"]
+            except Exception:
+                pass
             self.structure_service.update_category(
                 self.new_data.get("id"), self.new_data
             )

@@ -19,6 +19,25 @@ class SaveLinkCmd(QUndoCommand):
         self.created_id: Optional[int] = None
 
     def redo(self):
+        # Заполним отсутствующие поля из старых данных, если диалог вернул частичный payload
+        try:
+            if self.old_data:
+                # Ключевые поля для корректного апдейта
+                for k in (
+                    "id",
+                    "category_id",
+                    "position",
+                    "favorite",
+                ):
+                    if k not in self.new_data and k in self.old_data:
+                        self.new_data[k] = self.old_data[k]
+                # Базовые данные, которые могли не изменяться и отсутствовать в new_data
+                for k in ("name", "url", "args", "icon_path"):
+                    if k not in self.new_data and k in self.old_data:
+                        self.new_data[k] = self.old_data[k]
+        except Exception:
+            pass
+
         # Сохраняем ссылку через сервисный слой (UnitOfWork внутри)
         if hasattr(self.main, "links_business") and self.main.links_business:
             result = self.main.links_business.links.create_or_update_link(self.new_data)
