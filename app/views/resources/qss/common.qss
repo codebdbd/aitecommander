@@ -185,7 +185,7 @@ QMenuBar QMenu::item {
    - ui.layout.spacing.top_bar (расстояние между элементами тулбара)
    - ui.top_panel_icon_size, ui.quick_add_button_size (размеры кнопок/иконок)
    ========================= */
-QFrame#favPanelBg,
+QFrame#favoritesPanelBg,
 QFrame#quickAddPanelBg {
     border-radius: 0;
     /* min-height устанавливается динамически из config_loader.get_top_panel_button_size() */
@@ -218,7 +218,7 @@ QWidget#topPanelContainer > QWidget {
 QWidget#topPanelContainer QToolButton {
     border: 1px solid;
     border-color: transparent;
-    border-radius: 8px;
+    border-radius: 4px;
     padding: 0;
     margin: 0;
     min-height: 32px;
@@ -255,7 +255,7 @@ QWidget#topPanelContainer QPushButton:checked {
 QWidget#topPanelContainer QLineEdit {
     border: 1px solid;
     border-color: transparent;
-    border-radius: 0;
+    border-radius: 8px;
     min-height: 32px;
     max-height: 32px;
     padding: 0 8px;
@@ -263,10 +263,11 @@ QWidget#topPanelContainer QLineEdit {
 
 /* Специфический стиль поискового поля (перебивает общие и темовые правила) */
 QLineEdit#mainSearch {
-    border-radius: 0;
+    border-radius: 8px;
     min-height: 32px;
     max-height: 32px;
     padding: 0 8px;
+    padding-top: 1px; /* поднимаем текст визуально, не меняя общую высоту */
 }
 QLineEdit#mainSearch:hover,
 QLineEdit#mainSearch:focus {
@@ -280,7 +281,7 @@ QLineEdit#mainSearch:focus {
 QPushButton {
     border: 1px solid;
     border-color: transparent; /* цвет задаст тема */
-    border-radius: 4px;
+    border-radius: 8px;
     padding: 4px 8px;
 }
 
@@ -297,7 +298,7 @@ QToolButton {
     border: 1px solid;
     border-color: transparent; /* цвет задаст тема */
     padding: 4px 8px;
-    border-radius: 4px;
+    border-radius: 8px;
 }
 
 QToolButton:hover {
@@ -323,6 +324,7 @@ QLineEdit, QTextEdit, QComboBox, QSpinBox {
    чтобы не прилипал к левой рамке (цвет задаёт тема) */
 QComboBox {
     padding-left: 8px;
+    padding-right: 22px; /* резерв под стрелку справа, чтобы текст не налезал */
 }
 
 
@@ -342,6 +344,46 @@ QComboBox QAbstractItemView::item {
 QComboBox QAbstractItemView:focus { outline: none; }
 QComboBox QAbstractItemView::item:focus { outline: none; }
 QComboBox QAbstractItemView::item:hover { outline: none; }
+
+/* Плоский дропдаун у QComboBox (везде) */
+QComboBox::drop-down {
+    border: none;
+    background: transparent;
+    border-left: none;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 22px; /* больше места под более крупную стрелку */
+}
+
+/* Геометрия иконки стрелки комбобокса — единая для всех тем */
+QComboBox::down-arrow {
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+    margin-top: 1px;
+}
+QDialog QComboBox::down-arrow {
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+    margin-top: 1px;
+}
+
+/* Плоский дропдаун у QComboBox в диалогах */
+QDialog QComboBox::drop-down {
+    border: none;
+    background: transparent;
+    border-left: none;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 22px; /* больше места под более крупную стрелку */
+}
 
 /* 8) Заголовки колонок в таблицах/деревьях */
 QHeaderView::section {
@@ -581,12 +623,20 @@ QWidget#bottomBarContainer QPushButton[last="1"] { border-right: none; }
 /* =========================
    15) Диалоги — базовые нейтральные правила
    ========================= */
-QDialog QPushButton,
-QDialog QToolButton {
+QDialog QPushButton {
     /* base border presence, radius; цвет задаст тема */
     border: 1px solid;
     border-color: transparent;
     border-radius: 4px;
+    outline: none;
+    min-height: 32px;
+    max-height: 32px;
+}
+QDialog QToolButton {
+    /* base border presence, radius; цвет задаст тема */
+    border: 1px solid;
+    border-color: transparent;
+    border-radius: 8px;
     outline: none;
 }
 /* Диалоговые кнопки: при hover/pressed/checked толщина рамки неизменна */
@@ -624,6 +674,23 @@ QDialog QTimeEdit {
 /* 15.0a) Такой же левый отступ у QDialog QComboBox */
 QDialog QComboBox {
     padding-left: 8px;
+    padding-right: 22px; /* резерв под стрелку справа, чтобы текст не налезал */
+}
+
+/* 15.0b) Единая высота 32px для однострочных полей в диалогах */
+QDialog QLineEdit,
+QDialog QComboBox,
+QDialog QSpinBox,
+QDialog QDoubleSpinBox,
+QDialog QDateEdit,
+QDialog QTimeEdit {
+    min-height: 32px;
+    max-height: 32px;
+}
+
+/* 15.0c) Горизонтальные отступы текста у QLineEdit в диалогах */
+QDialog QLineEdit {
+    padding: 0 8px;
 }
 
 /* 16) База для всех полей (вне диалогов) — рамка присутствует, но прозрачная */
@@ -642,7 +709,7 @@ QTimeEdit {
 QDialog QCheckBox {
     border: 1px solid;
     border-color: transparent;
-    border-radius: 4px;
+    border-radius: 0;
     outline: none;
 }
 QDialog QCheckBox::indicator,
@@ -652,7 +719,7 @@ QDialog QCheckBox::indicator:focus { outline: none; }
 QCheckBox {
     border: 1px solid;
     border-color: transparent;
-    border-radius: 4px;
+    border-radius: 0;
     outline: none;
 }
 

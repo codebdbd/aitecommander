@@ -46,7 +46,6 @@ class BasePanelWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.bg_frame = QFrame(self)
-        self.bg_frame.setStyleSheet("border-radius: 0px;")
         self.layout = QHBoxLayout(self.bg_frame)
         self.layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.layout.setContentsMargins(0, 0, 0, 0)
