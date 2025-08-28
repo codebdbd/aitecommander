@@ -193,7 +193,7 @@ QWidget#topPanelContainer QLineEdit:focus {
 
 
 QWidget#topPanelContainer QToolButton {
-    border-color: rgba(255, 255, 255, 0.06);
+    border-color: transparent;
 }
 
 /* Базовое состояние кнопок в верхней панели: без видимой обводки,
@@ -223,7 +223,6 @@ QWidget#topPanelContainer QWidget#quickAddPanel QToolButton {
         stop: 0.5 #252D3A,
         stop: 1   #1E2633
     );
-    border-radius: 8px;
 }
 /* Favorites — чуть холоднее/темнее */
 QWidget#topPanelContainer QWidget#favoritesPanel QToolButton {
@@ -233,7 +232,6 @@ QWidget#topPanelContainer QWidget#favoritesPanel QToolButton {
         stop: 0.5 #2A2F3A,
         stop: 1   #212834
     );
-    border-radius: 8px;
 }
 /* Recent — самый тёмный, ближе к контейнеру */
 QWidget#topPanelContainer QWidget#recentPanel QToolButton {
@@ -243,7 +241,6 @@ QWidget#topPanelContainer QWidget#recentPanel QToolButton {
         stop: 0.5 #1E2633,
         stop: 1   #151A22
     );
-    border-radius: 8px;
 }
 
 /* Дублируем по именам самих кнопок на случай особенностей иерархии */
@@ -254,7 +251,6 @@ QWidget#topPanelContainer QToolButton#quickButton {
         stop: 0.5 #252D3A,
         stop: 1   #1E2633
     );
-    border-radius: 8px;
 }
 QWidget#topPanelContainer QToolButton#favoriteButton {
     background: qlineargradient(
@@ -263,7 +259,6 @@ QWidget#topPanelContainer QToolButton#favoriteButton {
         stop: 0.5 #2A2F3A,
         stop: 1   #212834
     );
-    border-radius: 8px;
 }
 QWidget#topPanelContainer QToolButton#recentButton {
     background: qlineargradient(
@@ -280,7 +275,7 @@ QWidget#topPanelContainer QToolButton#recentButton {
    =============================================================== */
 QPushButton {
     background-color: #252D3A;
-    border-color: #2E4066;
+    border-color: #252D3A;
 }
 
 QPushButton:hover {
@@ -342,6 +337,14 @@ QToolButton:checked {
 QLineEdit, QTextEdit, QComboBox, QSpinBox {
     background-color: #252D3A;
     border-color: #2E4066;
+}
+
+/* Down arrow icon for comboboxes (dark theme) */
+QComboBox::down-arrow {
+    image: url("app/views/resources/ui_icons/dark/chevron_down.svg");
+}
+QDialog QComboBox::down-arrow {
+    image: url("app/views/resources/ui_icons/dark/chevron_down.svg");
 }
 
 

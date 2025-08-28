@@ -119,6 +119,22 @@ QLineEdit, QTextEdit, QComboBox, QSpinBox {
     border: 1px solid #CCCCCC;
 }
 
+/* Down arrow icon for comboboxes (light theme) */
+QComboBox::down-arrow {
+    image: url("app/views/resources/ui_icons/light/chevron_down.svg");
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+    margin-top: 1px;
+}
+QDialog QComboBox::down-arrow {
+    image: url("app/views/resources/ui_icons/light/chevron_down.svg");
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+    margin-top: 1px;
+}
+
 /* Убираем скругление только у поля поиска */
 QLineEdit#mainSearch {
     border-radius: 0;

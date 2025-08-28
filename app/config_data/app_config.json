@@ -101,7 +101,8 @@
     "link_dialog_margins": 20,
     "link_dialog_spacing": 10,
     "tree_icon_size": 24,
-    "top_panel_icon_size": 28,
+    "top_panel_button_size": 36,
+    "top_panel_icon_size": 24,
     "top_panel_search_width": 320,
     "top_panel_search_min_width": 160,
     "top_bar_margins": [
