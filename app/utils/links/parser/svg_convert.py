@@ -15,14 +15,16 @@ def convert_svg(svg_data: bytes) -> bytes | None:
     image = QImage(QSize(64, 64), QImage.Format.Format_ARGB32_Premultiplied)
     image.fill(0)
     painter = QPainter()
-    try:
-        painter.begin(image)
-        try:
-            renderer.render(painter)
-        finally:
-            painter.end()
-    except Exception:
+    # Важно: проверяем успешность begin(), иначе QPainter останется неактивным
+    if not painter.begin(image):
         return None
+    try:
+        # Качество рендера
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+        renderer.render(painter)
+    finally:
+        painter.end()
 
     buffer = QBuffer()
     try:

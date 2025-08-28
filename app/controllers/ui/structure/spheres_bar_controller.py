@@ -74,6 +74,8 @@ class SpheresBarController:
             btn.setIcon(QIcon())
         _sz = app_config.get_sphere_button_icon_size()
         btn.setIconSize(QSize(_sz[0], _sz[1]))
+        # Фиксируем квадратный размер кнопки сфер: 48(icon) + 6+6(padding) + 1+1(border) = 62
+        btn.setFixedSize(62, 62)
         btn.setToolTip(sphere["name"])
         self.w.sphere_group.addButton(btn, sphere_id)
         btn.clicked.connect(lambda _=False, sid=sphere_id: self._switch_sphere(sid))

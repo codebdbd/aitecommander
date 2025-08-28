@@ -59,6 +59,7 @@ QWidget#LeftPanel {
 QWidget#spheres_bar QToolButton {
     border: 1px solid;
     border-radius: 4px;
+    padding: 6px;
 }
 
 /* Сферы: на hover/pressed/checked оставляем ту же геометрию рамки (цвет в теме) */

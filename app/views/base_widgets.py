@@ -124,6 +124,7 @@ class BaseLinksPanelWidget(BasePanelWidget):
         except Exception:
             pass
 
+
     def _handle_link_click_base(self, link_info) -> None:
         """Эмитит сигнал `linkClicked` по клику по ссылке."""
         logging.debug("[BaseLinksPanelWidget] link clicked: %s", link_info)

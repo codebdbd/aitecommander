@@ -181,94 +181,43 @@ QMainWindow {
 /* ===============================================================
    4) Верхняя панель (фон, поиск, кнопки)
    =============================================================== */
-QWidget#topPanelContainer {
+/* Хост верхней панели после рефакторинга контейнеров */
+QWidget#topBarHost {
     background: #1A1F26;
 }
 
+
 /* Обводка поиска при hover/focus в верхней панели */
-QWidget#topPanelContainer QLineEdit:hover,
-QWidget#topPanelContainer QLineEdit:focus {
+QWidget#topBarHost QLineEdit:hover,
+QWidget#topBarHost QLineEdit:focus {
     border-color: #0194F0;
 }
 
-
-QWidget#topPanelContainer QToolButton {
+QWidget#topBarHost QToolButton {
     border-color: transparent;
 }
 
 /* Базовое состояние кнопок в верхней панели: без видимой обводки,
    чтобы не конфликтовать с глобальным стилем QPushButton */
-QWidget#topPanelContainer QPushButton {
+QWidget#topBarHost QPushButton {
     border-color: transparent;
 }
 
 /* Обводка на всех кнопках верхней панели при hover (после базового правила) */
-QWidget#topPanelContainer QToolButton:hover,
-QWidget#topPanelContainer QPushButton:hover {
+QWidget#topBarHost QToolButton:hover,
+QWidget#topBarHost QPushButton:hover {
     border-color: #0194F0;
 }
 
 /* Обводка для активных (checked) кнопок верхней панели */
-QWidget#topPanelContainer QToolButton:checked,
-QWidget#topPanelContainer QPushButton:checked {
+QWidget#topBarHost QToolButton:checked,
+QWidget#topBarHost QPushButton:checked {
     border-color: #0194F0;
 }
 
 /* Базовые фоны кнопок по виджетам верхней панели */
 /* Quick Add — нейтральный базовый фон */
-QWidget#topPanelContainer QWidget#quickAddPanel QToolButton {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0   #2A3443,
-        stop: 0.5 #252D3A,
-        stop: 1   #1E2633
-    );
-}
-/* Favorites — чуть холоднее/темнее */
-QWidget#topPanelContainer QWidget#favoritesPanel QToolButton {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0   #2F3947,
-        stop: 0.5 #2A2F3A,
-        stop: 1   #212834
-    );
-}
-/* Recent — самый тёмный, ближе к контейнеру */
-QWidget#topPanelContainer QWidget#recentPanel QToolButton {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0   #243040,
-        stop: 0.5 #1E2633,
-        stop: 1   #151A22
-    );
-}
-
-/* Дублируем по именам самих кнопок на случай особенностей иерархии */
-QWidget#topPanelContainer QToolButton#quickButton {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0   #2A3443,
-        stop: 0.5 #252D3A,
-        stop: 1   #1E2633
-    );
-}
-QWidget#topPanelContainer QToolButton#favoriteButton {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0   #2F3947,
-        stop: 0.5 #2A2F3A,
-        stop: 1   #212834
-    );
-}
-QWidget#topPanelContainer QToolButton#recentButton {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0   #243040,
-        stop: 0.5 #1E2633,
-        stop: 1   #151A22
-    );
-
-}
+ 
 
 /* ===============================================================
    5) Базовые кнопки (вне верхней панели)
@@ -582,4 +531,80 @@ QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
 
 QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
     background: #0194F0;
+}
+
+/* ===============================================================
+   OVERRIDES: Сохраняем градиенты кнопок верхней панели поверх общих правил
+   Помещено в конец файла, чтобы перебить QToolButton базовые стили
+   =============================================================== */
+/* Quick */
+QWidget#topBarHost QToolButton#quickButton,
+QWidget#topBarHost QToolButton#quickButton:hover,
+QWidget#topBarHost QToolButton#quickButton:pressed,
+QWidget#topBarHost QToolButton#quickButton:checked {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0   #2A3443,
+        stop: 0.5 #252D3A,
+        stop: 1   #1E2633
+    );
+}
+/* Favorites */
+QWidget#topBarHost QToolButton#favoriteButton,
+QWidget#topBarHost QToolButton#favoriteButton:hover,
+QWidget#topBarHost QToolButton#favoriteButton:pressed,
+QWidget#topBarHost QToolButton#favoriteButton:checked {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0   #2F3947,
+        stop: 0.5 #2A2F3A,
+        stop: 1   #212834
+    );
+}
+/* Recent */
+QWidget#topBarHost QToolButton#recentButton,
+QWidget#topBarHost QToolButton#recentButton:hover,
+QWidget#topBarHost QToolButton#recentButton:pressed,
+QWidget#topBarHost QToolButton#recentButton:checked {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0   #243040,
+        stop: 0.5 #1E2633,
+        stop: 1   #151A22
+    );
+}
+
+/* FINAL OVERRIDES: без привязки к контейнерам — на случай изменения архитектуры */
+QToolButton#quickButton,
+QToolButton#quickButton:hover,
+QToolButton#quickButton:pressed,
+QToolButton#quickButton:checked {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0   #2A3443,
+        stop: 0.5 #252D3A,
+        stop: 1   #1E2633
+    );
+}
+QToolButton#favoriteButton,
+QToolButton#favoriteButton:hover,
+QToolButton#favoriteButton:pressed,
+QToolButton#favoriteButton:checked {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0   #2F3947,
+        stop: 0.5 #2A2F3A,
+        stop: 1   #212834
+    );
+}
+QToolButton#recentButton,
+QToolButton#recentButton:hover,
+QToolButton#recentButton:pressed,
+QToolButton#recentButton:checked {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0   #243040,
+        stop: 0.5 #1E2633,
+        stop: 1   #151A22
+    );
 }
