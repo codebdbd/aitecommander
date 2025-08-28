@@ -25,11 +25,13 @@ from .chromium_base_finder import (
 )
 from .firefox_profile_finder import FirefoxProfileFinder
 from .profile_manager import BrowserProfileManager, get_profile_manager
+from .runtime_cache import ProfileCache
 from .universal_profile_processor import UniversalProfileProcessor
 
 __all__ = [
     "BrowserProfileManager",
     "get_profile_manager",
+    "ProfileCache",
     "UniversalProfileProcessor",
     "BaseBrowserProfileFinder",
     "ChromeProfileFinder",

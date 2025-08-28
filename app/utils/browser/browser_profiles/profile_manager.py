@@ -17,6 +17,7 @@ from .chromium_base_finder import (
 )
 from .firefox_profile_finder import FirefoxProfileFinder
 from .utils import get_browser_display_name
+from .runtime_cache import ProfileCache
 
 logger = logging.getLogger(__name__)
 
@@ -71,10 +72,8 @@ class BrowserProfileManager:
             "yandex": YandexProfileFinder(),
         }
 
-        # Кеширование для производительности
-        self._cache = {}
-        self._cache_timeout = self._get_cache_timeout()
-        self._last_update = {}
+        # Единый кэш профилей
+        self.cache = ProfileCache(timeout_seconds=self._get_cache_timeout())
 
         logger.info(
             f"Инициализирован менеджер профилей для {len(self.finders)} браузеров"
@@ -85,14 +84,10 @@ class BrowserProfileManager:
             from . import profile_cache as _pc
 
             cached = _pc.load_profiles()
+            self.cache.load_initial(cached)
             if cached:
-                now = time.time()
-                for key, profiles in cached.items():
-                    if isinstance(profiles, list):
-                        self._cache[key] = profiles
-                        self._last_update[key] = now
                 logger.debug(
-                    "Инициализация кэша профилей из JSON: %d браузеров", len(self._cache)
+                    "Инициализация кэша профилей из JSON: %d браузеров", len(cached)
                 )
         except Exception as e:
             logger.debug("Не удалось загрузить кэш профилей при старте: %s", e)
@@ -130,31 +125,33 @@ class BrowserProfileManager:
         return self._get_cached_profiles(browser_key)
 
     def _get_cached_profiles(self, browser_key: str) -> List[Dict]:
-        """Получает профили с кешированием."""
+        """Получает профили с кешированием.
+
+        Сначала пробует вернуть из кэша (без проверки свежести), если отсутствует —
+        выполняет загрузку через finder и обновляет кэш.
+        """
         logger.debug(f"_get_cached_profiles: browser_key={browser_key}")
 
-        current_time = time.time()
+        # Пытаемся получить из кэша
+        cached = self.cache.get(browser_key)
+        if cached is not None:
+            return cached
 
-        # Проверяем кеш
-        if (
-            browser_key in self._cache
-            and browser_key in self._last_update
-            and current_time - self._last_update[browser_key] < self._cache_timeout
-        ):
-            return self._cache[browser_key]
-
-        # Обновляем кеш
+        # Загрузка и обновление кэша
         finder = self.finders.get(browser_key)
         if finder:
             try:
                 profiles = finder.find_profiles()
-                self._cache[browser_key] = profiles
-                self._last_update[browser_key] = current_time
+                self.cache.set(browser_key, profiles)
                 return profiles
             except Exception as e:
                 logger.error(f"Ошибка при получении профилей {browser_key}: {e}")
 
         return []
+
+    def get_cached_profiles(self, browser_key: str) -> Optional[List[Dict]]:
+        """Возвращает профили из кэша, только если они свежие; не блокирует загрузку."""
+        return self.cache.get_if_fresh(browser_key)
 
     def get_available_browsers(self) -> List[Dict[str, str]]:
         """Получает список доступных браузеров с профилями."""
@@ -207,8 +204,7 @@ class BrowserProfileManager:
 
     def clear_cache(self):
         """Очищает кеш профилей."""
-        self._cache.clear()
-        self._last_update.clear()
+        self.cache.clear()
         logger.info("Кеш профилей очищен")
 
 
