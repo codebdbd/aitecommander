@@ -1,4 +1,30 @@
-/* Dark theme color styles */
+/* ===============================================================
+   DARK.QSS — Цветовые стили для тёмной темы
+   В этом файле задаются ТОЛЬКО цвета и тени. Геометрия — в common.qss.
+
+   Структура файла (аналогична common.qss):
+   1) Левая панель и панель сфер (цвета фон/обводка)
+   2) Меню (QMenu)
+   3) Меню-бар (QMenuBar)
+   4) Верхняя панель (фон контейнера, поиск, кнопки)
+   5) Базовые кнопки (вне верхней панели)
+   6) QToolButton (вне верхней панели)
+   7) Поля ввода и выпадающие списки (цвета)
+   8) Заголовки таблиц/деревьев (QHeaderView)
+   9) Статус-бар и нижняя панель (цвета контейнеров)
+  10) Разделители и сплиттеры (цвета)
+  11) Панель сфер — контейнер (градиент/фон)
+  12) Скролл-области и скроллбары (цвета)
+  13) Категорийные плитки (цвета состояний)
+  14) Нижняя панель: кнопки (цвета разделителей и hover)
+  15) Диалоги (цвета полей/кнопок/фокуса)
+  16) База для полей и чекбоксов (цвет фокуса)
+  17) Служебные элементы
+   =============================================================== */
+
+/* ===============================================================
+   1) Левая панель и панель сфер — цвета
+   =============================================================== */
 
 /* QWidget#LeftPanel: фон и геометрия заданы в common.qss */
 
@@ -34,6 +60,7 @@ QWidget#LeftPanel[sphere="4"] {
     );
 }
 
+/* Цвет обводки кнопок на панели сфер */
 QWidget#spheres_bar QToolButton {
     border-color: transparent;
 }
@@ -67,14 +94,16 @@ QWidget#LeftPanel QToolButton:hover {
     background: #1E2633;
 }
 
-/* Базовая рамка для кнопок в панели сфер, чтобы не было смещения при hover */
-/* #spheres_bar buttons: геометрия перемещена в common.qss */
+/* Геометрия кнопок панелей сфер — в common.qss */
 
 /* Обводка при наведении для QPushButton в панели сфер (если такие используются) */
 #spheres_bar QPushButton:hover {
     border-color: #0194F0;
 }
 
+/* ===============================================================
+   2) Меню (QMenu)
+   =============================================================== */
 QMenu {
     color: #D1D6E0;
     background-color: #1E2633;
@@ -118,6 +147,9 @@ QMenu::indicator:checked {
 
 /* QTreeView базовый фон задан в common.qss */
 
+/* ===============================================================
+   3) Меню-бар (QMenuBar)
+   =============================================================== */
 QMenuBar {
     background-color: #1A1F26;
 }
@@ -146,6 +178,9 @@ QMainWindow {
     color: #C9D1DA;
 }
 
+/* ===============================================================
+   4) Верхняя панель (фон, поиск, кнопки)
+   =============================================================== */
 QWidget#topPanelContainer {
     background: #1A1F26;
 }
@@ -158,6 +193,12 @@ QWidget#topPanelContainer QLineEdit:focus {
 
 
 QWidget#topPanelContainer QToolButton {
+    border-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Базовое состояние кнопок в верхней панели: без видимой обводки,
+   чтобы не конфликтовать с глобальным стилем QPushButton */
+QWidget#topPanelContainer QPushButton {
     border-color: transparent;
 }
 
@@ -173,6 +214,70 @@ QWidget#topPanelContainer QPushButton:checked {
     border-color: #0194F0;
 }
 
+/* Базовые фоны кнопок по виджетам верхней панели */
+/* Quick Add — нейтральный базовый фон */
+QWidget#topPanelContainer QWidget#quickAddPanel QToolButton {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0   #2A3443,
+        stop: 0.5 #252D3A,
+        stop: 1   #1E2633
+    );
+    border-radius: 8px;
+}
+/* Favorites — чуть холоднее/темнее */
+QWidget#topPanelContainer QWidget#favoritesWidget QToolButton {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0   #2F3947,
+        stop: 0.5 #2A2F3A,
+        stop: 1   #212834
+    );
+    border-radius: 8px;
+}
+/* Recent — самый тёмный, ближе к контейнеру */
+QWidget#topPanelContainer QWidget#recentLinksWidget QToolButton {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0   #243040,
+        stop: 0.5 #1E2633,
+        stop: 1   #151A22
+    );
+    border-radius: 8px;
+}
+
+/* Дублируем по именам самих кнопок на случай особенностей иерархии */
+QWidget#topPanelContainer QToolButton#quickButton {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0   #2A3443,
+        stop: 0.5 #252D3A,
+        stop: 1   #1E2633
+    );
+    border-radius: 8px;
+}
+QWidget#topPanelContainer QToolButton#favoriteButton {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0   #2F3947,
+        stop: 0.5 #2A2F3A,
+        stop: 1   #212834
+    );
+    border-radius: 8px;
+}
+QWidget#topPanelContainer QToolButton#recentButton {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0   #243040,
+        stop: 0.5 #1E2633,
+        stop: 1   #151A22
+    );
+
+}
+
+/* ===============================================================
+   5) Базовые кнопки (вне верхней панели)
+   =============================================================== */
 QPushButton {
     background-color: #252D3A;
     border-color: #2E4066;
@@ -183,23 +288,17 @@ QPushButton:hover {
     border-color: #0194F0;
 }
 
+/* ===============================================================
+   6) QToolButton (вне верхней панели)
+   =============================================================== */
 QToolButton {
     background-color: #252D3A;
     border-color: #2E4066;
 }
 
-/* Category Tiles Styles */
-/* Legacy selector kept for backward compatibility */
-/* categoryTiles контейнер: геометрия в common.qss */
-
-/* База item геометрии в common.qss */
-
-/* New QListView-based tiles (IconMode) */
-/* QListView#categoryTiles базовая геометрия в common.qss */
-
-/* База item геометрии в common.qss */
-
-/* Hover: синяя обводка и тёмный фон, как у сфер */
+/* ===============================================================
+   13) Категорийные плитки — цвета состояний
+   =============================================================== */
 QListWidget#categoryTiles::item:hover,
 QListView#categoryTiles::item:hover {
     background: #1E2633;
@@ -219,6 +318,9 @@ QListView#categoryTiles::item:selected:hover {
     border-color: #0194F0;
 }
 
+/* ===============================================================
+   6.1) QToolButton — дополнительные состояния
+   =============================================================== */
 QToolButton:hover {
     background-color: #2E4066;
     border-color: #0194F0;
@@ -234,6 +336,9 @@ QToolButton:checked {
     border-color: #3A6EFF;
 }
 
+/* ===============================================================
+   7) Поля ввода (цвета)
+   =============================================================== */
 QLineEdit, QTextEdit, QComboBox, QSpinBox {
     background-color: #252D3A;
     border-color: #2E4066;
@@ -247,10 +352,18 @@ QComboBox QAbstractItemView {
     border-color: #2E4066;
 }
 
+/* ===============================================================
+   8) Заголовки таблиц/деревьев
+   =============================================================== */
 QHeaderView::section {
     background-color: #1A1F26;
     border-right-color: #252D3A; /* как горизонтальные сепараторы */
     color: #C9D1DA;
+}
+
+/* Нижняя граница для всех заголовков (покрывает TreeView, TableView и др.) */
+QHeaderView {
+    border-bottom-color: #252D3A;
 }
 
 QTableView QHeaderView::section:horizontal {
@@ -304,12 +417,19 @@ QTreeView::item:!selected:hover {
 }
 
 
+/* ===============================================================
+   10) Разделители и сплиттеры — цвета
+   =============================================================== */
 QWidget[class="separator"] {
     background-color: #252D3A;
 }
 
+/* ===============================================================
+   9) Статус-бар и нижняя панель — цвета контейнеров
+   =============================================================== */
 QStatusBar {
     background-color: #202731;
+    border-top-color: #252D3A; /* темовый разделитель сверху */
 }
 
 /* Менее контрастные надписи справа в статус-баре */
@@ -321,24 +441,31 @@ QStatusBar QLabel#linksCountLabel {
 
 QWidget#bottomBarContainer {
     background-color: #1A1F26;
-    border-top-color: #1A1F26;
-    border-bottom-color: #1A1F26;
 }
 
-#bottomBarContainer QPushButton {
+QWidget#bottomBarContainer QPushButton {
     color: #fff;
-    /* Разделитель справа между кнопками — только цвет */
+    /* Разделитель справа между кнопками — только цвет (геометрия в common.qss) */
     border-right-color: #252D3A;
+    /* Остальные стороны — прозрачные цвета, без изменения геометрии */
+    border-left-color: transparent;
+    border-top-color: transparent;
+    border-bottom-color: transparent;
 }
 
 /* У последней кнопки убираем разделитель справа */
 /* geometry for last button separator is defined in common.qss */
 
 /* Обводка только при наведении */
-#bottomBarContainer QPushButton:hover {
-    border-color: #0194F0;
+QWidget#bottomBarContainer QPushButton:hover {
+    /* На hover скрываем только правый разделитель (цветом), фон меняем темой */
+    border-right-color: transparent;
+    background-color: #2E4066;            /* темовая подсветка по hover */
 }
 
+/* ===============================================================
+   15) Диалоги — цвета и фокус
+   =============================================================== */
 /* Focus outline for dialog inputs */
 QDialog QLineEdit:focus,
 QDialog QTextEdit:focus,
@@ -377,9 +504,7 @@ QDialog QCheckBox:focus {
     border-color: #0194F0;
 }
 
-/* =========================
-   Dialog combobox dropdown (popup list)
-   ========================= */
+/* Dialog combobox dropdown (popup list) */
 QDialog QComboBox QAbstractItemView {
     border-color: #2A2F3A;
     background: #151A22;
@@ -404,9 +529,7 @@ QDialog QPushButton:autoDefault:focus {
     border-color: #0194F0;
 }
 
-/* Link type buttons (text under icon) — height by content with 8px paddings */
-/* linkTypeBtn размеры перенесены в common.qss */
-
+/* Link type buttons (text under icon) — геометрия в common.qss */
 /* Match spheres bar behavior for link type buttons */
 /* linkTypeBtn база перенесена в common.qss */
 QDialog QToolButton#linkTypeBtn:hover {
@@ -432,6 +555,9 @@ QDialog QToolButton#linkTypeBtn:checked:hover {
 
 /* QSplitter::handle фон — в common.qss */
 
+/* ===============================================================
+   11) Панель сфер — фон контейнера (градиент)
+   =============================================================== */
 #spheres_bar {
     background: qlineargradient(
         x1: 0, y1: 0, x2: 0, y2: 1,
@@ -440,6 +566,9 @@ QDialog QToolButton#linkTypeBtn:checked:hover {
     );
 }
 
+/* ===============================================================
+   12) Скролл-области и скроллбары — цвета
+   =============================================================== */
 QScrollBar:vertical, QScrollBar:horizontal {
     background: #1E2633;
 }

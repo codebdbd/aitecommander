@@ -80,6 +80,11 @@ class BaseLinksPanelWidget(BasePanelWidget):
     def _create_link_button(self, link_data: Dict[str, Any]) -> QToolButton:
         """Создаёт кнопку ссылки с иконкой, синхронизированной с таблицей."""
         button = QToolButton()
+        # Важно: отключаем autoRaise, чтобы фон/градиенты и скругления были видны
+        try:
+            button.setAutoRaise(False)
+        except Exception:
+            pass
 
         button_size = app_config.get_top_panel_button_size()
         icon_size = app_config.get_top_panel_icon_size()

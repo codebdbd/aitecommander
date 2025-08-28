@@ -497,7 +497,10 @@ class WindowUISetup:
     def setup_bottom_panel(self):
         """Настройка нижней панели."""
         bot = QHBoxLayout()
+        # Отступы панели берём из конфигурации (можно выставить в 0,0,0,0 для полного прилегания)
         bot.setContentsMargins(*app_config.get_layout_margins("bottom"))
+        # Расстояние между кнопками: берём из конфига, по умолчанию 0 — кнопки занимают всю ширину без зазоров
+        bot.setSpacing(app_config.get("ui.layout.spacing.bottom", 0))
 
         # Используем глобальный размер шрифта приложения для кнопок нижней панели
         font10 = QFont()
@@ -538,7 +541,7 @@ class WindowUISetup:
 
         self.main_layout.addWidget(bottom_bar_container)
 
-        # Разделитель под нижней панелью
+        # Разделитель под нижней панелью (аналог h_line_2)
         h_line_bottom = QWidget()
         h_line_bottom.setProperty("class", "separator")
         self.main_layout.addWidget(h_line_bottom)
