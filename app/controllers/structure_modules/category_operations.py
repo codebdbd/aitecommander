@@ -168,6 +168,8 @@ class CategoryOperations(BaseOperations):
         item_type: StructureItemType,
         item_id: Optional[int] = None,
         is_update: bool = False,
+        *,
+        require_parent: bool = True,
     ) -> bool:
         """Переопределяем обработку для категорий: используем StructureService для мутаций.
 
@@ -175,11 +177,15 @@ class CategoryOperations(BaseOperations):
         """
         # Если это не категория — передаём вниз в базу
         if item_type is not StructureItemType.CATEGORY:
-            return super()._process_item(data, item_type, item_id, is_update)
+            return super()._process_item(
+                data, item_type, item_id, is_update, require_parent=require_parent
+            )
 
         # Нет сервисного слоя — безопасный фоллбек на базовую реализацию
         if not getattr(self, "_structure_service", None):
-            return super()._process_item(data, item_type, item_id, is_update)
+            return super()._process_item(
+                data, item_type, item_id, is_update, require_parent=require_parent
+            )
 
         def _operation():
             if is_update:
@@ -226,7 +232,7 @@ class CategoryOperations(BaseOperations):
             data,
             item_type,
             operation_name,
-            require_parent=not is_update,
+            require_parent=require_parent,
         )
         return result if result is not None else False
 
