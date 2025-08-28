@@ -459,6 +459,33 @@ class ThemeController:
         except Exception as exc:
             logger.warning("Ошибка обновления верхних панелей: %s", exc)
 
+        # ВАЖНО: сохраняем пользовательский размер шрифта ТОЛЬКО для нужных виджетов
+        # Не меняем глобальный шрифт приложения, чтобы не ломать диалоги и прочие элементы
+        try:
+            app = QApplication.instance()
+            if app and hasattr(self, "settings") and hasattr(self.settings, "get_font_size"):
+                try:
+                    from PyQt6.QtGui import QFont
+                    fs = int(self.settings.get_font_size())
+                except Exception:
+                    fs = None
+                if fs:
+                    # Локально на часто используемых виджетах (если доступны)
+                    try:
+                        tree = getattr(mw, "tree", None)
+                        if tree and hasattr(tree, "update_font_size"):
+                            tree.update_font_size(fs)
+                    except Exception:
+                        pass
+                    try:
+                        table = getattr(mw, "table", None)
+                        if table and hasattr(table, "update_font_size"):
+                            table.update_font_size(fs)
+                    except Exception:
+                        pass
+        except Exception as exc:
+            logger.warning("Не удалось переустановить размер шрифта после смены темы: %s", exc)
+
     def _validate_theme_config(self, theme: Dict[str, Any]) -> bool:
         """Проверяет корректность конфигурации темы."""
         try:

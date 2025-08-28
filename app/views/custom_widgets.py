@@ -175,6 +175,30 @@ class StructureTreeView(QTreeView):
         self.move_operations_handler = MoveOperationsHandler(self)
         self.drag_drop_handler = DragDropHandler(self)
 
+    def update_font_size(self, font_size: int):
+        """
+        Явно применяет локальный размер шрифта к дереву структуры.
+        Делает поведение согласованным с таблицей ссылок (LinksTableView.update_font_size).
+        """
+        try:
+            # Ничего не делаем, если размер не менялся
+            if hasattr(self, "_current_font_size") and self._current_font_size == int(font_size):
+                return
+            self._current_font_size = int(font_size)
+        except Exception:
+            # В случае некорректного значения просто выходим
+            return
+
+        try:
+            from PyQt6.QtGui import QFont
+
+            f = QFont(self.font().family(), int(self._current_font_size))
+            self.setFont(f)
+            # Обновляем отображение
+            self.viewport().update()
+        except Exception as e:
+            logging.warning("StructureTreeView.update_font_size: failed to apply font size %r: %s", font_size, e)
+
     def _setup_tree_view(self):
         """Настройка параметров QTreeView под текущие UX-требования."""
         # DnD включен на уровне вида (логика обработчиков находится в обработчиках)
