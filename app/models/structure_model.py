@@ -25,6 +25,36 @@ class StructureModel:
         """Возвращает сферу по её ID."""
         return self.db.spheres.get_sphere_by_id(sphere_id)
 
+    def upsert_sphere(self, data: Dict[str, Any]) -> int:
+        """Вставляет или обновляет сферу. Возвращает ID записи."""
+        sid = self.db.spheres.upsert_sphere(data)
+        conn = self.db.connection
+        if not getattr(conn, "in_transaction", False):
+            try:
+                conn.commit()
+            except Exception:
+                pass
+        return sid
+
+    def create_sphere(self, data: Dict[str, Any]) -> Optional[int]:
+        """Создает новую сферу (обертка для upsert_sphere)."""
+        try:
+            return self.upsert_sphere(data)
+        except Exception as e:
+            self.logger.error(f"Ошибка создания сферы: {e}")
+            return None
+
+    def update_sphere(self, sphere_id: int, data: Dict[str, Any]) -> bool:
+        """Обновляет сферу по ID (обертка для upsert_sphere)."""
+        try:
+            payload = dict(data) if data else {}
+            payload["id"] = sphere_id
+            self.upsert_sphere(payload)
+            return True
+        except Exception as e:
+            self.logger.error(f"Ошибка обновления сферы {sphere_id}: {e}")
+            return False
+
     def get_sections(self, sphere_id: int) -> List[Dict[str, Any]]:
         """Возвращает список разделов для указанной сферы."""
         return self.db.sections.get_sections(sphere_id) or []
@@ -85,11 +115,25 @@ class StructureModel:
 
     def upsert_section(self, data: Dict[str, Any]) -> int:
         """Вставляет или обновляет раздел. Возвращает ID записи."""
-        return self.db.sections.upsert_section(data)
+        sid = self.db.sections.upsert_section(data)
+        conn = self.db.connection
+        if not getattr(conn, "in_transaction", False):
+            try:
+                conn.commit()
+            except Exception:
+                pass
+        return sid
 
     def upsert_category(self, data: Dict[str, Any]) -> int:
         """Вставляет или обновляет категорию. Возвращает ID записи."""
-        return self.db.categories.upsert_category(data)
+        cid = self.db.categories.upsert_category(data)
+        conn = self.db.connection
+        if not getattr(conn, "in_transaction", False):
+            try:
+                conn.commit()
+            except Exception:
+                pass
+        return cid
 
     # ---------------------------------------------------------------------
     # Обертки для совместимости с бизнес-логикой (ожидаемые методы)
@@ -97,7 +141,7 @@ class StructureModel:
     def create_section(self, data: Dict[str, Any]) -> Optional[int]:
         """Создает новый раздел (обертка для upsert_section)."""
         try:
-            return self.db.sections.upsert_section(data)
+            return self.upsert_section(data)
         except Exception as e:
             self.logger.error(f"Ошибка создания раздела: {e}")
             return None
@@ -107,7 +151,7 @@ class StructureModel:
         try:
             payload = dict(data) if data else {}
             payload["id"] = section_id
-            self.db.sections.upsert_section(payload)
+            self.upsert_section(payload)
             return True
         except Exception as e:
             self.logger.error(f"Ошибка обновления раздела {section_id}: {e}")
@@ -118,7 +162,7 @@ class StructureModel:
         try:
             payload = dict(data) if data else {}
             payload["id"] = category_id
-            self.db.categories.upsert_category(payload)
+            self.upsert_category(payload)
             return True
         except Exception as e:
             self.logger.error(f"Ошибка обновления категории {category_id}: {e}")
@@ -136,6 +180,12 @@ class StructureModel:
         """Удаляет раздел по его ID."""
         try:
             self.db.sections.delete_section(section_id)
+            conn = self.db.connection
+            if not getattr(conn, "in_transaction", False):
+                try:
+                    conn.commit()
+                except Exception:
+                    pass
             return True
         except Exception as e:
             self.logger.error(f"Ошибка удаления раздела {section_id}: {e}")
@@ -145,6 +195,12 @@ class StructureModel:
         """Удаляет категорию по её ID."""
         try:
             self.db.categories.delete_category(category_id)
+            conn = self.db.connection
+            if not getattr(conn, "in_transaction", False):
+                try:
+                    conn.commit()
+                except Exception:
+                    pass
             return True
         except Exception as e:
             self.logger.error(f"Ошибка удаления категории {category_id}: {e}")
@@ -200,7 +256,16 @@ class StructureModel:
     def create_category(self, category_data: Dict[str, Any]) -> Optional[int]:
         """Создает новую категорию."""
         try:
-            return self.db.categories.insert_category(category_data)
+            cat_id = self.db.categories.insert_category(category_data)
+            # Явная фиксация, если категория создаётся вне внешней транзакции
+            conn = self.db.connection
+            if not getattr(conn, "in_transaction", False):
+                try:
+                    conn.commit()
+                except Exception:
+                    # В случае ошибки коммита пусть исключение будет обработано выше
+                    pass
+            return cat_id
         except Exception as e:
             self.logger.error(f"Ошибка создания категории: {e}")
             return None

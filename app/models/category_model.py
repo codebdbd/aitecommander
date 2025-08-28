@@ -104,7 +104,6 @@ class CategoryModel(DatabaseBase):
             "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
             (data["name"], data["section_id"], data.get("icon_path", ""), position),
         )
-        self.connection.commit()
         logger.info(f"Добавлена новая категория: {data['name']}")
         return cursor.lastrowid
 
@@ -234,7 +233,12 @@ class CategoryModel(DatabaseBase):
 
     def update_category(self, category_id: int, data: Dict[str, Any]):
         """Обновляет существующую категорию."""
-        return self._update_entity("category", category_id, data)
+        return self._update_entity(
+            "category",
+            category_id,
+            data,
+            ["name", "section_id", "icon_path", "position"],
+        )
 
     def delete_category(self, category_id: int):
         """Удаляет категорию по её ID вместе со всеми её ссылками (атомарно)."""
@@ -345,15 +349,8 @@ class CategoryModel(DatabaseBase):
         # Словарь по id
         data_by_id: dict[int, dict] = {int(r["id"]): dict(r) for r in rows}
 
-        # Сортируем переносимые по их текущему порядку (section_id, position, id) для стабильности
+        # Сохраняем порядок, заданный пользователем (последовательность unique_ids)
         ordered_existing_ids = [cid for cid in unique_ids if cid in data_by_id]
-        ordered_existing_ids.sort(
-            key=lambda cid: (
-                int(data_by_id[cid].get("section_id", 0) or 0),
-                int(data_by_id[cid].get("position", 0) or 0),
-                int(cid),
-            )
-        )
 
         # Имена, уже занятые в целевом разделе
         existing_names_rows = self._execute_with_error_handling(
@@ -436,30 +433,30 @@ class CategoryModel(DatabaseBase):
     def upsert_category(self, category_data: Dict[str, Any]) -> int:
         """Вставляет или обновляет категорию. Если категории с таким id нет, вставляет новую с этим id."""
         if "id" in category_data and category_data["id"]:
-            cursor = self._execute_with_error_handling(
-                "UPDATE category SET name=?, section_id=?, icon_path=?, position=? WHERE id=?",
-                (
-                    category_data["name"],
-                    category_data["section_id"],
-                    category_data.get("icon_path", ""),
-                    category_data.get("position", 0),
-                    category_data["id"],
-                ),
-            )
-            self.connection.commit()
-            if cursor.rowcount == 0:
-                # Записи не было, делаем вставку с нужным id
-                self.connection.execute(
-                    "INSERT INTO category (id, name, section_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
+            # Выполняем атомарно под транзакцией и единым механизмом блокировки
+            with self.transaction():
+                cursor = self._execute_with_error_handling(
+                    "UPDATE category SET name=?, section_id=?, icon_path=?, position=? WHERE id=?",
                     (
-                        category_data["id"],
                         category_data["name"],
                         category_data["section_id"],
                         category_data.get("icon_path", ""),
                         category_data.get("position", 0),
+                        category_data["id"],
                     ),
                 )
-                self.connection.commit()
+                if int(getattr(cursor, "rowcount", 0) or 0) == 0:
+                    # Записи не было, делаем вставку с нужным id
+                    self._execute_with_error_handling(
+                        "INSERT INTO category (id, name, section_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
+                        (
+                            category_data["id"],
+                            category_data["name"],
+                            category_data["section_id"],
+                            category_data.get("icon_path", ""),
+                            category_data.get("position", 0),
+                        ),
+                    )
             return category_data["id"]
         else:
             category_id = self.insert_category(category_data)
