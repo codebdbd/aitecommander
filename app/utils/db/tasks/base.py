@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import Callable, Generic, Optional, TypeVar
 
 from PyQt6.QtCore import QObject, QRunnable, pyqtSignal
@@ -15,13 +16,13 @@ class TaskSignals(QObject):
     """Сигналы для фоновых задач.
 
     - finished(object): эмитится с результатом при успешном завершении
-    - error(Exception): эмитится с исключением при ошибке
+    - error(object): эмитится с исключением при ошибке
     - progress(int): опциональный прогресс 0..100
     - canceled(): задача была отменена
     """
 
     finished = pyqtSignal(object)
-    error = pyqtSignal(Exception)
+    error = pyqtSignal(object)
     progress = pyqtSignal(int)
     canceled = pyqtSignal()
 
@@ -34,7 +35,7 @@ class DatabaseTask(QRunnable, Generic[T]):
 
     def __init__(
         self,
-        func: Callable[[], T],
+        func: Callable[..., T],
         *,
         description: Optional[str] = None,
         reporter: Optional[Callable[[int], None]] = None,
@@ -77,14 +78,25 @@ class DatabaseTask(QRunnable, Generic[T]):
             self.signals.canceled.emit()
             return
         try:
-            # Пытаемся передать репортёр прогресса в пользовательскую функцию,
-            # если она ожидает 1 позиционный аргумент. Полная обратная совместимость
-            # с функциями без аргументов.
+            # Определяем сигнатуру: поддерживаем функции с 0 или 1 позиционным аргументом
             try:
-                # Попытка вызвать с репортёром
-                result = self.func(self.report_progress)  # type: ignore[misc]
-            except TypeError:
-                # Вероятно, сигнатура без аргументов — вызываем без репортёра
+                sig = inspect.signature(self.func)
+                params = list(sig.parameters.values())
+                pos_params = [
+                    p for p in params if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+                ]
+                has_var_pos = any(p.kind == inspect.Parameter.VAR_POSITIONAL for p in params)
+
+                if len(pos_params) == 0:
+                    result = self.func()  # type: ignore[call-arg]
+                elif len(pos_params) == 1 or has_var_pos:
+                    result = self.func(self.report_progress)  # type: ignore[misc]
+                else:
+                    raise TypeError(
+                        "Unsupported task function signature: expected 0 or 1 positional arguments"
+                    )
+            except ValueError:
+                # Сигнатура недоступна (встроенная/С-функция): по умолчанию вызываем без аргументов
                 result = self.func()  # type: ignore[call-arg]
             if self._canceled:
                 self.signals.canceled.emit()
