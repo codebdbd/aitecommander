@@ -226,7 +226,7 @@ QWidget#topPanelContainer QWidget#quickAddPanel QToolButton {
     border-radius: 8px;
 }
 /* Favorites — чуть холоднее/темнее */
-QWidget#topPanelContainer QWidget#favoritesWidget QToolButton {
+QWidget#topPanelContainer QWidget#favoritesPanel QToolButton {
     background: qlineargradient(
         x1: 0, y1: 0, x2: 0, y2: 1,
         stop: 0   #2F3947,
@@ -236,7 +236,7 @@ QWidget#topPanelContainer QWidget#favoritesWidget QToolButton {
     border-radius: 8px;
 }
 /* Recent — самый тёмный, ближе к контейнеру */
-QWidget#topPanelContainer QWidget#recentLinksWidget QToolButton {
+QWidget#topPanelContainer QWidget#recentPanel QToolButton {
     background: qlineargradient(
         x1: 0, y1: 0, x2: 0, y2: 1,
         stop: 0   #243040,

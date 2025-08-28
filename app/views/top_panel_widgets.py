@@ -201,11 +201,6 @@ class TopPanelWidget(BaseLinksPanelWidget):
         for code, icon_name, tooltip in quick_types:
             btn = QToolButton()
             btn.setObjectName("quickButton")
-            # Важно: отключаем autoRaise, чтобы фон и скругления корректно отрисовывались
-            try:
-                btn.setAutoRaise(False)
-            except Exception:
-                pass
             btn.setFixedSize(button_size, button_size)
             btn.setIconSize(QSize(icon_size[0], icon_size[1]))
             btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
