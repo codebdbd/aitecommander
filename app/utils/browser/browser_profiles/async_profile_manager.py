@@ -10,7 +10,7 @@ from typing import Dict, List, Optional
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal
 
 from .base_profile_finder import BaseBrowserProfileFinder
-from .profile_manager import get_profile_manager
+from .profile_manager import BrowserProfileManager, get_profile_manager
 
 logger = logging.getLogger(__name__)
 
@@ -33,26 +33,19 @@ class ProfileLoadWorkerSignals(QObject):
 
 
 class SingleBrowserProfileWorker(QRunnable):
-    """Воркер для загрузки профилей одного браузера."""
+    """Воркер для загрузки профилей одного браузера через общий менеджер."""
 
     def __init__(
         self,
         browser_key: str,
-        finder: BaseBrowserProfileFinder,
+        sync_manager: BrowserProfileManager,
         use_cache: bool = True,
-        cache_timeout: int = 300,
     ):
         super().__init__()
         self.browser_key = browser_key
-        self.finder = finder
+        self._manager = sync_manager
         self.use_cache = use_cache
-        self.cache_timeout = cache_timeout
         self.signals = ProfileLoadWorkerSignals()
-
-        # Статический кеш для всех воркеров
-        if not hasattr(SingleBrowserProfileWorker, "_cache"):
-            SingleBrowserProfileWorker._cache = {}
-            SingleBrowserProfileWorker._last_update = {}
 
     def run(self):
         """Выполняет загрузку профилей в фоновом потоке."""
@@ -60,43 +53,20 @@ class SingleBrowserProfileWorker(QRunnable):
             logger.debug(f"Загрузка профилей {self.browser_key} в фоновом потоке")
             start_time = time.time()
 
-            profiles = []
-
-            # Проверяем кеш если разрешено
             if self.use_cache:
-                current_time = time.time()
-                if (
-                    self.browser_key in SingleBrowserProfileWorker._cache
-                    and self.browser_key in SingleBrowserProfileWorker._last_update
-                    and current_time
-                    - SingleBrowserProfileWorker._last_update[self.browser_key]
-                    < self.cache_timeout
-                ):
-                    profiles = SingleBrowserProfileWorker._cache[self.browser_key]
-                    logger.debug(
-                        f"Использован кеш для {self.browser_key}: {len(profiles)} профилей"
-                    )
-                else:
-                    # Загружаем профили
-                    profiles = self.finder.find_profiles()
-
-                    # Обновляем кеш
-                    SingleBrowserProfileWorker._cache[self.browser_key] = profiles
-                    SingleBrowserProfileWorker._last_update[self.browser_key] = (
-                        current_time
-                    )
-
-                    load_time = time.time() - start_time
-                    logger.debug(
-                        f"Загружены профили {self.browser_key}: {len(profiles)} за {load_time:.3f}s"
-                    )
+                # Используем синхронный менеджер (он сам обновит кэш при отсутствии записи)
+                profiles = self._manager.get_browser_profiles(self.browser_key)
             else:
-                # Загружаем без кеша
-                profiles = self.finder.find_profiles()
-                load_time = time.time() - start_time
-                logger.debug(
-                    f"Загружены профили {self.browser_key} без кеша: {len(profiles)} за {load_time:.3f}s"
-                )
+                # Принудительная загрузка, обходя кэш
+                finder = self._manager.finders.get(self.browser_key)
+                profiles = finder.find_profiles() if finder else []
+                # Обновим общий кэш новыми данными
+                self._manager.cache.set(self.browser_key, profiles)
+
+            load_time = time.time() - start_time
+            logger.debug(
+                f"Загружены профили {self.browser_key}: {len(profiles)} за {load_time:.3f}s (use_cache={self.use_cache})"
+            )
 
             # Отправляем результат
             self.signals.browser_profiles_loaded.emit(self.browser_key, profiles)
@@ -108,18 +78,16 @@ class SingleBrowserProfileWorker(QRunnable):
 
 
 class AllBrowsersProfileWorker(QRunnable):
-    """Воркер для загрузки профилей всех браузеров."""
+    """Воркер для загрузки профилей всех браузеров через общий менеджер."""
 
     def __init__(
         self,
-        finders: Dict[str, BaseBrowserProfileFinder],
+        sync_manager: BrowserProfileManager,
         use_cache: bool = True,
-        cache_timeout: int = 300,
     ):
         super().__init__()
-        self.finders = finders
+        self._manager = sync_manager
         self.use_cache = use_cache
-        self.cache_timeout = cache_timeout
         self.signals = ProfileLoadWorkerSignals()
 
     def run(self):
@@ -129,10 +97,10 @@ class AllBrowsersProfileWorker(QRunnable):
             start_time = time.time()
 
             all_profiles = {}
-            total_browsers = len(self.finders)
+            total_browsers = len(self._manager.finders)
             current_browser = 0
 
-            for browser_key, finder in self.finders.items():
+            for browser_key, finder in self._manager.finders.items():
                 current_browser += 1
 
                 # Отправляем прогресс
@@ -141,8 +109,11 @@ class AllBrowsersProfileWorker(QRunnable):
                 )
 
                 try:
-                    # Непосредственно вызываем finder.find_profiles() для каждого браузера
-                    profiles = finder.find_profiles()
+                    if self.use_cache:
+                        profiles = self._manager.get_browser_profiles(browser_key)
+                    else:
+                        profiles = finder.find_profiles()
+                        self._manager.cache.set(browser_key, profiles)
 
                     if profiles:
                         all_profiles[browser_key] = profiles
@@ -172,11 +143,11 @@ class AllBrowsersProfileWorker(QRunnable):
 
 
 class AvailableBrowsersWorker(QRunnable):
-    """Воркер для получения списка доступных браузеров."""
+    """Воркер для получения списка доступных браузеров через общий менеджер."""
 
-    def __init__(self, finders: Dict[str, BaseBrowserProfileFinder]):
+    def __init__(self, sync_manager: BrowserProfileManager):
         super().__init__()
-        self.finders = finders
+        self._manager = sync_manager
         self.signals = ProfileLoadWorkerSignals()
 
     def run(self):
@@ -185,27 +156,7 @@ class AvailableBrowsersWorker(QRunnable):
             logger.debug("Поиск доступных браузеров в фоновом потоке")
             start_time = time.time()
 
-            available = []
-
-            for browser_key, finder in self.finders.items():
-                try:
-                    # Быстрая проверка доступности без полной загрузки профилей
-                    profiles = finder.find_profiles()
-                    if profiles:
-                        available.append(
-                            {
-                                "key": browser_key,
-                                "name": finder.get_browser_name(),
-                                "profile_count": len(profiles),
-                            }
-                        )
-                        logger.debug(
-                            f"Браузер {browser_key} доступен: {len(profiles)} профилей"
-                        )
-
-                except Exception as e:
-                    logger.debug(f"Браузер {browser_key} недоступен: {e}")
-                    continue
+            available = self._manager.get_available_browsers()
 
             load_time = time.time() - start_time
             logger.info(
@@ -240,11 +191,11 @@ class AsyncBrowserProfileManager(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        # Создаем/получаем общий синхронный менеджер для доступа к finder'ам
+        # Создаем/получаем общий синхронный менеджер для доступа к finder'ам и кэшу
         self._sync_manager = get_profile_manager()
 
         # Настройки
-        self._cache_timeout = self._sync_manager._get_cache_timeout()
+        self._cache_timeout = self._sync_manager.cache.timeout
         self._thread_pool = QThreadPool.globalInstance()
 
         # Статистика
@@ -276,12 +227,8 @@ class AsyncBrowserProfileManager(QObject):
             logger.warning(f"Браузер {browser_key} не поддерживается")
             return False
 
-        finder = self._sync_manager.finders[browser_key]
-
         # Создаем и запускаем воркер
-        worker = SingleBrowserProfileWorker(
-            browser_key, finder, use_cache, self._cache_timeout
-        )
+        worker = SingleBrowserProfileWorker(browser_key, self._sync_manager, use_cache)
 
         # Подключаем сигналы
         worker.signals.browser_profiles_loaded.connect(self._on_browser_profiles_loaded)
@@ -306,9 +253,7 @@ class AsyncBrowserProfileManager(QObject):
             True если задача запущена
         """
         # Создаем и запускаем воркер
-        worker = AllBrowsersProfileWorker(
-            self._sync_manager.finders, use_cache, self._cache_timeout
-        )
+        worker = AllBrowsersProfileWorker(self._sync_manager, use_cache)
 
         # Подключаем сигналы
         worker.signals.all_profiles_loaded.connect(self._on_all_profiles_loaded)
@@ -331,7 +276,7 @@ class AsyncBrowserProfileManager(QObject):
             True если задача запущена
         """
         # Создаем и запускаем воркер
-        worker = AvailableBrowsersWorker(self._sync_manager.finders)
+        worker = AvailableBrowsersWorker(self._sync_manager)
 
         # Подключаем сигналы
         worker.signals.available_browsers_loaded.connect(
@@ -350,39 +295,19 @@ class AsyncBrowserProfileManager(QObject):
         return True
 
     def get_cached_profiles(self, browser_key: str) -> Optional[List[Dict]]:
-        """
-        Получает профили из кеша (синхронно, без блокировки).
-
-        Args:
-            browser_key: Ключ браузера
-
-        Returns:
-            Список профилей из кеша или None если кеш пуст/устарел
-        """
-        if hasattr(SingleBrowserProfileWorker, "_cache"):
-            current_time = time.time()
-
-            if (
-                browser_key in SingleBrowserProfileWorker._cache
-                and browser_key in SingleBrowserProfileWorker._last_update
-                and current_time - SingleBrowserProfileWorker._last_update[browser_key]
-                < self._cache_timeout
-            ):
-                profiles = SingleBrowserProfileWorker._cache[browser_key]
-                self._stats["cache_hits"] += 1
-                logger.debug(
-                    f"Возвращены профили {browser_key} из кеша: {len(profiles)}"
-                )
-                return profiles
-
-        return None
+        """Получает профили из единого кэша синхронного менеджера."""
+        profiles = self._sync_manager.get_cached_profiles(browser_key)
+        if profiles is not None:
+            self._stats["cache_hits"] += 1
+            logger.debug(
+                f"Возвращены профили {browser_key} из кеша: {len(profiles)}"
+            )
+        return profiles
 
     def clear_cache(self):
         """Очищает кеш профилей."""
-        if hasattr(SingleBrowserProfileWorker, "_cache"):
-            SingleBrowserProfileWorker._cache.clear()
-            SingleBrowserProfileWorker._last_update.clear()
-            logger.info("Кеш асинхронного менеджера профилей очищен")
+        self._sync_manager.clear_cache()
+        logger.info("Кеш асинхронного менеджера профилей очищен")
 
     def get_stats(self) -> Dict[str, int]:
         """Возвращает статистику использования."""

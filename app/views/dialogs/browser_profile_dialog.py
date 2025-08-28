@@ -190,12 +190,13 @@ class BrowserProfileDialog(QDialog):
                 try:
                     # Сохранить JSON кэш
                     _pc.save_profiles(all_profiles or {})
-                    # Обновить кэш синхронного менеджера
+                    # Обновить кэш синхронного менеджера (единый кэш)
                     mgr = _pm.get_profile_manager()
-                    now = __import__("time").time()
                     for key, profiles in (all_profiles or {}).items():
-                        mgr._cache[key] = profiles
-                        mgr._last_update[key] = now
+                        try:
+                            mgr.cache.set(key, profiles)
+                        except Exception:
+                            pass
                     # Обновить списки в диалоге
                     self._populate_browsers()
                     self._populate_profiles()
