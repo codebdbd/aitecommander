@@ -33,7 +33,7 @@ class ActionBuilder:
             action.setShortcutVisibleInContextMenu(True)
             action.setShortcutContext(Qt.ShortcutContext.WidgetShortcut)
         if callback:
-            action.triggered.connect(lambda: self._safe_call(callback))
+            action.triggered.connect(lambda checked=False: self._safe_call(callback))
 
         return action
 
@@ -42,7 +42,7 @@ class ActionBuilder:
         try:
             callback()
         except Exception as e:
-            logger.error(f"Ошибка выполнения действия меню: {e}")
+            logger.exception("Ошибка выполнения действия меню")
             if hasattr(self.parent, "show_error_message"):
                 self.parent.show_error_message(f"Ошибка: {str(e)}")
 

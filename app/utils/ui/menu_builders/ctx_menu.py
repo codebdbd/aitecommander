@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from typing import Optional
+import logging
 
 from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import QAction, QKeySequence
@@ -18,14 +19,16 @@ from PyQt6.QtWidgets import QLineEdit, QMenu, QPlainTextEdit, QTextEdit, QWidget
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.path_service import get_current_theme
 
-# Соответствие стандартных действий нашим именам иконок
-_SHORTCUT_TO_ICON: dict[str, str] = {
-    QKeySequence.StandardKey.Cut.toString().lower(): "cut",
-    QKeySequence.StandardKey.Copy.toString().lower(): "copy",
-    QKeySequence.StandardKey.Paste.toString().lower(): "paste",
-    QKeySequence.StandardKey.Undo.toString().lower(): "undo",
-    QKeySequence.StandardKey.Redo.toString().lower(): "redo",
-    QKeySequence.StandardKey.SelectAll.toString().lower(): "select_all",
+# Логгер модуля
+logger = logging.getLogger(__name__)
+# Соответствие стандартных действий (enum) нашим именам иконок
+_SHORTCUT_TO_ICON: dict[QKeySequence.StandardKey, str] = {
+    QKeySequence.StandardKey.Cut: "cut",
+    QKeySequence.StandardKey.Copy: "copy",
+    QKeySequence.StandardKey.Paste: "paste",
+    QKeySequence.StandardKey.Undo: "undo",
+    QKeySequence.StandardKey.Redo: "redo",
+    QKeySequence.StandardKey.SelectAll: "select_all",
 }
 
 _TEXT_TO_ICON: dict[str, str] = {
@@ -90,17 +93,35 @@ def _apply_theme_icons(menu: QMenu) -> None:
             if icon:
                 action.setIcon(icon)
         except Exception:
-            # Не ломаем меню из-за иконки
-            pass
+            # Не ломаем меню из-за иконки, но логируем причину
+            logger.exception("[CtxStdMenu] Ошибка применения иконки '%s' к действию '%s'", icon_name, action.text())
+
+
+def _detect_standard_key(sc: QKeySequence) -> Optional[QKeySequence.StandardKey]:
+    """Определить стандартный ключ для заданной последовательности без зависимости от локали.
+
+    Сравниваем с платформенно-зависимыми биндингами через QKeySequence.keyBindings().
+    """
+    if not sc or sc.isEmpty():
+        return None
+    # Перебираем только те StandardKey, что нам нужны для иконок
+    for sk in _SHORTCUT_TO_ICON.keys():
+        try:
+            bindings = QKeySequence.keyBindings(sk)
+        except Exception:
+            bindings = []
+        for kb in bindings:
+            if kb == sc:
+                return sk
+    return None
 
 
 def _guess_icon_name(action: QAction) -> Optional[str]:
-    # 1) Пытаемся по стандартному shortcut
+    # 1) Пытаемся по стандартному shortcut (enum, без текстовых представлений)
     sc: QKeySequence = action.shortcut()
-    if sc and not sc.isEmpty():
-        key = sc.toString().lower()
-        if key in _SHORTCUT_TO_ICON:
-            return _SHORTCUT_TO_ICON[key]
+    sk = _detect_standard_key(sc)
+    if sk is not None:
+        return _SHORTCUT_TO_ICON.get(sk)
 
     # 2) Пытаемся по тексту (без амперсандов и троеточий)
     text = (

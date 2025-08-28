@@ -171,6 +171,22 @@ class TreeManagement:
         except Exception:
             pass
 
+    def _find_item_by_id(self, item_type: str, item_id: int):
+        """Возвращает QModelIndex элемента по типу ('section'|'category') и id.
+
+        Совместимый хелпер для вызовов из `ItemOperations` и действий меню.
+        """
+        try:
+            model = getattr(self.tree, "model", lambda: None)()
+            if not model or not hasattr(model, "index_for"):
+                return None
+            idx = model.index_for(item_type, int(item_id))
+            if idx and idx.isValid():
+                return idx
+        except Exception:
+            pass
+        return None
+
     # Сортировка переносится в сборку снапшота модели; дополнительных действий во view не требуется
 
     def _sort_tree(self) -> None:

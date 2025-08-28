@@ -304,11 +304,14 @@ class AppShutdownController:
             critical=True,
         )
         # 2) Ожидание пулов потоков (строгий, критичный)
+        # Согласуем таймаут обработчика с конфигом ui.thread_pool_shutdown_timeout, добавив буфер
+        tp_timeout = app_config.get("ui.thread_pool_shutdown_timeout", 2000)
+        handler_timeout = max(tp_timeout + 1000, 3000)  # небольшой буфер во избежание ложных таймаутов
         self.add_shutdown_handler(
             "thread_pools_wait",
             self._wait_for_thread_pools,
             ShutdownPriority.NORMAL,
-            timeout=2000,
+            timeout=handler_timeout,
             critical=True,
         )
         # 3) Бэкап базы (некритичный, последний)

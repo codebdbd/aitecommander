@@ -227,6 +227,6 @@ class LinksMenuBuilder:
                 isinstance(link, dict) and "name" in link for link in data
             ):
                 return True
-        except Exception as e:
-            logger.debug(f"Clipboard check failed: {e}")
+        except Exception:
+            logger.exception("[LinksMenu] Clipboard check failed")
         return False
