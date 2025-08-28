@@ -377,6 +377,11 @@ class ThemeController:
 
         # Кэшируем и ищем по каноническому имени, чтобы избежать дублей ключей
         canonical_name = theme_config.get("name", normalized_name)
+        # ВАЖНО: инвалидируем кэш общих/темовых QSS перед загрузкой,
+        # чтобы гарантированно подхватывать изменения файлов стилей
+        # (особенно common.qss) без перезапуска приложения.
+        # Это безопасно: кэш восстановится при чтении ниже.
+        self.clear_cache()
         qss_content = self._load_theme_qss(canonical_name, theme_path)
         if qss_content is None:
             logger.error("Не удалось загрузить QSS для темы: %s", name)
@@ -598,6 +603,18 @@ class ThemeController:
             menu_indicator_size = None
 
         lines = []
+
+        # Диалоги: принудительно используем системный (по умолчанию Qt) размер шрифта приложения,
+        # чтобы избежать нежелательных изменений из тем/стилей. Это не меняет семейство шрифта.
+        try:
+            app = QApplication.instance()
+            dialog_font_size = app.font().pointSize() if app else None
+        except Exception:
+            dialog_font_size = None
+        if dialog_font_size and dialog_font_size > 0:
+            # Распространяем на содержимое диалога, чтобы вложенные виджеты не переопределяли случайно
+            lines.append(f"QDialog {{ font-size: {dialog_font_size}pt; }}")
+            lines.append(f"QDialog * {{ font-size: {dialog_font_size}pt; }}")
 
         # Меню (QMenu)
         if menu_font_size:

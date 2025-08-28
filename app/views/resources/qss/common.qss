@@ -3,13 +3,32 @@
    Здесь задаются нейтральные (без цветов) базовые параметры:
    - геометрия (отступы, ширины, высоты, радиусы)
    - видимость рамок (но не их цвет)
-   - общая типографика
+   - общая типографика (без вмешательства в системный размер шрифта)
 
    Цвета и конкретные оттенки переопределяются в файлах темы:
    - dark.qss, light.qss
 
    Важно: специфичные функции UI (верхняя панель, панели избранного/недавних,
    панель сфер, таблицы, меню) имеют отдельные блоки ниже с комментариями.
+
+   Структура файла (навигация по разделам):
+   1) Левая панель и панель сфер (контейнеры/кнопки)
+   2) Меню (QMenu)
+   3) Меню-бар (QMenuBar)
+   4) Верхняя панель (контейнеры, кнопки, поле поиска)
+   5) Базовые кнопки (вне верхней панели)
+   6) QToolButton (вне верхней панели)
+   7) Поля ввода (общие) и выпадающие списки
+   8) Заголовки таблиц/деревьев (QHeaderView)
+   9) Статус-бар и нижняя панель
+  10) Разделители и сплиттеры
+  11) Контейнер панели сфер
+  12) Скролл-области и скроллбары
+  13) Категорийные плитки
+  14) Нижняя панель: кнопки
+  15) Диалоги (кнопки/поля/чекбоксы)
+  16) База для всех полей и чекбоксов (вне диалогов)
+  17) Служебные элементы и фокус-фрейм
    =============================================================== */
 /* Common styles for all themes */
 
@@ -30,23 +49,32 @@
    где искать настройку.
    --------------------------------------------------------------- */
 
-/* Левая панель (контейнер дерева + панель сфер) */
+/* 1) Левая панель (контейнер дерева + панель сфер) */
 QWidget#LeftPanel {
     border: none;
+    background: transparent;
 }
 
-/* Кнопки на панели сфер (только рамка, без цвета). Цвет задаёт тема */
+/* 1.1) Кнопки на панели сфер (только рамка, без цвета). Цвет задаёт тема */
 QWidget#spheres_bar QToolButton {
-    border: 2px solid;
+    border: 1px solid;
+    border-radius: 4px;
 }
 
-/* Любые QToolButton внутри левой панели: базово без рамки (цвет добавит тема) */
+/* 1.2) Любые QToolButton внутри левой панели: базово без рамки (цвет добавит тема) */
 QWidget#LeftPanel QToolButton {
     border: none;
 }
 
+/* 1.3) Исключение: кнопки панели сфер внутри LeftPanel должны иметь рамку */
+QWidget#LeftPanel QWidget#spheres_bar QToolButton {
+    border: 1px solid;
+    border-color: transparent; /* цвет задаст тема (hover/checked) */
+    border-radius: 4px;
+}
+
 /* =========================
-   Меню (контекстные/выпадающие)
+   2) Меню (контекстные/выпадающие)
    Настройка из конфигурации:
    - ui.menu_font_size
    - ui.menu_icon_size
@@ -80,6 +108,7 @@ QMenu::separator {
 }
 
 QMenu::right-arrow {
+    image: url(:/icons/right-arrow.svg);
     width: 10px;
     height: 10px;
     margin-right: 4px;
@@ -102,11 +131,10 @@ QMenu::indicator:checked {
     border-radius: 3px;
 }
 
-/* Дефолт на TreeView — все визуальные параметры задаются темами */
-QTreeView {}
+ 
 
 /* =========================
-   Меню-бар (верхнее системное меню)
+   3) Меню-бар (верхнее системное меню)
    Настройка из конфигурации:
    - ui.menubar_font_size
    - ui.menubar_item_height
@@ -139,11 +167,10 @@ QMenuBar QMenu::item {
     min-height: 24px;
 }
 
-/* Базовая типографика для всех виджетов */
-QWidget { font-family: "Segoe UI", sans-serif; }
+
 
 /* =========================
-   Верхняя панель — фоновые фреймы панелей (без цветов)
+   4) Верхняя панель — фоновые фреймы панелей (без цветов)
    Доп. настройка из кода:
    - ui.top_panel_container_height (fixedHeight контейнера)
    - ui.top_bar_margins (отступы layout сверху/снизу/слева/справа)
@@ -165,15 +192,7 @@ QFrame#recentPanelBg {
     padding: 0;
 }
 
-/* Поле поиска в верхней панели (общие размеры и внутренние отступы) */
-QWidget#topPanelContainer QLineEdit {
-    border-radius: 0;
-    min-height: 32px;
-    max-height: 32px;
-    margin: 0;
-    padding: 0 8px;
-    vertical-align: middle;
-}
+/* Поле поиска в верхней панели — размеры/внутренние отступы см. ниже (единый блок с border) */
 
 /* Контейнер верхней панели и его прямые дети — без внешних отступов
    Примечание: высота контейнера задаётся из кода (ui.top_panel_container_height),
@@ -189,7 +208,7 @@ QWidget#topPanelContainer > QWidget {
 }
 
 QWidget#topPanelContainer QToolButton {
-    border: none;
+    border: 1px solid;
     border-radius: 6px;
     padding: 0;
     margin: 0;
@@ -201,7 +220,7 @@ QWidget#topPanelContainer QToolButton {
 
 /* Кнопки верхней панели типа QPushButton — приводим к тем же размерам */
 QWidget#topPanelContainer QPushButton {
-    border: none;
+    border: 1px solid;
     border-radius: 6px;
     padding: 0;
     margin: 0;
@@ -212,6 +231,7 @@ QWidget#topPanelContainer QPushButton {
 /* Поле поиска — альтернативный профиль размеров (используется в некоторых конфигурациях) */
 QWidget#topPanelContainer QLineEdit {
     border: 1px solid;
+    border-color: transparent;
     border-radius: 0;
     min-height: 32px;
     max-height: 32px;
@@ -227,10 +247,11 @@ QLineEdit#mainSearch {
 }
 
 /* =========================
-   Базовые кнопки (вне верхней панели)
+   5) Базовые кнопки (вне верхней панели)
    ========================= */
 QPushButton {
     border: 1px solid;
+    border-color: transparent; /* цвет задаст тема */
     border-radius: 4px;
     padding: 4px 8px;
 }
@@ -242,10 +263,11 @@ QPushButton:pressed {
 
 
 /* =========================
-   QToolButton (общие правила вне верхней панели)
+   6) QToolButton (общие правила вне верхней панели)
    ========================= */
 QToolButton {
     border: 1px solid;
+    border-color: transparent; /* цвет задаст тема */
     padding: 4px 8px;
     border-radius: 4px;
 }
@@ -262,7 +284,7 @@ QToolButton:checked {
     border: 1px solid;
 }
 
-/* Поля ввода (общие) */
+/* 7) Поля ввода (общие) */
 QLineEdit, QTextEdit, QComboBox, QSpinBox {
     border: 1px solid;
     border-radius: 0;
@@ -271,7 +293,7 @@ QLineEdit, QTextEdit, QComboBox, QSpinBox {
 
 
 
-/* Выпадающий список у QComboBox */
+/* 7.1) Выпадающий список у QComboBox */
 QComboBox QAbstractItemView {
     border: 1px solid;
     border-radius: 0;
@@ -282,9 +304,15 @@ QComboBox QAbstractItemView::item {
     padding-left: 4px;
 }
 
-/* Заголовки колонок в таблицах/деревьях */
+/* Убираем пунктирную обводку фокуса/наведения в выпадающем списке */
+QComboBox QAbstractItemView:focus { outline: none; }
+QComboBox QAbstractItemView::item:focus { outline: none; }
+QComboBox QAbstractItemView::item:hover { outline: none; }
+
+/* 8) Заголовки колонок в таблицах/деревьях */
 QHeaderView::section {
     border-right: 1px solid;
+    border-right-color: transparent; /* цвет задаст тема */
     padding: 4px;
 }
 
@@ -307,7 +335,7 @@ QTableView QTableCornerButton::section:first {
 QTableView QTableCornerButton::section:alternate {
 }
 
-/* Таблицы — базовая раскладка без рамок (цвета — в темах) */
+/* Таблицы/деревья — базовая раскладка без рамок (цвета — в темах) */
 QTableView {
     border: none;
     border-radius: 0;
@@ -330,6 +358,15 @@ QTreeView::item:hover {
     border-radius: 0px;
 }
 
+/* Дефолт на TreeView — фон прозрачен, цвета задаются темами */
+QTreeView { background: transparent; }
+
+/* QTreeView item geometry: высота устанавливается из конфигурации на уровне кода
+   (config_loader.get_tree_item_height()) */
+QTreeView::item {
+    /* min-height/height настраиваются из кода */
+}
+
 /* Горизонтальные/вертикальные разделители (фон/цвета задаются темами)
    Высота задаётся из конфигурации: ui.separator_height (app_config.json: ui.separator.height) */
 QWidget[class="separator"] {
@@ -341,7 +378,7 @@ QWidget[class="separator"] {
 }
 
 /* =========================
-   Статус-бар
+   9) Статус-бар и нижняя панель (контейнер)
    ========================= */
 QStatusBar {
     border-top: 1px solid;
@@ -358,6 +395,9 @@ QWidget#bottomBarContainer {
     border-bottom: 1px solid;
 }
 
+/* =========================
+   10) Разделители и сплиттеры
+   ========================= */
 /* Тонкие вертикальные разделители в верхней панели
    Геометрия (width/height) задаётся ТОЛЬКО из кода через app_config:
    - ui.separator_width, ui.separator_height */
@@ -383,11 +423,9 @@ QSplitter::handle:vertical {
     padding: 0;
 }
 
-QTreeView::item {
-    /* min-height: из ui.tree_item_height (config_loader.get_tree_item_height()) */
-}
+ 
 
-/* Панель сфер — контейнер (геометрия и скругления без цветов)
+/* 11) Панель сфер — контейнер (геометрия и скругления без цветов)
    Настройка из конфигурации (применяется из кода):
    - ui.spheres_bar_height
    - ui.spheres_layout_margins
@@ -399,12 +437,12 @@ QTreeView::item {
     padding: 0;
 }
 
-/* Любые скролл-области — убираем рамку (цвета — в темах) */
+/* 12) Скролл-области и скроллбары — нейтральные правила */
 QAbstractScrollArea {
     border: none;
 }
 
-/* Скроллбар вертикальный (размеры — из конфигурации)
+/* 12.1) Скроллбар вертикальный (размеры — из конфигурации)
    Ширина: ui.scrollbar_width */
 QScrollBar:vertical {
     border: none;
@@ -430,7 +468,7 @@ QScrollBar::sub-line:vertical {
     subcontrol-origin: margin;
 }
 
-/* Скроллбар горизонтальный (размеры — из конфигурации)
+/* 12.2) Скроллбар горизонтальный (размеры — из конфигурации)
    Высота: ui.scrollbar_height */
 QScrollBar:horizontal {
     border: none;
@@ -454,6 +492,118 @@ QScrollBar::sub-line:horizontal {
     subcontrol-origin: margin;
 }
 
-QTreeView::item {
-    /* height устанавливается динамически из config_loader.get_tree_item_height() */
+ 
+
+/* =========================
+   13) Категорийные плитки (общая геометрия)
+   ========================= */
+QListWidget#categoryTiles { border: none; background: transparent; }
+QListWidget#categoryTiles::item {
+    background: transparent;
+    border: 1px solid;
+    border-color: transparent;
+    border-radius: 4px;
 }
+QListView#categoryTiles { border: none; background: transparent; }
+QListView#categoryTiles::item {
+    background: transparent;
+    border: 1px solid;
+    border-color: transparent;
+    border-radius: 4px;
+}
+
+/* =========================
+   14) Нижняя панель: кнопки (геометрия)
+   ========================= */
+QWidget#bottomBarContainer QPushButton {
+    background: transparent;
+    border: 1px solid;
+    border-color: transparent;
+    border-radius: 0;
+    border-right: 1px solid;
+    border-right-color: transparent;
+}
+QWidget#bottomBarContainer QPushButton[last="1"] { border-right: none; }
+
+/* =========================
+   15) Диалоги — базовые нейтральные правила
+   ========================= */
+QDialog QPushButton,
+QDialog QToolButton {
+    /* base border presence, radius; цвет задаёт тема */
+    border: 1px solid;
+    border-color: transparent;
+    border-radius: 4px;
+    outline: none;
+}
+/* Специфика кнопок выбора типа ссылки: размеры и фон без цветов */
+QDialog QToolButton#linkTypeBtn {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-left: 6px;
+    padding-right: 6px;
+    margin: 0;
+    background: transparent;
+}
+QDialog QLineEdit,
+QDialog QTextEdit,
+QDialog QPlainTextEdit,
+QDialog QComboBox,
+QDialog QSpinBox,
+QDialog QDoubleSpinBox,
+QDialog QDateEdit,
+QDialog QTimeEdit {
+    border: 1px solid;
+    border-color: transparent;
+    border-radius: 0;
+}
+
+/* 16) База для всех полей (вне диалогов) — рамка присутствует, но прозрачная */
+QLineEdit,
+QTextEdit,
+QPlainTextEdit,
+QComboBox,
+QSpinBox,
+QDoubleSpinBox,
+QDateEdit,
+QTimeEdit {
+    border: 1px solid;
+    border-color: transparent;
+    border-radius: 0;
+}
+QDialog QCheckBox {
+    border: 1px solid;
+    border-color: transparent;
+    border-radius: 4px;
+    outline: none;
+}
+QDialog QCheckBox::indicator,
+QDialog QCheckBox::indicator:focus { outline: none; }
+
+/* 16.1) База для всех чекбоксов (вне диалогов) — рамка присутствует, но прозрачная */
+QCheckBox {
+    border: 1px solid;
+    border-color: transparent;
+    border-radius: 4px;
+    outline: none;
+}
+
+/* =========================
+   17) Служебные элементы и фокус-фрейм
+   ========================= */
+QWidget#LeftPanel QToolButton { background: transparent; }
+QWidget#favQuickSeparatorBefore,
+QWidget#favQuickSeparatorAfter { background: transparent; }
+QWidget[class="vertical_separator"] { background-color: transparent; }
+QSplitter::handle { background: transparent; }
+
+/* Скроллбар: нейтральные отключения фона у стрелок/псевдостраниц */
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { background: none; }
+QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical,
+QScrollBar::left-arrow:horizontal, QScrollBar::right-arrow:horizontal { background: none; }
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }
+
+/* Убираем системную пунктирную рамку фокуса */
+QFocusFrame { border: 0px; outline: none; background: transparent; }
