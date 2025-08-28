@@ -219,14 +219,52 @@ class Database(DatabaseBase):
                 f"Недопустимое имя таблицы для обновления позиций: {table_name}"
             )
 
+        # Валидация входных ID: типы, уникальность, существование
         try:
-            with self.connection:
-                for i, item_id in enumerate(ids_in_order):
-                    self.connection.execute(
-                        f"UPDATE {table_name} SET position = ? WHERE id = ?",
-                        (i, item_id),
+            ids = list(ids_in_order or [])
+            if not ids:
+                # Нечего обновлять — выходим без ошибок
+                logger.debug(
+                    f"update_item_positions: пустой список ID для таблицы {table_name}"
+                )
+                return
+
+            # Проверка типов и значений
+            for v in ids:
+                if isinstance(v, bool) or not isinstance(v, int) or v < 0:
+                    raise ValidationError(
+                        f"Некорректный ID в списке позиций: {v}"
                     )
-            logger.debug(f"Обновлены позиции в таблице {table_name}")
+
+            # Проверка уникальности
+            if len(set(ids)) != len(ids):
+                raise ValidationError("Список ID содержит дубликаты")
+
+            # Проверка существования записей
+            placeholders = ",".join(["?"] * len(ids))
+            with db_lock:
+                existing_rows = self.connection.execute(
+                    f"SELECT id FROM {table_name} WHERE id IN ({placeholders})",
+                    tuple(ids),
+                ).fetchall()
+            existing_ids = {row[0] for row in existing_rows}
+            missing = [i for i in ids if i not in existing_ids]
+            if missing:
+                raise ValidationError(
+                    f"Не найдены записи с ID: {missing} в таблице {table_name}"
+                )
+
+            # Обновление под глобальной блокировкой БД для предотвращения гонок
+            with db_lock:
+                with self.connection:
+                    for i, item_id in enumerate(ids):
+                        self.connection.execute(
+                            f"UPDATE {table_name} SET position = ? WHERE id = ?",
+                            (i, item_id),
+                        )
+            logger.debug(
+                f"Обновлены позиции ({len(ids)} шт.) в таблице {table_name}"
+            )
         except Exception as e:
             logger.error(f"Ошибка обновления позиций в таблице {table_name}: {e}")
             raise DatabaseError(f"Не удалось обновить позиции: {e}")
