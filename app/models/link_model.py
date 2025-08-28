@@ -25,7 +25,7 @@ class LinkModel(DatabaseBase):
             rows = self._execute_with_error_handling(
                 "SELECT id, category_id, name, url, type, notes, "
                 "is_favorite, last_used, icon_path, args, browser_key, position "
-                "FROM link WHERE category_id=? ORDER BY position DESC",
+                "FROM link WHERE category_id=? ORDER BY position ASC",
                 (category_id,),
                 fetch_method="all",
             )
@@ -248,7 +248,7 @@ class LinkModel(DatabaseBase):
             rows = self._execute_with_error_handling(
                 "SELECT id, category_id, name, url, type, notes, "
                 "is_favorite, last_used, icon_path, args, browser_key, position "
-                "FROM link ORDER BY position DESC",
+                "FROM link ORDER BY position ASC",
                 fetch_method="all",
             )
             return [dict(row) for row in rows]

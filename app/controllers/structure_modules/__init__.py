@@ -6,20 +6,14 @@ from .async_operations import AsyncOperations, AsyncSignalHandlers
 from .base import ItemTypes, ItemTypeStr, StructureItemType, ValidationError
 from .cache_manager import CacheManager
 from .category_operations import CategoryOperations
-from .coordination import OperationCoordinator
 from .exceptions import handle_exceptions
-from .legacy_support import LegacySupport, StructureBusinessLogicLegacy
 from .normalization import normalize_row, normalize_rows, row_to_dict
 
 # LinkOperations удален - используйте LinksBusinessLogic
 from .positioning_operations import PositioningOperations
 from .section_operations import SectionOperations
 from .sphere_operations import SphereOperations
-from .validation import (
-    validate_category_data,
-    validate_item_data,
-    validate_section_data,
-)
+# Избегаем раннего импорта validation.py, чтобы не создавать цикл зависимостей
 from .validation_result import ValidationResult
 
 __all__ = [
@@ -52,3 +46,27 @@ __all__ = [
     "LegacySupport",
     "StructureBusinessLogicLegacy",
 ]
+
+# Lazy import to avoid circular import during package initialization
+def __getattr__(name):
+    if name == "OperationCoordinator":
+        from .coordination import OperationCoordinator  # local import to break cycle
+        return OperationCoordinator
+    if name == "LegacySupport":
+        from .legacy_support import LegacySupport  # local import to break cycle
+        return LegacySupport
+    if name == "StructureBusinessLogicLegacy":
+        from .legacy_support import StructureBusinessLogicLegacy  # local import to break cycle
+        return StructureBusinessLogicLegacy
+    if name in ("validate_category_data", "validate_item_data", "validate_section_data"):
+        from .validation import (
+            validate_category_data,
+            validate_item_data,
+            validate_section_data,
+        )  # local import to break cycle
+        return {
+            "validate_category_data": validate_category_data,
+            "validate_item_data": validate_item_data,
+            "validate_section_data": validate_section_data,
+        }[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

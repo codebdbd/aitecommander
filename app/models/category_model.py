@@ -162,10 +162,33 @@ class CategoryModel(DatabaseBase):
                     max_pos = max_pos_map.get(section_id)
                     start_pos = (max_pos + 1) if (max_pos is not None) else 0
                     pos = start_pos
+                    # Список уже существующих имён в разделе (в нижнем регистре)
+                    try:
+                        existing_rows = self._execute_with_error_handling(
+                            "SELECT LOWER(name) AS name FROM category WHERE section_id = ?",
+                            (section_id,),
+                            fetch_method="all",
+                        )
+                        existing_names = {str(r["name"]).strip().lower() for r in (existing_rows or [])}
+                    except Exception:
+                        existing_names = set()
+
+                    # Дубликаты внутри пакета для этой секции
+                    seen_in_batch = set()
+
                     for it in group:
-                        name = it.get("name")
+                        raw_name = it.get("name")
+                        name_norm = (str(raw_name).strip().lower() if raw_name is not None else "")
+                        # Пропускаем, если имя пустое — валидация выше, но на всякий случай
+                        if not name_norm:
+                            continue
+                        # Пропускаем, если уже существует в БД или уже встречено в этом пакете
+                        if name_norm in existing_names or name_norm in seen_in_batch:
+                            continue
+                        seen_in_batch.add(name_norm)
+
                         icon_path = it.get("icon_path", "")
-                        batched_params.append((name, section_id, icon_path, pos))
+                        batched_params.append((raw_name, section_id, icon_path, pos))
                         pos += 1
 
                 # Вставляем одним executemany с тихим игнорированием дублей
