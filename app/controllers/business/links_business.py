@@ -148,7 +148,20 @@ class LinksBusinessLogic(QObject):
 
     def save_link(self, link_data: Dict) -> int:
         """Сохранить ссылку."""
-        if not self._validate_link_data(link_data):
+        # Строгая валидация через общий валидатор + проверка category_id
+        if not isinstance(link_data, dict):
+            raise ValueError("Invalid link data provided: not a dict")
+        # Ленивая загрузка валидатора, чтобы избежать циклических импортов при старте
+        from app.utils.validators.link_validators import validate_link_form_data
+        name = link_data.get("name")
+        url = link_data.get("url")
+        link_type = link_data.get("type")
+        category_id = link_data.get("category_id")
+        if not (
+            validate_link_form_data(name, url, link_type)
+            and isinstance(category_id, int)
+            and category_id > 0
+        ):
             raise ValueError("Invalid link data provided")
 
         try:
@@ -192,7 +205,8 @@ class LinksBusinessLogic(QObject):
 
     def toggle_favorite(self, link: Dict):
         """Переключить статус избранного для ссылки."""
-        if not self._validate_link_data(link, check_required_fields=False):
+        # Для переключения избранного достаточно валидного словаря и корректного id
+        if not isinstance(link, dict) or not isinstance(link.get("id"), int) or link["id"] <= 0:
             raise ValueError("Invalid link data for toggle_favorite")
 
         old_status = link.get("is_favorite", False)
@@ -295,7 +309,8 @@ class LinksBusinessLogic(QObject):
 
         # Валидация всех ссылок перед обновлением
         for i, link_data in enumerate(links_data):
-            if not self._validate_link_data(link_data, check_required_fields=False):
+            # Нестрогая проверка: ожидаем непустые словари записей
+            if not isinstance(link_data, dict) or not link_data:
                 self.logger.error(f"Invalid link data at index {i}: {link_data}")
                 return False
 
@@ -319,7 +334,21 @@ class LinksBusinessLogic(QObject):
         Returns:
             ID созданной ссылки или None при ошибке
         """
-        if not self._validate_link_data(link_data):
+        # Строгая валидация для импорта
+        if not isinstance(link_data, dict):
+            self.logger.warning(f"Invalid link data for import: {link_data}")
+            return None
+        # Ленивая загрузка валидатора, чтобы избежать циклических импортов при старте
+        from app.utils.validators.link_validators import validate_link_form_data
+        name = link_data.get("name")
+        url = link_data.get("url")
+        link_type = link_data.get("type")
+        category_id = link_data.get("category_id")
+        if not (
+            validate_link_form_data(name, url, link_type)
+            and isinstance(category_id, int)
+            and category_id > 0
+        ):
             self.logger.warning(f"Invalid link data for import: {link_data}")
             return None
 
@@ -349,28 +378,7 @@ class LinksBusinessLogic(QObject):
             return False
         return True
 
-    def _validate_link_data(
-        self, link_data: Dict, check_required_fields: bool = True
-    ) -> bool:
-        """Валидация данных ссылки."""
-        if not isinstance(link_data, dict):
-            return False
-
-        if not link_data:
-            return False
-
-        if check_required_fields:
-            required_fields = ["name", "url", "category_id"]
-            missing_fields = [
-                field
-                for field in required_fields
-                if field not in link_data or not link_data[field]
-            ]
-            if missing_fields:
-                self.logger.warning(f"Missing required fields: {missing_fields}")
-                return False
-
-        return True
+    
 
     def _get_all_links_safe(self) -> List[Dict]:
         """Безопасное получение всех ссылок для внутреннего использования."""
