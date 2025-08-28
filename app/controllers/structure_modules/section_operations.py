@@ -251,6 +251,8 @@ class SectionOperations(BaseOperations):
         item_type: StructureItemType,
         item_id: Optional[int] = None,
         is_update: bool = False,
+        *,
+        require_parent: bool = True,
     ) -> bool:
         """Переопределяем обработку для разделов: используем StructureService для мутаций.
 
@@ -258,11 +260,15 @@ class SectionOperations(BaseOperations):
         """
         # Если это не раздел — используем базовую реализацию
         if item_type is not StructureItemType.SECTION:
-            return super()._process_item(data, item_type, item_id, is_update)
+            return super()._process_item(
+                data, item_type, item_id, is_update, require_parent=require_parent
+            )
 
         # Если сервис недоступен — фоллбек на базовую реализацию (upsert в модели)
         if not getattr(self, "_structure_service", None):
-            return super()._process_item(data, item_type, item_id, is_update)
+            return super()._process_item(
+                data, item_type, item_id, is_update, require_parent=require_parent
+            )
 
         def _operation():
             if is_update:
@@ -314,7 +320,7 @@ class SectionOperations(BaseOperations):
             data,
             item_type,
             operation_name,
-            require_parent=not is_update,
+            require_parent=require_parent,
         )
         return result if result is not None else False
 

@@ -415,8 +415,19 @@ class BaseOperations:
         item_type: StructureItemType,
         item_id: Optional[int] = None,
         is_update: bool = False,
+        *,
+        require_parent: bool = True,
     ) -> bool:
-        """Универсальный метод для создания/обновления элементов структуры."""
+        """Универсальный метод для создания/обновления элементов структуры.
+
+        Args:
+            data: Данные элемента
+            item_type: Тип элемента структуры
+            item_id: ID элемента для обновления
+            is_update: Флаг обновления
+            require_parent: Требовать наличие родительского идентификатора. По умолчанию True.
+                Отключайте только явно, если операция допускает отсутствие родителя.
+        """
 
         def _process_operation():
             return self._upsert_and_emit(
@@ -433,6 +444,6 @@ class BaseOperations:
             data,
             item_type,
             operation_name,
-            require_parent=not is_update,
+            require_parent=require_parent,
         )
         return result if result is not None else False

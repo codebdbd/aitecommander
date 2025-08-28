@@ -54,6 +54,8 @@ def process_item(
     item_type: StructureItemType,
     item_id: Optional[int] = None,
     is_update: bool = False,
+    *,
+    require_parent: bool = True,
 ) -> bool:
     """
     Общий помощник для создания/обновления элементов структуры с валидацией.
@@ -64,6 +66,8 @@ def process_item(
         item_type: Тип структурного элемента
         item_id: ID элемента для обновления (опционально)
         is_update: True для обновления, False для создания
+        require_parent: Требовать наличие родителя (sphere_id/section_id/...).
+            По умолчанию True. Отключайте явно только если операция допускает отсутствие родителя.
 
     Returns:
         bool: True в случае успеха, False в случае неудачи
@@ -111,7 +115,7 @@ def process_item(
             data,
             item_type,
             operation_name,
-            require_parent=not is_update,
+            require_parent=require_parent,
         )
 
         # Явно обрабатываем различные типы результатов
@@ -156,9 +160,11 @@ def process_item_old_signature(
     item_type: StructureItemType,
     item_id: Optional[int] = None,
     is_update: bool = False,
+    *,
+    require_parent: bool = True,
 ) -> bool:
     """
     Версия с старой сигнатурой для полной обратной совместимости.
     Автоматически перенаправляет вызов на новую версию.
     """
-    return process_item(self, data, item_type, item_id, is_update)
+    return process_item(self, data, item_type, item_id, is_update, require_parent=require_parent)
