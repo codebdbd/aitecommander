@@ -186,23 +186,10 @@ class WindowUISetup:
 
     def setup_top_panel(self):
         """Настройка верхней панели."""
-        # Контейнер для панели с разделителем
-        top_panel_container = QWidget()
-        top_panel_container.setObjectName("topPanelContainer")
-        top_panel_container.setSizePolicy(
-            getattr(QSizePolicy.Policy, app_config.get_top_panel_size_policy()[0]),
-            getattr(QSizePolicy.Policy, app_config.get_top_panel_size_policy()[1]),
-        )
-
-        container_layout = QVBoxLayout()
-        container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(0)
-        container_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-
-        # Горизонтальный разделитель
+        # Верхний разделитель добавляем напрямую в основной layout
         h_line_top = QWidget()
         h_line_top.setProperty("class", "separator")
-        container_layout.addWidget(h_line_top)
+        self.main_layout.addWidget(h_line_top)
 
         # Создание top_bar: без разделителей, только spacing и внешние маргины по side
         top_bar = QHBoxLayout()
@@ -214,34 +201,32 @@ class WindowUISetup:
         top_bar.setSpacing(side * 2)
         top_bar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
+        # Собираем виджеты верхней панели
         self.setup_top_bar_widgets(top_bar)
 
-        # Настройка контейнера
-        content_container = QWidget()
-        content_container.setFixedHeight(app_config.get_top_panel_container_height())
-        content_container.setLayout(top_bar)
-        container_layout.addWidget(
-            content_container, alignment=Qt.AlignmentFlag.AlignVCenter
-        )
+        # Лёгкий хост для top_bar (без фиксированной высоты) и добавление в основной layout
+        top_bar_host = QWidget()
+        top_bar_host.setObjectName("topBarHost")
+        top_bar_host.setLayout(top_bar)
+        try:
+            from PyQt6.QtWidgets import QSizePolicy
+            top_bar_host.setFixedHeight(app_config.get_top_panel_container_height())
+            top_bar_host.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        except Exception:
+            pass
+        self.main_layout.addWidget(top_bar_host)
 
-        top_panel_container.setLayout(container_layout)
-        self.main_layout.addWidget(top_panel_container)
+        # Сохраняем ссылку на хост
+        self.window.top_bar_host = top_bar_host
 
-        self.window.top_panel_container = top_panel_container
-        self.window.content_container = content_container
-
-        # Неоновый эффект для верхней панели: вешаем фильтр на контейнер
+        # Неоновый эффект: вешаем фильтр на хост и его детей
         if (
             not hasattr(self.window, "_neon_top_filter")
             or self.window._neon_top_filter is None
         ):
             self.window._neon_top_filter = NeonEventFilter(self.window, blur_radius=16)
-        top_panel_container.installEventFilter(self.window._neon_top_filter)
-        content_container.installEventFilter(self.window._neon_top_filter)
-        # Проактивно навесим фильтр на уже созданные дочерние элементы
-        for w in top_panel_container.findChildren(
-            (QPushButton, QToolButton, QLineEdit)
-        ):
+        top_bar_host.installEventFilter(self.window._neon_top_filter)
+        for w in top_bar_host.findChildren((QPushButton, QToolButton, QLineEdit)):
             w.installEventFilter(self.window._neon_top_filter)
 
         # Адаптивный менеджер верхней панели
@@ -250,6 +235,15 @@ class WindowUISetup:
         except Exception:
             # Не блокируем инициализацию UI при ошибке менеджера
             self.window._topbar_manager = None
+        # Первичный пересчёт после создания
+        try:
+            from PyQt6.QtCore import QTimer
+
+            if getattr(self.window, "_topbar_manager", None):
+                QTimer.singleShot(0, self.window._topbar_manager.adjust)
+        except Exception:
+            pass
+        
 
     def setup_top_bar_widgets(self, top_bar):
         """Настройка виджетов верхней панели.
@@ -520,6 +514,12 @@ class WindowUISetup:
             btn = QPushButton(text)
             btn.setFont(font10)
             btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            # Разрешаем горизонтальное сжатие ниже sizeHint
+            try:
+                btn.setMinimumWidth(0)
+                btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+            except Exception:
+                pass
             btn.clicked.connect(getattr(self.window, fn_name))
             bot.addWidget(btn)
             bottom_btns.append(btn)
@@ -534,10 +534,14 @@ class WindowUISetup:
         bottom_bar_container = QWidget()
         bottom_bar_container.setObjectName("bottomBarContainer")
         bottom_bar_container.setLayout(bot)
-        bottom_bar_container.setSizePolicy(
-            getattr(QSizePolicy.Policy, app_config.get_top_panel_size_policy()[0]),
-            getattr(QSizePolicy.Policy, app_config.get_top_panel_size_policy()[1]),
-        )
+        # Явная политика: по горизонтали расширяется/сжимается, по вертикали фиксированная
+        try:
+            bottom_bar_container.setSizePolicy(
+                QSizePolicy.Policy.Expanding,
+                QSizePolicy.Policy.Fixed,
+            )
+        except Exception:
+            pass
 
         self.main_layout.addWidget(bottom_bar_container)
 

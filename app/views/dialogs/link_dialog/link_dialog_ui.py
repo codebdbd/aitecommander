@@ -104,6 +104,11 @@ class LinkDialogUI:
 
         self.icon_btn = QPushButton("Иконка")
         self.icon_btn.setFixedWidth(app_config.get("ui.fixed_button_width", 100))
+        # Выравниваем поведение с диалогами сущностей: иконка 24x24
+        try:
+            self.icon_btn.setIconSize(QSize(24, 24))
+        except Exception:
+            pass
         hl_name.addWidget(self.icon_btn)
 
         self.form.addRow("Имя:", hl_name)

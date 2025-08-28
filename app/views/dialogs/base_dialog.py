@@ -40,6 +40,7 @@ def apply_uniform_height(dialog: QDialog):
                 pass
 
 
+
 def create_russian_context_menu(widget):
     menu = QMenu(widget)
 

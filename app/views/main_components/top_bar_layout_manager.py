@@ -10,6 +10,12 @@ from PyQt6.QtCore import QEvent, QObject, QTimer
 from PyQt6.QtWidgets import QLayout, QLineEdit, QToolButton, QWidget
 
 from app.config_data import app_config
+try:
+    # PyQt6 provides sip to detect deleted QObject wrappers
+    from sip import isdeleted as _sip_isdeleted
+except Exception:  # pragma: no cover
+    def _sip_isdeleted(_obj) -> bool:
+        return False
 
 
 class TopBarLayoutManager(QObject):
@@ -67,17 +73,23 @@ class TopBarLayoutManager(QObject):
         self._max_fav = 10
         self._max_quick = 10
 
-        # Подключаемся к контейнерам
-        if hasattr(self.window, "content_container") and isinstance(
-            self.window.content_container, QWidget
-        ):
-            self.window.content_container.installEventFilter(self)
-        if hasattr(self.window, "top_panel_container") and isinstance(
-            self.window.top_panel_container, QWidget
-        ):
-            self.window.top_panel_container.installEventFilter(self)
+        # Подключаемся к контейнерам (поддерживаем новый top_bar_host и старые контейнеры)
+        tb = self._safe_get(self.window, "top_bar_host")
+        if isinstance(tb, QWidget):
+            tb.installEventFilter(self)
+        cc = self._safe_get(self.window, "content_container")
+        if isinstance(cc, QWidget):
+            cc.installEventFilter(self)
+        # legacy support — безопасно, если виджет существует
+        tpc = self._safe_get(self.window, "top_panel_container")
+        if isinstance(tpc, QWidget):
+            tpc.installEventFilter(self)
         # На всякий случай слушаем и окно (Resize)
-        self.window.installEventFilter(self)
+        try:
+            if isinstance(self.window, QObject) and not _sip_isdeleted(self.window):
+                self.window.installEventFilter(self)
+        except RuntimeError:
+            pass
 
         # Инициализационный пересчет после показа окна (один раз)
         if hasattr(self.window, "shown"):
@@ -86,13 +98,24 @@ class TopBarLayoutManager(QObject):
     # ---------------------------- Event Filter -----------------------------
     def eventFilter(self, obj: QObject, event: QtCore.QEvent) -> bool:
         # Минимизируем источники событий: только Resize окна и контейнера топ-панели
-        if obj in (
-            getattr(self.window, "top_panel_container", None),
-            getattr(self.window, "content_container", None),
-            self.window,
-        ):
+        try:
+            if self.window is None or _sip_isdeleted(self.window):
+                return False
+        except RuntimeError:
+            return False
+
+        watched = (
+            self._safe_get(self.window, "top_bar_host"),
+            self._safe_get(self.window, "top_panel_container"),
+            self._safe_get(self.window, "content_container"),
+            self.window if isinstance(self.window, QObject) else None,
+        )
+        if obj in watched:
             if event.type() == QEvent.Type.Resize:
-                self.adjust()
+                try:
+                    self.adjust()
+                except Exception:
+                    pass
         return super().eventFilter(obj, event)
 
     def _ensure_panel_filters(self):
@@ -114,20 +137,41 @@ class TopBarLayoutManager(QObject):
 
     # ------------------------------ Helpers --------------------------------
     def _get_top_bar(self) -> Optional[QLayout]:
-        cc = getattr(self.window, "content_container", None)
-        if not cc:
-            return None
-        return cc.layout()
+        host = self._safe_get(self.window, "top_bar_host")
+        if isinstance(host, QWidget) and callable(getattr(host, "layout", None)):
+            return host.layout()
+        cc = self._safe_get(self.window, "content_container")
+        if isinstance(cc, QWidget) and callable(getattr(cc, "layout", None)):
+            return cc.layout()
+        return None
 
     def _get_container_widget(self) -> Optional[QWidget]:
         """Ленивая выборка контейнера, где лежит топ-панель, с кэшем."""
         if self._container_widget and isinstance(self._container_widget, QWidget):
             return self._container_widget
-        container: Optional[QWidget] = getattr(self.window, "top_panel_container", None)
+        container: Optional[QWidget] = self._safe_get(self.window, "top_bar_host")
         if not container:
-            container = getattr(self.window, "content_container", None)
+            container = self._safe_get(self.window, "top_panel_container")
+        if not container:
+            container = self._safe_get(self.window, "content_container")
         self._container_widget = container
         return container
+
+    # ------------------------------ Utils ----------------------------------
+    def _safe_get(self, obj: Optional[object], name: str):
+        """Безопасно получает атрибут QObject, не падая на удалённых объектах PyQt."""
+        if obj is None:
+            return None
+        try:
+            # Если это QObject и он удалён — не трогаем
+            if isinstance(obj, QObject) and _sip_isdeleted(obj):
+                return None
+        except RuntimeError:
+            return None
+        try:
+            return getattr(obj, name, None)
+        except RuntimeError:
+            return None
 
     def _iter_buttons(
         self, panel_widget: Optional[QWidget], name: str
