@@ -54,17 +54,27 @@ class DatabaseBase:
 
     @contextmanager
     def transaction(self):
-        """Контекстный менеджер транзакции с автоматическим commit/rollback."""
-        try:
-            with db_lock:
+        """Контекстный менеджер транзакции с автоматическим commit/rollback.
+
+        Теперь глобальная блокировка `db_lock` удерживается на ПРОТЯЖЕНИИ
+        всего блока транзакции (включая тело `with ...:`), что обеспечивает
+        эксклюзивный доступ к БД и исключает вмешательство других потоков
+        между BEGIN/COMMIT/ROLLBACK.
+
+        Примечания:
+        - `db_lock` реентерабельный (RLock), поэтому вложенные вызовы, которые
+          также используют `db_lock`, безопасны и не приводят к дедлокам.
+        - Внутри блока не следует открывать вложенные транзакции на уровне SQLite,
+          используйте один общий блок или SAVEPOINT при необходимости.
+        """
+        with db_lock:
+            try:
                 self.connection.execute("BEGIN TRANSACTION")
-            yield
-            with db_lock:
+                yield
                 self.connection.commit()
-        except Exception:
-            with db_lock:
+            except Exception:
                 self.connection.rollback()
-            raise
+                raise
 
     def _validate_required_fields(
         self, data: Dict[str, Any], required_fields: List[str], entity_name: str = ""
