@@ -217,9 +217,26 @@ class LinksMenuBuilder:
     def _clipboard_has_links(self) -> bool:
         """Проверяет, содержит ли буфер обмена ссылки."""
         try:
-            clipboard = QApplication.instance().clipboard()
-            text = clipboard.text()
-            data = json.loads(text)
+            app = QApplication.instance()
+            if app is None:
+                # Нет активного приложения — вставка недоступна
+                return False
+
+            clipboard = app.clipboard()
+            if clipboard is None:
+                return False
+
+            text = clipboard.text() or ""
+            if not text.strip():
+                # Пустой буфер обмена — это не ошибка
+                return False
+
+            try:
+                data = json.loads(text)
+            except json.JSONDecodeError:
+                # В буфере не JSON нашего формата — это штатная ситуация
+                logger.debug("[LinksMenu] Clipboard does not contain valid JSON for links")
+                return False
 
             if isinstance(data, dict) and "name" in data:
                 return True
@@ -227,6 +244,7 @@ class LinksMenuBuilder:
                 isinstance(link, dict) and "name" in link for link in data
             ):
                 return True
-        except Exception:
-            logger.exception("[LinksMenu] Clipboard check failed")
+        except Exception as e:
+            # Нежданные ошибки логируем без трейсбека, чтобы не шуметь
+            logger.warning("[LinksMenu] Clipboard check failed: %s", e)
         return False
