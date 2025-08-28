@@ -27,10 +27,25 @@ class LegacySupport:
         is_valid, error = legacy.validate_section_data(data)
 
         # Новый способ (рекомендуемый):
-        try:
-            validate_item_data(data, StructureItemType.SECTION)
-        except ValidationError as e:
-            # обработка ошибки
+        # Валидация раздела
+        vr = validate_section_data(
+            data,
+            section_id=data.get("id"),
+            get_sections=lambda sphere_id: section_ops.get_sections(sphere_id),
+        )
+        if not vr.is_valid:
+            raise ValidationError("; ".join(vr.errors))
+        # Валидация категории
+        vr = validate_category_data(
+            data,
+            category_id=data.get("id"),
+            has_duplicate_category=lambda section_id, name, exclude_id: any(
+                (c.get("name", "").lower() == (name or "").lower()) and c.get("id") != exclude_id
+                for c in (category_ops.get_categories(section_id) or [])
+            ),
+        )
+        if not vr.is_valid:
+            raise ValidationError("; ".join(vr.errors))
 
     План миграции:
         - v1.1: Добавлены предупреждения об устаревании
@@ -182,7 +197,7 @@ class LegacySupport:
             Tuple[bool, str]: (True если валидация прошла, сообщение об ошибке)
 
         Deprecated:
-            Используйте validate_item_data(data, StructureItemType.SECTION) вместо этого метода.
+            Используйте validate_section_data(data, section_id=data.get('id'), get_sections=...) вместо этого метода.
 
         Examples:
             >>> legacy = LegacySupport(sphere_ops, section_ops, category_ops)
@@ -192,7 +207,7 @@ class LegacySupport:
         """
         self._log_deprecation_warning(
             "validate_section_data",
-            "validate_item_data(data, StructureItemType.SECTION)",
+            "validate_section_data(data, section_id=data.get('id'), get_sections=...)",
         )
 
         return self._validate_data_generic(
@@ -210,7 +225,7 @@ class LegacySupport:
             Tuple[bool, str]: (True если валидация прошла, сообщение об ошибке)
 
         Deprecated:
-            Используйте validate_item_data(data, StructureItemType.CATEGORY) вместо этого метода.
+            Используйте validate_category_data(data, category_id=data.get('id'), has_duplicate_category=...) вместо этого метода.
 
         Examples:
             >>> legacy = LegacySupport(sphere_ops, section_ops, category_ops)
@@ -220,7 +235,7 @@ class LegacySupport:
         """
         self._log_deprecation_warning(
             "validate_category_data",
-            "validate_item_data(data, StructureItemType.CATEGORY)",
+            "validate_category_data(data, category_id=data.get('id'), has_duplicate_category=...)",
         )
 
         return self._validate_data_generic(

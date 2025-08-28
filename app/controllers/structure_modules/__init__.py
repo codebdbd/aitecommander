@@ -26,7 +26,6 @@ __all__ = [
     "handle_exceptions",
     "ValidationResult",
     # Validation
-    "validate_item_data",
     "validate_section_data",
     "validate_category_data",
     # Normalization
@@ -58,15 +57,13 @@ def __getattr__(name):
     if name == "StructureBusinessLogicLegacy":
         from .legacy_support import StructureBusinessLogicLegacy  # local import to break cycle
         return StructureBusinessLogicLegacy
-    if name in ("validate_category_data", "validate_item_data", "validate_section_data"):
+    if name in ("validate_category_data", "validate_section_data"):
         from .validation import (
             validate_category_data,
-            validate_item_data,
             validate_section_data,
         )  # local import to break cycle
         return {
             "validate_category_data": validate_category_data,
-            "validate_item_data": validate_item_data,
             "validate_section_data": validate_section_data,
         }[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

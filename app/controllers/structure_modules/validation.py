@@ -56,20 +56,3 @@ def validate_category_data(
         category_id=category_id,
         has_duplicate_category=has_duplicate_category,
     )
-
-
-# Устаревшее API: validate_item_data — сохранено как заглушка на случай редких вызовов
-def validate_item_data(*args: Any, **kwargs: Any) -> ValidationResult:  # type: ignore[override]
-    """Deprecated: используйте validate_section_data/validate_category_data.
-
-    Возвращает ValidationResult вместо исключений.
-    """
-    import warnings
-
-    warnings.warn(
-        "validate_item_data устарел. Используйте validate_section_data/validate_category_data",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    # Недостаточно контекста, возвращаем валидный результат
-    return ValidationResult(is_valid=True)

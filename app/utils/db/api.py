@@ -1,15 +1,39 @@
 """Публичный фасад для запуска фоновых задач работы с БД.
 
-Пример:
+Примеры:
     from app.utils.db.api import run_db
 
+    # Базовый запуск без прогресса
     handle = run_db(lambda: db.links.upsert_link(data), on_finished=cb)
+
+    # Отмена задачи
     handle.cancel()
+
+    # Репортинг прогресса (0..100):
+    # 1) Передайте обработчик on_progress, чтобы получать значения в колбэке.
+    # 2) Подпишитесь на handle.signals.progress, чтобы получать Qt-сигналы в UI.
+    # 3) Передайте в исполняемую функцию позиционный аргумент-репортёр и вызывайте его.
+    #    Если функция принимает один аргумент, run_db передаст в неё callable report_progress.
+    #    Иначе функция будет вызвана как есть (обратная совместимость).
+    #
+    # Пример с явным репортингом внутри функции:
+    def long_job(report_progress):
+        for i in range(101):
+            # ... работа ...
+            report_progress(i)
+        return "ok"
+
+    handle = run_db(
+        long_job,
+        on_progress=lambda v: print(f"progress: {v}"),
+        on_finished=lambda res: print("done", res),
+    )
 """
 
 from __future__ import annotations
 
 from typing import Callable, Optional, Protocol, TypeVar
+import inspect
 
 from PyQt6.QtCore import QThreadPool
 
@@ -52,13 +76,47 @@ def run_db(
     - description: описание для логирования/диагностики
     - on_finished/on_error/on_progress: необязательные колбэки на сигналы
     - pool: опционально указать свой QThreadPool
+
+    Отчёт о прогрессе:
+    - Внутри задачи можно вызывать переданный позиционный аргумент `report_progress(value: int)`
+      (если функция объявлена с одним позиционным параметром). Это эмитит Qt-сигнал
+      `signals.progress` и вызывает `on_progress`, если он передан.
+    - Либо можно подписаться на `handle.signals.progress` из UI.
     """
 
-    def _wrapped() -> T:
+    def _expects_reporter(callable_obj: Callable[..., T]) -> bool:
+        try:
+            sig = inspect.signature(callable_obj)
+        except (TypeError, ValueError):
+            return False
+        has_var_positional = any(p.kind is inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values())
+        if has_var_positional:
+            return True
+        positional_count = sum(
+            1
+            for p in sig.parameters.values()
+            if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        )
+        return positional_count >= 1
+
+    expects_reporter = _expects_reporter(func)
+
+    if expects_reporter:
         if use_lock:
-            with db_lock:
+            def _wrapped(report_progress: Callable[[int], None]) -> T:
+                with db_lock:
+                    return func(report_progress)  # type: ignore[misc]
+        else:
+            def _wrapped(report_progress: Callable[[int], None]) -> T:
+                return func(report_progress)  # type: ignore[misc]
+    else:
+        if use_lock:
+            def _wrapped() -> T:
+                with db_lock:
+                    return func()
+        else:
+            def _wrapped() -> T:
                 return func()
-        return func()
 
     task = DatabaseTask[T](
         _wrapped, description=description, reporter=(on_progress or (lambda *_: None))
