@@ -44,10 +44,26 @@ class DatabaseTask(QRunnable, Generic[T]):
         self.signals = TaskSignals()
         self._canceled = False
         self.description = description
-        # Если передан репортёр прогресса — прокидываем в него сигнал
-        self._reporter = reporter or (
-            lambda value: self.signals.progress.emit(int(value))
-        )
+        # Внешний колбэк прогресса; может быть None
+        self._external_reporter: Optional[Callable[[int], None]] = reporter
+
+    def report_progress(self, value: int) -> None:
+        """Сообщить о прогрессе задачи (0..100).
+
+        Всегда эмитит сигнал `signals.progress`, а затем (если передан)
+        вызывает внешний колбэк, переданный через `run_db(..., on_progress=...)`.
+        """
+        try:
+            self.signals.progress.emit(int(value))
+        except Exception:
+            # Гарантируем, что внешний колбэк вызовется даже при проблемах с сигналом
+            pass
+        try:
+            if self._external_reporter is not None:
+                self._external_reporter(int(value))
+        except Exception:
+            # Не прерываем выполнение задачи из-за ошибок пользовательского колбэка
+            pass
 
     def cancel(self) -> None:
         self._canceled = True
@@ -61,7 +77,15 @@ class DatabaseTask(QRunnable, Generic[T]):
             self.signals.canceled.emit()
             return
         try:
-            result = self.func()
+            # Пытаемся передать репортёр прогресса в пользовательскую функцию,
+            # если она ожидает 1 позиционный аргумент. Полная обратная совместимость
+            # с функциями без аргументов.
+            try:
+                # Попытка вызвать с репортёром
+                result = self.func(self.report_progress)  # type: ignore[misc]
+            except TypeError:
+                # Вероятно, сигнатура без аргументов — вызываем без репортёра
+                result = self.func()  # type: ignore[call-arg]
             if self._canceled:
                 self.signals.canceled.emit()
                 return
