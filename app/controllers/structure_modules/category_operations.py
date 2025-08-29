@@ -43,16 +43,16 @@ class CategoryOperations(BaseOperations):
 
     def create_category(self, data: Dict[str, Any]) -> bool:
         """Создает новую категорию."""
-        result = self._process_item(data, StructureItemType.CATEGORY)
+        # Делегируем в универсальный метод базового класса
+        result = self.create_item(StructureItemType.CATEGORY, data)
         if result:
             self._cache_manager.invalidate_first_category_cache()
         return result
 
     def update_category(self, category_id: int, data: Dict[str, Any]) -> bool:
         """Обновляет существующую категорию."""
-        result = self._process_item(
-            data, StructureItemType.CATEGORY, category_id, is_update=True
-        )
+        # Делегируем в универсальный метод базового класса
+        result = self.update_item(StructureItemType.CATEGORY, category_id, data)
         if result:
             self._cache_manager.invalidate_first_category_cache()
         return result
@@ -85,24 +85,27 @@ class CategoryOperations(BaseOperations):
 
     def confirm_delete_category(self, category_id: int) -> bool:
         """Подтверждает и выполняет удаление категории."""
-
-        def _confirm_delete_operation():
-            # Удаление через сервисный слой (UnitOfWork)
-            if not self._structure_service:
-                raise RuntimeError("StructureService недоступен для удаления категории")
-            self._structure_service.delete_category(category_id)
-            self._emit_item_signal(
-                SignalTypes.ITEM_DELETED, StructureItemType.CATEGORY, category_id
+        if not self._structure_service:
+            return self._execute_with_error_handling(
+                lambda: (_ for _ in ()).throw(
+                    RuntimeError("StructureService недоступен для удаления категории")
+                ),
+                f"удалить категорию {category_id}",
+                default_return=False,
             )
-            self.logger.info(f"Удалена категория {category_id}")
-            self._cache_manager.invalidate_first_category_cache()
-            return True
 
-        return self._execute_with_error_handling(
-            _confirm_delete_operation,
-            f"удалить категорию {category_id}",
-            default_return=False,
+        def _delete():
+            self._structure_service.delete_category(category_id)
+
+        result = self.delete_item(
+            StructureItemType.CATEGORY,
+            category_id,
+            delete_func=_delete,
+            emit_data=None,
         )
+        if result:
+            self._cache_manager.invalidate_first_category_cache()
+        return result
 
     def get_category_data(self, category_id: int) -> Optional[Dict[str, Any]]:
         """Получает данные категории с гарантированной нормализацией."""

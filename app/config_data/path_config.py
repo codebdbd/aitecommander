@@ -27,14 +27,23 @@ class PathConfig(BaseConfig):
         p = Path(rel)
         return p if p.is_absolute() else self.get_base_path() / p
 
-    def get_db_path(self) -> Path:
-        """Путь к файлу базы данных в %APPDATA%/Org/App/links.db."""
+    def __get_appdata_subpath(self, sub: str) -> Path:
+        """Вычисляет поддиректорию в %APPDATA%/org_name/app_name/sub.
+
+        Извлекает org_name и app_name из конфигурации, находит APPDATA
+        (или использует Path.home()/"AppData"/"Roaming" как запасной вариант)
+        и возвращает итоговый путь.
+        """
         org_name = self.get("app.org_name", "Codebdbd")
         app_name = self.get("app.name", "Aite Commander")
         appdata = os.getenv("APPDATA")
         if not appdata:
             appdata = Path.home() / "AppData" / "Roaming"
-        return Path(appdata) / org_name / app_name / "links.db"
+        return Path(appdata) / org_name / app_name / sub
+
+    def get_db_path(self) -> Path:
+        """Путь к файлу базы данных в %APPDATA%/Org/App/links.db."""
+        return self.__get_appdata_subpath("links.db")
 
     def get_link_icons_dir(self) -> Path:
         """Директория пользовательских иконок в %APPDATA%/Org/App/icons."""
@@ -43,12 +52,7 @@ class PathConfig(BaseConfig):
         if conf:
             p = Path(conf)
             return p if p.is_absolute() else self.get_user_data_dir() / p
-        org_name = self.get("app.org_name", "Codebdbd")
-        app_name = self.get("app.name", "Aite Commander")
-        appdata = os.getenv("APPDATA")
-        if not appdata:
-            appdata = Path.home() / "AppData" / "Roaming"
-        return Path(appdata) / org_name / app_name / "icons"
+        return self.__get_appdata_subpath("icons")
 
     def get_user_data_dir(self) -> Path:
         """Базовая директория данных пользователя (родитель файла БД)."""
@@ -110,87 +114,66 @@ class PathConfig(BaseConfig):
 
     # Пути профилей браузеров (Windows) — возвращаем Optional[Path]
 
-    def get_chrome_profiles_dir(self) -> Optional[Path]:
-        """Директория профилей Chrome или None."""
-        localappdata = os.getenv("LOCALAPPDATA")
-        if localappdata:
-            chrome_path = Path(localappdata) / "Google" / "Chrome" / "User Data"
-            if chrome_path.exists():
-                return chrome_path
-        conf = self.get("paths.chrome_profiles_dir")
+    # Универсальный справочник параметров профилей браузеров
+    # key: имя браузера, value: (ENV_VAR, относительный путь от ENV, ключ конфига)
+    __BROWSER_PARAMS = {
+        "chrome": ("LOCALAPPDATA", Path("Google") / "Chrome" / "User Data", "paths.chrome_profiles_dir"),
+        "firefox": ("APPDATA", Path("Mozilla") / "Firefox", "paths.firefox_profiles_dir"),
+        "edge": ("LOCALAPPDATA", Path("Microsoft") / "Edge" / "User Data", "paths.edge_profiles_dir"),
+        "brave": ("LOCALAPPDATA", Path("BraveSoftware") / "Brave-Browser" / "User Data", "paths.brave_profiles_dir"),
+        "vivaldi": ("LOCALAPPDATA", Path("Vivaldi") / "User Data", "paths.vivaldi_profiles_dir"),
+        "opera": ("APPDATA", Path("Opera Software") / "Opera Stable", "paths.opera_profiles_dir"),
+        "yandex": ("LOCALAPPDATA", Path("Yandex") / "YandexBrowser" / "User Data", "paths.yandex_profiles_dir"),
+    }
+
+    def __get_browser_dir(self, env_var: str, vendor_path: Path, config_key: str) -> Optional[Path]:
+        """Универсальный резолвер директории профилей браузера.
+
+        Порядок: ENV[env_var] -> ENV/vendor_path если существует -> конфиг по ключу config_key
+        (относительный путь резолвится от base_path).
+        """
+        root = os.getenv(env_var, "")
+        if root:
+            candidate = Path(root) / vendor_path
+            if candidate.exists():
+                return candidate
+        conf = self.get(config_key)
         if conf:
             p = Path(conf)
             return p if p.is_absolute() else self.get_base_path() / p
         return None
+
+    def get_chrome_profiles_dir(self) -> Optional[Path]:
+        """Директория профилей Chrome или None."""
+        env, vendor, key = self.__BROWSER_PARAMS["chrome"]
+        return self.__get_browser_dir(env, vendor, key)
 
     def get_firefox_profiles_dir(self) -> Optional[Path]:
         """Директория профилей Firefox или None."""
-        appdata = os.getenv("APPDATA", "")
-        path = Path(appdata) / "Mozilla" / "Firefox"
-        if appdata and path.exists():
-            return path
-        conf = self.get("paths.firefox_profiles_dir")
-        if conf:
-            p = Path(conf)
-            return p if p.is_absolute() else self.get_base_path() / p
-        return None
+        env, vendor, key = self.__BROWSER_PARAMS["firefox"]
+        return self.__get_browser_dir(env, vendor, key)
 
     def get_edge_profiles_dir(self) -> Optional[Path]:
         """Директория профилей Edge или None."""
-        localappdata = os.getenv("LOCALAPPDATA", "")
-        path = Path(localappdata) / "Microsoft" / "Edge" / "User Data"
-        if localappdata and path.exists():
-            return path
-        conf = self.get("paths.edge_profiles_dir")
-        if conf:
-            p = Path(conf)
-            return p if p.is_absolute() else self.get_base_path() / p
-        return None
+        env, vendor, key = self.__BROWSER_PARAMS["edge"]
+        return self.__get_browser_dir(env, vendor, key)
 
     def get_brave_profiles_dir(self) -> Optional[Path]:
         """Директория профилей Brave или None."""
-        localappdata = os.getenv("LOCALAPPDATA", "")
-        path = Path(localappdata) / "BraveSoftware" / "Brave-Browser" / "User Data"
-        if localappdata and path.exists():
-            return path
-        conf = self.get("paths.brave_profiles_dir")
-        if conf:
-            p = Path(conf)
-            return p if p.is_absolute() else self.get_base_path() / p
-        return None
+        env, vendor, key = self.__BROWSER_PARAMS["brave"]
+        return self.__get_browser_dir(env, vendor, key)
 
     def get_vivaldi_profiles_dir(self) -> Optional[Path]:
         """Директория профилей Vivaldi или None."""
-        localappdata = os.getenv("LOCALAPPDATA", "")
-        path = Path(localappdata) / "Vivaldi" / "User Data"
-        if localappdata and path.exists():
-            return path
-        conf = self.get("paths.vivaldi_profiles_dir")
-        if conf:
-            p = Path(conf)
-            return p if p.is_absolute() else self.get_base_path() / p
-        return None
+        env, vendor, key = self.__BROWSER_PARAMS["vivaldi"]
+        return self.__get_browser_dir(env, vendor, key)
 
     def get_opera_profiles_dir(self) -> Optional[Path]:
         """Директория профилей Opera или None."""
-        appdata = os.getenv("APPDATA", "")
-        path = Path(appdata) / "Opera Software" / "Opera Stable"
-        if appdata and path.exists():
-            return path
-        conf = self.get("paths.opera_profiles_dir")
-        if conf:
-            p = Path(conf)
-            return p if p.is_absolute() else self.get_base_path() / p
-        return None
+        env, vendor, key = self.__BROWSER_PARAMS["opera"]
+        return self.__get_browser_dir(env, vendor, key)
 
     def get_yandex_profiles_dir(self) -> Optional[Path]:
         """Директория профилей Yandex или None."""
-        localappdata = os.getenv("LOCALAPPDATA", "")
-        path = Path(localappdata) / "Yandex" / "YandexBrowser" / "User Data"
-        if localappdata and path.exists():
-            return path
-        conf = self.get("paths.yandex_profiles_dir")
-        if conf:
-            p = Path(conf)
-            return p if p.is_absolute() else self.get_base_path() / p
-        return None
+        env, vendor, key = self.__BROWSER_PARAMS["yandex"]
+        return self.__get_browser_dir(env, vendor, key)
