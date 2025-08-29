@@ -105,6 +105,16 @@ class BaseLinksPanelWidget(BasePanelWidget):
         try:
             resolved_path = self._find_icon(resolve_icon_for_link(link_data))
             icon = create_icon_from_path(resolved_path)
+            # Фолбэк: если иконка не создана или пуста — используем дефолтную
+            if not icon or getattr(icon, "isNull", lambda: True)():
+                fallback_path = str(self._get_default_icon_path())
+                logging.warning(
+                    "Иконка не создана/пустая для ссылки %r (path=%s). Используем дефолтную: %s",
+                    link_data.get("name"),
+                    resolved_path,
+                    fallback_path,
+                )
+                icon = create_icon_from_path(fallback_path)
             button.setIcon(icon)
             # Диагностика фактических размеров и DPR
             try:
@@ -127,6 +137,12 @@ class BaseLinksPanelWidget(BasePanelWidget):
                 logging.debug("[TopBarIconDiag] failed to log diagnostics: %s", diag_exc)
         except Exception as e:
             logging.warning("Не удалось создать иконку для ссылки '%s': %s", link_data.get("name", "Unknown"), e)
+            # Гарантируем визуальный отклик — ставим иконку по умолчанию
+            try:
+                fallback_path = str(self._get_default_icon_path())
+                button.setIcon(create_icon_from_path(fallback_path))
+            except Exception:
+                pass
 
         button.setToolTip(link_data.get("name", "Неизвестная ссылка"))
         return button
@@ -485,7 +501,12 @@ class BaseDragDropTableWidget(QTableView):
             raise ValueError("Cannot extract integer ID from UserRole data") from e
 
     def _get_drop_positions(self, event) -> tuple:
-        """Возвращает позиции источника и цели для drop-операции."""
+        """Возвращает позиции источника и цели для drop-операции.
+
+        Поддерживает двойной способ получения позиции указателя для совместимости:
+        - PyQt6: QDropEvent.position() -> QPointF (нужен toPoint())
+        - PyQt5/ранние API: QDropEvent.pos() -> QPoint
+        """
         if self._is_internal_drop(event):
             source_rows = self._extract_source_rows_from_mime(event)
             logging.debug(f"[DROP] extracted rows from MIME: {len(source_rows)}")
@@ -496,7 +517,19 @@ class BaseDragDropTableWidget(QTableView):
         if not source_rows:
             return [], -1
 
-        target_index = self.indexAt(event.position().toPoint())
+        # Совместимость PyQt6/PyQt5: position() | pos()
+        pos_attr = getattr(event, "position", None) or getattr(event, "pos", None)
+        try:
+            pos_val = pos_attr() if callable(pos_attr) else pos_attr
+        except Exception:
+            pos_val = None
+
+        if pos_val is not None and hasattr(pos_val, "toPoint"):
+            qt_point = pos_val.toPoint()
+        else:
+            qt_point = pos_val  # Может быть QPoint или None
+
+        target_index = self.indexAt(qt_point) if qt_point is not None else QModelIndex()
         if not target_index.isValid():
             try:
                 target_row = self.model().rowCount()

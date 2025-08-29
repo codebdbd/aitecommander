@@ -22,7 +22,10 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
     def __init__(self, links: Optional[Sequence[Dict[str, Any]]] = None, parent=None):
         super().__init__(parent)
         self._headers: List[str] = list(self.DEFAULT_HEADERS)
-        self._links: List[Dict[str, Any]] = list(links) if links else []
+        self._links: List[Dict[str, Any]] = []
+        # Инициализация с зачисткой потенциального кеша иконок
+        if links:
+            self.set_links(links)
 
     # --- Обязательные методы ---
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # type: ignore[override]
@@ -140,10 +143,14 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
         try:
             if role == Qt.ItemDataRole.UserRole and isinstance(value, dict):
                 # Полная замена словаря ссылки
-                self._links[row] = dict(value)
+                new_link = dict(value)
+                # Удаляем возможный внешний кеш иконки
+                new_link.pop("_icon", None)
+                self._links[row] = new_link
                 top_left = self.index(row, 0)
                 bottom_right = self.index(row, len(self._headers) - 1)
-                self.dataChanged.emit(top_left, bottom_right, [])
+                # Сообщаем, что могли измениться и декорации (иконки)
+                self.dataChanged.emit(top_left, bottom_right, [Qt.ItemDataRole.DecorationRole])
                 return True
 
             if role in (Qt.ItemDataRole.EditRole, Qt.ItemDataRole.DisplayRole):
@@ -158,7 +165,9 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
                     link["notes"] = str(value)
                 else:
                     return False
-                self.dataChanged.emit(index, index, [role])
+                # Любое изменение данных потенциально влияет на отображение — чистим кеш иконки
+                link.pop("_icon", None)
+                self.dataChanged.emit(index, index, [role, Qt.ItemDataRole.DecorationRole])
                 return True
         except Exception:
             return False
@@ -184,7 +193,13 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
 
     def set_links(self, links: Sequence[Dict[str, Any]]) -> None:
         self.beginResetModel()
-        self._links = list(links)
+        # Клонируем и удаляем возможный кеш иконок, чтобы модель сама их пересобрала
+        cleaned: List[Dict[str, Any]] = []
+        for l in links:
+            d = dict(l)
+            d.pop("_icon", None)
+            cleaned.append(d)
+        self._links = cleaned
         self.endResetModel()
 
     def insert_link(self, pos: int, link: Dict[str, Any]) -> bool:
@@ -209,9 +224,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
         if not (0 <= row < len(self._links)):
             return False
         self._links[row].update(new_data)
+        # Инвалидация кеша иконки — иконка должна пересчитаться при следующем запросе
+        self._links[row].pop("_icon", None)
         top_left = self.index(row, 0)
         bottom_right = self.index(row, len(self._headers) - 1)
-        self.dataChanged.emit(top_left, bottom_right, [])
+        self.dataChanged.emit(top_left, bottom_right, [Qt.ItemDataRole.DecorationRole])
         return True
 
     # --- Вспомогательные методы ---
