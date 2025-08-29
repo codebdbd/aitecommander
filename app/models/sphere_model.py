@@ -107,7 +107,7 @@ class SphereModel(DatabaseBase):
                     "INSERT INTO sphere(name, position, icon_path) VALUES(?,?,?)",
                     default,
                 )
-                self.connection.commit()
+                self.commit()
                 logger.info("Начальные данные для сфер добавлены")
             else:
                 logger.info("Начальные данные для сфер уже существуют")

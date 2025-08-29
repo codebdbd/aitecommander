@@ -7,7 +7,7 @@ import logging
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 from app.config_data import app_config
 
@@ -216,145 +216,114 @@ class IconPathService:
 _icon_path_service = IconPathService()
 
 
-# --- Поиск и кеширование пути к иконке ---
+# --- Разделение обязанностей: Resolver для кеша/поиска/конвертации ---
 
 
-def get_icon_path(icon_name: str, theme: str = "light") -> Optional[str]:
-    """Получить строковый путь к иконке c кешированием."""
-    if not _validate_icon_name(icon_name):
-        logger.warning("Invalid icon name provided: %r", icon_name)
-        cache_path(icon_name, theme, None)  # негативное кеширование
-        return None
+class IconPathResolver:
+    """Отвечает за этапы: кеш/негативный кеш/метрики, поиск по индексам тем, конвертацию SVG→PNG.
 
-    norm_theme = validate_theme(theme)
-    key = f"{norm_theme}:{icon_name.lower()}"
+    Методы:
+    - resolve_from_cache: валидация имени, негативный кеш, hits/misses в кэше путей.
+      Возвращает (path_or_none, terminal). Если terminal=True — результат окончательный.
+    - find_source: быстрый поиск файлов иконок по индексам тем (с fallback на light).
+    - convert_svg: попытка сконвертировать SVG в PNG (в теме и/или из light).
+    """
 
-    # 0) быстрый негативный кеш (с backoff по числу промахов)
-    now = time.time()
-    with _NEG_LOCK:
-        ts = _NEGATIVE_CACHE.get(key)
-        strikes = _NEG_STRIKES.get(key, 0)
-        # Конфигурируемые базовый и максимальный TTL негативного кеша
-        base_ttl = getattr(app_config, "icon_negative_cache_ttl", _NEG_TTL)
-        max_ttl = getattr(app_config, "icon_negative_cache_ttl_max", _NEG_TTL_MAX)
-        ttl = min(base_ttl * (2**strikes), max_ttl)
-        if ts and (now - ts) < ttl:
-            logger.debug(
-                "Negative cache HIT: %s (ttl=%.1fs, strikes=%d)", key, ttl, strikes
-            )
+    def __init__(self, service: IconPathService) -> None:
+        self.service = service
+
+    # --- Управление кешем и статистикой ---
+    def resolve_from_cache(self, icon_name: str, theme: str) -> Tuple[Optional[str], bool]:
+        if not _validate_icon_name(icon_name):
+            logger.warning("Invalid icon name provided: %r", icon_name)
+            cache_path(icon_name, theme, None)  # негативное кеширование
             try:
                 _ICON_METRICS.record_not_found()
                 _ICON_METRICS.record_miss_without_increment(0.0)
             finally:
                 _maybe_log_metrics()
-            return None
-        # если срок истёк, мягко уменьшаем strikes
-        if ts and (now - ts) >= ttl and strikes > 0:
-            _NEG_STRIKES[key] = strikes - 1
+            return None, True
 
-    # 1) кэш
-    cached = get_path_from_cache(icon_name, norm_theme)
-    if cached is not None:
-        logger.debug("Path cache HIT: %s (%s)", icon_name, norm_theme)
-        try:
-            _ICON_METRICS.record_hit()
-        finally:
-            _maybe_log_metrics()
-        return cached
+        norm_theme = validate_theme(theme)
+        key = f"{norm_theme}:{icon_name.lower()}"
 
-    logger.debug("Path cache MISS: %s (%s)", icon_name, norm_theme)
-
-    ui_dir = _icon_path_service.get_ui_icons_dir()
-    themed_path = ui_dir / norm_theme / icon_name
-
-    # 2) быстрый поиск по индексу текущей темы
-    idx_hit = _get_indexed_icon(norm_theme, icon_name)
-    if idx_hit is not None:
-        path_str = str(idx_hit)
-        cache_path(icon_name, norm_theme, path_str)
-        try:
-            _ICON_METRICS.record_disk_load()
-        finally:
-            _maybe_log_metrics()
-        return path_str
-
-    # 3) fallback на light
-    if norm_theme != "light":
-        # пробуем индекс light
-        light_idx = _get_indexed_icon("light", icon_name)
-        if light_idx is not None:
-            path_str = str(light_idx)
-            cache_path(icon_name, norm_theme, path_str)
-            try:
-                _ICON_METRICS.record_disk_load()
-            finally:
-                _maybe_log_metrics()
-            return path_str
-
-    # 3.1) legacy корень без темы — удалён для упрощения структуры
-
-    # 4) попытки конвертации SVG → PNG (в текущей теме, затем из light)
-    # ВАЖНО: импортируем напрямую из подмодуля converters, чтобы избежать циклических импортов
-    from .icon_operations.converters import convert_icon_to_png_128
-
-    # themed.svg → themed.png (с проверкой свежести по mtime)
-    themed_svg = themed_path.with_suffix(".svg")
-    if themed_svg.is_file() and is_valid_icon_file(themed_svg):
-        themed_png = themed_path.with_suffix(".png")
-        if themed_png.is_file():
-            try:
-                if themed_png.stat().st_mtime >= themed_svg.stat().st_mtime:
-                    path_str = str(themed_png)
-                    cache_path(icon_name, norm_theme, path_str)
-                    logger.debug("Using up-to-date PNG: %s", themed_png)
-                    try:
-                        _ICON_METRICS.record_disk_load()
-                    finally:
-                        _maybe_log_metrics()
-                    return path_str
-            except Exception:  # noqa: BLE001
-                pass
-        # Замеряем длительность конвертации
-        slow_ms = float(getattr(app_config, "icon_slow_convert_threshold_ms", 150.0))
-        t0 = time.perf_counter()
-        if convert_icon_to_png_128(str(themed_svg), str(themed_png)):
-            dt_ms = (time.perf_counter() - t0) * 1000.0
-            path_str = str(themed_png)
-            cache_path(icon_name, norm_theme, path_str)
-            if dt_ms >= slow_ms:
-                logger.warning(
-                    "Slow icon convert (%.1f ms): %s → %s",
-                    dt_ms,
-                    themed_svg,
-                    themed_png,
-                )
-            else:
+        # быстрый негативный кеш (с backoff по числу промахов)
+        now = time.time()
+        with _NEG_LOCK:
+            ts = _NEGATIVE_CACHE.get(key)
+            strikes = _NEG_STRIKES.get(key, 0)
+            base_ttl = getattr(app_config, "icon_negative_cache_ttl", _NEG_TTL)
+            max_ttl = getattr(app_config, "icon_negative_cache_ttl_max", _NEG_TTL_MAX)
+            ttl = min(base_ttl * (2**strikes), max_ttl)
+            if ts and (now - ts) < ttl:
                 logger.debug(
-                    "Converted SVG to PNG (%.1f ms): %s → %s",
-                    dt_ms,
-                    themed_svg,
-                    themed_png,
+                    "Negative cache HIT: %s (ttl=%.1fs, strikes=%d)", key, ttl, strikes
                 )
+                try:
+                    _ICON_METRICS.record_not_found()
+                    _ICON_METRICS.record_miss_without_increment(0.0)
+                finally:
+                    _maybe_log_metrics()
+                return None, True
+            if ts and (now - ts) >= ttl and strikes > 0:
+                _NEG_STRIKES[key] = strikes - 1
+
+        cached = get_path_from_cache(icon_name, norm_theme)
+        if cached is not None:
+            logger.debug("Path cache HIT: %s (%s)", icon_name, norm_theme)
+            try:
+                _ICON_METRICS.record_hit()
+            finally:
+                _maybe_log_metrics()
+            return cached, True
+
+        logger.debug("Path cache MISS: %s (%s)", icon_name, norm_theme)
+        return None, False
+
+    # --- Поиск пути по индексу/темам ---
+    def find_source(self, icon_name: str, theme: str) -> Optional[str]:
+        norm_theme = validate_theme(theme)
+        idx_hit = _get_indexed_icon(norm_theme, icon_name)
+        if idx_hit is not None:
+            path_str = str(idx_hit)
+            cache_path(icon_name, norm_theme, path_str)
             try:
                 _ICON_METRICS.record_disk_load()
-                _ICON_METRICS.record_miss_without_increment(dt_ms / 1000.0)
             finally:
                 _maybe_log_metrics()
             return path_str
 
-    # light.svg → themed.png (скопировать/рендерить в целевую тему) с проверкой свежести
-    if norm_theme != "light":
-        light_svg = (ui_dir / "light" / icon_name).with_suffix(".svg")
-        if light_svg.is_file() and is_valid_icon_file(light_svg):
+        if norm_theme != "light":
+            light_idx = _get_indexed_icon("light", icon_name)
+            if light_idx is not None:
+                path_str = str(light_idx)
+                cache_path(icon_name, norm_theme, path_str)
+                try:
+                    _ICON_METRICS.record_disk_load()
+                finally:
+                    _maybe_log_metrics()
+                return path_str
+        return None
+
+    # --- Конвертация иконок ---
+    def convert_svg(self, icon_name: str, theme: str) -> Optional[str]:
+        # Локальный импорт для избежания циклических зависимостей
+        from .icon_operations.converters import convert_icon_to_png_128
+
+        norm_theme = validate_theme(theme)
+        ui_dir = self.service.get_ui_icons_dir()
+        themed_path = ui_dir / norm_theme / icon_name
+
+        # themed.svg → themed.png
+        themed_svg = themed_path.with_suffix(".svg")
+        if themed_svg.is_file() and is_valid_icon_file(themed_svg):
             themed_png = themed_path.with_suffix(".png")
             if themed_png.is_file():
                 try:
-                    if themed_png.stat().st_mtime >= light_svg.stat().st_mtime:
+                    if themed_png.stat().st_mtime >= themed_svg.stat().st_mtime:
                         path_str = str(themed_png)
                         cache_path(icon_name, norm_theme, path_str)
-                        logger.debug(
-                            "Using up-to-date PNG (from light SVG): %s", themed_png
-                        )
+                        logger.debug("Using up-to-date PNG: %s", themed_png)
                         try:
                             _ICON_METRICS.record_disk_load()
                         finally:
@@ -362,26 +331,24 @@ def get_icon_path(icon_name: str, theme: str = "light") -> Optional[str]:
                         return path_str
                 except Exception:  # noqa: BLE001
                     pass
-            slow_ms = float(
-                getattr(app_config, "icon_slow_convert_threshold_ms", 150.0)
-            )
+            slow_ms = float(getattr(app_config, "icon_slow_convert_threshold_ms", 150.0))
             t0 = time.perf_counter()
-            if convert_icon_to_png_128(str(light_svg), str(themed_png)):
+            if convert_icon_to_png_128(str(themed_svg), str(themed_png)):
                 dt_ms = (time.perf_counter() - t0) * 1000.0
                 path_str = str(themed_png)
                 cache_path(icon_name, norm_theme, path_str)
                 if dt_ms >= slow_ms:
                     logger.warning(
-                        "Slow icon convert (fallback, %.1f ms): %s → %s",
+                        "Slow icon convert (%.1f ms): %s → %s",
                         dt_ms,
-                        light_svg,
+                        themed_svg,
                         themed_png,
                     )
                 else:
                     logger.debug(
-                        "Converted fallback SVG to PNG (%.1f ms): %s → %s",
+                        "Converted SVG to PNG (%.1f ms): %s → %s",
                         dt_ms,
-                        light_svg,
+                        themed_svg,
                         themed_png,
                     )
                 try:
@@ -391,9 +358,82 @@ def get_icon_path(icon_name: str, theme: str = "light") -> Optional[str]:
                     _maybe_log_metrics()
                 return path_str
 
-    # 4.1) legacy SVG в корне — удалён для упрощения структуры
+        # light.svg → themed.png
+        if norm_theme != "light":
+            light_svg = (ui_dir / "light" / icon_name).with_suffix(".svg")
+            if light_svg.is_file() and is_valid_icon_file(light_svg):
+                themed_png = themed_path.with_suffix(".png")
+                if themed_png.is_file():
+                    try:
+                        if themed_png.stat().st_mtime >= light_svg.stat().st_mtime:
+                            path_str = str(themed_png)
+                            cache_path(icon_name, norm_theme, path_str)
+                            logger.debug(
+                                "Using up-to-date PNG (from light SVG): %s", themed_png
+                            )
+                            try:
+                                _ICON_METRICS.record_disk_load()
+                            finally:
+                                _maybe_log_metrics()
+                            return path_str
+                    except Exception:  # noqa: BLE001
+                        pass
+                slow_ms = float(
+                    getattr(app_config, "icon_slow_convert_threshold_ms", 150.0)
+                )
+                t0 = time.perf_counter()
+                if convert_icon_to_png_128(str(light_svg), str(themed_png)):
+                    dt_ms = (time.perf_counter() - t0) * 1000.0
+                    path_str = str(themed_png)
+                    cache_path(icon_name, norm_theme, path_str)
+                    if dt_ms >= slow_ms:
+                        logger.warning(
+                            "Slow icon convert (fallback, %.1f ms): %s → %s",
+                            dt_ms,
+                            light_svg,
+                            themed_png,
+                        )
+                    else:
+                        logger.debug(
+                            "Converted fallback SVG to PNG (%.1f ms): %s → %s",
+                            dt_ms,
+                            light_svg,
+                            themed_png,
+                        )
+                    try:
+                        _ICON_METRICS.record_disk_load()
+                        _ICON_METRICS.record_miss_without_increment(dt_ms / 1000.0)
+                    finally:
+                        _maybe_log_metrics()
+                    return path_str
+        return None
 
-    # 5) не найдено — негативное кеширование
+
+# --- Поиск и кеширование пути к иконке ---
+
+
+def get_icon_path(icon_name: str, theme: str = "light") -> Optional[str]:
+    """Получить строковый путь к иконке. Тонкая обёртка вокруг IconPathResolver."""
+    resolver = IconPathResolver(_icon_path_service)
+
+    # 1) кеш/негативный кеш/валидация/метрики
+    cached_or_none, terminal = resolver.resolve_from_cache(icon_name, theme)
+    if terminal:
+        return cached_or_none
+
+    # 2) поиск по индексам тем
+    found = resolver.find_source(icon_name, theme)
+    if found is not None:
+        return found
+
+    # 3) конвертация SVG→PNG
+    converted = resolver.convert_svg(icon_name, theme)
+    if converted is not None:
+        return converted
+
+    # 4) негативное кеширование при полном отсутстви
+    norm_theme = validate_theme(theme)
+    key = f"{norm_theme}:{icon_name.lower()}"
     cache_path(icon_name, norm_theme, None)
     with _NEG_LOCK:
         _NEGATIVE_CACHE[key] = time.time()

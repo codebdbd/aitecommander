@@ -17,13 +17,62 @@ class SystemDialogController:
 
     def handle_import_browser_bookmarks(self):
         """Импорт закладок браузера."""
-        from app.utils.browser.import_browser_html import import_browser_bookmarks_to_db
+        from app.utils.browser.import_browser_html import BrowserBookmarksImporter
+        from app.views.dialogs.import_browser_dialog import ImportBrowserDialog
 
-        success, msg = import_browser_bookmarks_to_db(
+        importer = BrowserBookmarksImporter()
+
+        # 1) Выбор файла
+        path = importer.select_file(self.main_window)
+        if not path:
+            return
+
+        # 2) Парсинг
+        try:
+            categories = importer.parse_bookmarks(path)
+        except Exception as e:
+            DialogManager.show_error(
+                self.main_window,
+                "Импорт из браузера",
+                "Ошибка чтения HTML файла.",
+                informative_text="Проверьте целостность файла и права доступа.",
+                details=str(e),
+            )
+            return
+        if not any(categories.values()):
+            DialogManager.show_warning(
+                self.main_window,
+                "Импорт из браузера",
+                "В файле не найдено ни одной ссылки.",
+                informative_text=(
+                    "Экспортируйте закладки из браузера в формате HTML и выберите корректный файл."
+                ),
+                details=f"file={path}",
+            )
+            return
+
+        # 3) Выбор раздела
+        dlg = ImportBrowserDialog(self.main_window.structure_business, self.main_window)
+        if dlg.exec() != dlg.DialogCode.Accepted:  # QDialog.DialogCode.Accepted
+            return
+        section_id = dlg.get_selected_section_id()
+        if not section_id:
+            DialogManager.show_warning(
+                self.main_window,
+                "Импорт из браузера",
+                "Не выбран раздел для импорта.",
+                informative_text="Выберите раздел, в который будут добавлены категории и ссылки.",
+            )
+            return
+
+        # 4) Синхронизация в БД
+        success, msg, added = importer.sync_to_db(
+            categories,
+            section_id,
             self.main_window.structure_business,
-            self.main_window,
             self.main_window.links_business,
         )
+
         if success:
             # Создаем резервную копию после большой операции импорта
             try:
@@ -50,7 +99,18 @@ class SystemDialogController:
                         "UIStateManager not available in SystemDialogController"
                     )
             self.main_window.update_statusbar()
-        # Ошибки и сообщения обрабатываются внутри import_browser_bookmarks_to_db
+            DialogManager.show_info(
+                self.main_window,
+                "Импорт из браузера",
+                msg,
+            )
+        else:
+            DialogManager.show_error(
+                self.main_window,
+                "Импорт из браузера",
+                "Импорт завершился с ошибкой",
+                details=msg,
+            )
 
     def show_about_dialog(self):
         """Показать диалог О программе."""

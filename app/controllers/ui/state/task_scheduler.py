@@ -10,7 +10,7 @@ import logging
 from enum import Enum
 from typing import Any, Callable, Dict, Optional
 
-from PyQt6.QtCore import QObject, QRunnable, QThreadPool, QTimer
+from PyQt6.QtCore import QObject, QRunnable, QThreadPool, QTimer, QThread, pyqtSignal
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +37,13 @@ class LimitedThreadPool(QThreadPool):
 
 class TaskScheduler(QObject):
     """Унифицированный планировщик задач для управления потоками и таймерами."""
+    # Сигнал класса для потокобезопасного планирования (QueuedConnection между потоками)
+    _schedule_sig = pyqtSignal(object, object, object, object, bool)
 
     def __init__(self, max_threads=4):
         super().__init__()
+        # Привязываем обработчик к сигналу (в главном потоке)
+        self._schedule_sig.connect(self._handle_schedule_request)
         # Инициализация пула потоков
         self.thread_pool = LimitedThreadPool(max_threads)
 
@@ -60,6 +64,19 @@ class TaskScheduler(QObject):
         # Таймеры для батчинга операций
         self._batch_timers: Dict[TaskType, QTimer] = {}
         self._setup_batch_timers()
+
+    def _handle_schedule_request(
+        self,
+        operation: Callable,
+        task_type: TaskType,
+        delay: Optional[int],
+        operation_id: Optional[str],
+        replace_existing: bool,
+    ) -> None:
+        """Обработчик сигнала: выполняет логику планирования в потоке владельца объекта."""
+        # Реиспользуем реальную логику schedule_operation, но без повторной проверки потока
+        # Небольшая инкапсуляция общей части
+        self._schedule_operation_internal(operation, task_type, delay, operation_id, replace_existing)
 
     def _setup_batch_timers(self):
         """Настраивает таймеры для батчинга операций по типам."""
@@ -99,11 +116,34 @@ class TaskScheduler(QObject):
         if operation_id is None:
             operation_id = f"{task_type.value}_{id(operation)}"
 
+        # Если вызвали из другого потока — отправим запрос через сигнал (queued connection)
+        if QThread.currentThread() is not self.thread():
+            try:
+                self._schedule_sig.emit(operation, task_type, delay, operation_id, replace_existing)
+            except Exception as e:
+                logger.error(f"Не удалось запланировать операцию через сигнал {operation_id}: {e}")
+            return operation_id
+
+        # Иначе — тот же поток, можно планировать напрямую
+        self._schedule_operation_internal(operation, task_type, delay, operation_id, replace_existing)
+        return operation_id
+
+    def _schedule_operation_internal(
+        self,
+        operation: Callable,
+        task_type: TaskType,
+        delay: Optional[int],
+        operation_id: Optional[str],
+        replace_existing: bool,
+    ) -> None:
+        """Общая логика постановки операции в очередь и старта таймера.
+        Вызывается либо из того же потока, либо через queued-сигнал.
+        """
         # Проверяем, есть ли уже операция с таким ID
         if operation_id in self._pending_operations[task_type]:
             if not replace_existing:
                 logger.debug(f"Операция {operation_id} уже запланирована, пропускаем")
-                return operation_id
+                return
             else:
                 logger.debug(f"Заменяем существующую операцию {operation_id}")
 
@@ -120,7 +160,6 @@ class TaskScheduler(QObject):
         logger.debug(
             f"Запланирована операция {operation_id} типа {task_type.value} с задержкой {delay}ms"
         )
-        return operation_id
 
     def _execute_batched_operations(self, task_type: TaskType):
         """Выполняет все накопленные операции определенного типа."""

@@ -39,7 +39,8 @@ class DatabaseBase:
     def commit(self) -> None:
         """Фиксирует текущую транзакцию."""
         try:
-            self.connection.commit()
+            with db_lock:
+                self.connection.commit()
         except sqlite3.Error as e:
             logger.error(f"Ошибка commit: {e}")
             raise DatabaseError(f"Ошибка commit: {e}")
@@ -47,7 +48,8 @@ class DatabaseBase:
     def rollback(self) -> None:
         """Откатывает текущую транзакцию."""
         try:
-            self.connection.rollback()
+            with db_lock:
+                self.connection.rollback()
         except sqlite3.Error as e:
             logger.error(f"Ошибка rollback: {e}")
             raise DatabaseError(f"Ошибка rollback: {e}")
