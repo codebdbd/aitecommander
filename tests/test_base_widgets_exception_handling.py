@@ -98,43 +98,32 @@ class TestBaseLinksPanelWidgetExceptionHandling(unittest.TestCase):
             {'id': 'another_good_link', 'name': 'Another Good Link', 'url': 'http://good.com'}
         ]
 
-        with patch('app.views.base_widgets.logging.warning') as mock_warning:
-            with patch('app.views.base_widgets.logging.getLogger') as mock_get_logger:
-                mock_logger = Mock()
-                mock_logger.isEnabledFor.return_value = False
-                mock_get_logger.return_value = mock_logger
-                
-                self.widget._populate_panel(test_items, failing_create_button)
-                
-                # Проверяем, что было залогировано предупреждение об ошибке
-                mock_warning.assert_called_once()
-                args = mock_warning.call_args[0]
-                self.assertIn("Не удалось создать кнопку для элемента панели", args[0])
-                
-                # Проверяем, что в логе есть информация о проблемной ссылке
-                link_info = args[1]
-                self.assertIn('failing_link', str(link_info))
+        with patch('app.views.base_widgets.logging.exception') as mock_exception:
+            self.widget._populate_panel(test_items, failing_create_button)
+            
+            # Проверяем, что было залогировано исключение об ошибке
+            mock_exception.assert_called_once()
+            args = mock_exception.call_args[0]
+            self.assertIn("Не удалось создать кнопку для элемента панели", args[0])
+            
+            # Проверяем, что в логе есть информация о проблемной ссылке
+            link_info = args[1]
+            self.assertIn('failing_link', str(link_info))
 
     def test_populate_panel_debug_logging_for_button_creation_error(self):
-        """Тест детального логирования в режиме отладки."""
+        """Тест детального логирования при ошибке создания кнопки."""
         def failing_create_button(link):
             raise RuntimeError("Detailed error for debugging")
 
         test_items = [{'id': 'test_link', 'name': 'Test Link', 'url': 'http://test.com'}]
 
-        with patch('app.views.base_widgets.logging.warning'):
-            with patch('app.views.base_widgets.logging.getLogger') as mock_get_logger:
-                with patch('app.views.base_widgets.logging.exception') as mock_exception:
-                    mock_logger = Mock()
-                    mock_logger.isEnabledFor.return_value = True  # DEBUG режим включен
-                    mock_get_logger.return_value = mock_logger
-                    
-                    self.widget._populate_panel(test_items, failing_create_button)
-                    
-                    # Проверяем, что в DEBUG режиме вызывается logging.exception
-                    mock_exception.assert_called_once()
-                    args = mock_exception.call_args[0]
-                    self.assertIn("Полная трассировка ошибки создания кнопки", args[0])
+        with patch('app.views.base_widgets.logging.exception') as mock_exception:
+            self.widget._populate_panel(test_items, failing_create_button)
+            
+            # Проверяем, что вызывается logging.exception с диагностикой
+            mock_exception.assert_called_once()
+            args = mock_exception.call_args[0]
+            self.assertIn("Не удалось создать кнопку для элемента панели", args[0])
 
     def test_populate_panel_logs_none_button_return(self):
         """Тест логирования когда create_button_func возвращает None."""
@@ -190,8 +179,8 @@ class TestBaseLinksPanelWidgetExceptionHandling(unittest.TestCase):
             
             self.widget._populate_panel(test_items, good_create_button)
             
-            # Проверяем, что кнопки были добавлены в layout
-            self.assertEqual(self.widget.layout.count(), 2)
+            # Проверяем, что кнопки были добавлены в layout панели
+            self.assertEqual(self.widget.panel_layout.count(), 2)
 
 
 if __name__ == '__main__':

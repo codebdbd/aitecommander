@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from PyQt6.QtCore import QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, QEvent, pyqtSignal
 from PyQt6.QtGui import QDrag, QDropEvent, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -46,11 +46,11 @@ class BasePanelWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.bg_frame = QFrame(self)
-        self.layout = QHBoxLayout(self.bg_frame)
-        self.layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setSpacing(app_config.get_top_bar_buttons_spacing())
-        self.layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
+        self.panel_layout = QHBoxLayout(self.bg_frame)
+        self.panel_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self.panel_layout.setContentsMargins(0, 0, 0, 0)
+        self.panel_layout.setSpacing(app_config.get_top_bar_buttons_spacing())
+        self.panel_layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -62,9 +62,21 @@ class BaseLinksPanelWidget(BasePanelWidget):
 
     linkClicked: pyqtSignal = pyqtSignal(object)
 
-    def __init__(self, main_window=None, links_business=None):
+    def __init__(self, main_window: Optional[QWidget] = None, links_business: Any = None):
+        """Инициализирует панель ссылок.
+
+        Args:
+            main_window: Ссылка на главное окно приложения (если нужна интеграция с UI). Сохраняется в атрибуте `self.main_window`.
+            links_business: Бизнес-логика для операций со ссылками. Сохраняется в атрибуте `self.links_business`.
+
+        Примечания:
+            - Путь к иконке по умолчанию кэшируется в `self._default_icon_path` и вычисляется при первом обращении
+              к `_get_default_icon_path()`.
+        """
         super().__init__()
-        self._default_icon_path = None
+        self.main_window = main_window
+        self.links_business = links_business
+        self._default_icon_path: Optional[Path] = None
 
     def _find_icon(self, icon_path: str) -> str:
         """Возвращает путь к иконке через общий резолвер с fallback."""
@@ -88,21 +100,21 @@ class BaseLinksPanelWidget(BasePanelWidget):
         icon_size = app_config.get_top_panel_icon_size()
         button.setFixedSize(button_size, button_size)
         button.setIconSize(QSize(icon_size[0], icon_size[1]))
-        from PyQt6.QtWidgets import QSizePolicy
-
         button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-
-        icon_path = resolve_icon_for_link(link_data)
-        icon = create_icon_from_path(icon_path)
-        button.setIcon(icon)
+        try:
+            resolved_path = self._find_icon(resolve_icon_for_link(link_data))
+            icon = create_icon_from_path(resolved_path)
+            button.setIcon(icon)
+        except Exception as e:
+            logging.warning("Не удалось создать иконку для ссылки '%s': %s", link_data.get("name", "Unknown"), e)
 
         button.setToolTip(link_data.get("name", "Неизвестная ссылка"))
         return button
 
     def _clear_layout(self):
         """Безопасно очищает layout от виджетов."""
-        while self.layout.count():
-            item = self.layout.takeAt(0)
+        while self.panel_layout.count():
+            item = self.panel_layout.takeAt(0)
             widget = item.widget()
             if widget:
                 widget.deleteLater()
@@ -114,11 +126,7 @@ class BaseLinksPanelWidget(BasePanelWidget):
         for i, link in enumerate(items):
             try:
                 button = create_button_func(link)
-                if button is not None:
-                    self.layout.addWidget(button)
-                else:
-                    logging.debug("create_button_func вернула None для элемента %d: %s", i, link.get('name', 'Unknown'))
-            except Exception as exc:
+            except Exception:
                 # Подробная диагностика для упрощения отладки
                 link_info = {
                     'index': i,
@@ -126,18 +134,20 @@ class BaseLinksPanelWidget(BasePanelWidget):
                     'name': link.get('name', 'Unknown'),
                     'url': link.get('url', 'Unknown')[:50] if link.get('url') else 'Unknown'
                 }
-                logging.warning(
-                    "Не удалось создать кнопку для элемента панели %s: %s", 
-                    link_info, exc
+                logging.exception(
+                    "Не удалось создать кнопку для элемента панели %s", 
+                    link_info
                 )
-                # В режиме отладки выводим полный стек трейс
-                if logging.getLogger().isEnabledFor(logging.DEBUG):
-                    logging.exception("Полная трассировка ошибки создания кнопки:")
                 continue
+
+            if button is not None:
+                self.panel_layout.addWidget(button)
+            else:
+                logging.debug("create_button_func вернула None для элемента %d: %s", i, link.get('name', 'Unknown'))
 
         try:
             if self.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Expanding:
-                self.layout.addStretch()
+                self.panel_layout.addStretch()
         except (AttributeError, RuntimeError) as e:
             logging.warning("Не удалось добавить stretch в layout: %s", e)
 
@@ -147,20 +157,31 @@ class BaseLinksPanelWidget(BasePanelWidget):
         logging.debug("[BaseLinksPanelWidget] link clicked: %s", link_info)
         try:
             self.linkClicked.emit(link_info)
-        except Exception as exc:
-            logging.error("Не удалось эмитить сигнал linkClicked: %s", exc)
+        except (TypeError, RuntimeError) as exc:
+            try:
+                link_ctx = {
+                    'id': getattr(link_info, 'id', None) or (link_info.get('id') if isinstance(link_info, dict) else None),
+                    'name': getattr(link_info, 'name', None) or (link_info.get('name') if isinstance(link_info, dict) else None),
+                    'url': getattr(link_info, 'url', None) or (link_info.get('url') if isinstance(link_info, dict) else None),
+                }
+            except Exception:
+                link_ctx = {'raw': repr(link_info)}
+            logging.exception("Ошибка при эмитировании linkClicked; контекст=%s", link_ctx)
+            raise
 
     def _get_default_icon_path(self) -> Path:
-        """Возвращает путь к иконке по умолчанию."""
-        return get_default_icon_path()
+        """Возвращает путь к иконке по умолчанию с кэшированием.
+
+        При первом вызове вычисляет путь и сохраняет его в `self._default_icon_path`.
+        Последующие вызовы возвращают закэшированное значение.
+        """
+        if self._default_icon_path is None:
+            self._default_icon_path = get_default_icon_path()
+        return self._default_icon_path
 
 
 class BaseDragDropTableWidget(QTableView):
-    """Базовый класс таблиц с поддержкой drag-and-drop (QTableView).
-
-    Важно: класс сохраняет имя для обратной совместимости, но теперь наследуется от QTableView
-    и использует модельно-индексный подход.
-    """
+    """Базовый класс таблиц с поддержкой drag-and-drop (QTableView)."""
 
     items_reordered: pyqtSignal = pyqtSignal(list)
 
@@ -169,7 +190,6 @@ class BaseDragDropTableWidget(QTableView):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._sorting_enabled_before_drag = True
-        # Флаг состояния временного отключения сортировки во время DnD
         self._sorting_disabled_for_drag: bool = False
         self._setup_drag_drop()
 
@@ -178,23 +198,16 @@ class BaseDragDropTableWidget(QTableView):
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         try:
-            # Важно для QAbstractScrollArea-потомков: события приходят на viewport
             self.viewport().setAcceptDrops(True)
-            # Перехватываем события DnD напрямую на viewport
             self.viewport().installEventFilter(self)
         except (AttributeError, RuntimeError) as e:
             logging.warning("_setup_drag_drop: viewport DnD setup failed: %s", e)
-            # Критично: без viewport acceptDrops/eFilter DnD может работать некорректно
-            # Пробрасываем дальше, чтобы не скрывать проблему окружения/платформы
             raise
-        # Используем DragDrop: обработку перемещения делаем сами в dropEvent
         self.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
-        # Не перезаписываем ячейки при дропе, а перемещаем строки
         try:
             self.setDragDropOverwriteMode(False)
         except (AttributeError, RuntimeError) as e:
             logging.warning("_setup_drag_drop: setDragDropOverwriteMode unsupported: %s", e)
-        # По умолчанию перемещение
         try:
             self.setDefaultDropAction(Qt.DropAction.MoveAction)
         except (AttributeError, RuntimeError) as e:
@@ -213,16 +226,7 @@ class BaseDragDropTableWidget(QTableView):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     def eventFilter(self, obj, event):
-        """Форсируем обработку DnD-событий, приходящих на viewport().
-
-        Некоторые реализации Qt отправляют drag/drop события непосредственно на viewport,
-        поэтому перехватываем их и перенаправляем в наши обработчики.
-        """
-        try:
-            from PyQt6.QtCore import QEvent
-        except Exception:
-            return super().eventFilter(obj, event)
-
+        """Форсирует обработку DnD-событий, приходящих на viewport()."""
         if obj is self.viewport():
             et = event.type()
             if et == QEvent.Type.DragEnter:
@@ -302,18 +306,15 @@ class BaseDragDropTableWidget(QTableView):
     def dragEnterEvent(self, event):
         """Обрабатывает начало drag-операции."""
         if not self._sorting_disabled_for_drag:
-            # Запоминаем, была ли включена сортировка, и временно отключаем её
             self._sorting_disabled_for_drag = self.isSortingEnabled()
             if self._sorting_disabled_for_drag:
                 self.setSortingEnabled(False)
-        # Явно принимаем наш MIME при внутреннем переносе
         try:
             if self._is_internal_drop(event) and event.mimeData() and event.mimeData().hasFormat(self.MIME_TYPE):
                 logging.debug("[DROP] dragEnterEvent: accept internal with our MIME")
                 event.acceptProposedAction()
                 return
         except Exception as exc:
-            # Диагностика MIME и параметров события для упрощения расследования
             try:
                 md = event.mimeData() if hasattr(event, "mimeData") else None
                 formats = list(md.formats()) if md and hasattr(md, "formats") else []
@@ -345,7 +346,6 @@ class BaseDragDropTableWidget(QTableView):
                 event.acceptProposedAction()
                 return
         except Exception as exc:
-            # Диагностика MIME и параметров события для упрощения расследования
             try:
                 md = event.mimeData() if hasattr(event, "mimeData") else None
                 formats = list(md.formats()) if md and hasattr(md, "formats") else []
@@ -372,7 +372,6 @@ class BaseDragDropTableWidget(QTableView):
     def dragLeaveEvent(self, event):
         """Обрабатывает выход из drag-зоны."""
         if self._sorting_disabled_for_drag:
-            # Возвращаем сортировку, если она была включена до начала DnD
             self.setSortingEnabled(True)
             self._sorting_disabled_for_drag = False
         super().dragLeaveEvent(event)
@@ -392,7 +391,6 @@ class BaseDragDropTableWidget(QTableView):
 
         moved = False
         try:
-            # Визуально перемещаем строки (поддержка множественного выделения)
             self._move_rows_visually(source_rows, target_row)
             try:
                 event.setDropAction(Qt.DropAction.MoveAction)
@@ -401,7 +399,6 @@ class BaseDragDropTableWidget(QTableView):
             event.acceptProposedAction()
             moved = True
 
-            # Собираем ID в новом порядке и отправляем сигнал
             ids_in_order = self._get_current_order()
             if ids_in_order:
                 logging.info(f"[DROP] dropEvent: items_reordered -> {len(ids_in_order)} ids")
@@ -413,26 +410,18 @@ class BaseDragDropTableWidget(QTableView):
             logging.error(f"[DROP] Ошибка при перемещении строки: {e}")
             event.ignore()
         finally:
-            # Если реально перемещали — оставляем сортировку отключенной,
-            # чтобы пользователь видел результат ручного reorder
             if not moved and self._sorting_disabled_for_drag:
                 self.setSortingEnabled(True)
             if hasattr(self, "horizontalHeader"):
                 try:
-                    # При успешном переносе можно скрыть индикатор сортировки
-                    # чтобы визуально отразить режим ручного порядка
                     if moved:
                         self.horizontalHeader().setSortIndicatorShown(False)
                 except Exception:
                     pass
-            # Сбрасываем флаг независимо от результата
             self._sorting_disabled_for_drag = False
 
     def _is_internal_drop(self, event) -> bool:
-        """Проверяет, является ли это внутренним перемещением.
-
-        Учитываем, что source() указывает на viewport(), а не на сам QTableView.
-        """
+        """Проверяет, является ли это внутренним перемещением."""
         src = event.source()
         try:
             return src is self or src is self.viewport()
@@ -472,11 +461,7 @@ class BaseDragDropTableWidget(QTableView):
             raise ValueError("Cannot extract integer ID from UserRole data") from e
 
     def _get_drop_positions(self, event) -> tuple:
-        """Возвращает позиции источника и цели для drop-операции.
-
-        Учитывает позицию индикатора (Above/Below/OnItem) и дроп в пустую область
-        (append в конец).
-        """
+        """Возвращает позиции источника и цели для drop-операции."""
         if self._is_internal_drop(event):
             source_rows = self._extract_source_rows_from_mime(event)
             logging.debug(f"[DROP] extracted rows from MIME: {len(source_rows)}")
@@ -488,7 +473,6 @@ class BaseDragDropTableWidget(QTableView):
             return [], -1
 
         target_index = self.indexAt(event.position().toPoint())
-        # Дроп в пустое место: вставка в конец
         if not target_index.isValid():
             try:
                 target_row = self.model().rowCount()
@@ -498,23 +482,18 @@ class BaseDragDropTableWidget(QTableView):
             return source_rows, target_row
 
         target_row = target_index.row()
-        # Корректируем по индикатору
         try:
             pos = self.dropIndicatorPosition()
         except Exception:
             pos = None
         if pos == QAbstractItemView.DropIndicatorPosition.AboveItem:
-            pass  # уже корректно
+            pass
         elif pos == QAbstractItemView.DropIndicatorPosition.BelowItem:
             target_row += 1
-        # OnItem или Unknown — оставляем как есть
 
-        # Если целевая позиция попадает внутрь выбранного диапазона — подправим к границе,
-        # чтобы операция не считалась невалидной
         if source_rows:
             first, last = min(source_rows), max(source_rows)
             if first <= target_row <= last + 1:
-                # Если дроп ниже — ставим после диапазона, иначе — перед диапазоном
                 target_row = last + 1 if pos == QAbstractItemView.DropIndicatorPosition.BelowItem else first
 
         logging.debug(f"[DROP] target_row: {target_row}")
@@ -535,8 +514,6 @@ class BaseDragDropTableWidget(QTableView):
     def _move_rows_visually(self, source_rows: list, target_row: int):
         """Визуально перемещает множество строк (централизовано)."""
         dnd_move_rows_visually(self, source_rows, target_row)
-        # Форсируем перерисовку после перемещения — на некоторых платформах
-        # beginMoveRows/endMoveRows недостаточно быстро триггерит repaint
         try:
             if hasattr(self, "viewport") and self.viewport() is not None:
                 self.viewport().update()
