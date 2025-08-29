@@ -5,15 +5,14 @@ import logging
 # Используем строковые литералы "section" и "category"
 from app.controllers.ui.dialogs import DialogManager
 from app.controllers.ui.undo.commands_structure import (
+    DeleteCategoriesBatchCmd,
     DeleteCategoryCmd,
     DeleteSectionCmd,
     SaveCategoryCmd,
     SaveSectionCmd,
-    DeleteCategoriesBatchCmd,
 )
 from app.utils.ui.qt.roles import get_tree_tuple
 from app.views.dialogs.entity_dialogs import CategoryDialog, SectionDialog
-from app.utils.ui.icon.cache_manager import clear_icon_cache
 
 logger = logging.getLogger(__name__)
 

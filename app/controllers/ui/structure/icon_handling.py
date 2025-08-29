@@ -1,11 +1,10 @@
 # app/controllers/structure/icon_handling.py
 
-from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon
 
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
-from app.utils.ui.qt.roles import get_tree_tuple
 
 
 class IconHandling:

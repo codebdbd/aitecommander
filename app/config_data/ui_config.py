@@ -2,7 +2,7 @@
 Конфигурация пользовательского интерфейса.
 """
 
-from typing import Any, Dict
+from typing import Dict
 
 from .base_config import BaseConfig
 
@@ -72,6 +72,26 @@ class UIConfig(BaseConfig):
         from .qt_adapters import to_size_list
 
         size = self.get("ui.tree_icon_size", 24)
+        w, h = to_size_list(size)
+        return [max(1, int(w)), max(1, int(h))]
+
+    def get_dialog_icon_size(self) -> list[int]:
+        """Получение размера иконки в кнопках диалогов (например, кнопка выбора иконки).
+        Возвращает список [w, h] для изоляции от Qt-типов.
+        """
+        from .qt_adapters import to_size_list
+
+        size = self.get("ui.dialog_icon_size", self.get("ui.default_icon_size", 24))
+        w, h = to_size_list(size)
+        return [max(1, int(w)), max(1, int(h))]
+
+    def get_dropdown_icon_size(self) -> list[int]:
+        """Получение базового логического размера иконок во всплывающих списках (QComboBox popup).
+        Возвращает список [w, h]. DPI-скейлинг применяется на уровне view.
+        """
+        from .qt_adapters import to_size_list
+
+        size = self.get("ui.dropdown_icon_size", self.get("ui.default_icon_size", 24))
         w, h = to_size_list(size)
         return [max(1, int(w)), max(1, int(h))]
 

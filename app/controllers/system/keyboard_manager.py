@@ -3,9 +3,10 @@
 import time
 from typing import Any, Optional, TypeVar
 
-from PyQt6.QtCore import QObject, Qt, QTimer, QItemSelection, QItemSelectionModel
+from PyQt6.QtCore import QItemSelection, QItemSelectionModel, QObject, Qt, QTimer
 from PyQt6.QtGui import QKeyEvent, QKeySequence, QShortcut
 from PyQt6.QtWidgets import QApplication, QWidget
+
 from app.utils.ui.qt.roles import get_tree_tuple
 
 # =====================

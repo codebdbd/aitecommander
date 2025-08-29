@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional, Tuple
 
-from PyQt6.QtCore import Qt, QModelIndex
+from PyQt6.QtCore import QModelIndex, Qt
 
 
 def get_tree_tuple(index: QModelIndex, column: int = 0) -> Optional[Tuple[str, int]]:

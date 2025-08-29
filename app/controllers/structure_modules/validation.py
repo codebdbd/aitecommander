@@ -7,9 +7,9 @@
 
 from typing import Any, Callable, Dict, Optional
 
-from .validation_result import ValidationResult
 from app.controllers.structure_services.validation import ValidationService
 
+from .validation_result import ValidationResult
 
 _service = ValidationService()
 

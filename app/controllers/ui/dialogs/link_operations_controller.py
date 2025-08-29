@@ -4,10 +4,9 @@ import logging
 
 from PyQt6.QtWidgets import QDialog
 
-from app.config_data import app_config
 from app.controllers.ui.undo.commands_links import (
-    BatchSaveLinksCmd,
     BatchDeleteLinksCmd,
+    BatchSaveLinksCmd,
     DeleteLinkCmd,
     SaveLinkCmd,
 )

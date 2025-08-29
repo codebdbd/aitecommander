@@ -6,10 +6,11 @@ import inspect
 import logging
 import threading
 import warnings
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-from .base import StructureItemType, ValidationError
 from app.controllers.structure_services.validation import ValidationService
+
+from .base import StructureItemType
 
 logger = logging.getLogger(__name__)
 

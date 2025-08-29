@@ -4,10 +4,10 @@ import logging
 from typing import Dict, List
 
 from app.controllers.ui.undo.commands_links import (
-    DeleteLinkCmd,
-    SaveLinkCmd,
     BatchDeleteLinksCmd,
     BatchSaveLinksCmd,
+    DeleteLinkCmd,
+    SaveLinkCmd,
 )
 from app.utils.ui.clipboard import copy_link_to_clipboard, get_link_from_clipboard
 

@@ -11,12 +11,10 @@ existing LockManager while adding thin convenience wrappers.
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Dict, Generator, Iterable, List, Tuple
+from typing import Dict, Generator, List, Tuple
 
 from app.utils.db.synchronization import (
-    DeadlockDetected,
     EnhancedLock,
-    LockTimeout,
     LockType,
     get_lock_manager,
 )

@@ -11,11 +11,11 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from PyQt6.QtCore import Qt, QCoreApplication
+from PyQt6.QtCore import QCoreApplication, Qt
 
-from app.views.link.links_model import LinksTableModel
-from app.utils.ui.dnd.mime import MimeDataParser, get_link_mime
 from app.utils.ui.dnd.link import extract_source_rows_from_mime
+from app.utils.ui.dnd.mime import MimeDataParser, get_link_mime
+from app.views.link.links_model import LinksTableModel
 
 
 def _mk_links(ids: List[int]) -> List[Dict[str, Any]]:
@@ -96,7 +96,7 @@ def check_mime_round_trip() -> None:
 
 def main() -> int:
     # Минимальный цикл приложения Qt (без GUI), чтобы корректно работали модели/сигналы
-    app = QCoreApplication.instance() or QCoreApplication([])
+    _app = QCoreApplication.instance() or QCoreApplication([])
     checks = [
         ("move_rows", check_move_rows),
         ("sort_and_order", check_sort_and_order),

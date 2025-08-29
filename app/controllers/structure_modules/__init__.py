@@ -13,6 +13,7 @@ from .normalization import normalize_row, normalize_rows, row_to_dict
 from .positioning_operations import PositioningOperations
 from .section_operations import SectionOperations
 from .sphere_operations import SphereOperations
+
 # Избегаем раннего импорта validation.py, чтобы не создавать цикл зависимостей
 from .validation_result import ValidationResult
 
@@ -55,7 +56,9 @@ def __getattr__(name):
         from .legacy_support import LegacySupport  # local import to break cycle
         return LegacySupport
     if name == "StructureBusinessLogicLegacy":
-        from .legacy_support import StructureBusinessLogicLegacy  # local import to break cycle
+        from .legacy_support import (
+            StructureBusinessLogicLegacy,  # local import to break cycle
+        )
         return StructureBusinessLogicLegacy
     if name in ("validate_category_data", "validate_section_data"):
         from .validation import (

@@ -7,14 +7,14 @@ from typing import Any, Dict, List
 
 from PyQt6.QtWidgets import QMessageBox
 
+from app.utils.db.api import run_db
 from app.utils.ui.dnd.base import TreeHandlerBase
 from app.utils.ui.dnd.commands import (
+    MoveCategoriesCommand,
     MoveCategoryCommand,
     MoveLinksCommand,
-    MoveCategoriesCommand,
 )
 from app.utils.ui.qt.roles import get_tree_tuple
-from app.utils.db.api import run_db
 
 logger = logging.getLogger(__name__)
 

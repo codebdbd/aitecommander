@@ -1,6 +1,7 @@
 # app/controllers/structure/selection_handling.py
 
 import logging
+
 from PyQt6.QtCore import QModelIndex
 
 from app.utils.db.synchronization import signal_guard

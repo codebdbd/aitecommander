@@ -1,10 +1,10 @@
+import argparse
 import datetime
+import json
 import logging
 import sqlite3
-import threading
-import argparse
-import json
 import sys
+import threading
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -527,9 +527,9 @@ class Database(DatabaseBase):
                 for link in links:
                     if not isinstance(link, dict):
                         continue
-                    l = dict(link)
-                    l["category_id"] = cat_id
-                    raw_links.append(l)
+                    link_copy = dict(link)
+                    link_copy["category_id"] = cat_id
+                    raw_links.append(link_copy)
                 if raw_links:
                     self.links._upsert_links_no_tx(raw_links)
 
@@ -576,9 +576,9 @@ class Database(DatabaseBase):
             for link in links:
                 if not isinstance(link, dict):
                     continue
-                l = dict(link)
-                l["category_id"] = cat_id
-                raw_links.append(l)
+                link_copy = dict(link)
+                link_copy["category_id"] = cat_id
+                raw_links.append(link_copy)
             if raw_links:
                 self.links._upsert_links_no_tx(raw_links)
 
@@ -636,9 +636,9 @@ class Database(DatabaseBase):
                     for link in (tree or {}).get("links", []) or []:
                         if not isinstance(link, dict):
                             continue
-                        l = dict(link)
-                        l["category_id"] = cat_id
-                        raw_links.append(l)
+                        link_copy = dict(link)
+                        link_copy["category_id"] = cat_id
+                        raw_links.append(link_copy)
 
                     # Переиспользуем единую логику апсерта без вложенных транзакций
                     if raw_links:
@@ -767,7 +767,7 @@ class Database(DatabaseBase):
                 # Обработчик группы
                 def process_group(table: str, ids: list[int]):
                     ids_sorted = sorted(int(i) for i in ids)
-                    keep = ids_sorted[0]
+                    _keep = ids_sorted[0]
                     to_change = ids_sorted[1:]
                     affected = 0
                     if strategy == "rename":

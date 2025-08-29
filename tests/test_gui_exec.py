@@ -16,7 +16,7 @@ from app.utils.ui.qt.gui_exec import is_gui_thread
 @pytest.mark.skipif(QApplication is None, reason="PyQt6 is not available")
 def test_is_gui_thread_main_and_worker_threads():
     # Ensure QApplication exists
-    app = QApplication.instance() or QApplication([])
+    _app = QApplication.instance() or QApplication([])
 
     # Main thread should be GUI thread
     assert is_gui_thread() is True

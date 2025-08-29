@@ -411,12 +411,6 @@ def get_qss_dir() -> Path:
     """Путь к директории QSS-тем."""
     return app_config.paths.get_qss_dir()
 
-
-def get_themes_manifest_path() -> Path:
-    """Путь к JSON-манифесту тем."""
-    return app_config.paths.get_themes_manifest_path()
-
-
 _CURRENT_THEME_CACHE: Optional[str] = None
 _LAST_THEME_CHECK: float = 0.0
 _THEME_CACHE_TTL: float = 3.0

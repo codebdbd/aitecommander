@@ -40,7 +40,6 @@ from .path_service import (
     get_current_theme,
     get_icon_path,
     get_qss_dir,
-    get_themes_manifest_path,
     icon_path_service,
 )
 
@@ -91,7 +90,6 @@ __all__ = [
     "get_icon_path",
     "get_current_theme",
     "get_qss_dir",
-    "get_themes_manifest_path",
     "resolve_category_icon_path",
     # Управление кешем
     "ThreadSafeIconCache",

@@ -55,7 +55,9 @@ class LinkDialogUI:
                 icon_path = resolve_icon_for_link({"type": code, "icon_path": ""})
                 if icon_path:
                     btn.setIcon(create_icon_from_path(str(icon_path)))
-                    btn.setIconSize(QSize(32, 32))
+                    # Размер иконки типовой кнопки берём из конфига (с дефолтом 32)
+                    type_icon_size = int(app_config.get("ui.link_dialog_type_icon_size", 32))
+                    btn.setIconSize(QSize(type_icon_size, type_icon_size))
             except Exception:
                 pass
             btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
@@ -106,7 +108,9 @@ class LinkDialogUI:
         self.icon_btn.setFixedWidth(app_config.get("ui.fixed_button_width", 100))
         # Выравниваем поведение с диалогами сущностей: иконка 24x24
         try:
-            self.icon_btn.setIconSize(QSize(24, 24))
+            # Централизуем размер через UIConfig: используем размер иконки по умолчанию
+            default_icon = int(app_config.get_default_icon_size())
+            self.icon_btn.setIconSize(QSize(default_icon, default_icon))
         except Exception:
             pass
         hl_name.addWidget(self.icon_btn)

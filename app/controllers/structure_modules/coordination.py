@@ -6,11 +6,11 @@ import logging
 from collections import defaultdict
 from typing import Any, Callable, Dict, List, Optional, Protocol
 
+from app.controllers.structure_services.validation import ValidationService
 from app.models.structure_model import StructureModel
 
 from .base import StructureItemType, ValidationError
 from .normalization import normalize_row, normalize_rows, validate_normalized_data
-from app.controllers.structure_services.validation import ValidationService
 
 # Константы для валидации
 SECTION_REQUIRED_KEYS = ["id"]

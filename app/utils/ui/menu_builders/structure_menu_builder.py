@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from PyQt6.QtWidgets import QMenu
 
+# Сервис бизнес-логики контекстного меню
+from app.services.structure_context_service import StructureContextService
+from app.utils.ui.icon.cache_manager import clear_icon_cache
 from app.utils.ui.menu_builders.menu_actions import (
     ActionBuilder,
     Shortcuts,
@@ -13,10 +16,6 @@ from app.utils.ui.menu_builders.menu_actions import (
 from app.utils.ui.qt.roles import get_tree_tuple
 
 from .base import get_menu_icon
-
-# Сервис бизнес-логики контекстного меню
-from app.services.structure_context_service import StructureContextService
-from app.utils.ui.icon.cache_manager import clear_icon_cache
 
 if TYPE_CHECKING:
     from app.main_window import MainWindow

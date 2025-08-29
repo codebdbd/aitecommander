@@ -5,7 +5,14 @@ import re
 import subprocess
 import time
 
-from PyQt6.QtCore import QDate, QThreadPool, pyqtSignal, Qt, QAbstractTableModel, QModelIndex
+from PyQt6.QtCore import (
+    QAbstractTableModel,
+    QDate,
+    QModelIndex,
+    Qt,
+    QThreadPool,
+    pyqtSignal,
+)
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,

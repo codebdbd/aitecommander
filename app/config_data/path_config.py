@@ -108,12 +108,6 @@ class PathConfig(BaseConfig):
         p = Path(rel)
         return p if p.is_absolute() else self.get_base_path() / p
 
-    def get_themes_manifest_path(self) -> Path:
-        """Путь к файлу манифеста тем, резолв относительно base_path при необходимости."""
-        rel = self.get("paths.themes_manifest", "resources/themes/manifest.json")
-        p = Path(rel)
-        return p if p.is_absolute() else self.get_base_path() / p
-
     # Пути профилей браузеров (Windows) — возвращаем Optional[Path]
 
     def get_chrome_profiles_dir(self) -> Optional[Path]:

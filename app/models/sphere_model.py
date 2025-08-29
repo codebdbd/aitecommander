@@ -1,6 +1,7 @@
 import logging
 import sqlite3
 from typing import Any, Dict
+
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 
 from .db_base import DatabaseBase, DatabaseError

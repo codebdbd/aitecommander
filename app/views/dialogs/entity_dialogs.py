@@ -71,7 +71,8 @@ class BaseEntityDialog(BaseDialog):
             pass
         self.icon_btn = QPushButton("Иконка")
         self.icon_btn.setFixedWidth(app_config.get("ui.fixed_button_width", 100))
-        self.icon_btn.setIconSize(QSize(24, 24))
+        # Use centralized dialog icon size from UIConfig
+        self.icon_btn.setIconSize(QSize(*app_config.get_dialog_icon_size()))
         self.icon_btn.setIcon(
             create_icon_from_path(
                 str(icon_path_service.get_ui_icons_dir() / self._icon_filename)

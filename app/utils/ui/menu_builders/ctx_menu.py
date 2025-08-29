@@ -9,8 +9,8 @@
 
 from __future__ import annotations
 
-from typing import Optional
 import logging
+from typing import Optional
 
 from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import QAction, QKeySequence

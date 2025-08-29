@@ -13,8 +13,8 @@ import logging
 from PyQt6.QtCore import QEvent, QPoint, QPointF, QRect, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import (
     QBrush,
-    QDrag,
     QCursor,
+    QDrag,
     QFont,
     QFontMetrics,
     QIcon,
@@ -35,8 +35,8 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data import app_config
-from app.utils.ui.dnd.mime import MimeDataParser
 from app.models.categories_list_model import CategoriesListModel
+from app.utils.ui.dnd.mime import MimeDataParser
 
 logger = logging.getLogger("category_tiles")
 

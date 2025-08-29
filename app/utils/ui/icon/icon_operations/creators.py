@@ -21,7 +21,7 @@ from app.utils.ui.icon.inflight import (
     leave_async_success,
     leave_sync,
 )
-from app.utils.ui.qt.gui_exec import run_in_gui_thread_async, is_gui_thread
+from app.utils.ui.qt.gui_exec import is_gui_thread, run_in_gui_thread_async
 
 from ..cache_manager import (
     cache_qicon,

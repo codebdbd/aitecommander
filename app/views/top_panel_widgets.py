@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, List, Literal, Optional
 
-from PyQt6.QtCore import pyqtSignal, QSize
+from PyQt6.QtCore import QSize, pyqtSignal
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
 
 from app.config_data import app_config
