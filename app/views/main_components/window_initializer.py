@@ -59,6 +59,15 @@ class WindowInitializer:
 
             # Горячие клавиши после создания контроллеров
             self.ui_setup.setup_shortcuts()
+            # Централизованно применяем пользовательский размер шрифта к дереву и таблице
+            try:
+                if hasattr(self.settings, "get_font_size") and hasattr(self.window, "apply_font_size_to_content"):
+                    fs = self.settings.get_font_size()
+                    if fs:
+                        self.window.apply_font_size_to_content(int(fs))
+            except Exception:
+                # Не блокируем инициализацию при ошибке применения шрифта
+                pass
         finally:
             # Включаем обновления после завершения инициализации
             self.window.setUpdatesEnabled(True)

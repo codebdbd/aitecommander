@@ -395,17 +395,10 @@ class ThemeController:
                 except Exception:
                     fs = None
                 if fs:
-                    # Локально на часто используемых виджетах (если доступны)
+                    # Централизованно применяем к содержимому через окно
                     try:
-                        tree = getattr(mw, "tree", None)
-                        if tree and hasattr(tree, "update_font_size"):
-                            tree.update_font_size(fs)
-                    except Exception:
-                        pass
-                    try:
-                        table = getattr(mw, "table", None)
-                        if table and hasattr(table, "update_font_size"):
-                            table.update_font_size(fs)
+                        if hasattr(mw, "apply_font_size_to_content"):
+                            mw.apply_font_size_to_content(fs)
                     except Exception:
                         pass
         except Exception as exc:

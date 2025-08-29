@@ -250,15 +250,9 @@ class WindowUISetup:
         Создаём и добавляем все панели сразу, без отложенных прослоек:
         Порядок: QuickAdd → Favorites → Recent → Search
         """
-        # Создание таблицы и настройка шрифта
+        # Создание таблицы (размер шрифта будет применён централизованно)
         self.window.table = LinksTableView(self.window)
-        font_size = (
-            self.settings.get_font_size()
-            if hasattr(self.settings, "get_font_size")
-            else 12
-        )
-        if hasattr(self.window.table, "update_font_size"):
-            self.window.table.update_font_size(font_size)
+        # Размер шрифта для таблицы устанавливается через MainWindow.apply_font_size_to_content()
 
         # QuickAdd
         try:
@@ -311,13 +305,7 @@ class WindowUISetup:
         )
         self.window.search.setObjectName("mainSearch")
 
-        # Применяем глобальный размер шрифта приложения
-        try:
-            base_size = self.window.font().pointSize()
-            self.window.search.setFont(create_font(base_size))
-        except Exception:
-            # На случай сбоев оставляем шрифт по умолчанию
-            pass
+        # Размер шрифта поля поиска берётся из глобального шрифта приложения (без локальной установки)
         self.window.search.textChanged.connect(self.window.on_search)
         top_bar.addWidget(self.window.search)
 
@@ -368,13 +356,7 @@ class WindowUISetup:
         eff_icon = max(0, min(base_icon, max(0, int(row_h) - 8)))  # 4px сверху + 4px снизу
         self.window.tree.setIconSize(QSize(eff_icon, eff_icon))
 
-        font_size = (
-            self.settings.get_font_size()
-            if hasattr(self.settings, "get_font_size")
-            else 12
-        )
-        if hasattr(self.window.tree, "update_font_size"):
-            self.window.tree.update_font_size(font_size)
+        # Размер шрифта для дерева устанавливается централизованно через MainWindow.apply_font_size_to_content()
         left_layout.addWidget(self.window.tree)
 
         # Панель сфер

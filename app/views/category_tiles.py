@@ -26,6 +26,7 @@ from PyQt6.QtGui import (
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
+    QLabel,
     QListView,
     QStyledItemDelegate,
     QToolTip,
@@ -160,11 +161,24 @@ class CategoryTileDelegate(QStyledItemDelegate):
         icon = index.data(Qt.ItemDataRole.DecorationRole)
         text = index.data(Qt.ItemDataRole.DisplayRole)
         try:
-            cfg_sz = app_config.get_tile_text_font_size()
-            if isinstance(cfg_sz, (int, float)) and cfg_sz > 0:
+            # Централизованный приоритет: если родительский виджет передал явный pt, используем его
+            explicit_pt = None
+            try:
+                parent = self.parent()
+                explicit_pt = getattr(parent, "_font_point_size", None)
+            except Exception:
+                explicit_pt = None
+            if isinstance(explicit_pt, (int, float)) and explicit_pt > 0:
                 f = painter.font()
-                f.setPointSize(int(cfg_sz))
+                f.setPointSize(int(explicit_pt))
                 painter.setFont(f)
+            else:
+                # Fallback: берем из конфигурации, чтобы сохранить обратную совместимость
+                cfg_sz = app_config.get_tile_text_font_size()
+                if isinstance(cfg_sz, (int, float)) and cfg_sz > 0:
+                    f = painter.font()
+                    f.setPointSize(int(cfg_sz))
+                    painter.setFont(f)
         except (TypeError, ValueError, AttributeError) as e:
             logger.debug("Failed to set font size from config in paint: %s", e)
 
@@ -304,9 +318,19 @@ class CategoryTileDelegate(QStyledItemDelegate):
         """Простой расчет размера плитки."""
         font = QFont(option.font)
         try:
-            cfg_sz = app_config.get_tile_text_font_size()
-            if isinstance(cfg_sz, (int, float)) and cfg_sz > 0:
-                font.setPointSize(int(cfg_sz))
+            # Централизованный приоритет: использовать явный размер от родителя
+            explicit_pt = None
+            try:
+                parent = self.parent()
+                explicit_pt = getattr(parent, "_font_point_size", None)
+            except Exception:
+                explicit_pt = None
+            if isinstance(explicit_pt, (int, float)) and explicit_pt > 0:
+                font.setPointSize(int(explicit_pt))
+            else:
+                cfg_sz = app_config.get_tile_text_font_size()
+                if isinstance(cfg_sz, (int, float)) and cfg_sz > 0:
+                    font.setPointSize(int(cfg_sz))
         except (TypeError, ValueError, AttributeError) as e:
             logger.debug("Failed to set font size from config in sizeHint: %s", e)
         try:
@@ -363,9 +387,18 @@ class CategoryTileDelegate(QStyledItemDelegate):
 
             font = QFont(option.font)
             try:
-                cfg_sz = app_config.get_tile_text_font_size()
-                if isinstance(cfg_sz, (int, float)) and cfg_sz > 0:
-                    font.setPointSize(int(cfg_sz))
+                explicit_pt = None
+                try:
+                    parent = self.parent()
+                    explicit_pt = getattr(parent, "_font_point_size", None)
+                except Exception:
+                    explicit_pt = None
+                if isinstance(explicit_pt, (int, float)) and explicit_pt > 0:
+                    font.setPointSize(int(explicit_pt))
+                else:
+                    cfg_sz = app_config.get_tile_text_font_size()
+                    if isinstance(cfg_sz, (int, float)) and cfg_sz > 0:
+                        font.setPointSize(int(cfg_sz))
             except (TypeError, ValueError, AttributeError) as e:
                 logger.debug("Failed to set font size in helpEvent: %s", e)
 
@@ -472,6 +505,20 @@ class CategoryTiles(QWidget):
         except Exception:
             pass
 
+        try:
+            if (
+                getattr(app_config, "get_debug_show_tile_font_sample", None)
+                and app_config.get_debug_show_tile_font_sample()
+            ):
+                sample = QLabel("Sample: Абв ABC 123")
+                sample.setObjectName("tileFontSample")
+                self.layout.addWidget(sample, 0)
+                logger.debug(
+                    "CategoryTiles: debug font sample label added (inherits global font)"
+                )
+        except (AttributeError, RuntimeError) as e:
+            logger.debug("Debug font sample init skipped: %s", e)
+
         self.layout.addWidget(self.view, 1)
         # Явно включаем режим только перетаскивания (DragOnly) для стабильной работы DnD
         try:
@@ -480,6 +527,28 @@ class CategoryTiles(QWidget):
             logger.debug("Failed to set DragOnly mode: %s", e)
 
         # Контекстное меню строит контроллер — вид только генерирует сигнал
+
+    def update_font_size(self, fs: int) -> None:
+        """Применяет централизованный размер шрифта к плиткам категорий.
+
+        Если передан невалидный размер — сбрасывает в None (делегат возьмёт конфиг/глобальный).
+        """
+        try:
+            if isinstance(fs, bool):
+                return
+            val = int(fs)
+            if val > 0:
+                self._font_point_size = val
+            else:
+                self._font_point_size = None
+        except Exception:
+            self._font_point_size = None
+        # Перерисовать и обновить расчёты размеров
+        try:
+            self.view.viewport().update()
+            self.view.reset()  # пересчитать sizeHint через делегат
+        except Exception:
+            pass
 
     def set_categories(self, categories: list):
         """Обновление списка категорий через модель."""
