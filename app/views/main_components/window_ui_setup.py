@@ -2,6 +2,7 @@
 
 import os
 import sys
+import logging
 
 from PyQt6.QtCore import QEvent, QObject, QSize, Qt
 from PyQt6.QtGui import QFont
@@ -26,14 +27,11 @@ from app.controllers.ui.undo.stack import UndoManager
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.views.category_tiles import CategoryTiles
 from app.views.custom_widgets import StructureTreeView
-from app.views.effects.neon_effect import NeonEventFilter
 from app.views.link import LinksTableView
 from app.views.main_components.top_bar_layout_manager import TopBarLayoutManager
 from app.views.models.structure_tree_model import StructureTreeModel
 from app.views.status_bar import setup_status_bar as init_status_bar
 from app.views.top_panel_widgets import TopPanelWidget
-
-from .common import create_font
 
 
 class _AutoHideTreeFilter(QObject):
@@ -70,28 +68,32 @@ class _AutoHideTreeFilter(QObject):
                         self._saved_splitter_sizes = splitter.sizes()
                 except Exception:
                     self._saved_splitter_sizes = None
+                    logging.debug("AutoHideTree: failed to read splitter sizes", exc_info=True)
                 try:
                     if stack is not None:
                         self._prev_stack_index = stack.currentIndex()
                 except Exception:
                     self._prev_stack_index = None
+                    logging.debug("AutoHideTree: failed to read current stack index", exc_info=True)
 
                 if splitter is not None:
                     try:
                         splitter.setCollapsible(0, True)
                         splitter.setSizes([0, max(1, w)])
                     except Exception:
-                        pass
+                        logging.debug("AutoHideTree: failed to collapse left panel on narrow window", exc_info=True)
 
                 if stack is not None and table is not None:
                     try:
                         for i in range(stack.count()):
                             wgt = stack.widget(i)
-                            if wgt is table:
+                            # Совместимость: таблица может быть добавлена как сам виджет или как контейнер
+                            table_container = getattr(self.window, "table_container", None)
+                            if wgt is table or (table_container is not None and wgt is table_container):
                                 stack.setCurrentIndex(i)
                                 break
                     except Exception:
-                        pass
+                        logging.debug("AutoHideTree: failed to switch stack to table", exc_info=True)
                 self._is_collapsed = True
 
             # Независимо от состояния — скрыть панели топ-бара на каждом вызове (на случай добавления новых)
@@ -101,7 +103,7 @@ class _AutoHideTreeFilter(QObject):
                     if panel is not None:
                         panel.setVisible(False)
                 except Exception:
-                    pass
+                    logging.debug("AutoHideTree: failed to hide top bar panel '%s'", attr, exc_info=True)
 
         elif w > self.threshold and self._is_collapsed:
             # Восстановить размеры сплиттера
@@ -116,7 +118,7 @@ class _AutoHideTreeFilter(QObject):
                         sizes = [int(x) for x in self.default_sizes]
                         splitter.setSizes(sizes)
                 except Exception:
-                    pass
+                    logging.debug("AutoHideTree: failed to restore splitter sizes", exc_info=True)
 
             # Показать панели топ-бара обратно
             for attr in ("quick_add_widget", "fav_widget", "recent_links_widget"):
@@ -125,7 +127,7 @@ class _AutoHideTreeFilter(QObject):
                     if panel is not None:
                         panel.setVisible(True)
                 except Exception:
-                    pass
+                    logging.debug("AutoHideTree: failed to re-show top bar panel '%s'", attr, exc_info=True)
 
             # Восстановить предыдущий вид правой области (если был сохранён)
             if stack is not None and self._prev_stack_index is not None:
@@ -133,7 +135,7 @@ class _AutoHideTreeFilter(QObject):
                     if 0 <= self._prev_stack_index < stack.count():
                         stack.setCurrentIndex(self._prev_stack_index)
                 except Exception:
-                    pass
+                    logging.debug("AutoHideTree: failed to restore previous stack index", exc_info=True)
 
             self._is_collapsed = False
 
@@ -197,6 +199,7 @@ class WindowUISetup:
             side = int(app_config.get_top_bar_widgets_side_spacing())
         except Exception:
             side = 8
+            logging.warning("TopPanel: invalid side spacing in config; using default 8")
         top_bar.setContentsMargins(side, 0, side, 0)
         top_bar.setSpacing(side * 2)
         top_bar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
@@ -209,25 +212,15 @@ class WindowUISetup:
         top_bar_host.setObjectName("topBarHost")
         top_bar_host.setLayout(top_bar)
         try:
-            from PyQt6.QtWidgets import QSizePolicy
             top_bar_host.setFixedHeight(app_config.get_top_panel_container_height())
             top_bar_host.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         except Exception:
-            pass
+            logging.warning("TopPanel: failed to set top bar host size policy/height", exc_info=True)
         self.main_layout.addWidget(top_bar_host)
 
         # Сохраняем ссылку на хост
         self.window.top_bar_host = top_bar_host
 
-        # Неоновый эффект: вешаем фильтр на хост и его детей
-        if (
-            not hasattr(self.window, "_neon_top_filter")
-            or self.window._neon_top_filter is None
-        ):
-            self.window._neon_top_filter = NeonEventFilter(self.window, blur_radius=16)
-        top_bar_host.installEventFilter(self.window._neon_top_filter)
-        for w in top_bar_host.findChildren((QPushButton, QToolButton, QLineEdit)):
-            w.installEventFilter(self.window._neon_top_filter)
 
         # Адаптивный менеджер верхней панели
         try:
@@ -235,6 +228,7 @@ class WindowUISetup:
         except Exception:
             # Не блокируем инициализацию UI при ошибке менеджера
             self.window._topbar_manager = None
+            logging.exception("TopPanel: failed to initialize TopBarLayoutManager")
         # Первичный пересчёт после создания
         try:
             from PyQt6.QtCore import QTimer
@@ -242,7 +236,7 @@ class WindowUISetup:
             if getattr(self.window, "_topbar_manager", None):
                 QTimer.singleShot(0, self.window._topbar_manager.adjust)
         except Exception:
-            pass
+            logging.debug("TopPanel: failed to schedule initial topbar adjust", exc_info=True)
         
 
     def setup_top_bar_widgets(self, top_bar):
@@ -266,6 +260,7 @@ class WindowUISetup:
             top_bar.addWidget(self.window.quick_add_widget)
         except Exception:
             self.window.quick_add_widget = None
+            logging.exception("TopPanel: failed to create QuickAdd widget")
 
         # Favorites
         try:
@@ -278,6 +273,7 @@ class WindowUISetup:
             top_bar.addWidget(self.window.fav_widget)
         except Exception:
             self.window.fav_widget = None
+            logging.exception("TopPanel: failed to create Favorites widget")
 
         # Recent
         try:
@@ -289,6 +285,7 @@ class WindowUISetup:
             top_bar.addWidget(self.window.recent_links_widget)
         except Exception:
             self.window.recent_links_widget = None
+            logging.exception("TopPanel: failed to create Recent widget")
 
         # Поиск (в конце, расширяется по ширине)
         self.setup_search_widget(top_bar)
@@ -410,9 +407,11 @@ class WindowUISetup:
         # Стек для переключения между плитками и таблицей
         self.window.stack = QStackedLayout()
 
-        # Прямое добавление в стек без оберток
-        self.window.stack.addWidget(self.window.tiles)
-        self.window.stack.addWidget(self.window.table)
+        # Добавляем в стек обёртки, чтобы сохранить отступы и прокрутку
+        self.window.tiles_container = tiles_wrapper
+        self.window.table_container = table_wrapper
+        self.window.stack.addWidget(self.window.tiles_container)
+        self.window.stack.addWidget(self.window.table_container)
 
         # Контейнер для правой панели
         right_panel = QWidget()
@@ -428,13 +427,14 @@ class WindowUISetup:
             )
         except Exception:
             self.window.splitter.setHandleWidth(1)
+            logging.warning("RightPanel: invalid splitter handle width in config; using 1")
         self.window.splitter.addWidget(self.window.left_panel)
         self.window.splitter.addWidget(right_panel)
         # Разрешаем сворачивание левой панели (после добавления виджетов, чтобы индекс 0 существовал)
         try:
             self.window.splitter.setCollapsible(0, True)
         except Exception:
-            pass
+            logging.debug("RightPanel: failed to set splitter collapsible(0, True)", exc_info=True)
 
         stretch_factors = app_config.get_splitter_stretch_factors()
         self.window.splitter.setStretchFactor(0, stretch_factors[0])
@@ -451,6 +451,7 @@ class WindowUISetup:
             min_w = int(app_config.get_window_min_width())
         except Exception:
             min_w = 280
+            logging.warning("RightPanel: invalid window_min_width in config; using 280")
         try:
             self.window._auto_hide_tree_filter = _AutoHideTreeFilter(
                 self.window, threshold_width=min_w, default_sizes=splitter_sizes
@@ -460,7 +461,7 @@ class WindowUISetup:
             self.window._auto_hide_tree_filter._apply()
         except Exception:
             # Не блокируем UI, если что-то пойдёт не так
-            pass
+            logging.exception("RightPanel: failed to initialize AutoHideTree filter")
 
         # QStackedLayout ломает стандартную Tab-навигацию Qt
         # Используем кастомную обработку через NavigationKeyHandler
@@ -501,7 +502,8 @@ class WindowUISetup:
                 btn.setMinimumWidth(0)
                 btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
             except Exception:
-                pass
+                logging.debug("BottomPanel: failed to apply size policy to bottom button '%s'", text, exc_info=True)
+            # Обработчик клика и добавление на панель
             btn.clicked.connect(getattr(self.window, fn_name))
             bot.addWidget(btn)
             bottom_btns.append(btn)
@@ -511,11 +513,13 @@ class WindowUISetup:
             try:
                 bottom_btns[-1].setProperty("last", "1")
             except Exception:
-                pass
+                logging.debug("BottomPanel: failed to set 'last' property on final button", exc_info=True)
 
         bottom_bar_container = QWidget()
         bottom_bar_container.setObjectName("bottomBarContainer")
         bottom_bar_container.setLayout(bot)
+        # Сохраняем виджет как атрибут окна для последующей настройки фокуса
+        self.window.bottom_bar_container = bottom_bar_container
         # Явная политика: по горизонтали расширяется/сжимается, по вертикали фиксированная
         try:
             bottom_bar_container.setSizePolicy(
@@ -523,7 +527,7 @@ class WindowUISetup:
                 QSizePolicy.Policy.Fixed,
             )
         except Exception:
-            pass
+            logging.debug("BottomPanel: failed to set size policy on bottom bar container", exc_info=True)
 
         self.main_layout.addWidget(bottom_bar_container)
 
@@ -553,7 +557,7 @@ class WindowUISetup:
             self.window.setMinimumSize(min_w, min_h)
         except Exception:
             # В случае некорректных значений не блокируем инициализацию
-            pass
+            logging.warning("WindowProps: failed to set minimum size from config", exc_info=True)
 
         # Настройка иконки
         if hasattr(sys, "_MEIPASS"):
