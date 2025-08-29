@@ -483,8 +483,8 @@ class WindowUISetup:
         try:
             font10.setPointSize(self.window.font().pointSize())
         except Exception:
-            # Фоллбэк на 11 как дефолтный глобальный
-            font10.setPointSize(11)
+            # Фоллбэк на 10 как базовый дефолт приложения
+            font10.setPointSize(10)
 
         # Кнопка переключения сфер (будет создана после инициализации контроллеров)
         self.window.switch_sphere_button = None

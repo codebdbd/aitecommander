@@ -130,7 +130,7 @@ def setup_ui_elements(window, controllers: Dict[str, Any]) -> None:
     try:
         font.setPointSize(window.font().pointSize())
     except Exception:
-        font.setPointSize(11)
+        font.setPointSize(10)
     window.switch_sphere_button.setFont(font)
     window.switch_sphere_button.clicked.connect(window.switch_sphere_action.trigger)
 
