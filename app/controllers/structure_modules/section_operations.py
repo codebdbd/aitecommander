@@ -69,7 +69,8 @@ class SectionOperations(BaseOperations):
             bool: True если раздел создан успешно, False иначе
         """
         self._log_operation_start("создание раздела")
-        return self._process_item(data, StructureItemType.SECTION)
+        # Делегируем в универсальный метод базового класса
+        return self.create_item(StructureItemType.SECTION, data)
 
     def update_section(self, section_id: int, data: Dict[str, Any]) -> bool:
         """
@@ -83,9 +84,8 @@ class SectionOperations(BaseOperations):
             bool: True если раздел обновлен успешно, False иначе
         """
         self._log_operation_start(f"обновление раздела {section_id}")
-        return self._process_item(
-            data, StructureItemType.SECTION, section_id, is_update=True
-        )
+        # Делегируем в универсальный метод базового класса
+        return self.update_item(StructureItemType.SECTION, section_id, data)
 
     def delete_section(self, section_id: int) -> Tuple[bool, Dict[str, Any], int, int]:
         """
@@ -190,19 +190,27 @@ class SectionOperations(BaseOperations):
 
     def _execute_section_deletion(self, section_id: int) -> bool:
         """Выполняет фактическое удаление раздела."""
+        if not self._structure_service:
+            return self._execute_with_error_handling(
+                lambda: (_ for _ in ()).throw(
+                    RuntimeError("StructureService недоступен для удаления раздела")
+                ),
+                f"удалить раздел {section_id}",
+                default_return=False,
+            )
 
-        def _deletion_execution():
-            # Удаление через сервисный слой (UnitOfWork)
-            if not self._structure_service:
-                raise RuntimeError("StructureService недоступен для удаления раздела")
+        def _delete():
             self._structure_service.delete_section(section_id)
-            self._emit_section_deleted_signal(section_id)
-            self._log_successful_deletion(section_id)
-            return True
 
-        return self._execute_with_error_handling(
-            _deletion_execution, f"удалить раздел {section_id}", default_return=False
+        result = self.delete_item(
+            StructureItemType.SECTION,
+            section_id,
+            delete_func=_delete,
+            emit_data=None,
         )
+        if result:
+            self._log_successful_deletion(section_id)
+        return result
 
     def _fetch_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
         """Получает данные раздела."""

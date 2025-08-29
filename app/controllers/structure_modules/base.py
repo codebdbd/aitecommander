@@ -447,3 +447,98 @@ class BaseOperations:
             require_parent=require_parent,
         )
         return result if result is not None else False
+
+    # === Публичные универсальные CRUD-обёртки ===
+    def create_item(
+        self,
+        item_type: StructureItemType,
+        data: Dict[str, Any],
+        *,
+        require_parent: bool = True,
+    ) -> bool:
+        """Создает элемент указанного типа через универсальную логику.
+
+        Делегирует в `_process_item`, сохраняя политику валидации, сигналов и логирования.
+
+        Args:
+            item_type: тип элемента структуры
+            data: данные создаваемого элемента
+            require_parent: требовать ли наличие родительского идентификатора
+
+        Returns:
+            bool: успех операции
+        """
+        return self._process_item(
+            data,
+            item_type,
+            item_id=None,
+            is_update=False,
+            require_parent=require_parent,
+        )
+
+    def update_item(
+        self,
+        item_type: StructureItemType,
+        item_id: int,
+        data: Dict[str, Any],
+        *,
+        require_parent: bool = True,
+    ) -> bool:
+        """Обновляет элемент указанного типа через универсальную логику.
+
+        Делегирует в `_process_item`, сохраняя политику валидации, сигналов и логирования.
+
+        Args:
+            item_type: тип элемента структуры
+            item_id: идентификатор обновляемого элемента
+            data: новые данные элемента
+            require_parent: требовать ли наличие родительского идентификатора
+
+        Returns:
+            bool: успех операции
+        """
+        return self._process_item(
+            data,
+            item_type,
+            item_id=item_id,
+            is_update=True,
+            require_parent=require_parent,
+        )
+
+    def delete_item(
+        self,
+        item_type: StructureItemType,
+        item_id: int,
+        delete_func: Callable[[], None],
+        *,
+        emit_data: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """Удаляет элемент указанного типа через переданную функцию, эмитит сигнал и логирует.
+
+        Args:
+            item_type: тип элемента
+            item_id: идентификатор элемента
+            delete_func: функция, выполняющая фактическое удаление (должна бросать исключение при ошибке)
+            emit_data: опциональные данные для передачи в сигнал
+
+        Returns:
+            bool: успех операции
+        """
+
+        def _delete_operation():
+            # Выполняем фактическое удаление
+            delete_func()
+
+            # Эмитим сигнал удаления (parent_or_id = id элемента)
+            self._emit_signal(SignalType.ITEM_DELETED, item_type.value, item_id, emit_data or {})
+
+            # Логирование
+            ru_name = ItemTypeRegistry.get_config(item_type).ru_name
+            self.slogger.log_operation("удален", item_type.value, str(item_id), ru_name)
+            return True
+
+        return self._execute_with_error_handling(
+            _delete_operation,
+            f"удалить {item_type.value} {item_id}",
+            default_return=False,
+        )

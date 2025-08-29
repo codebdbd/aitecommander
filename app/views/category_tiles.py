@@ -26,7 +26,6 @@ from PyQt6.QtGui import (
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
-    QLabel,
     QListView,
     QStyledItemDelegate,
     QToolTip,
@@ -472,20 +471,6 @@ class CategoryTiles(QWidget):
             self.view.enterActivated.connect(self._on_index_activated)
         except Exception:
             pass
-
-        try:
-            if (
-                getattr(app_config, "get_debug_show_tile_font_sample", None)
-                and app_config.get_debug_show_tile_font_sample()
-            ):
-                sample = QLabel("Sample: Абв ABC 123")
-                sample.setObjectName("tileFontSample")
-                self.layout.addWidget(sample, 0)
-                logger.debug(
-                    "CategoryTiles: debug font sample label added (inherits global font)"
-                )
-        except (AttributeError, RuntimeError) as e:
-            logger.debug("Debug font sample init skipped: %s", e)
 
         self.layout.addWidget(self.view, 1)
         # Явно включаем режим только перетаскивания (DragOnly) для стабильной работы DnD

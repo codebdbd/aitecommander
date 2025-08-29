@@ -61,6 +61,6 @@ class ItemBuildersMixin:
         return url_or_path, (url_or_path or "")
 
     def _name_tooltip(self, link: Dict) -> str:
-        """Tooltip для названия (URL/Путь)."""
-        url_or_path = link.get("url", "") or link.get("path", "")
-        return f"<b>URL/Путь:</b> {url_or_path}" if url_or_path else ""
+        """Tooltip для названия: показываем именно название, а не адрес."""
+        name = link.get("name", "")
+        return str(name or "")

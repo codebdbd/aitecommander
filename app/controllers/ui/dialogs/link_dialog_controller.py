@@ -130,23 +130,18 @@ class LinkDialogController:
         """Подготавливает данные ссылок для сохранения."""
         links_data = []
 
-        # Режим редактирования: если web и заданы профили —
-        # использует профильную обработку (обновит текущую и добавит недостающие);
-        # иначе — одна запись
-        is_edit = form_data.get("link_id") is not None
-        if is_edit:
-            if form_data.get("link_type") == "web" and form_data.get("selected_profiles"):
-                links_data.extend(self._prepare_profile_links(form_data))
-            else:
-                links_data.append(self._prepare_regular_link(form_data))
+        # Определяем режим профильной обработки (создание/редактирование учитывается внутри _prepare_profile_links)
+        profile_mode = (
+            form_data.get("link_type") == "web" and form_data.get("selected_profiles")
+        )
+
+        # Сохранено текущее поведение:
+        # - web + выбранные профили -> профильная обработка (при редактировании: обновит текущую и добавит недостающие)
+        # - иначе -> одна обычная запись
+        if profile_mode:
+            links_data.extend(self._prepare_profile_links(form_data))
         else:
-            # Режим создания: сохраняем текущее поведение —
-            #   web + выбранные профили -> несколько записей;
-            #   иначе -> одна запись
-            if form_data.get("link_type") == "web" and form_data.get("selected_profiles"):
-                links_data.extend(self._prepare_profile_links(form_data))
-            else:
-                links_data.append(self._prepare_regular_link(form_data))
+            links_data.append(self._prepare_regular_link(form_data))
 
         return links_data
 
