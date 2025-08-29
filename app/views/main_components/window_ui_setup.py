@@ -3,6 +3,7 @@
 import os
 import sys
 import logging
+from typing import Any, Optional
 
 from PyQt6.QtCore import QEvent, QObject, QSize, Qt
 from PyQt6.QtGui import QFont
@@ -66,13 +67,13 @@ class _AutoHideTreeFilter(QObject):
                 try:
                     if splitter is not None:
                         self._saved_splitter_sizes = splitter.sizes()
-                except Exception:
+                except (AttributeError, RuntimeError):
                     self._saved_splitter_sizes = None
                     logging.debug("AutoHideTree: failed to read splitter sizes", exc_info=True)
                 try:
                     if stack is not None:
                         self._prev_stack_index = stack.currentIndex()
-                except Exception:
+                except (AttributeError, RuntimeError):
                     self._prev_stack_index = None
                     logging.debug("AutoHideTree: failed to read current stack index", exc_info=True)
 
@@ -80,19 +81,19 @@ class _AutoHideTreeFilter(QObject):
                     try:
                         splitter.setCollapsible(0, True)
                         splitter.setSizes([0, max(1, w)])
-                    except Exception:
+                    except (RuntimeError, TypeError):
                         logging.debug("AutoHideTree: failed to collapse left panel on narrow window", exc_info=True)
 
                 if stack is not None and table is not None:
                     try:
+                        # Совместимость: таблица может быть добавлена как сам виджет или как контейнер
+                        table_container = getattr(self.window, "table_container", None)
                         for i in range(stack.count()):
                             wgt = stack.widget(i)
-                            # Совместимость: таблица может быть добавлена как сам виджет или как контейнер
-                            table_container = getattr(self.window, "table_container", None)
                             if wgt is table or (table_container is not None and wgt is table_container):
                                 stack.setCurrentIndex(i)
                                 break
-                    except Exception:
+                    except (AttributeError, RuntimeError):
                         logging.debug("AutoHideTree: failed to switch stack to table", exc_info=True)
                 self._is_collapsed = True
 
@@ -102,7 +103,7 @@ class _AutoHideTreeFilter(QObject):
                     panel = getattr(self.window, attr, None)
                     if panel is not None:
                         panel.setVisible(False)
-                except Exception:
+                except (AttributeError, RuntimeError):
                     logging.debug("AutoHideTree: failed to hide top bar panel '%s'", attr, exc_info=True)
 
         elif w > self.threshold and self._is_collapsed:
@@ -117,7 +118,7 @@ class _AutoHideTreeFilter(QObject):
                     else:
                         sizes = [int(x) for x in self.default_sizes]
                         splitter.setSizes(sizes)
-                except Exception:
+                except (RuntimeError, TypeError, ValueError):
                     logging.debug("AutoHideTree: failed to restore splitter sizes", exc_info=True)
 
             # Показать панели топ-бара обратно
@@ -126,7 +127,7 @@ class _AutoHideTreeFilter(QObject):
                     panel = getattr(self.window, attr, None)
                     if panel is not None:
                         panel.setVisible(True)
-                except Exception:
+                except (AttributeError, RuntimeError):
                     logging.debug("AutoHideTree: failed to re-show top bar panel '%s'", attr, exc_info=True)
 
             # Восстановить предыдущий вид правой области (если был сохранён)
@@ -134,7 +135,7 @@ class _AutoHideTreeFilter(QObject):
                 try:
                     if 0 <= self._prev_stack_index < stack.count():
                         stack.setCurrentIndex(self._prev_stack_index)
-                except Exception:
+                except (RuntimeError, ValueError, TypeError, AttributeError):
                     logging.debug("AutoHideTree: failed to restore previous stack index", exc_info=True)
 
             self._is_collapsed = False
@@ -148,7 +149,7 @@ class _AutoHideTreeFilter(QObject):
 class WindowUISetup:
     """Компонент для настройки UI-элементов главного окна."""
 
-    def __init__(self, window_initializer):
+    def __init__(self, window_initializer: Any) -> None:
         self.window_initializer = window_initializer
         self.window = window_initializer.window
         self.settings = window_initializer.settings
@@ -157,7 +158,7 @@ class WindowUISetup:
         # main_layout будет установлен позже
         self.main_layout = None
 
-    def setup_basic_attributes(self):
+    def setup_basic_attributes(self) -> None:
         """Настройка базовых атрибутов окна."""
         self.window.settings = self.window_initializer.settings
         self.window.theme_ctrl = self.window_initializer.theme_ctrl
@@ -167,14 +168,14 @@ class WindowUISetup:
         self.window.undo_stack = UndoManager(self.window)
         self.window.sphere_buttons = {}
 
-    def setup_menu(self):
+    def setup_menu(self) -> None:
         """Настройка меню."""
         from app.controllers.ui.menu_controller import MenuController
 
         self.window.menu_controller = MenuController(self.window)
         self.window.setMenuBar(self.window.menu_controller.create_main_menu())
 
-    def setup_central_widget(self):
+    def setup_central_widget(self) -> None:
         """Настройка центрального виджета."""
         central = QFrame()
         central.setFrameShape(
@@ -186,7 +187,7 @@ class WindowUISetup:
         self.main_layout.setContentsMargins(*app_config.get_main_layout_margins())
         self.main_layout.setSpacing(app_config.get_main_layout_spacing())
 
-    def setup_top_panel(self):
+    def setup_top_panel(self) -> None:
         """Настройка верхней панели."""
         # Верхний разделитель добавляем напрямую в основной layout
         h_line_top = QWidget()
@@ -197,7 +198,7 @@ class WindowUISetup:
         top_bar = QHBoxLayout()
         try:
             side = int(app_config.get_top_bar_widgets_side_spacing())
-        except Exception:
+        except (TypeError, ValueError):
             side = 8
             logging.warning("TopPanel: invalid side spacing in config; using default 8")
         top_bar.setContentsMargins(side, 0, side, 0)
@@ -214,7 +215,7 @@ class WindowUISetup:
         try:
             top_bar_host.setFixedHeight(app_config.get_top_panel_container_height())
             top_bar_host.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        except Exception:
+        except (RuntimeError, TypeError, AttributeError):
             logging.warning("TopPanel: failed to set top bar host size policy/height", exc_info=True)
         self.main_layout.addWidget(top_bar_host)
 
@@ -225,7 +226,7 @@ class WindowUISetup:
         # Адаптивный менеджер верхней панели
         try:
             self.window._topbar_manager = TopBarLayoutManager(self.window)
-        except Exception:
+        except (RuntimeError, TypeError):
             # Не блокируем инициализацию UI при ошибке менеджера
             self.window._topbar_manager = None
             logging.exception("TopPanel: failed to initialize TopBarLayoutManager")
@@ -235,11 +236,34 @@ class WindowUISetup:
 
             if getattr(self.window, "_topbar_manager", None):
                 QTimer.singleShot(0, self.window._topbar_manager.adjust)
-        except Exception:
+        except (ImportError, AttributeError, TypeError, RuntimeError):
             logging.debug("TopPanel: failed to schedule initial topbar adjust", exc_info=True)
         
 
-    def setup_top_bar_widgets(self, top_bar):
+    def _create_top_panel_widget(
+        self,
+        top_bar: QHBoxLayout,
+        mode: str,
+        attr_name: str,
+        object_name: Optional[str],
+        log_label: str,
+    ) -> None:
+        """Фабрика для создания и добавления виджета верхней панели с обработкой ошибок."""
+        try:
+            if mode == "quick":
+                widget = TopPanelWidget(self.window, mode=mode, category_provider=self.window)
+            else:
+                widget = TopPanelWidget(self.window, mode=mode)
+            if object_name:
+                widget.setObjectName(object_name)
+            widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            setattr(self.window, attr_name, widget)
+            top_bar.addWidget(widget)
+        except Exception:
+            setattr(self.window, attr_name, None)
+            logging.exception("TopPanel: failed to create %s widget", log_label)
+
+    def setup_top_bar_widgets(self, top_bar: QHBoxLayout) -> None:
         """Настройка виджетов верхней панели.
         Создаём и добавляем все панели сразу, без отложенных прослоек:
         Порядок: QuickAdd → Favorites → Recent → Search
@@ -248,54 +272,29 @@ class WindowUISetup:
         self.window.table = LinksTableView(self.window)
         # Размер шрифта для таблицы устанавливается через MainWindow.apply_font_size_to_content()
 
-        # QuickAdd
-        try:
-            self.window.quick_add_widget = TopPanelWidget(
-                self.window, mode="quick", category_provider=self.window
-            )
-            # Фиксированная политика размеров для кнопочных панелей
-            self.window.quick_add_widget.setSizePolicy(
-                QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-            )
-            top_bar.addWidget(self.window.quick_add_widget)
-        except Exception:
-            self.window.quick_add_widget = None
-            logging.exception("TopPanel: failed to create QuickAdd widget")
-
-        # Favorites
-        try:
-            self.window.fav_widget = TopPanelWidget(self.window, mode="favorites")
-            # Совместимость со старым стилем/поиском через objectName
-            self.window.fav_widget.setObjectName("favoritesWidget")
-            self.window.fav_widget.setSizePolicy(
-                QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-            )
-            top_bar.addWidget(self.window.fav_widget)
-        except Exception:
-            self.window.fav_widget = None
-            logging.exception("TopPanel: failed to create Favorites widget")
-
-        # Recent
-        try:
-            self.window.recent_links_widget = TopPanelWidget(self.window, mode="recent")
-            self.window.recent_links_widget.setObjectName("recentLinksWidget")
-            self.window.recent_links_widget.setSizePolicy(
-                QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-            )
-            top_bar.addWidget(self.window.recent_links_widget)
-        except Exception:
-            self.window.recent_links_widget = None
-            logging.exception("TopPanel: failed to create Recent widget")
+        # Параметризованное создание QuickAdd, Favorites, Recent
+        widgets_params = [
+            ("quick", "quick_add_widget", None, "QuickAdd"),
+            ("favorites", "fav_widget", "favoritesWidget", "Favorites"),
+            ("recent", "recent_links_widget", "recentLinksWidget", "Recent"),
+        ]
+        for mode, attr_name, obj_name, label in widgets_params:
+            self._create_top_panel_widget(top_bar, mode, attr_name, obj_name, label)
 
         # Поиск (в конце, расширяется по ширине)
         self.setup_search_widget(top_bar)
 
-    def setup_search_widget(self, top_bar):
+    def setup_search_widget(self, top_bar: QHBoxLayout) -> None:
         """Настройка поля поиска."""
         self.window.search = QLineEdit()
         self.window.search.setPlaceholderText(app_config.get_search_placeholder())
         self.window.search.setClearButtonEnabled(True)
-        self.window.search.setFixedHeight(32)
+        # Высота поля поиска берётся из конфигурации
+        try:
+            self.window.search.setFixedHeight(int(app_config.get_top_panel_search_height()))
+        except (TypeError, ValueError, RuntimeError):
+            self.window.search.setFixedHeight(32)
+            logging.warning("SearchWidget: invalid search height in config; using 32")
         # Разрешаем горизонтальное сжатие/растяжение
         self.window.search.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
@@ -306,7 +305,7 @@ class WindowUISetup:
         self.window.search.textChanged.connect(self.window.on_search)
         top_bar.addWidget(self.window.search)
 
-    def setup_main_content(self):
+    def setup_main_content(self) -> None:
         """Настройка основного содержимого."""
         # Горизонтальный разделитель
         h_line_top = QWidget()
@@ -329,7 +328,7 @@ class WindowUISetup:
         h_line_2.setProperty("class", "separator")
         self.main_layout.addWidget(h_line_2)
 
-    def setup_left_panel(self, mid):
+    def setup_left_panel(self, mid: QHBoxLayout) -> None:
         """Настройка левой панели."""
         left_panel = QWidget()
         self.window.left_panel = left_panel
@@ -359,7 +358,7 @@ class WindowUISetup:
         # Панель сфер
         self.setup_spheres_bar(left_layout)
 
-    def setup_spheres_bar(self, left_layout):
+    def setup_spheres_bar(self, left_layout: QVBoxLayout) -> None:
         """Настройка панели сфер."""
         self.window.spheres_bar = QWidget()
         self.window.spheres_bar.setObjectName("spheres_bar")
@@ -375,7 +374,7 @@ class WindowUISetup:
 
         left_layout.addWidget(self.window.spheres_bar)
 
-    def setup_right_panel(self, mid):
+    def setup_right_panel(self, mid: QHBoxLayout) -> None:
         """Настройка правой панели."""
         # Плитки категорий - создаем без зависимостей, инжектируем позже
         self.window.tiles = CategoryTiles(parent=None)
@@ -425,7 +424,7 @@ class WindowUISetup:
             self.window.splitter.setHandleWidth(
                 int(app_config.get_splitter_handle_width())
             )
-        except Exception:
+        except (TypeError, ValueError, RuntimeError):
             self.window.splitter.setHandleWidth(1)
             logging.warning("RightPanel: invalid splitter handle width in config; using 1")
         self.window.splitter.addWidget(self.window.left_panel)
@@ -433,7 +432,7 @@ class WindowUISetup:
         # Разрешаем сворачивание левой панели (после добавления виджетов, чтобы индекс 0 существовал)
         try:
             self.window.splitter.setCollapsible(0, True)
-        except Exception:
+        except (RuntimeError, TypeError):
             logging.debug("RightPanel: failed to set splitter collapsible(0, True)", exc_info=True)
 
         stretch_factors = app_config.get_splitter_stretch_factors()
@@ -449,7 +448,7 @@ class WindowUISetup:
         # Установка фильтра авто-скрытия дерева при узком окне
         try:
             min_w = int(app_config.get_window_min_width())
-        except Exception:
+        except (TypeError, ValueError):
             min_w = 280
             logging.warning("RightPanel: invalid window_min_width in config; using 280")
         try:
@@ -459,7 +458,7 @@ class WindowUISetup:
             self.window.installEventFilter(self.window._auto_hide_tree_filter)
             # Один раз применим после инициализации
             self.window._auto_hide_tree_filter._apply()
-        except Exception:
+        except (RuntimeError, TypeError, AttributeError):
             # Не блокируем UI, если что-то пойдёт не так
             logging.exception("RightPanel: failed to initialize AutoHideTree filter")
 
@@ -471,7 +470,7 @@ class WindowUISetup:
         if hasattr(self.window, "bottom_bar_container"):
             self.window.bottom_bar_container.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-    def setup_bottom_panel(self):
+    def setup_bottom_panel(self) -> None:
         """Настройка нижней панели."""
         bot = QHBoxLayout()
         # Отступы панели берём из конфигурации (можно выставить в 0,0,0,0 для полного прилегания)
@@ -501,10 +500,18 @@ class WindowUISetup:
             try:
                 btn.setMinimumWidth(0)
                 btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-            except Exception:
+            except (RuntimeError, TypeError):
                 logging.debug("BottomPanel: failed to apply size policy to bottom button '%s'", text, exc_info=True)
             # Обработчик клика и добавление на панель
-            btn.clicked.connect(getattr(self.window, fn_name))
+            handler = getattr(self.window, fn_name, None)
+            if not callable(handler):
+                logging.warning("BottomPanel: click handler '%s' not found for button '%s' — skipping", fn_name, text)
+                continue
+            try:
+                btn.clicked.connect(handler)
+            except (TypeError, RuntimeError):
+                logging.warning("BottomPanel: failed to connect handler '%s' for button '%s' — skipping", fn_name, text, exc_info=True)
+                continue
             bot.addWidget(btn)
             bottom_btns.append(btn)
 
@@ -512,7 +519,7 @@ class WindowUISetup:
         if bottom_btns:
             try:
                 bottom_btns[-1].setProperty("last", "1")
-            except Exception:
+            except (RuntimeError, AttributeError):
                 logging.debug("BottomPanel: failed to set 'last' property on final button", exc_info=True)
 
         bottom_bar_container = QWidget()
@@ -526,7 +533,7 @@ class WindowUISetup:
                 QSizePolicy.Policy.Expanding,
                 QSizePolicy.Policy.Fixed,
             )
-        except Exception:
+        except (RuntimeError, TypeError):
             logging.debug("BottomPanel: failed to set size policy on bottom bar container", exc_info=True)
 
         self.main_layout.addWidget(bottom_bar_container)
@@ -536,17 +543,22 @@ class WindowUISetup:
         h_line_bottom.setProperty("class", "separator")
         self.main_layout.addWidget(h_line_bottom)
 
-    def setup_status_bar(self):
+    def setup_status_bar(self) -> None:
         """Настройка статус-бара."""
         init_status_bar(self.window)
 
-    def setup_shortcuts(self):
-        """Настройка горячих клавиш."""
-        # Горячие клавиши теперь управляются централизованно через KeyboardManager
-        # в WindowControllersSetup.setup_keyboard_manager()
-        pass
+    def setup_shortcuts(self) -> None:
+        """Устарело: горячие клавиши настраивает KeyboardManager.
 
-    def setup_window_properties(self):
+        Метод сохранён для обратной совместимости и намеренно ничего не делает,
+        чтобы не дублировать логику. Фактическая настройка хоткеев выполняется
+        централизованно через `KeyboardManager` в компоненте контроллеров.
+        """
+        logging.info(
+            "WindowUISetup.setup_shortcuts(): устарело; горячие клавиши управляются KeyboardManager"
+        )
+
+    def setup_window_properties(self) -> None:
         """Настройка базовых свойств окна."""
         self.window.setWindowTitle(app_config.get_main_window_title())
         self.window.resize(*app_config.get_main_window_size())
@@ -555,7 +567,7 @@ class WindowUISetup:
             min_w = int(app_config.get_window_min_width())
             min_h = int(app_config.get_window_min_height())
             self.window.setMinimumSize(min_w, min_h)
-        except Exception:
+        except (TypeError, ValueError):
             # В случае некорректных значений не блокируем инициализацию
             logging.warning("WindowProps: failed to set minimum size from config", exc_info=True)
 

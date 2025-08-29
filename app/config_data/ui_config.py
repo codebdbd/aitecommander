@@ -277,6 +277,10 @@ class UIConfig(BaseConfig):
         """Минимальная ширина поля поиска в верхней панели (для сжатия)."""
         return self.get("ui.top_panel_search_min_width", 140)
 
+    def get_top_panel_search_height(self) -> int:
+        """Получение высоты поля поиска в верхней панели."""
+        return self.get("ui.top_panel_search_height", 32)
+
     def get_stack_index_tiles(self) -> int:
         """Получение индекса стека для отображения плиток."""
         return self.get("ui.stack_index_tiles", 0)
