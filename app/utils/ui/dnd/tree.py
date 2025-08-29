@@ -132,8 +132,12 @@ class DragDropHandler(TreeHandlerBase):
                         f"Не удалось отправить dragFeedback для категории {target_id}: {e}"
                     )
 
-    def _handle_internal_drop_event_index(self, event) -> None:
-        """Внутренний drop для QTreeView: массовый перенос категорий между/внутри разделов."""
+    # --- Helpers extracted from internal DnD flow ---
+    def get_selected_categories(self) -> list[QModelIndex]:
+        """Возвращает список выбранных индексов категорий (колонка 0).
+
+        Фолбэк: если множественный выбор пуст — используется текущий индекс.
+        """
         selection_model = getattr(self.tree_widget, "selectionModel", lambda: None)()
         selected_indexes: list[QModelIndex] = []
         if selection_model and hasattr(selection_model, "selectedRows"):
@@ -141,50 +145,49 @@ class DragDropHandler(TreeHandlerBase):
                 selected_indexes = selection_model.selectedRows(0) or []
             except Exception:
                 selected_indexes = []
-        # Фолбэк на текущий индекс, если множественный выбор пуст
+
         if not selected_indexes:
             cur = self.tree_widget.currentIndex()
             if cur and cur.isValid():
                 selected_indexes = [cur]
 
-        # Фильтруем только категории
         category_indices: list[QModelIndex] = []
         for idx in selected_indexes:
             t = get_tree_tuple(idx, 0)
             if t and t[0] == "category":
                 category_indices.append(idx)
-        if not category_indices:
-            try:
-                self.tree_widget.invalidDrop.emit("Перемещать можно только категории")
-            except Exception:
-                pass
-            event.ignore()
-            return
+        # Стабильный порядок: по возрастанию row в текущем представлении
+        category_indices.sort(key=lambda i: i.row())
+        return category_indices
 
+    def determine_target(self, event: QDropEvent) -> tuple[int, int]:
+        """Определяет целевой раздел и базовую позицию вставки.
+
+        Возвращает (section_id, base_row) или бросает ValueError для игнорируемых случаев.
+        """
         target_index: QModelIndex = self.tree_widget.indexAt(event.position().toPoint())
         drop_pos = self.tree_widget.dropIndicatorPosition()
         if not target_index or not target_index.isValid():
-            event.ignore()
-            return
+            raise ValueError("invalid target")
+
         ttuple = get_tree_tuple(target_index, 0)
         if not ttuple:
-            event.ignore()
-            return
+            raise ValueError("invalid target")
         target_type, _ = ttuple
 
         model = self.tree_widget.model()
-        # Определяем целевой раздел и базовую позицию вставки
+
         if target_type == "section" and drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
             new_section_index = target_index
             new_section_tuple = get_tree_tuple(new_section_index, 0)
             new_section_id = new_section_tuple[1] if new_section_tuple else None
             base_row = model.rowCount(new_section_index)
+            parent_for_count = new_section_index
         elif target_type == "category":
             parent_index = target_index.parent()
             parent_tuple = get_tree_tuple(parent_index, 0)
             if not (parent_tuple and parent_tuple[0] == "section"):
-                event.ignore()
-                return
+                raise ValueError("invalid target")
             new_section_id = parent_tuple[1]
             tgt_row = target_index.row()
             if drop_pos == QAbstractItemView.DropIndicatorPosition.AboveItem:
@@ -194,82 +197,121 @@ class DragDropHandler(TreeHandlerBase):
             elif drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
                 base_row = model.rowCount(parent_index)
             else:
-                event.ignore()
-                return
+                raise ValueError("invalid target")
+            parent_for_count = parent_index
         else:
-            event.ignore()
-            return
+            raise ValueError("invalid target")
 
-        # Нормализуем base_row в допустимый диапазон [0..rowCount]
-        try:
-            parent_for_count = new_section_index if (target_type == "section") else parent_index
-            total_rows = model.rowCount(parent_for_count) if parent_for_count and parent_for_count.isValid() else 0
-            if not isinstance(base_row, int):
-                base_row = 0
-            if base_row < 0:
-                base_row = 0
-            if base_row > total_rows:
-                base_row = total_rows
-        except Exception:
-            # В случае любой ошибки безопасно отклоняем операцию, чтобы не повредить модель
-            event.ignore()
-            return
+        # Нормализация base_row в [0..rowCount]
+        total_rows = (
+            model.rowCount(parent_for_count)
+            if parent_for_count and parent_for_count.isValid()
+            else 0
+        )
+        if not isinstance(base_row, int):
+            base_row = 0
+        if base_row < 0:
+            base_row = 0
+        if base_row > total_rows:
+            base_row = total_rows
 
         if not isinstance(new_section_id, int):
-            event.ignore()
-            return
+            raise ValueError("invalid target")
 
-        # Стабильный порядок: по возрастанию row в текущем представлении
-        category_indices.sort(key=lambda i: i.row())
+        return int(new_section_id), int(base_row)
 
-        # Если выбрано несколько категорий — используем атомарную команду с единым undo
-        if len(category_indices) > 1 and hasattr(self.tree_widget, "move_operations_handler"):
-            ids: list[int] = []
-            for idx in category_indices:
-                st = get_tree_tuple(idx, 0)
-                if st and isinstance(st[1], int):
-                    ids.append(int(st[1]))
-            if ids:
-                try:
-                    self.tree_widget.move_operations_handler.execute_move_categories_command(
-                        ids, int(new_section_id), int(base_row)
-                    )
-                    event.accept()
-                    return
-                except Exception:
-                    # Fallback ниже — поштучные перемещения
-                    pass
+    def move_categories(self, category_ids: list[int], section_id: int, base_row: int) -> int:
+        """Перемещает список категорий в указанный раздел и позицию.
 
-        # Обычный путь: одиночный перенос (или fallback)
-        moved_any = False
+        Пытается использовать атомарную команду для нескольких элементов.
+        Возвращает число реально перемещённых элементов. В одиночном пути
+        генерирует сигнал itemsMoved по каждому успешному переносу.
+        """
+        if not category_ids:
+            return 0
+
+        model = self.tree_widget.model()
+
+        # Атомарная команда для множественного переноса
+        if len(category_ids) > 1 and hasattr(self.tree_widget, "move_operations_handler"):
+            try:
+                self.tree_widget.move_operations_handler.execute_move_categories_command(
+                    [int(i) for i in category_ids], int(section_id), int(base_row)
+                )
+                # Поведение сохраняем: при командном переносе отдельных itemsMoved не шлём
+                return len(category_ids)
+            except Exception:
+                # Fallback — поштучные перемещения ниже
+                pass
+
+        moved_count = 0
         insert_offset = 0
-        for idx in category_indices:
-            st = get_tree_tuple(idx, 0)
-            if not (st and isinstance(st[1], int)):
+        for cid in category_ids:
+            if not isinstance(cid, int):
                 continue
-            category_id = int(st[1])
             target_row = int(base_row + insert_offset)
             try:
-                ok = hasattr(model, "move_category") and model.move_category(category_id, int(new_section_id), target_row)
+                ok = hasattr(model, "move_category") and model.move_category(int(cid), int(section_id), target_row)
             except Exception:
                 ok = False
             if ok:
-                moved_any = True
+                moved_count += 1
                 insert_offset += 1
+                # Сигнал по успешному переносу элемента
                 try:
                     self.tree_widget.itemsMoved.emit(
                         {
                             "type": "internal_move",
                             "source_type": "category",
-                            "category_id": category_id,
-                            "section_id": int(new_section_id),
+                            "category_id": int(cid),
+                            "section_id": int(section_id),
                             "new_row": target_row,
                         }
                     )
                 except Exception:
                     pass
 
-        if moved_any:
+        return moved_count
+
+    def _handle_internal_drop_event_index(self, event) -> None:
+        """Внутренний drop для QTreeView: перенос категорий между/внутри разделов.
+
+        Упрощён до оркестрации: выбор, расчёт цели, выполнение переноса,
+        базовая обработка ошибок и сигналов.
+        """
+        # 1) Выбор категорий
+        category_indices = self.get_selected_categories()
+        if not category_indices:
+            try:
+                self.tree_widget.invalidDrop.emit("Перемещать можно только категории")
+            except Exception:
+                pass
+            event.ignore()
+            return
+
+        # 2) Расчёт целевого раздела и позиции
+        try:
+            new_section_id, base_row = self.determine_target(event)
+        except ValueError:
+            event.ignore()
+            return
+
+        # 3) Формирование списка ID в стабильном порядке
+        ids: list[int] = []
+        for idx in category_indices:
+            st = get_tree_tuple(idx, 0)
+            if st and isinstance(st[1], int):
+                ids.append(int(st[1]))
+
+        if not ids:
+            event.ignore()
+            return
+
+        # 4) Перенос
+        moved_count = self.move_categories(ids, int(new_section_id), int(base_row))
+
+        # 5) Результат
+        if moved_count > 0:
             event.accept()
         else:
             try:

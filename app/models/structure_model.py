@@ -29,11 +29,8 @@ class StructureModel:
         """Вставляет или обновляет сферу. Возвращает ID записи."""
         sid = self.db.spheres.upsert_sphere(data)
         conn = self.db.connection
-        if not getattr(conn, "in_transaction", False):
-            try:
-                conn.commit()
-            except Exception:
-                pass
+        if getattr(conn, "in_transaction", False):
+            self.db.commit()
         return sid
 
     def create_sphere(self, data: Dict[str, Any]) -> Optional[int]:
@@ -117,22 +114,16 @@ class StructureModel:
         """Вставляет или обновляет раздел. Возвращает ID записи."""
         sid = self.db.sections.upsert_section(data)
         conn = self.db.connection
-        if not getattr(conn, "in_transaction", False):
-            try:
-                conn.commit()
-            except Exception:
-                pass
+        if getattr(conn, "in_transaction", False):
+            self.db.commit()
         return sid
 
     def upsert_category(self, data: Dict[str, Any]) -> int:
         """Вставляет или обновляет категорию. Возвращает ID записи."""
         cid = self.db.categories.upsert_category(data)
         conn = self.db.connection
-        if not getattr(conn, "in_transaction", False):
-            try:
-                conn.commit()
-            except Exception:
-                pass
+        if getattr(conn, "in_transaction", False):
+            self.db.commit()
         return cid
 
     # ---------------------------------------------------------------------
@@ -181,11 +172,8 @@ class StructureModel:
         try:
             self.db.sections.delete_section(section_id)
             conn = self.db.connection
-            if not getattr(conn, "in_transaction", False):
-                try:
-                    conn.commit()
-                except Exception:
-                    pass
+            if getattr(conn, "in_transaction", False):
+                self.db.commit()
             return True
         except Exception as e:
             self.logger.error(f"Ошибка удаления раздела {section_id}: {e}")
@@ -196,11 +184,8 @@ class StructureModel:
         try:
             self.db.categories.delete_category(category_id)
             conn = self.db.connection
-            if not getattr(conn, "in_transaction", False):
-                try:
-                    conn.commit()
-                except Exception:
-                    pass
+            if getattr(conn, "in_transaction", False):
+                self.db.commit()
             return True
         except Exception as e:
             self.logger.error(f"Ошибка удаления категории {category_id}: {e}")
@@ -259,12 +244,8 @@ class StructureModel:
             cat_id = self.db.categories.insert_category(category_data)
             # Явная фиксация, если категория создаётся вне внешней транзакции
             conn = self.db.connection
-            if not getattr(conn, "in_transaction", False):
-                try:
-                    conn.commit()
-                except Exception:
-                    # В случае ошибки коммита пусть исключение будет обработано выше
-                    pass
+            if getattr(conn, "in_transaction", False):
+                self.db.commit()
             return cat_id
         except Exception as e:
             self.logger.error(f"Ошибка создания категории: {e}")

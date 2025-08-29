@@ -199,9 +199,10 @@ def fetch_web_link_info(
         if on_icon_ready:
             try:
                 sched = get_task_scheduler()
+                # Обновление UI таблицы — используем TABLE_UPDATE и немедленную доставку
                 sched.schedule_operation(
                     lambda: on_icon_ready(resolved),
-                    task_type=TaskType.GENERAL,
+                    task_type=TaskType.TABLE_UPDATE,
                     delay=0,
                     operation_id=f"icon_ready:{url}",
                 )

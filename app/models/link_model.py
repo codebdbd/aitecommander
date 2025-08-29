@@ -81,7 +81,12 @@ class LinkModel(DatabaseBase):
             return {}
 
     def upsert_link(self, link: Dict[str, Any]) -> int:
-        """Вставляет или обновляет запись о ссылке. Возвращает ID записи."""
+        """Вставляет или обновляет запись о ссылке. Возвращает ID записи.
+
+        Транзакции не завершаются внутри метода. Коммит/роллбек выполняются
+        вызывающей стороной (сервис/бизнес-слой) для возможности группировать
+        несколько операций в одну атомарную транзакцию.
+        """
         self._validate_required_fields(link, ["category_id"], "ссылки")
 
         all_possible_fields = [
@@ -123,7 +128,7 @@ class LinkModel(DatabaseBase):
                     f"UPDATE link SET {update_placeholders} WHERE id=?",
                     tuple(update_values + [data["id"]]),
                 )
-                self.commit()
+                
 
                 # Если запись не была обновлена, вставляем новую с указанным ID
                 if cursor.rowcount == 0:
@@ -135,7 +140,7 @@ class LinkModel(DatabaseBase):
                         f"INSERT INTO link ({', '.join(insert_fields)}) VALUES ({insert_placeholders})",
                         tuple(insert_values),
                     )
-                    self.commit()
+                    
 
                 logger.debug(
                     f"Обновлена ссылка с ID {data['id']}, browser_key={data.get('browser_key')}"
@@ -167,7 +172,7 @@ class LinkModel(DatabaseBase):
                     f"INSERT INTO link ({', '.join(columns)}) VALUES ({placeholders})",
                     tuple(values),
                 )
-                self.commit()
+                
                 new_id = cursor.lastrowid
                 logger.info(
                     f"Добавлена новая ссылка: {data.get('name', 'Без названия')}, browser_key={data.get('browser_key')}"
@@ -262,7 +267,7 @@ class LinkModel(DatabaseBase):
             self._execute_with_error_handling(
                 "DELETE FROM link WHERE id= ?", (link_id,)
             )
-            self.commit()
+            
             logger.info(f"Удалена ссылка с ID {link_id}")
         except Exception as e:
             logger.error(f"Ошибка удаления ссылки: {e}")
@@ -274,7 +279,7 @@ class LinkModel(DatabaseBase):
         self._execute_with_error_handling(
             "UPDATE link SET last_used = ? WHERE id = ?", (now, link_id)
         )
-        self.commit()
+        
 
     def count_favorites(self) -> int:
         """Возвращает количество избранных ссылок."""
@@ -289,7 +294,7 @@ class LinkModel(DatabaseBase):
             self._execute_with_error_handling(
                 "UPDATE link SET is_favorite=0 WHERE is_favorite=1"
             )
-            self.commit()
+            
             logger.info("Очищены все избранные ссылки")
         except Exception as e:
             logger.error(f"Ошибка очистки избранного: {e}")
@@ -344,7 +349,7 @@ class LinkModel(DatabaseBase):
                 "UPDATE link SET notes = ? WHERE id = ?",
                 (new_notes, link_id),
             )
-            self.commit()
+            
         except Exception as e:
             logger.error(f"Ошибка обновления заметок для ссылки {link_id}: {e}")
             raise
@@ -508,6 +513,251 @@ class LinkModel(DatabaseBase):
             logger.error(f"Ошибка пакетного сохранения ссылок: {e}")
             raise
 
+    # === Выделенные шаги для пакетного апсерта (без транзакции) ===
+
+    def _normalize_and_group_links(
+        self, links_data: List[Dict[str, Any]], all_fields: List[str]
+    ) -> Dict[int, List[Dict[str, Any]]]:
+        """Нормализует вход и группирует записи по `category_id`.
+
+        - Валидирует обязательные поля.
+        - Заполняет значения по умолчанию и приводит типы.
+        - Обновляет входные элементы in-place.
+        - Возвращает словарь {category_id: [items...]}
+        """
+        by_cat: Dict[int, List[Dict[str, Any]]] = {}
+        for raw in links_data:
+            self._validate_required_fields(raw, ["category_id"], "ссылки")
+            data = {field: raw.get(field) for field in all_fields}
+            data["name"] = data.get("name", "") or ""
+            data["url"] = data.get("url", "") or ""
+            data["args"] = data.get("args", "") or ""
+            data["type"] = data.get("type", "web") or "web"
+            data["notes"] = data.get("notes", "") or ""
+            data["is_favorite"] = int(data.get("is_favorite", 0) or 0)
+            data["icon_path"] = data.get("icon_path", "default.ico") or "default.ico"
+            # position и browser_key оставляем как есть (могут быть None)
+
+            raw.clear()
+            raw.update(data)
+
+            by_cat.setdefault(int(data["category_id"]), []).append(raw)
+        return by_cat
+
+    def _fetch_existing_maps(self, category_id: int) -> Tuple[
+        Dict[Tuple[str, str, str], Dict[str, Any]],
+        Dict[int, Dict[str, Any]],
+        int,
+    ]:
+        """Получает существующие ссылки и max(position) для категории.
+
+        Возвращает кортеж (existing_by_key, existing_by_id, max_pos).
+        key = (name, url, args)
+        """
+        rows = self._execute_with_error_handling(
+            "SELECT id, name, url, args, position FROM link WHERE category_id=?",
+            (category_id,),
+        ).fetchall()
+
+        existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+        existing_by_id: Dict[int, Dict[str, Any]] = {}
+        max_pos = -1
+        for rid, rname, rurl, rargs, rpos in rows:
+            existing_by_id[int(rid)] = {
+                "id": int(rid),
+                "name": rname or "",
+                "url": rurl or "",
+                "args": rargs or "",
+                "position": rpos if rpos is not None else -1,
+            }
+            existing_by_key[(rname or "", rurl or "", rargs or "")] = existing_by_id[int(rid)]
+            if rpos is not None:
+                try:
+                    if int(rpos) > max_pos:
+                        max_pos = int(rpos)
+                except Exception:
+                    pass
+        return existing_by_key, existing_by_id, max_pos
+
+    def _assign_positions_for_items(self, items: List[Dict[str, Any]], start_pos: int) -> None:
+        """Назначает позицию тем элементам, у кого она не задана."""
+        next_pos = start_pos
+        for item in items:
+            if item.get("position") is None:
+                item["position"] = next_pos
+                next_pos += 1
+
+    def _build_update_params(
+        self, items: List[Dict[str, Any]], existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]]
+    ) -> Tuple[List[Tuple[Any, ...]], List[Dict[str, Any]]]:
+        """Формирует параметры для UPDATE и список вставок без id."""
+        updates: List[Tuple[Any, ...]] = []
+        inserts_no_id: List[Dict[str, Any]] = []
+        for item in items:
+            key = (item.get("name", ""), item.get("url", ""), item.get("args", ""))
+            iid = item.get("id")
+            if iid:
+                updates.append(
+                    (
+                        item.get("category_id"),
+                        item.get("name"),
+                        item.get("url"),
+                        item.get("type"),
+                        item.get("notes"),
+                        int(item.get("is_favorite", 0) or 0),
+                        item.get("last_used"),
+                        item.get("icon_path"),
+                        item.get("args"),
+                        item.get("browser_key"),
+                        item.get("position", 0) if item.get("position") is not None else 0,
+                        int(iid),
+                    )
+                )
+            else:
+                ex = existing_by_key.get(key)
+                if ex:
+                    item["id"] = ex["id"]
+                    updates.append(
+                        (
+                            item.get("category_id"),
+                            item.get("name"),
+                            item.get("url"),
+                            item.get("type"),
+                            item.get("notes"),
+                            int(item.get("is_favorite", 0) or 0),
+                            item.get("last_used"),
+                            item.get("icon_path"),
+                            item.get("args"),
+                            item.get("browser_key"),
+                            item.get("position", 0) if item.get("position") is not None else 0,
+                            ex["id"],
+                        )
+                    )
+                else:
+                    inserts_no_id.append(item)
+        return updates, inserts_no_id
+
+    def _execute_updates_collect_missing(
+        self, updates: List[Tuple[Any, ...]]
+    ) -> List[Dict[str, Any]]:
+        """Выполняет пакетные UPDATE и собирает записи для последующей вставки с фиксированным id.
+
+        Возвращает список словарей для вставки с заданным `id` (inserts_with_id).
+        """
+        inserts_with_id: List[Dict[str, Any]] = []
+        if not updates:
+            return inserts_with_id
+
+        update_sql = (
+            "UPDATE link SET category_id=?, name=?, url=?, type=?, notes=?, "
+            "is_favorite=?, last_used=?, icon_path=?, args=?, browser_key=?, position=? WHERE id=?"
+        )
+        try:
+            cur = self.connection.executemany(update_sql, updates)
+        except sqlite3.IntegrityError as e:
+            raise DatabaseError(f"UNIQUE constraint failed during batch update: {e}")
+
+        update_ids = [int(p[-1]) for p in updates]
+        if update_ids:
+            placeholders = ",".join(["?"] * len(update_ids))
+            existed_rows = self._execute_with_error_handling(
+                f"SELECT id FROM link WHERE id IN ({placeholders})",
+                tuple(update_ids),
+                fetch_method="all",
+            )
+            existed_ids = {int(r[0] if isinstance(r, tuple) else r["id"]) for r in (existed_rows or [])}
+            missing_ids = [iid for iid in update_ids if iid not in existed_ids]
+
+            if missing_ids:
+                params_by_id = {int(p[-1]): p for p in updates}
+                for iid in missing_ids:
+                    params = params_by_id.get(int(iid))
+                    if not params:
+                        continue
+                    inserts_with_id.append(
+                        {
+                            "id": int(iid),
+                            "category_id": params[0],
+                            "name": params[1],
+                            "url": params[2],
+                            "type": params[3],
+                            "notes": params[4],
+                            "is_favorite": params[5],
+                            "last_used": params[6],
+                            "icon_path": params[7],
+                            "args": params[8],
+                            "browser_key": params[9],
+                            "position": params[10],
+                        }
+                    )
+        return inserts_with_id
+
+    def _insert_records_with_id(self, inserts_with_id: List[Dict[str, Any]], all_fields: List[str], created_ids: List[int]) -> None:
+        """Вставляет записи с фиксированным id (executemany) и добавляет их в created_ids."""
+        if not inserts_with_id:
+            return
+        insert_fields = all_fields
+        placeholders = ", ".join(["?"] * len(insert_fields))
+        params_with_id = [tuple(rec.get(f) for f in insert_fields) for rec in inserts_with_id]
+        try:
+            self.connection.executemany(
+                f"INSERT INTO link ({', '.join(insert_fields)}) VALUES ({placeholders})",
+                params_with_id,
+            )
+        except sqlite3.IntegrityError as e:
+            raise DatabaseError(f"Integrity error on inserts_with_id: {e}")
+        for rec in inserts_with_id:
+            try:
+                iid = int(rec.get("id") or 0)
+                if iid:
+                    created_ids.append(iid)
+            except Exception:
+                pass
+
+    def _insert_records_no_id(
+        self,
+        inserts_no_id: List[Dict[str, Any]],
+        all_fields: List[str],
+        existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]],
+        created_ids: List[int],
+    ) -> None:
+        """Поштучно вставляет записи без id, обновляет входные элементы и created_ids.
+
+        Следует согласованному хотфиксу: без временной таблицы, поштучные INSERT.
+        """
+        if not inserts_no_id:
+            return
+        columns = [f for f in all_fields if f != "id"]
+        placeholders = ", ".join(["?"] * len(columns))
+        insert_sql = f"INSERT INTO link ({', '.join(columns)}) VALUES ({placeholders})"
+        for rec in inserts_no_id:
+            params = tuple(rec.get(c) for c in columns)
+            try:
+                cur = self._execute_with_error_handling(insert_sql, params)
+                try:
+                    new_id = int(getattr(cur, "lastrowid", 0) or 0)
+                except Exception:
+                    new_id = 0
+                if new_id:
+                    rec["id"] = new_id
+                    key_simple = (rec.get("name", ""), rec.get("url", ""), rec.get("args", ""))
+                    if key_simple not in existing_by_key:
+                        created_ids.append(new_id)
+                        existing_by_key[key_simple] = {"id": new_id, "position": rec.get("position", 0)}
+            except sqlite3.IntegrityError:
+                row = self._execute_with_error_handling(
+                    "SELECT id FROM link WHERE category_id=? AND name=? AND url=? AND args=?",
+                    (
+                        rec.get("category_id"),
+                        rec.get("name", ""),
+                        rec.get("url", ""),
+                        rec.get("args", ""),
+                    ),
+                    fetch_method="one",
+                )
+                if row:
+                    rec["id"] = row[0] if isinstance(row, tuple) else row["id"]
+
     def _upsert_links_no_tx(self, links_data: List[Dict[str, Any]]) -> List[int]:
         """Внутренний хелпер: апсерт ссылок без открытия транзакции и без commit().
 
@@ -520,7 +770,7 @@ class LinkModel(DatabaseBase):
 
         created_ids: List[int] = []
 
-        # Определяем полный набор полей, синхронно с upsert_link
+        # Поля должны оставаться синхронными с upsert_link
         all_fields = [
             "id",
             "category_id",
@@ -536,213 +786,27 @@ class LinkModel(DatabaseBase):
             "browser_key",
         ]
 
-        # 1) Валидация и нормализация входа, группировка по category_id
-        by_cat: Dict[int, List[Dict[str, Any]]] = {}
-        for raw in links_data:
-            self._validate_required_fields(raw, ["category_id"], "ссылки")
-            # Нормализуем значения и оставим только ожидаемые поля
-            data = {field: raw.get(field) for field in all_fields}
-            data["name"] = data.get("name", "") or ""
-            data["url"] = data.get("url", "") or ""
-            data["args"] = data.get("args", "") or ""
-            data["type"] = data.get("type", "web") or "web"
-            data["notes"] = data.get("notes", "") or ""
-            data["is_favorite"] = int(data.get("is_favorite", 0) or 0)
-            data["icon_path"] = data.get("icon_path", "default.ico") or "default.ico"
-            # position и browser_key оставляем как есть (могут быть None)
+        # 1) Нормализация и группировка
+        by_cat = self._normalize_and_group_links(links_data, all_fields)
 
-            raw.clear()
-            raw.update(data)  # Сохраняем нормализованные данные обратно во входную структуру
-
-            by_cat.setdefault(int(data["category_id"]), []).append(raw)
-
-        # 2) Для каждой категории одним запросом получаем существующие ссылки и max(position)
+        # 2..6) Для каждой категории отрабатываем шаги отдельно
         for category_id, items in by_cat.items():
-            rows = self._execute_with_error_handling(
-                "SELECT id, name, url, args, position FROM link WHERE category_id=?",
-                (category_id,),
-            ).fetchall()
+            existing_by_key, _existing_by_id, max_pos = self._fetch_existing_maps(category_id)
 
-            existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
-            existing_by_id: Dict[int, Dict[str, Any]] = {}
-            max_pos = -1
-            for rid, rname, rurl, rargs, rpos in rows:
-                existing_by_id[int(rid)] = {
-                    "id": int(rid),
-                    "name": rname or "",
-                    "url": rurl or "",
-                    "args": rargs or "",
-                    "position": rpos if rpos is not None else -1,
-                }
-                existing_by_key[(rname or "", rurl or "", rargs or "")] = existing_by_id[int(rid)]
-                if rpos is not None:
-                    try:
-                        if int(rpos) > max_pos:
-                            max_pos = int(rpos)
-                    except Exception:
-                        pass
+            # 3) Назначаем позиции, если не заданы
+            self._assign_positions_for_items(items, max_pos + 1)
 
-            # 3) Рассчитываем позиции для тех, у кого position не задан
-            next_pos = max_pos + 1
-            for item in items:
-                if item.get("position") is None:
-                    item["position"] = next_pos
-                    next_pos += 1
+            # 4) Формируем обновления и вставки без id
+            updates, inserts_no_id = self._build_update_params(items, existing_by_key)
 
-            # 4) Разделяем операции на обновления и вставки
-            updates: List[Tuple[Any, ...]] = []
-            inserts_no_id: List[Dict[str, Any]] = []
-            inserts_with_id: List[Dict[str, Any]] = []
+            # 5) Выполняем обновления и собираем вставки с фиксированным id
+            inserts_with_id = self._execute_updates_collect_missing(updates)
 
-            for item in items:
-                key = (item.get("name", ""), item.get("url", ""), item.get("args", ""))
-                iid = item.get("id")
+            # 6a) Выполняем вставки с фиксированным id
+            self._insert_records_with_id(inserts_with_id, all_fields, created_ids)
 
-                if iid:
-                    # Попытка обновления по id; если не существует — позже вставим с заданным id
-                    updates.append(
-                        (
-                            item.get("category_id"),
-                            item.get("name"),
-                            item.get("url"),
-                            item.get("type"),
-                            item.get("notes"),
-                            int(item.get("is_favorite", 0) or 0),
-                            item.get("last_used"),
-                            item.get("icon_path"),
-                            item.get("args"),
-                            item.get("browser_key"),
-                            item.get("position", 0) if item.get("position") is not None else 0,
-                            int(iid),
-                        )
-                    )
-                else:
-                    # Нет id — проверим дубликат по ключу
-                    ex = existing_by_key.get(key)
-                    if ex:
-                        # Свяжем с существующей записью
-                        item["id"] = ex["id"]
-                        # Выполним обновление значимых полей
-                        updates.append(
-                            (
-                                item.get("category_id"),
-                                item.get("name"),
-                                item.get("url"),
-                                item.get("type"),
-                                item.get("notes"),
-                                int(item.get("is_favorite", 0) or 0),
-                                item.get("last_used"),
-                                item.get("icon_path"),
-                                item.get("args"),
-                                item.get("browser_key"),
-                                item.get("position", 0) if item.get("position") is not None else 0,
-                                ex["id"],
-                            )
-                        )
-                    else:
-                        inserts_no_id.append(item)
-
-            # 5) Выполняем батч-обновления (executemany)
-            if updates:
-                update_sql = (
-                    "UPDATE link SET category_id=?, name=?, url=?, type=?, notes=?, "
-                    "is_favorite=?, last_used=?, icon_path=?, args=?, browser_key=?, position=? WHERE id=?"
-                )
-                try:
-                    cur = self.connection.executemany(update_sql, updates)
-                except sqlite3.IntegrityError as e:
-                    raise DatabaseError(f"UNIQUE constraint failed during batch update: {e}")
-
-                # Определяем какие id отсутствуют после обновления одним запросом IN (...)
-                update_ids = [int(p[-1]) for p in updates]
-                if update_ids:
-                    placeholders = ",".join(["?"] * len(update_ids))
-                    existed_rows = self._execute_with_error_handling(
-                        f"SELECT id FROM link WHERE id IN ({placeholders})",
-                        tuple(update_ids),
-                        fetch_method="all",
-                    )
-                    existed_ids = {int(r[0] if isinstance(r, tuple) else r["id"]) for r in (existed_rows or [])}
-                    missing_ids = [iid for iid in update_ids if iid not in existed_ids]
-
-                    if missing_ids:
-                        # Подготовим записи к вставке с фиксированным id на базе исходных параметров updates
-                        params_by_id = {int(p[-1]): p for p in updates}
-                        for iid in missing_ids:
-                            params = params_by_id.get(int(iid))
-                            if not params:
-                                continue
-                            inserts_with_id.append(
-                                {
-                                    "id": int(iid),
-                                    "category_id": params[0],
-                                    "name": params[1],
-                                    "url": params[2],
-                                    "type": params[3],
-                                    "notes": params[4],
-                                    "is_favorite": params[5],
-                                    "last_used": params[6],
-                                    "icon_path": params[7],
-                                    "args": params[8],
-                                    "browser_key": params[9],
-                                    "position": params[10],
-                                }
-                            )
-
-            # 6) Вставки: сначала с фиксированным id (executemany), затем массовая вставка без id через временную таблицу
-            if inserts_with_id:
-                insert_fields = all_fields
-                placeholders = ", ".join(["?"] * len(insert_fields))
-                params_with_id = [tuple(rec.get(f) for f in insert_fields) for rec in inserts_with_id]
-                try:
-                    self.connection.executemany(
-                        f"INSERT INTO link ({', '.join(insert_fields)}) VALUES ({placeholders})",
-                        params_with_id,
-                    )
-                except sqlite3.IntegrityError as e:
-                    raise DatabaseError(f"Integrity error on inserts_with_id: {e}")
-                # Добавляем созданные фиксированные ID
-                for rec in inserts_with_id:
-                    try:
-                        iid = int(rec.get("id") or 0)
-                        if iid:
-                            created_ids.append(iid)
-                    except Exception:
-                        pass
-
-            if inserts_no_id:
-                columns = [f for f in all_fields if f != "id"]
-                placeholders = ", ".join(["?"] * len(columns))
-                insert_sql = f"INSERT INTO link ({', '.join(columns)}) VALUES ({placeholders})"
-                for rec in inserts_no_id:
-                    params = tuple(rec.get(c) for c in columns)
-                    try:
-                        cur = self._execute_with_error_handling(insert_sql, params)
-                        try:
-                            new_id = int(getattr(cur, "lastrowid", 0) or 0)
-                        except Exception:
-                            new_id = 0
-                        if new_id:
-                            rec["id"] = new_id
-                            key_simple = (rec.get("name", ""), rec.get("url", ""), rec.get("args", ""))
-                            if key_simple not in existing_by_key:
-                                created_ids.append(new_id)
-                                # Обновим карту существующих, чтобы исключить повторные вставки в рамках категории
-                                existing_by_key[key_simple] = {"id": new_id, "position": rec.get("position", 0)}
-                    except sqlite3.IntegrityError:
-                        # На случай гонки/погрешности, попробуем получить id существующей записи
-                        row = self._execute_with_error_handling(
-                            "SELECT id FROM link WHERE category_id=? AND name=? AND url=? AND args=?",
-                            (
-                                rec.get("category_id"),
-                                rec.get("name", ""),
-                                rec.get("url", ""),
-                                rec.get("args", ""),
-                            ),
-                            fetch_method="one",
-                        )
-                        if row:
-                            rec["id"] = row[0] if isinstance(row, tuple) else row["id"]
+            # 6b) Поштучные INSERT без id (согласованный хотфикс)
+            self._insert_records_no_id(inserts_no_id, all_fields, existing_by_key, created_ids)
 
         return created_ids
 

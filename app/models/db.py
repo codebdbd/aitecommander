@@ -106,7 +106,7 @@ class Database(DatabaseBase):
             sql = SCHEMA_PATH.read_text(encoding="utf-8")
             with db_lock:
                 self.connection.executescript(sql)
-                self.connection.commit()
+                self.commit()
             logger.info("Схема базы данных инициализирована")
         except Exception as e:
             logger.error(f"Ошибка инициализации схемы: {e}")
@@ -121,7 +121,7 @@ class Database(DatabaseBase):
                     self.connection.execute(
                         "ALTER TABLE link ADD COLUMN browser_key TEXT DEFAULT NULL"
                     )
-                    self.connection.commit()
+                    self.commit()
                 logger.info("Миграция: добавлено поле browser_key в таблицу link")
             except sqlite3.OperationalError as e:
                 if "duplicate column name" in str(e).lower():
@@ -190,10 +190,10 @@ class Database(DatabaseBase):
                             self.connection.execute(
                                 "ALTER TABLE link_new RENAME TO link"
                             )
-                            self.connection.commit()
+                            self.commit()
                             logger.info("Миграция link завершена успешно")
                         except Exception as inner:
-                            self.connection.execute("ROLLBACK")
+                            self.rollback()
                             logger.error(f"Ошибка миграции таблицы link: {inner}")
                             # не пробрасываем исключение, чтобы не падало приложение
             except Exception as mig_err:
@@ -224,7 +224,7 @@ class Database(DatabaseBase):
                         ON category(section_id, name COLLATE NOCASE)
                         """
                     )
-                    self.connection.commit()
+                    self.commit()
                 logger.info("Миграция: добавлены case-insensitive уникальные индексы для sphere/section/category")
             except sqlite3.OperationalError as e:
                 # Если в данных уже есть дубликаты, создание индекса упадёт — логируем и продолжаем
@@ -819,7 +819,7 @@ class Database(DatabaseBase):
                 ON category(section_id, name COLLATE NOCASE)
                 """
             )
-            self.connection.commit()
+            self.commit()
 
 def _print_duplicates_human(dups: dict) -> None:
     print("== Дубликаты (регистронезависимые) ==")
