@@ -73,7 +73,11 @@ class BaseLinksPanelWidget(BasePanelWidget):
         try:
             resolved = resolve_icon_path(icon_path)
             return resolved or str(self._get_default_icon_path())
-        except Exception:
+        except (OSError, FileNotFoundError, PermissionError) as e:
+            logging.warning("Не удалось разрешить путь к иконке '%s': %s", icon_path, e)
+            return str(self._get_default_icon_path())
+        except Exception as e:
+            logging.exception("Неожиданная ошибка при разрешении иконки '%s': %s", icon_path, e)
             return str(self._get_default_icon_path())
 
     def _create_link_button(self, link_data: Dict[str, Any]) -> QToolButton:
@@ -107,22 +111,35 @@ class BaseLinksPanelWidget(BasePanelWidget):
         """Очищает панель и заполняет кнопками ссылок."""
         self._clear_layout()
 
-        for link in items:
+        for i, link in enumerate(items):
             try:
                 button = create_button_func(link)
                 if button is not None:
                     self.layout.addWidget(button)
+                else:
+                    logging.debug("create_button_func вернула None для элемента %d: %s", i, link.get('name', 'Unknown'))
             except Exception as exc:
+                # Подробная диагностика для упрощения отладки
+                link_info = {
+                    'index': i,
+                    'id': link.get('id', 'Unknown'),
+                    'name': link.get('name', 'Unknown'),
+                    'url': link.get('url', 'Unknown')[:50] if link.get('url') else 'Unknown'
+                }
                 logging.warning(
-                    "Не удалось создать кнопку для элемента панели: %s", exc
+                    "Не удалось создать кнопку для элемента панели %s: %s", 
+                    link_info, exc
                 )
+                # В режиме отладки выводим полный стек трейс
+                if logging.getLogger().isEnabledFor(logging.DEBUG):
+                    logging.exception("Полная трассировка ошибки создания кнопки:")
                 continue
 
         try:
             if self.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Expanding:
                 self.layout.addStretch()
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logging.warning("Не удалось добавить stretch в layout: %s", e)
 
 
     def _handle_link_click_base(self, link_info) -> None:
