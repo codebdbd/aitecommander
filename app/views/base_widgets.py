@@ -2,9 +2,9 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Callable, Iterable
 
-from PyQt6.QtCore import QSize, Qt, QEvent, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, QEvent, pyqtSignal, QModelIndex
 from PyQt6.QtGui import QDrag, QDropEvent, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data import app_config
+from app.utils.ui.dnd.pixmap import create_text_pixmap, create_default_pixmap
 from app.utils.ui.dnd.link import (
     extract_source_rows_from_mime as dnd_extract_source_rows,
 )
@@ -105,6 +106,25 @@ class BaseLinksPanelWidget(BasePanelWidget):
             resolved_path = self._find_icon(resolve_icon_for_link(link_data))
             icon = create_icon_from_path(resolved_path)
             button.setIcon(icon)
+            # Диагностика фактических размеров и DPR
+            try:
+                from PyQt6.QtGui import QGuiApplication
+                from PyQt6.QtCore import QSize as _QSize
+                req_size = _QSize(icon_size[0], icon_size[1])
+                actual = icon.actualSize(req_size)
+                screen = QGuiApplication.primaryScreen()
+                dpr = float(screen.devicePixelRatio()) if screen is not None else 1.0
+                logging.debug(
+                    "[TopBarIconDiag] name=%r path=%s req=%sx%s actual=%sx%s btn=%sx%s DPR=%.2f",
+                    link_data.get("name"),
+                    resolved_path,
+                    req_size.width(), req_size.height(),
+                    actual.width(), actual.height(),
+                    button.size().width(), button.size().height(),
+                    dpr,
+                )
+            except Exception as diag_exc:
+                logging.debug("[TopBarIconDiag] failed to log diagnostics: %s", diag_exc)
         except Exception as e:
             logging.warning("Не удалось создать иконку для ссылки '%s': %s", link_data.get("name", "Unknown"), e)
 
@@ -119,7 +139,11 @@ class BaseLinksPanelWidget(BasePanelWidget):
             if widget:
                 widget.deleteLater()
 
-    def _populate_panel(self, items: List[Dict[str, Any]], create_button_func) -> None:
+    def _populate_panel(
+        self,
+        items: List[Dict[str, Any]],
+        create_button_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
+    ) -> None:
         """Очищает панель и заполняет кнопками ссылок."""
         self._clear_layout()
 
@@ -259,7 +283,7 @@ class BaseDragDropTableWidget(QTableView):
             logging.warning(f"Не удалось создать MIME данные: {e}")
             return None
 
-    def _extract_item_ids_from_items(self, items) -> List[int]:
+    def _extract_item_ids_from_items(self, items: Iterable[QModelIndex]) -> List[int]:
         """Извлекает ID из выбранных элементов."""
         raise NotImplementedError(
             "Subclasses must implement _extract_item_ids_from_items"
@@ -590,12 +614,8 @@ class BaseDragDropTableWidget(QTableView):
 
     def _create_text_pixmap(self, text: str, single_row: bool = True) -> QPixmap:
         """Создаёт стилизованный pixmap с текстом."""
-        from app.utils.ui.dnd.pixmap import create_text_pixmap
-
         return create_text_pixmap(text, single_row=single_row)
 
     def _create_default_pixmap(self) -> QPixmap:
         """Создаёт pixmap по умолчанию на случай ошибки."""
-        from app.utils.ui.dnd.pixmap import create_default_pixmap
-
         return create_default_pixmap()

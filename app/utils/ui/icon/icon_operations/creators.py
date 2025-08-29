@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 
 from PyQt6.QtCore import QRectF, QSize, Qt, QThread
-from PyQt6.QtGui import QIcon, QImage, QPainter, QPixmap
+from PyQt6.QtGui import QGuiApplication, QIcon, QImage, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QApplication
 
@@ -95,11 +95,17 @@ def _create_svg_icon(svg_path: str) -> QIcon:
             raise InvalidIconError(f"Invalid SVG file: {svg_path}")
 
         # Рендерим в QImage вместо QPixmap для потокобезопасности
-        size = QSize(
-            app_config.get_default_icon_size(),
-            app_config.get_default_icon_size(),
-        )
-        image = QImage(size, QImage.Format.Format_ARGB32_Premultiplied)
+        # Учитываем HiDPI: растеризуем в физических пикселях и выставляем DPR у Pixmap
+        base_size = app_config.get_default_icon_size()
+        try:
+            screen = QGuiApplication.primaryScreen()
+            dpr = float(screen.devicePixelRatio()) if screen is not None else 1.0
+        except Exception:
+            dpr = 1.0
+
+        render_w = max(1, int(round(base_size * dpr)))
+        render_h = max(1, int(round(base_size * dpr)))
+        image = QImage(QSize(render_w, render_h), QImage.Format.Format_ARGB32_Premultiplied)
         image.fill(Qt.GlobalColor.transparent)
 
         painter = QPainter()
@@ -111,9 +117,13 @@ def _create_svg_icon(svg_path: str) -> QIcon:
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
 
         try:
-            renderer.render(painter, QRectF(0, 0, size.width(), size.height()))
-            # Конвертируем QImage в QPixmap
+            renderer.render(painter, QRectF(0, 0, render_w, render_h))
+            # Конвертируем QImage в QPixmap и выставляем DPR
             pixmap = QPixmap.fromImage(image)
+            try:
+                pixmap.setDevicePixelRatio(dpr)
+            except Exception:
+                pass
             return QIcon(pixmap)
         finally:
             painter.end()
