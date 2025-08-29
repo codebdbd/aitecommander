@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
 
 from PyQt6 import QtCore
 from PyQt6.QtCore import QEvent, QObject, QTimer
@@ -14,7 +13,7 @@ from app.config_data import app_config
 try:
     # PyQt6 provides sip to detect deleted QObject wrappers
     from sip import isdeleted as _sip_isdeleted
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     def _sip_isdeleted(_obj) -> bool:
         return False
 
@@ -33,20 +32,20 @@ class TopBarLayoutManager(QObject):
     def __init__(self, window):
         super().__init__(window)
         self.window = window
-        self._pending_adjust = False
         # Для стабилизации пересчетов
         self._last_applied: tuple[int, int, int, int] | None = (
             None  # (width, recent, fav, quick)
         )
         # Кэш контейнера топ-бара
-        self._container_widget: Optional[QWidget] = None
+        self._container_widget: QWidget | None = None
         # Троттлинг пересчетов (мс)
         try:
             self._throttle_interval_ms: int = int(
                 getattr(app_config, "get", lambda *_: 50)("ui.topbar.throttle_ms", 50)
             )
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             self._throttle_interval_ms = 50
+            logging.debug("TopBarLayoutManager: fallback to default throttle_ms=50")
         self._throttle_timer = QTimer(self)
         self._throttle_timer.setSingleShot(True)
         self._throttle_timer.timeout.connect(self._run_adjust)
@@ -57,8 +56,9 @@ class TopBarLayoutManager(QObject):
                     "ui.topbar.log_info", False
                 )
             )
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             self._log_info = False
+            logging.debug("TopBarLayoutManager: fallback to default log_info=False")
 
         # Межпанельный зазор не навязываем — используем spacing топ-бара как есть
 
@@ -67,8 +67,9 @@ class TopBarLayoutManager(QObject):
             self._min_search_width = int(
                 getattr(app_config, "get_top_panel_search_min_width", lambda: 140)()
             )
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             self._min_search_width = 140
+            logging.debug("TopBarLayoutManager: fallback to default min_search_width=140")
         # Лимиты по умолчанию
         self._max_recent = 7
         self._max_fav = 10
@@ -113,10 +114,19 @@ class TopBarLayoutManager(QObject):
         )
         if obj in watched:
             if event.type() == QEvent.Type.Resize:
+                # Троттлинг пересчетов: запускаем таймер, пересчет выполняется в _run_adjust
                 try:
-                    self.adjust()
+                    self._throttle_timer.start(self._throttle_interval_ms)
+                except (RuntimeError, TypeError, ValueError):
+                    # На крайний случай без таймера пересчёт вручную
+                    try:
+                        self.adjust()
+                    except (RuntimeError, AttributeError):
+                        pass
+                    except Exception:
+                        logging.exception("TopBarLayoutManager.eventFilter: unexpected error during fallback adjust")
                 except Exception:
-                    pass
+                    logging.exception("TopBarLayoutManager.eventFilter: unexpected error starting throttle timer")
         return super().eventFilter(obj, event)
 
     def _ensure_panel_filters(self):
@@ -130,14 +140,25 @@ class TopBarLayoutManager(QObject):
                 w.installEventFilter(self)
 
     def _request_adjust(self):
-        """Немедленный пересчет без троттлинга."""
-        self.adjust()
+        """Запрос пересчёта с учётом троттлинга."""
+        try:
+            self._throttle_timer.start(self._throttle_interval_ms)
+        except (RuntimeError, TypeError, ValueError):
+            # Фоллбэк — выполнить сразу
+            try:
+                self.adjust()
+            except (RuntimeError, AttributeError):
+                pass
+            except Exception:
+                logging.exception("TopBarLayoutManager._request_adjust: unexpected error during fallback adjust")
+        except Exception:
+            logging.exception("TopBarLayoutManager._request_adjust: unexpected error starting throttle timer")
 
     def _run_adjust(self):
         self.adjust()
 
     # ------------------------------ Helpers --------------------------------
-    def _get_top_bar(self) -> Optional[QLayout]:
+    def _get_top_bar(self) -> QLayout | None:
         host = self._safe_get(self.window, "top_bar_host")
         if isinstance(host, QWidget) and callable(getattr(host, "layout", None)):
             return host.layout()
@@ -146,11 +167,11 @@ class TopBarLayoutManager(QObject):
             return cc.layout()
         return None
 
-    def _get_container_widget(self) -> Optional[QWidget]:
+    def _get_container_widget(self) -> QWidget | None:
         """Ленивая выборка контейнера, где лежит топ-панель, с кэшем."""
         if self._container_widget and isinstance(self._container_widget, QWidget):
             return self._container_widget
-        container: Optional[QWidget] = self._safe_get(self.window, "top_bar_host")
+        container: QWidget | None = self._safe_get(self.window, "top_bar_host")
         if not container:
             container = self._safe_get(self.window, "top_panel_container")
         if not container:
@@ -159,7 +180,7 @@ class TopBarLayoutManager(QObject):
         return container
 
     # ------------------------------ Utils ----------------------------------
-    def _safe_get(self, obj: Optional[object], name: str):
+    def _safe_get(self, obj: object | None, name: str):
         """Безопасно получает атрибут QObject, не падая на удалённых объектах PyQt."""
         if obj is None:
             return None
@@ -175,8 +196,8 @@ class TopBarLayoutManager(QObject):
             return None
 
     def _iter_buttons(
-        self, panel_widget: Optional[QWidget], name: str
-    ) -> List[QToolButton]:
+        self, panel_widget: QWidget | None, name: str
+    ) -> list[QToolButton]:
         if not panel_widget:
             return []
         try:
@@ -188,7 +209,7 @@ class TopBarLayoutManager(QObject):
                 if isinstance(bg, QWidget) and callable(getattr(bg, "layout", None))
                 else None
             )
-            ordered: List[QToolButton] = []
+            ordered: list[QToolButton] = []
             if lay:
                 for i in range(lay.count()):
                     w = lay.itemAt(i).widget()
@@ -199,11 +220,14 @@ class TopBarLayoutManager(QObject):
                 if b not in ordered:
                     ordered.append(b)
             return ordered
+        except (AttributeError, RuntimeError):
+            return []
         except Exception:
+            logging.exception("TopBarLayoutManager._iter_buttons: unexpected error while collecting buttons")
             return []
 
     def _set_visible_count(
-        self, panel_widget: Optional[QWidget], btn_object_name: str, count: int
+        self, panel_widget: QWidget | None, btn_object_name: str, count: int
     ) -> int:
         """Показывает первые count кнопок, остальные скрывает. Возвращает фактическое число видимых."""
         buttons = self._iter_buttons(panel_widget, btn_object_name)
@@ -223,36 +247,7 @@ class TopBarLayoutManager(QObject):
 
         return count
 
-    def _fixed_width_except(self, excludes: Optional[List[QWidget]] = None) -> int:
-        """Суммарная ширина всех видимых виджетов top_bar, кроме поиска и excludes."""
-        top_bar = self._get_top_bar()
-        if not top_bar:
-            return 0
-
-        excludes = excludes or []
-        spacing = top_bar.spacing() or 0
-
-        visible_widgets: List[QWidget] = []
-        for i in range(top_bar.count()):
-            item = top_bar.itemAt(i)
-            w = item.widget() if item else None
-            if not w or not w.isVisible():
-                continue
-            if isinstance(w, QLineEdit):  # поиск
-                continue
-            if any(w is ex for ex in excludes if ex is not None):
-                continue
-            visible_widgets.append(w)
-
-        total = 0
-        for w in visible_widgets:
-            total += w.sizeHint().width()
-        if visible_widgets:
-            total += spacing * (len(visible_widgets) - 1)
-        # margins
-        m = top_bar.contentsMargins()
-        total += m.left() + m.right()
-        return total
+    # _fixed_width_except удалён как неиспользуемый (логика ширин инкапсулирована в _compute_visible_counts)
 
     # ------------------------------ Adjust ---------------------------------
     def adjust(self):
@@ -262,7 +257,7 @@ class TopBarLayoutManager(QObject):
             if not top_bar:
                 return
             # Берем ширину топ-панели, а не всего контейнера окна
-            container: Optional[QWidget] = self._get_container_widget()
+            container: QWidget | None = self._get_container_widget()
             if not container:
                 return
             width = container.width()
@@ -273,7 +268,7 @@ class TopBarLayoutManager(QObject):
             quick = getattr(self.window, "quick_add_widget", None)
             fav = getattr(self.window, "fav_widget", None)
             recent = getattr(self.window, "recent_links_widget", None)
-            search: Optional[QLineEdit] = getattr(self.window, "search", None)
+            search: QLineEdit | None = getattr(self.window, "search", None)
 
             # Убедимся, что фильтры навешены на панели (при отложенном создании)
             self._ensure_panel_filters()
@@ -283,7 +278,10 @@ class TopBarLayoutManager(QObject):
                 narrow_threshold = int(
                     getattr(app_config, "get_window_min_width", lambda: 280)()
                 )
+            except (RuntimeError, TypeError, ValueError):
+                narrow_threshold = 280
             except Exception:
+                logging.exception("TopBarLayoutManager.adjust: unexpected error reading window min width; fallback to 280")
                 narrow_threshold = 280
             if width <= narrow_threshold:
                 self._apply_counts(width, 0, 0, 0, search)
@@ -328,126 +326,63 @@ class TopBarLayoutManager(QObject):
                 search.setMinimumWidth(self._min_search_width)
                 try:
                     search.setMaximumWidth(16777215)
-                except Exception:
+                except (RuntimeError, AttributeError, TypeError):
                     pass
+                except Exception:
+                    logging.exception("TopBarLayoutManager.adjust: unexpected error setting search maximum width")
 
-        except Exception:
-            # Не роняем UI из-за ошибок расчета
+        except (RuntimeError, AttributeError):
+            # Не роняем UI из-за ожидаемых ошибок расчета
             pass
+        except Exception:
+            logging.exception("TopBarLayoutManager.adjust: unexpected error during adjust")
 
     # -------------------------- Pure calculation ---------------------------
     def _compute_visible_counts(
         self,
         width: int,
         top_bar: QLayout,
-        search: Optional[QLineEdit],
-        recent: Optional[QWidget],
-        fav: Optional[QWidget],
-        quick: Optional[QWidget],
-        recent_btns: List[QToolButton],
-        fav_btns: List[QToolButton],
-        quick_btns: List[QToolButton],
+        search: QLineEdit | None,
+        recent: QWidget | None,
+        fav: QWidget | None,
+        quick: QWidget | None,
+        recent_btns: list[QToolButton],
+        fav_btns: list[QToolButton],
+        quick_btns: list[QToolButton],
     ) -> tuple[int, int, int]:
-        # Верхние пределы
+        # 1) Верхние пределы и минимальные значения
         max_recent = min(self._max_recent, len(recent_btns))
         max_fav = min(self._max_fav, len(fav_btns))
         max_quick = min(self._max_quick, len(quick_btns))
 
-        # Минимальные видимые количества из конфига (по умолчанию recent=0, fav=1, quick=1)
-        try:
-            cfg_min_recent = int(
-                getattr(app_config, "get", lambda *_: 0)(
-                    "ui.topbar.min_visible.recent", 0
-                )
-            )
-        except Exception:
-            cfg_min_recent = 0
-        try:
-            cfg_min_fav = int(
-                getattr(app_config, "get", lambda *_: 1)("ui.topbar.min_visible.fav", 1)
-            )
-        except Exception:
-            cfg_min_fav = 1
-        try:
-            cfg_min_quick = int(
-                getattr(app_config, "get", lambda *_: 1)(
-                    "ui.topbar.min_visible.quick", 1
-                )
-            )
-        except Exception:
-            cfg_min_quick = 1
+        cfg_min_recent = self._get_cfg_int("ui.topbar.min_visible.recent", 0)
+        cfg_min_fav = self._get_cfg_int("ui.topbar.min_visible.fav", 1)
+        cfg_min_quick = self._get_cfg_int("ui.topbar.min_visible.quick", 1)
 
         # Применяем минимум только если панель непуста; иначе 0
         min_recent = cfg_min_recent if max_recent > 0 else 0
         min_fav = cfg_min_fav if max_fav > 0 else 0
         min_quick = cfg_min_quick if max_quick > 0 else 0
 
-        # Старт с максимумов
+        # 2) Начальные количества (старт с максимумов)
         cnt_recent = max_recent
         cnt_fav = max_fav
         cnt_quick = max_quick
 
-        def panel_width(
-            panel: Optional[QWidget], btns: List[QToolButton], count: int
-        ) -> int:
-            if not panel or not btns or count <= 0:
-                return 0
-            bg = getattr(panel, "bg_frame", None)
-            lay = (
-                bg.layout()
-                if isinstance(bg, QWidget) and callable(getattr(bg, "layout", None))
-                else None
-            )
-            spacing = lay.spacing() or 0 if lay else 0
-            total = 0
-            for i, b in enumerate(btns[:count]):
-                w = b.sizeHint().width()
-                if i > 0:
-                    w += spacing
-                total += w
-            return total
-
-        def total_width_for(c_r: int, c_f: int, c_q: int) -> int:
-            items: List[int] = []
-            for i in range(top_bar.count()):
-                it = top_bar.itemAt(i)
-                w = it.widget() if it else None
-                if not w:
-                    continue
-                if isinstance(w, QLineEdit) and (w is search):
-                    items.append(self._min_search_width)
-                    continue
-                if w is recent:
-                    if c_r > 0:
-                        items.append(panel_width(recent, recent_btns, c_r))
-                    continue
-                if w is fav:
-                    if c_f > 0:
-                        items.append(panel_width(fav, fav_btns, c_f))
-                    continue
-                if w is quick:
-                    if c_q > 0:
-                        items.append(panel_width(quick, quick_btns, c_q))
-                    continue
-                if w.isVisible():
-                    items.append(w.sizeHint().width())
-            if not items:
-                return 0
-            total = sum(items)
-            spacing = top_bar.spacing() or 0
-            total += spacing * (len(items) - 1)
-            m = top_bar.contentsMargins()
-            total += m.left() + m.right()
-            return total
-
-        # Гарантируем минимумы и ужимаем
+        # 3) Применение минимумов
         cnt_recent = max(min_recent, cnt_recent)
         cnt_fav = max(min_fav, cnt_fav)
         cnt_quick = max(min_quick, cnt_quick)
 
-        guard = 0
-        while total_width_for(cnt_recent, cnt_fav, cnt_quick) > width and guard < 1000:
-            guard += 1
+        # 4) Ужатие до нужной ширины в пределах реального числа шагов
+        max_steps = (cnt_recent - min_recent) + (cnt_fav - min_fav) + (cnt_quick - min_quick)
+        steps = 0
+        while (
+            self._total_width_for(top_bar, search, recent, fav, quick, recent_btns, fav_btns, quick_btns, cnt_recent, cnt_fav, cnt_quick)
+            > width
+            and steps < max_steps
+        ):
+            steps += 1
             if cnt_recent > min_recent:
                 cnt_recent -= 1
                 continue
@@ -461,9 +396,80 @@ class TopBarLayoutManager(QObject):
 
         return cnt_recent, cnt_fav, cnt_quick
 
+    def _panel_width(self, panel: QWidget | None, btns: list[QToolButton], count: int) -> int:
+        """Возвращает ширину панели для первых `count` кнопок с учётом spacing."""
+        if not panel or not btns or count <= 0:
+            return 0
+        bg = getattr(panel, "bg_frame", None)
+        lay = (
+            bg.layout() if isinstance(bg, QWidget) and callable(getattr(bg, "layout", None)) else None
+        )
+        spacing = lay.spacing() or 0 if lay else 0
+        total = 0
+        for i, b in enumerate(btns[:count]):
+            w = b.sizeHint().width()
+            if i > 0:
+                w += spacing
+            total += w
+        return total
+
+    def _total_width_for(
+        self,
+        top_bar: QLayout,
+        search: QLineEdit | None,
+        recent: QWidget | None,
+        fav: QWidget | None,
+        quick: QWidget | None,
+        recent_btns: list[QToolButton],
+        fav_btns: list[QToolButton],
+        quick_btns: list[QToolButton],
+        c_r: int,
+        c_f: int,
+        c_q: int,
+    ) -> int:
+        """Считает суммарную ширину top_bar для заданных количеств видимых кнопок панелей."""
+        items: list[int] = []
+        for i in range(top_bar.count()):
+            it = top_bar.itemAt(i)
+            w = it.widget() if it else None
+            if not w:
+                continue
+            if isinstance(w, QLineEdit) and (w is search):
+                items.append(self._min_search_width)
+                continue
+            if w is recent:
+                if c_r > 0:
+                    items.append(self._panel_width(recent, recent_btns, c_r))
+                continue
+            if w is fav:
+                if c_f > 0:
+                    items.append(self._panel_width(fav, fav_btns, c_f))
+                continue
+            if w is quick:
+                if c_q > 0:
+                    items.append(self._panel_width(quick, quick_btns, c_q))
+                continue
+            if w.isVisible():
+                items.append(w.sizeHint().width())
+        if not items:
+            return 0
+        total = sum(items)
+        spacing = top_bar.spacing() or 0
+        total += spacing * (len(items) - 1)
+        m = top_bar.contentsMargins()
+        total += m.left() + m.right()
+        return total
+
+    def _get_cfg_int(self, key: str, default: int) -> int:
+        """Безопасно получает целочисленное значение конфигурации с запасным значением."""
+        try:
+            return int(getattr(app_config, "get", lambda *_: default)(key, default))
+        except Exception:
+            return default
+
     # ----------------------------- Apply -----------------------------------
     def _apply_counts(
-        self, width: int, c_r: int, c_f: int, c_q: int, search: Optional[QLineEdit]
+        self, width: int, c_r: int, c_f: int, c_q: int, search: QLineEdit | None
     ) -> None:
         # Скрываем все кнопки у Recent/Fav/Quick (по 0 или заданное)
         recent = getattr(self.window, "recent_links_widget", None)

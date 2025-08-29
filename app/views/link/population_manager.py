@@ -5,6 +5,7 @@ import logging
 from typing import Dict, List
 
 from PyQt6.QtCore import Qt
+from app.utils.ui.updates import suspend_updates
 
 
 class PopulationManagerMixin:
@@ -19,9 +20,7 @@ class PopulationManagerMixin:
             return
 
         # Оптимизация: отключаем обновление UI при массовых изменениях
-        self.setUpdatesEnabled(False)
-
-        try:
+        with suspend_updates(self):
             # Сохраняем состояние UI
             try:
                 sel = self.selectionModel()
@@ -153,18 +152,14 @@ class PopulationManagerMixin:
                 self._restore_ui_state(
                     current_selection, current_scroll_pos, sort_col, sort_order
                 )
-        finally:
-            # Всегда включаем обновление UI в конце
-            self.setUpdatesEnabled(True)
-            self.viewport().update()
-            # Сообщаем подписчикам, что таблица обновлена
-            try:
-                if hasattr(self, "table_populated"):
-                    self.table_populated.emit()
-            except Exception as e:
-                logging.debug(
-                    f"[LinksTableView] Не удалось эмитить table_populated после populate: {e}"
-                )
+                # Сообщаем подписчикам, что таблица обновлена
+                try:
+                    if hasattr(self, "table_populated"):
+                        self.table_populated.emit()
+                except Exception as e:
+                    logging.debug(
+                        f"[LinksTableView] Не удалось эмитить table_populated после populate: {e}"
+                    )
 
     def _full_populate(self, links: List[Dict], mode: str):
         """Выполняет полное обновление таблицы через модель."""
