@@ -205,6 +205,36 @@ class MainWindow(QMainWindow):
         """Применяет тему и обновляет UI."""
         self.theme_ctrl.apply_and_refresh_ui()
 
+    def apply_font_size_to_content(self, fs: int) -> None:
+        """Централизованно применяет размер шрифта к основным контент‑виджетам.
+
+        Применяется ТОЛЬКО к дереву и таблице (пользовательская настройка).
+        """
+        try:
+            if isinstance(fs, bool):  # защитимся от ошибок типов
+                return
+            size = int(fs)
+        except Exception:
+            return
+
+        # Дерево
+        try:
+            tree = getattr(self, "tree", None)
+            if tree and hasattr(tree, "update_font_size"):
+                tree.update_font_size(size)
+        except Exception:
+            pass
+
+        # Таблица
+        try:
+            table = getattr(self, "table", None)
+            if table and hasattr(table, "update_font_size"):
+                table.update_font_size(size)
+        except Exception:
+            pass
+
+        # Плитки категорий — намеренно НЕ меняем здесь, их шрифт независим
+
     def _switch_sphere(self, sphere_id: int) -> None:
         self.spheres_controller._switch_sphere(sphere_id)
 

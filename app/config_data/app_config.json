@@ -55,7 +55,7 @@
     "tile_padding": 10,
     "tile_icon_text_gap": 5,
     "tile_text_font_size": 11,
-    "debug_show_tile_font_sample": false,
+    "debug_show_tile_font_sample": true,
     "tile_text_max_lines": 4,
     "tile_border_radius": 8,
     "tile_border_width": 2,

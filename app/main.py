@@ -173,10 +173,8 @@ def main():
         initializer = ApplicationInitializer(settings)
         from PyQt6.QtGui import QFont
 
-        font_size = (
-            settings.get_font_size() if hasattr(settings, "get_font_size") else 12
-        )
-        app.setFont(QFont(app.font().family(), font_size))
+        # Централизовано: фиксируем базовый размер шрифта приложения на 10 pt (DPI‑дружественно)
+        app.setFont(QFont(app.font().family(), 10))
         if not initializer.initialize_all():
             logging.critical("Не удалось инициализировать приложение")
             if app:

@@ -515,11 +515,11 @@ class UIConfig(BaseConfig):
 
     def get_menu_font_size(self) -> int:
         """Получение размера шрифта меню."""
-        return self.get("ui.menu_font_size", 12)
+        return self.get("ui.menu_font_size", 11)
 
     def get_menubar_font_size(self) -> int:
         """Получение размера шрифта панели меню."""
-        return self.get("ui.menubar_font_size", 9)
+        return self.get("ui.menubar_font_size", 11)
 
     def get_menubar_item_height(self) -> int:
         """Получение высоты элементов панели меню."""
