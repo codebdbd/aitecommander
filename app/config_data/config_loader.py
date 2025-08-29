@@ -232,6 +232,10 @@ class AppConfig:
         """Получение ширины поля поиска в верхней панели."""
         return self.ui.get_top_panel_search_width()
 
+    def get_top_panel_search_height(self) -> int:
+        """Получение высоты поля поиска в верхней панели."""
+        return self.ui.get_top_panel_search_height()
+
     def get_stack_index_tiles(self) -> int:
         """Получение индекса стека для отображения плиток."""
         return self.ui.get_stack_index_tiles()

@@ -108,6 +108,7 @@
     "top_panel_icon_size": 24,
     "top_panel_search_width": 320,
     "top_panel_search_min_width": 160,
+    "top_panel_search_height": 32,
     "top_bar_margins": [
       0,
       4,
