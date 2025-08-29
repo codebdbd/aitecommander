@@ -481,9 +481,14 @@ class WindowUISetup:
         # Используем глобальный размер шрифта приложения для кнопок нижней панели
         font10 = QFont()
         try:
-            font10.setPointSize(self.window.font().pointSize())
+            try:
+                font10.setPointSize(self.window.font().pointSize())
+            except (AttributeError, TypeError, RuntimeError, ValueError):
+                # Ожидаемые проблемы типов/доступности — спокойный фоллбэк
+                font10.setPointSize(10)
         except Exception:
-            # Фоллбэк на 10 как базовый дефолт приложения
+            # Неожиданная ошибка — логируем и используем фоллбэк
+            logging.exception("BottomPanel: unexpected error determining button font size; fallback to 10")
             font10.setPointSize(10)
 
         # Кнопка переключения сфер (будет создана после инициализации контроллеров)

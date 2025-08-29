@@ -12,6 +12,7 @@ from app.utils.db.synchronization import signal_guard
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
 from app.views.effects.neon_effect import NeonEventFilter
+from app.utils.ui.updates import suspend_updates
 
 
 class SpheresBarController:
@@ -85,15 +86,13 @@ class SpheresBarController:
 
     def _on_spheres_loaded_ui(self, spheres: List[Dict[str, Any]]):
         """Построение кнопок сфер в панели."""
-        self.w.spheres_bar.setUpdatesEnabled(False)
-        try:
+        with suspend_updates(self.w.spheres_bar):
             self._clear_spheres_bar()
             s_layout = self.w.spheres_bar.layout()
             for sp in spheres:
                 btn = self._build_button(sp)
                 s_layout.addWidget(btn)
-        finally:
-            self.w.spheres_bar.setUpdatesEnabled(True)
+            # Явное обновление после массовых операций
             self.w.spheres_bar.update()
 
         if spheres:

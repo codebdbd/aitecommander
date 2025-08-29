@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+from contextlib import suppress
 from typing import TYPE_CHECKING, Optional
 
 from PyQt6.QtCore import QTimer, pyqtSignal
@@ -22,6 +24,7 @@ if TYPE_CHECKING:
 from app.settings import AppSettings
 from app.utils.db.synchronization import signal_guard
 from app.views.status_bar import update_status_bar as _update_status_bar
+from app.utils.ui.updates import suspend_updates
 
 
 class MainWindow(QMainWindow):
@@ -210,28 +213,30 @@ class MainWindow(QMainWindow):
 
         Применяется ТОЛЬКО к дереву и таблице (пользовательская настройка).
         """
+        if isinstance(fs, bool):  # защитимся от ошибок типов
+            return
         try:
-            if isinstance(fs, bool):  # защитимся от ошибок типов
-                return
             size = int(fs)
-        except Exception:
+        except (TypeError, ValueError):
             return
 
         # Дерево
         try:
-            tree = getattr(self, "tree", None)
-            if tree and hasattr(tree, "update_font_size"):
-                tree.update_font_size(size)
+            with suppress(AttributeError, RuntimeError, TypeError, ValueError):
+                tree = getattr(self, "tree", None)
+                if tree and hasattr(tree, "update_font_size"):
+                    tree.update_font_size(size)
         except Exception:
-            pass
+            logging.exception("MainWindow: unexpected error updating tree font size")
 
         # Таблица
         try:
-            table = getattr(self, "table", None)
-            if table and hasattr(table, "update_font_size"):
-                table.update_font_size(size)
+            with suppress(AttributeError, RuntimeError, TypeError, ValueError):
+                table = getattr(self, "table", None)
+                if table and hasattr(table, "update_font_size"):
+                    table.update_font_size(size)
         except Exception:
-            pass
+            logging.exception("MainWindow: unexpected error updating table font size")
 
         # Плитки категорий — намеренно НЕ меняем здесь, их шрифт независим
 
@@ -245,13 +250,10 @@ class MainWindow(QMainWindow):
         if current_sphere == str(sphere_id):
             return
 
-        self.left_panel.setUpdatesEnabled(False)
-        try:
+        with suspend_updates(self.left_panel):
             self.left_panel.setProperty("sphere", str(sphere_id))
             self.left_panel.style().unpolish(self.left_panel)
             self.left_panel.style().polish(self.left_panel)
-        finally:
-            self.left_panel.setUpdatesEnabled(True)
 
     def on_search(self, text: str):
         self.links_actions.on_search(text)
