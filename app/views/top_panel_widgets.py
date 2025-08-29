@@ -209,7 +209,8 @@ class TopPanelWidget(BaseLinksPanelWidget):
                 btn.setIcon(create_icon_from_path(str(icon_path)))
             btn.setToolTip(quick_type_tooltips.get(code, tooltip))
             btn.clicked.connect(lambda _, ct=code: self._handle_quick_add(ct))
-            self.layout.addWidget(btn)
+            # Добавляем в panel_layout (не затеняем QWidget.layout())
+            self.panel_layout.addWidget(btn)
 
     def _handle_quick_add(self, link_type: str) -> None:
         category_id = None
