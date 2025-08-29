@@ -87,14 +87,10 @@ class DatabaseTask(QRunnable, Generic[T]):
                 ]
                 has_var_pos = any(p.kind == inspect.Parameter.VAR_POSITIONAL for p in params)
 
-                if len(pos_params) == 0:
-                    result = self.func()  # type: ignore[call-arg]
-                elif len(pos_params) == 1 or has_var_pos:
+                if has_var_pos or len(pos_params) == 1:
                     result = self.func(self.report_progress)  # type: ignore[misc]
                 else:
-                    raise TypeError(
-                        "Unsupported task function signature: expected 0 or 1 positional arguments"
-                    )
+                    result = self.func()  # type: ignore[call-arg]
             except ValueError:
                 # Сигнатура недоступна (встроенная/С-функция): по умолчанию вызываем без аргументов
                 result = self.func()  # type: ignore[call-arg]

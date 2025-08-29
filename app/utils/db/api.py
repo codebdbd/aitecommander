@@ -97,7 +97,7 @@ def run_db(
             for p in sig.parameters.values()
             if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
         )
-        return positional_count >= 1
+        return positional_count == 1
 
     expects_reporter = _expects_reporter(func)
 

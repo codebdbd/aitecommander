@@ -1,4 +1,5 @@
 import argparse
+import copy
 import datetime
 import json
 import logging
@@ -382,39 +383,50 @@ class Database(DatabaseBase):
             raise DatabaseError(f"Не удалось получить полную структуру: {e}")
 
     def import_full_structure(self, data: List[Dict]):
-        """Очищает базу и импортирует данные из структуры."""
+        """Очищает базу и импортирует данные из структуры.
+        
+        Потокобезопасная операция, которая не изменяет входные данные.
+        
+        Args:
+            data: Список словарей со структурой данных для импорта.
+                  Исходный объект остается неизменным.
+        """
         try:
-            with self.connection:
-                # Очищаем таблицы в правильном порядке
-                self.connection.execute("DELETE FROM link")
-                self.connection.execute("DELETE FROM category")
-                self.connection.execute("DELETE FROM section")
-                self.connection.execute("DELETE FROM sphere")
+            # Создаем глубокую копию данных, чтобы не мутировать исходный объект
+            data_copy = copy.deepcopy(data)
+            
+            with db_lock:  # Потокобезопасный доступ к базе данных
+                with self.connection:
+                    # Очищаем таблицы в правильном порядке
+                    self.connection.execute("DELETE FROM link")
+                    self.connection.execute("DELETE FROM category")
+                    self.connection.execute("DELETE FROM section")
+                    self.connection.execute("DELETE FROM sphere")
 
-                # Вставляем данные
-                for sphere_data in data:
-                    sections = sphere_data.pop("sections", [])
-                    self.spheres.upsert_sphere(sphere_data)
+                    # Вставляем данные из копии
+                    for sphere_data in data_copy:
+                        sections = sphere_data.pop("sections", [])
+                        self.spheres.upsert_sphere(sphere_data)
 
-                    for section_data in sections:
-                        categories = section_data.pop("categories", [])
-                        self.sections.upsert_section(section_data)
+                        for section_data in sections:
+                            categories = section_data.pop("categories", [])
+                            self.sections.upsert_section(section_data)
 
-                        for category_data in categories:
-                            links = category_data.pop("links", [])
-                            self.categories.upsert_category(category_data)
+                            for category_data in categories:
+                                links = category_data.pop("links", [])
+                                self.categories.upsert_category(category_data)
 
-                            for link_data in links:
-                                self.links.upsert_link(link_data)
+                                for link_data in links:
+                                    self.links.upsert_link(link_data)
 
-            logger.info("Импорт структуры выполнен успешно")
-            # Создаем резервную копию после большой операции импорта
-            try:
-                self.backup()
-            except Exception as backup_err:
-                logger.warning(
-                    f"Не удалось создать резервную копию после импорта: {backup_err}"
-                )
+                logger.info("Импорт структуры выполнен успешно")
+                # Создаем резервную копию после большой операции импорта
+                try:
+                    self.backup()
+                except Exception as backup_err:
+                    logger.warning(
+                        f"Не удалось создать резервную копию после импорта: {backup_err}"
+                    )
         except Exception as e:
             logger.error(f"Ошибка импорта структуры: {e}")
             raise DatabaseError(f"Не удалось импортировать структуру: {e}")
