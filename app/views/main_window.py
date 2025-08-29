@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Optional
 from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QUndoStack
 from PyQt6.QtWidgets import QMainWindow, QWidget
+
 from app.views.link import LinksTableView
 
 if TYPE_CHECKING:

@@ -32,8 +32,8 @@
 
 from __future__ import annotations
 
-from typing import Callable, Optional, Protocol, TypeVar
 import inspect
+from typing import Callable, Optional, Protocol, TypeVar
 
 from PyQt6.QtCore import QThreadPool
 

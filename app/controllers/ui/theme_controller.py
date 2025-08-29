@@ -1,4 +1,3 @@
-import json
 import logging
 import re
 from collections import OrderedDict
@@ -43,7 +42,8 @@ class ThemeController:
         self._stylesheet_applier = stylesheet_applier  # Callable[[str], None]
         self._gui_scheduler = gui_scheduler  # Callable[[Callable[[], None]], None]
 
-        self._load_themes_manifest()
+        # Темы зафиксированы (light/dark)
+        self._init_fixed_themes()
 
     def _normalize_theme_input(self, name: Optional[str]) -> str:
         """Нормализует входное имя темы: обрезает пробелы, приводит к нижнему регистру,
@@ -63,87 +63,8 @@ class ThemeController:
         }
         return synonyms.get(v, v)
 
-    def _load_themes_manifest(self) -> None:
-        """Загружает темы из файла манифеста или использует значения по умолчанию."""
-        try:
-            manifest_path = app_config.get_themes_manifest_path()
-            if manifest_path.exists():
-                try:
-                    with manifest_path.open("r", encoding="utf-8") as f:
-                        data = json.load(f)
-
-                    # Проверяем структуру данных
-                    if not isinstance(data, dict):
-                        logger.error("Неверный формат манифеста тем: ожидается объект")
-                        self._load_default_themes()
-                        return
-
-                    themes = data.get("themes", [])
-                    if not isinstance(themes, list):
-                        logger.error(
-                            "Неверный формат тем в манифесте: ожидается массив"
-                        )
-                        self._load_default_themes()
-                        return
-
-                    # Проверяем каждую тему на корректность
-                    validated_themes = []
-                    seen_names_lc = set()
-                    for i, theme in enumerate(themes):
-                        if not isinstance(theme, dict):
-                            logger.warning(
-                                "Пропущена неверная тема #%d: ожидается объект", i
-                            )
-                            continue
-                        # Централизованная валидация конфигурации
-                        if not self._validate_theme_config(theme):
-                            logger.warning(
-                                "Тема #%d не прошла валидацию и будет пропущена", i
-                            )
-                            continue
-                        # Проверяем уникальность имени (без учета регистра)
-                        name_lc = str(theme.get("name", "")).lower()
-                        if name_lc in seen_names_lc:
-                            logger.warning(
-                                "Пропущен дубликат темы #%d (%s): имя уже встречалось",
-                                i,
-                                theme.get("name", "без имени"),
-                            )
-                            continue
-                        seen_names_lc.add(name_lc)
-                        validated_themes.append(theme)
-
-                    self._themes = validated_themes
-                    logger.info(
-                        "Загружено %d тем из манифеста (валидных: %d)",
-                        len(themes),
-                        len(validated_themes),
-                    )
-                except json.JSONDecodeError as exc:
-                    logger.error("Ошибка декодирования JSON манифеста тем: %s", exc)
-                    self._load_default_themes()
-                except PermissionError as exc:
-                    logger.error("Ошибка доступа к файлу манифеста тем: %s", exc)
-                    self._load_default_themes()
-                except OSError as exc:
-                    logger.error("Ошибка загрузки манифеста тем: %s", exc)
-                    self._load_default_themes()
-                except Exception as exc:
-                    logger.error(
-                        "Неожиданная ошибка при загрузке манифеста тем: %s", exc
-                    )
-                    self._load_default_themes()
-            else:
-                logger.info(
-                    "Манифест тем не найден, используются значения по умолчанию"
-                )
-                self._load_default_themes()
-        except Exception as exc:
-            logger.error("Неожиданная ошибка при проверке манифеста тем: %s", exc)
-            self._load_default_themes()
-
-    def _load_default_themes(self) -> None:
-        """Загружает конфигурацию тем по умолчанию."""
+    def _init_fixed_themes(self) -> None:
+        """Инициализирует фиксированный список тем."""
         self._themes = [
             {
                 "name": "light",
@@ -239,7 +160,7 @@ class ThemeController:
                     else:
                         display_name = str(name).replace("_", " ").title()
                     logger.warning(
-                        "Тема '%s' не имеет display_name в манифесте, использовано значение по умолчанию: %s",
+                        "Тема '%s' не имеет display_name в конфигурации, использовано значение по умолчанию: %s",
                         name,
                         display_name,
                     )
@@ -470,7 +391,6 @@ class ThemeController:
             app = QApplication.instance()
             if app and hasattr(self, "settings") and hasattr(self.settings, "get_font_size"):
                 try:
-                    from PyQt6.QtGui import QFont
                     fs = int(self.settings.get_font_size())
                 except Exception:
                     fs = None
@@ -491,50 +411,7 @@ class ThemeController:
         except Exception as exc:
             logger.warning("Не удалось переустановить размер шрифта после смены темы: %s", exc)
 
-    def _validate_theme_config(self, theme: Dict[str, Any]) -> bool:
-        """Проверяет корректность конфигурации темы."""
-        try:
-            if not isinstance(theme, dict):
-                logger.warning("Конфигурация темы должна быть словарем")
-                return False
-
-            # Проверяем обязательные поля
-            if not theme.get("name"):
-                logger.warning("Отсутствует имя темы")
-                return False
-            # display_name допускается отсутствующим — available() подставит fallback
-            if not theme.get("display_name"):
-                logger.warning(
-                    "Отсутствует отображаемое имя темы — будет использовано значение по умолчанию"
-                )
-
-            qss_file = theme.get("qss_file")
-            if not qss_file:
-                logger.warning(
-                    "Отсутствует файл QSS для темы %s", theme.get("name", "без имени")
-                )
-                return False
-
-            # Проверяем, что имя файла безопасно
-            if not self._is_safe_filename(qss_file):
-                logger.warning(
-                    "Небезопасное имя файла QSS для темы %s",
-                    theme.get("name", "без имени"),
-                )
-                return False
-
-            # Проверяем опциональные поля
-            is_dark = theme.get("is_dark")
-            if is_dark is not None and not isinstance(is_dark, bool):
-                logger.warning(
-                    "Поле is_dark должно быть булевым для темы %s", theme["name"]
-                )
-                return False
-
-            return True
-        except Exception as exc:
-            logger.error("Ошибка валидации конфигурации темы: %s", exc)
-            return False
+    # Валидатор тем более не требуется, так как темы фиксированы
 
     def _apply_qt_icon_theme(self, theme_name: str) -> None:
         """Устанавливает тему и пути поиска иконок Qt для корректного отображения стандартных иконок.

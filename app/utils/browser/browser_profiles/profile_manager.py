@@ -3,7 +3,6 @@
 """
 
 import logging
-import time
 from typing import Dict, List, Optional
 
 from .base_profile_finder import BaseBrowserProfileFinder
@@ -16,8 +15,8 @@ from .chromium_base_finder import (
     YandexProfileFinder,
 )
 from .firefox_profile_finder import FirefoxProfileFinder
-from .utils import get_browser_display_name
 from .runtime_cache import ProfileCache
+from .utils import get_browser_display_name
 
 logger = logging.getLogger(__name__)
 

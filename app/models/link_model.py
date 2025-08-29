@@ -1,7 +1,7 @@
 import datetime
 import logging
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .db_base import DatabaseBase, DatabaseError
 

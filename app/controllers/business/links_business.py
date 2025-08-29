@@ -8,8 +8,8 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.models.db import Database
 from app.services import LinksService
-from app.utils.db.db_error_handler import handle_db_error
 from app.utils.db.api import run_db
+from app.utils.db.db_error_handler import handle_db_error
 from app.utils.db.synchronization import tasks_lock
 
 

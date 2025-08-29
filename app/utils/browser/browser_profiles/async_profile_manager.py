@@ -9,7 +9,6 @@ from typing import Dict, List, Optional
 
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal
 
-from .base_profile_finder import BaseBrowserProfileFinder
 from .profile_manager import BrowserProfileManager, get_profile_manager
 
 logger = logging.getLogger(__name__)

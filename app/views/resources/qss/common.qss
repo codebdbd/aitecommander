@@ -337,7 +337,7 @@ QComboBox QAbstractItemView {
 }
 
 QComboBox QAbstractItemView::item {
-    min-height: 28px;
+    min-height: 32px;
     padding-left: 4px;
 }
 

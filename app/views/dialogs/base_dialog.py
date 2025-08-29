@@ -154,11 +154,14 @@ class BaseDialog(QDialog):
                     scale = max(1.0, screen.logicalDotsPerInch() / 96.0)
             except Exception:
                 pass
-            target_icon = int(round(20 * scale))
+            # DPI-aware popup icon size based on 24px logical (was 20)
+            target_icon = int(round(24 * scale))
             for combo in combos:
                 try:
-                    # Row height delegate (32px logical scaled)
+                    # Apply row height delegate to the combo (popup uses it), DPI-aware 32px logical
                     combo.setItemDelegate(ComboRowHeightDelegate(combo))
+                    # Ensure the combo field icon matches popup icon size
+                    combo.setIconSize(QSize(target_icon, target_icon))
                     # Ensure popup view exists and set icon size
                     view = combo.view()
                     if view is not None:

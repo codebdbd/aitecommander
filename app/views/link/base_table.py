@@ -3,7 +3,7 @@
 
 import logging
 
-from PyQt6.QtCore import Qt, pyqtSignal, QSize, QModelIndex
+from PyQt6.QtCore import QModelIndex, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QAbstractItemView,

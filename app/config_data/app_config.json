@@ -102,6 +102,8 @@
     "link_dialog_margins": 20,
     "link_dialog_spacing": 10,
     "tree_icon_size": 24,
+    "dialog_icon_size": 24,
+    "dropdown_icon_size": 24,
     "top_panel_button_size": 36,
     "top_panel_icon_size": 24,
     "top_panel_search_width": 320,
@@ -185,7 +187,6 @@
   "paths": {
     "link_icons_dir": "resources/link_icons",
     "qss_dir": "views/resources/qss",
-    "themes_manifest": "resources/themes/manifest.json",
     "chrome_profiles_dir": "resources/browser_profiles/chrome",
     "firefox_profiles_dir": "resources/browser_profiles/firefox",
     "edge_profiles_dir": "resources/browser_profiles/edge",

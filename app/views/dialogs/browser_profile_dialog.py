@@ -15,10 +15,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.utils.browser.browser_profiles import get_profile_manager
 from app.utils.browser.browser_profiles import async_profile_manager as _apm
-from app.utils.browser.browser_profiles import profile_manager as _pm
+from app.utils.browser.browser_profiles import get_profile_manager
 from app.utils.browser.browser_profiles import profile_cache as _pc
+from app.utils.browser.browser_profiles import profile_manager as _pm
 from app.utils.browser.browser_profiles.utils import get_browser_display_name
 
 logger = logging.getLogger(__name__)

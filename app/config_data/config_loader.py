@@ -96,6 +96,14 @@ class AppConfig:
         """Получение размера иконки по умолчанию."""
         return self.ui.get_default_icon_size()
 
+    def get_dialog_icon_size(self):
+        """Получение размера иконки для кнопок в диалогах (список [w, h])."""
+        return self.ui.get_dialog_icon_size()
+
+    def get_dropdown_icon_size(self):
+        """Получение базового логического размера иконок во всплывающих списках (список [w, h])."""
+        return self.ui.get_dropdown_icon_size()
+
     def get_window_width(self) -> int:
         """Получение ширины окна приложения."""
         return self.ui.get_window_width()
@@ -485,10 +493,6 @@ class AppConfig:
     def get_qss_dir(self):
         """Получение пути к директории с QSS темами как объект Path."""
         return self.paths.get_qss_dir()
-
-    def get_themes_manifest_path(self):
-        """Получение пути к файлу манифеста тем оформления."""
-        return self.paths.get_themes_manifest_path()
 
     def get_chrome_profiles_dir(self) -> Optional[str]:
         """Получение пути к директории профилей Chrome."""

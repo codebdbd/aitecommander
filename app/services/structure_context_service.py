@@ -3,14 +3,14 @@
 """
 from __future__ import annotations
 
-from typing import Any, Optional, Iterable
 import json
 import logging
+from typing import Any, Iterable, Optional
 
 from PyQt6.QtWidgets import QApplication
 
-from app.services.structure_service import StructureService
 from app.services.links_service import LinksService
+from app.services.structure_service import StructureService
 
 logger = logging.getLogger(__name__)
 

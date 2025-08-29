@@ -1,18 +1,18 @@
+import argparse
 import logging
 import os
 import sys
-import argparse
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 
+from app.controllers.system.bootstrap import create_main_window
 from app.controllers.ui.theme_controller import ThemeController
 from app.models.db import Database
 from app.settings import AppSettings
+from app.utils.db.api import run_db
 from app.utils.logging.application_logger import ApplicationLogger
 from app.utils.logging.exception_handler import ExceptionHandler
-from app.controllers.system.bootstrap import create_main_window
-from app.utils.db.api import run_db
 
 
 class ApplicationInitializer:
@@ -235,10 +235,11 @@ def main():
             logging.debug("Не удалось запустить фоновую инициализацию БД: %s", e)
         # После показа окна: однажды фоново загрузить профили браузеров, если кеша нет
         try:
-            from app.utils.browser.browser_profiles import profile_manager as _pm
             from app.utils.browser.browser_profiles import async_profile_manager as _apm
+
             # Ленивый импорт профайл-кеша, чтобы избежать излишних зависимостей на старте
             from app.utils.browser.browser_profiles import profile_cache as _pc
+            from app.utils.browser.browser_profiles import profile_manager as _pm
 
             def _on_window_shown():
                 try:

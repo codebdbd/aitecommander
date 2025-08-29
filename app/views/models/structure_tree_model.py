@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from PyQt6.QtCore import QAbstractItemModel, QModelIndex, Qt
 from PyQt6.QtGui import QIcon
-
 
 # Типы узлов дерева
 NodeType = str  # "section" | "category" | "root"
@@ -159,8 +158,9 @@ class StructureTreeModel(QAbstractItemModel):
         return ["application/x-structure-tree-index"]
 
     def mimeData(self, indexes: list[QModelIndex]):  # noqa: N802
-        from PyQt6.QtCore import QMimeData, QByteArray
         import json
+
+        from PyQt6.QtCore import QByteArray, QMimeData
         mime = QMimeData()
         payload = []
         for idx in indexes or []:

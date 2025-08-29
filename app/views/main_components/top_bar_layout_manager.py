@@ -10,6 +10,7 @@ from PyQt6.QtCore import QEvent, QObject, QTimer
 from PyQt6.QtWidgets import QLayout, QLineEdit, QToolButton, QWidget
 
 from app.config_data import app_config
+
 try:
     # PyQt6 provides sip to detect deleted QObject wrappers
     from sip import isdeleted as _sip_isdeleted

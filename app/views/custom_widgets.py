@@ -1,3 +1,5 @@
+import logging
+
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
@@ -10,7 +12,6 @@ from PyQt6.QtWidgets import (
 from app.config_data import app_config
 from app.utils.ui.dnd.tree import DragDropHandler
 from app.views.tree_components.move_operations_handler import MoveOperationsHandler
-import logging
 
 # Используем строковые литералы "section" и "category"
 

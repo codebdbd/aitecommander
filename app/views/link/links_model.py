@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt, QVariant
 from PyQt6.QtGui import QIcon
+
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.views.link.item_builders import ItemBuildersMixin
@@ -178,7 +179,6 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
             return
         self._headers = headers
         # Более дешёвый сигнал изменения заголовков
-        from PyQt6.QtCore import QPersistentModelIndex
 
         self.headerDataChanged.emit(Qt.Orientation.Horizontal, 0, len(self._headers) - 1)
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from contextlib import AbstractContextManager
 from enum import IntEnum
-from typing import Generator, Iterable, List
+from typing import List
 
 from app.utils.locking import (
     ICON_LOCK_NAMES,
@@ -18,6 +18,8 @@ from app.utils.locking import (
     acquire_icon_global,
     acquire_icon_lru,
     acquire_icon_metrics,
+)
+from app.utils.locking import (
     acquire_multiple_locks as _acquire_multiple_by_names,
 )
 

@@ -1,5 +1,4 @@
 import time
-import pytest
 
 from app.utils.browser.browser_profiles.runtime_cache import ProfileCache
 

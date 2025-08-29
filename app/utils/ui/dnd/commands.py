@@ -3,9 +3,9 @@
 """
 
 import logging
-from app.utils.common import get_value
 
 from app.controllers.ui.undo.base import BaseCommand
+from app.utils.common import get_value
 
 logger = logging.getLogger(__name__)
 

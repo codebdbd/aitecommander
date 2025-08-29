@@ -506,7 +506,7 @@ class LinkDialogHandlers:
 
         # Защита от race condition
         self._worker_task_id += 1
-        task_id = self._worker_task_id
+        _task_id = self._worker_task_id
 
         # Отмена активной задачи
         if self._active_worker:

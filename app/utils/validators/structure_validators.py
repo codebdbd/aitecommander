@@ -1,9 +1,8 @@
 import warnings
 from typing import Callable, Optional
 
-from app.controllers.structure_services.validation import ValidationService
 from app.controllers.structure_modules.validation_result import ValidationResult
-
+from app.controllers.structure_services.validation import ValidationService
 
 _service = ValidationService()
 

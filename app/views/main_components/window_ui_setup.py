@@ -3,7 +3,7 @@
 import os
 import sys
 
-from PyQt6.QtCore import QEvent, QObject, Qt, QSize
+from PyQt6.QtCore import QEvent, QObject, QSize, Qt
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -26,10 +26,10 @@ from app.controllers.ui.undo.stack import UndoManager
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.views.category_tiles import CategoryTiles
 from app.views.custom_widgets import StructureTreeView
-from app.views.models.structure_tree_model import StructureTreeModel
 from app.views.effects.neon_effect import NeonEventFilter
 from app.views.link import LinksTableView
 from app.views.main_components.top_bar_layout_manager import TopBarLayoutManager
+from app.views.models.structure_tree_model import StructureTreeModel
 from app.views.status_bar import setup_status_bar as init_status_bar
 from app.views.top_panel_widgets import TopPanelWidget
 

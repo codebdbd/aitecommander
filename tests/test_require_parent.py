@@ -2,12 +2,11 @@
 import logging
 from typing import Any, Callable, Dict, Optional
 
+from app.controllers.structure_modules import helpers
 from app.controllers.structure_modules.base import (
     DefaultValidationStrategy,
     StructureItemType,
-    ValidationError,
 )
-from app.controllers.structure_modules import helpers
 
 
 class FakeController:
