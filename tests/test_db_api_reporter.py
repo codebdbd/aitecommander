@@ -1,13 +1,10 @@
 """Тесты для логики определения функций, ожидающих report_progress в db.api."""
 
 import inspect
-import pytest
-from app.utils.db.api import run_db
 
 
 def test_expects_reporter_logic():
     """Тестируем логику _expects_reporter напрямую."""
-    from app.utils.db.api import run_db
     
     # Воссоздаем логику _expects_reporter для тестирования
     def _expects_reporter(callable_obj):
@@ -60,7 +57,6 @@ def test_expects_reporter_logic():
 
 def test_function_signature_edge_cases():
     """Тестируем дополнительные случаи сигнатур функций."""
-    from app.utils.db.api import run_db
     
     # Воссоздаем логику _expects_reporter для тестирования
     def _expects_reporter(callable_obj):

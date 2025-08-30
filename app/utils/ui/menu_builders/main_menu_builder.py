@@ -142,8 +142,11 @@ class MainMenuBuilder:
             undo_action.setIcon(self._get_icon("undo"))
             redo_action.setIcon(self._get_icon("redo"))
 
-        edit_menu.addAction(self.main_window.undo_action)
-        edit_menu.addAction(self.main_window.redo_action)
+        # Добавляем действия только если они существуют
+        if getattr(self.main_window, "undo_action", None) is not None:
+            edit_menu.addAction(self.main_window.undo_action)
+        if getattr(self.main_window, "redo_action", None) is not None:
+            edit_menu.addAction(self.main_window.redo_action)
 
     def _create_themes_menu(self, menubar: QMenuBar):
         """Создаёт меню 'Темы'."""

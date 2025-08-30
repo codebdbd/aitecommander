@@ -138,10 +138,10 @@ class LinksMenuBuilder:
             )
         )
 
-        # Добавляем действия undo/redo из главного окна
-        if hasattr(self.main_window, "undo_action"):
+        # Добавляем действия undo/redo из главного окна (только если они созданы)
+        if getattr(self.main_window, "undo_action", None) is not None:
             menu.addAction(self.main_window.undo_action)
-        if hasattr(self.main_window, "redo_action"):
+        if getattr(self.main_window, "redo_action", None) is not None:
             menu.addAction(self.main_window.redo_action)
 
     def _add_additional_actions(self, menu: QMenu, link: dict):
@@ -204,10 +204,10 @@ class LinksMenuBuilder:
                 )
             )
 
-        # Добавляем действия undo/redo из главного окна
-        if hasattr(self.main_window, "undo_action"):
+        # Добавляем действия undo/redo из главного окна (только если они созданы)
+        if getattr(self.main_window, "undo_action", None) is not None:
             menu.addAction(self.main_window.undo_action)
-        if hasattr(self.main_window, "redo_action"):
+        if getattr(self.main_window, "redo_action", None) is not None:
             menu.addAction(self.main_window.redo_action)
 
     def _create_delete_callback(self):
