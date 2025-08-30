@@ -11,10 +11,10 @@ from app.controllers.ui.category_tiles_controller import CategoryTilesController
 
 class FavWidgetMock:
     def __init__(self):
-        self.calls: list[str] = []
+        self.calls: list[tuple[str, list[dict]] | str] = []
 
-    def update_favorites(self):
-        self.calls.append("update_favorites")
+    def set_favorites(self, items):
+        self.calls.append(("set_favorites", list(items)))
 
     def clear_favorites(self):
         self.calls.append("clear_favorites")
@@ -22,11 +22,11 @@ class FavWidgetMock:
 
 class RecentLinksWidgetMock:
     def __init__(self):
-        self.calls: list[str] = []
+        self.calls: list[tuple[str, list[dict]]] = []
         self.limit = 10
 
-    def update_recent_links(self):
-        self.calls.append("update_recent_links")
+    def set_recent_links(self, items):
+        self.calls.append(("set_recent_links", list(items)))
 
 
 class LinksBusinessMock:
@@ -110,8 +110,8 @@ def test_top_panels_receive_signals_from_link_ops(monkeypatch, caplog, main_wind
     top_ctrl._on_fav_refresh_timeout()
     top_ctrl._on_recent_refresh_timeout()
 
-    assert "update_favorites" in fav.calls
-    assert "update_recent_links" in recent.calls
+    assert fav.calls and fav.calls[0][0] == "set_favorites"
+    assert recent.calls and recent.calls[0][0] == "set_recent_links"
 
 
 def test_links_table_reloads_on_link_ops_signals(caplog, main_window_stub):

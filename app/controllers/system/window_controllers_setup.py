@@ -39,7 +39,22 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     structure_business = StructureBusinessLogic(db)
     links_business = LinksBusinessLogic(db)
 
+    # Важно: сначала UIState и CategoryTilesController, затем StructureUIController (требует tiles-контроллер)
+    window.ui_state = UIStateManager(window)
+    controllers["ui_state"] = window.ui_state
+
+    try:
+        window.category_tiles_controller = CategoryTilesController(
+            ui_state=controllers["ui_state"],
+            structure_business=structure_business,
+            tiles_widget=window.tiles,
+        )
+        controllers["category_tiles_controller"] = window.category_tiles_controller
+    except Exception as e:
+        logger.error(f"Failed to create CategoryTilesController: {e}")
+
     structure_ctrl = StructureUIController(window.tree, structure_business, window)
+
     # Создаём link_operations и links_table_controller до LinksUIController, чтобы явно передать зависимости
     link_ops = LinkOperationsController(db, window.undo_stack, window)
     links_table_ctrl = LinksTableController(
@@ -89,18 +104,7 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     except Exception as e:
         logger.error(f"Failed to create LinksActions: {e}")
 
-    window.ui_state = UIStateManager(window)
-    controllers["ui_state"] = window.ui_state
-
-    try:
-        window.category_tiles_controller = CategoryTilesController(
-            ui_state=controllers["ui_state"],
-            structure_business=structure_business,
-            tiles_widget=window.tiles,
-        )
-        controllers["category_tiles_controller"] = window.category_tiles_controller
-    except Exception as e:
-        logger.error(f"Failed to create CategoryTilesController: {e}")
+    # ui_state и category_tiles_controller уже созданы выше
 
     try:
         window.links_table_controller = links_table_ctrl
@@ -310,65 +314,47 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
     try:
         if hasattr(window, "quick_add_widget") and window.quick_add_widget:
             _connect_quick_add_signal(window, controllers)
-    except Exception as e:
+    except (AttributeError, TypeError) as e:
         logger.warning(f"Failed to wire quick add: {e}")
 
-    try:
-        if hasattr(window, "fav_widget") and window.fav_widget:
+    # Favorites panel wiring — критично требует TopPanelsController
+    if hasattr(window, "fav_widget") and window.fav_widget:
+        try:
             window.fav_widget.linkClicked.connect(window.links_actions.open_link)
-            # Перенаправляем refresh на TopPanelsController
-            try:
-                top_ctrl = controllers.get("top_panels_controller")
-                if top_ctrl:
-                    # Напрямую вызываем целевой слот без промежуточного update_*
-                    window.fav_widget.refresh_requested.connect(
-                        top_ctrl.refresh_favorites
-                    )
-                else:
-                    logger.warning("TopPanelsController not found for favorites refresh wiring")
-            except (AttributeError, TypeError) as e:
-                logger.warning(f"Failed to connect favorites refresh to TopPanelsController: {e}")
-            # Очистка избранного теперь обрабатывается TopPanelsController
-            try:
-                if top_ctrl:
-                    window.fav_widget.clear_requested.connect(
-                        top_ctrl.clear_favorites
-                    )
-                else:
-                    logger.warning("TopPanelsController not found for favorites clear wiring")
-            except (AttributeError, TypeError) as e:
-                logger.warning(f"Failed to connect favorites clear to TopPanelsController: {e}")
-            # Инициализация: общий request_refresh будет выполнен ниже
-        
-    except Exception as e:
-        logger.warning(f"Failed to wire favorites panel: {e}")
+        except (AttributeError, TypeError) as e:
+            logger.warning(f"Failed to connect favorites link click: {e}")
 
-    try:
-        if hasattr(window, "recent_links_widget") and window.recent_links_widget:
-            window.recent_links_widget.linkClicked.connect(
-                window.links_actions.open_link
-            )
-            # Перенаправляем refresh на TopPanelsController
-            try:
-                top_ctrl = controllers.get("top_panels_controller")
-                if top_ctrl:
-                    # Определяем именованный обработчик, чтобы соответствовать сигнатуре (int) и игнорировать аргумент
-                    def _on_recent_refresh_requested(_limit: int) -> None:
-                        try:
-                            top_ctrl.refresh_recent()
-                        except Exception as ex:
-                            logger.warning(f"Top panels recent refresh handler failed: {ex}")
+        top_ctrl = controllers.get("top_panels_controller")
+        if not top_ctrl:
+            raise SetupError("TopPanelsController is required for favorites panel wiring")
+        try:
+            window.fav_widget.refresh_requested.connect(top_ctrl.refresh_favorites)
+            window.fav_widget.clear_requested.connect(top_ctrl.clear_favorites)
+        except (AttributeError, TypeError) as e:
+            raise SetupError(f"Failed to wire Favorites to TopPanelsController: {e}")
 
-                    window.recent_links_widget.refresh_requested[int].connect(
-                        _on_recent_refresh_requested
-                    )
-                else:
-                    logger.warning("TopPanelsController not found for recent refresh wiring")
-            except (AttributeError, TypeError) as e:
-                logger.warning(f"Failed to connect recent refresh to TopPanelsController: {e}")
-            # Инициализация: общий request_refresh будет выполнен ниже
-    except Exception as e:
-        logger.warning(f"Failed to wire recent panel: {e}")
+    # Recent panel wiring — критично требует TopPanelsController
+    if hasattr(window, "recent_links_widget") and window.recent_links_widget:
+        try:
+            window.recent_links_widget.linkClicked.connect(window.links_actions.open_link)
+        except (AttributeError, TypeError) as e:
+            logger.warning(f"Failed to connect recent link click: {e}")
+
+        top_ctrl = controllers.get("top_panels_controller")
+        if not top_ctrl:
+            raise SetupError("TopPanelsController is required for recent panel wiring")
+
+        # Именованный слот под сигнатуру (int)
+        def _on_recent_refresh_requested(_limit: int) -> None:
+            try:
+                top_ctrl.refresh_recent()
+            except Exception as ex:
+                logger.warning(f"Top panels recent refresh handler failed: {ex}")
+
+        try:
+            window.recent_links_widget.refresh_requested[int].connect(_on_recent_refresh_requested)
+        except (AttributeError, TypeError) as e:
+            raise SetupError(f"Failed to wire Recents to TopPanelsController: {e}")
 
     # Единичный дебаунс-запрос обновления обеих панелей после первичного подключения
     try:
@@ -376,21 +362,21 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
         if top_ctrl:
             top_ctrl.request_refresh()
         else:
-            logger.warning("TopPanelsController not available; skipping initial request_refresh")
-    except Exception as e:
-        logger.warning(f"Failed to request initial top panels refresh: {e}")
+            raise SetupError("TopPanelsController not available for initial refresh")
+    except (AttributeError, TypeError) as e:
+        raise SetupError(f"Failed to request initial top panels refresh: {e}")
 
     try:
         filt = getattr(window, "_auto_hide_tree_filter", None)
         if filt:
             QTimer.singleShot(0, filt._apply)
-    except Exception:
+    except (AttributeError, TypeError):
         pass
     try:
         mgr = getattr(window, "_topbar_manager", None)
         if mgr:
             QTimer.singleShot(0, mgr.adjust)
-    except Exception:
+    except (AttributeError, TypeError):
         pass
 
 
@@ -429,24 +415,25 @@ def _connect_structure_signals(window) -> None:
     top_ctrl = getattr(window, "top_panels_controller", None)
 
     # Планировщик единого обновления верхних панелей при каскадных структурных событиях
+    if not top_ctrl:
+        raise SetupError("TopPanelsController is required to schedule structure-driven refreshes")
     try:
-        if top_ctrl:
-            def _on_structure_changed_schedule_refresh(*_args):
+        def _on_structure_changed_schedule_refresh(*_args):
+            try:
+                # Централизованный дебаунс на стороне контроллера
+                top_ctrl.schedule_structure_refresh()
+            except Exception:
+                # Fallback: немедленное обновление без дебаунса
                 try:
-                    # Централизованный дебаунс на стороне контроллера
-                    top_ctrl.schedule_structure_refresh()
+                    top_ctrl.request_refresh()
                 except Exception:
-                    # Fallback: немедленное обновление без дебаунса
-                    try:
-                        top_ctrl.request_refresh()
-                    except Exception:
-                        pass
+                    pass
 
-            # Подключаем только действительно влияющие на панели события
-            window.structure_business.active_sphere_changed.connect(_on_structure_changed_schedule_refresh)
-            window.structure_business.structure_loaded.connect(_on_structure_changed_schedule_refresh)
-    except (AttributeError, TypeError):
-        pass
+        # Подключаем только действительно влияющие на панели события
+        window.structure_business.active_sphere_changed.connect(_on_structure_changed_schedule_refresh)
+        window.structure_business.structure_loaded.connect(_on_structure_changed_schedule_refresh)
+    except (AttributeError, TypeError) as e:
+        raise SetupError(f"Failed to connect structure signals to TopPanelsController: {e}")
     window.structure.item_changed.connect(window.on_structure_item_changed)
     window.structure.item_added.connect(window.on_structure_item_added)
 
