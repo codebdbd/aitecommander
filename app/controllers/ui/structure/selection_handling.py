@@ -13,11 +13,13 @@ logger = logging.getLogger(__name__)
 
 
 class SelectionHandling:
-    def __init__(self, controller):
+    def __init__(self, controller, category_tiles_controller=None):
         self.controller = controller
         self.tree = controller.tree
         self.main = controller.main
         self.business = controller.business
+        # Явная зависимость: контроллер плиток категорий
+        self.tiles_controller = category_tiles_controller
         # Запоминаем последний обработанный выбор, чтобы игнорировать дубликаты подряд
         # Формат: ("section"|"category", int id)
         self._last_handled = None
@@ -58,12 +60,12 @@ class SelectionHandling:
         Новый формат сигнала: передаётся только section_id без categories_data.
         """
         try:
-            ctrl = getattr(self.main, "category_tiles_controller", None)
+            ctrl = getattr(self, "tiles_controller", None)
             if ctrl:
                 ctrl.refresh(int(section_id))
             else:
                 logger.warning(
-                    "CategoryTilesController not available; skip tiles refresh for section #%s",
+                    "SelectionHandling: tiles_controller not provided; skip tiles refresh for section #%s",
                     section_id,
                 )
         except Exception:
@@ -175,14 +177,14 @@ class SelectionHandling:
             logger.info(f"Handling selection: {typ} #{id_}")
 
             if typ == "section":
-                # Используем контроллер плиток категорий; без фолбэков на бизнес-методы
+                # Используем контроллер плиток категорий из конструктора
                 try:
-                    ctrl = getattr(self.main, "category_tiles_controller", None)
+                    ctrl = getattr(self, "tiles_controller", None)
                     if ctrl:
                         ctrl.refresh(int(id_))
                     else:
                         logger.warning(
-                            "CategoryTilesController not available; skip tiles refresh for section #%s",
+                            "SelectionHandling: tiles_controller not provided; skip tiles refresh for section #%s",
                             id_,
                         )
                 except Exception:
@@ -191,19 +193,18 @@ class SelectionHandling:
                     )
                 logger.debug(f"Section #{id_} selected - tiles refresh requested")
             elif typ == "category":
-                # Гард: категория могла быть удалена батч-операцией; проверяем существование
-                try:
-                    exists = bool(self.business.get_category_data(id_) or {})
-                except Exception:
-                    exists = False
-                if not exists:
-                    logger.info(
-                        f"Category #{id_} not found after selection event - skipping auto-fallback"
-                    )
+                # Переход на UIState: не трогаем бизнес-логику здесь
+                ui_state = getattr(self.main, "ui_state", None)
+                if ui_state is not None and hasattr(ui_state, "load_category"):
+                    try:
+                        ui_state.load_category(id_, source="SelectionHandling._handle_item_selection")
+                        logger.debug(f"Category #{id_} selected - UI state will load links")
+                    except Exception:
+                        logger.exception("SelectionHandling._handle_item_selection: ui_state.load_category failed")
+                        return
+                else:
+                    logger.error("UIStateManager not available in _handle_item_selection")
                     return
-                # Нормальный путь выбора категории
-                self.business.select_category(id_)
-                logger.debug(f"Category #{id_} selected - links will be loaded")
             else:
                 logger.warning(f"Unknown item type: {typ}")
 
