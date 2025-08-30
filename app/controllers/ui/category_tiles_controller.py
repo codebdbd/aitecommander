@@ -13,8 +13,9 @@ class CategoryTilesController:
     дублирования логики в разных местах (TreeManagement, SelectionHandling).
     """
 
-    def __init__(self, ui_state, structure_business, tiles_widget=None, *, main_window=None):
+    def __init__(self, ui_state, structure_business, tiles_widget: Optional[object] = None, *, main_window=None):
         # main_window принят для обратной совместимости и не используется
+        # В тестах допускается отсутствие зависимостей; методы делают проверки и логируют предупреждения
         self.ui_state = ui_state
         self.business = structure_business
         # tiles_widget хранится для явной зависимости и потенциального использования
