@@ -57,13 +57,16 @@ class TopPanelsController:
         self.refresh_favorites()
         self.refresh_recent()
 
-    def request_refresh(self, delay_ms: int | None = None) -> None:
-        """Запросить обновление верхних панелей с дебаунсом."""
+    def request_refresh(self, delay_ms: int | None = None, *args, **kwargs) -> None:
+        """Запросить обновление верхних панелей с дебаунсом.
+
+        Слот толерантен к лишним аргументам сигналов (section_id, payload и т.п.).
+        """
         try:
             if self._pending_refresh and self._refresh_timer.isActive():
                 return
             self._pending_refresh = True
-            delay = int(delay_ms or _DEFAULT_DEBOUNCE_MS)
+            delay = self._normalize_delay(delay_ms, args, kwargs)
             self._refresh_timer.start(delay)
         except Exception:
             # В случае неожиданных проблем с таймером выполняем немедленное обновление
@@ -71,26 +74,26 @@ class TopPanelsController:
             self._pending_refresh = False
             self.refresh_all()
 
-    def request_favorites_refresh(self, delay_ms: int | None = None) -> None:
+    def request_favorites_refresh(self, delay_ms: int | None = None, *args, **kwargs) -> None:
         """Запросить обновление только панели избранного с дебаунсом."""
         try:
             if self._pending_fav_refresh and self._fav_refresh_timer.isActive():
                 return
             self._pending_fav_refresh = True
-            delay = int(delay_ms or _DEFAULT_DEBOUNCE_MS)
+            delay = self._normalize_delay(delay_ms, args, kwargs)
             self._fav_refresh_timer.start(delay)
         except Exception:
             logger.exception("TopPanelsController.request_favorites_refresh: unexpected error; running immediate refresh")
             self._pending_fav_refresh = False
             self.refresh_favorites()
 
-    def request_recents_refresh(self, delay_ms: int | None = None) -> None:
+    def request_recents_refresh(self, delay_ms: int | None = None, *args, **kwargs) -> None:
         """Запросить обновление только панели недавних ссылок с дебаунсом."""
         try:
             if self._pending_recent_refresh and self._recent_refresh_timer.isActive():
                 return
             self._pending_recent_refresh = True
-            delay = int(delay_ms or _DEFAULT_DEBOUNCE_MS)
+            delay = self._normalize_delay(delay_ms, args, kwargs)
             self._recent_refresh_timer.start(delay)
         except Exception:
             logger.exception("TopPanelsController.request_recents_refresh: unexpected error; running immediate refresh")
@@ -170,5 +173,25 @@ class TopPanelsController:
             self.refresh_recent()
         finally:
             self._pending_recent_refresh = False
+
+    # ---- utils ----
+    def _normalize_delay(self, delay_ms, args, kwargs) -> int:
+        """Безопасно привести задержку к int. Игнорируем нерелевантные payload из сигналов.
+
+        Принимаем только числа (int/float, строка цифр). Иначе — дефолт.
+        """
+        cand = delay_ms
+        # Если delay не передан, попробуем первый позиционный аргумент, если он число
+        if cand is None and args:
+            first = args[0]
+            if isinstance(first, (int, float)) or (isinstance(first, str) and first.isdigit()):
+                cand = first
+        try:
+            val = int(cand) if cand is not None else _DEFAULT_DEBOUNCE_MS
+            if val < 0:
+                return _DEFAULT_DEBOUNCE_MS
+            return val
+        except Exception:
+            return _DEFAULT_DEBOUNCE_MS
 
     # Обработчики refresh_requested удалены — контроллер сам получает данные в refresh_* и не вызывает widget.update_*
