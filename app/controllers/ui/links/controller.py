@@ -265,42 +265,48 @@ class LinksUIController(QObject):
             logger.error(f"Failed to connect FavoritesWidget signals: {e}")
 
     def on_recent_refresh_requested(self, limit: int):
-        """Получить последние ссылки и передать в виджет."""
+        """Получить последние ссылки и напрямую передать их в виджет.
+        Разрывает цикл: widget.update() -> refresh_requested -> ...
+        """
         try:
-            ctrl = getattr(self.main, "top_panels_controller", None)
-            if ctrl:
-                # Обновление делегируем центральному контроллеру верхних панелей
-                ctrl.refresh_recent()
-            else:
-                logger.warning("TopPanelsController not available; skipping recent refresh")
+            items = self.business.get_recent_links(limit)
+            try:
+                widget = getattr(self.main, "recent_links_widget", None)
+                if widget and hasattr(widget, "set_recent_links"):
+                    widget.set_recent_links(items)
+                else:
+                    logger.warning("RecentLinksWidget not available or lacks set_recent_links")
+            except Exception as e:
+                logger.debug(f"Failed to set recent links to widget: {e}")
         except Exception as e:
-            logger.error(f"Failed to refresh recent links via TopPanelsController: {e}")
+            logger.error(f"Failed to load recent links: {e}")
 
     def on_favorites_refresh_requested(self):
-        """Получить избранные ссылки и передать в виджет."""
+        """Получить избранные ссылки и напрямую передать их в виджет.
+        Разрывает цикл: widget.update() -> refresh_requested -> ...
+        """
         try:
-            ctrl = getattr(self.main, "top_panels_controller", None)
-            if ctrl:
-                # Обновление делегируем центральному контроллеру верхних панелей
-                ctrl.refresh_favorites()
-            else:
-                logger.warning("TopPanelsController not available; skipping favorites refresh")
+            items = self.business.get_favorite_links()
+            try:
+                widget = getattr(self.main, "fav_widget", None)
+                if widget and hasattr(widget, "set_favorites"):
+                    widget.set_favorites(items)
+                else:
+                    logger.warning("Favorites widget not available or lacks set_favorites")
+            except Exception as e:
+                logger.debug(f"Failed to set favorites to widget: {e}")
         except Exception as e:
-            logger.error(f"Failed to refresh favorites via TopPanelsController: {e}")
+            logger.error(f"Failed to load favorites: {e}")
 
     def on_favorites_clear_requested(self):
         """Очистить избранное и инициировать обновление."""
         try:
             self.business.clear_favorites()
-            # Обновляем панель избранного через центральный контроллер
+            # Обновляем панель избранного безопасным способом (без цикла)
             try:
-                ctrl = getattr(self.main, "top_panels_controller", None)
-                if ctrl:
-                    ctrl.refresh_favorites()
-                else:
-                    logger.warning("TopPanelsController not available; skipping favorites refresh after clear")
+                self.on_favorites_refresh_requested()
             except Exception as e:
-                logger.debug(f"Failed to request favorites refresh after clear: {e}")
+                logger.debug(f"Failed to refresh favorites after clear: {e}")
             # Также можно обновить таблицу текущей категории, если нужно
             category_id = self.main.get_current_category_id()
             if category_id:

@@ -160,31 +160,8 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
                 )
             except Exception as e:
                 logger.warning(f"Failed to connect link_deleted to TopPanelsController: {e}")
-        # Подписки плиток категорий на бизнес-сигналы структуры
-        try:
-            if tiles_ctrl and structure_business:
-                # При выборе раздела — обновить плитки категорий этого раздела
-                structure_business.section_selected.connect(
-                    lambda section_id: tiles_ctrl.refresh(section_id)
-                )
-                # При добавлении категории — parent_id это section_id
-                structure_business.item_added.connect(
-                    lambda item_type, parent_id, data: (
-                        tiles_ctrl.refresh(parent_id)
-                        if item_type == "category" and isinstance(parent_id, int) and parent_id > 0
-                        else None
-                    )
-                )
-                # При обновлении категории — section_id берём из данных
-                structure_business.item_updated.connect(
-                    lambda item_type, item_id, data: (
-                        tiles_ctrl.refresh(data.get("section_id"))
-                        if item_type == "category" and isinstance(data, dict) and isinstance(data.get("section_id"), int) and data.get("section_id") > 0
-                        else None
-                    )
-                )
-        except Exception as e:
-            logger.warning(f"Failed to connect CategoryTilesController signals: {e}")
+        # Обновление плиток категорий уже обрабатывается централизованно через
+        # StructureUIController.SelectionHandling._on_section_selected
 
         # Подключаем бизнес-сигналы загрузки к централизованному контроллеру таблицы
         if links_table_ctrl and links_business:
@@ -492,9 +469,9 @@ def _connect_structure_signals(window) -> None:
     window.structure.item_changed.connect(window.on_structure_item_changed)
     window.structure.item_added.connect(window.on_structure_item_added)
 
-    window.structure_business.category_selected.connect(
-        lambda cat_id: window.ui_state.load_category(cat_id, source="StructureBusiness")
-    )
+    # Обработка выбора категории централизована через
+    # StructureUIController.SelectionHandling._on_category_selected,
+    # поэтому прямое подключение к UIStateManager здесь не требуется.
 
     try:
         window.structure_business.section_selected.connect(
