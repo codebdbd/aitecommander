@@ -1,5 +1,3 @@
-# app/controllers/window_controllers_setup.py AITE
-
 import logging
 from typing import Any, Dict
 
@@ -7,7 +5,6 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QAction, QFont
 from PyQt6.QtWidgets import QPushButton, QWidget
 
-# Direct controller imports (remove facade usage)
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.business.links_business import LinksBusinessLogic
 from app.controllers.system.app_shutdown_controller import AppShutdownController
@@ -36,11 +33,8 @@ logger = logging.getLogger(__name__)
 class SetupError(Exception):
     """Ошибки настройки компонентов окна."""
 
-    pass
-
 def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     """Создание и настройка основных контроллеров."""
-    # Прямое создание контроллеров/бизнес-логики (без фасада)
     structure_business = StructureBusinessLogic(db)
     links_business = LinksBusinessLogic(db)
 
@@ -52,7 +46,6 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     sys_dialogs = SystemDialogController(window)
     app_shutdown = AppShutdownController(window)
 
-    # Сохраняем контроллеры для других компонентов
     controllers.update(
         {
             "structure_business": structure_business,
@@ -66,7 +59,6 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
         }
     )
 
-    # Пробрасываем на окно для существующего кода
     window.structure_business = controllers["structure_business"]
     window.structure = controllers["structure"]
     window.links_business = controllers["links_business"]
@@ -74,7 +66,6 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     window.system_dialogs = controllers["system_dialogs"]
     window.app_shutdown = controllers["app_shutdown"]
 
-    # Фасад ссылочных действий (UI): единая точка делегирования
     try:
         window.links_actions = LinksActions(
             window,
@@ -85,11 +76,9 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     except Exception as e:
         logger.error(f"Failed to create LinksActions: {e}")
 
-    # Централизованный менеджер состояния UI
     window.ui_state = UIStateManager(window)
     controllers["ui_state"] = window.ui_state
 
-    # Контроллер плиток категорий
     try:
         window.category_tiles_controller = CategoryTilesController(
             window,
@@ -100,7 +89,6 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     except Exception as e:
         logger.error(f"Failed to create CategoryTilesController: {e}")
 
-    # Контроллер таблицы ссылок (централизация обновлений)
     try:
         window.links_table_controller = LinksTableController(
             window,
@@ -111,18 +99,15 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     except Exception as e:
         logger.error(f"Failed to create LinksTableController: {e}")
 
-    # Контроллер действий
     window.action_controller = ActionController(window)
     controllers["action_controller"] = window.action_controller
 
-    # Создаём контроллер панели сфер заранее (до подключения сигналов)
     try:
         window.spheres_controller = SpheresBarController(window)
         controllers["spheres_controller"] = window.spheres_controller
     except Exception as e:
         logger.error(f"Failed to create SpheresBarController: {e}")
 
-    # Контроллер верхних панелей (Избранное/Недавние)
     try:
         window.top_panels_controller = TopPanelsController(
             window,
@@ -133,15 +118,12 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     except Exception as e:
         logger.error(f"Failed to create TopPanelsController: {e}")
 
-    # Подключение сигналов LinkOperationsController к централизованным обновлениям UI
     try:
         link_ops = controllers.get("link_operations")
         links_table_ctrl = controllers.get("links_table_controller")
         if link_ops:
             if links_table_ctrl:
-                # При изменении ссылок в категории перезагружаем таблицу через контроллер
                 link_ops.links_changed.connect(lambda cat_id: links_table_ctrl.reload(cat_id))
-            # Изменение избранного отражаем через обновление верхних панелей с дебаунсом
             link_ops.favorites_changed.connect(
                 lambda: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
             )
@@ -151,7 +133,6 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
 
 def setup_ui_elements(window, controllers: Dict[str, Any]) -> None:
     """Создание UI элементов: действие и кнопка переключения сфер, вставка в панель."""
-    # Действие переключения сфер
     window.switch_sphere_action = QAction(
         themed_icon("switch.svg", theme=get_current_theme(), source="main_window"),
         "Переключить сферу (F6)",
@@ -162,7 +143,6 @@ def setup_ui_elements(window, controllers: Dict[str, Any]) -> None:
         window.structure.switch_to_next_sphere
     )
 
-    # Кнопка переключения сфер
     window.switch_sphere_button = QPushButton(
         window.switch_sphere_action.icon(), "Сфера (F6)"
     )
@@ -176,7 +156,6 @@ def setup_ui_elements(window, controllers: Dict[str, Any]) -> None:
     window.switch_sphere_button.setFont(font)
     window.switch_sphere_button.clicked.connect(window.switch_sphere_action.trigger)
 
-    # Вставка в нижнюю панель
     bottom_container = window.findChild(QWidget, "bottomBarContainer")
     if bottom_container and bottom_container.layout():
         bottom_container.layout().insertWidget(0, window.switch_sphere_button)
@@ -184,14 +163,12 @@ def setup_ui_elements(window, controllers: Dict[str, Any]) -> None:
 
 def setup_dependency_injection(window, controllers: Dict[str, Any]) -> None:
     """Планирование отложенной инъекции зависимостей в виджеты."""
-    # Откладываем инъекцию и создание UI-виджетов до старта цикла событий
     QTimer.singleShot(0, lambda: _deferred_setup(window, controllers))
 
 
 def _deferred_setup(window, controllers: Dict[str, Any]) -> None:
     try:
         _inject_to_category_tiles(window, controllers)
-        # Подключаем сигналы уже созданных виджетов верхней панели
         _connect_top_panels_signals(window, controllers)
     except Exception as e:
         logger.error(f"Failed during deferred dependency injection: {e}")
@@ -233,15 +210,12 @@ def _inject_to_category_tiles(window, controllers: Dict[str, Any]) -> None:
         dialog_provider=dialog_provider,
     )
 
-    # Подключение сигналов плиток к контроллерам и показу контекстного меню
     try:
         tiles = window.tiles
         structure_ctrl = controllers["structure"]
 
-        # Контекстное меню через CategoryMenuBuilder
         def on_tiles_context_menu(category_id: int, global_pos):
             try:
-                # CategoryTiles использует QListView в поле `view`; list_widget отсутствует
                 builder = CategoryMenuBuilder(tiles.view, window)
                 menu, edit_action, delete_action, add_link_action = builder.build(
                     category_id,
@@ -257,7 +231,6 @@ def _inject_to_category_tiles(window, controllers: Dict[str, Any]) -> None:
 
         tiles.contextMenuRequested.connect(on_tiles_context_menu)
 
-        # Операции через сигналы
         tiles.editRequested.connect(structure_ctrl.handle_edit_category)
         tiles.deleteRequested.connect(structure_ctrl.handle_delete_category)
         tiles.addLinkRequested.connect(
@@ -296,20 +269,17 @@ def _connect_quick_add_signal(window, controllers: Dict[str, Any]) -> None:
 
 def _add_quick_add_to_top_bar(window) -> None:
     """Добавление QuickAddWidget в топ-бар."""
-    # Больше не вставляем здесь: QuickAdd создаётся и добавляется в WindowUISetup
     return
 
 
 def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
     """Подключение сигналов верхних панелей и первичная загрузка данных."""
     try:
-        # QuickAdd
         if hasattr(window, "quick_add_widget") and window.quick_add_widget:
             _connect_quick_add_signal(window, controllers)
     except Exception as e:
         logger.warning(f"Failed to wire quick add: {e}")
 
-    # Favorites
     try:
         if hasattr(window, "fav_widget") and window.fav_widget:
             window.fav_widget.linkClicked.connect(window.links_actions.open_link)
@@ -319,7 +289,6 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
             window.fav_widget.clear_requested.connect(
                 controllers["links_actions"].on_favorites_clear_requested
             )
-            # Первичная загрузка: централизованно через контроллер верхних панелей
             try:
                 ctrl = getattr(window, "top_panels_controller", None)
                 if ctrl:
@@ -333,7 +302,6 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
     except Exception as e:
         logger.warning(f"Failed to wire favorites panel: {e}")
 
-    # Recent
     try:
         if hasattr(window, "recent_links_widget") and window.recent_links_widget:
             window.recent_links_widget.linkClicked.connect(
@@ -342,7 +310,6 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
             window.recent_links_widget.refresh_requested[int].connect(
                 controllers["links_actions"].on_recent_refresh_requested
             )
-            # Первичная загрузка: централизованно через контроллер верхних панелей
             try:
                 ctrl = getattr(window, "top_panels_controller", None)
                 if ctrl:
@@ -356,7 +323,6 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
     except Exception as e:
         logger.warning(f"Failed to wire recent panel: {e}")
 
-    # Применить авто-скрытие и пересчёт топ-бара после подключения
     try:
         filt = getattr(window, "_auto_hide_tree_filter", None)
         if filt:
@@ -375,7 +341,6 @@ def setup_signal_connections(window, controllers: Dict[str, Any]) -> None:
     """Подключение сигналов контроллеров и UI."""
     _connect_structure_signals(window)
     _connect_database_signals(window)
-    # Откладываем подключение UI-сигналов, чтобы избежать ранних вызовов рендера
     QTimer.singleShot(0, lambda: _connect_ui_signals(window))
 
 
@@ -383,7 +348,6 @@ def _connect_structure_signals(window) -> None:
     """Подключение сигналов структуры."""
     if getattr(window, "_structure_signals_connected", False):
         return
-    # Обновляем состояние кнопок сфер через контроллер панелей сфер
     try:
         window.structure_business.active_sphere_changed.connect(
             window.spheres_controller.update_active_sphere_button
@@ -393,7 +357,6 @@ def _connect_structure_signals(window) -> None:
     window.structure_business.active_sphere_changed.connect(
         window._update_left_panel_style
     )
-    # При смене сферы гарантируем перезагрузку структуры (обновление дерева)
     try:
         window.structure_business.active_sphere_changed.connect(
             lambda *_: (
@@ -406,7 +369,6 @@ def _connect_structure_signals(window) -> None:
         )
     except Exception:
         pass
-    # При смене сферы запрашиваем обновление верхних панелей с дебаунсом
     try:
         window.structure_business.active_sphere_changed.connect(
             lambda *_: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
@@ -414,7 +376,6 @@ def _connect_structure_signals(window) -> None:
     except Exception:
         pass
 
-    # После загрузки структуры также дебаунсим обновление верхних панелей
     try:
         window.structure_business.structure_loaded.connect(
             lambda *_: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
@@ -424,12 +385,10 @@ def _connect_structure_signals(window) -> None:
     window.structure.item_changed.connect(window.on_structure_item_changed)
     window.structure.item_added.connect(window.on_structure_item_added)
 
-    # Подключение к UIStateManager (загрузка категории)
     window.structure_business.category_selected.connect(
         lambda cat_id: window.ui_state.load_category(cat_id, source="StructureBusiness")
     )
 
-    # Дополнительно дебаунсим обновление верхних панелей при выборе раздела/категории
     try:
         window.structure_business.section_selected.connect(
             lambda *_: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
@@ -478,7 +437,6 @@ def _connect_ui_signals(window) -> None:
     try:
         if hasattr(window, "tree") and window.tree:
             tree = window.tree
-            # QTreeView-only: используем selectionModel().currentChanged
             try:
                 sel_model = getattr(tree, "selectionModel", lambda: None)()
                 if sel_model:
@@ -530,7 +488,6 @@ class DatabaseEventHandler:
         if hasattr(window, "fav_widget") and window.fav_widget:
             window.fav_widget.clear_favorites()
 
-        # Обновляем таблицу ссылок, если выбрана категория
         category_id = window.get_current_category_id()
         if category_id:
             try:
@@ -538,7 +495,6 @@ class DatabaseEventHandler:
                 if ctrl:
                     ctrl.reload(category_id)
                 else:
-                    # Фолбэк без прямого UI: загрузка через бизнес-логику
                     links_business = getattr(window, "links_business", None)
                     if links_business:
                         try:
@@ -546,13 +502,11 @@ class DatabaseEventHandler:
                         except Exception:
                             pass
             except Exception:
-                # Последний фолбэк — тихо игнорируем, чтобы не сломать обработчик
                 pass
 
     @staticmethod
     def _update_controllers_with_new_db(window, new_db):
         """Обновить все контроллеры с новой БД."""
-        # Обновляем структуру
         if hasattr(window, "structure"):
             window.structure.db = new_db
             window.structure.spheres = new_db.spheres
@@ -560,7 +514,6 @@ class DatabaseEventHandler:
             window.structure.categories = new_db.categories
             window.structure.load()
 
-        # Обновляем ссылки через фасад LinksActions (без хранения на окне)
         try:
             la = getattr(window, "links_actions", None)
             if la and getattr(la, "links", None):
@@ -569,32 +522,26 @@ class DatabaseEventHandler:
         except Exception:
             pass
 
-        # Обновляем бизнес-логику структуры
         if hasattr(window, "structure_business"):
             window.structure_business.db = new_db
-            # Переводим выбор первой сферы на асинхронный путь, чтобы не блокировать UI
             try:
                 sb = window.structure_business
 
                 def _set_first_sphere_once(spheres_list):
                     try:
-                        # Устанавливаем первую доступную сферу, если ещё не выбрана
                         if spheres_list and getattr(sb, "get_current_sphere_id", None) and sb.get_current_sphere_id() is None:
                             first_sphere_id = spheres_list[0].get("id", 1)
                             sb.set_current_sphere(first_sphere_id)
                     finally:
-                        # Одноразовое подключение
                         try:
                             sb.spheres_loaded.disconnect(_set_first_sphere_once)
                         except Exception:
                             pass
 
-                # Подключаем одноразовый обработчик и запускаем асинхронную загрузку сфер
                 sb.spheres_loaded.connect(_set_first_sphere_once)
                 if getattr(sb, "load_spheres_async", None):
                     sb.load_spheres_async()
             except Exception:
-                # В случае любой ошибки не ломаем процесс обновления контроллеров
                 pass
 
     @staticmethod
@@ -657,7 +604,6 @@ class WindowControllersSetup:
         """Настройка контроллеров и компонентов."""
         controllers: Dict[str, Any] = {}
 
-        # Шаг 1. Критичный: контроллеры
         try:
             setup_controllers(self.window, controllers, self.db)
             logger.info("Controllers setup completed")
@@ -667,7 +613,6 @@ class WindowControllersSetup:
                 "Critical component ControllersSetup failed to initialize"
             ) from e
 
-        # Прочие шаги — ошибки не критичны, логируем и продолжаем
         for name, step in (
             ("UIElementsSetup", setup_ui_elements),
             ("DependencyInjectionSetup", setup_dependency_injection),
@@ -683,15 +628,9 @@ class WindowControllersSetup:
     def initialize_spheres(self):
         """Инициализация сфер."""
         try:
-            # Используем новый контроллер панели сфер
             self.window.spheres_controller = SpheresBarController(self.window)
             self.window.spheres_controller.init()
         except Exception as e:
             logger.error(f"Failed to initialize spheres: {e}")
-            # Не останавливаем выполнение, так как это не критично для базовой работы
 
-    # Метод _log_setup_results больше не требуется после упрощения
-
-
-# Экспорт для обратной совместимости
 __all__ = ["WindowControllersSetup"]
