@@ -11,10 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 class TreeManagement:
-    def __init__(self, controller):
+    def __init__(self, controller, category_tiles_controller=None):
         self.controller = controller
         self.tree = controller.tree
         self.icon_handler = controller.icon_handler
+        # Явная зависимость: контроллер плиток категорий
+        self.tiles_controller = category_tiles_controller
 
     def _on_structure_loaded(self, sections_data: list) -> None:
         # Сохраняем текущее выделение и состояние разворота до перезагрузки модели
@@ -145,18 +147,17 @@ class TreeManagement:
                 logger.exception("TreeManagement._on_item_deleted: ошибка обновления плиток после удаления категории")
 
     def refresh_section_tiles(self, section_id: int) -> None:
-        """Обновить плитки раздела через CategoryTilesController.
+        """Обновить плитки раздела через переданный CategoryTilesController.
 
-        Единый путь: `main.category_tiles_controller.refresh(section_id)`.
-        Фолбэки удалены; при отсутствии контроллера лишь логируем предупреждение.
+        Используем явную зависимость `self.tiles_controller`. При отсутствии — логируем предупреждение.
         """
         try:
-            ctrl = getattr(self.controller.main, "category_tiles_controller", None)
+            ctrl = getattr(self, "tiles_controller", None)
             if ctrl:
                 ctrl.refresh(int(section_id))
             else:
                 logger.warning(
-                    "TreeManagement.refresh_section_tiles: CategoryTilesController not available; skip tiles refresh for section #%s",
+                    "TreeManagement.refresh_section_tiles: tiles_controller not provided; skip tiles refresh for section #%s",
                     section_id,
                 )
         except Exception:

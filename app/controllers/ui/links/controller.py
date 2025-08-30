@@ -42,8 +42,12 @@ class LinksUIController(QObject):
         self.link_operations = link_operations
         self.table_controller = links_table_controller
 
-        # Инициализация подмодулей с явной зависимостью link_operations
-        self.handlers = LinksUIHandlers(self, link_operations=link_operations)
+        # Инициализация подмодулей с явными зависимостями
+        self.handlers = LinksUIHandlers(
+            self,
+            link_operations=link_operations,
+            links_table_controller=self.table_controller,
+        )
         self.clipboard = LinksUIClipboard(self, link_operations=link_operations)
         self.link_ops = LinksUILinkOperations(self, link_operations=link_operations)
 

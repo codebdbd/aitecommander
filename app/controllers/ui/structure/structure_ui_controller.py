@@ -31,11 +31,14 @@ class StructureUIController(QObject):
         self.main = main_window
         self.undo_stack = main_window.undo_stack
 
-        # Изменяем порядок: сначала icon_handler, затем tree_manager
+        # Изменяем порядок: сначала icon_handler, затем вычисляем зависимости UI
         self.icon_handler = IconHandling(self)
-        self.selection_handler = SelectionHandling(self)
+        # Явная зависимость контроллера плиток категорий
+        cat_tiles_ctrl = getattr(self.main, "category_tiles_controller", None)
+        self.selection_handler = SelectionHandling(self, category_tiles_controller=cat_tiles_ctrl)
         self.item_ops = ItemOperations(self)
-        self.tree_manager = TreeManagement(self)  # TreeManagement после IconHandling
+        # Передаём явную зависимость контроллера плиток категорий в TreeManagement
+        self.tree_manager = TreeManagement(self, category_tiles_controller=cat_tiles_ctrl)  # TreeManagement после IconHandling
 
         self._setup_tree()
         self._connect_business_signals()

@@ -431,24 +431,12 @@ def _connect_structure_signals(window) -> None:
     # Планировщик единого обновления верхних панелей при каскадных структурных событиях
     try:
         if top_ctrl:
-            if not hasattr(window, "_top_panels_struct_timer"):
-                window._top_panels_struct_timer = QTimer(window)
-                window._top_panels_struct_timer.setInterval(200)
-                window._top_panels_struct_timer.setSingleShot(True)
-
-                def _do_top_panels_refresh():
-                    try:
-                        top_ctrl.request_refresh()
-                    except Exception:
-                        pass
-
-                window._top_panels_struct_timer.timeout.connect(_do_top_panels_refresh)
-
             def _on_structure_changed_schedule_refresh(*_args):
                 try:
-                    window._top_panels_struct_timer.start()
+                    # Централизованный дебаунс на стороне контроллера
+                    top_ctrl.schedule_structure_refresh()
                 except Exception:
-                    # Fallback: если таймер недоступен, выполнить немедленно единичное обновление
+                    # Fallback: немедленное обновление без дебаунса
                     try:
                         top_ctrl.request_refresh()
                     except Exception:

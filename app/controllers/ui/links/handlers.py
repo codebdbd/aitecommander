@@ -102,7 +102,14 @@ class LinksUIHandlers(BaseLinksUIComponent):
 
     def _update_search_results(self, search_results: List[Dict]):
         """Обновить результаты поиска."""
-        self.table.populate(search_results, mode="search")
+        ctrl = getattr(self, "links_table_controller", None)
+        if not (ctrl and hasattr(ctrl, "on_search_results")):
+            logger.error("LinksUIHandlers._update_search_results: links_table_controller is not available")
+            return
+        try:
+            ctrl.on_search_results(search_results)
+        except Exception:
+            logger.exception("LinksUIHandlers._update_search_results: controller.on_search_results failed")
 
     def _complete_toggle_fav(
         self, fav_count: int, links: List[Dict], link: Optional[Dict]

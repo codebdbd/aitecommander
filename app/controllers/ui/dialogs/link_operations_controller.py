@@ -22,7 +22,12 @@ logger = logging.getLogger(__name__)
 
 
 class LinkOperationsController(QObject):
-    """Контроллер для операций со ссылками: создание, редактирование, удаление."""
+    """Контроллер для операций со ссылками: создание, редактирование, удаление.
+
+    Подписчики на сигналы обязаны быть корректными и не выбрасывать исключения.
+    Любые ошибки подписчиков будут залогированы через logger.exception, но не должны
+    полагаться на подавление исключений внутри контроллера.
+    """
 
     def __init__(self, db, undo_stack: UndoManager, main_window):
         super().__init__()
@@ -44,40 +49,52 @@ class LinkOperationsController(QObject):
 
     # --- Централизованные методы эмиссии сигналов ---
     def emit_links_changed(self, category_id: int) -> None:
-        """Сообщить подписчикам, что изменились ссылки для категории."""
+        """Сообщить подписчикам, что изменились ссылки для категории.
+
+        Требование: подписчики не должны выбрасывать исключения. Ошибки будут
+        залогированы для диагностики, но не подавляются молча.
+        """
         try:
             if isinstance(category_id, int) and category_id > 0:
                 self.links_changed.emit(category_id)
         except Exception:
-            pass
+            logger.exception("emit_links_changed: failed to emit signal")
 
     def emit_favorites_changed(self) -> None:
-        """Сообщить о смене состояния избранного."""
+        """Сообщить о смене состояния избранного.
+
+        Требование: подписчики не должны выбрасывать исключения. Ошибки будут
+        залогированы через logger.exception.
+        """
         try:
             self.favorites_changed.emit()
         except Exception:
-            pass
+            logger.exception("emit_favorites_changed: failed to emit signal")
 
     def emit_recents_changed(self) -> None:
-        """Сообщить об изменении списка недавних ссылок."""
+        """Сообщить об изменении списка недавних ссылок.
+
+        Требование: подписчики не должны выбрасывать исключения. Ошибки будут
+        залогированы через logger.exception.
+        """
         try:
             self.recents_changed.emit()
         except Exception:
-            pass
+            logger.exception("emit_recents_changed: failed to emit signal")
 
     def emit_link_saved(self, payload: dict) -> None:
         try:
             if isinstance(payload, dict):
                 self.link_saved.emit(payload)
         except Exception:
-            pass
+            logger.exception("emit_link_saved: failed to emit signal")
 
     def emit_link_deleted(self, payload: dict) -> None:
         try:
             if isinstance(payload, dict):
                 self.link_deleted.emit(payload)
         except Exception:
-            pass
+            logger.exception("emit_link_deleted: failed to emit signal")
 
     def get_dialog_initialization_data(self, category_id=None):
         """Получить данные для инициализации диалога ссылки."""
@@ -171,7 +188,7 @@ class LinkOperationsController(QObject):
                     if any(isinstance(p, dict) and ("is_favorite" in p) for p in links_to_save):
                         self.emit_favorites_changed()
                 except Exception:
-                    pass
+                    logger.exception("show_link_dialog: emit_favorites_changed failed")
 
                 # Устанавливаем фокус на первую добавленную ссылку
                 if hasattr(self.main_window, "links_actions") and hasattr(
@@ -198,7 +215,7 @@ class LinkOperationsController(QObject):
                         if isinstance(payload, dict):
                             self.link_saved.emit(payload)
                 except Exception:
-                    pass
+                    logger.exception("show_link_dialog: emit link_saved failed")
             else:
                 # Для одиночных ссылок используем обычную команду
                 data = links_to_save[0]
@@ -227,7 +244,7 @@ class LinkOperationsController(QObject):
                         if isinstance(data, dict) and ("is_favorite" in data):
                             self.emit_favorites_changed()
                     except Exception:
-                        pass
+                        logger.exception("show_link_dialog(single): emit_favorites_changed failed")
 
                     # Устанавливаем фокус на добавленную ссылку (только для новых ссылок)
                     logger.debug(
@@ -267,14 +284,14 @@ class LinkOperationsController(QObject):
                         if isinstance(data, dict):
                             self.link_saved.emit(data)
                     except Exception:
-                        pass
+                        logger.exception("show_link_dialog(single): emit link_saved failed")
 
             # Сигнализируем о необходимости перезагрузки таблицы текущей категории
             try:
                 if isinstance(cat_id, int) and cat_id > 0:
                     self.links_changed.emit(cat_id)
             except Exception:
-                pass
+                logger.exception("show_link_dialog: emit links_changed failed")
 
         return result
 
@@ -296,7 +313,7 @@ class LinkOperationsController(QObject):
             try:
                 cmd._suppress_ui = True
             except Exception:
-                pass
+                logger.exception("delete_links_with_confirmation(single): failed to set _suppress_ui")
             self.undo_stack.push(cmd)
             # Эмитим сигналы вместо прямых обновлений UI
             try:
@@ -309,7 +326,7 @@ class LinkOperationsController(QObject):
                 if isinstance(links[0], dict):
                     self.link_deleted.emit(links[0])
             except Exception:
-                pass
+                logger.exception("delete_links_with_confirmation(single): signal emission failed")
             return
 
         # Пакетное удаление — без подтверждения, с макросом для Undo
@@ -336,6 +353,6 @@ class LinkOperationsController(QObject):
                     if isinstance(payload, dict):
                         self.link_deleted.emit(payload)
             except Exception:
-                pass
+                logger.exception("delete_links_with_confirmation(batch): emit link_deleted failed")
         except Exception:
-            pass
+            logger.exception("delete_links_with_confirmation(batch): signal emission failed")

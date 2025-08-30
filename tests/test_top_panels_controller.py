@@ -10,8 +10,8 @@ class FavWidgetMock:
     def __init__(self):
         self.calls = []
 
-    def update_favorites(self):
-        self.calls.append("update_favorites")
+    def set_favorites(self, items):  # новый основной путь
+        self.calls.append(("set_favorites", items))
 
     def clear_favorites(self):
         self.calls.append("clear_favorites")
@@ -21,33 +21,52 @@ class RecentLinksWidgetMock:
     def __init__(self):
         self.calls = []
 
-    def update_recent_links(self):
-        self.calls.append("update_recent_links")
+    def set_recent_links(self, items):  # новый основной путь
+        self.calls.append(("set_recent_links", items))
+
+class LinksBusinessStub:
+    def get_favorite_links(self):
+        return [{"id": 1}, {"id": 2}]
+
+    def get_recent_links(self, limit: int):
+        # Убедимся, что лимит применяется
+        return [{"id": i} for i in range(min(limit, 10))]
 
 
 def test_refresh_all_success(caplog):
     caplog.set_level(logging.DEBUG)
     fav = FavWidgetMock()
     recent = RecentLinksWidgetMock()
-    ctrl = TopPanelsController(SimpleNamespace(), fav_widget=fav, recent_links_widget=recent)
+    ctrl = TopPanelsController(
+        SimpleNamespace(),
+        fav_widget=fav,
+        recent_links_widget=recent,
+        links_business=LinksBusinessStub(),
+    )
 
     ctrl.refresh_all()
 
-    assert fav.calls == ["update_favorites"]
-    assert recent.calls == ["update_recent_links"]
+    # Проверяем, что данные установлены через set_*
+    assert len(fav.calls) == 1 and fav.calls[0][0] == "set_favorites"
+    assert len(recent.calls) == 1 and recent.calls[0][0] == "set_recent_links"
 
 
 def test_refresh_methods_log_on_errors(caplog):
     class ErrFav(FavWidgetMock):
-        def update_favorites(self):  # type: ignore[override]
+        def set_favorites(self, items):  # type: ignore[override]
             raise RuntimeError("boom fav")
 
     class ErrRecent(RecentLinksWidgetMock):
-        def update_recent_links(self):  # type: ignore[override]
+        def set_recent_links(self, items):  # type: ignore[override]
             raise RuntimeError("boom recent")
 
     caplog.set_level(logging.ERROR)
-    ctrl = TopPanelsController(SimpleNamespace(), fav_widget=ErrFav(), recent_links_widget=ErrRecent())
+    ctrl = TopPanelsController(
+        SimpleNamespace(),
+        fav_widget=ErrFav(),
+        recent_links_widget=ErrRecent(),
+        links_business=LinksBusinessStub(),
+    )
 
     ctrl.refresh_favorites()
     ctrl.refresh_recent()
