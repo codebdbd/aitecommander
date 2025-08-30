@@ -96,11 +96,13 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 logger.error(f"Failed to update category after deletion: {e}")
         # Централизованное обновление верхних панелей через сигнал
         try:
-            link_ops = getattr(self.main, "link_operations", None)
+            link_ops = self.link_operations
             if link_ops:
-                link_ops.favorites_changed.emit()
+                # Удаление влияет на панель "Недавние", а не на избранное
+                if hasattr(link_ops, "recents_changed"):
+                    link_ops.recents_changed.emit()
         except Exception as e:
-            logger.debug(f"Failed to emit favorites_changed after delete_links: {e}")
+            logger.debug(f"Failed to emit recents_changed after delete_links: {e}")
 
     def get_selected_links(self) -> List[Dict]:
         """Получить выбранные ссылки."""

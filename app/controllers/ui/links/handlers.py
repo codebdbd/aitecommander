@@ -73,7 +73,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
 
         # Убираем прямое обновление таблицы: используем централизованный контроллер через сигнал
         try:
-            link_ops = getattr(self.main, "link_operations", None)
+            link_ops = self.link_operations
             if link_ops and isinstance(category_id, int) and category_id > 0:
                 link_ops.links_changed.emit(category_id)
             else:
@@ -91,7 +91,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
         """Завершить переключение избранного."""
         # Эмитим сигналы вместо прямых обращений к контроллерам
         try:
-            link_ops = getattr(self.main, "link_operations", None)
+            link_ops = self.link_operations
             if link_ops:
                 # Сообщаем о возможном изменении таблицы ссылок (категория из ссылки или текущая)
                 cat_id = None
@@ -131,12 +131,14 @@ class LinksUIHandlers(BaseLinksUIComponent):
 
         # Эмитим сигналы вместо прямых обновлений UI
         try:
-            link_ops = getattr(self.main, "link_operations", None)
+            link_ops = self.link_operations
             if link_ops:
                 cat_id = updated_link.get("category_id")
                 if isinstance(cat_id, int) and cat_id > 0:
                     link_ops.links_changed.emit(cat_id)
-                link_ops.favorites_changed.emit()
+                # Обновление ссылки (заметки, атрибутов) влияет на панель "Недавние"
+                if hasattr(link_ops, "recents_changed"):
+                    link_ops.recents_changed.emit()
             else:
                 logger.debug("LinksUIHandlers: link_operations not available to emit signals on link update")
         except Exception as e:

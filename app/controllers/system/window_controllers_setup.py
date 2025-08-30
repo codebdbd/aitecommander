@@ -1,5 +1,6 @@
 import logging
 from typing import Any, Dict
+from functools import partial
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QAction, QFont
@@ -39,9 +40,9 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     links_business = LinksBusinessLogic(db)
 
     structure_ctrl = StructureUIController(window.tree, structure_business, window)
-    links_ctrl = LinksUIController(window.table, links_business, window)
-
+    # Создаём link_operations до LinksUIController, чтобы явно передать зависимость
     link_ops = LinkOperationsController(db, window.undo_stack, window)
+    links_ctrl = LinksUIController(window.table, links_business, window, link_operations=link_ops)
     db_ctrl = DatabaseController(db, window)
     sys_dialogs = SystemDialogController(window)
     app_shutdown = AppShutdownController(window)
@@ -121,60 +122,34 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     try:
         link_ops = controllers.get("link_operations")
         links_table_ctrl = controllers.get("links_table_controller")
-        tiles_ctrl = controllers.get("category_tiles_controller")
-        structure_business = controllers.get("structure_business")
+        top_panels_ctrl = controllers.get("top_panels_controller")
         if link_ops:
             if links_table_ctrl:
-                link_ops.links_changed.connect(lambda cat_id: links_table_ctrl.reload(cat_id))
-            link_ops.favorites_changed.connect(
-                lambda: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
-            )
-            # Новые точечные сигналы от диалогов ссылок
-            try:
-                link_ops.link_saved.connect(
-                    lambda payload: (
-                        links_table_ctrl and isinstance(payload, dict)
-                        and links_table_ctrl.reload(payload.get("category_id"))
-                    )
-                )
-            except Exception as e:
-                logger.warning(f"Failed to connect link_saved to LinksTableController: {e}")
-            try:
-                link_ops.link_saved.connect(
-                    lambda *_: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
-                )
-            except Exception as e:
-                logger.warning(f"Failed to connect link_saved to TopPanelsController: {e}")
-            try:
-                link_ops.link_deleted.connect(
-                    lambda payload: (
-                        links_table_ctrl and isinstance(payload, dict)
-                        and links_table_ctrl.reload(payload.get("category_id"))
-                    )
-                )
-            except Exception as e:
-                logger.warning(f"Failed to connect link_deleted to LinksTableController: {e}")
-            try:
-                link_ops.link_deleted.connect(
-                    lambda *_: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
-                )
-            except Exception as e:
-                logger.warning(f"Failed to connect link_deleted to TopPanelsController: {e}")
-        # Обновление плиток категорий уже обрабатывается централизованно через
-        # StructureUIController.SelectionHandling._on_section_selected
+                try:
+                    link_ops.links_changed.connect(links_table_ctrl.on_links_changed)
+                    link_ops.link_saved.connect(links_table_ctrl.on_link_saved)
+                    link_ops.link_deleted.connect(links_table_ctrl.on_link_deleted)
+                except (AttributeError, TypeError) as e:
+                    logger.warning(f"Failed to connect LinkOperations->LinksTableController: {e}")
+            if top_panels_ctrl:
+                try:
+                    # Топ-панели обновляются по двум специализированным сигналам
+                    link_ops.favorites_changed.connect(top_panels_ctrl.request_refresh)
+                    # Новый сигнал для недавних ссылок
+                    if hasattr(link_ops, 'recents_changed'):
+                        link_ops.recents_changed.connect(top_panels_ctrl.request_refresh)
+                except (AttributeError, TypeError) as e:
+                    logger.warning(f"Failed to connect LinkOperations->TopPanelsController: {e}")
 
         # Подключаем бизнес-сигналы загрузки к централизованному контроллеру таблицы
         if links_table_ctrl and links_business:
             try:
                 links_business.links_loaded.connect(links_table_ctrl.on_links_loaded)
-            except Exception as e:
-                logger.warning(f"Failed to connect links_loaded to LinksTableController: {e}")
-            try:
                 links_business.search_results_ready.connect(links_table_ctrl.on_search_results)
-            except Exception as e:
-                logger.warning(f"Failed to connect search_results_ready to LinksTableController: {e}")
+            except (AttributeError, TypeError) as e:
+                logger.warning(f"Failed to connect business signals to LinksTableController: {e}")
     except Exception as e:
-        logger.warning(f"Failed to connect LinkOperationsController signals: {e}")
+        logger.exception(f"Failed to connect signals: {e}")
 
 
 def setup_ui_elements(window, controllers: Dict[str, Any]) -> None:
@@ -209,7 +184,7 @@ def setup_ui_elements(window, controllers: Dict[str, Any]) -> None:
 
 def setup_dependency_injection(window, controllers: Dict[str, Any]) -> None:
     """Планирование отложенной инъекции зависимостей в виджеты."""
-    QTimer.singleShot(0, lambda: _deferred_setup(window, controllers))
+    QTimer.singleShot(0, partial(_deferred_setup, window, controllers))
 
 
 def _deferred_setup(window, controllers: Dict[str, Any]) -> None:
@@ -265,11 +240,9 @@ def _inject_to_category_tiles(window, controllers: Dict[str, Any]) -> None:
                 builder = CategoryMenuBuilder(tiles.view, window)
                 menu, edit_action, delete_action, add_link_action = builder.build(
                     category_id,
-                    edit_cb=lambda cid: structure_ctrl.handle_edit_category(cid),
-                    delete_cb=lambda cid: structure_ctrl.handle_delete_category(cid),
-                    add_link_cb=lambda cid: dialog_provider.show_link_dialog_for_category(
-                        category_id=cid
-                    ),
+                    edit_cb=structure_ctrl.handle_edit_category,
+                    delete_cb=structure_ctrl.handle_delete_category,
+                    add_link_cb=dialog_provider.show_link_dialog_for_category,
                 )
                 menu.popup(global_pos)
             except Exception as e:
@@ -279,9 +252,7 @@ def _inject_to_category_tiles(window, controllers: Dict[str, Any]) -> None:
 
         tiles.editRequested.connect(structure_ctrl.handle_edit_category)
         tiles.deleteRequested.connect(structure_ctrl.handle_delete_category)
-        tiles.addLinkRequested.connect(
-            lambda cid: dialog_provider.show_link_dialog_for_category(category_id=cid)
-        )
+        tiles.addLinkRequested.connect(dialog_provider.show_link_dialog_for_category)
     except Exception as e:
         logger.warning(f"Failed to connect CategoryTiles signals: {e}")
 
@@ -305,11 +276,9 @@ def _connect_quick_add_signal(window, controllers: Dict[str, Any]) -> None:
     """Подключение сигнала QuickAddWidget."""
     try:
         window.quick_add_widget.quickAddRequested.connect(
-            lambda payload: controllers["links"].quick_add_link(
-                payload.get("link_type"), payload.get("category_id")
-            )
+            controllers["links"].on_quick_add_requested
         )
-    except Exception as e:
+    except (AttributeError, TypeError) as e:
         logger.warning(f"Failed to connect quick add signal: {e}")
 
 
@@ -425,7 +394,7 @@ def setup_signal_connections(window, controllers: Dict[str, Any]) -> None:
     """Подключение сигналов контроллеров и UI."""
     _connect_structure_signals(window)
     _connect_database_signals(window)
-    QTimer.singleShot(0, lambda: _connect_ui_signals(window))
+    QTimer.singleShot(0, partial(_connect_ui_signals, window))
 
 
 def _connect_structure_signals(window) -> None:
@@ -436,35 +405,34 @@ def _connect_structure_signals(window) -> None:
         window.structure_business.active_sphere_changed.connect(
             window.spheres_controller.update_active_sphere_button
         )
-    except Exception as e:
+    except (AttributeError, TypeError) as e:
         logger.error(f"Failed to connect sphere button update: {e}")
     window.structure_business.active_sphere_changed.connect(
         window._update_left_panel_style
     )
+    # Обертки для исключения лямбд
+    def _on_active_sphere_changed(*_args):
+        try:
+            loader = getattr(window.structure_business, "load_structure_async", None)
+            if callable(loader):
+                loader()
+            else:
+                window.structure_business.load_structure()
+        except Exception as e:
+            logger.warning(f"Failed to trigger structure reload: {e}")
+
+    def _on_refresh_panels(*_args):
+        _request_panels_refresh(window)
+
     try:
-        window.structure_business.active_sphere_changed.connect(
-            lambda *_: (
-                getattr(window.structure_business, "load_structure_async", None)()
-                if callable(
-                    getattr(window.structure_business, "load_structure_async", None)
-                )
-                else window.structure_business.load_structure()
-            )
-        )
-    except Exception:
-        pass
-    try:
-        window.structure_business.active_sphere_changed.connect(
-            lambda *_: _request_panels_refresh(window)
-        )
-    except Exception:
+        window.structure_business.active_sphere_changed.connect(_on_active_sphere_changed)
+        window.structure_business.active_sphere_changed.connect(_on_refresh_panels)
+    except (AttributeError, TypeError):
         pass
 
     try:
-        window.structure_business.structure_loaded.connect(
-            lambda *_: _request_panels_refresh(window)
-        )
-    except Exception:
+        window.structure_business.structure_loaded.connect(_on_refresh_panels)
+    except (AttributeError, TypeError):
         pass
     window.structure.item_changed.connect(window.on_structure_item_changed)
     window.structure.item_added.connect(window.on_structure_item_added)
@@ -474,16 +442,12 @@ def _connect_structure_signals(window) -> None:
     # поэтому прямое подключение к UIStateManager здесь не требуется.
 
     try:
-        window.structure_business.section_selected.connect(
-            lambda *_: _request_panels_refresh(window)
-        )
-    except Exception:
+        window.structure_business.section_selected.connect(_on_refresh_panels)
+    except (AttributeError, TypeError):
         pass
     try:
-        window.structure_business.category_selected.connect(
-            lambda *_: _request_panels_refresh(window)
-        )
-    except Exception:
+        window.structure_business.category_selected.connect(_on_refresh_panels)
+    except (AttributeError, TypeError):
         pass
     window._structure_signals_connected = True
 
@@ -494,23 +458,24 @@ def _connect_database_signals(window) -> None:
         return
     db_controller = window.database_controller
 
-    db_controller.database_restored.connect(
-        lambda new_db: DatabaseEventHandler.handle_database_restored(window, new_db)
-    )
-    db_controller.database_connected.connect(
-        lambda new_db: DatabaseEventHandler.handle_database_connected(window, new_db)
-    )
-    db_controller.favorites_cleared.connect(
-        lambda: DatabaseEventHandler.handle_favorites_cleared(window)
-    )
-    db_controller.operation_success.connect(
-        lambda title, message: MessageHandler.show_success_message(
-            window, title, message
+    try:
+        db_controller.database_restored.connect(
+            partial(DatabaseEventHandler.handle_database_restored, window)
         )
-    )
-    db_controller.operation_error.connect(
-        lambda title, message: MessageHandler.show_error_message(window, title, message)
-    )
+        db_controller.database_connected.connect(
+            partial(DatabaseEventHandler.handle_database_connected, window)
+        )
+        db_controller.favorites_cleared.connect(
+            partial(DatabaseEventHandler.handle_favorites_cleared, window)
+        )
+        db_controller.operation_success.connect(
+            partial(MessageHandler.show_success_message, window)
+        )
+        db_controller.operation_error.connect(
+            partial(MessageHandler.show_error_message, window)
+        )
+    except (AttributeError, TypeError) as e:
+        logger.warning(f"Failed to connect database signals: {e}")
     window._database_signals_connected = True
 
 
@@ -524,8 +489,10 @@ def _connect_ui_signals(window) -> None:
             try:
                 sel_model = getattr(tree, "selectionModel", lambda: None)()
                 if sel_model:
-                    sel_model.currentChanged.connect(lambda *_: window.update_statusbar())
-            except Exception:
+                    def _update_statusbar_tree(*_):
+                        window.update_statusbar()
+                    sel_model.currentChanged.connect(_update_statusbar_tree)
+            except (AttributeError, TypeError):
                 pass
     except Exception as e:
         logger.warning(f"Failed to connect tree signals: {e}")
@@ -534,10 +501,10 @@ def _connect_ui_signals(window) -> None:
         if hasattr(window, "table") and window.table:
             selection_model = window.table.selectionModel()
             if selection_model:
-                selection_model.selectionChanged.connect(
-                    lambda *_: window.update_statusbar()
-                )
-    except Exception as e:
+                def _update_statusbar_table(*_):
+                    window.update_statusbar()
+                selection_model.selectionChanged.connect(_update_statusbar_table)
+    except (AttributeError, TypeError) as e:
         logger.warning(f"Failed to connect table selection signals: {e}")
     window._ui_signals_connected = True
 

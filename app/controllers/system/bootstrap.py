@@ -34,12 +34,11 @@ def build_controllers(window) -> ControllersFacade:
     structure_business = StructureBusinessLogic(window.db)
     links_business = LinksBusinessLogic(window.db)
 
-    # UI-контроллеры
+    # UI-контроллеры и специализированные контроллеры
     structure_ctrl = StructureUIController(window.tree, structure_business, window)
-    links_ctrl = LinksUIController(window.table, links_business, window)
-
-    # Специализированные контроллеры
+    # Создаём link_operations до LinksUIController и передаём как явную зависимость
     link_ops = LinkOperationsController(window.db, window.undo_stack, window)
+    links_ctrl = LinksUIController(window.table, links_business, window, link_operations=link_ops)
     db_ctrl = DatabaseController(window.db, window)
     sys_dialogs = SystemDialogController(window)
 
