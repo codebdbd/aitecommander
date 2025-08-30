@@ -105,6 +105,35 @@ class LinksTableController(QObject):
         except Exception as e:
             logger.warning("LinksTableController.update_row: failed: %s", e)
 
+    # --- Slots for business signals ---
+    def on_links_loaded(self, links: list[Dict], category_id: int, task_id: int) -> None:
+        """Централизованная реакция на загрузку ссылок из бизнес-логики.
+
+        Выполняет populate только если это текущая категория, чтобы избежать рассинхронизации UI.
+        """
+        try:
+            current_category_id = getattr(self.main, "current_category_id", None)
+            if current_category_id is not None and category_id != current_category_id:
+                logger.info(
+                    "Пропуск обновления таблицы: загружены ссылки для категории %s (task_id=%s), но текущая категория = %s",
+                    category_id,
+                    task_id,
+                    current_category_id,
+                )
+                return
+            if hasattr(self.table, "populate"):
+                self.table.populate(links)
+        except Exception as e:
+            logger.error("LinksTableController.on_links_loaded: failed: %s", e, exc_info=True)
+
+    def on_search_results(self, search_results: list[Dict]) -> None:
+        """Обновить таблицу результатами поиска централизованно."""
+        try:
+            if hasattr(self.table, "populate"):
+                self.table.populate(search_results, mode="search")
+        except Exception as e:
+            logger.error("LinksTableController.on_search_results: failed: %s", e, exc_info=True)
+
     # --- Internals ---
     def _fallback_load(self, category_id: int) -> None:
         business = self.business

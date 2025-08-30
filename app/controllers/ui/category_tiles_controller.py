@@ -13,10 +13,12 @@ class CategoryTilesController:
     дублирования логики в разных местах (TreeManagement, SelectionHandling).
     """
 
-    def __init__(self, main_window, ui_state, structure_business):
-        self.main = main_window
+    def __init__(self, ui_state, structure_business, tiles_widget=None, *, main_window=None):
+        # main_window принят для обратной совместимости и не используется
         self.ui_state = ui_state
         self.business = structure_business
+        # tiles_widget хранится для явной зависимости и потенциального использования
+        self.tiles = tiles_widget
 
     def refresh(self, section_id: int) -> None:
         """Обновить плитки для указанного раздела.

@@ -15,8 +15,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
         """Подключение сигналов от бизнес-логики."""
         if getattr(self, "_signals_connected", False):
             return
-        self.business.links_loaded.connect(self._update_table)
-        self.business.search_results_ready.connect(self._update_search_results)
+        # Перенесено в централизованный LinksTableController, чтобы избежать прямых populate и возможных циклов
         self.business.favorites_counted.connect(self._complete_toggle_fav)
         self.business.link_updated.connect(self._on_link_updated)
         self.business.error_occurred.connect(self._handle_error)
@@ -72,7 +71,15 @@ class LinksUIHandlers(BaseLinksUIComponent):
             )
             return
 
-        self.table.populate(links)
+        # Убираем прямое обновление таблицы: используем централизованный контроллер через сигнал
+        try:
+            link_ops = getattr(self.main, "link_operations", None)
+            if link_ops and isinstance(category_id, int) and category_id > 0:
+                link_ops.links_changed.emit(category_id)
+            else:
+                logger.debug("LinksUIHandlers: link_operations not available, cannot emit links_changed")
+        except Exception as e:
+            logger.warning(f"Failed to emit links_changed from _update_table: {e}")
 
     def _update_search_results(self, search_results: List[Dict]):
         """Обновить результаты поиска."""

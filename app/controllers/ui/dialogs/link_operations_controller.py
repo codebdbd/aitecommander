@@ -35,6 +35,10 @@ class LinkOperationsController(QObject):
     links_changed = pyqtSignal(int)  # category_id
     # Сигнал о том, что состояние избранного изменилось (требуется refresh верхней панели)
     favorites_changed = pyqtSignal()
+    # Новый сигнал: конкретная ссылка создана/обновлена (payload с category_id, id и др.)
+    link_saved = pyqtSignal(dict)
+    # Новый сигнал: ссылка удалена (payload с category_id, id и др.)
+    link_deleted = pyqtSignal(dict)
 
     def get_dialog_initialization_data(self, category_id=None):
         """Получить данные для инициализации диалога ссылки."""
@@ -142,6 +146,13 @@ class LinkOperationsController(QObject):
                                 first_link_id
                             ),
                         )
+                # Эмит событий о сохранённых ссылках (пакетно)
+                try:
+                    for payload in links_to_save:
+                        if isinstance(payload, dict):
+                            self.link_saved.emit(payload)
+                except Exception:
+                    pass
             else:
                 # Для одиночных ссылок используем обычную команду
                 data = links_to_save[0]
@@ -198,6 +209,12 @@ class LinkOperationsController(QObject):
                             )
                         else:
                             logger.warning("No link ID available for focusing")
+                    # Эмит события о сохранении одиночной ссылки
+                    try:
+                        if isinstance(data, dict):
+                            self.link_saved.emit(data)
+                    except Exception:
+                        pass
 
             # Сигнализируем о необходимости перезагрузки таблицы текущей категории
             try:
@@ -234,6 +251,9 @@ class LinkOperationsController(QObject):
                 if isinstance(cat_id, int) and cat_id > 0:
                     self.links_changed.emit(cat_id)
                 self.favorites_changed.emit()
+                # Точечный сигнал об удалении
+                if isinstance(links[0], dict):
+                    self.link_deleted.emit(links[0])
             except Exception:
                 pass
             return
@@ -255,5 +275,12 @@ class LinkOperationsController(QObject):
             if isinstance(cat_id, int) and cat_id > 0:
                 self.links_changed.emit(cat_id)
             self.favorites_changed.emit()
+            # Точечные сигналы об удалении для каждой ссылки
+            try:
+                for payload in links:
+                    if isinstance(payload, dict):
+                        self.link_deleted.emit(payload)
+            except Exception:
+                pass
         except Exception:
             pass

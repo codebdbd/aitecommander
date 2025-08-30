@@ -141,18 +141,6 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             link_data = link.copy()
             link_data["last_used"] = datetime.now().isoformat()
 
-            # Немедленно обновить строку в таблице (UI feedback) через централизованный контроллер
-            try:
-                ctrl = getattr(self.main, "links_table_controller", None)
-                if ctrl:
-                    ctrl.update_row(link_data)
-                else:
-                    if hasattr(self.controller, "table") and self.controller.table is not None:
-                        if hasattr(self.controller.table, "update_link_by_id"):
-                            self.controller.table.update_link_by_id(link_data)
-            except Exception as e:
-                logger.debug(f"links_table_controller.update_row failed, fallback used: {e}")
-
             # Асинхронно сохранить в БД (старое поведение)
             self.business.save_link(link_data)
 
@@ -162,6 +150,10 @@ class LinksUILinkOperations(BaseLinksUIComponent):
                 if link_ops:
                     # Используем favorites_changed как триггер общего обновления TopPanels
                     link_ops.favorites_changed.emit()
+                    # Сообщаем таблице о возможном изменении данных текущей категории
+                    cat_id = link_data.get("category_id")
+                    if isinstance(cat_id, int) and cat_id > 0:
+                        link_ops.links_changed.emit(cat_id)
             except Exception as e:
                 logger.debug(f"Failed to emit favorites_changed after opening link: {e}")
 

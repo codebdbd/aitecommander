@@ -81,9 +81,9 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
 
     try:
         window.category_tiles_controller = CategoryTilesController(
-            window,
             ui_state=controllers["ui_state"],
             structure_business=structure_business,
+            tiles_widget=getattr(window, "tiles", None),
         )
         controllers["category_tiles_controller"] = window.category_tiles_controller
     except Exception as e:
@@ -121,12 +121,81 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     try:
         link_ops = controllers.get("link_operations")
         links_table_ctrl = controllers.get("links_table_controller")
+        tiles_ctrl = controllers.get("category_tiles_controller")
+        structure_business = controllers.get("structure_business")
         if link_ops:
             if links_table_ctrl:
                 link_ops.links_changed.connect(lambda cat_id: links_table_ctrl.reload(cat_id))
             link_ops.favorites_changed.connect(
                 lambda: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
             )
+            # Новые точечные сигналы от диалогов ссылок
+            try:
+                link_ops.link_saved.connect(
+                    lambda payload: (
+                        links_table_ctrl and isinstance(payload, dict)
+                        and links_table_ctrl.reload(payload.get("category_id"))
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"Failed to connect link_saved to LinksTableController: {e}")
+            try:
+                link_ops.link_saved.connect(
+                    lambda *_: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
+                )
+            except Exception as e:
+                logger.warning(f"Failed to connect link_saved to TopPanelsController: {e}")
+            try:
+                link_ops.link_deleted.connect(
+                    lambda payload: (
+                        links_table_ctrl and isinstance(payload, dict)
+                        and links_table_ctrl.reload(payload.get("category_id"))
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"Failed to connect link_deleted to LinksTableController: {e}")
+            try:
+                link_ops.link_deleted.connect(
+                    lambda *_: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
+                )
+            except Exception as e:
+                logger.warning(f"Failed to connect link_deleted to TopPanelsController: {e}")
+        # Подписки плиток категорий на бизнес-сигналы структуры
+        try:
+            if tiles_ctrl and structure_business:
+                # При выборе раздела — обновить плитки категорий этого раздела
+                structure_business.section_selected.connect(
+                    lambda section_id: tiles_ctrl.refresh(section_id)
+                )
+                # При добавлении категории — parent_id это section_id
+                structure_business.item_added.connect(
+                    lambda item_type, parent_id, data: (
+                        tiles_ctrl.refresh(parent_id)
+                        if item_type == "category" and isinstance(parent_id, int) and parent_id > 0
+                        else None
+                    )
+                )
+                # При обновлении категории — section_id берём из данных
+                structure_business.item_updated.connect(
+                    lambda item_type, item_id, data: (
+                        tiles_ctrl.refresh(data.get("section_id"))
+                        if item_type == "category" and isinstance(data, dict) and isinstance(data.get("section_id"), int) and data.get("section_id") > 0
+                        else None
+                    )
+                )
+        except Exception as e:
+            logger.warning(f"Failed to connect CategoryTilesController signals: {e}")
+
+        # Подключаем бизнес-сигналы загрузки к централизованному контроллеру таблицы
+        if links_table_ctrl and links_business:
+            try:
+                links_business.links_loaded.connect(links_table_ctrl.on_links_loaded)
+            except Exception as e:
+                logger.warning(f"Failed to connect links_loaded to LinksTableController: {e}")
+            try:
+                links_business.search_results_ready.connect(links_table_ctrl.on_search_results)
+            except Exception as e:
+                logger.warning(f"Failed to connect search_results_ready to LinksTableController: {e}")
     except Exception as e:
         logger.warning(f"Failed to connect LinkOperationsController signals: {e}")
 
@@ -272,6 +341,44 @@ def _add_quick_add_to_top_bar(window) -> None:
     return
 
 
+def _request_panels_refresh(window, delay_ms: int = 150) -> None:
+    """Дебаунс-запрос на обновление верхних панелей.
+
+    Создает и переиспользует таймер на окне. При срабатывании вызывает
+    TopPanelsController.refresh_all().
+    """
+    try:
+        timer = getattr(window, "_top_panels_refresh_timer", None)
+        if timer is None:
+            timer = QTimer()
+            try:
+                timer.setParent(window)
+            except Exception:
+                pass
+            timer.setSingleShot(True)
+
+            def _on_timeout():
+                try:
+                    ctrl = getattr(window, "top_panels_controller", None)
+                    if ctrl:
+                        ctrl.refresh_all()
+                    else:
+                        logger.warning(
+                            "TopPanelsController not available; skipping debounced refresh"
+                        )
+                except Exception as e:
+                    logger.warning(f"Top panels debounced refresh failed: {e}")
+
+            timer.timeout.connect(_on_timeout)
+            window._top_panels_refresh_timer = timer
+
+        # Перезапускать таймер при каждом запросе (классический дебаунс)
+        delay = int(delay_ms)
+        timer.start(delay)
+    except Exception as e:
+        logger.exception(f"_request_panels_refresh failed: {e}")
+
+
 def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
     """Подключение сигналов верхних панелей и первичная загрузка данных."""
     try:
@@ -371,14 +478,14 @@ def _connect_structure_signals(window) -> None:
         pass
     try:
         window.structure_business.active_sphere_changed.connect(
-            lambda *_: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
+            lambda *_: _request_panels_refresh(window)
         )
     except Exception:
         pass
 
     try:
         window.structure_business.structure_loaded.connect(
-            lambda *_: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
+            lambda *_: _request_panels_refresh(window)
         )
     except Exception:
         pass
@@ -391,13 +498,13 @@ def _connect_structure_signals(window) -> None:
 
     try:
         window.structure_business.section_selected.connect(
-            lambda *_: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
+            lambda *_: _request_panels_refresh(window)
         )
     except Exception:
         pass
     try:
         window.structure_business.category_selected.connect(
-            lambda *_: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
+            lambda *_: _request_panels_refresh(window)
         )
     except Exception:
         pass
