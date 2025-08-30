@@ -34,10 +34,10 @@ class SpheresBarController:
     def init(self) -> None:
         """Подписка на сигнал загрузки сфер и запуск асинхронной загрузки."""
         sb = self.w.structure_business
-        sb.spheres_loaded.connect(self._on_spheres_loaded_ui)
+        sb.spheres_loaded.connect(self.on_spheres_loaded_ui)
         sb.load_spheres_async()
 
-    def _switch_sphere(self, sphere_id: int) -> None:
+    def switch_sphere(self, sphere_id: int) -> None:
         """Переключить активную сферу через контроллер структуры."""
         self.w.structure.switch_sphere(sphere_id)
 
@@ -79,12 +79,12 @@ class SpheresBarController:
         btn.setFixedSize(62, 62)
         btn.setToolTip(sphere["name"])
         self.w.sphere_group.addButton(btn, sphere_id)
-        btn.clicked.connect(lambda _=False, sid=sphere_id: self._switch_sphere(sid))
+        btn.clicked.connect(lambda _=False, sid=sphere_id: self.switch_sphere(sid))
         btn.installEventFilter(self._ensure_neon_filter())
         self.w.sphere_buttons[sphere_id] = btn
         return btn
 
-    def _on_spheres_loaded_ui(self, spheres: List[Dict[str, Any]]):
+    def on_spheres_loaded_ui(self, spheres: List[Dict[str, Any]]):
         """Построение кнопок сфер в панели."""
         with suspend_updates(self.w.spheres_bar):
             self._clear_spheres_bar()
@@ -96,10 +96,10 @@ class SpheresBarController:
             self.w.spheres_bar.update()
 
         if spheres:
-            self._switch_sphere(spheres[0]["id"])
+            self.switch_sphere(spheres[0]["id"])
 
-    @signal_guard("_update_active_sphere_button")
-    def _update_active_sphere_button(self, sphere_id: int):
+    @signal_guard("update_active_sphere_button")
+    def update_active_sphere_button(self, sphere_id: int):
         """Обновляет состояние кнопок сфер и фокус."""
         for button in self.w.sphere_buttons.values():
             button.setChecked(False)

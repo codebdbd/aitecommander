@@ -381,11 +381,12 @@ class MoveOperationsHandler(TreeHandlerBase):
             hasattr(main_win, "structure_business")
             and main_win.structure_business
         ):
-            if (
-                hasattr(main_win, "_switch_sphere")
-                and callable(getattr(main_win, "_switch_sphere"))
-            ):
-                main_win._switch_sphere(main_win.structure_business.current_sphere_id)
+            try:
+                sc = getattr(main_win, "spheres_controller", None)
+                if sc and hasattr(sc, "switch_sphere"):
+                    sc.switch_sphere(main_win.structure_business.current_sphere_id)
+            except Exception:
+                pass
 
         # Полная перезагрузка дерева больше не требуется — модель обновляется инкрементально
 

@@ -326,7 +326,7 @@ def _connect_structure_signals(window) -> None:
     # Обновляем состояние кнопок сфер через контроллер панелей сфер
     try:
         window.structure_business.active_sphere_changed.connect(
-            window.spheres_controller._update_active_sphere_button
+            window.spheres_controller.update_active_sphere_button
         )
     except Exception as e:
         logger.error(f"Failed to connect sphere button update: {e}")

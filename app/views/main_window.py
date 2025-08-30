@@ -127,15 +127,6 @@ class MainWindow(QMainWindow):
         """Инициализирует UI сфер (асинхронно)."""
         self.spheres_controller.init()
 
-    def _on_spheres_loaded_ui(self, spheres: list):
-        """Обрабатывает завершение загрузки сфер."""
-        self.spheres_controller._on_spheres_loaded_ui(spheres)
-
-    @signal_guard("_update_active_sphere_button")
-    def _update_active_sphere_button(self, sphere_id: int):
-        """Обновляет состояние кнопок сфер через контроллер."""
-        self.spheres_controller._update_active_sphere_button(sphere_id)
-
     def show_link_dialog(self, link=None, category_id=None):
         """Показывает диалог создания/редактирования ссылки."""
         selected_link_id = link.get("id") if link else None
@@ -239,9 +230,6 @@ class MainWindow(QMainWindow):
             logging.exception("MainWindow: unexpected error updating table font size")
 
         # Плитки категорий — намеренно НЕ меняем здесь, их шрифт независим
-
-    def _switch_sphere(self, sphere_id: int) -> None:
-        self.spheres_controller._switch_sphere(sphere_id)
 
     @signal_guard("_update_left_panel_style")
     def _update_left_panel_style(self, sphere_id: int):
