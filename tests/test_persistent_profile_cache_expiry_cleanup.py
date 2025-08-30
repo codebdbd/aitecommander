@@ -20,6 +20,7 @@ def test_expired_entry_removed_from_memory_and_disk(monkeypatch, tmp_path):
 
     # Set and ensure persisted
     cache.set(key, val)
+    cache.flush()
     assert cache.get(key) == val
     assert cache_path.exists()
     with cache_path.open("r", encoding="utf-8") as f:
@@ -31,6 +32,7 @@ def test_expired_entry_removed_from_memory_and_disk(monkeypatch, tmp_path):
 
     # Access triggers cleanup: should return None and remove from disk
     assert cache.get(key) is None
+    cache.flush()
 
     with cache_path.open("r", encoding="utf-8") as f:
         data_after = json.load(f)
