@@ -26,34 +26,64 @@ except Exception:  # noqa: BLE001
 
 @contextmanager
 def _file_lock(lock_path: str, *, timeout: float = 5.0, poll_interval: float = 0.05):
-    """Простая файловая блокировка через lock-файл.
+    """Кроссплатформенная файловая блокировка.
 
-    На Windows создание файла в режиме эксклюзивного доступа с флагом 'x' атомарно.
+    Пытаемся использовать portalocker для надёжной блокировки (в т.ч. на сетевых ФС).
+    Если portalocker недоступен, используем простой lock-файл с таймаутом как фоллбек.
     """
-    start = time.time()
-    while True:
-        try:
-            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            try:
-                os.write(fd, str(os.getpid()).encode())
-            finally:
-                os.close(fd)
-            break
-        except FileExistsError:
-            if (time.time() - start) >= timeout:
-                # Не блокируем логику: логируем и продолжаем без блокировки
-                logger.warning("favicon lock timeout: %s", lock_path)
-                lock_path = None  # type: ignore[assignment]
-                break
-            time.sleep(poll_interval)
     try:
-        yield
-    finally:
-        if lock_path and os.path.exists(lock_path):
+        import portalocker  # type: ignore
+
+        # Используем отдельный lock-файл, чтобы не блокировать саму БД на уровне shelve
+        # и избегать конфликтов форматов (dir/dat/bak).
+        with open(lock_path, "a+b") as fp:
             try:
-                os.remove(lock_path)
+                portalocker.lock(fp, portalocker.LOCK_EX | portalocker.LOCK_NB)
             except Exception:
-                pass
+                # Ждём с опросом до таймаута
+                start = time.time()
+                while True:
+                    try:
+                        portalocker.lock(fp, portalocker.LOCK_EX | portalocker.LOCK_NB)
+                        break
+                    except Exception:
+                        if (time.time() - start) >= timeout:
+                            logger.warning("favicon lock timeout: %s", lock_path)
+                            break
+                        time.sleep(poll_interval)
+            try:
+                yield
+            finally:
+                try:
+                    portalocker.unlock(fp)
+                except Exception:
+                    pass
+        return
+    except Exception:
+        # Фоллбек: самодельная блокировка через эксклюзивное создание файла
+        start = time.time()
+        while True:
+            try:
+                fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                try:
+                    os.write(fd, str(os.getpid()).encode())
+                finally:
+                    os.close(fd)
+                break
+            except FileExistsError:
+                if (time.time() - start) >= timeout:
+                    logger.warning("favicon lock timeout(fallback): %s", lock_path)
+                    lock_path = None  # type: ignore[assignment]
+                    break
+                time.sleep(poll_interval)
+        try:
+            yield
+        finally:
+            if lock_path and os.path.exists(lock_path):
+                try:
+                    os.remove(lock_path)
+                except Exception:
+                    pass
 
 
 def _db_path() -> str:
