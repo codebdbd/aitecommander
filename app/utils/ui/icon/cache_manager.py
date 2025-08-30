@@ -1,15 +1,20 @@
 # cache_manager.py
-"""Менеджер кэша иконок.
+"""Менеджер кэша иконок (стандартизированный API).
 
 Особенности:
-- Разделены записи кэша путей и QIcon (никакого смешения типов).
-- Потокобезопасность через RLock.
+- Разделены записи кэша путей и QIcon (без смешения типов).
+- Потокобезопасность через централизованные блокировки.
 - LRU-политика для каждого кэша.
 - TTL для обычных иконок и отдельный TTL для абсолютных путей.
-- Отрицательное кэширование с укороченным TTL.
+- Отрицательное кэширование (см. negative_cache.py).
 - Метрики с fallback, если нет модуля .metrics.
 
-Соответствует PEP 8.
+Публичный API (функции модуля):
+- get_icon(name, theme) / set_icon(name, theme, qicon)
+- get_path(name, theme) / set_path(name, theme, path)
+- clear_icon_cache(), get_icon_cache_stats(), reset_icon_cache_stats(), log_icon_cache_stats()
+
+Устаревшие алиасы удалены: get_qicon_from_cache, cache_qicon, get_path_from_cache, cache_path.
 """
 
 from __future__ import annotations
@@ -285,6 +290,14 @@ class ThreadSafeIconCache:
         with acquire_multiple_locks(LockLevel.CACHE, LockLevel.METRICS):
             self._path_cache.clear()
             self._qicon_cache.clear()
+            # Перечитываем capacity из конфигурации (поддержка monkeypatch в тестах)
+            try:
+                new_capacity = int(app_config.get_icon_cache_size())
+            except Exception:  # noqa: BLE001
+                new_capacity = self._capacity
+            if new_capacity <= 0:
+                new_capacity = 1
+            self._capacity = new_capacity
             self._path_lru = LRUPolicy(self._capacity)
             self._qicon_lru = LRUPolicy(self._capacity)
             self.metrics.reset()
@@ -330,18 +343,18 @@ class IconManager:
         self._cache = cache if cache is not None else ThreadSafeIconCache()
         self._initialized = True
 
-    # PATH
-    def get_path_from_cache(self, icon_name: str, theme: str) -> Optional[str]:
+    # PATH (новые стандартизированные имена)
+    def get_path(self, icon_name: str, theme: str) -> Optional[str]:
         return self._cache.get_path(icon_name, theme)
 
-    def cache_path(self, icon_name: str, theme: str, path: Optional[str]) -> None:
+    def set_path(self, icon_name: str, theme: str, path: Optional[str]) -> None:
         self._cache.set_path(icon_name, theme, path)
 
-    # QICON
-    def get_qicon_from_cache(self, icon_name: str, theme: str) -> Optional[QIcon]:
+    # QICON (новые стандартизированные имена)
+    def get_icon(self, icon_name: str, theme: str) -> Optional[QIcon]:
         return self._cache.get_qicon(icon_name, theme)
 
-    def cache_qicon(
+    def set_icon(
         self,
         icon_name: str,
         theme: str,
@@ -417,9 +430,30 @@ def record_not_found() -> None:
 
 
 # Доступ к данным кэша
-def get_qicon_from_cache(icon_name: str, theme: str) -> Optional[QIcon]:
-    return _icon_manager.get_qicon_from_cache(icon_name, theme)
+def get_icon(icon_name: str, theme: str) -> Optional[QIcon]:
+    return _icon_manager.get_icon(icon_name, theme)
 
+
+def set_icon(
+    icon_name: str,
+    theme: str,
+    icon: Optional[QIcon],
+    *,
+    negative: bool = False,
+) -> None:
+    _icon_manager.set_icon(icon_name, theme, icon, negative=negative)
+
+
+def get_path(icon_name: str, theme: str) -> Optional[str]:
+    return _icon_manager.get_path(icon_name, theme)
+
+
+def set_path(icon_name: str, theme: str, path: Optional[str]) -> None:
+    _icon_manager.set_path(icon_name, theme, path)
+
+# Обратная совместимость (deprecated): модульные функции-алиасы
+def get_qicon_from_cache(icon_name: str, theme: str) -> Optional[QIcon]:
+    return get_icon(icon_name, theme)
 
 def cache_qicon(
     icon_name: str,
@@ -428,26 +462,24 @@ def cache_qicon(
     *,
     negative: bool = False,
 ) -> None:
-    _icon_manager.cache_qicon(icon_name, theme, icon, negative=negative)
-
+    set_icon(icon_name, theme, icon, negative=negative)
 
 def get_path_from_cache(icon_name: str, theme: str) -> Optional[str]:
-    return _icon_manager.get_path_from_cache(icon_name, theme)
-
+    return get_path(icon_name, theme)
 
 def cache_path(icon_name: str, theme: str, path: Optional[str]) -> None:
-    _icon_manager.cache_path(icon_name, theme, path)
+    set_path(icon_name, theme, path)
 
 
 def get_cached_category_icon(path: str) -> QIcon:
     """Получить кэшированную иконку категории из общего кэша без зависимостей от icon_operations."""
     cache_key = f"category::{path}"
-    cached_icon = get_qicon_from_cache(cache_key, "__category__")
+    cached_icon = get_icon(cache_key, "__category__")
     if cached_icon is not None:
         return cached_icon
 
     # Создаем QIcon напрямую по пути, без вызова create_icon_from_path, чтобы избежать циклов импорта
     icon = QIcon(str(path)) if Path(path).exists() else QIcon()
 
-    cache_qicon(cache_key, "__category__", icon)
+    set_icon(cache_key, "__category__", icon)
     return icon

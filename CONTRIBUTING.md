@@ -161,3 +161,29 @@ python -m app.models.db --detect-duplicates
 - Добавляйте тесты на:
   - NOCASE-уникальность в `sphere/section/category` (вставки `"Brand"`/`"brand"` должны конфликтовать).
   - Сохранение порядка в `move_categories_to_section_bulk()`.
+
+---
+
+## Единый API кэширования
+
+Стандартизирован единый интерфейс для кэшей. Используйте только указанные функции/классы.
+
+- Иконки (`app/utils/ui/icon/cache_manager.py`):
+  - `get_icon(name, theme) -> QIcon | None`
+  - `set_icon(name, theme, icon: QIcon | None, *, negative: bool = False) -> None`
+  - `get_path(name, theme) -> str | None`
+  - `set_path(name, theme, path: str | None) -> None`
+  - Админ/метрики: `clear_icon_cache()`, `get_icon_cache_stats()`, `reset_icon_cache_stats()`, `log_icon_cache_stats()`
+  - Негативный кэш: см. `app/utils/ui/icon/negative_cache.py`
+  - Примечание: устаревшие алиасы удалены — `get_qicon_from_cache`, `cache_qicon`, `get_path_from_cache`, `cache_path`.
+
+- Структура (`app/controllers/structure_modules/cache_manager.py`):
+  - Класс `CacheManager(ttl: float | None = None, max_size: int | None = None)`
+  - `get(key)`, `set(key, value, *, ttl: float | None = None)`
+  - `invalidate(key: str | None = None)`, `clear_all()`
+  - Спец-кэш: `get_first_category_id()`, `set_first_category_id(id)`, `invalidate_first_category_cache()`
+
+Общие правила:
+- TTL в секундах; значения `<= 0` — запись невалидна.
+- LRU-вытеснение действует при превышении `max_size`.
+- Для тестов допускается переопределение конфигурации через ленивый прокси `app_config` (поддерживает `__setattr__/__delattr__`).

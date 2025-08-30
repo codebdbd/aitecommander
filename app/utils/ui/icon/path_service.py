@@ -11,7 +11,8 @@ from typing import Any, Optional, Tuple
 
 from app.config_data import app_config
 
-from .cache_manager import cache_path, get_path_from_cache
+from .cache_manager import get_path, set_path
+from .negative_cache import is_negative, mark_negative, maybe_decay_strikes
 from .metrics import CacheMetrics
 from .validation import (
     _validate_icon_name,
@@ -22,12 +23,7 @@ from .validation import (
 logger = logging.getLogger(__name__)
 
 
-# Негативный кеш (локальный, легковесный) для отсутствующих иконок
-_NEGATIVE_CACHE: dict[str, float] = {}
-_NEG_TTL: float = 60.0  # базовый TTL негативного кеша
-_NEG_TTL_MAX: float = 600.0  # верхний предел TTL
-_NEG_STRIKES: dict[str, int] = {}  # количество подряд промахов по ключу
-_NEG_LOCK = threading.Lock()
+# Негативный кеш перенесён в unified модуль negative_cache
 
 # Индекс иконок по темам: theme -> {lower_name: Path}
 _THEME_ICON_INDEX: dict[str, dict[str, Path]] = {}
@@ -236,7 +232,7 @@ class IconPathResolver:
     def resolve_from_cache(self, icon_name: str, theme: str) -> Tuple[Optional[str], bool]:
         if not _validate_icon_name(icon_name):
             logger.warning("Invalid icon name provided: %r", icon_name)
-            cache_path(icon_name, theme, None)  # негативное кеширование
+            set_path(icon_name, theme, None)  # негативное кеширование
             try:
                 _ICON_METRICS.record_not_found()
                 _ICON_METRICS.record_miss_without_increment(0.0)
@@ -247,28 +243,17 @@ class IconPathResolver:
         norm_theme = validate_theme(theme)
         key = f"{norm_theme}:{icon_name.lower()}"
 
-        # быстрый негативный кеш (с backoff по числу промахов)
-        now = time.time()
-        with _NEG_LOCK:
-            ts = _NEGATIVE_CACHE.get(key)
-            strikes = _NEG_STRIKES.get(key, 0)
-            base_ttl = getattr(app_config, "icon_negative_cache_ttl", _NEG_TTL)
-            max_ttl = getattr(app_config, "icon_negative_cache_ttl_max", _NEG_TTL_MAX)
-            ttl = min(base_ttl * (2**strikes), max_ttl)
-            if ts and (now - ts) < ttl:
-                logger.debug(
-                    "Negative cache HIT: %s (ttl=%.1fs, strikes=%d)", key, ttl, strikes
-                )
-                try:
-                    _ICON_METRICS.record_not_found()
-                    _ICON_METRICS.record_miss_without_increment(0.0)
-                finally:
-                    _maybe_log_metrics()
-                return None, True
-            if ts and (now - ts) >= ttl and strikes > 0:
-                _NEG_STRIKES[key] = strikes - 1
+        # быстрый негативный кеш (единый модуль)
+        if is_negative(key):
+            logger.debug("Negative cache HIT: %s", key)
+            try:
+                _ICON_METRICS.record_not_found()
+                _ICON_METRICS.record_miss_without_increment(0.0)
+            finally:
+                _maybe_log_metrics()
+            return None, True
 
-        cached = get_path_from_cache(icon_name, norm_theme)
+        cached = get_path(icon_name, norm_theme)
         if cached is not None:
             logger.debug("Path cache HIT: %s (%s)", icon_name, norm_theme)
             try:
@@ -286,7 +271,7 @@ class IconPathResolver:
         idx_hit = _get_indexed_icon(norm_theme, icon_name)
         if idx_hit is not None:
             path_str = str(idx_hit)
-            cache_path(icon_name, norm_theme, path_str)
+            set_path(icon_name, norm_theme, path_str)
             try:
                 _ICON_METRICS.record_disk_load()
             finally:
@@ -297,7 +282,7 @@ class IconPathResolver:
             light_idx = _get_indexed_icon("light", icon_name)
             if light_idx is not None:
                 path_str = str(light_idx)
-                cache_path(icon_name, norm_theme, path_str)
+                set_path(icon_name, norm_theme, path_str)
                 try:
                     _ICON_METRICS.record_disk_load()
                 finally:
@@ -322,7 +307,7 @@ class IconPathResolver:
                 try:
                     if themed_png.stat().st_mtime >= themed_svg.stat().st_mtime:
                         path_str = str(themed_png)
-                        cache_path(icon_name, norm_theme, path_str)
+                        set_path(icon_name, norm_theme, path_str)
                         logger.debug("Using up-to-date PNG: %s", themed_png)
                         try:
                             _ICON_METRICS.record_disk_load()
@@ -336,7 +321,7 @@ class IconPathResolver:
             if convert_icon_to_png_128(str(themed_svg), str(themed_png)):
                 dt_ms = (time.perf_counter() - t0) * 1000.0
                 path_str = str(themed_png)
-                cache_path(icon_name, norm_theme, path_str)
+                set_path(icon_name, norm_theme, path_str)
                 if dt_ms >= slow_ms:
                     logger.warning(
                         "Slow icon convert (%.1f ms): %s → %s",
@@ -367,7 +352,7 @@ class IconPathResolver:
                     try:
                         if themed_png.stat().st_mtime >= light_svg.stat().st_mtime:
                             path_str = str(themed_png)
-                            cache_path(icon_name, norm_theme, path_str)
+                            set_path(icon_name, norm_theme, path_str)
                             logger.debug(
                                 "Using up-to-date PNG (from light SVG): %s", themed_png
                             )
@@ -385,7 +370,7 @@ class IconPathResolver:
                 if convert_icon_to_png_128(str(light_svg), str(themed_png)):
                     dt_ms = (time.perf_counter() - t0) * 1000.0
                     path_str = str(themed_png)
-                    cache_path(icon_name, norm_theme, path_str)
+                    set_path(icon_name, norm_theme, path_str)
                     if dt_ms >= slow_ms:
                         logger.warning(
                             "Slow icon convert (fallback, %.1f ms): %s → %s",
@@ -434,10 +419,8 @@ def get_icon_path(icon_name: str, theme: str = "light") -> Optional[str]:
     # 4) негативное кеширование при полном отсутстви
     norm_theme = validate_theme(theme)
     key = f"{norm_theme}:{icon_name.lower()}"
-    cache_path(icon_name, norm_theme, None)
-    with _NEG_LOCK:
-        _NEGATIVE_CACHE[key] = time.time()
-        _NEG_STRIKES[key] = min(_NEG_STRIKES.get(key, 0) + 1, 5)
+    set_path(icon_name, norm_theme, None)
+    mark_negative(key)
     logger.debug("Icon path not found, cached negative: %s (%s)", icon_name, norm_theme)
     try:
         _ICON_METRICS.record_not_found()

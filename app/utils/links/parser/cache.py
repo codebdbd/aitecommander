@@ -1,47 +1,34 @@
-"""Cache helpers for link metadata (title/icon)."""
+"""Cache helpers for link metadata (title/icon).
+
+Переход на файловый кэш `FaviconCache`, сохраняя прежний API.
+"""
 
 from __future__ import annotations
 
-import shelve
-import time
-from contextlib import closing
 from typing import Any, Dict, Optional
 
-from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.path_service import icon_path_service
 
-from .constants import CACHE_TTL, SHORT_NEGATIVE_TTL, logger
+from .constants import logger
+from .favicon_cache import favicon_cache
 
 
 def get_cache_path(config=None) -> str:
+    # Путь совместим с прежней реализацией
     return str(icon_path_service.get_user_icons_dir() / "favicon_cache.db")
 
 
 def read_cache(url: str, config) -> Optional[Dict[str, Any]]:
-    path = get_cache_path(config)
-    with closing(shelve.open(path)) as db:
-        item = db.get(url)
-        if not item:
-            return None
-        try:
-            default_icon = resolve_icon_for_link({"type": "web", "icon_path": ""}) or ""
-        except Exception:
-            default_icon = ""
-        if "ttl" not in item and item.get("icon") == default_icon:
-            ttl = SHORT_NEGATIVE_TTL
-        else:
-            ttl = item.get("ttl", CACHE_TTL)
-        if time.time() - item.get("timestamp", 0) < ttl:
-            logger.debug(f"[cache] HIT {url}")
-            return item
-    return None
+    item = favicon_cache.get(url)
+    if item is not None:
+        logger.debug(f"[cache] HIT {url}")
+    return item
 
 
 def write_cache(url: str, data: Dict[str, Any], config):
-    path = get_cache_path(config)
-    with closing(shelve.open(path, writeback=True)) as db:
-        db[url] = data
-        logger.debug(f"[cache] SAVE {url}")
+    # ttl может быть задан в data["ttl"], FaviconCache учтёт его
+    favicon_cache.set(url, data, ttl=data.get("ttl"))
+    logger.debug(f"[cache] SAVE {url}")
 
 
 __all__ = ["get_cache_path", "read_cache", "write_cache"]

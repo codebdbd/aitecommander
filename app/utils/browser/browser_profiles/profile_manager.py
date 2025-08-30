@@ -15,7 +15,7 @@ from .chromium_base_finder import (
     YandexProfileFinder,
 )
 from .firefox_profile_finder import FirefoxProfileFinder
-from .runtime_cache import ProfileCache
+from .persistent_cache import PersistentProfileCache
 from .utils import get_browser_display_name
 
 logger = logging.getLogger(__name__)
@@ -71,25 +71,14 @@ class BrowserProfileManager:
             "yandex": YandexProfileFinder(),
         }
 
-        # Единый кэш профилей
-        self.cache = ProfileCache(timeout_seconds=self._get_cache_timeout())
+        # Единый кэш профилей: персистентный JSON + TTL
+        self.cache = PersistentProfileCache(default_ttl=self._get_cache_timeout())
 
         logger.info(
             f"Инициализирован менеджер профилей для {len(self.finders)} браузеров"
         )
 
-        # Попытка загрузить кэш профилей из пользовательского JSON при старте
-        try:
-            from . import profile_cache as _pc
-
-            cached = _pc.load_profiles()
-            self.cache.load_initial(cached)
-            if cached:
-                logger.debug(
-                    "Инициализация кэша профилей из JSON: %d браузеров", len(cached)
-                )
-        except Exception as e:
-            logger.debug("Не удалось загрузить кэш профилей при старте: %s", e)
+        # Персистентный кэш сам загружает данные с диска при инициализации
 
     def _get_cache_timeout(self) -> int:
         """Получает таймаут кеша из конфигурации."""
@@ -149,8 +138,8 @@ class BrowserProfileManager:
         return []
 
     def get_cached_profiles(self, browser_key: str) -> Optional[List[Dict]]:
-        """Возвращает профили из кэша, только если они свежие; не блокирует загрузку."""
-        return self.cache.get_if_fresh(browser_key)
+        """Возвращает профили из кэша только если они свежие (TTL); не блокирует загрузку."""
+        return self.cache.get(browser_key)
 
     def get_available_browsers(self) -> List[Dict[str, str]]:
         """Получает список доступных браузеров с профилями."""
