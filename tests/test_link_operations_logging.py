@@ -10,10 +10,6 @@ def controller():
     return LinkOperationsController(db=None, undo_stack=None, main_window=None)
 
 
-def _raise(*args, **kwargs):
-    raise RuntimeError("subscriber failed")
-
-
 @pytest.mark.parametrize(
     "method_name, signal_attr, args, expected_msg",
     [
@@ -24,9 +20,15 @@ def _raise(*args, **kwargs):
         ("emit_link_deleted", "link_deleted", ({"id": 1},), "emit_link_deleted: failed to emit signal"),
     ],
 )
-def test_logs_exception_when_subscriber_raises(controller, method_name, signal_attr, args, expected_msg, caplog):
-    # Подписчик выбрасывает исключение
-    getattr(controller, signal_attr).connect(_raise)
+def test_logs_exception_when_emit_fails(controller, method_name, signal_attr, args, expected_msg, caplog, monkeypatch):
+    # Имитация сбоя во время эмиссии сигнала (PyQt проглатывает исключения слотов, потому
+    # проверяем именно наш try/except вокруг emit)
+    class _Raiser:
+        def emit(self, *_a, **_k):
+            raise RuntimeError("emit failed")
+
+    # Подменяем весь атрибут сигнала на наш объект с emit, чтобы обойти read-only у pyqtBoundSignal.emit
+    monkeypatch.setattr(controller, signal_attr, _Raiser(), raising=False)
 
     with caplog.at_level(logging.ERROR):
         getattr(controller, method_name)(*args)

@@ -117,12 +117,14 @@ class TopPanelsController:
                 if widget:
                     if hasattr(widget, "set_favorites"):
                         widget.set_favorites(items)
-                    elif hasattr(widget, "update_favorites"):
-                        # Совместимость со старыми виджетами/тестовыми моками
-                        widget.update_favorites()
                     else:
-                        logger.debug("TopPanelsController.refresh_favorites: widget has no set/update method")
-        except Exception:
+                        raise AttributeError(
+                            "TopPanelsController.refresh_favorites: widget must implement set_favorites"
+                        )
+        except Exception as e:
+            if isinstance(e, AttributeError):
+                # Требование контракта: без set_favorites — падать явно
+                raise
             logger.exception("TopPanelsController.refresh_favorites: ошибка при загрузке/установке избранного")
 
     def refresh_recent(self) -> None:
@@ -146,12 +148,14 @@ class TopPanelsController:
                 if widget:
                     if hasattr(widget, "set_recent_links"):
                         widget.set_recent_links(items)
-                    elif hasattr(widget, "update_recent_links"):
-                        # Совместимость с тестовыми моками
-                        widget.update_recent_links()
                     else:
-                        logger.debug("TopPanelsController.refresh_recent: widget has no set/update method")
-        except Exception:
+                        raise AttributeError(
+                            "TopPanelsController.refresh_recent: widget must implement set_recent_links"
+                        )
+        except Exception as e:
+            if isinstance(e, AttributeError):
+                # Требование контракта: без set_recent_links — падать явно
+                raise
             logger.exception("TopPanelsController.refresh_recent: ошибка при загрузке/установке недавних")
 
     def clear_favorites(self) -> None:
