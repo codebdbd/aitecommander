@@ -67,7 +67,17 @@ class InMemoryCache(BaseCache):
 
     def __init__(self, *, default_ttl: Optional[float] = None, max_size: Optional[int] = None) -> None:
         self._default_ttl = default_ttl
-        self._max_size = int(max_size) if max_size is not None else None
+        # Валидируем max_size: допускаем None или целое число >= 0; отрицательные — ошибка
+        if max_size is None:
+            self._max_size = None
+        else:
+            try:
+                ms = int(max_size)
+            except Exception as exc:  # noqa: BLE001
+                raise ValueError("max_size must be an integer or None") from exc
+            if ms < 0:
+                raise ValueError("max_size must be >= 0 or None")
+            self._max_size = ms
         self._lock = threading.RLock()
         # Порядок LRU хранится в OrderedDict: самый свежий справа (конце)
         # key -> CacheRecord

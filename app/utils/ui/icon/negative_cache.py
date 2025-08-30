@@ -19,6 +19,7 @@ from __future__ import annotations
 import threading
 import time
 from typing import Optional, Any
+import heapq
 
 from app.config_data import app_config
 from app.utils.cache.base import BaseCache
@@ -96,6 +97,12 @@ class NegativeCache(BaseCache):
         self._lock = threading.Lock()
         self._ts: dict[str, float] = {}      # ключ -> timestamp последней отметки
         self._strikes: dict[str, int] = {}   # ключ -> количество накопленных промахов
+        # Генерации для предотвращения эффекта "висячих" элементов в кучах
+        self._gen: dict[str, int] = {}       # ключ -> текущая версия записи
+        # Куча по сроку истечения: (expire_ts, key, gen)
+        self._expire_heap: list[tuple[float, str, int]] = []
+        # Куча по времени отметки (для вытеснения самых старых при переполнении): (ts, key, gen)
+        self._ts_heap: list[tuple[float, str, int]] = []
 
     # --- Конфиг ---
     @staticmethod
@@ -129,6 +136,8 @@ class NegativeCache(BaseCache):
             if now - ts < get_ttl(strikes):
                 return True
             # Протухло — мягкая декрементация strike и очистка отметки
+            # Инвалидируем все запланированные события через bump generation
+            self._gen[key] = self._gen.get(key, 0) + 1
             if strikes > 0:
                 self._strikes[key] = strikes - 1
             self._ts.pop(key, None)
@@ -138,39 +147,57 @@ class NegativeCache(BaseCache):
         # ttl игнорируется: TTL управляется на основе strike и конфигурации
         now = time.time()
         with self._lock:
-            # Периодическая очистка протухших ключей (дешёвая, по месту записи)
-            if self._ts:
-                expired: list[str] = []
-                for k, ts in self._ts.items():
-                    strikes = self._strikes.get(k, 0)
-                    if now - ts >= get_ttl(strikes):
-                        expired.append(k)
-                for k in expired:
-                    s = self._strikes.get(k, 0)
-                    if s > 0:
-                        self._strikes[k] = s - 1
-                    self._ts.pop(k, None)
+            # Инкрементальная очистка просроченных по куче истечений
+            while self._expire_heap:
+                exp_ts, k, g = self._expire_heap[0]
+                if exp_ts > now:
+                    break
+                heapq.heappop(self._expire_heap)
+                # Проверяем актуальность записи
+                if self._gen.get(k) != g:
+                    continue
+                # Просрочено: удаляем отметку и мягко уменьшаем strikes
+                self._ts.pop(k, None)
+                s = self._strikes.get(k, 0)
+                if s > 0:
+                    self._strikes[k] = s - 1
 
             # Обновляем текущий ключ
+            new_gen = self._gen.get(key, 0) + 1
+            self._gen[key] = new_gen
             self._ts[key] = now
             self._strikes[key] = min(self._strikes.get(key, 0) + 1, _max_strikes())
+            # Планируем срок истечения и добавляем в кучу
+            expire_ts = now + get_ttl(self._strikes[key])
+            heapq.heappush(self._expire_heap, (expire_ts, key, new_gen))
+            # Добавляем в кучу по времени отметки для вытеснения самых старых
+            heapq.heappush(self._ts_heap, (now, key, new_gen))
 
-            # Контроль размера: при переполнении вытесняем самые старые записи
+            # Контроль размера: вытесняем самые старые по ts при переполнении
             max_size = _max_size()
-            if len(self._ts) > max_size:
-                to_evict = len(self._ts) - max_size
-                for k, _ in sorted(self._ts.items(), key=lambda kv: kv[1])[:to_evict]:
-                    self._ts.pop(k, None)
-                    s = self._strikes.get(k, 0)
-                    if s > 0:
-                        self._strikes[k] = s - 1
+            while len(self._ts) > max_size and self._ts_heap:
+                ts_old, k_old, g_old = heapq.heappop(self._ts_heap)
+                if self._gen.get(k_old) != g_old:
+                    continue  # устаревшая запись в куче
+                # Удаляем ключ
+                # Сначала bump generation, чтобы инвалидировать отложенные события
+                self._gen[k_old] = self._gen.get(k_old, 0) + 1
+                self._ts.pop(k_old, None)
+                s = self._strikes.get(k_old, 0)
+                if s > 0:
+                    self._strikes[k_old] = s - 1
 
     def invalidate(self, key: Optional[str] = None) -> None:
         with self._lock:
             if key is None:
                 self._ts.clear()
                 self._strikes.clear()
+                self._gen.clear()
+                self._expire_heap.clear()
+                self._ts_heap.clear()
                 return
+            # bump generation для инвалидизации событий
+            self._gen[key] = self._gen.get(key, 0) + 1
             self._ts.pop(key, None)
             self._strikes.pop(key, None)
 

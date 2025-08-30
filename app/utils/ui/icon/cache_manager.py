@@ -263,6 +263,11 @@ class ThreadSafeIconCache:
             key = self._key(icon_name, theme)
             entry = self._path_cache.get(key)
             if entry is None:
+                # miss: записи нет
+                try:
+                    self.metrics.record_miss()
+                except Exception:  # noqa: BLE001
+                    pass
                 return None
 
             ttl = self._ttl_icon
@@ -270,10 +275,18 @@ class ThreadSafeIconCache:
                 # Удаляем устаревшую запись
                 self._path_cache.pop(key, None)
                 self._path_lru.remove(key)
+                try:
+                    self.metrics.record_miss()
+                except Exception:  # noqa: BLE001
+                    pass
                 return None
 
             # Обновляем порядок доступа
             self._path_lru.access(key)
+            try:
+                self.metrics.record_hit()
+            except Exception:  # noqa: BLE001
+                pass
             return entry.path
 
     def set_path(self, icon_name: str, theme: str, path: Optional[str]) -> None:
@@ -305,6 +318,11 @@ class ThreadSafeIconCache:
             key = self._key(icon_name, theme)
             entry = self._qicon_cache.get(key)
             if entry is None:
+                # miss: записи нет
+                try:
+                    self.metrics.record_miss()
+                except Exception:  # noqa: BLE001
+                    pass
                 return None
 
             # TTL: для отрицательных записей используем отдельный (укороченный) TTL
@@ -316,10 +334,18 @@ class ThreadSafeIconCache:
                 # Удаляем устаревшую запись
                 self._qicon_cache.pop(key, None)
                 self._qicon_lru.remove(key)
+                try:
+                    self.metrics.record_miss()
+                except Exception:  # noqa: BLE001
+                    pass
                 return None
 
             # Обновляем порядок доступа
             self._qicon_lru.access(key)
+            try:
+                self.metrics.record_hit()
+            except Exception:  # noqa: BLE001
+                pass
             return entry.icon
 
     def set_qicon(
@@ -429,6 +455,9 @@ class ThreadSafeIconCache:
                 # Если передан "сырой" ключ без префикса, пробуем удалить из обеих таблиц
                 self._path_cache.pop(key, None)
                 self._qicon_cache.pop(key, None)
+                # Также удаляем из LRU-структур, чтобы не было рассинхронизации
+                self._path_lru.remove(key)
+                self._qicon_lru.remove(key)
                 return
             k = self._key(icon_name, theme)
             if prefix == "path":
