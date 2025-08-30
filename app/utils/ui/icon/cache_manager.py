@@ -106,14 +106,11 @@ CacheMetrics = _ExternalCacheMetrics or _FallbackCacheMetrics
 # --- Типы записей кэша ---
 
 
-def _is_entry_valid(
-    timestamp: float, negative: bool, ttl_seconds: Optional[float]
-) -> bool:
+def _is_entry_valid(timestamp: float, ttl_seconds: Optional[float]) -> bool:
     """Проверка валидности записи по TTL.
 
-    minimal, предсказуемая логика: запись валидна, если ttl не задан или
-    текущее время минус timestamp меньше ttl. Флаг negative зарезервирован
-    для возможной дифференциации, но сейчас на логику не влияет.
+    Минимальная предсказуемая логика: запись валидна, если ttl не задан или
+    текущее время минус timestamp меньше ttl.
     """
     if ttl_seconds is None:
         return True
@@ -136,7 +133,7 @@ class PathCacheEntry:
     negative: bool = False
 
     def is_valid(self, ttl_seconds: Optional[float]) -> bool:
-        return _is_entry_valid(self.timestamp, self.negative, ttl_seconds)
+        return _is_entry_valid(self.timestamp, ttl_seconds)
 
 
 @dataclass
@@ -148,7 +145,7 @@ class IconCacheEntry:
     negative: bool = False
 
     def is_valid(self, ttl_seconds: Optional[float]) -> bool:
-        return _is_entry_valid(self.timestamp, self.negative, ttl_seconds)
+        return _is_entry_valid(self.timestamp, ttl_seconds)
 
 
 # --- Потокобезопасный кэш ---

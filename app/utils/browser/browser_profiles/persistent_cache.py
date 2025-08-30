@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+import os
 import threading
 import time
 from pathlib import Path
@@ -52,13 +53,30 @@ class PersistentProfileCache(BaseCache):
             self._path.parent.mkdir(parents=True, exist_ok=True)
 
     def _dump_to_disk(self) -> None:
-        # Сохраняем только значения (без внутренних полей)
-        data: Dict[str, Any] = {}
-        for key, rec in self._store.items():
-            data[key] = rec.value
+        # Сохраняем только значения (без внутренних полей) атомарно
+        data: Dict[str, Any] = {key: rec.value for key, rec in self._store.items()}
         self._ensure_dirs()
-        with self._path.open("w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        tmp_path = self._path.with_suffix(self._path.suffix + ".tmp")
+        try:
+            # 1) Пишем во временный файл
+            with tmp_path.open("w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+                try:
+                    f.flush()
+                    os.fsync(f.fileno())  # по возможности синхронизируем на диск
+                except Exception:
+                    # На некоторых ФС/ОС fsync может быть не нужен/недоступен — игнорируем
+                    pass
+            # 2) Атомарно заменяем основной файл
+            os.replace(str(tmp_path), str(self._path))
+        except Exception:
+            # При любой ошибке пытаемся удалить временный файл, основной не трогаем
+            try:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except Exception:
+                pass
+            raise
 
     # --- BaseCache API ---
     def get(self, key: str) -> Optional[Any]:

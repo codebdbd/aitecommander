@@ -25,25 +25,28 @@ class CacheManager:
     ):
         # Поддерживаем обратную совместимость: если логгер не передан, используем модульный
         self.logger = logger or globals().get("logger") or logging.getLogger(__name__)
-        self._first_category_id_cache: Optional[int] = None
         # Универсальное хранилище кэша по ключам с TTL/LRU
         self._cache = InMemoryCache(default_ttl=ttl, max_size=max_size)
 
     def get_first_category_id(self) -> Optional[int]:
         """Получает кэшированный ID первой категории."""
-        return self._first_category_id_cache
+        return self._cache.get("first_category_id")
 
     def set_first_category_id(self, category_id: Optional[int]) -> None:
         """Устанавливает кэшированный ID первой категории."""
-        self._first_category_id_cache = category_id
-        if category_id is not None:
-            self.logger.debug(f"Кэширован ID первой категории: {category_id}")
+        if category_id is None:
+            # Сбрасываем ключ, если None
+            self._cache.invalidate("first_category_id")
+            self.logger.debug("Сброшен кэш ID первой категории (None)")
+            return
+        # Используем единый кэш с дефолтным TTL
+        self._cache.set("first_category_id", int(category_id))
+        self.logger.debug(f"Кэширован ID первой категории: {category_id}")
 
     def invalidate_first_category_cache(self) -> None:
         """Инвалидирует кэш первой категории при изменениях в категориях."""
-        if self._first_category_id_cache is not None:
-            self.logger.debug("Инвалидирован кэш первой категории")
-            self._first_category_id_cache = None
+        self._cache.invalidate("first_category_id")
+        self.logger.debug("Инвалидирован кэш первой категории")
 
     # =============================
     # Универсальные операции кэширования
@@ -68,5 +71,4 @@ class CacheManager:
 
     def clear_all(self) -> None:
         """Очищает весь кэш."""
-        self._first_category_id_cache = None
         self.invalidate()
