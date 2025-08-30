@@ -121,6 +121,11 @@ class FaviconCache(BaseCache):
     # Реализация BaseCache
     def get(self, key: str) -> Optional[Any]:
         with self._lock:
+            # Гарантируем, что каталог пользовательских иконок создан
+            try:
+                icon_path_service.ensure_user_icons_dir()
+            except Exception:  # noqa: BLE001
+                pass
             path = _db_path()
             lock_path = f"{path}.lock"
             with _file_lock(lock_path):
@@ -141,6 +146,11 @@ class FaviconCache(BaseCache):
 
     def set(self, key: str, value: Any, *, ttl: Optional[float] = None) -> None:
         with self._lock:
+            # Гарантируем, что каталог пользовательских иконок создан
+            try:
+                icon_path_service.ensure_user_icons_dir()
+            except Exception:  # noqa: BLE001
+                pass
             path = _db_path()
             lock_path = f"{path}.lock"
             with _file_lock(lock_path):
@@ -158,6 +168,11 @@ class FaviconCache(BaseCache):
 
     def invalidate(self, key: Optional[str] = None) -> None:
         with self._lock:
+            # Гарантируем, что каталог пользовательских иконок создан
+            try:
+                icon_path_service.ensure_user_icons_dir()
+            except Exception:  # noqa: BLE001
+                pass
             path = _db_path()
             lock_path = f"{path}.lock"
             with _file_lock(lock_path):

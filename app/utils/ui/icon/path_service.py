@@ -12,7 +12,7 @@ from typing import Any, Optional, Tuple
 from app.config_data import app_config
 
 from .cache_manager import get_path, set_path
-from .negative_cache import is_negative, mark_negative, maybe_decay_strikes
+from .negative_cache import is_negative, mark_negative
 from .metrics import CacheMetrics
 from .validation import (
     _validate_icon_name,
