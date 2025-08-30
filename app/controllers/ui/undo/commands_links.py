@@ -64,12 +64,20 @@ class SaveLinkCmd(BaseCommand):
                         self.old_data or {}
                     ).get("category_id")
                     if isinstance(cat_id, int) and cat_id > 0:
-                        ui_state = getattr(self.main, "ui_state", None)
-                        if ui_state:
-                            ui_state.update_category_without_stack_switch(cat_id)
+                        ctrl = getattr(self.main, "links_table_controller", None)
+                        if ctrl:
+                            ctrl.reload(cat_id)
+                        else:
+                            # Фолбэк без прямого UI: грузим данные через бизнес-слой
+                            links_business = getattr(self.main, "links_business", None)
+                            if links_business:
+                                try:
+                                    links_business.load_links(cat_id)
+                                except Exception:
+                                    pass
             except Exception as exc:
                 logger.warning(
-                    "SaveLinkCmd.redo: update_category_without_stack_switch failed: %s",
+                    "SaveLinkCmd.redo: reload failed: %s",
                     exc,
                 )
 
@@ -101,12 +109,19 @@ class SaveLinkCmd(BaseCommand):
                     "category_id"
                 )
                 if isinstance(cat_id, int) and cat_id > 0:
-                    ui_state = getattr(self.main, "ui_state", None)
-                    if ui_state:
-                        ui_state.load_category(cat_id, source="undo/redo")
+                    ctrl = getattr(self.main, "links_table_controller", None)
+                    if ctrl:
+                        ctrl.reload(cat_id)
+                    else:
+                        links_business = getattr(self.main, "links_business", None)
+                        if links_business:
+                            try:
+                                links_business.load_links(cat_id)
+                            except Exception:
+                                pass
         except Exception as exc:
             logger.warning(
-                "SaveLinkCmd.undo: update_category_without_stack_switch failed: %s",
+                "SaveLinkCmd.undo: reload failed: %s",
                 exc,
             )
 
@@ -132,12 +147,19 @@ class BatchDeleteLinksCmd(BaseCommand):
             if not getattr(self, "_suppress_ui", False):
                 cat_id = (self.links[0] if self.links else {}).get("category_id")
                 if isinstance(cat_id, int) and cat_id > 0:
-                    ui_state = getattr(self.main, "ui_state", None)
-                    if ui_state:
-                        ui_state.load_category(cat_id, source="undo/redo")
+                    ctrl = getattr(self.main, "links_table_controller", None)
+                    if ctrl:
+                        ctrl.reload(cat_id)
+                    else:
+                        links_business = getattr(self.main, "links_business", None)
+                        if links_business:
+                            try:
+                                links_business.load_links(cat_id)
+                            except Exception:
+                                pass
         except Exception as exc:
             logger.warning(
-                "BatchDeleteLinksCmd.redo: update_category_without_stack_switch failed: %s",
+                "BatchDeleteLinksCmd.redo: reload failed: %s",
                 exc,
             )
 
@@ -156,12 +178,19 @@ class BatchDeleteLinksCmd(BaseCommand):
             if not getattr(self, "_suppress_ui", False):
                 cat_id = (self.links[0] if self.links else {}).get("category_id")
                 if isinstance(cat_id, int) and cat_id > 0:
-                    ui_state = getattr(self.main, "ui_state", None)
-                    if ui_state:
-                        ui_state.load_category(cat_id, source="undo/redo")
+                    ctrl = getattr(self.main, "links_table_controller", None)
+                    if ctrl:
+                        ctrl.reload(cat_id)
+                    else:
+                        links_business = getattr(self.main, "links_business", None)
+                        if links_business:
+                            try:
+                                links_business.load_links(cat_id)
+                            except Exception:
+                                pass
         except Exception as exc:
             logger.warning(
-                "BatchDeleteLinksCmd.undo: update_category_without_stack_switch failed: %s",
+                "BatchDeleteLinksCmd.undo: reload failed: %s",
                 exc,
             )
 
@@ -188,12 +217,19 @@ class DeleteLinkCmd(BaseCommand):
             if not getattr(self, "_suppress_ui", False):
                 cat_id = self.link.get("category_id")
                 if isinstance(cat_id, int) and cat_id > 0:
-                    ui_state = getattr(self.main, "ui_state", None)
-                    if ui_state:
-                        ui_state.load_category(cat_id, source="undo/redo")
+                    ctrl = getattr(self.main, "links_table_controller", None)
+                    if ctrl:
+                        ctrl.reload(cat_id)
+                    else:
+                        links_business = getattr(self.main, "links_business", None)
+                        if links_business:
+                            try:
+                                links_business.load_links(cat_id)
+                            except Exception:
+                                pass
         except Exception as exc:
             logger.warning(
-                "DeleteLinkCmd.redo: update_category_without_stack_switch failed: %s",
+                "DeleteLinkCmd.redo: reload failed: %s",
                 exc,
             )
 
@@ -215,12 +251,19 @@ class DeleteLinkCmd(BaseCommand):
                 if not getattr(self, "_suppress_ui", False):
                     cat_id = self.link.get("category_id")
                     if isinstance(cat_id, int) and cat_id > 0:
-                        ui_state = getattr(self.main, "ui_state", None)
-                        if ui_state:
-                            ui_state.load_category(cat_id, source="undo/redo")
+                        ctrl = getattr(self.main, "links_table_controller", None)
+                        if ctrl:
+                            ctrl.reload(cat_id)
+                        else:
+                            links_business = getattr(self.main, "links_business", None)
+                            if links_business:
+                                try:
+                                    links_business.load_links(cat_id)
+                                except Exception:
+                                    pass
             except Exception as exc:
                 logger.warning(
-                    "DeleteLinkCmd.undo: update_category_without_stack_switch failed: %s",
+                    "DeleteLinkCmd.undo: reload failed: %s",
                     exc,
                 )
 
@@ -256,12 +299,16 @@ class BatchSaveLinksCmd(BaseCommand):
                     "category_id"
                 )
                 if isinstance(cat_id, int) and cat_id > 0:
-                    ui_state = getattr(self.main, "ui_state", None)
-                    if ui_state:
-                        ui_state.load_category(cat_id, source="undo/redo")
+                    ctrl = getattr(self.main, "links_table_controller", None)
+                    if ctrl:
+                        ctrl.reload(cat_id)
+                    else:
+                        ui_state = getattr(self.main, "ui_state", None)
+                        if ui_state:
+                            ui_state.load_category(cat_id, source="undo/redo")
         except Exception as exc:
             logger.warning(
-                "BatchSaveLinksCmd.redo: update_category_without_stack_switch failed: %s",
+                "BatchSaveLinksCmd.redo: reload failed: %s",
                 exc,
             )
 
@@ -278,11 +325,18 @@ class BatchSaveLinksCmd(BaseCommand):
                     "category_id"
                 )
                 if isinstance(cat_id, int) and cat_id > 0:
-                    ui_state = getattr(self.main, "ui_state", None)
-                    if ui_state:
-                        ui_state.load_category(cat_id, source="undo/redo")
+                    ctrl = getattr(self.main, "links_table_controller", None)
+                    if ctrl:
+                        ctrl.reload(cat_id)
+                    else:
+                        links_business = getattr(self.main, "links_business", None)
+                        if links_business:
+                            try:
+                                links_business.load_links(cat_id)
+                            except Exception:
+                                pass
         except Exception as exc:
             logger.warning(
-                "BatchSaveLinksCmd.undo: update_category_without_stack_switch failed: %s",
+                "BatchSaveLinksCmd.undo: reload failed: %s",
                 exc,
             )

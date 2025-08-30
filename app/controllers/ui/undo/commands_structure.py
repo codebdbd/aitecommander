@@ -137,7 +137,7 @@ class DeleteSectionCmd(BaseCommand):
         try:
             self.structure_service.import_section_tree(self._backup_tree)
             section_id = self._backup_tree["section"]["id"]
-            # Если есть восстановленные категории — выберем первую и обновим таблицу ссылок
+            # Если есть восстановленные категории — выберем первую
             try:
                 categories = self._backup_tree.get("categories") or []
                 first_cat = None
@@ -148,15 +148,6 @@ class DeleteSectionCmd(BaseCommand):
                         break
                 if first_cat is not None:
                     cat_id = first_cat.get("id")
-                    try:
-                        ui_state = getattr(self.main, "ui_state", None)
-                        if ui_state:
-                            ui_state.update_category_without_stack_switch(cat_id)
-                    except Exception as exc:
-                        logger.warning(
-                            "DeleteSectionCmd.undo: update_category_without_stack_switch failed: %s",
-                            exc,
-                        )
                     try:
                         business = getattr(self.main, "structure_business", None)
                         if business:
@@ -406,16 +397,7 @@ class DeleteCategoryCmd(BaseCommand):
         try:
             self.structure_service.import_category_tree(self._backup_tree)
             category_id = self.category.get("id")
-            # После восстановления сразу обновим таблицу ссылок для восстановленной категории
-            try:
-                ui_state = getattr(self.main, "ui_state", None)
-                if ui_state:
-                    ui_state.update_category_without_stack_switch(category_id)
-            except Exception as exc:
-                logger.warning(
-                    "DeleteCategoryCmd.undo: update_category_without_stack_switch failed: %s",
-                    exc,
-                )
+            # После восстановления выбираем категорию через бизнес-логику (UI обновится через подписчиков)
             try:
                 business = getattr(self.main, "structure_business", None)
                 if business:
@@ -691,14 +673,6 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                 try:
                     if category_id_for_focus is not None:
                         business.select_category(category_id_for_focus)
-                        try:
-                            ui_state = getattr(self.main, "ui_state", None)
-                            if ui_state:
-                                ui_state.update_category_without_stack_switch(
-                                    category_id_for_focus
-                                )
-                        except Exception:
-                            pass
                 except Exception:
                     pass
                 # Инкрементальное обновление — без полной перезагрузки

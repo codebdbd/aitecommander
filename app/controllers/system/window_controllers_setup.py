@@ -19,8 +19,10 @@ from app.controllers.ui.dialogs.link_operations_controller import (
 )
 from app.controllers.ui.dialogs.system_dialog_controller import SystemDialogController
 from app.controllers.ui.links.controller import LinksUIController
+from app.controllers.ui.links.table_controller import LinksTableController
 from app.controllers.ui.links.links_actions import LinksActions
 from app.controllers.ui.state.ui_state_manager import UIStateManager
+from app.controllers.ui.category_tiles_controller import CategoryTilesController
 from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
 from app.controllers.ui.structure.structure_ui_controller import StructureUIController
 from app.controllers.ui.top_panels_controller import TopPanelsController
@@ -35,6 +37,44 @@ class SetupError(Exception):
     """Ошибки настройки компонентов окна."""
 
     pass
+
+
+# Дребезг-обновление верхних панелей, чтобы не вызывать refresh_all лавинообразно
+_TOP_PANELS_REFRESH_DEBOUNCE_MS = 150
+
+
+def _do_panels_refresh(window) -> None:
+    """Внутренняя функция выполнения обновления верхних панелей."""
+    try:
+        setattr(window, "_pending_top_panels_refresh", False)
+    except Exception:
+        pass
+    try:
+        ctrl = getattr(window, "top_panels_controller", None)
+        if ctrl:
+            ctrl.refresh_all()
+    except Exception as e:
+        logger.warning(f"Failed to refresh top panels: {e}")
+
+
+def _request_panels_refresh(window, delay_ms: int | None = None) -> None:
+    """Запросить обновление верхних панелей с дебаунсом.
+
+    Если обновление уже запланировано, повторный запрос игнорируется до срабатывания таймера.
+    """
+    try:
+        if getattr(window, "_pending_top_panels_refresh", False):
+            return
+        setattr(window, "_pending_top_panels_refresh", True)
+        QTimer.singleShot(int(delay_ms or _TOP_PANELS_REFRESH_DEBOUNCE_MS), lambda: _do_panels_refresh(window))
+    except Exception:
+        # Fallback на прямой вызов, если что-то пошло не так
+        try:
+            ctrl = getattr(window, "top_panels_controller", None)
+            if ctrl:
+                ctrl.refresh_all()
+        except Exception:
+            pass
 
 
 def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
@@ -88,6 +128,22 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     window.ui_state = UIStateManager(window)
     controllers["ui_state"] = window.ui_state
 
+    # Контроллер плиток категорий
+    try:
+        window.category_tiles_controller = CategoryTilesController(
+            window, structure_business
+        )
+        controllers["category_tiles_controller"] = window.category_tiles_controller
+    except Exception as e:
+        logger.error(f"Failed to create CategoryTilesController: {e}")
+
+    # Контроллер таблицы ссылок (централизация обновлений)
+    try:
+        window.links_table_controller = LinksTableController(window, links_ctrl)
+        controllers["links_table_controller"] = window.links_table_controller
+    except Exception as e:
+        logger.error(f"Failed to create LinksTableController: {e}")
+
     # Контроллер действий
     window.action_controller = ActionController(window)
     controllers["action_controller"] = window.action_controller
@@ -105,6 +161,19 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
         controllers["top_panels_controller"] = window.top_panels_controller
     except Exception as e:
         logger.error(f"Failed to create TopPanelsController: {e}")
+
+    # Подключение сигналов LinkOperationsController к централизованным обновлениям UI
+    try:
+        link_ops = controllers.get("link_operations")
+        links_table_ctrl = controllers.get("links_table_controller")
+        if link_ops:
+            if links_table_ctrl:
+                # При изменении ссылок в категории перезагружаем таблицу через контроллер
+                link_ops.links_changed.connect(lambda cat_id: links_table_ctrl.reload(cat_id))
+            # Изменение избранного отражаем через обновление верхних панелей с дебаунсом
+            link_ops.favorites_changed.connect(lambda: _request_panels_refresh(window))
+    except Exception as e:
+        logger.warning(f"Failed to connect LinkOperationsController signals: {e}")
 
 
 def setup_ui_elements(window, controllers: Dict[str, Any]) -> None:
@@ -346,20 +415,18 @@ def _connect_structure_signals(window) -> None:
         )
     except Exception:
         pass
-    # При смене сферы обновляем верхние панели (Избранное/Недавние) через контроллер
+    # При смене сферы запрашиваем обновление верхних панелей с дебаунсом
     try:
         window.structure_business.active_sphere_changed.connect(
-            lambda *_: getattr(window, "top_panels_controller", None)
-            and window.top_panels_controller.refresh_all()
+            lambda *_: _request_panels_refresh(window)
         )
     except Exception:
         pass
 
-    # После загрузки структуры также обновляем верхние панели
+    # После загрузки структуры также дебаунсим обновление верхних панелей
     try:
         window.structure_business.structure_loaded.connect(
-            lambda *_: getattr(window, "top_panels_controller", None)
-            and window.top_panels_controller.refresh_all()
+            lambda *_: _request_panels_refresh(window)
         )
     except Exception:
         pass
@@ -371,18 +438,16 @@ def _connect_structure_signals(window) -> None:
         lambda cat_id: window.ui_state.load_category(cat_id, source="StructureBusiness")
     )
 
-    # Дополнительно обновляем верхние панели при выборе раздела/категории
+    # Дополнительно дебаунсим обновление верхних панелей при выборе раздела/категории
     try:
         window.structure_business.section_selected.connect(
-            lambda *_: getattr(window, "top_panels_controller", None)
-            and window.top_panels_controller.refresh_all()
+            lambda *_: _request_panels_refresh(window)
         )
     except Exception:
         pass
     try:
         window.structure_business.category_selected.connect(
-            lambda *_: getattr(window, "top_panels_controller", None)
-            and window.top_panels_controller.refresh_all()
+            lambda *_: _request_panels_refresh(window)
         )
     except Exception:
         pass
@@ -476,8 +541,22 @@ class DatabaseEventHandler:
 
         # Обновляем таблицу ссылок, если выбрана категория
         category_id = window.get_current_category_id()
-        if category_id and hasattr(window, "ui_state") and window.ui_state:
-            window.ui_state.update_category_without_stack_switch(category_id)
+        if category_id:
+            try:
+                ctrl = getattr(window, "links_table_controller", None)
+                if ctrl:
+                    ctrl.reload(category_id)
+                else:
+                    # Фолбэк без прямого UI: загрузка через бизнес-логику
+                    links_business = getattr(window, "links_business", None)
+                    if links_business:
+                        try:
+                            links_business.load_links(category_id)
+                        except Exception:
+                            pass
+            except Exception:
+                # Последний фолбэк — тихо игнорируем, чтобы не сломать обработчик
+                pass
 
     @staticmethod
     def _update_controllers_with_new_db(window, new_db):
@@ -531,8 +610,20 @@ class DatabaseEventHandler:
     def _restore_ui_state(window):
         """Восстановить состояние UI после смены БД."""
         category_id = window.get_current_category_id()
-        if category_id and hasattr(window, "ui_state") and window.ui_state:
-            window.ui_state.update_category_without_stack_switch(category_id)
+        if category_id:
+            try:
+                ctrl = getattr(window, "links_table_controller", None)
+                if ctrl:
+                    ctrl.reload(category_id)
+                else:
+                    links_business = getattr(window, "links_business", None)
+                    if links_business:
+                        try:
+                            links_business.load_links(category_id)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
 
 
 class MessageHandler:

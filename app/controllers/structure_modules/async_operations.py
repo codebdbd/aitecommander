@@ -604,9 +604,10 @@ class AsyncSignalHandlers:
             if hasattr(self.controller, "categories_loaded"):
                 self.controller.categories_loaded.emit(categories, section_id)
             else:
-                # Fallback на старое поведение, если новый сигнал не поддерживается контроллером
+                # Fallback: если у контроллера нет нового сигнала categories_loaded,
+                # ретранслируем уведомление о выборе раздела без передачи категорий
                 if hasattr(self.controller, "section_selected"):
-                    self.controller.section_selected.emit(section_id, categories)
+                    self.controller.section_selected.emit(section_id)
         except Exception as e:
             self.logger.error(
                 f"Ошибка в обработчике on_categories_loaded: {e}", exc_info=True

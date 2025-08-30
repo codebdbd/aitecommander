@@ -237,10 +237,11 @@ class LinksUIController(QObject):
         if not category_id:
             return
         try:
-            if hasattr(self.main, "ui_state") and self.main.ui_state:
-                self.main.ui_state.update_category_without_stack_switch(category_id)
+            ctrl = getattr(self.main, "links_table_controller", None)
+            if ctrl:
+                ctrl.reload(category_id)
             else:
-                # Fallback: только бизнес-логика без UI координации
+                # Fallback: только бизнес-логика без прямого UI
                 self.business.load_links(category_id)
         except Exception as e:
             logger.error(f"Failed to reload category (id={category_id}): {e}")
@@ -292,7 +293,15 @@ class LinksUIController(QObject):
             self.on_favorites_refresh_requested()
             # Также можно обновить таблицу текущей категории, если нужно
             category_id = self.main.get_current_category_id()
-            if category_id and hasattr(self.main, "ui_state") and self.main.ui_state:
-                self.main.ui_state.update_category_without_stack_switch(category_id)
+            if category_id:
+                try:
+                    ctrl = getattr(self.main, "links_table_controller", None)
+                    if ctrl:
+                        ctrl.reload(category_id)
+                    else:
+                        # Fallback: только бизнес-логика без прямого UI
+                        self.business.load_links(category_id)
+                except Exception as e:
+                    logger.debug(f"Failed to reload after favorites clear: {e}")
         except Exception as e:
             logger.error(f"Failed to clear favorites: {e}")
