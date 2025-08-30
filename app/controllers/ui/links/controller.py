@@ -21,14 +21,26 @@ class LinksUIController(QObject):
         table_widget: LinksTableView,
         business_logic: LinksBusinessLogic,
         main_window,
+        *,
         link_operations=None,
+        links_table_controller=None,
     ):
         super().__init__()
+        if table_widget is None:
+            logger.error("LinksUIController: table_widget is required")
+            raise ValueError("LinksUIController: table_widget is required")
+        if business_logic is None:
+            logger.error("LinksUIController: business_logic is required")
+            raise ValueError("LinksUIController: business_logic is required")
+        if links_table_controller is None:
+            logger.error("LinksUIController: links_table_controller is required")
+            raise ValueError("LinksUIController: links_table_controller is required")
         self.table = table_widget
         self.business = business_logic
         self.main = main_window
         self._row_by_link_id: dict[int, int] = {}
         self.link_operations = link_operations
+        self.table_controller = links_table_controller
 
         # Инициализация подмодулей с явной зависимостью link_operations
         self.handlers = LinksUIHandlers(self, link_operations=link_operations)
@@ -227,17 +239,12 @@ class LinksUIController(QObject):
             logger.debug(f"rebuild_row_index failed: {e}")
 
     def _reload_current_category(self) -> None:
-        """Централизованная перезагрузка текущей категории через UIStateManager или бизнес-логику."""
+        """Централизованная перезагрузка текущей категории через LinksTableController."""
         category_id = self.main.get_current_category_id()
         if not category_id:
             return
         try:
-            ctrl = getattr(self.main, "links_table_controller", None)
-            if ctrl:
-                ctrl.reload(category_id)
-            else:
-                # Fallback: только бизнес-логика без прямого UI
-                self.business.load_links(category_id)
+            self.table_controller.reload(category_id)
         except Exception as e:
             logger.error(f"Failed to reload category (id={category_id}): {e}")
 

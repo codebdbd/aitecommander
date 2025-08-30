@@ -23,7 +23,13 @@ class LinksTableController(QObject):
         :param table: виджет таблицы ссылок, должен иметь метод update_link_by_id(dict)
         :param links_business: бизнес-логика ссылок с методом load_links(category_id)
         """
-        super().__init__(parent=main_window)
+        # В тестах main_window может быть SimpleNamespace — не передаём его как QObject-родителя
+        try:
+            from PyQt6.QtCore import QObject as _QtQObject  # локальный импорт для безопасности
+            parent = main_window if isinstance(main_window, _QtQObject) else None
+        except Exception:
+            parent = None
+        super().__init__(parent=parent)
         self.main = main_window
         self.table = table
         self.business = links_business

@@ -40,9 +40,20 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     links_business = LinksBusinessLogic(db)
 
     structure_ctrl = StructureUIController(window.tree, structure_business, window)
-    # Создаём link_operations до LinksUIController, чтобы явно передать зависимость
+    # Создаём link_operations и links_table_controller до LinksUIController, чтобы явно передать зависимости
     link_ops = LinkOperationsController(db, window.undo_stack, window)
-    links_ctrl = LinksUIController(window.table, links_business, window, link_operations=link_ops)
+    links_table_ctrl = LinksTableController(
+        window,
+        table=window.table,
+        links_business=links_business,
+    )
+    links_ctrl = LinksUIController(
+        window.table,
+        links_business,
+        window,
+        link_operations=link_ops,
+        links_table_controller=links_table_ctrl,
+    )
     db_ctrl = DatabaseController(db, window)
     sys_dialogs = SystemDialogController(window)
     app_shutdown = AppShutdownController(window)
@@ -54,6 +65,7 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
             "links_business": links_business,
             "links": links_ctrl,
             "link_operations": link_ops,
+            "links_table_controller": links_table_ctrl,
             "database_controller": db_ctrl,
             "system_dialogs": sys_dialogs,
             "app_shutdown": app_shutdown,
@@ -84,21 +96,17 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
         window.category_tiles_controller = CategoryTilesController(
             ui_state=controllers["ui_state"],
             structure_business=structure_business,
-            tiles_widget=getattr(window, "tiles", None),
+            tiles_widget=window.tiles,
         )
         controllers["category_tiles_controller"] = window.category_tiles_controller
     except Exception as e:
         logger.error(f"Failed to create CategoryTilesController: {e}")
 
     try:
-        window.links_table_controller = LinksTableController(
-            window,
-            table=window.table,
-            links_business=links_business,
-        )
+        window.links_table_controller = links_table_ctrl
         controllers["links_table_controller"] = window.links_table_controller
     except Exception as e:
-        logger.error(f"Failed to create LinksTableController: {e}")
+        logger.error(f"Failed to assign LinksTableController: {e}")
 
     window.action_controller = ActionController(window)
     controllers["action_controller"] = window.action_controller
@@ -410,19 +418,38 @@ def _connect_structure_signals(window) -> None:
         except Exception as e:
             logger.warning(f"Failed to trigger structure reload: {e}")
 
-    # Найдём контроллер верхних панелей один раз и подключим его request_refresh
+    # Найдём контроллер верхних панелей и настроим агрегирующий дебаунс-обработчик
     top_ctrl = getattr(window, "top_panels_controller", None)
 
+    # Планировщик единого обновления верхних панелей при каскадных структурных событиях
     try:
-        window.structure_business.active_sphere_changed.connect(_on_active_sphere_changed)
         if top_ctrl:
-            window.structure_business.active_sphere_changed.connect(top_ctrl.request_refresh)
-    except (AttributeError, TypeError):
-        pass
+            if not hasattr(window, "_top_panels_struct_timer"):
+                window._top_panels_struct_timer = QTimer(window)
+                window._top_panels_struct_timer.setInterval(200)
+                window._top_panels_struct_timer.setSingleShot(True)
 
-    try:
-        if top_ctrl:
-            window.structure_business.structure_loaded.connect(top_ctrl.request_refresh)
+                def _do_top_panels_refresh():
+                    try:
+                        top_ctrl.request_refresh()
+                    except Exception:
+                        pass
+
+                window._top_panels_struct_timer.timeout.connect(_do_top_panels_refresh)
+
+            def _on_structure_changed_schedule_refresh(*_args):
+                try:
+                    window._top_panels_struct_timer.start()
+                except Exception:
+                    # Fallback: если таймер недоступен, выполнить немедленно единичное обновление
+                    try:
+                        top_ctrl.request_refresh()
+                    except Exception:
+                        pass
+
+            # Подключаем только действительно влияющие на панели события
+            window.structure_business.active_sphere_changed.connect(_on_structure_changed_schedule_refresh)
+            window.structure_business.structure_loaded.connect(_on_structure_changed_schedule_refresh)
     except (AttributeError, TypeError):
         pass
     window.structure.item_changed.connect(window.on_structure_item_changed)
@@ -432,16 +459,7 @@ def _connect_structure_signals(window) -> None:
     # StructureUIController.SelectionHandling._on_category_selected,
     # поэтому прямое подключение к UIStateManager здесь не требуется.
 
-    try:
-        if top_ctrl:
-            window.structure_business.section_selected.connect(top_ctrl.request_refresh)
-    except (AttributeError, TypeError):
-        pass
-    try:
-        if top_ctrl:
-            window.structure_business.category_selected.connect(top_ctrl.request_refresh)
-    except (AttributeError, TypeError):
-        pass
+    # Удалены прямые подключения к section_selected/category_selected, т.к. не влияют на данные верхних панелей
     window._structure_signals_connected = True
 
 
