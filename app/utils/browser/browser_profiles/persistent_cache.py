@@ -16,7 +16,13 @@ from typing import Any, Dict, Optional
 from app.utils.cache.base import BaseCache, CacheRecord
 from app.config_data import app_config
 
-from .profile_cache import get_cache_path  # используем тот же путь
+def get_cache_path() -> Path:
+    """Возвращает путь к файлу кэша профилей браузеров.
+
+    Остаётся совместимым с прежним расположением: browser_profiles.json
+    в config-директории пользователя.
+    """
+    return app_config.paths.get_config_dir() / "browser_profiles.json"
 
 
 class PersistentProfileCache(BaseCache):

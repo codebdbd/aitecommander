@@ -235,8 +235,8 @@ def main():
         try:
             from app.utils.browser.browser_profiles import async_profile_manager as _apm
 
-            # Ленивый импорт профайл-кеша, чтобы избежать излишних зависимостей на старте
-            from app.utils.browser.browser_profiles import profile_cache as _pc
+            # Ленивый импорт: используем только PersistentProfileCache
+            from app.utils.browser.browser_profiles import persistent_cache as _pc
             from app.utils.browser.browser_profiles import profile_manager as _pm
 
             def _on_window_shown():
@@ -247,8 +247,13 @@ def main():
 
                         def _save_and_update(all_profiles: dict):
                             try:
-                                # Сохранить JSON
-                                _pc.save_profiles(all_profiles)
+                                # Сохранить в персистентный кэш
+                                cache = _pc.PersistentProfileCache(default_ttl=3600)
+                                for key, profiles in (all_profiles or {}).items():
+                                    try:
+                                        cache.set(key, profiles)
+                                    except Exception:
+                                        pass
                                 # Обновить кеш синхронного менеджера
                                 mgr = _pm.get_profile_manager()
                                 now = __import__("time").time()

@@ -12,7 +12,7 @@ from typing import Any, Optional, Tuple
 from app.config_data import app_config
 
 from .cache_manager import get_path, set_path
-from .negative_cache import is_negative, mark_negative
+from .negative_cache import negative_cache
 from .metrics import CacheMetrics
 from .validation import (
     _validate_icon_name,
@@ -244,7 +244,7 @@ class IconPathResolver:
         key = f"{norm_theme}:{icon_name.lower()}"
 
         # быстрый негативный кеш (единый модуль)
-        if is_negative(key):
+        if negative_cache.is_negative(key):
             logger.debug("Negative cache HIT: %s", key)
             try:
                 _ICON_METRICS.record_not_found()
@@ -420,7 +420,7 @@ def get_icon_path(icon_name: str, theme: str = "light") -> Optional[str]:
     norm_theme = validate_theme(theme)
     key = f"{norm_theme}:{icon_name.lower()}"
     set_path(icon_name, norm_theme, None)
-    mark_negative(key)
+    negative_cache.mark_negative(key)
     logger.debug("Icon path not found, cached negative: %s (%s)", icon_name, norm_theme)
     try:
         _ICON_METRICS.record_not_found()

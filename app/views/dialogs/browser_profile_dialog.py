@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 
 from app.utils.browser.browser_profiles import async_profile_manager as _apm
 from app.utils.browser.browser_profiles import get_profile_manager
-from app.utils.browser.browser_profiles import profile_cache as _pc
+from app.utils.browser.browser_profiles import persistent_cache as _pc
 from app.utils.browser.browser_profiles import profile_manager as _pm
 from app.utils.browser.browser_profiles.utils import get_browser_display_name
 
@@ -188,8 +188,13 @@ class BrowserProfileDialog(QDialog):
 
             def _on_ready(all_profiles: Dict[str, List[Dict]]):
                 try:
-                    # Сохранить JSON кэш
-                    _pc.save_profiles(all_profiles or {})
+                    # Сохранить профили в персистентный кэш
+                    cache = _pc.PersistentProfileCache(default_ttl=3600)
+                    for key, profiles in (all_profiles or {}).items():
+                        try:
+                            cache.set(key, profiles)
+                        except Exception:
+                            pass
                     # Обновить кэш синхронного менеджера (единый кэш)
                     mgr = _pm.get_profile_manager()
                     for key, profiles in (all_profiles or {}).items():
