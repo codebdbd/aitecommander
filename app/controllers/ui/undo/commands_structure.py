@@ -4,20 +4,20 @@ from __future__ import annotations
 import logging
 from typing import Dict, Optional
 
-from PyQt6.QtGui import QUndoCommand
+from app.controllers.ui.undo.base import BaseCommand, log_command
 
 from app.services.structure_service import StructureService
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 
 logger = logging.getLogger(__name__)
 
-class SaveSectionCmd(QUndoCommand):
+class SaveSectionCmd(BaseCommand):
     """Сохранение (создание/редактирование) раздела.
     Тонкая обёртка над DB с эмиссией сигналов business-слоя для UI.
     """
 
     def __init__(self, new_data: Dict, old_data: Optional[Dict], main_window):
-        super().__init__("Save section")
+        super().__init__("Save section", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
@@ -36,17 +36,18 @@ class SaveSectionCmd(QUndoCommand):
                 else:
                     business.item_updated.emit("section", self.new_id, self.new_data)
                 # Полная перезагрузка больше не требуется — модель обновится через сигналы
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("SaveSectionCmd.redo: delete guard check failed: %s", exc)
 
+    @log_command
     def redo(self):
         # Глобальная защита от удалений на время чувствительных операций (например, вставки)
         try:
             if getattr(self.main, "_suppress_deletes", False):
                 logger.debug("[DeleteGuard] DeleteSectionCmd.redo suppressed by _suppress_deletes flag")
                 return
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("SaveSectionCmd.redo: delete guard check failed: %s", exc)
         if self.is_new:
             result = self.structure_service.create_section(self.new_data)
             if result:
@@ -63,10 +64,11 @@ class SaveSectionCmd(QUndoCommand):
             business = getattr(self.main, "structure_business", None)
             if business:
                 business.select_section(self.new_id)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("SaveCategoryCmd.redo: select_category failed: %s", exc)
         self._emit_reload()
 
+    @log_command
     def undo(self):
         if self.is_new:
             # отменяем создание – удаляем раздел
@@ -78,8 +80,8 @@ class SaveSectionCmd(QUndoCommand):
                     if business:
                         business.item_deleted.emit("section", self.new_id)
                         # Инкрементальное обновление — без полной перезагрузки
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("SaveSectionCmd.undo: item_deleted emit failed: %s", exc)
         else:
             # откат редактирования – восстанавливаем старые данные
             if self.old_data:
@@ -90,8 +92,8 @@ class SaveSectionCmd(QUndoCommand):
                     business = getattr(self.main, "structure_business", None)
                     if business:
                         business.select_section(self.old_data["id"])
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("SaveSectionCmd.undo: select_section failed: %s", exc)
                 try:
                     business = getattr(self.main, "structure_business", None)
                     if business:
@@ -99,15 +101,15 @@ class SaveSectionCmd(QUndoCommand):
                             "section", self.old_data["id"], self.old_data
                         )
                         # Инкрементальное обновление — без полной перезагрузки
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("SaveSectionCmd.undo: item_updated emit failed: %s", exc)
 
 
-class DeleteSectionCmd(QUndoCommand):
+class DeleteSectionCmd(BaseCommand):
     """Удаление раздела с поддержкой полноценного восстановления (раздел+категории+ссылки)."""
 
     def __init__(self, section_data: Dict, main_window):
-        super().__init__("Delete section")
+        super().__init__("Delete section", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
@@ -147,23 +149,28 @@ class DeleteSectionCmd(QUndoCommand):
                 if first_cat is not None:
                     cat_id = first_cat.get("id")
                     try:
-                        self.main.structure.update_links_table(cat_id)
-                    except Exception:
-                        pass
+                        ui_state = getattr(self.main, "ui_state", None)
+                        if ui_state:
+                            ui_state.update_category_without_stack_switch(cat_id)
+                    except Exception as exc:
+                        logger.warning(
+                            "DeleteSectionCmd.undo: update_category_without_stack_switch failed: %s",
+                            exc,
+                        )
                     try:
                         business = getattr(self.main, "structure_business", None)
                         if business:
                             business.select_category(cat_id)
                     except Exception:
                         pass
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("DeleteSectionCmd.undo: categories handling failed: %s", exc)
             try:
                 business = getattr(self.main, "structure_business", None)
                 if business:
                     business.select_section(section_id)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("DeleteSectionCmd.undo: select_section failed: %s", exc)
             try:
                 business = getattr(self.main, "structure_business", None)
                 if business:
@@ -174,12 +181,12 @@ class DeleteSectionCmd(QUndoCommand):
             except Exception:
                 pass
             # Полной перезагрузки структуры не требуется: выше отправлены необходимые сигналы
-        except Exception:
+        except Exception as exc:
             # В случае сбоя восстановления — оставляем как есть, без исключений в UI
-            pass
+            logger.exception("DeleteSectionCmd.undo: restore failed: %s", exc)
 
 
-class SaveCategoryCmd(QUndoCommand):
+class SaveCategoryCmd(BaseCommand):
     """Сохранение (создание/редактирование) категории."""
 
     def __init__(
@@ -190,7 +197,7 @@ class SaveCategoryCmd(QUndoCommand):
         *,
         skip_reload: bool = False,
     ):
-        super().__init__("Save category")
+        super().__init__("Save category", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
@@ -210,8 +217,8 @@ class SaveCategoryCmd(QUndoCommand):
                 # Иконки категорий могли измениться — очищаем кэш, чтобы плитки перерисовали актуальные
                 try:
                     clear_icon_cache()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("SaveCategoryCmd._emit_reload: clear_icon_cache failed: %s", exc)
                 if self.is_new:
                     # Для категорий второй аргумент — parent_id (section_id)
                     parent_id = self.new_data.get("section_id")
@@ -219,9 +226,10 @@ class SaveCategoryCmd(QUndoCommand):
                 else:
                     business.item_updated.emit("category", self.new_id, self.new_data)
                 # Полная перезагрузка больше не требуется — модель обновится через сигналы
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("SaveCategoryCmd._emit_reload: emit failed: %s", exc)
 
+    @log_command
     def redo(self):
         if self.is_new:
             result = self.structure_service.create_category(self.new_data)
@@ -250,10 +258,11 @@ class SaveCategoryCmd(QUndoCommand):
                 business = getattr(self.main, "structure_business", None)
                 if business:
                     business.select_category(self.new_id)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("SaveCategoryCmd.redo: select_category failed: %s", exc)
         self._emit_reload()
 
+    @log_command
     def undo(self):
         if self.is_new:
             section_id = self.new_data.get("section_id")
@@ -264,15 +273,15 @@ class SaveCategoryCmd(QUndoCommand):
                     business = getattr(self.main, "structure_business", None)
                     if business:
                         business.select_section(section_id)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("SaveCategoryCmd.undo: select_section failed: %s", exc)
             try:
                 business = getattr(self.main, "structure_business", None)
                 if business:
                     business.item_deleted.emit("category", self.new_id)
                     # Инкрементальное обновление — без полной перезагрузки
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("SaveCategoryCmd.undo: item_deleted emit failed: %s", exc)
         else:
             if self.old_data:
                 self.structure_service.update_category(
@@ -283,8 +292,8 @@ class SaveCategoryCmd(QUndoCommand):
                         business = getattr(self.main, "structure_business", None)
                         if business:
                             business.select_category(self.old_data["id"])
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("SaveCategoryCmd.undo: select_category failed: %s", exc)
                 try:
                     business = getattr(self.main, "structure_business", None)
                     if business:
@@ -292,11 +301,11 @@ class SaveCategoryCmd(QUndoCommand):
                             "category", self.old_data["id"], self.old_data
                         )
                         # Инкрементальное обновление — без полной перезагрузки
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("SaveCategoryCmd.undo: item_updated emit failed: %s", exc)
 
 
-class DeleteCategoryCmd(QUndoCommand):
+class DeleteCategoryCmd(BaseCommand):
     """Удаление категории с восстановлением поддерева (категория+ссылки)."""
 
     def __init__(
@@ -307,7 +316,7 @@ class DeleteCategoryCmd(QUndoCommand):
         skip_reload: bool = False,
         lightweight_reload: bool = False,
     ):
-        super().__init__("Delete category")
+        super().__init__("Delete category", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
@@ -320,6 +329,7 @@ class DeleteCategoryCmd(QUndoCommand):
             self.category.get("id")
         )
 
+    @log_command
     def redo(self):
         # Глобальная защита от удалений на время чувствительных операций (например, вставки)
         try:
@@ -341,8 +351,8 @@ class DeleteCategoryCmd(QUndoCommand):
                 if business:
                     # Точечно уведомляем UI о удалении
                     business.item_deleted.emit("category", category_id)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("DeleteCategoryCmd.redo(skip_reload): item_deleted emit failed: %s", exc)
             return
 
         if self.lightweight_reload:
@@ -351,19 +361,19 @@ class DeleteCategoryCmd(QUndoCommand):
             try:
                 if business:
                     business.select_section(section_id)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("DeleteCategoryCmd.redo(lightweight): select_section failed: %s", exc)
             try:
                 if business:
                     try:
                         business._invalidate_categories_cache(section_id)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("DeleteCategoryCmd.redo(lightweight): invalidate cache failed: %s", exc)
                     business.select_section(section_id)
                     # В lightweight-режиме не вызываем clear_icon_cache() и load_structure()
                     business.item_deleted.emit("category", category_id)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("DeleteCategoryCmd.redo(lightweight): updates failed: %s", exc)
             return
 
         # Обычный одиночный сценарий: корректно обновляем UI и данные
@@ -374,32 +384,38 @@ class DeleteCategoryCmd(QUndoCommand):
                 try:
                     # внутренний метод, но безопасен для вызова из команды
                     business._invalidate_categories_cache(section_id)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("DeleteCategoryCmd.redo: invalidate cache failed: %s", exc)
                 business.select_section(section_id)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("DeleteCategoryCmd.redo: select_section failed: %s", exc)
         try:
             if business:
                 # При удалении также сбрасываем кэш иконок категорий
                 try:
                     clear_icon_cache()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("DeleteCategoryCmd.redo: clear_icon_cache failed: %s", exc)
                 business.item_deleted.emit("category", category_id)
                 # Инкрементальное обновление — без полной перезагрузки
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("DeleteCategoryCmd.redo: item_deleted emit failed: %s", exc)
 
+    @log_command
     def undo(self):
         try:
             self.structure_service.import_category_tree(self._backup_tree)
             category_id = self.category.get("id")
             # После восстановления сразу обновим таблицу ссылок для восстановленной категории
             try:
-                self.main.structure.update_links_table(category_id)
-            except Exception:
-                pass
+                ui_state = getattr(self.main, "ui_state", None)
+                if ui_state:
+                    ui_state.update_category_without_stack_switch(category_id)
+            except Exception as exc:
+                logger.warning(
+                    "DeleteCategoryCmd.undo: update_category_without_stack_switch failed: %s",
+                    exc,
+                )
             try:
                 business = getattr(self.main, "structure_business", None)
                 if business:
@@ -429,12 +445,12 @@ class DeleteCategoryCmd(QUndoCommand):
             except Exception:
                 pass
             # Полной перезагрузки структуры не требуется: выше отправлены точечные сигналы и выполнены выборы
-        except Exception:
+        except Exception as exc:
             # В случае сбоя восстановления — оставляем как есть
-            pass
+            logger.exception("DeleteCategoryCmd.undo: restore failed: %s", exc)
 
 
-class DeleteCategoriesBatchCmd(QUndoCommand):
+class DeleteCategoriesBatchCmd(BaseCommand):
     """Пакетное удаление нескольких категорий одной операцией.
 
     - Удаляет категории по списку ID через сервис одной транзакцией без промежуточных перезагрузок UI
@@ -443,7 +459,7 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
     """
 
     def __init__(self, categories_data: list[Dict], main_window):
-        super().__init__("Delete categories (batch)")
+        super().__init__("Delete categories (batch)", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
@@ -454,10 +470,12 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
         for cat in self.categories:
             try:
                 backup = self.structure_service.export_category_tree(cat.get("id"))
-            except Exception:
+            except Exception as exc:
+                logger.warning("DeleteCategoriesBatchCmd.__init__: export backup failed: %s", exc)
                 backup = None
             self._backups.append(backup)
 
+    @log_command
     def redo(self):
         # Глобальная защита от удалений на время чувствительных операций (например, вставки)
         try:
@@ -491,8 +509,9 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
                     pass
             if tree is not None:
                 tree.blockSignals(True)
-        except Exception:
+        except Exception as exc:
             tree = None
+            logger.debug("DeleteCategoriesBatchCmd.redo: suppress selection failed: %s", exc)
         try:
             # 1) Удаляем все категории одной операцией БЕЗ per-item сигналов
             ids = [c.get("id") for c in self.categories if c.get("id") is not None]
@@ -511,13 +530,13 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
                     )
                 except Exception:
                     pass
-            except Exception:
+            except Exception as exc:
                 # Если bulk не удался, пробуем поштучно как fallback
                 for cid in ids:
                     try:
                         self.structure_service.delete_category(cid)
-                    except Exception:
-                        pass
+                    except Exception as exc2:
+                        logger.warning("DeleteCategoriesBatchCmd.redo: delete_category failed for %s: %s", cid, exc2)
                 try:
                     logger.debug(
                         "[BatchRedo:deleted] cmd_id=%s fallback ids=%s",
@@ -545,13 +564,13 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
             if business:
                 try:
                     clear_icon_cache()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("DeleteCategoriesBatchCmd.redo: clear_icon_cache failed: %s", exc)
                 if section_id_for_focus is not None:
                     try:
                         business._invalidate_categories_cache(section_id_for_focus)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("DeleteCategoriesBatchCmd.redo: invalidate cache failed: %s", exc)
                     business.select_section(section_id_for_focus)
                 # Единый батч-сигнал вместо per-item и вместо ручной глобальной перезагрузки
                 try:
@@ -566,10 +585,10 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
                         )
                     except Exception:
                         pass
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                except Exception as exc:
+                    logger.warning("DeleteCategoriesBatchCmd.redo: items_batch_deleted emit failed: %s", exc)
+        except Exception as exc:
+            logger.warning("DeleteCategoriesBatchCmd.redo: final updates failed: %s", exc)
         try:
             logger.debug(
                 "[BatchRedo:done] cmd_id=%s section_focus=%s",
@@ -579,6 +598,7 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
         except Exception:
             pass
 
+    @log_command
     def undo(self):
         # Восстанавливаем категории из бэкапов одним bulk-вызовом (одна транзакция),
         # без тяжёлых перезагрузок/сигналов на каждом элементе
@@ -622,9 +642,9 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
                     )
                 except Exception:
                     pass
-            except Exception:
+            except Exception as exc:
                 # Если bulk не удался, частично ничего не делаем (UI продолжит жить)
-                pass
+                logger.warning("DeleteCategoriesBatchCmd.undo: import bulk failed: %s", exc)
             # 2) Определим раздел для финального фокуса (берём из первого валидного бэкапа)
             for backup in self._backups:
                 if backup and backup.get("category"):
@@ -672,7 +692,11 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
                     if category_id_for_focus is not None:
                         business.select_category(category_id_for_focus)
                         try:
-                            self.main.structure.update_links_table(category_id_for_focus)
+                            ui_state = getattr(self.main, "ui_state", None)
+                            if ui_state:
+                                ui_state.update_category_without_stack_switch(
+                                    category_id_for_focus
+                                )
                         except Exception:
                             pass
                 except Exception:

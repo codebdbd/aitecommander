@@ -3,14 +3,17 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from PyQt6.QtGui import QUndoCommand
+import logging
 
 from app.services import LinksService
+from app.controllers.ui.undo.base import BaseCommand, log_command
+
+logger = logging.getLogger(__name__)
 
 
-class SaveLinkCmd(QUndoCommand):
+class SaveLinkCmd(BaseCommand):
     def __init__(self, new_data: Dict, old_data: Optional[Dict], main_window):
-        super().__init__("Save link")
+        super().__init__("Save link", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
@@ -18,6 +21,7 @@ class SaveLinkCmd(QUndoCommand):
         self.old_data = dict(old_data) if old_data else None
         self.created_id: Optional[int] = None
 
+    @log_command
     def redo(self):
         # Заполним отсутствующие поля из старых данных, если диалог вернул частичный payload
         try:
@@ -35,8 +39,8 @@ class SaveLinkCmd(QUndoCommand):
                 for k in ("name", "url", "args", "icon_path"):
                     if k not in self.new_data and k in self.old_data:
                         self.new_data[k] = self.old_data[k]
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.exception("SaveLinkCmd.redo: failed to merge old/new data: %s", exc)
 
         # Сохраняем ссылку через сервисный слой (UnitOfWork внутри)
         if hasattr(self.main, "links_business") and self.main.links_business:
@@ -51,8 +55,8 @@ class SaveLinkCmd(QUndoCommand):
         if hasattr(self.main, "links_business") and self.main.links_business:
             try:
                 self.main.links_business.link_updated.emit(self.new_data)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("SaveLinkCmd.redo: link_updated emit failed: %s", exc)
             # Перезагружаем таблицу текущей категории, если не подавлено
             try:
                 if not getattr(self, "_suppress_ui", False):
@@ -60,10 +64,16 @@ class SaveLinkCmd(QUndoCommand):
                         self.old_data or {}
                     ).get("category_id")
                     if isinstance(cat_id, int) and cat_id > 0:
-                        self.main.links_business.load_links(cat_id)
-            except Exception:
-                pass
+                        ui_state = getattr(self.main, "ui_state", None)
+                        if ui_state:
+                            ui_state.update_category_without_stack_switch(cat_id)
+            except Exception as exc:
+                logger.warning(
+                    "SaveLinkCmd.redo: update_category_without_stack_switch failed: %s",
+                    exc,
+                )
 
+    @log_command
     def undo(self):
         # Если создавали новую — удаляем
         link_id = self.new_data.get("id")
@@ -82,33 +92,35 @@ class SaveLinkCmd(QUndoCommand):
                 if hasattr(self.main, "links_business") and self.main.links_business:
                     try:
                         self.main.links_business.link_updated.emit(self.old_data)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.warning("SaveLinkCmd.undo: link_updated emit failed: %s", exc)
         # Перезагружаем таблицу соответствующей категории, если не подавлено
         try:
-            if (
-                hasattr(self.main, "links_business")
-                and self.main.links_business
-                and not getattr(self, "_suppress_ui", False)
-            ):
+            if not getattr(self, "_suppress_ui", False):
                 cat_id = (self.old_data or {}).get("category_id") or self.new_data.get(
                     "category_id"
                 )
                 if isinstance(cat_id, int) and cat_id > 0:
-                    self.main.links_business.load_links(cat_id)
-        except Exception:
-            pass
+                    ui_state = getattr(self.main, "ui_state", None)
+                    if ui_state:
+                        ui_state.load_category(cat_id, source="undo/redo")
+        except Exception as exc:
+            logger.warning(
+                "SaveLinkCmd.undo: update_category_without_stack_switch failed: %s",
+                exc,
+            )
 
 
-class BatchDeleteLinksCmd(QUndoCommand):
+class BatchDeleteLinksCmd(BaseCommand):
     def __init__(self, links_to_delete: List[Dict], main_window):
-        super().__init__("Batch delete links")
+        super().__init__("Batch delete links", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
         # Храним полные данные для возможного восстановления
         self.links: List[Dict] = [dict(x) for x in (links_to_delete or [])]
 
+    @log_command
     def redo(self):
         ids = [x.get("id") for x in self.links if isinstance(x.get("id"), int)]
         if not ids:
@@ -117,42 +129,51 @@ class BatchDeleteLinksCmd(QUndoCommand):
         LinksService(self.db).batch_delete_links(ids)
         # Разовая перезагрузка таблицы, если не подавлено
         try:
-            if (
-                hasattr(self.main, "links_business")
-                and self.main.links_business
-                and not getattr(self, "_suppress_ui", False)
-            ):
+            if not getattr(self, "_suppress_ui", False):
                 cat_id = (self.links[0] if self.links else {}).get("category_id")
                 if isinstance(cat_id, int) and cat_id > 0:
-                    self.main.links_business.load_links(cat_id)
-        except Exception:
-            pass
+                    ui_state = getattr(self.main, "ui_state", None)
+                    if ui_state:
+                        ui_state.load_category(cat_id, source="undo/redo")
+        except Exception as exc:
+            logger.warning(
+                "BatchDeleteLinksCmd.redo: update_category_without_stack_switch failed: %s",
+                exc,
+            )
 
+    @log_command
     def undo(self):
         # Восстанавливаем все удалённые записи (batch upsert)
         try:
             LinksService(self.db).batch_create_or_update_links(self.links)
-        except Exception:
+        except Exception as exc:
             # Fallback: поштучно
+            logger.warning("BatchDeleteLinksCmd.undo: batch upsert failed, fallback to single: %s", exc)
             for link in self.links:
                 LinksService(self.db).create_or_update_link(link)
         # Обновление UI после восстановления
         try:
-            if hasattr(self.main, "links_business") and self.main.links_business:
+            if not getattr(self, "_suppress_ui", False):
                 cat_id = (self.links[0] if self.links else {}).get("category_id")
                 if isinstance(cat_id, int) and cat_id > 0:
-                    self.main.links_business.load_links(cat_id)
-        except Exception:
-            pass
+                    ui_state = getattr(self.main, "ui_state", None)
+                    if ui_state:
+                        ui_state.load_category(cat_id, source="undo/redo")
+        except Exception as exc:
+            logger.warning(
+                "BatchDeleteLinksCmd.undo: update_category_without_stack_switch failed: %s",
+                exc,
+            )
 
-class DeleteLinkCmd(QUndoCommand):
+class DeleteLinkCmd(BaseCommand):
     def __init__(self, link_to_delete: Dict, main_window):
-        super().__init__("Delete link")
+        super().__init__("Delete link", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
         self.link = dict(link_to_delete) if link_to_delete else {}
 
+    @log_command
     def redo(self):
         link_id = self.link.get("id")
         if link_id:
@@ -164,17 +185,19 @@ class DeleteLinkCmd(QUndoCommand):
                 LinksService(self.db).delete_link(link_id)
         # После удаления перезагружаем таблицу соответствующей категории, если не подавлено
         try:
-            if (
-                hasattr(self.main, "links_business")
-                and self.main.links_business
-                and not getattr(self, "_suppress_ui", False)
-            ):
+            if not getattr(self, "_suppress_ui", False):
                 cat_id = self.link.get("category_id")
                 if isinstance(cat_id, int) and cat_id > 0:
-                    self.main.links_business.load_links(cat_id)
-        except Exception:
-            pass
+                    ui_state = getattr(self.main, "ui_state", None)
+                    if ui_state:
+                        ui_state.load_category(cat_id, source="undo/redo")
+        except Exception as exc:
+            logger.warning(
+                "DeleteLinkCmd.redo: update_category_without_stack_switch failed: %s",
+                exc,
+            )
 
+    @log_command
     def undo(self):
         # Восстанавливаем удалённую ссылку
         if hasattr(self.main, "links_business") and self.main.links_business:
@@ -185,29 +208,35 @@ class DeleteLinkCmd(QUndoCommand):
         if hasattr(self.main, "links_business") and self.main.links_business:
             try:
                 self.main.links_business.link_updated.emit(self.link)
-            except Exception:
-                pass
-            # Перезагружаем таблицу после undo ВСЕГДА, чтобы UI отразил восстановление
-            # Даже если в redo использовалось подавление обновлений для пакетных операций
+            except Exception as exc:
+                logger.warning("DeleteLinkCmd.undo: link_updated emit failed: %s", exc)
+            # Перезагружаем таблицу после undo, если не подавлено
             try:
-                cat_id = self.link.get("category_id")
-                if isinstance(cat_id, int) and cat_id > 0:
-                    self.main.links_business.load_links(cat_id)
-            except Exception:
-                pass
+                if not getattr(self, "_suppress_ui", False):
+                    cat_id = self.link.get("category_id")
+                    if isinstance(cat_id, int) and cat_id > 0:
+                        ui_state = getattr(self.main, "ui_state", None)
+                        if ui_state:
+                            ui_state.load_category(cat_id, source="undo/redo")
+            except Exception as exc:
+                logger.warning(
+                    "DeleteLinkCmd.undo: update_category_without_stack_switch failed: %s",
+                    exc,
+                )
 
 
-class BatchSaveLinksCmd(QUndoCommand):
+class BatchSaveLinksCmd(BaseCommand):
     def __init__(
         self, links_data: List[Dict], old_link_data: Optional[Dict], main_window
     ):
-        super().__init__("Batch save links")
+        super().__init__("Batch save links", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
         self.links_data = [dict(x) for x in (links_data or [])]
         self.created_ids: List[int] = []
 
+    @log_command
     def redo(self):
         self.created_ids.clear()
         # Выполняем пакетный upsert в одной транзакции через сервисный слой
@@ -222,19 +251,21 @@ class BatchSaveLinksCmd(QUndoCommand):
         self.created_ids.extend(created or [])
         # Разовая перезагрузка таблицы по категории первой ссылки, если не подавлено
         try:
-            if (
-                hasattr(self.main, "links_business")
-                and self.main.links_business
-                and not getattr(self, "_suppress_ui", False)
-            ):
+            if not getattr(self, "_suppress_ui", False):
                 cat_id = (self.links_data[0] if self.links_data else {}).get(
                     "category_id"
                 )
                 if isinstance(cat_id, int) and cat_id > 0:
-                    self.main.links_business.load_links(cat_id)
-        except Exception:
-            pass
+                    ui_state = getattr(self.main, "ui_state", None)
+                    if ui_state:
+                        ui_state.load_category(cat_id, source="undo/redo")
+        except Exception as exc:
+            logger.warning(
+                "BatchSaveLinksCmd.redo: update_category_without_stack_switch failed: %s",
+                exc,
+            )
 
+    @log_command
     def undo(self):
         # Удаляем созданные записи одним батчем
         ids = [lid for lid in self.created_ids if isinstance(lid, int) and lid > 0]
@@ -242,15 +273,16 @@ class BatchSaveLinksCmd(QUndoCommand):
             LinksService(self.db).batch_delete_links(ids)
         # Перезагрузить таблицу, если не подавлено
         try:
-            if (
-                hasattr(self.main, "links_business")
-                and self.main.links_business
-                and not getattr(self, "_suppress_ui", False)
-            ):
+            if not getattr(self, "_suppress_ui", False):
                 cat_id = (self.links_data[0] if self.links_data else {}).get(
                     "category_id"
                 )
                 if isinstance(cat_id, int) and cat_id > 0:
-                    self.main.links_business.load_links(cat_id)
-        except Exception:
-            pass
+                    ui_state = getattr(self.main, "ui_state", None)
+                    if ui_state:
+                        ui_state.load_category(cat_id, source="undo/redo")
+        except Exception as exc:
+            logger.warning(
+                "BatchSaveLinksCmd.undo: update_category_without_stack_switch failed: %s",
+                exc,
+            )
