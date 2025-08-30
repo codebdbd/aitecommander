@@ -1,7 +1,4 @@
-import types
 from typing import Optional
-
-import pytest
 
 from app.utils.links.parser import icon_downloader as mod
 

@@ -1,13 +1,9 @@
 """Тесты для проверки исправлений обработки исключений в базовых виджетах."""
 
-import logging
 import unittest
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
+from unittest.mock import Mock, patch
 
-import pytest
 from PyQt6.QtWidgets import QApplication, QToolButton
-from PyQt6.QtCore import QSize
 
 from app.views.base_widgets import BaseLinksPanelWidget
 

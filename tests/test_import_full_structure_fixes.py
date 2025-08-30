@@ -10,7 +10,6 @@ import time
 import unittest
 from unittest.mock import patch, MagicMock, PropertyMock
 
-import pytest
 
 from app.models.db import Database
 

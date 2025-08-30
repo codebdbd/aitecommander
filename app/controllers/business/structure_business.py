@@ -51,6 +51,8 @@ class StructureBusinessLogic(QObject):
         str, int, dict
     )  # str, int, Dict - тип элемента, ID элемента, данные
     item_deleted = pyqtSignal(str, int)  # str, int - тип элемента, ID элемента
+    # Новый батч-сигнал: единое событие вместо множества per-item
+    items_batch_deleted = pyqtSignal(str, list)  # str - тип, list[int] - IDs элементов
 
     # Сигналы выбора
     section_selected = pyqtSignal(int, list)  # int, List[Dict] - ID раздела, категории
@@ -109,6 +111,8 @@ class StructureBusinessLogic(QObject):
             self.item_added.connect(self._on_item_added)
             self.item_updated.connect(self._on_item_updated)
             self.item_deleted.connect(self._on_item_deleted)
+            # Подключаем обработчик нового батч-сигнала
+            self.items_batch_deleted.connect(self._on_items_batch_deleted)
             self.logger.info(f"[BL] Handlers connected for business id={id(self)}")
         except Exception:
             # Защита от ошибок подключения сигналов, не ломаем инициализацию
@@ -351,6 +355,27 @@ class StructureBusinessLogic(QObject):
         except Exception as e:
             self.logger.error(
                 f"Ошибка в обработчике _on_item_deleted: {e}", exc_info=True
+            )
+
+    def _on_items_batch_deleted(self, item_type: str, ids: list) -> None:
+        """Батч-удаление элементов: одна инвалидизация и одна перезагрузка.
+
+        Для совместимости по умолчанию выполняем консолидацию как для одиночных
+        удалений, но без лавины событий.
+        """
+        try:
+            total = len(ids) if isinstance(ids, (list, tuple)) else 0
+            self.logger.info(f"[BL] items_batch_deleted: type={item_type}, count={total}")
+            # Для ссылок используем небольшую задержку, чтобы коалесцировать
+            if item_type == "link":
+                self._schedule_structure_reload(200)
+                return
+            # Для категорий/разделов: немедленная консолидация
+            self._invalidate_structure_cache()
+            self._schedule_structure_reload(0)
+        except Exception as e:
+            self.logger.error(
+                f"Ошибка в обработчике _on_items_batch_deleted: {e}", exc_info=True
             )
 
     @handle_exceptions()

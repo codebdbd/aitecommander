@@ -195,8 +195,8 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
         self.beginResetModel()
         # Клонируем и удаляем возможный кеш иконок, чтобы модель сама их пересобрала
         cleaned: List[Dict[str, Any]] = []
-        for l in links:
-            d = dict(l)
+        for link_item in links:
+            d = dict(link_item)
             d.pop("_icon", None)
             cleaned.append(d)
         self._links = cleaned

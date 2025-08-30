@@ -17,7 +17,6 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
     QSplitter,
     QStackedLayout,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )

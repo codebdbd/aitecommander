@@ -173,17 +173,7 @@ class DeleteSectionCmd(QUndoCommand):
                     # Инкрементальное обновление — без полной перезагрузки
             except Exception:
                 pass
-            # Гарантируем немедленное обновление дерева после Undo за счёт перезагрузки структуры
-            try:
-                business = getattr(self.main, "structure_business", None)
-                if business:
-                    try:
-                        business._invalidate_structure_cache()
-                    except Exception:
-                        pass
-                    business._schedule_structure_reload(0)
-            except Exception:
-                pass
+            # Полной перезагрузки структуры не требуется: выше отправлены необходимые сигналы
         except Exception:
             # В случае сбоя восстановления — оставляем как есть, без исключений в UI
             pass
@@ -378,14 +368,6 @@ class DeleteCategoryCmd(QUndoCommand):
 
         # Обычный одиночный сценарий: корректно обновляем UI и данные
         try:
-            # Попробуем сместить фокус корректно без полной перезагрузки
-            if business:
-                business.select_section(section_id)
-        except Exception:
-            pass
-        # Явно обновляем плитки категорий для выбранного раздела,
-        # чтобы гарантировать отражение удаления в интерфейсе
-        try:
             if business:
                 # Критично: инвалидируем кэш категорий раздела, иначе select_section
                 # может взять устаревшие данные из categories_{section_id}
@@ -446,22 +428,7 @@ class DeleteCategoryCmd(QUndoCommand):
                     # Инкрементальное обновление — без полной перезагрузки
             except Exception:
                 pass
-            # Гарантируем немедленное обновление дерева после Undo за счёт перезагрузки структуры и категорий раздела
-            try:
-                section_id = self.category.get("section_id")
-                business = getattr(self.main, "structure_business", None)
-                if business:
-                    try:
-                        business._invalidate_categories_cache(section_id)
-                    except Exception:
-                        pass
-                    try:
-                        business._invalidate_structure_cache()
-                    except Exception:
-                        pass
-                    business._schedule_structure_reload(0)
-            except Exception:
-                pass
+            # Полной перезагрузки структуры не требуется: выше отправлены точечные сигналы и выполнены выборы
         except Exception:
             # В случае сбоя восстановления — оставляем как есть
             pass
@@ -470,9 +437,8 @@ class DeleteCategoryCmd(QUndoCommand):
 class DeleteCategoriesBatchCmd(QUndoCommand):
     """Пакетное удаление нескольких категорий одной операцией.
 
-    - Удаляет категории по списку ID через сервис без промежуточной перезагрузки UI
-    - Эмитит business.item_deleted для каждой категории
-    - В конце выполняет ОДНУ финальную перезагрузку UI/плиток
+    - Удаляет категории по списку ID через сервис одной транзакцией без промежуточных перезагрузок UI
+    - Не эмитит per-item события удаления; выполняет одну финальную перезагрузку UI/плиток
     - Поддерживает undo через восстановление сохранённых бэкапов поддеревьев
     """
 
@@ -506,6 +472,15 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
         tree = None
         selection = None
         try:
+            ids_dbg = [c.get("id") for c in self.categories if c.get("id") is not None]
+            logger.debug(
+                "[BatchRedo:start] cmd_id=%s items=%s",
+                hex(id(self)),
+                len(ids_dbg),
+            )
+        except Exception:
+            pass
+        try:
             struct = getattr(self.main, "structure", None)
             tree = getattr(struct, "tree", None)
             selection = getattr(struct, "selection_handler", None)
@@ -519,7 +494,7 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
         except Exception:
             tree = None
         try:
-            # 1) Удаляем все категории одной операцией и эмитим точечные события
+            # 1) Удаляем все категории одной операцией БЕЗ per-item сигналов
             ids = [c.get("id") for c in self.categories if c.get("id") is not None]
             # Сохраним section_id для финального фокуса (берём последний валидный)
             for cat in self.categories:
@@ -528,6 +503,14 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
                     section_id_for_focus = sid
             try:
                 self.structure_service.delete_categories_bulk(ids)
+                try:
+                    logger.debug(
+                        "[BatchRedo:deleted] cmd_id=%s bulk_ok ids=%s",
+                        hex(id(self)),
+                        len(ids),
+                    )
+                except Exception:
+                    pass
             except Exception:
                 # Если bulk не удался, пробуем поштучно как fallback
                 for cid in ids:
@@ -535,13 +518,15 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
                         self.structure_service.delete_category(cid)
                     except Exception:
                         pass
-            # Точечные события для UI по каждому ID
-            for cid in ids:
                 try:
-                    if business:
-                        business.item_deleted.emit("category", cid)
+                    logger.debug(
+                        "[BatchRedo:deleted] cmd_id=%s fallback ids=%s",
+                        hex(id(self)),
+                        len(ids),
+                    )
                 except Exception:
                     pass
+            # ВАЖНО: не эмитим per-item item_deleted, чтобы redo был пакетным, как undo
         finally:
             # 2) Одна финальная перезагрузка/фокус
             # ВАЖНО: перед финальными обновлениями возвращаем сигналы/обработку
@@ -568,18 +553,29 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
                     except Exception:
                         pass
                     business.select_section(section_id_for_focus)
-                # Инкрементальное обновление — без полной перезагрузки
-                # ВАЖНО: после пакетного удаления и переиндексации позиций
-                # модель дерева может рассинхронизироваться. Гарантируем
-                # полное обновление структуры одним событием.
+                # Единый батч-сигнал вместо per-item и вместо ручной глобальной перезагрузки
                 try:
-                    business._invalidate_structure_cache()
+                    ids_payload = [c.get("id") for c in self.categories if c.get("id") is not None]
+                    business.items_batch_deleted.emit("category", ids_payload)
+                    try:
+                        logger.debug(
+                            "[BatchRedo:signal] cmd_id=%s ids=%s section_focus=%s",
+                            hex(id(self)),
+                            len(ids_payload),
+                            section_id_for_focus,
+                        )
+                    except Exception:
+                        pass
                 except Exception:
                     pass
-                try:
-                    business._schedule_structure_reload(0)
-                except Exception:
-                    pass
+        except Exception:
+            pass
+        try:
+            logger.debug(
+                "[BatchRedo:done] cmd_id=%s section_focus=%s",
+                hex(id(self)),
+                section_id_for_focus,
+            )
         except Exception:
             pass
 
@@ -592,6 +588,15 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
         # Подавляем сигналы выбора на время восстановления
         tree = None
         selection = None
+        try:
+            restored_cnt = len([b for b in self._backups if b])
+            logger.debug(
+                "[BatchUndo:start] cmd_id=%s backups=%s",
+                hex(id(self)),
+                restored_cnt,
+            )
+        except Exception:
+            pass
         try:
             struct = getattr(self.main, "structure", None)
             tree = getattr(struct, "tree", None)
@@ -609,6 +614,14 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
             # 1) Импорт всех деревьев в одной транзакции
             try:
                 self.structure_service.import_category_trees_bulk(self._backups)
+                try:
+                    logger.debug(
+                        "[BatchUndo:imported] cmd_id=%s backups=%s",
+                        hex(id(self)),
+                        len(self._backups),
+                    )
+                except Exception:
+                    pass
             except Exception:
                 # Если bulk не удался, частично ничего не делаем (UI продолжит жить)
                 pass
@@ -678,5 +691,23 @@ class DeleteCategoriesBatchCmd(QUndoCommand):
                     pass
                 # Немедленная перезагрузка структуры сферы -> придёт structure_loaded
                 business._schedule_structure_reload(0)
+                try:
+                    logger.debug(
+                        "[BatchUndo:reload] cmd_id=%s section_focus=%s category_focus=%s",
+                        hex(id(self)),
+                        section_id_for_focus,
+                        category_id_for_focus,
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        try:
+            logger.debug(
+                "[BatchUndo:done] cmd_id=%s section_focus=%s category_focus=%s",
+                hex(id(self)),
+                section_id_for_focus,
+                category_id_for_focus,
+            )
         except Exception:
             pass
