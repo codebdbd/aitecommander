@@ -63,7 +63,7 @@ class SaveSectionCmd(BaseCommand):
         try:
             business = getattr(self.main, "structure_business", None)
             if business:
-                business.select_section(self.new_id)
+                business.section_selected.emit(self.new_id)
         except Exception as exc:
             logger.warning("SaveCategoryCmd.redo: select_category failed: %s", exc)
         self._emit_reload()
@@ -91,7 +91,7 @@ class SaveSectionCmd(BaseCommand):
                 try:
                     business = getattr(self.main, "structure_business", None)
                     if business:
-                        business.select_section(self.old_data["id"])
+                        business.section_selected.emit(self.old_data["id"]) 
                 except Exception as exc:
                     logger.warning("SaveSectionCmd.undo: select_section failed: %s", exc)
                 try:
@@ -159,7 +159,7 @@ class DeleteSectionCmd(BaseCommand):
             try:
                 business = getattr(self.main, "structure_business", None)
                 if business:
-                    business.select_section(section_id)
+                    business.section_selected.emit(section_id)
             except Exception as exc:
                 logger.warning("DeleteSectionCmd.undo: select_section failed: %s", exc)
             try:
@@ -263,7 +263,7 @@ class SaveCategoryCmd(BaseCommand):
                 if not self.skip_reload:
                     business = getattr(self.main, "structure_business", None)
                     if business:
-                        business.select_section(section_id)
+                        business.section_selected.emit(section_id)
             except Exception as exc:
                 logger.warning("SaveCategoryCmd.undo: select_section failed: %s", exc)
             try:
@@ -351,7 +351,7 @@ class DeleteCategoryCmd(BaseCommand):
             # Фокус на раздел без полной перезагрузки дерева
             try:
                 if business:
-                    business.select_section(section_id)
+                    business.section_selected.emit(section_id)
             except Exception as exc:
                 logger.warning("DeleteCategoryCmd.redo(lightweight): select_section failed: %s", exc)
             try:
@@ -360,7 +360,7 @@ class DeleteCategoryCmd(BaseCommand):
                         business._invalidate_categories_cache(section_id)
                     except Exception as exc:
                         logger.debug("DeleteCategoryCmd.redo(lightweight): invalidate cache failed: %s", exc)
-                    business.select_section(section_id)
+                    business.section_selected.emit(section_id)
                     # В lightweight-режиме не вызываем clear_icon_cache() и load_structure()
                     business.item_deleted.emit("category", category_id)
             except Exception as exc:
@@ -377,7 +377,7 @@ class DeleteCategoryCmd(BaseCommand):
                     business._invalidate_categories_cache(section_id)
                 except Exception as exc:
                     logger.debug("DeleteCategoryCmd.redo: invalidate cache failed: %s", exc)
-                business.select_section(section_id)
+                business.section_selected.emit(section_id)
         except Exception as exc:
             logger.warning("DeleteCategoryCmd.redo: select_section failed: %s", exc)
         try:
@@ -656,7 +656,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
         try:
             # Фокусируем раздел без полной перезагрузки дерева
             if section_id_for_focus is not None and business:
-                business.select_section(section_id_for_focus)
+                business.section_selected.emit(section_id_for_focus)
         except Exception:
             pass
 
@@ -668,7 +668,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                         business._invalidate_categories_cache(section_id_for_focus)
                     except Exception:
                         pass
-                    business.select_section(section_id_for_focus)
+                    business.section_selected.emit(section_id_for_focus)
                 # ВАЖНО: также выберем одну из восстановленных категорий, чтобы таблица ссылок обновилась сразу
                 try:
                     if category_id_for_focus is not None:

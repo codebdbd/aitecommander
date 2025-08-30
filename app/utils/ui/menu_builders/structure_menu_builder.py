@@ -367,7 +367,7 @@ class StructureMenuBuilder:
                             logger.debug("[PasteCategories] scheduled structure reload (debounced)")
                         except Exception:
                             logger.exception("[PasteCategories] Не удалось запланировать перезагрузку структуры")
-                        business.select_section(int(section_id))
+                        business.section_selected.emit(int(section_id))
                 except Exception:
                     logger.exception("[PasteCategories] Ошибка обновления UI после вставки категорий")
             logger.debug("[PasteCategories] done, created=%s items", len(created_categories))

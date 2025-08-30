@@ -176,7 +176,7 @@ class MoveOperationsHandler(TreeHandlerBase):
 
             # Финальное точечное обновление UI: только целевой раздел
             try:
-                sb.select_section(int(target_section_id))
+                sb.section_selected.emit(int(target_section_id))
             except Exception:
                 pass
         except Exception as e:
@@ -430,7 +430,7 @@ class MoveOperationsHandler(TreeHandlerBase):
                             tree.blockSignals(True)
                         except Exception:
                             pass
-                    main_win.structure_business.select_section(section_id)
+                    main_win.structure_business.section_selected.emit(section_id)
                 finally:
                     if tree is not None:
                         try:

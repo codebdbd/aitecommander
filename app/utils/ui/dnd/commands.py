@@ -420,7 +420,7 @@ class MoveCategoriesCommand(BaseCommand):
 
             try:
                 if focus_section_id is not None:
-                    sb.select_section(focus_section_id)
+                    sb.section_selected.emit(focus_section_id)
             except Exception:
                 pass
             try:
