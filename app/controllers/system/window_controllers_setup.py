@@ -139,7 +139,11 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
 
     # Контроллер таблицы ссылок (централизация обновлений)
     try:
-        window.links_table_controller = LinksTableController(window, links_ctrl)
+        window.links_table_controller = LinksTableController(
+            window,
+            table=window.table,
+            links_business=links_business,
+        )
         controllers["links_table_controller"] = window.links_table_controller
     except Exception as e:
         logger.error(f"Failed to create LinksTableController: {e}")
@@ -157,7 +161,11 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
 
     # Контроллер верхних панелей (Избранное/Недавние)
     try:
-        window.top_panels_controller = TopPanelsController(window)
+        window.top_panels_controller = TopPanelsController(
+            window,
+            fav_widget=getattr(window, "fav_widget", None),
+            recent_links_widget=getattr(window, "recent_links_widget", None),
+        )
         controllers["top_panels_controller"] = window.top_panels_controller
     except Exception as e:
         logger.error(f"Failed to create TopPanelsController: {e}")
@@ -346,8 +354,17 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
             window.fav_widget.clear_requested.connect(
                 controllers["links_actions"].on_favorites_clear_requested
             )
-            # Первичная загрузка
-            window.fav_widget.update_favorites()
+            # Первичная загрузка: централизованно через контроллер верхних панелей
+            try:
+                ctrl = getattr(window, "top_panels_controller", None)
+                if ctrl:
+                    ctrl.refresh_all()
+                else:
+                    logger.warning(
+                        "TopPanelsController not available; skipping initial top panels refresh (favorites)"
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to request top panels refresh (favorites): {e}")
     except Exception as e:
         logger.warning(f"Failed to wire favorites panel: {e}")
 
@@ -360,8 +377,17 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
             window.recent_links_widget.refresh_requested[int].connect(
                 controllers["links_actions"].on_recent_refresh_requested
             )
-            # Первичная загрузка
-            window.recent_links_widget.update_recent_links()
+            # Первичная загрузка: централизованно через контроллер верхних панелей
+            try:
+                ctrl = getattr(window, "top_panels_controller", None)
+                if ctrl:
+                    ctrl.refresh_all()
+                else:
+                    logger.warning(
+                        "TopPanelsController not available; skipping initial top panels refresh (recent)"
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to request top panels refresh (recent): {e}")
     except Exception as e:
         logger.warning(f"Failed to wire recent panel: {e}")
 

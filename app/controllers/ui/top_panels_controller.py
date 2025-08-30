@@ -13,11 +13,15 @@ class TopPanelsController:
     Инкапсулирует обновление и очистку панелей, чтобы View (MainWindow) не знал деталей.
     """
 
-    def __init__(self, main_window):
+    def __init__(self, main_window, *, fav_widget, recent_links_widget):
         self.main = main_window
-        # Сохраняем ссылки на виджеты один раз, чтобы не дергать getattr/hasattr в рантайме
-        self.fav_widget = getattr(main_window, "fav_widget", None)
-        self.recent_links_widget = getattr(main_window, "recent_links_widget", None)
+        # Жесткая проверка зависимостей: упасть рано, чем тихо игнорировать обновления
+        if fav_widget is None or recent_links_widget is None:
+            raise ValueError(
+                "TopPanelsController requires both fav_widget and recent_links_widget"
+            )
+        self.fav_widget = fav_widget
+        self.recent_links_widget = recent_links_widget
 
     # Публичные методы -----------------------------------------------------
     def refresh_all(self) -> None:

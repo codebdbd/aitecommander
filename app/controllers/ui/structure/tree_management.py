@@ -198,7 +198,9 @@ class TreeManagement:
                     if key:
                         expanded_state[key] = self.tree.isExpanded(idx)
         except Exception:
-            pass
+            logger.exception(
+                "TreeManagement._save_expanded_state_model: ошибка сохранения состояния разворота"
+            )
         return expanded_state
 
     def _restore_expanded_state_model(self, expanded_state: dict) -> None:
@@ -213,7 +215,9 @@ class TreeManagement:
                 if idx and idx.isValid():
                     self.tree.setExpanded(idx, bool(state))
         except Exception:
-            pass
+            logger.exception(
+                "TreeManagement._restore_expanded_state_model: ошибка восстановления состояния разворота"
+            )
 
     def _find_item_by_id(self, item_type: str, item_id: int):
         """Возвращает QModelIndex элемента по типу ('section'|'category') и id.
@@ -228,7 +232,11 @@ class TreeManagement:
             if idx and idx.isValid():
                 return idx
         except Exception:
-            pass
+            logger.exception(
+                "TreeManagement._find_item_by_id: ошибка поиска элемента %s #%s",
+                item_type,
+                item_id,
+            )
         return None
 
     # Сортировка переносится в сборку снапшота модели; дополнительных действий во view не требуется
