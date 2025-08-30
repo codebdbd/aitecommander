@@ -48,19 +48,6 @@ class LinksUIController(QObject):
         # ЦЕНТРАЛИЗОВАНО: начальная загрузка категории
         self._reload_current_category()
 
-        # Подключение виджетов topbar (если уже существуют к моменту создания контроллера)
-        # Безопасные ленивые подключения
-        try:
-            if (
-                hasattr(self.main, "recent_links_widget")
-                and self.main.recent_links_widget
-            ):
-                self._connect_recent_widget_signals()
-            if hasattr(self.main, "fav_widget") and self.main.fav_widget:
-                self._connect_favorites_widget_signals()
-        except Exception as e:
-            logger.debug(f"Topbar widgets not ready yet: {e}")
-
     def shutdown(self, timeout: int = 2000):
         """Корректное завершение работы."""
         self.business.shutdown(timeout)
@@ -254,78 +241,4 @@ class LinksUIController(QObject):
         except Exception as e:
             logger.error(f"Failed to reload category (id={category_id}): {e}")
 
-    # --- Handlers for Recent/Favorites widgets ---
-    def _connect_recent_widget_signals(self):
-        try:
-            rlw = self.main.recent_links_widget
-            rlw.refresh_requested.connect(self.on_recent_refresh_requested)
-            # linkClicked уже подключен к window.open_link на уровне инициализатора
-        except Exception as e:
-            logger.error(f"Failed to connect RecentLinksWidget signals: {e}")
 
-    def _connect_favorites_widget_signals(self):
-        try:
-            fw = self.main.fav_widget
-            fw.refresh_requested.connect(self.on_favorites_refresh_requested)
-            fw.clear_requested.connect(self.on_favorites_clear_requested)
-            # linkClicked уже подключен к window.open_link на уровне инициализатора
-        except Exception as e:
-            logger.error(f"Failed to connect FavoritesWidget signals: {e}")
-
-    def on_recent_refresh_requested(self, limit: int):
-        """Получить последние ссылки и напрямую передать их в виджет.
-        Разрывает цикл: widget.update() -> refresh_requested -> ...
-        """
-        try:
-            items = self.business.get_recent_links(limit)
-            try:
-                widget = getattr(self.main, "recent_links_widget", None)
-                if widget and hasattr(widget, "set_recent_links"):
-                    widget.set_recent_links(items)
-                else:
-                    logger.warning("RecentLinksWidget not available or lacks set_recent_links")
-            except Exception as e:
-                logger.debug(f"Failed to set recent links to widget: {e}")
-        except Exception as e:
-            logger.error(f"Failed to load recent links: {e}")
-
-    def on_favorites_refresh_requested(self):
-        """Получить избранные ссылки и напрямую передать их в виджет.
-        Разрывает цикл: widget.update() -> refresh_requested -> ...
-        """
-        try:
-            items = self.business.get_favorite_links()
-            try:
-                widget = getattr(self.main, "fav_widget", None)
-                if widget and hasattr(widget, "set_favorites"):
-                    widget.set_favorites(items)
-                else:
-                    logger.warning("Favorites widget not available or lacks set_favorites")
-            except Exception as e:
-                logger.debug(f"Failed to set favorites to widget: {e}")
-        except Exception as e:
-            logger.error(f"Failed to load favorites: {e}")
-
-    def on_favorites_clear_requested(self):
-        """Очистить избранное и инициировать обновление."""
-        try:
-            self.business.clear_favorites()
-            # Обновляем панель избранного безопасным способом (без цикла)
-            try:
-                self.on_favorites_refresh_requested()
-            except Exception as e:
-                logger.debug(f"Failed to refresh favorites after clear: {e}")
-            # Также можно обновить таблицу текущей категории, если нужно
-            category_id = self.main.get_current_category_id()
-            if category_id:
-                try:
-                    ctrl = getattr(self.main, "links_table_controller", None)
-                    if ctrl:
-                        ctrl.reload(category_id)
-                    else:
-                        # Fallback: только бизнес-логика без прямого UI
-                        self.business.load_links(category_id)
-                except Exception as e:
-                    logger.debug(f"Failed to reload after favorites clear: {e}")
-        except Exception as e:
-            logger.error(f"Failed to clear favorites: {e}")

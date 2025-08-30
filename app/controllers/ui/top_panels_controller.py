@@ -83,15 +83,6 @@ class TopPanelsController:
             except Exception:
                 logger.exception("TopPanelsController.clear_favorites: ошибка при очистке избранного")
 
-    # --- slots for external signals ---
-    def on_favorites_changed(self) -> None:
-        """Слот для обновления панелей при изменении избранного/ссылок."""
-        # Дебаунс-обновление обеих панелей
-        self.request_refresh()
-
-    def on_links_changed(self, _category_id: int | None = None) -> None:
-        """Слот на случай, если требуется обновление по изменению ссылок."""
-        self.request_refresh()
 
     # --- internals ---
     def _on_refresh_timeout(self) -> None:
@@ -100,3 +91,30 @@ class TopPanelsController:
         finally:
             # Гарантированно сбрасываем флаг, даже если refresh_all упал
             self._pending_refresh = False
+
+    # --- direct handlers for widgets' refresh_requested ---
+    def on_favorites_refresh_requested(self) -> None:
+        """Загрузить избранные через бизнес-логику и установить в виджет.
+        Используется прямое подключение fav_widget.refresh_requested -> этот метод.
+        """
+        try:
+            business = getattr(self.main, "links_business", None)
+            items = business.get_favorite_links() if business else []
+            widget = self.fav_widget
+            if widget and hasattr(widget, "set_favorites"):
+                widget.set_favorites(items)
+        except Exception:
+            logger.exception("TopPanelsController.on_favorites_refresh_requested: ошибка загрузки/установки избранного")
+
+    def on_recent_refresh_requested(self, limit: int) -> None:
+        """Загрузить недавние через бизнес-логику и установить в виджет.
+        Используется прямое подключение recent_links_widget.refresh_requested[int] -> этот метод.
+        """
+        try:
+            business = getattr(self.main, "links_business", None)
+            items = business.get_recent_links(limit) if business else []
+            widget = self.recent_links_widget
+            if widget and hasattr(widget, "set_recent_links"):
+                widget.set_recent_links(items)
+        except Exception:
+            logger.exception("TopPanelsController.on_recent_refresh_requested: ошибка загрузки/установки недавних")
