@@ -75,7 +75,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
         try:
             link_ops = self.link_operations
             if link_ops and isinstance(category_id, int) and category_id > 0:
-                link_ops.links_changed.emit(category_id)
+                link_ops.emit_links_changed(category_id)
             else:
                 logger.debug("LinksUIHandlers: link_operations not available, cannot emit links_changed")
         except Exception as e:
@@ -103,9 +103,9 @@ class LinksUIHandlers(BaseLinksUIComponent):
                     except Exception:
                         cat_id = None
                 if isinstance(cat_id, int) and cat_id > 0:
-                    link_ops.links_changed.emit(cat_id)
+                    link_ops.emit_links_changed(cat_id)
                 # В любом случае сигнализируем об изменении избранного
-                link_ops.favorites_changed.emit()
+                link_ops.emit_favorites_changed()
             else:
                 logger.debug("LinksUIHandlers: link_operations not available to emit signals")
         except Exception as e:
@@ -135,10 +135,9 @@ class LinksUIHandlers(BaseLinksUIComponent):
             if link_ops:
                 cat_id = updated_link.get("category_id")
                 if isinstance(cat_id, int) and cat_id > 0:
-                    link_ops.links_changed.emit(cat_id)
+                    link_ops.emit_links_changed(cat_id)
                 # Обновление ссылки (заметки, атрибутов) влияет на панель "Недавние"
-                if hasattr(link_ops, "recents_changed"):
-                    link_ops.recents_changed.emit()
+                link_ops.emit_recents_changed()
             else:
                 logger.debug("LinksUIHandlers: link_operations not available to emit signals on link update")
         except Exception as e:

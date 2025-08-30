@@ -148,12 +148,12 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             try:
                 link_ops = self.link_operations
                 if link_ops:
-                    # Теперь используем recents_changed для обновления панели недавних
-                    link_ops.recents_changed.emit()
+                    # Теперь используем централизованные методы LinkOperationsController
+                    link_ops.emit_recents_changed()
                     # Сообщаем таблице о возможном изменении данных текущей категории
                     cat_id = link_data.get("category_id")
                     if isinstance(cat_id, int) and cat_id > 0:
-                        link_ops.links_changed.emit(cat_id)
+                        link_ops.emit_links_changed(cat_id)
             except Exception as e:
                 logger.debug(f"Failed to emit recents_changed after opening link: {e}")
 
