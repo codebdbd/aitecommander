@@ -287,42 +287,7 @@ def _add_quick_add_to_top_bar(window) -> None:
     return
 
 
-def _request_panels_refresh(window, delay_ms: int = 150) -> None:
-    """Дебаунс-запрос на обновление верхних панелей.
-
-    Создает и переиспользует таймер на окне. При срабатывании вызывает
-    TopPanelsController.refresh_all().
-    """
-    try:
-        timer = getattr(window, "_top_panels_refresh_timer", None)
-        if timer is None:
-            timer = QTimer()
-            try:
-                timer.setParent(window)
-            except Exception:
-                pass
-            timer.setSingleShot(True)
-
-            def _on_timeout():
-                try:
-                    ctrl = getattr(window, "top_panels_controller", None)
-                    if ctrl:
-                        ctrl.refresh_all()
-                    else:
-                        logger.warning(
-                            "TopPanelsController not available; skipping debounced refresh"
-                        )
-                except Exception as e:
-                    logger.warning(f"Top panels debounced refresh failed: {e}")
-
-            timer.timeout.connect(_on_timeout)
-            window._top_panels_refresh_timer = timer
-
-        # Перезапускать таймер при каждом запросе (классический дебаунс)
-        delay = int(delay_ms)
-        timer.start(delay)
-    except Exception as e:
-        logger.exception(f"_request_panels_refresh failed: {e}")
+## Внутренний внешний дебаунс удалён: используем TopPanelsController.request_refresh()
 
 
 def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
@@ -336,22 +301,29 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
     try:
         if hasattr(window, "fav_widget") and window.fav_widget:
             window.fav_widget.linkClicked.connect(window.links_actions.open_link)
-            window.fav_widget.refresh_requested.connect(
-                controllers["links_actions"].on_favorites_refresh_requested
-            )
-            window.fav_widget.clear_requested.connect(
-                controllers["links_actions"].on_favorites_clear_requested
-            )
+            # Перенаправляем refresh на TopPanelsController
             try:
-                ctrl = getattr(window, "top_panels_controller", None)
-                if ctrl:
-                    ctrl.refresh_all()
-                else:
-                    logger.warning(
-                        "TopPanelsController not available; skipping initial top panels refresh (favorites)"
+                top_ctrl = controllers.get("top_panels_controller")
+                if top_ctrl:
+                    window.fav_widget.refresh_requested.connect(
+                        top_ctrl.on_favorites_refresh_requested
                     )
-            except Exception as e:
-                logger.warning(f"Failed to request top panels refresh (favorites): {e}")
+                else:
+                    logger.warning("TopPanelsController not found for favorites refresh wiring")
+            except (AttributeError, TypeError) as e:
+                logger.warning(f"Failed to connect favorites refresh to TopPanelsController: {e}")
+            # Очистка избранного теперь обрабатывается TopPanelsController
+            try:
+                if top_ctrl:
+                    window.fav_widget.clear_requested.connect(
+                        top_ctrl.clear_favorites
+                    )
+                else:
+                    logger.warning("TopPanelsController not found for favorites clear wiring")
+            except (AttributeError, TypeError) as e:
+                logger.warning(f"Failed to connect favorites clear to TopPanelsController: {e}")
+            # Инициализация: общий request_refresh будет выполнен ниже
+        
     except Exception as e:
         logger.warning(f"Failed to wire favorites panel: {e}")
 
@@ -360,21 +332,30 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
             window.recent_links_widget.linkClicked.connect(
                 window.links_actions.open_link
             )
-            window.recent_links_widget.refresh_requested[int].connect(
-                controllers["links_actions"].on_recent_refresh_requested
-            )
+            # Перенаправляем refresh на TopPanelsController
             try:
-                ctrl = getattr(window, "top_panels_controller", None)
-                if ctrl:
-                    ctrl.refresh_all()
-                else:
-                    logger.warning(
-                        "TopPanelsController not available; skipping initial top panels refresh (recent)"
+                top_ctrl = controllers.get("top_panels_controller")
+                if top_ctrl:
+                    window.recent_links_widget.refresh_requested[int].connect(
+                        top_ctrl.on_recent_refresh_requested
                     )
-            except Exception as e:
-                logger.warning(f"Failed to request top panels refresh (recent): {e}")
+                else:
+                    logger.warning("TopPanelsController not found for recent refresh wiring")
+            except (AttributeError, TypeError) as e:
+                logger.warning(f"Failed to connect recent refresh to TopPanelsController: {e}")
+            # Инициализация: общий request_refresh будет выполнен ниже
     except Exception as e:
         logger.warning(f"Failed to wire recent panel: {e}")
+
+    # Единичный дебаунс-запрос обновления обеих панелей после первичного подключения
+    try:
+        top_ctrl = controllers.get("top_panels_controller")
+        if top_ctrl:
+            top_ctrl.request_refresh()
+        else:
+            logger.warning("TopPanelsController not available; skipping initial request_refresh")
+    except Exception as e:
+        logger.warning(f"Failed to request initial top panels refresh: {e}")
 
     try:
         filt = getattr(window, "_auto_hide_tree_filter", None)
@@ -421,17 +402,19 @@ def _connect_structure_signals(window) -> None:
         except Exception as e:
             logger.warning(f"Failed to trigger structure reload: {e}")
 
-    def _on_refresh_panels(*_args):
-        _request_panels_refresh(window)
+    # Найдём контроллер верхних панелей один раз и подключим его request_refresh
+    top_ctrl = getattr(window, "top_panels_controller", None)
 
     try:
         window.structure_business.active_sphere_changed.connect(_on_active_sphere_changed)
-        window.structure_business.active_sphere_changed.connect(_on_refresh_panels)
+        if top_ctrl:
+            window.structure_business.active_sphere_changed.connect(top_ctrl.request_refresh)
     except (AttributeError, TypeError):
         pass
 
     try:
-        window.structure_business.structure_loaded.connect(_on_refresh_panels)
+        if top_ctrl:
+            window.structure_business.structure_loaded.connect(top_ctrl.request_refresh)
     except (AttributeError, TypeError):
         pass
     window.structure.item_changed.connect(window.on_structure_item_changed)
@@ -442,11 +425,13 @@ def _connect_structure_signals(window) -> None:
     # поэтому прямое подключение к UIStateManager здесь не требуется.
 
     try:
-        window.structure_business.section_selected.connect(_on_refresh_panels)
+        if top_ctrl:
+            window.structure_business.section_selected.connect(top_ctrl.request_refresh)
     except (AttributeError, TypeError):
         pass
     try:
-        window.structure_business.category_selected.connect(_on_refresh_panels)
+        if top_ctrl:
+            window.structure_business.category_selected.connect(top_ctrl.request_refresh)
     except (AttributeError, TypeError):
         pass
     window._structure_signals_connected = True

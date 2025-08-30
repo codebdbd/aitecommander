@@ -11,15 +11,20 @@ class LinksActions:
     Делегирует операции существующим контроллерам: `LinksUIController` и `LinkOperationsController`.
     """
 
-    def __init__(self, main_window, links=None, link_ops=None):
+    def __init__(self, main_window, links, link_ops):
+        """Создаёт фасад действий со ссылками.
+
+        Обязательные зависимости передаются явно:
+        - links: экземпляр `LinksUIController`
+        - link_ops: экземпляр `LinkOperationsController`
+
+        Исключены динамические getattr — при отсутствии зависимостей бросаем ValueError.
+        """
         self.main = main_window
-        # Инъекция контроллеров напрямую (без зависимости от полей окна)
-        self.links = links if links is not None else getattr(main_window, "links", None)
-        self.link_ops = (
-            link_ops
-            if link_ops is not None
-            else getattr(main_window, "link_operations", None)
-        )
+        self.links = links
+        self.link_ops = link_ops
+        if self.links is None or self.link_ops is None:
+            raise ValueError("LinksActions requires explicit 'links' and 'link_ops' instances")
 
     # --- Диалог ссылки ---
     def show_link_dialog(
