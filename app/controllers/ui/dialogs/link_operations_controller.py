@@ -35,6 +35,8 @@ class LinkOperationsController(QObject):
     links_changed = pyqtSignal(int)  # category_id
     # Сигнал о том, что состояние избранного изменилось (требуется refresh верхней панели)
     favorites_changed = pyqtSignal()
+    # Новый сигнал: список недавних ссылок изменился (например, при открытии ссылки)
+    recents_changed = pyqtSignal()
     # Новый сигнал: конкретная ссылка создана/обновлена (payload с category_id, id и др.)
     link_saved = pyqtSignal(dict)
     # Новый сигнал: ссылка удалена (payload с category_id, id и др.)
@@ -250,7 +252,8 @@ class LinkOperationsController(QObject):
                 cat_id = links[0].get("category_id")
                 if isinstance(cat_id, int) and cat_id > 0:
                     self.links_changed.emit(cat_id)
-                self.favorites_changed.emit()
+                # Удаление может повлиять на список недавних — триггерим его обновление
+                self.recents_changed.emit()
                 # Точечный сигнал об удалении
                 if isinstance(links[0], dict):
                     self.link_deleted.emit(links[0])
@@ -274,7 +277,8 @@ class LinkOperationsController(QObject):
             cat_id = (links[0] if links else {}).get("category_id")
             if isinstance(cat_id, int) and cat_id > 0:
                 self.links_changed.emit(cat_id)
-            self.favorites_changed.emit()
+            # Удаление может повлиять на список недавних — триггерим его обновление
+            self.recents_changed.emit()
             # Точечные сигналы об удалении для каждой ссылки
             try:
                 for payload in links:

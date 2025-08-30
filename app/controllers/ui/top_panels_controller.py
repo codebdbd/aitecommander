@@ -83,6 +83,16 @@ class TopPanelsController:
             except Exception:
                 logger.exception("TopPanelsController.clear_favorites: ошибка при очистке избранного")
 
+    # --- slots for external signals ---
+    def on_favorites_changed(self) -> None:
+        """Слот для обновления панелей при изменении избранного/ссылок."""
+        # Дебаунс-обновление обеих панелей
+        self.request_refresh()
+
+    def on_links_changed(self, _category_id: int | None = None) -> None:
+        """Слот на случай, если требуется обновление по изменению ссылок."""
+        self.request_refresh()
+
     # --- internals ---
     def _on_refresh_timeout(self) -> None:
         try:

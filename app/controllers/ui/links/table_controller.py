@@ -134,6 +134,31 @@ class LinksTableController(QObject):
         except Exception as e:
             logger.error("LinksTableController.on_search_results: failed: %s", e, exc_info=True)
 
+    # --- Slots for link_operations signals ---
+    def on_links_changed(self, category_id: Optional[int]) -> None:
+        """Слот для сигнала link_operations.links_changed(int)."""
+        self.reload(category_id)
+
+    def on_link_saved(self, payload: Optional[Dict] = None) -> None:
+        """Слот для сигнала link_operations.link_saved(dict)."""
+        try:
+            cat_id = None
+            if isinstance(payload, dict):
+                cat_id = payload.get("category_id")
+            self.reload(cat_id)
+        except Exception:
+            logger.exception("LinksTableController.on_link_saved: failed")
+
+    def on_link_deleted(self, payload: Optional[Dict] = None) -> None:
+        """Слот для сигнала link_operations.link_deleted(dict)."""
+        try:
+            cat_id = None
+            if isinstance(payload, dict):
+                cat_id = payload.get("category_id")
+            self.reload(cat_id)
+        except Exception:
+            logger.exception("LinksTableController.on_link_deleted: failed")
+
     # --- Internals ---
     def _fallback_load(self, category_id: int) -> None:
         business = self.business

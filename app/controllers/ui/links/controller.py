@@ -21,17 +21,19 @@ class LinksUIController(QObject):
         table_widget: LinksTableView,
         business_logic: LinksBusinessLogic,
         main_window,
+        link_operations=None,
     ):
         super().__init__()
         self.table = table_widget
         self.business = business_logic
         self.main = main_window
         self._row_by_link_id: dict[int, int] = {}
+        self.link_operations = link_operations
 
-        # Инициализация подмодулей
-        self.handlers = LinksUIHandlers(self)
-        self.clipboard = LinksUIClipboard(self)
-        self.link_ops = LinksUILinkOperations(self)
+        # Инициализация подмодулей с явной зависимостью link_operations
+        self.handlers = LinksUIHandlers(self, link_operations=link_operations)
+        self.clipboard = LinksUIClipboard(self, link_operations=link_operations)
+        self.link_ops = LinksUILinkOperations(self, link_operations=link_operations)
 
         # Подключение сигналов
         self.handlers._connect_signals()
@@ -155,6 +157,12 @@ class LinksUIController(QObject):
     def quick_add_link(self, link_type: str, category_id: int = None):
         """Быстрое добавление ссылки."""
         self.link_ops.quick_add_link(link_type, category_id)
+
+    def on_quick_add_requested(self, payload: Dict | None):
+        """Слот для quickAddRequested(payload) из TopPanelWidget."""
+        if not isinstance(payload, dict):
+            return
+        self.quick_add_link(payload.get("link_type"), payload.get("category_id"))
 
     def show_note_dialog(self, link: Dict):
         """Показать диалог заметки для ссылки."""
