@@ -33,6 +33,8 @@ def test_persistent_profile_cache_persistence_on_disk(monkeypatch, tmp_path):
     # Первый инстанс пишет на диск
     cache1 = PersistentProfileCache(default_ttl=5)
     cache1.set("edge", [{"id": "Profile 1"}])
+    # При отложенной записи нужно явно сбросить на диск
+    cache1.flush()
     assert cache_path.exists()
     # Новый инстанс читает с диска и считает свежим
     cache2 = PersistentProfileCache(default_ttl=5)
