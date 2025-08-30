@@ -166,6 +166,13 @@ class LinkOperationsController(QObject):
                 )
                 self.undo_stack.push(cmd)
 
+                # Если среди сохраняемых ссылок есть изменение признака избранного — уведомим UI
+                try:
+                    if any(isinstance(p, dict) and ("is_favorite" in p) for p in links_to_save):
+                        self.emit_favorites_changed()
+                except Exception:
+                    pass
+
                 # Устанавливаем фокус на первую добавленную ссылку
                 if hasattr(self.main_window, "links_actions") and hasattr(
                     self.main_window.links_actions, "focus_on_link"
@@ -214,6 +221,13 @@ class LinkOperationsController(QObject):
                         main_window=self.main_window,
                     )
                     self.undo_stack.push(cmd)
+
+                    # Если запись содержит поле is_favorite — уведомим об изменении избранного
+                    try:
+                        if isinstance(data, dict) and ("is_favorite" in data):
+                            self.emit_favorites_changed()
+                    except Exception:
+                        pass
 
                     # Устанавливаем фокус на добавленную ссылку (только для новых ссылок)
                     logger.debug(
