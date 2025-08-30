@@ -10,7 +10,7 @@ from PyQt6.QtGui import QIcon
 NodeType = str  # "section" | "category" | "root"
 
 
-@dataclass
+@dataclass(eq=False)
 class TreeNode:
     type: NodeType
     id: Optional[int]
@@ -27,6 +27,11 @@ class TreeNode:
             return self.parent.children.index(self)
         except ValueError:
             return -1
+
+    def __hash__(self) -> int:
+        # Идентичностный хеш позволяет использовать узлы как ключи словаря
+        # (например, при группировке по родителю) и безопасен для мутируемых объектов
+        return id(self)
 
 
 class StructureTreeModel(QAbstractItemModel):
