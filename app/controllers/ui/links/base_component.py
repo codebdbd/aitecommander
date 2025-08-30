@@ -41,10 +41,11 @@ class BaseLinksUIComponent:
     def _update_category_safe(self, category_id: int) -> None:
         """Безопасное обновление категории с fallback."""
         try:
-            if hasattr(self.main, "ui_state") and self.main.ui_state:
-                self.main.ui_state.update_category_without_stack_switch(category_id)
+            ctrl = getattr(self.main, "links_table_controller", None)
+            if ctrl:
+                ctrl.reload(category_id)
             else:
-                # Fallback: только бизнес-логика без UI координации
+                # Fallback: только бизнес-логика без прямого UI
                 self.business.load_links(category_id)
         except Exception as e:
             logger.error(f"Error updating category {category_id}: {e}")

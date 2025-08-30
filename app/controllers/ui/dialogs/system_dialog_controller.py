@@ -89,15 +89,17 @@ class SystemDialogController:
                 self.main_window.structure_business.load_structure()
             category_id = self.main_window.get_current_category_id()
             if category_id:
-                # ЦЕНТРАЛИЗОВАНО: Используем UIStateManager вместо прямого вызова links.load_category
-                if hasattr(self.main_window, "ui_state") and self.main_window.ui_state:
-                    self.main_window.ui_state.update_category_without_stack_switch(
-                        category_id
-                    )
-                else:
-                    logger.error(
-                        "UIStateManager not available in SystemDialogController"
-                    )
+                # Централизовано: обновляем таблицу через LinksTableController, без прямого UI
+                try:
+                    ctrl = getattr(self.main_window, "links_table_controller", None)
+                    if ctrl:
+                        ctrl.reload(category_id)
+                    else:
+                        links_business = getattr(self.main_window, "links_business", None)
+                        if links_business:
+                            links_business.load_links(category_id)
+                except Exception as _e:
+                    logger.debug("SystemDialogController: reload after import failed: %s", _e)
             self.main_window.update_statusbar()
             DialogManager.show_info(
                 self.main_window,

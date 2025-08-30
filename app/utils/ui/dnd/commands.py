@@ -99,11 +99,20 @@ class MoveLinksCommand(BaseCommand):
             categories_to_update.add(new_category)
 
         for category_id in categories_to_update:
-            if hasattr(self.main, "ui_state") and self.main.ui_state:
-                self.main.ui_state.update_category_without_stack_switch(category_id)
-            else:
-                # ЦЕНТРАЛИЗОВАНО: Fallback убран - UIStateManager должен быть всегда доступен
-                logger.error("UIStateManager not available in MoveLinkCommand")
+            try:
+                ctrl = getattr(self.main, "links_table_controller", None)
+                if ctrl:
+                    ctrl.reload(category_id)
+                else:
+                    links_business = getattr(self.main, "links_business", None)
+                    if links_business:
+                        try:
+                            links_business.load_links(category_id)
+                        except Exception:
+                            pass
+            except Exception:
+                # Не роняем команду из-за UI
+                pass
 
         # Переключаем фокус на целевую категорию после перемещения
         if (

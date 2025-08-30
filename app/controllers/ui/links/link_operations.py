@@ -141,15 +141,23 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             link_data = link.copy()
             link_data["last_used"] = datetime.now().isoformat()
 
-            # Немедленно обновить строку в таблице (UI feedback)
-            if hasattr(self.controller, "table") and self.controller.table is not None:
-                self.controller.table.update_link_by_id(link_data)
+            # Немедленно обновить строку в таблице (UI feedback) через централизованный контроллер
+            try:
+                ctrl = getattr(self.main, "links_table_controller", None)
+                if ctrl:
+                    ctrl.update_row(link_data)
+                else:
+                    if hasattr(self.controller, "table") and self.controller.table is not None:
+                        if hasattr(self.controller.table, "update_link_by_id"):
+                            self.controller.table.update_link_by_id(link_data)
+            except Exception as e:
+                logger.debug(f"links_table_controller.update_row failed, fallback used: {e}")
 
             # Асинхронно сохранить в БД (старое поведение)
             self.business.save_link(link_data)
 
-            if hasattr(self.main, "recent_links_widget"):
-                self.main.recent_links_widget.update_recent_links()
+            # Централизованное обновление панели недавних ссылок
+            self.main.top_panels_controller.refresh_recent()
 
     def _toggle_fav(self, link: Dict = None):
         """Переключить статус избранного."""

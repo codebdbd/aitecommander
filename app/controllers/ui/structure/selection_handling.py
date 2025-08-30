@@ -52,18 +52,34 @@ class SelectionHandling:
     def is_suppressed(self) -> bool:
         return bool(self._suppress_counter > 0)
 
-    def _on_section_selected(self, section_id: int, categories_data: list) -> None:
-        if hasattr(self.main, "ui_state") and self.main.ui_state:
-            # Используем централизованный UIStateManager
-            self.main.ui_state.switch_to_category_tiles(categories_data)
-        else:
-            # Fallback на старую логику - используем централизованные методы UIStateManager
+    def _on_section_selected(self, section_id: int) -> None:
+        """Обработка выбора раздела: делегируем обновление плиток контроллеру.
+
+        Новый формат сигнала: передаётся только section_id без categories_data.
+        """
+        try:
+            ctrl = getattr(self.main, "category_tiles_controller", None)
+            if ctrl:
+                ctrl.refresh(int(section_id))
+                return
+        except Exception:
+            logger.exception("SelectionHandling._on_section_selected: controller refresh failed")
+
+        # Fallback: напрямую через UIStateManager, самостоятельно получая категории
+        try:
+            categories_data = []
+            try:
+                categories_data = self.business.get_categories(int(section_id)) or []
+            except Exception:
+                categories_data = []
             if hasattr(self.main, "ui_state") and self.main.ui_state:
                 self.main.ui_state.switch_to_category_tiles(categories_data)
             else:
-                # Последний fallback - прямые вызовы
+                # Последний fallback - прямое обновление виджетов
                 self.main.tiles.set_categories(categories_data)
                 self.main.stack.setCurrentIndex(0)
+        except Exception:
+            logger.exception("SelectionHandling._on_section_selected: fallback failed")
 
     def _on_category_selected(self, category_id: int) -> None:
         """ЦЕНТРАЛИЗОВАНО: Использует UIStateManager.load_category() вместо MainWindow.load_category()"""
@@ -171,8 +187,21 @@ class SelectionHandling:
             logger.info(f"Handling selection: {typ} #{id_}")
 
             if typ == "section":
-                self.business.select_section(id_)
-                logger.debug(f"Section #{id_} selected - categories will be loaded")
+                # Используем контроллер плиток категорий вместо прямого business.select_section
+                try:
+                    ctrl = getattr(self.main, "category_tiles_controller", None)
+                    if ctrl:
+                        ctrl.refresh(int(id_))
+                    else:
+                        # Fallback: прежний путь через бизнес-сигнал
+                        self.business.select_section(id_)
+                except Exception:
+                    logger.exception("SelectionHandling._handle_item_selection: section refresh failed, using business fallback")
+                    try:
+                        self.business.select_section(id_)
+                    except Exception:
+                        logger.exception("SelectionHandling._handle_item_selection: business.select_section failed")
+                logger.debug(f"Section #{id_} selected - tiles will be refreshed")
             elif typ == "category":
                 # Гард: категория могла быть удалена батч-операцией; проверяем существование
                 try:
@@ -200,10 +229,17 @@ class SelectionHandling:
                         except Exception:
                             target_section = None
                         if isinstance(target_section, int) and target_section > 0:
-                            self.business.select_section(target_section)
-                            logger.debug(
-                                f"Fallback: switched to section #{target_section} tiles"
-                            )
+                            try:
+                                ctrl = getattr(self.main, "category_tiles_controller", None)
+                                if ctrl:
+                                    ctrl.refresh(int(target_section))
+                                else:
+                                    self.business.select_section(target_section)
+                                logger.debug(
+                                    f"Fallback: switched to section #{target_section} tiles"
+                                )
+                            except Exception:
+                                logger.exception("SelectionHandling._handle_item_selection: fallback section refresh failed")
                         else:
                             logger.debug(
                                 "Fallback: no categories/sections available to select"
@@ -255,11 +291,18 @@ class SelectionHandling:
 
     def _select_category_without_stack_switch(self, category_id: int) -> None:
         """ЦЕНТРАЛИЗОВАНО: Обновляем current_category_id без переключения стека"""
-        if hasattr(self.main, "ui_state") and self.main.ui_state:
-            self.main.ui_state.update_category_without_stack_switch(category_id)
-        else:
-            logger.error(
-                "UIStateManager not available in _select_category_without_stack_switch"
+        try:
+            ctrl = getattr(self.main, "links_table_controller", None)
+            if ctrl:
+                ctrl.reload(category_id)
+            else:
+                links_business = getattr(self.main, "links_business", None)
+                if links_business:
+                    links_business.load_links(category_id)
+        except Exception as e:
+            logger.debug(
+                "SelectionHandling._select_category_without_stack_switch: reload failed: %s",
+                e,
             )
 
     def _restore_category_selection(self, category_id: int) -> None:

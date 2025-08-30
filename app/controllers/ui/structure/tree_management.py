@@ -1,9 +1,13 @@
 # app/controllers/structure/tree_management.py
 
 from PyQt6.QtCore import QModelIndex, Qt
+import logging
 
 from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 from app.utils.ui.qt.roles import get_tree_tuple
+
+
+logger = logging.getLogger(__name__)
 
 
 class TreeManagement:
@@ -27,7 +31,7 @@ class TreeManagement:
                 sections_data or [], key=lambda s: (s.get("name") or "").lower()
             )
         except Exception:
-            pass
+            logger.exception("TreeManagement._on_structure_loaded: ошибка сортировки разделов")
 
         # Обновляем модель одним снимком
         model = self.tree.model()
@@ -52,7 +56,7 @@ class TreeManagement:
             if hasattr(self.controller, "icon_handler") and self.controller.icon_handler:
                 self.controller.icon_handler.reload_icons()
         except Exception:
-            pass
+            logger.exception("TreeManagement._on_structure_loaded: ошибка перезагрузки иконок")
 
         # После первой загрузки структуры обновляем отображение главного окна
         if hasattr(self.controller, "main") and getattr(
@@ -77,11 +81,11 @@ class TreeManagement:
                 model.insert_categories(parent_id, row, [data])
                 # Обновим плитки выбранного раздела, если это не Undo вставка
                 # Флаг '__from_undo__' добавляется отправителем сигнала, чтобы избежать смены фокуса
-                if not bool(data.get("__from_undo__")) and hasattr(self.controller, "business"):
-                    self.controller.business.select_section(parent_id)
+                if not bool(data.get("__from_undo__")):
+                    self.refresh_section_tiles(parent_id)
         except Exception:
             # В случае ошибки оставим обработку на полную перезагрузку структуры
-            pass
+            logger.exception("TreeManagement._on_item_added: ошибка инкрементальной вставки %s", item_type)
 
         # Сфокусируемся на новом элементе
         item_id = data.get("id")
@@ -100,7 +104,11 @@ class TreeManagement:
             try:
                 model.update_item(item_type, item_id, data or {})
             except Exception:
-                pass
+                logger.exception(
+                    "TreeManagement._on_item_updated: ошибка обновления элемента %s #%s",
+                    item_type,
+                    item_id,
+                )
         # Сохраняем UX восстановления выделения категории
         if item_type == "category" and isinstance(item_id, int):
             schedule_selection_restore(
@@ -120,17 +128,53 @@ class TreeManagement:
                 elif item_type == "category":
                     model.remove_categories([int(item_id)])
             except Exception:
-                pass
+                logger.exception(
+                    "TreeManagement._on_item_deleted: ошибка удаления элемента %s #%s",
+                    item_type,
+                    item_id,
+                )
         # Если удалили категорию и сейчас выбран раздел — обновим плитки для него.
         if item_type == "category":
             try:
                 cur = self.tree.currentIndex()
                 t = get_tree_tuple(cur, 0) if cur and cur.isValid() else None
-                if t and t[0] == "section" and hasattr(self.controller, "business"):
+                if t and t[0] == "section":
                     section_id = t[1]
-                    self.controller.business.select_section(section_id)
+                    self.refresh_section_tiles(section_id)
             except Exception:
-                pass
+                logger.exception("TreeManagement._on_item_deleted: ошибка обновления плиток после удаления категории")
+
+    def refresh_section_tiles(self, section_id: int) -> None:
+        """Обновить плитки раздела через CategoryTilesController.
+
+        Основной путь: `main.category_tiles_controller.refresh(section_id)`.
+        Фолбэки: UIStateManager.switch_to_category_tiles(categories) -> business.select_section(section_id)
+        """
+        try:
+            ctrl = getattr(self.controller.main, "category_tiles_controller", None)
+            if ctrl:
+                ctrl.refresh(int(section_id))
+                return
+        except Exception:
+            logger.exception("TreeManagement.refresh_section_tiles: controller refresh failed")
+
+        # Fallback 1: вручную получить категории и обновить через UIStateManager
+        try:
+            business = getattr(self.controller, "business", None)
+            ui_state = getattr(self.controller.main, "ui_state", None)
+            if business and ui_state:
+                categories = business.get_categories(int(section_id))
+                ui_state.switch_to_category_tiles(categories or [])
+                return
+        except Exception:
+            logger.exception("TreeManagement.refresh_section_tiles: UIState fallback failed")
+
+        # Fallback 2: старая логика — эмитим бизнес-сигнал
+        try:
+            if hasattr(self.controller, "business") and self.controller.business:
+                self.controller.business.select_section(int(section_id))
+        except Exception:
+            logger.exception("TreeManagement.refresh_section_tiles: business.select_section failed for #%s", section_id)
 
     def _iter_indexes(self, parent: QModelIndex = QModelIndex()):
         model = self.tree.model()
@@ -283,9 +327,9 @@ class TreeManagement:
             try:
                 hier = self.controller.business.get_category_hierarchy(category_id)
                 if hier and "section_id" in hier:
-                    self.controller.business.select_section(int(hier["section_id"]))
+                    self.refresh_section_tiles(int(hier["section_id"]))
             except Exception:
-                pass
+                logger.exception("TreeManagement._update_category_display: ошибка обновления плиток по иерархии категории #%s", category_id)
 
     def _update_category_tiles_after_edit(self, _category_index: QModelIndex | None = None) -> None:
         """Обновляет плитки категорий после редактирования категории."""
@@ -300,10 +344,10 @@ class TreeManagement:
                 else:
                     parent = cur
                 pt = get_tree_tuple(parent, 0)
-                if pt and pt[0] == "section" and hasattr(self.controller, "business"):
-                    self.controller.business.select_section(pt[1])
+                if pt and pt[0] == "section":
+                    self.refresh_section_tiles(pt[1])
         except Exception:
-            pass
+            logger.exception("TreeManagement._update_category_tiles_after_edit: ошибка обновления плиток")
 
     def _update_section_tiles_after_edit(self, _section_index: QModelIndex | None = None) -> None:
         """Обновляет плитки категорий после редактирования раздела."""
@@ -311,7 +355,7 @@ class TreeManagement:
             cur = self.tree.currentIndex()
             if cur and cur.isValid():
                 t = get_tree_tuple(cur, 0)
-                if t and t[0] == "section" and hasattr(self.controller, "business"):
-                    self.controller.business.select_section(t[1])
+                if t and t[0] == "section":
+                    self.refresh_section_tiles(t[1])
         except Exception:
-            pass
+            logger.exception("TreeManagement._update_section_tiles_after_edit: ошибка обновления плиток")

@@ -55,7 +55,7 @@ class StructureBusinessLogic(QObject):
     items_batch_deleted = pyqtSignal(str, list)  # str - тип, list[int] - IDs элементов
 
     # Сигналы выбора
-    section_selected = pyqtSignal(int, list)  # int, List[Dict] - ID раздела, категории
+    section_selected = pyqtSignal(int)  # int - ID раздела
     category_selected = pyqtSignal(int)  # int - ID категории
 
     # Служебные сигналы
@@ -382,7 +382,7 @@ class StructureBusinessLogic(QObject):
     def select_section(self, section_id: int) -> None:
         """Выбирает раздел и загружает его категории."""
         categories = self.get_categories(section_id)
-        self.section_selected.emit(section_id, categories)
+        self.section_selected.emit(section_id)
         self.logger.debug(f"Выбран раздел {section_id} с {len(categories)} категориями")
 
     @handle_exceptions()

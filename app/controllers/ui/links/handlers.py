@@ -85,9 +85,12 @@ class LinksUIHandlers(BaseLinksUIComponent):
         # 1) Если нам передали конкретную ссылку — обновляем строку таблицы
         if link is not None:
             try:
-                # Обновить отображение строки, если таблица поддерживает точечное обновление
-                if hasattr(self.table, "update_link_by_id"):
-                    self.table.update_link_by_id(link)
+                ctrl = getattr(self.main, "links_table_controller", None)
+                if ctrl:
+                    ctrl.update_row(link)
+                else:
+                    if hasattr(self.table, "update_link_by_id"):
+                        self.table.update_link_by_id(link)
             except Exception as e:
                 logger.warning(f"Failed to update table row for toggled favorite: {e}")
         else:
@@ -98,10 +101,9 @@ class LinksUIHandlers(BaseLinksUIComponent):
 
         # 2) В любом случае обновляем панель избранного, чтобы пересчитать список/счетчик
         try:
-            if hasattr(self.main, "fav_widget") and self.main.fav_widget:
-                self.main.fav_widget.update_favorites()
+            self.main.top_panels_controller.refresh_favorites()
         except Exception as e:
-            logger.warning(f"Failed to refresh favorites widget after toggle: {e}")
+            logger.warning(f"Failed to refresh favorites after toggle via TopPanelsController: {e}")
 
     def _handle_error(self, error_msg: str):
         """Обработать ошибку."""
@@ -121,10 +123,17 @@ class LinksUIHandlers(BaseLinksUIComponent):
         except Exception:
             pass
 
-        if hasattr(self.table, "update_link_by_id"):
-            self.table.update_link_by_id(updated_link)
-        if hasattr(self.main, "fav_widget"):
-            self.main.fav_widget.update_favorites()
+        try:
+            ctrl = getattr(self.main, "links_table_controller", None)
+            if ctrl:
+                ctrl.update_row(updated_link)
+            else:
+                if hasattr(self.table, "update_link_by_id"):
+                    self.table.update_link_by_id(updated_link)
+        except Exception as e:
+            logger.debug(f"links_table_controller.update_row failed, fallback used: {e}")
+        # Централизованное обновление панели избранного через контроллер
+        self.main.top_panels_controller.refresh_favorites()
 
     def _on_double_click(self, row: int, column: int):
         """Обработка двойного клика по строке."""

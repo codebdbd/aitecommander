@@ -2,6 +2,7 @@
 
 import logging
 
+from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QDialog
 
 from app.controllers.ui.undo.commands_links import (
@@ -20,13 +21,20 @@ MACRO_DELETE_LINKS_TEXT = "Удаление {count} ссылок"
 logger = logging.getLogger(__name__)
 
 
-class LinkOperationsController:
+class LinkOperationsController(QObject):
     """Контроллер для операций со ссылками: создание, редактирование, удаление."""
 
     def __init__(self, db, undo_stack: UndoManager, main_window):
+        super().__init__()
         self.db = db
         self.undo_stack = undo_stack
         self.main_window = main_window
+
+    # --- Сигналы внешним слушателям ---
+    # Сигнал о том, что данные ссылок в категории изменились и требуется перезагрузка таблицы
+    links_changed = pyqtSignal(int)  # category_id
+    # Сигнал о том, что состояние избранного изменилось (требуется refresh верхней панели)
+    favorites_changed = pyqtSignal()
 
     def get_dialog_initialization_data(self, category_id=None):
         """Получить данные для инициализации диалога ссылки."""
@@ -191,6 +199,13 @@ class LinkOperationsController:
                         else:
                             logger.warning("No link ID available for focusing")
 
+            # Сигнализируем о необходимости перезагрузки таблицы текущей категории
+            try:
+                if isinstance(cat_id, int) and cat_id > 0:
+                    self.links_changed.emit(cat_id)
+            except Exception:
+                pass
+
         return result
 
     def delete_links_with_confirmation(self, links):
@@ -213,18 +228,12 @@ class LinkOperationsController:
             except Exception:
                 pass
             self.undo_stack.push(cmd)
-            # Явное единичное обновление таблицы, как и при удалении через контекстное меню
+            # Эмитим сигналы вместо прямых обновлений UI
             try:
                 cat_id = links[0].get("category_id")
                 if isinstance(cat_id, int) and cat_id > 0:
-                    if hasattr(self.main_window, "ui_state") and self.main_window.ui_state:
-                        self.main_window.ui_state.update_category_without_stack_switch(cat_id)
-                    else:
-                        # Fallback: только бизнес-логика
-                        self.main_window.links_business.load_links(cat_id)
-                # Обновляем избранное, если виджет присутствует
-                if hasattr(self.main_window, "fav_widget") and self.main_window.fav_widget:
-                    self.main_window.fav_widget.update_favorites()
+                    self.links_changed.emit(cat_id)
+                self.favorites_changed.emit()
             except Exception:
                 pass
             return
@@ -240,15 +249,11 @@ class LinkOperationsController:
             except Exception:
                 pass
             self.undo_stack.push(cmd)
-        # После батч-удаления выполним один внешний reload категории (см. поведение контекстного меню)
+        # После батч-удаления оповещаем слушателей о необходимости обновления
         try:
             cat_id = (links[0] if links else {}).get("category_id")
             if isinstance(cat_id, int) and cat_id > 0:
-                if hasattr(self.main_window, "ui_state") and self.main_window.ui_state:
-                    self.main_window.ui_state.update_category_without_stack_switch(cat_id)
-                else:
-                    self.main_window.links_business.load_links(cat_id)
-            if hasattr(self.main_window, "fav_widget") and self.main_window.fav_widget:
-                self.main_window.fav_widget.update_favorites()
+                self.links_changed.emit(cat_id)
+            self.favorites_changed.emit()
         except Exception:
             pass
