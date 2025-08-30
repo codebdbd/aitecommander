@@ -16,12 +16,22 @@ class LinksTableController(QObject):
     - Централизованное логирование и защита от параллельных обновлений
     """
 
-    def __init__(self, main_window, links_ui_controller):
+    def __init__(self, main_window, *, table, links_business):
+        """Инициализация контроллера с явными зависимостями.
+
+        :param main_window: главное окно (родитель по QObject)
+        :param table: виджет таблицы ссылок, должен иметь метод update_link_by_id(dict)
+        :param links_business: бизнес-логика ссылок с методом load_links(category_id)
+        """
         super().__init__(parent=main_window)
         self.main = main_window
-        self.links_ui = links_ui_controller
+        self.table = table
+        self.business = links_business
+        if self.table is None or self.business is None:
+            raise ValueError("LinksTableController: table и links_business должны быть переданы явно")
         self._reloading: bool = False
         self._queued_category_id: Optional[int] = None
+        self._current_category_id: Optional[int] = None
 
     # --- Public API ---
     def reload(self, category_id: Optional[int]) -> None:
@@ -36,7 +46,13 @@ class LinksTableController(QObject):
                 return
 
             if self._reloading:
-                # Если уже выполняется reload, запомним последнюю запрошенную категорию
+                # Если уже выполняется reload, поставим в очередь, но избегаем дубликатов
+                if category_id == self._current_category_id or category_id == self._queued_category_id:
+                    logger.debug(
+                        "LinksTableController.reload: already processing or queued category_id=%s",
+                        category_id,
+                    )
+                    return
                 self._queued_category_id = category_id
                 logger.debug(
                     "LinksTableController.reload: busy, queued category_id=%s", category_id
@@ -45,6 +61,7 @@ class LinksTableController(QObject):
 
             self._reloading = True
             logger.debug("LinksTableController.reload: start (category_id=%s)", category_id)
+            self._current_category_id = category_id
 
             # Централизовано: загружаем данные через бизнес-логику; UI подписан на изменения
             self._fallback_load(category_id)
@@ -53,7 +70,11 @@ class LinksTableController(QObject):
         finally:
             self._reloading = False
             # Если за время выполнения прилетела ещё одна категория — перезапустим для последней
-            if isinstance(self._queued_category_id, int) and self._queued_category_id > 0:
+            if (
+                isinstance(self._queued_category_id, int)
+                and self._queued_category_id > 0
+                and self._queued_category_id != self._current_category_id
+            ):
                 queued = self._queued_category_id
                 self._queued_category_id = None
                 logger.debug(
@@ -73,9 +94,7 @@ class LinksTableController(QObject):
         if not link_dict:
             return
         try:
-            table = getattr(self.links_ui, "table", None)
-            if table is None:
-                table = getattr(self.main, "table", None)
+            table = self.table
             if table is None:
                 logger.debug("LinksTableController.update_row: no table available")
                 return
@@ -88,17 +107,11 @@ class LinksTableController(QObject):
 
     # --- Internals ---
     def _fallback_load(self, category_id: int) -> None:
-        try:
-            business = getattr(self.links_ui, "business", None)
-            if business is not None:
-                business.load_links(category_id)
-                return
-            links_business = getattr(self.main, "links_business", None)
-            if links_business is not None:
-                links_business.load_links(category_id)
-                return
-            logger.warning(
-                "LinksTableController._fallback_load: no business available to load links"
-            )
-        except Exception as e:
-            logger.error("LinksTableController._fallback_load: failed: %s", e)
+        business = self.business
+        if business is not None:
+            # Пусть исключения поднимутся в reload(), где будет единообразное логирование
+            business.load_links(category_id)
+            return
+        logger.warning(
+            "LinksTableController._fallback_load: no business available to load links"
+        )

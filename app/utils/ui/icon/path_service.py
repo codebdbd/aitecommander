@@ -39,27 +39,41 @@ _METRICS_LAST_LOG: float = 0.0
 
 def _maybe_log_metrics() -> None:
     global _METRICS_LAST_LOG
+    # Получаем интервал логирования метрик с узкой обработкой ошибок
     try:
-        interval = float(getattr(app_config, "icon_metrics_report_interval_s", 60.0))
-    except Exception:  # noqa: BLE001
+        raw_interval = getattr(app_config, "icon_metrics_report_interval_s", 60.0)
+    except AttributeError:
+        raw_interval = 60.0
+    except Exception:
+        logger.exception("_maybe_log_metrics: неожиданная ошибка доступа к app_config.icon_metrics_report_interval_s")
+        raw_interval = 60.0
+    try:
+        interval = float(raw_interval)
+    except (TypeError, ValueError):
+        interval = 60.0
+    except Exception:
+        logger.exception("_maybe_log_metrics: неожиданная ошибка преобразования интервала в float")
         interval = 60.0
     now = time.time()
     if now - _METRICS_LAST_LOG >= interval:
         try:
             stats = _ICON_METRICS.get_stats()
+            # Используем безопасный доступ к ключам, чтобы не падать по KeyError
             logger.info(
                 "Icon metrics: hits=%s misses=%s hit_rate=%s disk_loads=%s not_found=%s avg_load_time=%s load_count=%s uptime=%s",
-                stats["hits"],
-                stats["misses"],
-                stats["hit_rate"],
-                stats["disk_loads"],
-                stats["not_found"],
-                stats["avg_load_time"],
-                stats["load_count"],
-                stats["uptime"],
+                stats.get("hits"),
+                stats.get("misses"),
+                stats.get("hit_rate"),
+                stats.get("disk_loads"),
+                stats.get("not_found"),
+                stats.get("avg_load_time"),
+                stats.get("load_count"),
+                stats.get("uptime"),
             )
-        except Exception:  # noqa: BLE001
-            pass
+        except (AttributeError, TypeError, ValueError):
+            logger.exception("_maybe_log_metrics: некорректный формат статистики метрик")
+        except Exception:
+            logger.exception("_maybe_log_metrics: неожиданная ошибка при логировании метрик")
         _METRICS_LAST_LOG = now
 
 
@@ -75,13 +89,19 @@ def _build_theme_index(theme: str) -> None:
             for p in theme_dir.iterdir():
                 if p.is_file() and is_valid_icon_file(p):
                     mapping[p.name.lower()] = p
-    except Exception as exc:  # noqa: BLE001
-        logger.debug("Index build failed for theme %s: %s", theme, exc)
+    except (OSError, PermissionError) as exc:
+        logger.debug("Index build failed for theme %s due to filesystem error: %s", theme, exc)
+        mapping = {}
+    except Exception:
+        logger.exception("_build_theme_index: неожиданная ошибка при обходе директории темы '%s'", theme)
         mapping = {}
     # Получаем mtime директории темы (если есть)
     try:
         dir_mtime = theme_dir.stat().st_mtime if theme_dir.is_dir() else 0.0
-    except Exception:  # noqa: BLE001
+    except (OSError, PermissionError):
+        dir_mtime = 0.0
+    except Exception:
+        logger.exception("_build_theme_index: неожиданная ошибка получения mtime для темы '%s'", theme)
         dir_mtime = 0.0
     with _INDEX_LOCK:
         _THEME_ICON_INDEX[theme] = mapping
