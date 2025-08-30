@@ -114,6 +114,7 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
             window,
             fav_widget=getattr(window, "fav_widget", None),
             recent_links_widget=getattr(window, "recent_links_widget", None),
+            links_business=links_business,
         )
         controllers["top_panels_controller"] = window.top_panels_controller
     except Exception as e:
@@ -133,11 +134,10 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
                     logger.warning(f"Failed to connect LinkOperations->LinksTableController: {e}")
             if top_panels_ctrl:
                 try:
-                    # Топ-панели обновляются по двум специализированным сигналам
-                    link_ops.favorites_changed.connect(top_panels_ctrl.request_refresh)
-                    # Новый сигнал для недавних ссылок
+                    # Точные обновления по типу события
+                    link_ops.favorites_changed.connect(top_panels_ctrl.request_favorites_refresh)
                     if hasattr(link_ops, 'recents_changed'):
-                        link_ops.recents_changed.connect(top_panels_ctrl.request_refresh)
+                        link_ops.recents_changed.connect(top_panels_ctrl.request_recents_refresh)
                 except (AttributeError, TypeError) as e:
                     logger.warning(f"Failed to connect LinkOperations->TopPanelsController: {e}")
 
@@ -305,8 +305,9 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
             try:
                 top_ctrl = controllers.get("top_panels_controller")
                 if top_ctrl:
+                    # Напрямую вызываем целевой слот без промежуточного update_*
                     window.fav_widget.refresh_requested.connect(
-                        top_ctrl.on_favorites_refresh_requested
+                        top_ctrl.refresh_favorites
                     )
                 else:
                     logger.warning("TopPanelsController not found for favorites refresh wiring")
@@ -336,8 +337,15 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
             try:
                 top_ctrl = controllers.get("top_panels_controller")
                 if top_ctrl:
+                    # Определяем именованный обработчик, чтобы соответствовать сигнатуре (int) и игнорировать аргумент
+                    def _on_recent_refresh_requested(_limit: int) -> None:
+                        try:
+                            top_ctrl.refresh_recent()
+                        except Exception as ex:
+                            logger.warning(f"Top panels recent refresh handler failed: {ex}")
+
                     window.recent_links_widget.refresh_requested[int].connect(
-                        top_ctrl.on_recent_refresh_requested
+                        _on_recent_refresh_requested
                     )
                 else:
                     logger.warning("TopPanelsController not found for recent refresh wiring")

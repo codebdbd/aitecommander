@@ -110,17 +110,10 @@ class TopPanelWidget(BaseLinksPanelWidget):
 
     def update(self) -> None:
         """Запрашивает обновление данных извне."""
-        if self.mode == "favorites":
-            # Совместимость: без аргументов
-            self.refresh_requested.emit()
-            self.refreshRequested.emit({})
-        elif self.mode == "recent":
-            # Совместимость: целочисленный лимит
-            self.refresh_requested[int].emit(RECENT_LINKS_LIMIT)
-            self.refreshRequested.emit({"limit": RECENT_LINKS_LIMIT})
-        else:
-            # quick — данных нет, ничего не делаем
-            pass
+        # Больше не инициируем refresh из программного update(),
+        # чтобы избежать кругового пути. Обновление инициируется
+        # контроллером (request_refresh/refresh_*) и пользовательскими действиями.
+        return
 
     def clear(self) -> None:
         """Инициирует очистку (только favorites)."""

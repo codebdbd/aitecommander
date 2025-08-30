@@ -42,6 +42,43 @@ class LinkOperationsController(QObject):
     # Новый сигнал: ссылка удалена (payload с category_id, id и др.)
     link_deleted = pyqtSignal(dict)
 
+    # --- Централизованные методы эмиссии сигналов ---
+    def emit_links_changed(self, category_id: int) -> None:
+        """Сообщить подписчикам, что изменились ссылки для категории."""
+        try:
+            if isinstance(category_id, int) and category_id > 0:
+                self.links_changed.emit(category_id)
+        except Exception:
+            pass
+
+    def emit_favorites_changed(self) -> None:
+        """Сообщить о смене состояния избранного."""
+        try:
+            self.favorites_changed.emit()
+        except Exception:
+            pass
+
+    def emit_recents_changed(self) -> None:
+        """Сообщить об изменении списка недавних ссылок."""
+        try:
+            self.recents_changed.emit()
+        except Exception:
+            pass
+
+    def emit_link_saved(self, payload: dict) -> None:
+        try:
+            if isinstance(payload, dict):
+                self.link_saved.emit(payload)
+        except Exception:
+            pass
+
+    def emit_link_deleted(self, payload: dict) -> None:
+        try:
+            if isinstance(payload, dict):
+                self.link_deleted.emit(payload)
+        except Exception:
+            pass
+
     def get_dialog_initialization_data(self, category_id=None):
         """Получить данные для инициализации диалога ссылки."""
         data = {"spheres": self._prepare_spheres_data(), "category_hierarchy": None}
