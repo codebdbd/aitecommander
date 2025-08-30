@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from PyQt6.QtCore import QTimer
+from app.interfaces import FavoritesPanelLike, RecentsPanelLike
 
 
 logger = logging.getLogger(__name__)
@@ -13,36 +14,32 @@ _DEFAULT_DEBOUNCE_MS = 150
 
 
 class TopPanelsController:
-    """Контроллер верхних панелей (Избранное/Недавние).
-    Инкапсулирует обновление и очистку панелей, чтобы View (MainWindow) не знал деталей.
-    """
+    """Контроллер верхних панелей (Избранное/Недавние)."""
 
-    def __init__(self, main_window, *, fav_widget, recent_links_widget, links_business=None):
+    def __init__(self, main_window, *, fav_widget: FavoritesPanelLike, recent_links_widget: RecentsPanelLike, links_business=None):
         self.main = main_window
-        # Жесткая проверка зависимостей: упасть рано, чем тихо игнорировать обновления
         if fav_widget is None or recent_links_widget is None:
             raise ValueError(
                 "TopPanelsController requires fav_widget and recent_links_widget"
             )
+        # Жёсткая проверка рантайм-совместимости с Protocol
+        if not isinstance(fav_widget, FavoritesPanelLike):
+            raise TypeError("fav_widget must implement FavoritesPanelLike")
+        if not isinstance(recent_links_widget, RecentsPanelLike):
+            raise TypeError("recent_links_widget must implement RecentsPanelLike")
         self.fav_widget = fav_widget
         self.recent_links_widget = recent_links_widget
-        # links_business может быть None в юнит-тестах; в проде передаётся явно через setup
         self.links_business = links_business
 
-        # Дебаунс-таймер обновления верхних панелей
         self._pending_refresh = False
         self._pending_fav_refresh = False
         self._pending_recent_refresh = False
-        # Не завязываемся жёстко на QObject-родителя (в тестах может быть SimpleNamespace)
         self._refresh_timer = QTimer()
         self._fav_refresh_timer = QTimer()
         self._recent_refresh_timer = QTimer()
-        # Дебаунс-таймер для структурных событий (смена сферы/загрузка структуры)
         self._structure_refresh_timer = QTimer()
-        # Защита от рекурсивной очистки через сигнал clear_requested
         self._clearing_favorites = False
         try:
-            # Назначаем родителя, если это QObject
             self._refresh_timer.setParent(self.main)  # type: ignore[arg-type]
             self._fav_refresh_timer.setParent(self.main)  # type: ignore[arg-type]
             self._recent_refresh_timer.setParent(self.main)  # type: ignore[arg-type]
@@ -53,7 +50,6 @@ class TopPanelsController:
         self._fav_refresh_timer.setSingleShot(True)
         self._recent_refresh_timer.setSingleShot(True)
         self._structure_refresh_timer.setSingleShot(True)
-        # Интервал по умолчанию для структурных событий — 200 мс
         try:
             self._structure_refresh_timer.setInterval(200)
         except Exception:
@@ -63,17 +59,13 @@ class TopPanelsController:
         self._recent_refresh_timer.timeout.connect(self._on_recent_refresh_timeout)
         self._structure_refresh_timer.timeout.connect(self._on_structure_refresh_timeout)
 
-    # Публичные методы -----------------------------------------------------
     def refresh_all(self) -> None:
         """Обновить обе панели: избранное и недавние."""
         self.refresh_favorites()
         self.refresh_recent()
 
     def request_refresh(self, delay_ms: int | None = None, *args, **kwargs) -> None:
-        """Запросить обновление верхних панелей с дебаунсом.
-
-        Слот толерантен к лишним аргументам сигналов (section_id, payload и т.п.).
-        """
+        """Запросить обновление верхних панелей с дебаунсом."""
         try:
             if self._pending_refresh and self._refresh_timer.isActive():
                 return
@@ -81,7 +73,6 @@ class TopPanelsController:
             delay = self._normalize_delay(delay_ms, args, kwargs)
             self._refresh_timer.start(delay)
         except Exception:
-            # Не выполняем повторную попытку; только логируем и выходим
             logger.exception("TopPanelsController.request_refresh failed")
             self._pending_refresh = False
 
@@ -114,24 +105,14 @@ class TopPanelsController:
         try:
             if self.links_business is not None:
                 items = self.links_business.get_favorite_links()
-                if widget:
-                    if hasattr(widget, "set_favorites"):
-                        widget.set_favorites(items)
-                    else:
-                        raise AttributeError(
-                            "TopPanelsController.refresh_favorites: widget must implement set_favorites"
-                        )
+                widget.set_favorites(items)
         except Exception as e:
-            if isinstance(e, AttributeError):
-                # Требование контракта: без set_favorites — падать явно
-                raise
             logger.exception("TopPanelsController.refresh_favorites: ошибка при загрузке/установке избранного")
 
     def refresh_recent(self) -> None:
         widget = self.recent_links_widget
         try:
-            # Пытаемся определить лимит из виджета, иначе берём дефолт
-            limit = None
+            limit = 10
             try:
                 if widget is not None:
                     if hasattr(widget, "limit"):
@@ -141,21 +122,12 @@ class TopPanelsController:
             except Exception:
                 limit = None
             if limit is None:
-                # Глобальное ограничение: не более 10 иконок в панели последних
                 limit = 10
             if self.links_business is not None:
                 items = self.links_business.get_recent_links(limit)
                 if widget:
-                    if hasattr(widget, "set_recent_links"):
-                        widget.set_recent_links(items)
-                    else:
-                        raise AttributeError(
-                            "TopPanelsController.refresh_recent: widget must implement set_recent_links"
-                        )
+                    widget.set_recent_links(items)
         except Exception as e:
-            if isinstance(e, AttributeError):
-                # Требование контракта: без set_recent_links — падать явно
-                raise
             logger.exception("TopPanelsController.refresh_recent: ошибка при загрузке/установке недавних")
 
     def clear_favorites(self) -> None:
@@ -163,11 +135,9 @@ class TopPanelsController:
         if not widget:
             return
         if self._clearing_favorites:
-            # Уже обрабатываем очистку — прерываем, чтобы избежать рекурсии
             return
         self._clearing_favorites = True
         try:
-            # Сначала очищаем избранное на уровне данных (если доступен бизнес-слой)
             try:
                 if self.links_business is not None and hasattr(self.links_business, "clear_favorites"):
                     self.links_business.clear_favorites()
@@ -178,10 +148,8 @@ class TopPanelsController:
                 try:
                     widget.clear_favorites()
                 except Exception:
-                    # Ожидаемое логирование для тестов на ошибки
                     logger.exception("TopPanelsController.clear_favorites: ошибка при очистке избранного")
             else:
-                # Фолбэк: чистим данные напрямую без генерации сигналов
                 try:
                     if hasattr(widget, "set_favorites"):
                         widget.set_favorites([])
@@ -195,12 +163,7 @@ class TopPanelsController:
             self._clearing_favorites = False
 
     def schedule_structure_refresh(self, delay_ms: int | None = None, *args, **kwargs) -> None:
-        """Запланировать централизованное обновление верхних панелей по структурным событиям.
-
-        Использует внутренний single-shot QTimer с дефолтным интервалом 200 мс.
-        Если delay_ms указан и валиден, применяется как разовый интервал перед стартом.
-        Повторные вызовы во время активного таймера просто коалесцируются.
-        """
+        """Запланировать централизованное обновление верхних панелей по структурным событиям."""
         try:
             timer = self._structure_refresh_timer
             if delay_ms is not None:
@@ -210,24 +173,20 @@ class TopPanelsController:
                         timer.setInterval(val)
                 except Exception:
                     pass
-            # Если уже активен — просто оставить запланированное обновление
             if timer.isActive():
                 return
             timer.start()
         except Exception:
-            # Фолбэк: если что-то пошло не так с таймером — вызвать немедленно
             try:
                 self.request_refresh()
             except Exception:
                 logger.exception("TopPanelsController.schedule_structure_refresh: immediate refresh failed")
 
 
-    # --- internals ---
     def _on_refresh_timeout(self) -> None:
         try:
             self.refresh_all()
         finally:
-            # Гарантированно сбрасываем флаг, даже если refresh_all упал
             self._pending_refresh = False
 
     def _on_fav_refresh_timeout(self) -> None:
@@ -249,14 +208,9 @@ class TopPanelsController:
         except Exception:
             logger.exception("TopPanelsController._on_structure_refresh_timeout failed")
 
-    # ---- utils ----
     def _normalize_delay(self, delay_ms, args, kwargs) -> int:
-        """Безопасно привести задержку к int. Игнорируем нерелевантные payload из сигналов.
-
-        Принимаем только числа (int/float, строка цифр). Иначе — дефолт.
-        """
+        """Безопасно привести задержку к int; игнорирует нерелевантные payload сигналов."""
         cand = delay_ms
-        # Если delay не передан, попробуем первый позиционный аргумент, если он число
         if cand is None and args:
             first = args[0]
             if isinstance(first, (int, float)) or (isinstance(first, str) and first.isdigit()):
@@ -269,4 +223,3 @@ class TopPanelsController:
         except Exception:
             return _DEFAULT_DEBOUNCE_MS
 
-    # Обработчики refresh_requested удалены — контроллер сам получает данные в refresh_* и не вызывает widget.update_*
