@@ -62,13 +62,8 @@ def test_refresh_missing_ui_state(caplog):
     caplog.set_level(logging.WARNING)
     business = BusinessMock(categories=[{"id": 1}])
     main = SimpleNamespace(ui_state=None)
-
-    ctrl = CategoryTilesController(main_window=main, ui_state=None, structure_business=business)
-    ctrl.refresh(5)
-
-    assert business.calls == []
-    # Предупреждение залогировано
-    assert any("UIStateManager is not available" in rec.getMessage() for rec in caplog.records)
+    with pytest.raises(ValueError):
+        CategoryTilesController(main_window=main, ui_state=None, structure_business=business)
 
 
 def test_refresh_missing_business(caplog):
@@ -76,12 +71,8 @@ def test_refresh_missing_business(caplog):
     ui_state = UIStateMock()
     # main.structure_business существует, но мы передаём None, контроллер возьмёт из main, которого нет
     main = SimpleNamespace(ui_state=ui_state, structure_business=None)
-
-    ctrl = CategoryTilesController(main_window=main, ui_state=ui_state, structure_business=None)  # type: ignore[arg-type]
-    ctrl.refresh(7)
-
-    assert ui_state.calls == []
-    assert any("StructureBusinessLogic is not available" in rec.getMessage() for rec in caplog.records)
+    with pytest.raises(ValueError):
+        CategoryTilesController(main_window=main, ui_state=ui_state, structure_business=None)  # type: ignore[arg-type]
 
 
 def test_refresh_logs_on_business_error(caplog):
@@ -110,11 +101,8 @@ def test_clear_success(caplog):
 def test_clear_logs_when_ui_missing(caplog):
     caplog.set_level(logging.WARNING)
     main = SimpleNamespace(ui_state=None)
-
-    ctrl = CategoryTilesController(main_window=main, ui_state=None, structure_business=BusinessMock())
-    ctrl.clear()
-
-    assert any("UIStateManager is not available" in rec.getMessage() for rec in caplog.records)
+    with pytest.raises(ValueError):
+        CategoryTilesController(main_window=main, ui_state=None, structure_business=BusinessMock())
 
 
 def test_clear_logs_on_error(caplog):

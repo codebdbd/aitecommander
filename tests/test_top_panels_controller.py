@@ -101,20 +101,16 @@ def test_init_requires_widgets():
 def test_refresh_favorites_requires_set_method():
     class NoSetFav:
         pass
-
-    ctrl = TopPanelsController(
-        SimpleNamespace(), fav_widget=NoSetFav(), recent_links_widget=RecentLinksWidgetMock(), links_business=LinksBusinessStub()
-    )
-    with pytest.raises(AttributeError):
-        ctrl.refresh_favorites()
+    with pytest.raises(TypeError):
+        TopPanelsController(
+            SimpleNamespace(), fav_widget=NoSetFav(), recent_links_widget=RecentLinksWidgetMock(), links_business=LinksBusinessStub()
+        )
 
 
 def test_refresh_recent_requires_set_method():
     class NoSetRecent:
         limit = 5
-
-    ctrl = TopPanelsController(
-        SimpleNamespace(), fav_widget=FavWidgetMock(), recent_links_widget=NoSetRecent(), links_business=LinksBusinessStub()
-    )
-    with pytest.raises(AttributeError):
-        ctrl.refresh_recent()
+    with pytest.raises(TypeError):
+        TopPanelsController(
+            SimpleNamespace(), fav_widget=FavWidgetMock(), recent_links_widget=NoSetRecent(), links_business=LinksBusinessStub()
+        )

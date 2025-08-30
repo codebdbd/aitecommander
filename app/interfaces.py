@@ -60,3 +60,19 @@ class SettingsLike(Protocol):
 
     def get_font_size(self) -> Optional[int]:
         ...
+
+
+@runtime_checkable
+class FavoritesPanelLike(Protocol):
+    """Панель избранного, требующая метод set_favorites."""
+
+    def set_favorites(self, items: list[Any]) -> None:
+        ...
+
+
+@runtime_checkable
+class RecentsPanelLike(Protocol):
+    """Панель недавних ссылок, требующая метод set_recent_links."""
+
+    def set_recent_links(self, items: list[Any]) -> None:
+        ...

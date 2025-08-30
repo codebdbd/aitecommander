@@ -7,10 +7,16 @@ from app.controllers.ui.top_panels_controller import TopPanelsController
 def test_request_refresh_debounce(monkeypatch, caplog):
     caplog.set_level(logging.DEBUG)
 
-    # Используем простые объекты как виджеты: в тесте мы не дергаем их методы
-    ctrl = TopPanelsController(
-        SimpleNamespace(), fav_widget=object(), recent_links_widget=object()
-    )
+    # Минимальные совместимые стабовые виджеты
+    class _Fav:
+        def set_favorites(self, items):
+            pass
+
+    class _Rec:
+        def set_recent_links(self, items):
+            pass
+
+    ctrl = TopPanelsController(SimpleNamespace(), fav_widget=_Fav(), recent_links_widget=_Rec())
 
     calls: list[int] = []
 

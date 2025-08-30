@@ -52,6 +52,7 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
         controllers["category_tiles_controller"] = window.category_tiles_controller
     except Exception as e:
         logger.error(f"Failed to create CategoryTilesController: {e}")
+        raise SetupError("CategoryTilesController creation failed") from e
 
     structure_ctrl = StructureUIController(window.tree, structure_business, window)
 
@@ -122,22 +123,26 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
         logger.error(f"Failed to create SpheresBarController: {e}")
 
     try:
+        # Явно требуем наличие обоих виджетов
+        fav_w = window.fav_widget  # may raise AttributeError
+        rec_w = window.recent_links_widget  # may raise AttributeError
         window.top_panels_controller = TopPanelsController(
             window,
-            fav_widget=getattr(window, "fav_widget", None),
-            recent_links_widget=getattr(window, "recent_links_widget", None),
+            fav_widget=fav_w,
+            recent_links_widget=rec_w,
             links_business=links_business,
         )
         controllers["top_panels_controller"] = window.top_panels_controller
-        # Прокинем TopPanelsController в бизнес-логику структуры для централизованных обновлений
+        # Прокидывание в бизнес-логику структуры — опционально; ошибки не фатальны
         try:
             sb = controllers.get("structure_business")
             if sb is not None:
                 setattr(sb, "top_panels_controller", window.top_panels_controller)
-        except Exception:
-            pass
-    except Exception as e:
+        except (AttributeError, TypeError) as e:
+            logger.warning(f"Failed to assign top_panels_controller to structure_business: {e}")
+    except (AttributeError, TypeError) as e:
         logger.error(f"Failed to create TopPanelsController: {e}")
+        raise SetupError("Failed to create TopPanelsController") from e
 
     try:
         link_ops = controllers.get("link_operations")
@@ -312,13 +317,15 @@ def _add_quick_add_to_top_bar(window) -> None:
 def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
     """Подключение сигналов верхних панелей и первичная загрузка данных."""
     try:
-        if hasattr(window, "quick_add_widget") and window.quick_add_widget:
+        if window.quick_add_widget:
             _connect_quick_add_signal(window, controllers)
     except (AttributeError, TypeError) as e:
         logger.warning(f"Failed to wire quick add: {e}")
 
     # Favorites panel wiring — критично требует TopPanelsController
-    if hasattr(window, "fav_widget") and window.fav_widget:
+    if not hasattr(window, "fav_widget") or not window.fav_widget:
+        raise SetupError("Favorites widget is required for wiring")
+    else:
         try:
             window.fav_widget.linkClicked.connect(window.links_actions.open_link)
         except (AttributeError, TypeError) as e:
@@ -334,7 +341,9 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
             raise SetupError(f"Failed to wire Favorites to TopPanelsController: {e}")
 
     # Recent panel wiring — критично требует TopPanelsController
-    if hasattr(window, "recent_links_widget") and window.recent_links_widget:
+    if not hasattr(window, "recent_links_widget") or not window.recent_links_widget:
+        raise SetupError("Recent links widget is required for wiring")
+    else:
         try:
             window.recent_links_widget.linkClicked.connect(window.links_actions.open_link)
         except (AttributeError, TypeError) as e:
@@ -344,7 +353,6 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
         if not top_ctrl:
             raise SetupError("TopPanelsController is required for recent panel wiring")
 
-        # Именованный слот под сигнатуру (int)
         def _on_recent_refresh_requested(_limit: int) -> None:
             try:
                 top_ctrl.refresh_recent()
@@ -357,12 +365,11 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
             raise SetupError(f"Failed to wire Recents to TopPanelsController: {e}")
 
     # Единичный дебаунс-запрос обновления обеих панелей после первичного подключения
+    top_ctrl = controllers.get("top_panels_controller")
+    if not top_ctrl:
+        raise SetupError("TopPanelsController not available for initial refresh")
     try:
-        top_ctrl = controllers.get("top_panels_controller")
-        if top_ctrl:
-            top_ctrl.request_refresh()
-        else:
-            raise SetupError("TopPanelsController not available for initial refresh")
+        top_ctrl.request_refresh()
     except (AttributeError, TypeError) as e:
         raise SetupError(f"Failed to request initial top panels refresh: {e}")
 
