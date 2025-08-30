@@ -94,8 +94,13 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 self._update_category_safe(category_id)
             except DatabaseError as e:
                 logger.error(f"Failed to update category after deletion: {e}")
-        # Централизованное обновление панели избранного
-        self.main.top_panels_controller.refresh_favorites()
+        # Централизованное обновление верхних панелей через сигнал
+        try:
+            link_ops = getattr(self.main, "link_operations", None)
+            if link_ops:
+                link_ops.favorites_changed.emit()
+        except Exception as e:
+            logger.debug(f"Failed to emit favorites_changed after delete_links: {e}")
 
     def get_selected_links(self) -> List[Dict]:
         """Получить выбранные ссылки."""

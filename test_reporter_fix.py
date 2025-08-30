@@ -90,10 +90,9 @@ def test_all_cases():
     print("=" * 60)
     if all_passed:
         print("✓ Все тесты прошли успешно!")
-        return True
     else:
         print("✗ Некоторые тесты не прошли!")
-        return False
+    assert all_passed
 
 
 if __name__ == "__main__":

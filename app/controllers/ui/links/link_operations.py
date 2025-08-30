@@ -156,8 +156,14 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             # Асинхронно сохранить в БД (старое поведение)
             self.business.save_link(link_data)
 
-            # Централизованное обновление панели недавних ссылок
-            self.main.top_panels_controller.refresh_recent()
+            # Централизованное обновление верхних панелей через сигнал
+            try:
+                link_ops = getattr(self.main, "link_operations", None)
+                if link_ops:
+                    # Используем favorites_changed как триггер общего обновления TopPanels
+                    link_ops.favorites_changed.emit()
+            except Exception as e:
+                logger.debug(f"Failed to emit favorites_changed after opening link: {e}")
 
     def _toggle_fav(self, link: Dict = None):
         """Переключить статус избранного."""
