@@ -235,7 +235,8 @@ class ThreadSafeIconCache:
                     pass
                 return None
 
-            ttl = self._ttl_icon
+            # Персональный TTL имеет приоритет над глобальным TTL для путей
+            ttl = entry.ttl_override if entry.ttl_override is not None else self._ttl_icon
             if not entry.is_valid(ttl):
                 self._path_cache.pop(key, None)
                 self._path_lru.remove(key)
@@ -285,10 +286,12 @@ class ThreadSafeIconCache:
                     pass
                 return None
 
+            # Базовый TTL по типу записи, затем приоритет per-entry override
             if entry.negative:
-                ttl = self._ttl_negative
+                base_ttl = self._ttl_negative
             else:
-                ttl = (self._ttl_abs if theme == "__abs__" else self._ttl_icon)
+                base_ttl = (self._ttl_abs if theme == "__abs__" else self._ttl_icon)
+            ttl = entry.ttl_override if entry.ttl_override is not None else base_ttl
             if not entry.is_valid(ttl):
                 self._qicon_cache.pop(key, None)
                 self._qicon_lru.remove(key)
@@ -341,18 +344,34 @@ class ThreadSafeIconCache:
                 self._sync_path_structs()
                 entry = self._path_cache.get(k)
                 if entry is None:
+                    try:
+                        self.metrics.record_miss()
+                    except Exception:  # noqa: BLE001
+                        pass
                     return None
                 ttl = entry.ttl_override if entry.ttl_override is not None else self._ttl_icon
                 if not entry.is_valid(ttl):
                     self._path_cache.pop(k, None)
                     self._path_lru.remove(k)
+                    try:
+                        self.metrics.record_miss()
+                    except Exception:  # noqa: BLE001
+                        pass
                     return None
                 self._path_lru.access(k)
+                try:
+                    self.metrics.record_hit()
+                except Exception:  # noqa: BLE001
+                    pass
                 return entry.path
             else:  # qicon
                 self._sync_qicon_structs()
                 entry = self._qicon_cache.get(k)
                 if entry is None:
+                    try:
+                        self.metrics.record_miss()
+                    except Exception:  # noqa: BLE001
+                        pass
                     return None
                 if entry.negative:
                     base_ttl = self._ttl_negative
@@ -362,8 +381,16 @@ class ThreadSafeIconCache:
                 if not entry.is_valid(ttl):
                     self._qicon_cache.pop(k, None)
                     self._qicon_lru.remove(k)
+                    try:
+                        self.metrics.record_miss()
+                    except Exception:  # noqa: BLE001
+                        pass
                     return None
                 self._qicon_lru.access(k)
+                try:
+                    self.metrics.record_hit()
+                except Exception:  # noqa: BLE001
+                    pass
                 return entry.icon
 
     def set(self, key: str, value: Optional[Union[str, QIcon]], *, ttl: Optional[float] = None) -> None:
