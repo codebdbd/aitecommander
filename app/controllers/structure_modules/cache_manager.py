@@ -5,18 +5,29 @@
 import logging
 from typing import Any, Dict, Optional
 
+from app.utils.cache.base import InMemoryCache
+
 logger = logging.getLogger(__name__)
 
 
 class CacheManager:
-    """Менеджер кэша для оптимизации запросов к структуре."""
+    """Менеджер кэша для оптимизации запросов к структуре.
 
-    def __init__(self, logger: Optional[logging.Logger] = None):
+    Добавлены TTL и LRU-лимиты для универсального хранилища.
+    """
+
+    def __init__(
+        self,
+        logger: Optional[logging.Logger] = None,
+        *,
+        ttl: Optional[float] = None,
+        max_size: Optional[int] = None,
+    ):
         # Поддерживаем обратную совместимость: если логгер не передан, используем модульный
         self.logger = logger or globals().get("logger") or logging.getLogger(__name__)
         self._first_category_id_cache: Optional[int] = None
-        # Универсальное хранилище кэша по ключам
-        self._store: Dict[str, Any] = {}
+        # Универсальное хранилище кэша по ключам с TTL/LRU
+        self._cache = InMemoryCache(default_ttl=ttl, max_size=max_size)
 
     def get_first_category_id(self) -> Optional[int]:
         """Получает кэшированный ID первой категории."""
@@ -39,23 +50,21 @@ class CacheManager:
     # =============================
     def get(self, key: str) -> Optional[Any]:
         """Возвращает значение из кэша по ключу или None, если отсутствует."""
-        return self._store.get(key)
+        return self._cache.get(key)
 
-    def set(self, key: str, value: Any) -> None:
-        """Сохраняет значение в кэш по ключу."""
-        self._store[key] = value
+    def set(self, key: str, value: Any, *, ttl: Optional[float] = None) -> None:
+        """Сохраняет значение в кэш по ключу с опциональным TTL."""
+        self._cache.set(key, value, ttl=ttl)
         self.logger.debug(f"Кэш установлен: {key}")
 
     def invalidate(self, key: Optional[str] = None) -> None:
         """Инвалидирует кэш по ключу. Если key не указан — очищает весь кэш."""
         if key is None:
-            if self._store:
-                self._store.clear()
-                self.logger.debug("Очищен весь кэш")
+            self._cache.clear()
+            self.logger.debug("Очищен весь кэш")
             return
-        if key in self._store:
-            del self._store[key]
-            self.logger.debug(f"Инвалидирован кэш: {key}")
+        self._cache.invalidate(key)
+        self.logger.debug(f"Инвалидирован кэш: {key}")
 
     def clear_all(self) -> None:
         """Очищает весь кэш."""

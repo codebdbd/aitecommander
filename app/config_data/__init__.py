@@ -18,7 +18,8 @@ class _LazyAppConfig:
     __slots__ = ("_instance",)
 
     def __init__(self):
-        self._instance = None
+        # используем object.__setattr__, чтобы не задействовать переопределённый __setattr__
+        object.__setattr__(self, "_instance", None)
 
     def _get_instance(self):
         if self._instance is None:
@@ -30,6 +31,33 @@ class _LazyAppConfig:
 
     def __getattr__(self, name):
         return getattr(self._get_instance(), name)
+
+    def __setattr__(self, name, value):
+        # Прокидываем присваивания в реальный AppConfig, чтобы monkeypatch мог работать
+        if name == "_instance":
+            object.__setattr__(self, name, value)
+            return
+        inst = object.__getattribute__(self, "_instance")
+        if inst is None:
+            # Ленивая инициализация при первом set
+            from .config_loader import AppConfig as _AppConfig  # локальный импорт
+            inst = _AppConfig()
+            object.__setattr__(self, "_instance", inst)
+        setattr(inst, name, value)
+
+    def __delattr__(self, name):
+        # Делегируем удаление атрибутов в реальный AppConfig (нужно для monkeypatch teardown)
+        if name == "_instance":
+            raise AttributeError("Нельзя удалять служебный атрибут _instance")
+        inst = object.__getattribute__(self, "_instance")
+        if inst is None:
+            # Если ещё не инициализировано — нечего удалять
+            return
+        try:
+            delattr(inst, name)
+        except AttributeError:
+            # Поддерживаем raising=False сценарии из monkeypatch — игнорируем отсутствие атрибута
+            return
 
     def __repr__(self) -> str:  # для удобства отладки
         if self._instance is None:

@@ -4,6 +4,7 @@ import logging
 logger = logging.getLogger(__name__)
 from contextlib import suppress
 from typing import TYPE_CHECKING, Optional
+import weakref
 
 from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QUndoStack, QAction
@@ -152,23 +153,42 @@ class MainWindow(QMainWindow):
             pass
 
         try:
-            # Логируем изменения индекса и чистоты стека
-            us.indexChanged.connect(
-                lambda idx: logging.getLogger(__name__).debug(
+            # Локальные безопасные колбэки через weakref, чтобы избежать обращения к удалённому объекту
+            _us_ref = weakref.ref(us)
+
+            def _on_index_changed(idx: int):
+                u = _us_ref()
+                if u is None:
+                    return
+                try:
+                    can_undo = bool(u.canUndo())
+                except RuntimeError:
+                    return
+                try:
+                    can_redo = bool(u.canRedo())
+                except RuntimeError:
+                    return
+                logging.getLogger(__name__).debug(
                     "[UndoStack] indexChanged=%s canUndo=%s canRedo=%s",
                     idx,
-                    us.canUndo(),
-                    us.canRedo(),
+                    can_undo,
+                    can_redo,
                 )
-            )
-        except Exception:
-            pass
-        try:
-            us.cleanChanged.connect(
-                lambda clean: logging.getLogger(__name__).debug(
-                    "[UndoStack] cleanChanged=%s index=%s", clean, us.index()
+
+            def _on_clean_changed(clean: bool):
+                u = _us_ref()
+                index_val = None
+                if u is not None:
+                    try:
+                        index_val = u.index()
+                    except RuntimeError:
+                        index_val = None
+                logging.getLogger(__name__).debug(
+                    "[UndoStack] cleanChanged=%s index=%s", clean, index_val
                 )
-            )
+
+            us.indexChanged.connect(_on_index_changed)
+            us.cleanChanged.connect(_on_clean_changed)
         except Exception:
             pass
         try:

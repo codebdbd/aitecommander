@@ -24,8 +24,8 @@ from app.utils.ui.icon.inflight import (
 from app.utils.ui.qt.gui_exec import is_gui_thread, run_in_gui_thread_async
 
 from ..cache_manager import (
-    cache_qicon,
-    get_qicon_from_cache,
+    get_icon,
+    set_icon,
     record_actual_miss,
     record_disk_load,
     record_not_found,
@@ -224,7 +224,7 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
     theme = validate_theme(theme)
 
     # Проверяем кеш
-    cached_icon = get_qicon_from_cache(icon_name, theme)
+    cached_icon = get_icon(icon_name, theme)
     if cached_icon is not None:
         try:
             metrics_record_hit()
@@ -240,7 +240,7 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
     leader, ev = enter_sync(key)
     if not leader:
         ev.wait()
-        cached_after = get_qicon_from_cache(icon_name, theme)
+        cached_after = get_icon(icon_name, theme)
         return cached_after if cached_after is not None else QIcon()
 
     try:
@@ -264,7 +264,7 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
         metrics_record_disk_load(load_time)
 
         # Кешируем результат
-        cache_qicon(icon_name, theme, icon)
+        set_icon(icon_name, theme, icon)
         if (
             load_time > 0.1
         ):  # Если загрузка заняла более 100 мс, логируем на уровне INFO
@@ -290,7 +290,7 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
 
         logger.error("Error creating icon '%s' from %s: %s", icon_name, source, exc)
         # Кэшируем пустую иконку с флагом negative=True и отдельным TTL
-        cache_qicon(icon_name, theme, None, negative=True)
+        set_icon(icon_name, theme, None, negative=True)
         return QIcon()
     except Exception as exc:
         # Замеряем время неудачной загрузки
@@ -301,7 +301,7 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
             "Unexpected error creating icon '%s' from %s: %s", icon_name, source, exc
         )
         # Кэшируем пустую иконку с флагом negative=True и отдельным TTL
-        cache_qicon(icon_name, theme, None, negative=True)
+        set_icon(icon_name, theme, None, negative=True)
         return QIcon()
     finally:
         leave_sync(key)
@@ -319,7 +319,7 @@ async def themed_icon_async(
     theme = validate_theme(theme)
 
     # Проверяем кеш (синхронно, так как это быстрая операция)
-    cached_icon = get_qicon_from_cache(icon_name, theme)
+    cached_icon = get_icon(icon_name, theme)
     if cached_icon is not None:
         try:
             metrics_record_hit()
@@ -338,7 +338,7 @@ async def themed_icon_async(
             icon_res = await fut
         except Exception:
             return QIcon()
-        cached_after = get_qicon_from_cache(icon_name, theme)
+        cached_after = get_icon(icon_name, theme)
         return (
             cached_after
             if cached_after is not None
@@ -366,7 +366,7 @@ async def themed_icon_async(
         metrics_record_disk_load(load_time)
 
         # Кешируем результат
-        cache_qicon(icon_name, theme, icon)
+        set_icon(icon_name, theme, icon)
         if load_time > 0.1:
             logger.info(
                 "Slow async disk load: icon '%s' for theme '%s' took %.2fms",
@@ -394,7 +394,7 @@ async def themed_icon_async(
             "Error creating async icon '%s' from %s: %s", icon_name, source, exc
         )
         # Кэшируем пустую иконку с флагом negative=True и отдельным TTL
-        cache_qicon(icon_name, theme, None, negative=True)
+        set_icon(icon_name, theme, None, negative=True)
         leave_async_error(akey, exc)
         return QIcon()
     except Exception as exc:
@@ -410,7 +410,7 @@ async def themed_icon_async(
             exc,
         )
         # Кэшируем пустую иконку с флагом negative=True и отдельным TTL
-        cache_qicon(icon_name, theme, None, negative=True)
+        set_icon(icon_name, theme, None, negative=True)
         leave_async_error(akey, exc)
         return QIcon()
 
@@ -431,7 +431,7 @@ def create_icon_from_path(icon_path: str) -> QIcon:
     # Используем namespaced ключ чтобы избежать коллизий
     cache_key = f"abspath::{icon_path}"
     # Проверяем кэш - логика TTL уже реализована в cache_manager
-    cached_icon = get_qicon_from_cache(cache_key, "__abs__")
+    cached_icon = get_icon(cache_key, "__abs__")
 
     if cached_icon is not None:
         logger.debug("Cache HIT for absolute path icon: %s", icon_path)
@@ -454,7 +454,7 @@ def create_icon_from_path(icon_path: str) -> QIcon:
     record_disk_load()
 
     # Кэшируем результат с timestamp
-    cache_qicon(cache_key, "__abs__", icon)
+    set_icon(cache_key, "__abs__", icon)
 
     # Логируем медленные операции
     if load_time > 0.1:  # Если загрузка заняла более 100 мс, логируем на уровне INFO
@@ -477,7 +477,7 @@ async def create_icon_from_path_async(icon_path: str) -> QIcon:
     # Используем namespaced ключ чтобы избежать коллизий
     cache_key = f"abspath::{icon_path}"
     # Проверяем кэш - логика TTL уже реализована в cache_manager
-    cached_icon = get_qicon_from_cache(cache_key, "__abs__")
+    cached_icon = get_icon(cache_key, "__abs__")
 
     if cached_icon is not None:
         logger.debug("Cache HIT for absolute path icon: %s", icon_path)
@@ -504,7 +504,7 @@ async def create_icon_from_path_async(icon_path: str) -> QIcon:
     record_disk_load()
 
     # Кэшируем результат с timestamp
-    cache_qicon(cache_key, "__abs__", icon)
+    set_icon(cache_key, "__abs__", icon)
 
     # Логируем медленные операции
     if load_time > 0.1:
@@ -527,7 +527,7 @@ def _create_icon_from_path_deferred(icon_path: str) -> QIcon:
     # Используем namespaced ключ чтобы избежать коллизий
     cache_key = f"abspath::{icon_path}"
     # Проверяем кэш - логика TTL уже реализована в cache_manager
-    cached_icon = get_qicon_from_cache(cache_key, "__abs__")
+    cached_icon = get_icon(cache_key, "__abs__")
 
     if cached_icon is not None:
         logger.debug("Cache HIT for absolute path icon: %s", icon_path)
@@ -549,7 +549,7 @@ def _create_icon_from_path_deferred(icon_path: str) -> QIcon:
     record_disk_load()
 
     # Кэшируем результат с timestamp
-    cache_qicon(cache_key, "__abs__", icon)
+    set_icon(cache_key, "__abs__", icon)
 
     # Логируем медленные операции
     if load_time > 0.1:  # Если загрузка заняла более 100 мс, логируем на уровне INFO
