@@ -125,6 +125,13 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
             links_business=links_business,
         )
         controllers["top_panels_controller"] = window.top_panels_controller
+        # Прокинем TopPanelsController в бизнес-логику структуры для централизованных обновлений
+        try:
+            sb = controllers.get("structure_business")
+            if sb is not None:
+                setattr(sb, "top_panels_controller", window.top_panels_controller)
+        except Exception:
+            pass
     except Exception as e:
         logger.error(f"Failed to create TopPanelsController: {e}")
 
@@ -547,8 +554,19 @@ class DatabaseEventHandler:
     @staticmethod
     def handle_favorites_cleared(window):
         """Обработка очистки избранного."""
-        if hasattr(window, "fav_widget") and window.fav_widget:
-            window.fav_widget.clear_favorites()
+        # Немедленно очистим панель избранного централизованно через TopPanelsController,
+        # чтобы избежать лишних перерисовок и дергания
+        try:
+            top_ctrl = getattr(window, "top_panels_controller", None)
+            if top_ctrl:
+                top_ctrl.clear_favorites()
+        except Exception:
+            # Фолбэк на старое поведение (на случай отсутствия контроллера)
+            try:
+                if hasattr(window, "fav_widget") and window.fav_widget:
+                    window.fav_widget.clear_favorites()
+            except Exception:
+                pass
 
         category_id = window.get_current_category_id()
         if category_id:

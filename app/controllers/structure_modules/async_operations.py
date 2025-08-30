@@ -808,9 +808,24 @@ class AsyncSignalHandlers:
 
     def on_update_favorites(self) -> None:
         try:
-            self.logger.debug("Обновление избранного")
+            self.logger.debug("Обновление избранного (через TopPanelsController, если доступен)")
+            # Предпочитаем централизованный контроллер верхних панелей
+            try:
+                top_ctrl = getattr(self.controller, "top_panels_controller", None)
+                if top_ctrl and hasattr(top_ctrl, "request_favorites_refresh"):
+                    top_ctrl.request_favorites_refresh()
+                    return
+            except Exception as inner_exc:
+                self.logger.warning(
+                    f"TopPanelsController недоступен для обновления избранного: {inner_exc}"
+                )
+            # Совместимость: если у контроллера всё же есть старый сигнал, эмитим его
             if hasattr(self.controller, "update_favorites"):
-                self.controller.update_favorites.emit()
+                try:
+                    self.controller.update_favorites.emit()
+                except Exception:
+                    # Не валим поток, логгируем и продолжаем
+                    self.logger.debug("Legacy update_favorites.emit() недоступен")
         except Exception as e:
             self.logger.error(
                 f"Ошибка в обработчике on_update_favorites: {e}", exc_info=True
@@ -818,9 +833,23 @@ class AsyncSignalHandlers:
 
     def on_update_recent_links(self) -> None:
         try:
-            self.logger.debug("Обновление недавних ссылок")
+            self.logger.debug("Обновление недавних ссылок (через TopPanelsController, если доступен)")
+            # Предпочитаем централизованный контроллер верхних панелей
+            try:
+                top_ctrl = getattr(self.controller, "top_panels_controller", None)
+                if top_ctrl and hasattr(top_ctrl, "request_recents_refresh"):
+                    top_ctrl.request_recents_refresh()
+                    return
+            except Exception as inner_exc:
+                self.logger.warning(
+                    f"TopPanelsController недоступен для обновления недавних ссылок: {inner_exc}"
+                )
+            # Совместимость: если у контроллера всё же есть старый сигнал, эмитим его
             if hasattr(self.controller, "update_recent_links"):
-                self.controller.update_recent_links.emit()
+                try:
+                    self.controller.update_recent_links.emit()
+                except Exception:
+                    self.logger.debug("Legacy update_recent_links.emit() недоступен")
         except Exception as e:
             self.logger.error(
                 f"Ошибка в обработчике on_update_recent_links: {e}", exc_info=True

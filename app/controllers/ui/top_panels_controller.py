@@ -37,6 +37,8 @@ class TopPanelsController:
         self._refresh_timer = QTimer()
         self._fav_refresh_timer = QTimer()
         self._recent_refresh_timer = QTimer()
+        # Защита от рекурсивной очистки через сигнал clear_requested
+        self._clearing_favorites = False
         try:
             # Назначаем родителя, если это QObject
             self._refresh_timer.setParent(self.main)  # type: ignore[arg-type]
@@ -69,10 +71,9 @@ class TopPanelsController:
             delay = self._normalize_delay(delay_ms, args, kwargs)
             self._refresh_timer.start(delay)
         except Exception:
-            # В случае неожиданных проблем с таймером выполняем немедленное обновление
-            logger.exception("TopPanelsController.request_refresh: unexpected error; running immediate refresh")
+            # Не выполняем повторную попытку; только логируем и выходим
+            logger.exception("TopPanelsController.request_refresh failed")
             self._pending_refresh = False
-            self.refresh_all()
 
     def request_favorites_refresh(self, delay_ms: int | None = None, *args, **kwargs) -> None:
         """Запросить обновление только панели избранного с дебаунсом."""
@@ -83,9 +84,8 @@ class TopPanelsController:
             delay = self._normalize_delay(delay_ms, args, kwargs)
             self._fav_refresh_timer.start(delay)
         except Exception:
-            logger.exception("TopPanelsController.request_favorites_refresh: unexpected error; running immediate refresh")
+            logger.exception("TopPanelsController.request_favorites_refresh failed")
             self._pending_fav_refresh = False
-            self.refresh_favorites()
 
     def request_recents_refresh(self, delay_ms: int | None = None, *args, **kwargs) -> None:
         """Запросить обновление только панели недавних ссылок с дебаунсом."""
@@ -96,9 +96,8 @@ class TopPanelsController:
             delay = self._normalize_delay(delay_ms, args, kwargs)
             self._recent_refresh_timer.start(delay)
         except Exception:
-            logger.exception("TopPanelsController.request_recents_refresh: unexpected error; running immediate refresh")
+            logger.exception("TopPanelsController.request_recents_refresh failed")
             self._pending_recent_refresh = False
-            self.refresh_recent()
 
     def refresh_favorites(self) -> None:
         widget = self.fav_widget
@@ -147,11 +146,32 @@ class TopPanelsController:
 
     def clear_favorites(self) -> None:
         widget = self.fav_widget
-        if widget:
-            try:
-                widget.clear_favorites()
-            except Exception:
-                logger.exception("TopPanelsController.clear_favorites: ошибка при очистке избранного")
+        if not widget:
+            return
+        if self._clearing_favorites:
+            # Уже обрабатываем очистку — прерываем, чтобы избежать рекурсии
+            return
+        self._clearing_favorites = True
+        try:
+            if hasattr(widget, "clear_favorites"):
+                try:
+                    widget.clear_favorites()
+                except Exception:
+                    # Ожидаемое логирование для тестов на ошибки
+                    logger.exception("TopPanelsController.clear_favorites: ошибка при очистке избранного")
+            else:
+                # Фолбэк: чистим данные напрямую без генерации сигналов
+                try:
+                    if hasattr(widget, "set_favorites"):
+                        widget.set_favorites([])
+                    try:
+                        widget.setVisible(False)
+                    except Exception:
+                        pass
+                except Exception:
+                    logger.exception("TopPanelsController.clear_favorites: ошибка при программной очистке избранного")
+        finally:
+            self._clearing_favorites = False
 
 
     # --- internals ---
