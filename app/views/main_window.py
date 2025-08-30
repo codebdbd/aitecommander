@@ -5,7 +5,7 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, Optional
 
 from PyQt6.QtCore import QTimer, pyqtSignal
-from PyQt6.QtGui import QKeySequence, QUndoStack
+from PyQt6.QtGui import QKeySequence, QUndoStack, QAction
 from PyQt6.QtWidgets import QMainWindow, QWidget
 
 from app.views.link import LinksTableView
@@ -42,6 +42,9 @@ class MainWindow(QMainWindow):
     table: LinksTableView
     left_panel: QWidget
     undo_stack: Optional[QUndoStack]
+    # Типизированные атрибуты действий отмены/повтора, могут быть None до инициализации
+    undo_action: Optional[QAction]
+    redo_action: Optional[QAction]
 
     def handle_import_browser_bookmarks(self):
         self.system_dialogs.handle_import_browser_bookmarks()
@@ -99,6 +102,9 @@ class MainWindow(QMainWindow):
         """Создает действия Undo/Redo."""
         us = getattr(self, "undo_stack", None)
         if us is None:
+            # Явно сбрасываем действия, чтобы атрибуты существовали и были согласованы
+            self.undo_action = None
+            self.redo_action = None
             return None, None
 
         undo_action = us.createUndoAction(self)
@@ -122,6 +128,9 @@ class MainWindow(QMainWindow):
         # Инициализация перенесена в bootstrap. Здесь только приём базовых зависимостей.
         self.settings = settings
         self.theme_ctrl = theme_ctrl
+        # Атрибуты undo/redo до создания undo_stack отсутствуют как действия
+        self.undo_action = None
+        self.redo_action = None
 
     def _init_spheres_ui(self):
         """Инициализирует UI сфер (асинхронно)."""
