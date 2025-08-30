@@ -13,8 +13,9 @@ class CategoryTilesController:
     дублирования логики в разных местах (TreeManagement, SelectionHandling).
     """
 
-    def __init__(self, main_window, structure_business):
+    def __init__(self, main_window, ui_state, structure_business):
         self.main = main_window
+        self.ui_state = ui_state
         self.business = structure_business
 
     def refresh(self, section_id: int) -> None:
@@ -29,12 +30,12 @@ class CategoryTilesController:
                 logger.warning("CategoryTilesController.refresh: invalid section_id=%s", section_id)
                 return
 
-            ui_state = getattr(self.main, "ui_state", None)
+            ui_state = self.ui_state
             if not ui_state:
                 logger.warning("CategoryTilesController.refresh: UIStateManager is not available")
                 return
 
-            business = self.business or getattr(self.main, "structure_business", None)
+            business = self.business
             if not business:
                 logger.warning("CategoryTilesController.refresh: StructureBusinessLogic is not available")
                 return
@@ -50,7 +51,7 @@ class CategoryTilesController:
     def clear(self) -> None:
         """Очистить плитки категорий (показать пустой набор)."""
         try:
-            ui_state = getattr(self.main, "ui_state", None)
+            ui_state = self.ui_state
             if ui_state:
                 ui_state.switch_to_category_tiles([])
             else:

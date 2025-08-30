@@ -82,28 +82,27 @@ class LinksUIHandlers(BaseLinksUIComponent):
         self, fav_count: int, links: List[Dict], link: Optional[Dict]
     ):
         """Завершить переключение избранного."""
-        # 1) Если нам передали конкретную ссылку — обновляем строку таблицы
-        if link is not None:
-            try:
-                ctrl = getattr(self.main, "links_table_controller", None)
-                if ctrl:
-                    ctrl.update_row(link)
-                else:
-                    if hasattr(self.table, "update_link_by_id"):
-                        self.table.update_link_by_id(link)
-            except Exception as e:
-                logger.warning(f"Failed to update table row for toggled favorite: {e}")
-        else:
-            # Бывают случаи вызова без конкретной ссылки — не выходим молча
-            logger.warning(
-                "_complete_toggle_fav called without specific link; proceeding with favorites refresh only"
-            )
-
-        # 2) В любом случае обновляем панель избранного, чтобы пересчитать список/счетчик
+        # Эмитим сигналы вместо прямых обращений к контроллерам
         try:
-            self.main.top_panels_controller.refresh_favorites()
+            link_ops = getattr(self.main, "link_operations", None)
+            if link_ops:
+                # Сообщаем о возможном изменении таблицы ссылок (категория из ссылки или текущая)
+                cat_id = None
+                if link is not None:
+                    cat_id = link.get("category_id")
+                if not isinstance(cat_id, int) or cat_id <= 0:
+                    try:
+                        cat_id = getattr(self.main, "get_current_category_id", lambda: None)()
+                    except Exception:
+                        cat_id = None
+                if isinstance(cat_id, int) and cat_id > 0:
+                    link_ops.links_changed.emit(cat_id)
+                # В любом случае сигнализируем об изменении избранного
+                link_ops.favorites_changed.emit()
+            else:
+                logger.debug("LinksUIHandlers: link_operations not available to emit signals")
         except Exception as e:
-            logger.warning(f"Failed to refresh favorites after toggle via TopPanelsController: {e}")
+            logger.warning(f"Failed to emit signals after toggle favorite: {e}")
 
     def _handle_error(self, error_msg: str):
         """Обработать ошибку."""
@@ -123,17 +122,18 @@ class LinksUIHandlers(BaseLinksUIComponent):
         except Exception:
             pass
 
+        # Эмитим сигналы вместо прямых обновлений UI
         try:
-            ctrl = getattr(self.main, "links_table_controller", None)
-            if ctrl:
-                ctrl.update_row(updated_link)
+            link_ops = getattr(self.main, "link_operations", None)
+            if link_ops:
+                cat_id = updated_link.get("category_id")
+                if isinstance(cat_id, int) and cat_id > 0:
+                    link_ops.links_changed.emit(cat_id)
+                link_ops.favorites_changed.emit()
             else:
-                if hasattr(self.table, "update_link_by_id"):
-                    self.table.update_link_by_id(updated_link)
+                logger.debug("LinksUIHandlers: link_operations not available to emit signals on link update")
         except Exception as e:
-            logger.debug(f"links_table_controller.update_row failed, fallback used: {e}")
-        # Централизованное обновление панели избранного через контроллер
-        self.main.top_panels_controller.refresh_favorites()
+            logger.warning(f"Failed to emit signals after link update: {e}")
 
     def _on_double_click(self, row: int, column: int):
         """Обработка двойного клика по строке."""
