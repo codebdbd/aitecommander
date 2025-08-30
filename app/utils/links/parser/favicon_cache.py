@@ -64,15 +64,23 @@ class FaviconCache(BaseCache):
     def __init__(self, *, default_ttl: Optional[float] = CACHE_TTL) -> None:
         self._default_ttl = default_ttl
         self._lock = threading.RLock()
+        # Кэшируем результат _get_default_icon(), чтобы не дергать resolver повторно
+        self._default_icon_cached: Optional[str] = None
 
     # Вспомогательные методы
     def _get_default_icon(self) -> str:
+        if self._default_icon_cached is not None:
+            return self._default_icon_cached
         if resolve_icon_for_link is None:
-            return ""
+            self._default_icon_cached = ""
+            return self._default_icon_cached
         try:
-            return resolve_icon_for_link({"type": "web", "icon_path": ""}) or ""
+            self._default_icon_cached = (
+                resolve_icon_for_link({"type": "web", "icon_path": ""}) or ""
+            )
         except Exception:  # noqa: BLE001
-            return ""
+            self._default_icon_cached = ""
+        return self._default_icon_cached
 
     def _compute_effective_ttl(self, item: dict[str, Any]) -> float:
         # Совместимость с прежней логикой: отсутствие "ttl" и default_icon => короткий негативный TTL
@@ -93,6 +101,11 @@ class FaviconCache(BaseCache):
                     ts = float(item.get("timestamp", 0.0))
                     ttl = self._compute_effective_ttl(item)
                     if ttl <= 0 or (time.time() - ts) >= ttl:
+                        # Удаляем протухшую запись, чтобы база не разрасталась
+                        try:
+                            del db[key]
+                        except Exception:
+                            pass
                         return None
                     return item
 
@@ -101,7 +114,7 @@ class FaviconCache(BaseCache):
             path = _db_path()
             lock_path = f"{path}.lock"
             with _file_lock(lock_path):
-                with closing(shelve.open(path, writeback=True)) as db:
+                with closing(shelve.open(path)) as db:
                     if isinstance(value, dict):
                         to_store = dict(value)
                     else:
@@ -129,7 +142,7 @@ class FaviconCache(BaseCache):
                     except Exception:  # noqa: BLE001
                         pass
                     return
-                with closing(shelve.open(path, writeback=True)) as db:
+                with closing(shelve.open(path)) as db:
                     if key in db:
                         del db[key]
                         logger.debug("[cache] INVALIDATE %s", key)
