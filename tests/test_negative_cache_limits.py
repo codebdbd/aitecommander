@@ -15,12 +15,12 @@ def test_negative_cache_max_size_eviction(monkeypatch):
         nc.mark_negative(f"k{i}")
         time.sleep(0.01)
 
-    # Должно остаться не более 3 самых новых
-    assert len(nc._NEGATIVE_CACHE) <= 3  # noqa: SLF001 (тест внутреннего состояния)
-
-    # Самые ранние ключи должны быть вытеснены
-    remaining = set(nc._NEGATIVE_CACHE.keys())
-    assert "k0" not in remaining and "k1" not in remaining
+    # Должны остаться последние три ключа (LRU по времени метки)
+    assert not nc.is_negative("k0")
+    assert not nc.is_negative("k1")
+    assert nc.is_negative("k2")
+    assert nc.is_negative("k3")
+    assert nc.is_negative("k4")
 
 
 def test_negative_cache_periodic_cleanup(monkeypatch):
@@ -33,7 +33,8 @@ def test_negative_cache_periodic_cleanup(monkeypatch):
     nc.mark_negative("x")
     time.sleep(0.2)
 
-    # Новая отметка должна спровоцировать сборку мусора
+    # Новая отметка должна не влиять на протухший "x"; он не должен считаться негативным
     nc.mark_negative("y")
 
-    assert "x" not in nc._NEGATIVE_CACHE  # noqa: SLF001
+    assert not nc.is_negative("x")
+    assert nc.is_negative("y")

@@ -130,6 +130,7 @@ class PathCacheEntry:
 
     path: Optional[str]
     timestamp: float
+    ttl_override: Optional[float] = None
 
     def is_valid(self, ttl_seconds: Optional[float]) -> bool:
         return _is_entry_valid(self.timestamp, ttl_seconds)
@@ -142,6 +143,7 @@ class IconCacheEntry:
     icon: QIcon
     timestamp: float
     negative: bool = False
+    ttl_override: Optional[float] = None
 
     def is_valid(self, ttl_seconds: Optional[float]) -> bool:
         return _is_entry_valid(self.timestamp, ttl_seconds)
@@ -172,11 +174,46 @@ class ThreadSafeIconCache:
         self.metrics: CacheMetrics = CacheMetrics()
         self._capacity = capacity
 
+        # Кэшируем значения TTL из конфигурации, чтобы не дергать app_config при каждом доступе
+        try:
+            self._ttl_icon: Optional[float] = app_config.get_icon_cache_ttl()
+        except Exception:  # noqa: BLE001
+            self._ttl_icon = None
+        try:
+            self._ttl_abs: Optional[float] = app_config.get_abs_icon_cache_ttl()
+        except Exception:  # noqa: BLE001
+            self._ttl_abs = None
+        try:
+            self._ttl_negative: Optional[float] = app_config.get_negative_cache_ttl()
+        except Exception:  # noqa: BLE001
+            self._ttl_negative = None
+
+        # Сохраняем ссылки на геттеры для поддержки monkeypatch в тестах
+        self._getter_icon = getattr(app_config, "get_icon_cache_ttl", None)
+        self._getter_abs = getattr(app_config, "get_abs_icon_cache_ttl", None)
+        self._getter_negative = getattr(app_config, "get_negative_cache_ttl", None)
+
     # --- ключи ---
 
     @staticmethod
     def _key(icon_name: str, theme: str) -> str:
         return f"{icon_name}::{theme}"
+
+    @staticmethod
+    def _parse_unified_key(key: str) -> tuple[str, str, str]:
+        """Разобрать единый ключ формата 'path:icon::theme' или 'qicon:icon::theme'.
+
+        Возвращает кортеж (prefix, icon_name, theme). Бросает ValueError при неверном формате.
+        """
+        if ":" not in key:
+            raise ValueError("Unified key must contain prefix 'path:' or 'qicon:'")
+        prefix, rest = key.split(":", 1)
+        if "::" not in rest:
+            raise ValueError("Unified key must be in form '<prefix>:<icon_name>::<theme>'")
+        icon_name, theme = rest.split("::", 1)
+        if prefix not in {"path", "qicon"}:
+            raise ValueError("Unsupported prefix, expected 'path' or 'qicon'")
+        return prefix, icon_name, theme
 
     # --- служебное для ресинхронизации ---
 
@@ -186,18 +223,49 @@ class ThreadSafeIconCache:
     def _sync_qicon_structs(self) -> None:
         self._qicon_lru.sync_with_cache(self._qicon_cache)
 
+    # --- обновление TTL при monkeypatch ---
+    def _ensure_fresh_ttls(self) -> None:
+        """Обновляет кешированные TTL, если функции-геттеры в app_config были заменены.
+
+        Это позволяет тестам с monkeypatch мгновенно менять TTL без необходимости вызывать clear().
+        В обычной работе накладные расходы минимальны (пара сравнений ссылок).
+        """
+        try:
+            if getattr(app_config, "get_icon_cache_ttl", None) is not self._getter_icon:
+                self._getter_icon = getattr(app_config, "get_icon_cache_ttl", None)
+                try:
+                    self._ttl_icon = app_config.get_icon_cache_ttl()
+                except Exception:  # noqa: BLE001
+                    self._ttl_icon = None
+            if getattr(app_config, "get_abs_icon_cache_ttl", None) is not self._getter_abs:
+                self._getter_abs = getattr(app_config, "get_abs_icon_cache_ttl", None)
+                try:
+                    self._ttl_abs = app_config.get_abs_icon_cache_ttl()
+                except Exception:  # noqa: BLE001
+                    self._ttl_abs = None
+            if getattr(app_config, "get_negative_cache_ttl", None) is not self._getter_negative:
+                self._getter_negative = getattr(app_config, "get_negative_cache_ttl", None)
+                try:
+                    self._ttl_negative = app_config.get_negative_cache_ttl()
+                except Exception:  # noqa: BLE001
+                    self._ttl_negative = None
+        except Exception:
+            # Никогда не мешаем основному пути исполнения из-за ошибок конфигурации
+            pass
+
     # --- PATH API ---
 
     def get_path(self, icon_name: str, theme: str) -> Optional[str]:
         """Получить путь к иконке из кэша путей."""
         with acquire_cache_lock():
+            self._ensure_fresh_ttls()
             self._sync_path_structs()
             key = self._key(icon_name, theme)
             entry = self._path_cache.get(key)
             if entry is None:
                 return None
 
-            ttl = app_config.get_icon_cache_ttl()
+            ttl = self._ttl_icon
             if not entry.is_valid(ttl):
                 # Удаляем устаревшую запись
                 self._path_cache.pop(key, None)
@@ -222,7 +290,7 @@ class ThreadSafeIconCache:
                 self._path_cache.pop(old_key, None)
 
             # Добавляем новую запись
-            entry = PathCacheEntry(path=path, timestamp=time.time())
+            entry = PathCacheEntry(path=path, timestamp=time.time(), ttl_override=None)
             self._path_cache[key] = entry
             self._path_lru.access(key)
             logger.debug("Set PATH: %s", key)
@@ -232,6 +300,7 @@ class ThreadSafeIconCache:
     def get_qicon(self, icon_name: str, theme: str) -> Optional[QIcon]:
         """Получить QIcon из кэша иконок."""
         with acquire_cache_lock():
+            self._ensure_fresh_ttls()
             self._sync_qicon_structs()
             key = self._key(icon_name, theme)
             entry = self._qicon_cache.get(key)
@@ -240,13 +309,9 @@ class ThreadSafeIconCache:
 
             # TTL: для отрицательных записей используем отдельный (укороченный) TTL
             if entry.negative:
-                ttl = app_config.get_negative_cache_ttl()
+                ttl = self._ttl_negative
             else:
-                ttl = (
-                    app_config.get_abs_icon_cache_ttl()
-                    if theme == "__abs__"
-                    else app_config.get_icon_cache_ttl()
-                )
+                ttl = (self._ttl_abs if theme == "__abs__" else self._ttl_icon)
             if not entry.is_valid(ttl):
                 # Удаляем устаревшую запись
                 self._qicon_cache.pop(key, None)
@@ -278,10 +343,100 @@ class ThreadSafeIconCache:
                 self._qicon_cache.pop(old_key, None)
 
             # Добавляем новую запись
-            entry = IconCacheEntry(icon=icon, timestamp=time.time(), negative=negative)
+            entry = IconCacheEntry(icon=icon, timestamp=time.time(), negative=negative, ttl_override=None)
             self._qicon_cache[key] = entry
             self._qicon_lru.access(key)
             logger.debug("Set QICON: %s", key)
+
+    # --- BaseCache-совместимый API (унифицированные ключи) ---
+
+    def get(self, key: str) -> Optional[Union[str, QIcon]]:
+        """Получить значение по единому ключу 'path:...'/ 'qicon:...'."""
+        with acquire_cache_lock():
+            self._ensure_fresh_ttls()
+            prefix, icon_name, theme = self._parse_unified_key(key)
+            k = self._key(icon_name, theme)
+            if prefix == "path":
+                self._sync_path_structs()
+                entry = self._path_cache.get(k)
+                if entry is None:
+                    return None
+                ttl = entry.ttl_override if entry.ttl_override is not None else self._ttl_icon
+                if not entry.is_valid(ttl):
+                    self._path_cache.pop(k, None)
+                    self._path_lru.remove(k)
+                    return None
+                self._path_lru.access(k)
+                return entry.path
+            else:  # qicon
+                self._sync_qicon_structs()
+                entry = self._qicon_cache.get(k)
+                if entry is None:
+                    return None
+                if entry.negative:
+                    base_ttl = self._ttl_negative
+                else:
+                    base_ttl = self._ttl_abs if theme == "__abs__" else self._ttl_icon
+                ttl = entry.ttl_override if entry.ttl_override is not None else base_ttl
+                if not entry.is_valid(ttl):
+                    self._qicon_cache.pop(k, None)
+                    self._qicon_lru.remove(k)
+                    return None
+                self._qicon_lru.access(k)
+                return entry.icon
+
+    def set(self, key: str, value: Optional[Union[str, QIcon]], *, ttl: Optional[float] = None) -> None:
+        """Установить значение по единому ключу. TTL — per-entry override.
+
+        Для qicon, если value is None, запись считается негативной.
+        """
+        prefix, icon_name, theme = self._parse_unified_key(key)
+        with acquire_cache_lock():
+            if prefix == "path":
+                self._sync_path_structs()
+                k = self._key(icon_name, theme)
+                should_evict, old_key = self._path_lru.evict_if_needed(self._path_cache, k)
+                if should_evict and old_key:
+                    self._path_cache.pop(old_key, None)
+                entry = PathCacheEntry(path=value if isinstance(value, (str, type(None))) else None, timestamp=time.time(), ttl_override=ttl)
+                self._path_cache[k] = entry
+                self._path_lru.access(k)
+            else:
+                self._sync_qicon_structs()
+                k = self._key(icon_name, theme)
+                should_evict, old_key = self._qicon_lru.evict_if_needed(self._qicon_cache, k)
+                if should_evict and old_key:
+                    self._qicon_cache.pop(old_key, None)
+                negative = value is None
+                icon_val: Optional[QIcon] = value if isinstance(value, QIcon) else None
+                entry = IconCacheEntry(icon=icon_val, timestamp=time.time(), negative=negative, ttl_override=ttl)
+                self._qicon_cache[k] = entry
+                self._qicon_lru.access(k)
+
+    def invalidate(self, key: Optional[str] = None) -> None:
+        """Инвалидировать запись по ключу или весь кэш при key=None."""
+        with acquire_cache_lock():
+            if key is None:
+                # Полная очистка без пересоздания LRU и метрик
+                self._path_cache.clear()
+                self._qicon_cache.clear()
+                self._path_lru.sync_with_cache(self._path_cache)
+                self._qicon_lru.sync_with_cache(self._qicon_cache)
+                return
+            try:
+                prefix, icon_name, theme = self._parse_unified_key(key)
+            except ValueError:
+                # Если передан "сырой" ключ без префикса, пробуем удалить из обеих таблиц
+                self._path_cache.pop(key, None)
+                self._qicon_cache.pop(key, None)
+                return
+            k = self._key(icon_name, theme)
+            if prefix == "path":
+                self._path_cache.pop(k, None)
+                self._path_lru.remove(k)
+            else:
+                self._qicon_cache.pop(k, None)
+                self._qicon_lru.remove(k)
 
     # --- сервисные методы ---
 
@@ -301,6 +456,25 @@ class ThreadSafeIconCache:
             self._path_lru = LRUPolicy(self._capacity)
             self._qicon_lru = LRUPolicy(self._capacity)
             self.metrics.reset()
+
+            # Перечитываем TTL из конфигурации при очистке
+            try:
+                self._ttl_icon = app_config.get_icon_cache_ttl()
+            except Exception:  # noqa: BLE001
+                self._ttl_icon = None
+            try:
+                self._ttl_abs = app_config.get_abs_icon_cache_ttl()
+            except Exception:  # noqa: BLE001
+                self._ttl_abs = None
+            try:
+                self._ttl_negative = app_config.get_negative_cache_ttl()
+            except Exception:  # noqa: BLE001
+                self._ttl_negative = None
+
+            # Также обновляем сохранённые ссылки на геттеры
+            self._getter_icon = getattr(app_config, "get_icon_cache_ttl", None)
+            self._getter_abs = getattr(app_config, "get_abs_icon_cache_ttl", None)
+            self._getter_negative = getattr(app_config, "get_negative_cache_ttl", None)
 
     def get_cache_stats(self) -> Dict[str, Union[int, float]]:
         """Агрегированная статистика по кэшу и метрикам."""
@@ -342,6 +516,16 @@ class IconManager:
             return
         self._cache = cache if cache is not None else ThreadSafeIconCache()
         self._initialized = True
+
+    # Унифицированный API (совместимый с BaseCache)
+    def get(self, key: str) -> Optional[Union[str, QIcon]]:
+        return self._cache.get(key)
+
+    def set(self, key: str, value: Optional[Union[str, QIcon]], *, ttl: Optional[float] = None) -> None:
+        self._cache.set(key, value, ttl=ttl)
+
+    def invalidate(self, key: Optional[str] = None) -> None:
+        self._cache.invalidate(key)
 
     # PATH (новые стандартизированные имена)
     def get_path(self, icon_name: str, theme: str) -> Optional[str]:
@@ -452,6 +636,23 @@ def set_path(icon_name: str, theme: str, path: Optional[str]) -> None:
     _icon_manager.set_path(icon_name, theme, path)
 
 # Прежние алиасы удалены для унификации API
+
+# --- Унифицированный модульный API (BaseCache-стиль) ---
+
+def get(key: str) -> Optional[Union[str, QIcon]]:
+    return _icon_manager.get(key)
+
+
+def set(key: str, value: Optional[Union[str, QIcon]], *, ttl: Optional[float] = None) -> None:
+    _icon_manager.set(key, value, ttl=ttl)
+
+
+def invalidate(key: Optional[str] = None) -> None:
+    _icon_manager.invalidate(key)
+
+
+def clear() -> None:
+    clear_icon_cache()
 
 
 def get_cached_category_icon(path: str) -> QIcon:

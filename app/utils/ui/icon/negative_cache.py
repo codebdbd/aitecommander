@@ -1,12 +1,16 @@
 """
-Единый модуль негативного кэширования путей иконок.
+Негативный кэш для путей иконок, реализованный как класс `NegativeCache`,
+совместимый с общим API `BaseCache`.
 
-API:
-- is_negative(key) -> bool
-- mark_negative(key) -> None
-- maybe_decay_strikes(key) -> None
-- get_ttl(strikes) -> float
-- clear() -> None
+Публичный API модуля:
+- объект `negative_cache: NegativeCache`
+- функции-обёртки: `is_negative(key)`, `mark_negative(key)`, `clear()`
+
+Контракт `BaseCache`:
+- get(key) -> Optional[Any]   # возвращает True, если ключ негативен и ещё валиден; иначе None
+- set(key, value, *, ttl: Optional[float] = None) -> None  # помечает ключ как негативный (value игнорируется)
+- invalidate(key: Optional[str] = None) -> None            # снять метку для ключа или очистить всё
+- clear() -> None                                          # синоним invalidate(None)
 
 Ключ формируется на верхнем уровне (например, f"{theme}:{icon_name.lower()}").
 """
@@ -14,13 +18,10 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import Optional
+from typing import Optional, Any
 
 from app.config_data import app_config
-
-_NEGATIVE_CACHE: dict[str, float] = {}
-_NEG_STRIKES: dict[str, int] = {}
-_LOCK = threading.Lock()
+from app.utils.cache.base import BaseCache
 
 _DEFAULT_TTL: float = 60.0
 _MAX_TTL: float = 600.0
@@ -82,67 +83,119 @@ def get_ttl(strikes: int) -> float:
     ttl = base * (2 ** max(0, strikes - 1))
     return min(ttl, max_t)
 
+class NegativeCache(BaseCache):
+    """Расширяемый негативный кэш, совместимый с BaseCache.
+
+    Поведение:
+    - set(key, value, ttl=None): помечает ключ как негативный; value игнорируется.
+    - get(key): возвращает True, если ключ негативен и TTL не истёк; иначе None.
+    - invalidate(key): снимает метку с ключа; invalidate(None)/clear() — очистка всего кэша.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._ts: dict[str, float] = {}      # ключ -> timestamp последней отметки
+        self._strikes: dict[str, int] = {}   # ключ -> количество накопленных промахов
+
+    # --- Конфиг ---
+    @staticmethod
+    def base_ttl() -> float:  # для тестов и ясности
+        return _base_ttl()
+
+    @staticmethod
+    def max_ttl() -> float:
+        return _max_ttl()
+
+    @staticmethod
+    def max_size() -> int:
+        return _max_size()
+
+    @staticmethod
+    def max_strikes() -> int:
+        return _max_strikes()
+
+    @staticmethod
+    def calc_ttl(strikes: int) -> float:
+        return get_ttl(strikes)
+
+    # --- BaseCache API ---
+    def get(self, key: str) -> Optional[Any]:
+        now = time.time()
+        with self._lock:
+            ts = self._ts.get(key)
+            if ts is None:
+                return None
+            strikes = self._strikes.get(key, 0)
+            if now - ts < get_ttl(strikes):
+                return True
+            # Протухло — мягкая декрементация strike и очистка отметки
+            if strikes > 0:
+                self._strikes[key] = strikes - 1
+            self._ts.pop(key, None)
+            return None
+
+    def set(self, key: str, value: Any, *, ttl: Optional[float] = None) -> None:
+        # ttl игнорируется: TTL управляется на основе strike и конфигурации
+        now = time.time()
+        with self._lock:
+            # Периодическая очистка протухших ключей (дешёвая, по месту записи)
+            if self._ts:
+                expired: list[str] = []
+                for k, ts in self._ts.items():
+                    strikes = self._strikes.get(k, 0)
+                    if now - ts >= get_ttl(strikes):
+                        expired.append(k)
+                for k in expired:
+                    s = self._strikes.get(k, 0)
+                    if s > 0:
+                        self._strikes[k] = s - 1
+                    self._ts.pop(k, None)
+
+            # Обновляем текущий ключ
+            self._ts[key] = now
+            self._strikes[key] = min(self._strikes.get(key, 0) + 1, _max_strikes())
+
+            # Контроль размера: при переполнении вытесняем самые старые записи
+            max_size = _max_size()
+            if len(self._ts) > max_size:
+                to_evict = len(self._ts) - max_size
+                for k, _ in sorted(self._ts.items(), key=lambda kv: kv[1])[:to_evict]:
+                    self._ts.pop(k, None)
+                    s = self._strikes.get(k, 0)
+                    if s > 0:
+                        self._strikes[k] = s - 1
+
+    def invalidate(self, key: Optional[str] = None) -> None:
+        with self._lock:
+            if key is None:
+                self._ts.clear()
+                self._strikes.clear()
+                return
+            self._ts.pop(key, None)
+            self._strikes.pop(key, None)
+
+    # удобные методы
+    def is_negative(self, key: str) -> bool:
+        return bool(self.get(key))
+
+    def mark_negative(self, key: str) -> None:
+        self.set(key, True)
+
+    def clear(self) -> None:
+        self.invalidate(None)
+
+
+# --- Глобальный экземпляр и функции-обёртки ---
+negative_cache = NegativeCache()
+
 
 def is_negative(key: str) -> bool:
-    now = time.time()
-    with _LOCK:
-        ts = _NEGATIVE_CACHE.get(key)
-        if ts is None:
-            return False
-        strikes = _NEG_STRIKES.get(key, 0)
-        if now - ts < get_ttl(strikes):
-            return True
-        # Протухло — мягкая декрементация strike и очистка отметки
-        if strikes > 0:
-            _NEG_STRIKES[key] = strikes - 1
-        _NEGATIVE_CACHE.pop(key, None)
-        return False
+    return negative_cache.is_negative(key)
 
 
 def mark_negative(key: str) -> None:
-    now = time.time()
-    with _LOCK:
-        # Периодическая очистка протухших ключей (дешёвая, по месту записи)
-        if _NEGATIVE_CACHE:
-            expired = []
-            for k, ts in _NEGATIVE_CACHE.items():
-                strikes = _NEG_STRIKES.get(k, 0)
-                if now - ts >= get_ttl(strikes):
-                    expired.append(k)
-            if expired:
-                for k in expired:
-                    # мягкая декрементация strikes, как и в is_negative()
-                    s = _NEG_STRIKES.get(k, 0)
-                    if s > 0:
-                        _NEG_STRIKES[k] = s - 1
-                    _NEGATIVE_CACHE.pop(k, None)
-
-        # Обновляем текущий ключ
-        _NEGATIVE_CACHE[key] = now
-        _NEG_STRIKES[key] = min(_NEG_STRIKES.get(key, 0) + 1, _max_strikes())
-
-        # Контроль размера: при переполнении вытесняем самые старые записи
-        max_size = _max_size()
-        if len(_NEGATIVE_CACHE) > max_size:
-            # Отсортировать по времени (старые первыми)
-            to_evict = len(_NEGATIVE_CACHE) - max_size
-            for k, _ in sorted(_NEGATIVE_CACHE.items(), key=lambda kv: kv[1])[:to_evict]:
-                _NEGATIVE_CACHE.pop(k, None)
-                # strikes можно слегка уменьшить, чтобы ускорить исчезновение шума
-                s = _NEG_STRIKES.get(k, 0)
-                if s > 0:
-                    _NEG_STRIKES[k] = s - 1
-
-
-def maybe_decay_strikes(key: str) -> None:
-    # Хелпер для внешних модулей, если нужно мягко уменьшить strikes
-    with _LOCK:
-        strikes = _NEG_STRIKES.get(key, 0)
-        if strikes > 0:
-            _NEG_STRIKES[key] = strikes - 1
+    negative_cache.mark_negative(key)
 
 
 def clear() -> None:
-    with _LOCK:
-        _NEGATIVE_CACHE.clear()
-        _NEG_STRIKES.clear()
+    negative_cache.clear()
