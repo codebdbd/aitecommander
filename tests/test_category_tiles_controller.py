@@ -36,7 +36,7 @@ def test_refresh_success(caplog):
     business = BusinessMock(categories=[{"id": 1}, {"id": 2}])
     main = SimpleNamespace(ui_state=ui_state)
 
-    ctrl = CategoryTilesController(main_window=main, structure_business=business)
+    ctrl = CategoryTilesController(main_window=main, ui_state=ui_state, structure_business=business)
     ctrl.refresh(10)
 
     assert business.calls == [("get_categories", 10)]
@@ -49,7 +49,7 @@ def test_refresh_invalid_section_id(caplog):
     business = BusinessMock(categories=[{"id": 1}])
     main = SimpleNamespace(ui_state=ui_state)
 
-    ctrl = CategoryTilesController(main_window=main, structure_business=business)
+    ctrl = CategoryTilesController(main_window=main, ui_state=ui_state, structure_business=business)
     ctrl.refresh(0)
     ctrl.refresh(None)  # type: ignore[arg-type]
 
@@ -63,7 +63,7 @@ def test_refresh_missing_ui_state(caplog):
     business = BusinessMock(categories=[{"id": 1}])
     main = SimpleNamespace(ui_state=None)
 
-    ctrl = CategoryTilesController(main_window=main, structure_business=business)
+    ctrl = CategoryTilesController(main_window=main, ui_state=None, structure_business=business)
     ctrl.refresh(5)
 
     assert business.calls == []
@@ -77,7 +77,7 @@ def test_refresh_missing_business(caplog):
     # main.structure_business существует, но мы передаём None, контроллер возьмёт из main, которого нет
     main = SimpleNamespace(ui_state=ui_state, structure_business=None)
 
-    ctrl = CategoryTilesController(main_window=main, structure_business=None)  # type: ignore[arg-type]
+    ctrl = CategoryTilesController(main_window=main, ui_state=ui_state, structure_business=None)  # type: ignore[arg-type]
     ctrl.refresh(7)
 
     assert ui_state.calls == []
@@ -90,7 +90,7 @@ def test_refresh_logs_on_business_error(caplog):
     business = BusinessMock(raise_err=RuntimeError("boom"))
     main = SimpleNamespace(ui_state=ui_state)
 
-    ctrl = CategoryTilesController(main_window=main, structure_business=business)
+    ctrl = CategoryTilesController(main_window=main, ui_state=ui_state, structure_business=business)
     ctrl.refresh(3)
 
     # Ошибка не выбрасывается наружу, но логируется
@@ -101,7 +101,7 @@ def test_clear_success(caplog):
     ui_state = UIStateMock()
     main = SimpleNamespace(ui_state=ui_state)
 
-    ctrl = CategoryTilesController(main_window=main, structure_business=BusinessMock())
+    ctrl = CategoryTilesController(main_window=main, ui_state=ui_state, structure_business=BusinessMock())
     ctrl.clear()
 
     assert ui_state.calls == [("switch", [])]
@@ -111,7 +111,7 @@ def test_clear_logs_when_ui_missing(caplog):
     caplog.set_level(logging.WARNING)
     main = SimpleNamespace(ui_state=None)
 
-    ctrl = CategoryTilesController(main_window=main, structure_business=BusinessMock())
+    ctrl = CategoryTilesController(main_window=main, ui_state=None, structure_business=BusinessMock())
     ctrl.clear()
 
     assert any("UIStateManager is not available" in rec.getMessage() for rec in caplog.records)
@@ -122,7 +122,7 @@ def test_clear_logs_on_error(caplog):
     ui_state = UIStateMock(raise_err=RuntimeError("boom"))
     main = SimpleNamespace(ui_state=ui_state)
 
-    ctrl = CategoryTilesController(main_window=main, structure_business=BusinessMock())
+    ctrl = CategoryTilesController(main_window=main, ui_state=ui_state, structure_business=BusinessMock())
     ctrl.clear()
 
     assert any("CategoryTilesController.clear" in rec.getMessage() for rec in caplog.records)

@@ -38,64 +38,6 @@ class SetupError(Exception):
 
     pass
 
-
-# Дребезг-обновление верхних панелей, чтобы не вызывать refresh_all лавинообразно
-_TOP_PANELS_REFRESH_DEBOUNCE_MS = 150
-
-
-def _do_panels_refresh(window) -> None:
-    """Внутренняя функция выполнения обновления верхних панелей."""
-    try:
-        setattr(window, "_pending_top_panels_refresh", False)
-    except (AttributeError, TypeError):
-        logger.warning("_do_panels_refresh: cannot clear _pending_top_panels_refresh (attr/type)")
-    except Exception:
-        logger.exception("_do_panels_refresh: unexpected error while clearing pending flag")
-    try:
-        ctrl = getattr(window, "top_panels_controller", None)
-        if ctrl:
-            ctrl.refresh_all()
-    except (AttributeError, TypeError) as e:
-        logger.warning(f"Failed to refresh top panels (attr/type): {e}")
-    except Exception:
-        logger.exception("Failed to refresh top panels (unexpected)")
-
-
-def _request_panels_refresh(window, delay_ms: int | None = None) -> None:
-    """Запросить обновление верхних панелей с дебаунсом.
-
-    Если обновление уже запланировано, повторный запрос игнорируется до срабатывания таймера.
-    """
-    try:
-        if getattr(window, "_pending_top_panels_refresh", False):
-            return
-        setattr(window, "_pending_top_panels_refresh", True)
-        QTimer.singleShot(int(delay_ms or _TOP_PANELS_REFRESH_DEBOUNCE_MS), lambda: _do_panels_refresh(window))
-        return
-    except (AttributeError, TypeError) as e:
-        logger.warning(f"_request_panels_refresh: state/type error while scheduling: {e}")
-    except Exception:
-        logger.exception("_request_panels_refresh: unexpected error while scheduling refresh")
-
-    # Fallback на прямой вызов, если что-то пошло не так. Обязательно сбрасываем pending-флаг
-    try:
-        setattr(window, "_pending_top_panels_refresh", False)
-    except (AttributeError, TypeError):
-        # если нет атрибута/тип некорректный — продолжаем, это не должно ронять UI
-        pass
-    except Exception:
-        logger.exception("_request_panels_refresh: unexpected error while clearing pending flag in fallback")
-
-    try:
-        ctrl = getattr(window, "top_panels_controller", None)
-        if ctrl:
-            ctrl.refresh_all()
-    except (AttributeError, TypeError) as e:
-        logger.warning(f"_request_panels_refresh: fallback refresh failed (attr/type): {e}")
-    except Exception:
-        logger.exception("_request_panels_refresh: fallback refresh failed (unexpected)")
-
-
 def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     """Создание и настройка основных контроллеров."""
     # Прямое создание контроллеров/бизнес-логики (без фасада)
@@ -150,7 +92,9 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     # Контроллер плиток категорий
     try:
         window.category_tiles_controller = CategoryTilesController(
-            window, structure_business
+            window,
+            ui_state=controllers["ui_state"],
+            structure_business=structure_business,
         )
         controllers["category_tiles_controller"] = window.category_tiles_controller
     except Exception as e:
@@ -198,7 +142,9 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
                 # При изменении ссылок в категории перезагружаем таблицу через контроллер
                 link_ops.links_changed.connect(lambda cat_id: links_table_ctrl.reload(cat_id))
             # Изменение избранного отражаем через обновление верхних панелей с дебаунсом
-            link_ops.favorites_changed.connect(lambda: _request_panels_refresh(window))
+            link_ops.favorites_changed.connect(
+                lambda: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
+            )
     except Exception as e:
         logger.warning(f"Failed to connect LinkOperationsController signals: {e}")
 
@@ -463,7 +409,7 @@ def _connect_structure_signals(window) -> None:
     # При смене сферы запрашиваем обновление верхних панелей с дебаунсом
     try:
         window.structure_business.active_sphere_changed.connect(
-            lambda *_: _request_panels_refresh(window)
+            lambda *_: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
         )
     except Exception:
         pass
@@ -471,7 +417,7 @@ def _connect_structure_signals(window) -> None:
     # После загрузки структуры также дебаунсим обновление верхних панелей
     try:
         window.structure_business.structure_loaded.connect(
-            lambda *_: _request_panels_refresh(window)
+            lambda *_: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
         )
     except Exception:
         pass
@@ -486,13 +432,13 @@ def _connect_structure_signals(window) -> None:
     # Дополнительно дебаунсим обновление верхних панелей при выборе раздела/категории
     try:
         window.structure_business.section_selected.connect(
-            lambda *_: _request_panels_refresh(window)
+            lambda *_: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
         )
     except Exception:
         pass
     try:
         window.structure_business.category_selected.connect(
-            lambda *_: _request_panels_refresh(window)
+            lambda *_: getattr(window, "top_panels_controller", None) and window.top_panels_controller.request_refresh()
         )
     except Exception:
         pass

@@ -147,34 +147,20 @@ class TreeManagement:
     def refresh_section_tiles(self, section_id: int) -> None:
         """Обновить плитки раздела через CategoryTilesController.
 
-        Основной путь: `main.category_tiles_controller.refresh(section_id)`.
-        Фолбэки: UIStateManager.switch_to_category_tiles(categories) -> business.select_section(section_id)
+        Единый путь: `main.category_tiles_controller.refresh(section_id)`.
+        Фолбэки удалены; при отсутствии контроллера лишь логируем предупреждение.
         """
         try:
             ctrl = getattr(self.controller.main, "category_tiles_controller", None)
             if ctrl:
                 ctrl.refresh(int(section_id))
-                return
+            else:
+                logger.warning(
+                    "TreeManagement.refresh_section_tiles: CategoryTilesController not available; skip tiles refresh for section #%s",
+                    section_id,
+                )
         except Exception:
             logger.exception("TreeManagement.refresh_section_tiles: controller refresh failed")
-
-        # Fallback 1: вручную получить категории и обновить через UIStateManager
-        try:
-            business = getattr(self.controller, "business", None)
-            ui_state = getattr(self.controller.main, "ui_state", None)
-            if business and ui_state:
-                categories = business.get_categories(int(section_id))
-                ui_state.switch_to_category_tiles(categories or [])
-                return
-        except Exception:
-            logger.exception("TreeManagement.refresh_section_tiles: UIState fallback failed")
-
-        # Fallback 2: старая логика — эмитим бизнес-сигнал
-        try:
-            if hasattr(self.controller, "business") and self.controller.business:
-                self.controller.business.select_section(int(section_id))
-        except Exception:
-            logger.exception("TreeManagement.refresh_section_tiles: business.select_section failed for #%s", section_id)
 
     def _iter_indexes(self, parent: QModelIndex = QModelIndex()):
         model = self.tree.model()
