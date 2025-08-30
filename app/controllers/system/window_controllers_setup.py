@@ -560,6 +560,11 @@ class DatabaseEventHandler:
             top_ctrl = getattr(window, "top_panels_controller", None)
             if top_ctrl:
                 top_ctrl.clear_favorites()
+                # После очистки запросим обновление, чтобы привести состояние к консистентному
+                try:
+                    top_ctrl.request_favorites_refresh()
+                except Exception:
+                    pass
         except Exception:
             # Фолбэк на старое поведение (на случай отсутствия контроллера)
             try:

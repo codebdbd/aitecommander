@@ -130,7 +130,8 @@ class TopPanelsController:
             except Exception:
                 limit = None
             if limit is None:
-                limit = 20
+                # Глобальное ограничение: не более 10 иконок в панели последних
+                limit = 10
             if self.links_business is not None:
                 items = self.links_business.get_recent_links(limit)
                 if widget and hasattr(widget, "set_recent_links"):
@@ -153,6 +154,13 @@ class TopPanelsController:
             return
         self._clearing_favorites = True
         try:
+            # Сначала очищаем избранное на уровне данных (если доступен бизнес-слой)
+            try:
+                if self.links_business is not None and hasattr(self.links_business, "clear_favorites"):
+                    self.links_business.clear_favorites()
+            except Exception:
+                logger.exception("TopPanelsController.clear_favorites: ошибка при очистке избранного в БД")
+
             if hasattr(widget, "clear_favorites"):
                 try:
                     widget.clear_favorites()
