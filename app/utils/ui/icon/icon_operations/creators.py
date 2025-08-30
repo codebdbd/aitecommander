@@ -247,13 +247,16 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
         # Получаем путь к иконке
         path = get_icon_path(icon_name, theme)
         if not path:
-            # Файл не найден - записываем промах (без кэширования пустой иконки)
+            # Файл не найден — записываем промах и кэшируем негативную запись
             load_time = time.time() - start_time
             record_actual_miss(load_time)
             record_not_found()
             logger.debug(
                 "Icon not found: %s (theme: %s, source: %s)", icon_name, theme, source
             )
+            # Кэшируем пустую иконку как негативную, чтобы повторные запросы
+            # быстро отдавали результат до истечения короткого TTL
+            set_icon(icon_name, theme, None, negative=True)
             return QIcon()
 
         # Используем общую функцию создания иконки
@@ -442,7 +445,8 @@ def create_icon_from_path(icon_path: str) -> QIcon:
     start_time = time.time()
 
     # Создаем новую иконку с высоким качеством
-    if Path(icon_path).exists():
+    exists = Path(icon_path).exists()
+    if exists:
         icon = _create_icon_from_file_path(icon_path)
         logger.debug("Created high-quality icon from existing file: %s", icon_path)
     else:
@@ -453,8 +457,8 @@ def create_icon_from_path(icon_path: str) -> QIcon:
     load_time = time.time() - start_time
     record_disk_load()
 
-    # Кэшируем результат с timestamp
-    set_icon(cache_key, "__abs__", icon)
+    # Кэшируем результат с отметкой negative для отсутствующих файлов
+    set_icon(cache_key, "__abs__", icon, negative=not exists)
 
     # Логируем медленные операции
     if load_time > 0.1:  # Если загрузка заняла более 100 мс, логируем на уровне INFO
@@ -503,8 +507,8 @@ async def create_icon_from_path_async(icon_path: str) -> QIcon:
     load_time = time.time() - start_time
     record_disk_load()
 
-    # Кэшируем результат с timestamp
-    set_icon(cache_key, "__abs__", icon)
+    # Кэшируем результат с отметкой negative для отсутствующих файлов
+    set_icon(cache_key, "__abs__", icon, negative=not Path(icon_path).exists())
 
     # Логируем медленные операции
     if load_time > 0.1:
@@ -538,7 +542,8 @@ def _create_icon_from_path_deferred(icon_path: str) -> QIcon:
     start_time = time.time()
 
     # Создаем новую иконку
-    if Path(icon_path).exists():
+    exists = Path(icon_path).exists()
+    if exists:
         icon = QIcon(icon_path)
     else:
         logger.warning("Icon file not found: %s", icon_path)
@@ -548,8 +553,8 @@ def _create_icon_from_path_deferred(icon_path: str) -> QIcon:
     load_time = time.time() - start_time
     record_disk_load()
 
-    # Кэшируем результат с timestamp
-    set_icon(cache_key, "__abs__", icon)
+    # Кэшируем результат с отметкой negative для отсутствующих файлов
+    set_icon(cache_key, "__abs__", icon, negative=not exists)
 
     # Логируем медленные операции
     if load_time > 0.1:  # Если загрузка заняла более 100 мс, логируем на уровне INFO
