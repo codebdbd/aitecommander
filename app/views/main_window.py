@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+logger = logging.getLogger(__name__)
 from contextlib import suppress
 from typing import TYPE_CHECKING, Optional
 
@@ -73,7 +74,11 @@ class MainWindow(QMainWindow):
         self.structure.edit_item(item)
 
     def add_new_category(self) -> None:
-        """Добавляет новую категорию."""
+        """Добавляет новую категорию.
+
+        Ранее публичный метод назывался `show_category_dialog`. Он
+        объединён в этот метод для устранения дублирования.
+        """
         self.structure.add_new_category()
 
     def reload_structure(self) -> None:
@@ -207,16 +212,8 @@ class MainWindow(QMainWindow):
         self.update_statusbar()
 
         if result and selected_link_id:
-            from app.controllers.ui.state.task_scheduler import (
-                schedule_selection_restore,
-            )
-
-            schedule_selection_restore(
-                lambda: getattr(
-                    self.links_actions, "restore_selection", lambda *_: None
-                )(selected_link_id),
-                f"table_selection_{selected_link_id}",
-            )
+            # Планирование восстановления выделения делегировано в LinksActions
+            self.links_actions.schedule_restore_selection(selected_link_id)
         # Возвращаем результат, чтобы внешние вызовы могли узнать об успешности
         return bool(result)
 
@@ -245,8 +242,7 @@ class MainWindow(QMainWindow):
     def show_section_dialog(self) -> None:
         self.structure.add_new_section()
 
-    def show_category_dialog(self) -> None:
-        self.structure.add_new_category()
+    
 
     def update_statusbar(self) -> None:
         _update_status_bar(self)
@@ -286,7 +282,7 @@ class MainWindow(QMainWindow):
                     widget.update_font_size(size)
         except Exception:
             # Лог с типом виджета для диагностики неожиданных ошибок
-            logging.exception(
+            logger.exception(
                 "MainWindow: unexpected error updating font size for %s",
                 type(widget).__name__ if widget is not None else "<None>",
             )

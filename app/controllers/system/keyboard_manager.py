@@ -316,7 +316,8 @@ class GlobalKeyHandler(BaseKeyHandler):
         self._safe_call(self.main_window, "show_section_dialog")
 
     def handle_f4(self) -> None:
-        self._safe_call(self.main_window, "show_category_dialog")
+        # Добавление категории (ранее метод назывался show_category_dialog)
+        self._safe_call(self.main_window, "add_new_category")
 
     def handle_f6(self) -> None:
         action = self._safe_getattr(self.main_window, "switch_sphere_action")

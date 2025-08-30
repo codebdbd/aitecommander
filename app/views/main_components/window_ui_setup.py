@@ -3,6 +3,7 @@
 import os
 import sys
 import logging
+logger = logging.getLogger(__name__)
 from typing import Any, Optional
 
 from PyQt6.QtCore import QEvent, QObject, QSize, Qt
@@ -228,7 +229,7 @@ class WindowUISetup:
         except (RuntimeError, TypeError):
             # Не блокируем инициализацию UI при ошибке менеджера
             self.window._topbar_manager = None
-            logging.exception("TopPanel: failed to initialize TopBarLayoutManager")
+            logger.exception("TopPanel: failed to initialize TopBarLayoutManager")
         # Первичный пересчёт после создания
         try:
             from PyQt6.QtCore import QTimer
@@ -260,7 +261,7 @@ class WindowUISetup:
             top_bar.addWidget(widget)
         except Exception:
             setattr(self.window, attr_name, None)
-            logging.exception("TopPanel: failed to create %s widget", log_label)
+            logger.exception("TopPanel: failed to create %s widget", log_label)
 
     def setup_top_bar_widgets(self, top_bar: QHBoxLayout) -> None:
         """Настройка виджетов верхней панели.
@@ -459,7 +460,7 @@ class WindowUISetup:
             self.window._auto_hide_tree_filter._apply()
         except (RuntimeError, TypeError, AttributeError):
             # Не блокируем UI, если что-то пойдёт не так
-            logging.exception("RightPanel: failed to initialize AutoHideTree filter")
+            logger.exception("RightPanel: failed to initialize AutoHideTree filter")
 
         # QStackedLayout ломает стандартную Tab-навигацию Qt
         # Используем кастомную обработку через NavigationKeyHandler

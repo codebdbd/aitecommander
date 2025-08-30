@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Dict, List, Optional
+from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 
 
 class LinksActions:
@@ -74,6 +75,16 @@ class LinksActions:
     def focus_on_link(self, link_id: int):
         """Алиас для совместимости: фокус на ссылке по ID."""
         self.restore_selection(link_id)
+
+    def schedule_restore_selection(self, link_id: int) -> None:
+        """Планирует восстановление выделения/фокуса на ссылке.
+
+        Инкапсулирует использование планировщика задач, чтобы вызовы из MainWindow
+        не зависели от импорта и не использовали getattr/lambda.
+        """
+        key = f"table_selection_{link_id}"
+        # Передаем явный коллбек на метод контроллера
+        schedule_selection_restore(lambda: self.restore_selection(link_id), key)
 
     # --- Доступ к данным виджета ссылок / выбор ---
     def get_link_at(self, row: int):
