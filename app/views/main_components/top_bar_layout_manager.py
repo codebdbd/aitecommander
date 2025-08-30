@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+logger = logging.getLogger(__name__)
 
 from PyQt6 import QtCore
 from PyQt6.QtCore import QEvent, QObject, QTimer
@@ -124,9 +125,9 @@ class TopBarLayoutManager(QObject):
                     except (RuntimeError, AttributeError):
                         pass
                     except Exception:
-                        logging.exception("TopBarLayoutManager.eventFilter: unexpected error during fallback adjust")
+                        logger.exception("TopBarLayoutManager.eventFilter: unexpected error during fallback adjust")
                 except Exception:
-                    logging.exception("TopBarLayoutManager.eventFilter: unexpected error starting throttle timer")
+                    logger.exception("TopBarLayoutManager.eventFilter: unexpected error starting throttle timer")
         return super().eventFilter(obj, event)
 
     def _ensure_panel_filters(self):
@@ -150,9 +151,9 @@ class TopBarLayoutManager(QObject):
             except (RuntimeError, AttributeError):
                 pass
             except Exception:
-                logging.exception("TopBarLayoutManager._request_adjust: unexpected error during fallback adjust")
+                logger.exception("TopBarLayoutManager._request_adjust: unexpected error during fallback adjust")
         except Exception:
-            logging.exception("TopBarLayoutManager._request_adjust: unexpected error starting throttle timer")
+            logger.exception("TopBarLayoutManager._request_adjust: unexpected error starting throttle timer")
 
     def _run_adjust(self):
         self.adjust()
@@ -223,7 +224,7 @@ class TopBarLayoutManager(QObject):
         except (AttributeError, RuntimeError):
             return []
         except Exception:
-            logging.exception("TopBarLayoutManager._iter_buttons: unexpected error while collecting buttons")
+            logger.exception("TopBarLayoutManager._iter_buttons: unexpected error while collecting buttons")
             return []
 
     def _set_visible_count(
@@ -281,7 +282,7 @@ class TopBarLayoutManager(QObject):
             except (RuntimeError, TypeError, ValueError):
                 narrow_threshold = 280
             except Exception:
-                logging.exception("TopBarLayoutManager.adjust: unexpected error reading window min width; fallback to 280")
+                logger.exception("TopBarLayoutManager.adjust: unexpected error reading window min width; fallback to 280")
                 narrow_threshold = 280
             if width <= narrow_threshold:
                 self._apply_counts(width, 0, 0, 0, search)
@@ -329,13 +330,13 @@ class TopBarLayoutManager(QObject):
                 except (RuntimeError, AttributeError, TypeError):
                     pass
                 except Exception:
-                    logging.exception("TopBarLayoutManager.adjust: unexpected error setting search maximum width")
+                    logger.exception("TopBarLayoutManager.adjust: unexpected error setting search maximum width")
 
         except (RuntimeError, AttributeError):
             # Не роняем UI из-за ожидаемых ошибок расчета
             pass
         except Exception:
-            logging.exception("TopBarLayoutManager.adjust: unexpected error during adjust")
+            logger.exception("TopBarLayoutManager.adjust: unexpected error during adjust")
 
     # -------------------------- Pure calculation ---------------------------
     def _compute_visible_counts(

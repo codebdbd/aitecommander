@@ -76,7 +76,7 @@
       ],
       [
         "Добавить категорию (F4)",
-        "show_category_dialog"
+        "add_new_category"
       ],
       [
         "Добавить ссылку (F1)",

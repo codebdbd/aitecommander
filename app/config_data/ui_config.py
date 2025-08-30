@@ -342,7 +342,7 @@ class UIConfig(BaseConfig):
             "ui.bottom_actions",
             [
                 ["Добавить раздел (F3)", "show_section_dialog"],
-                ["Добавить категорию (F4)", "show_category_dialog"],
+                ["Добавить категорию (F4)", "add_new_category"],
                 ["Добавить ссылку (F1)", "show_link_dialog"],
                 ["Редактировать (F2)", "edit_current"],
                 ["Удалить (Del)", "delete_current"],

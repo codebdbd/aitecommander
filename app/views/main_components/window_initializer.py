@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+logger = logging.getLogger(__name__)
 from contextlib import suppress
 from typing import Any
 
@@ -116,7 +117,7 @@ class WindowInitializer:
                         self.window.apply_font_size_to_content(int(fs))  # type: ignore[attr-defined]
             except Exception:
                 # Логируем неожиданные ошибки, чтобы не терять диагностику
-                logging.exception("WindowInitializer: unexpected error applying font size")
+                logger.exception("WindowInitializer: unexpected error applying font size")
 
     def _initialize_spheres(self) -> None:
         self.controllers_setup.initialize_spheres()

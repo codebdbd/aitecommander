@@ -61,7 +61,7 @@ class TestBaseLinksPanelWidgetExceptionHandling(unittest.TestCase):
         with patch('app.views.base_widgets.resolve_icon_path') as mock_resolve:
             mock_resolve.side_effect = ValueError("Unexpected error")
             
-            with patch('app.views.base_widgets.logging.exception') as mock_log:
+            with patch('app.views.base_widgets.logger.exception') as mock_log:
                 result = self.widget._find_icon("/some/path.png")
                 
                 # Проверяем, что вернулся путь по умолчанию
@@ -94,7 +94,7 @@ class TestBaseLinksPanelWidgetExceptionHandling(unittest.TestCase):
             {'id': 'another_good_link', 'name': 'Another Good Link', 'url': 'http://good.com'}
         ]
 
-        with patch('app.views.base_widgets.logging.exception') as mock_exception:
+        with patch('app.views.base_widgets.logger.exception') as mock_exception:
             self.widget._populate_panel(test_items, failing_create_button)
             
             # Проверяем, что было залогировано исключение об ошибке
@@ -113,7 +113,7 @@ class TestBaseLinksPanelWidgetExceptionHandling(unittest.TestCase):
 
         test_items = [{'id': 'test_link', 'name': 'Test Link', 'url': 'http://test.com'}]
 
-        with patch('app.views.base_widgets.logging.exception') as mock_exception:
+        with patch('app.views.base_widgets.logger.exception') as mock_exception:
             self.widget._populate_panel(test_items, failing_create_button)
             
             # Проверяем, что вызывается logging.exception с диагностикой

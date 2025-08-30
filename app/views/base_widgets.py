@@ -1,6 +1,7 @@
 """Базовые виджеты для переиспользования в UI AITE."""
 
 import logging
+logger = logging.getLogger(__name__)
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Callable, Iterable
 
@@ -90,7 +91,7 @@ class BaseLinksPanelWidget(BasePanelWidget):
             logging.warning("Не удалось разрешить путь к иконке '%s': %s", icon_path, e)
             return str(self._get_default_icon_path())
         except Exception as e:
-            logging.exception("Неожиданная ошибка при разрешении иконки '%s': %s", icon_path, e)
+            logger.exception("Неожиданная ошибка при разрешении иконки '%s': %s", icon_path, e)
             return str(self._get_default_icon_path())
 
     def _create_link_button(self, link_data: Dict[str, Any]) -> QToolButton:
@@ -174,7 +175,7 @@ class BaseLinksPanelWidget(BasePanelWidget):
                     'name': link.get('name', 'Unknown'),
                     'url': link.get('url', 'Unknown')[:50] if link.get('url') else 'Unknown'
                 }
-                logging.exception(
+                logger.exception(
                     "Не удалось создать кнопку для элемента панели %s", 
                     link_info
                 )
@@ -206,7 +207,7 @@ class BaseLinksPanelWidget(BasePanelWidget):
                 }
             except Exception:
                 link_ctx = {'raw': repr(link_info)}
-            logging.exception("Ошибка при эмитировании linkClicked; контекст=%s", link_ctx)
+            logger.exception("Ошибка при эмитировании linkClicked; контекст=%s", link_ctx)
             raise
 
     def _get_default_icon_path(self) -> Path:
