@@ -47,14 +47,18 @@ def _do_panels_refresh(window) -> None:
     """Внутренняя функция выполнения обновления верхних панелей."""
     try:
         setattr(window, "_pending_top_panels_refresh", False)
+    except (AttributeError, TypeError):
+        logger.warning("_do_panels_refresh: cannot clear _pending_top_panels_refresh (attr/type)")
     except Exception:
-        pass
+        logger.exception("_do_panels_refresh: unexpected error while clearing pending flag")
     try:
         ctrl = getattr(window, "top_panels_controller", None)
         if ctrl:
             ctrl.refresh_all()
-    except Exception as e:
-        logger.warning(f"Failed to refresh top panels: {e}")
+    except (AttributeError, TypeError) as e:
+        logger.warning(f"Failed to refresh top panels (attr/type): {e}")
+    except Exception:
+        logger.exception("Failed to refresh top panels (unexpected)")
 
 
 def _request_panels_refresh(window, delay_ms: int | None = None) -> None:
@@ -67,14 +71,29 @@ def _request_panels_refresh(window, delay_ms: int | None = None) -> None:
             return
         setattr(window, "_pending_top_panels_refresh", True)
         QTimer.singleShot(int(delay_ms or _TOP_PANELS_REFRESH_DEBOUNCE_MS), lambda: _do_panels_refresh(window))
+        return
+    except (AttributeError, TypeError) as e:
+        logger.warning(f"_request_panels_refresh: state/type error while scheduling: {e}")
     except Exception:
-        # Fallback на прямой вызов, если что-то пошло не так
-        try:
-            ctrl = getattr(window, "top_panels_controller", None)
-            if ctrl:
-                ctrl.refresh_all()
-        except Exception:
-            pass
+        logger.exception("_request_panels_refresh: unexpected error while scheduling refresh")
+
+    # Fallback на прямой вызов, если что-то пошло не так. Обязательно сбрасываем pending-флаг
+    try:
+        setattr(window, "_pending_top_panels_refresh", False)
+    except (AttributeError, TypeError):
+        # если нет атрибута/тип некорректный — продолжаем, это не должно ронять UI
+        pass
+    except Exception:
+        logger.exception("_request_panels_refresh: unexpected error while clearing pending flag in fallback")
+
+    try:
+        ctrl = getattr(window, "top_panels_controller", None)
+        if ctrl:
+            ctrl.refresh_all()
+    except (AttributeError, TypeError) as e:
+        logger.warning(f"_request_panels_refresh: fallback refresh failed (attr/type): {e}")
+    except Exception:
+        logger.exception("_request_panels_refresh: fallback refresh failed (unexpected)")
 
 
 def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
