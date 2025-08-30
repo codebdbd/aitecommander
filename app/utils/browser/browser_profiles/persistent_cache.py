@@ -31,6 +31,14 @@ class PersistentProfileCache(BaseCache):
         self._lock = threading.RLock()
         self._store: dict[str, CacheRecord] = {}
         self._path: Path = get_cache_path()
+        # Отложенная/пакетная запись
+        try:
+            _delay = getattr(app_config, "get_profile_cache_flush_delay", None)
+            self._flush_delay_sec: float = float(_delay()) if callable(_delay) else 0.5
+        except Exception:
+            self._flush_delay_sec = 0.5
+        self._dirty: bool = False
+        self._next_flush_ts: float = 0.0
         self._load_from_disk()
 
     # --- файловые операции ---
@@ -84,6 +92,29 @@ class PersistentProfileCache(BaseCache):
                 pass
             raise
 
+    # --- механика отложенного сброса ---
+    def _mark_dirty_locked(self) -> None:
+        self._dirty = True
+        now = time.time()
+        # если не запланировано, планируем
+        if self._next_flush_ts <= 0:
+            self._next_flush_ts = now + self._flush_delay_sec
+
+    def _maybe_flush_locked(self, *, force: bool = False) -> None:
+        if not self._dirty:
+            return
+        now = time.time()
+        if force or (self._next_flush_ts > 0 and now >= self._next_flush_ts):
+            try:
+                self._dump_to_disk()
+            except Exception:
+                # Не проваливаемся на ошибке диска
+                pass
+            finally:
+                # Сбрасываем флаги независимо от результата, чтобы не писать бесконечно
+                self._dirty = False
+                self._next_flush_ts = 0.0
+
     # --- BaseCache API ---
     def get(self, key: str) -> Optional[Any]:
         with self._lock:
@@ -92,13 +123,10 @@ class PersistentProfileCache(BaseCache):
                 return None
             # проверяем TTL
             if not rec.is_valid():
-                # Протухло — удаляем из памяти и синхронно обновляем файл, чтобы не копить мусор
+                # Протухло — удаляем из памяти и отмечаем необходимость отложенной записи
                 self._store.pop(key, None)
-                try:
-                    self._dump_to_disk()
-                except Exception:
-                    # Игнорируем ошибки записи на диск, но из памяти уже удалили
-                    pass
+                self._mark_dirty_locked()
+                self._maybe_flush_locked()
                 return None
             return rec.value
 
@@ -109,11 +137,9 @@ class PersistentProfileCache(BaseCache):
                 ts=time.time(),
                 ttl=self._default_ttl if ttl is None else ttl,
             )
-            try:
-                self._dump_to_disk()
-            except Exception:
-                # не проваливаемся на ошибке диска
-                pass
+            # Отмечаем грязное состояние и откладываем запись
+            self._mark_dirty_locked()
+            self._maybe_flush_locked()
 
     def invalidate(self, key: Optional[str] = None) -> None:
         with self._lock:
@@ -121,7 +147,30 @@ class PersistentProfileCache(BaseCache):
                 self._store.clear()
             else:
                 self._store.pop(key, None)
-            try:
-                self._dump_to_disk()
-            except Exception:
-                pass
+            self._mark_dirty_locked()
+            self._maybe_flush_locked()
+
+    # --- публичные методы управления сбросом ---
+    def flush(self) -> None:
+        """Принудительно сбросить изменения на диск."""
+        with self._lock:
+            self._maybe_flush_locked(force=True)
+
+    def periodic_flush(self) -> None:
+        """Внешняя периодическая точка: выполнить сброс, если подошёл срок.
+
+        Вызывайте из места, где уже есть периодический цикл/таймер в приложении.
+        """
+        with self._lock:
+            self._maybe_flush_locked(force=False)
+
+    # Контекстный менеджер для гарантированного сброса
+    def __enter__(self) -> "PersistentProfileCache":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:  # noqa: D401
+        # При выходе всегда пытаемся сбросить на диск
+        try:
+            self.flush()
+        except Exception:
+            pass

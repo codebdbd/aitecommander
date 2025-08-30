@@ -36,6 +36,7 @@ def test_persistent_profile_cache_basic(temp_config_dir: Path):
 
     assert cache.get(browser) is None
     cache.set(browser, profiles)
+    cache.flush()
     assert cache.get(browser) == profiles
 
     # Проверим, что записалось на диск
@@ -46,11 +47,14 @@ def test_persistent_profile_cache_basic(temp_config_dir: Path):
 
     # invalidate одного ключа
     cache.invalidate(browser)
+    cache.flush()
     assert cache.get(browser) is None
 
     # set снова и invalidate all
     cache.set(browser, profiles)
+    cache.flush()
     cache.invalidate()
+    cache.flush()
     assert cache.get(browser) is None
 
 
@@ -66,3 +70,4 @@ def test_persistent_profile_cache_ttl(temp_config_dir: Path):
     # Ждем протухания TTL
     time.sleep(1.1)
     assert cache.get(browser) is None
+    cache.flush()
