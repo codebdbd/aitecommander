@@ -14,6 +14,7 @@ from contextlib import contextmanager, closing
 from typing import Any, Optional
 
 from app.utils.cache.base import BaseCache
+from app.config_data import app_config
 from app.utils.ui.icon.path_service import icon_path_service
 from .constants import CACHE_TTL, SHORT_NEGATIVE_TTL, logger
 
@@ -96,6 +97,8 @@ class FaviconCache(BaseCache):
         self._lock = threading.RLock()
         # Кэшируем результат _get_default_icon(), чтобы не дергать resolver повторно
         self._default_icon_cached: Optional[str] = None
+        # Параметры очистки (интервал фиксируем, а max_size читаем динамически из конфигурации)
+        self._cleanup_interval_sec = self._get_cleanup_interval()
 
     # Вспомогательные методы
     def _get_default_icon(self) -> str:
@@ -117,6 +120,112 @@ class FaviconCache(BaseCache):
         if "ttl" not in item and item.get("icon", "") == self._get_default_icon():
             return float(SHORT_NEGATIVE_TTL)
         return float(item.get("ttl", self._default_ttl or CACHE_TTL))
+
+    # --- Конфигурация и очистка ---
+    @staticmethod
+    def _get_max_size() -> int:
+        """Максимальный размер БД кэша. Должен быть >=1.
+
+        Пытаемся получить из app_config: метод get_favicon_cache_max_size() или атрибут favicon_cache_max_size.
+        По умолчанию 5000.
+        """
+        default = 5000
+        try:
+            getter = getattr(app_config, "get_favicon_cache_max_size", None)
+            if callable(getter):
+                return max(1, int(getter()))
+            raw = getattr(app_config, "favicon_cache_max_size", default)
+            return max(1, int(raw))
+        except Exception:  # noqa: BLE001
+            return default
+
+    @staticmethod
+    def _get_cleanup_interval() -> float:
+        """Интервал периодической очистки (сек). По умолчанию 5 минут."""
+        default = 300.0
+        try:
+            getter = getattr(app_config, "get_favicon_cache_cleanup_interval", None)
+            if callable(getter):
+                return max(30.0, float(getter()))
+            raw = getattr(app_config, "favicon_cache_cleanup_interval", default)
+            return max(30.0, float(raw))
+        except Exception:  # noqa: BLE001
+            return default
+
+    @staticmethod
+    def _now() -> float:
+        return time.time()
+
+    def _maybe_cleanup(self, db: shelve.Shelf) -> None:
+        """Периодическая очистка: удаление протухших и, при необходимости, самых старых записей.
+
+        Чтобы избежать частых полных проходов, используем метку времени последней очистки,
+        хранимую в специальном ключе "__last_cleanup_ts__".
+        """
+        try:
+            last_ts = float(db.get("__last_cleanup_ts__", 0.0) or 0.0)
+        except Exception:
+            last_ts = 0.0
+        now = self._now()
+        if (now - last_ts) < self._cleanup_interval_sec:
+            return
+
+        removed = 0
+        try:
+            # 1) удаляем протухшие
+            to_delete: list[str] = []
+            for k in list(db.keys()):
+                if k.startswith("__"):
+                    continue
+                try:
+                    item = db.get(k)
+                    if not isinstance(item, dict):
+                        # Неподдерживаемый формат — удаляем
+                        to_delete.append(k)
+                        continue
+                    ts = float(item.get("timestamp", 0.0))
+                    ttl = self._compute_effective_ttl(item)
+                    if ttl <= 0 or (now - ts) >= ttl:
+                        to_delete.append(k)
+                except Exception:
+                    to_delete.append(k)
+            for k in to_delete:
+                try:
+                    del db[k]
+                    removed += 1
+                except Exception:
+                    pass
+
+            # 2) ограничиваем размер БД, удаляя самые старые по timestamp
+            max_size = self._get_max_size()
+            # Собираем пары (k, ts)
+            items: list[tuple[str, float]] = []
+            for k in db.keys():
+                if k.startswith("__"):
+                    continue
+                try:
+                    it = db.get(k)
+                    ts = float(it.get("timestamp", 0.0)) if isinstance(it, dict) else 0.0
+                except Exception:
+                    ts = 0.0
+                items.append((k, ts))
+            if len(items) > max_size:
+                # Сортируем по возрастанию ts и удаляем лишние
+                items.sort(key=lambda x: x[1])
+                to_evict = len(items) - max_size
+                for k, _ in items[:to_evict]:
+                    try:
+                        del db[k]
+                        removed += 1
+                    except Exception:
+                        pass
+        finally:
+            try:
+                db["__last_cleanup_ts__"] = now
+                if removed:
+                    logger.debug("[cache] CLEANUP removed=%s", removed)
+            except Exception:
+                pass
 
     # Реализация BaseCache
     def get(self, key: str) -> Optional[Any]:
@@ -155,6 +264,11 @@ class FaviconCache(BaseCache):
             lock_path = f"{path}.lock"
             with _file_lock(lock_path):
                 with closing(shelve.open(path)) as db:
+                    # Очистка перед записью, чтобы ограничивать рост
+                    try:
+                        self._maybe_cleanup(db)
+                    except Exception:
+                        pass
                     if isinstance(value, dict):
                         to_store = dict(value)
                     else:
@@ -165,6 +279,29 @@ class FaviconCache(BaseCache):
                         to_store["ttl"] = float(ttl)
                     db[key] = to_store
                     logger.debug("[cache] SAVE %s", key)
+                    # Жесткое ограничение размера сразу после записи
+                    try:
+                        max_size = self._get_max_size()
+                        items: list[tuple[str, float]] = []
+                        for k in db.keys():
+                            if k.startswith("__"):
+                                continue
+                            try:
+                                it = db.get(k)
+                                ts = float(it.get("timestamp", 0.0)) if isinstance(it, dict) else 0.0
+                            except Exception:
+                                ts = 0.0
+                            items.append((k, ts))
+                        if len(items) > max_size:
+                            items.sort(key=lambda x: x[1])
+                            to_evict = len(items) - max_size
+                            for k, _ in items[:to_evict]:
+                                try:
+                                    del db[k]
+                                except Exception:
+                                    pass
+                    except Exception:
+                        pass
 
     def invalidate(self, key: Optional[str] = None) -> None:
         with self._lock:
