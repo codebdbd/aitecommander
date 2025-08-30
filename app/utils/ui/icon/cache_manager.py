@@ -242,11 +242,15 @@ class ThreadSafeIconCache:
             if entry is None:
                 return None
 
-            ttl = (
-                app_config.get_abs_icon_cache_ttl()
-                if theme == "__abs__"
-                else app_config.get_icon_cache_ttl()
-            )
+            # TTL: для отрицательных записей используем отдельный (укороченный) TTL
+            if entry.negative:
+                ttl = app_config.get_negative_cache_ttl()
+            else:
+                ttl = (
+                    app_config.get_abs_icon_cache_ttl()
+                    if theme == "__abs__"
+                    else app_config.get_icon_cache_ttl()
+                )
             if not entry.is_valid(ttl):
                 # Удаляем устаревшую запись
                 self._qicon_cache.pop(key, None)
@@ -451,24 +455,7 @@ def get_path(icon_name: str, theme: str) -> Optional[str]:
 def set_path(icon_name: str, theme: str, path: Optional[str]) -> None:
     _icon_manager.set_path(icon_name, theme, path)
 
-# Обратная совместимость (deprecated): модульные функции-алиасы
-def get_qicon_from_cache(icon_name: str, theme: str) -> Optional[QIcon]:
-    return get_icon(icon_name, theme)
-
-def cache_qicon(
-    icon_name: str,
-    theme: str,
-    icon: Optional[QIcon],
-    *,
-    negative: bool = False,
-) -> None:
-    set_icon(icon_name, theme, icon, negative=negative)
-
-def get_path_from_cache(icon_name: str, theme: str) -> Optional[str]:
-    return get_path(icon_name, theme)
-
-def cache_path(icon_name: str, theme: str, path: Optional[str]) -> None:
-    set_path(icon_name, theme, path)
+# Прежние алиасы удалены для унификации API
 
 
 def get_cached_category_icon(path: str) -> QIcon:

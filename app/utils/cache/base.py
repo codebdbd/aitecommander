@@ -16,6 +16,7 @@ from __future__ import annotations
 import abc
 import threading
 import time
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -68,25 +69,24 @@ class InMemoryCache(BaseCache):
         self._default_ttl = default_ttl
         self._max_size = int(max_size) if max_size is not None else None
         self._lock = threading.RLock()
+        # Порядок LRU хранится в OrderedDict: самый свежий справа (конце)
         # key -> CacheRecord
-        self._store: dict[str, CacheRecord] = {}
-        # Порядок LRU: самый свежий справа
-        self._lru: list[str] = []
+        self._store: OrderedDict[str, CacheRecord] = OrderedDict()
 
     def _touch(self, key: str) -> None:
-        try:
-            self._lru.remove(key)
-        except ValueError:
-            pass
-        self._lru.append(key)
+        # Перемещаем ключ в конец как самый недавно использованный
+        if key in self._store:
+            self._store.move_to_end(key, last=True)
 
     def _evict_if_needed(self) -> None:
         if self._max_size is None:
             return
         while len(self._store) > self._max_size:
-            # удалить самый старый (слева)
-            oldest = self._lru.pop(0)
-            self._store.pop(oldest, None)
+            # Удалить самый старый (слева)
+            try:
+                self._store.popitem(last=False)
+            except KeyError:
+                break
 
     def get(self, key: str) -> Optional[Any]:
         with self._lock:
@@ -96,10 +96,6 @@ class InMemoryCache(BaseCache):
             if not rec.is_valid():
                 # устарело — удалить
                 self._store.pop(key, None)
-                try:
-                    self._lru.remove(key)
-                except ValueError:
-                    pass
                 return None
             self._touch(key)
             return rec.value
@@ -108,7 +104,8 @@ class InMemoryCache(BaseCache):
         with self._lock:
             rec = CacheRecord(value=value, ts=time.time(), ttl=ttl if ttl is not None else self._default_ttl)
             self._store[key] = rec
-            self._touch(key)
+            # Переместим в конец как самый свежий
+            self._store.move_to_end(key, last=True)
             self._evict_if_needed()
 
     def invalidate(self, key: Optional[str] = None) -> None:
@@ -116,10 +113,5 @@ class InMemoryCache(BaseCache):
             if key is None:
                 if self._store:
                     self._store.clear()
-                    self._lru.clear()
                 return
             self._store.pop(key, None)
-            try:
-                self._lru.remove(key)
-            except ValueError:
-                pass
