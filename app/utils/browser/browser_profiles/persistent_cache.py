@@ -68,7 +68,13 @@ class PersistentProfileCache(BaseCache):
                 return None
             # проверяем TTL
             if not rec.is_valid():
-                # если протухло — оставляем на диске (для холодного старта), но из кэша не возвращаем
+                # Протухло — удаляем из памяти и синхронно обновляем файл, чтобы не копить мусор
+                self._store.pop(key, None)
+                try:
+                    self._dump_to_disk()
+                except Exception:
+                    # Игнорируем ошибки записи на диск, но из памяти уже удалили
+                    pass
                 return None
             return rec.value
 
