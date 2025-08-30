@@ -6,7 +6,7 @@
 - Потокобезопасность через централизованные блокировки.
 - LRU-политика для каждого кэша.
 - TTL для обычных иконок и отдельный TTL для абсолютных путей.
-- Отрицательное кэширование (см. negative_cache.py).
+- Отрицательное кэширование только для QIcon (см. negative_cache.py); для путей не применяется.
 - Метрики с fallback, если нет модуля .metrics.
 
 Публичный API (функции модуля):
@@ -130,7 +130,6 @@ class PathCacheEntry:
 
     path: Optional[str]
     timestamp: float
-    negative: bool = False
 
     def is_valid(self, ttl_seconds: Optional[float]) -> bool:
         return _is_entry_valid(self.timestamp, ttl_seconds)

@@ -27,6 +27,9 @@ def load_profiles() -> Dict[str, List[dict]]:
     Returns:
         dict: {browser_key: [profiles,...]} либо пустой словарь.
     """
+    logger.warning(
+        "profile_cache.load_profiles() устарел: используйте PersistentProfileCache вместо прямого чтения файла"
+    )
     path = get_cache_path()
     try:
         if not path.exists():
@@ -59,6 +62,9 @@ def save_profiles(profiles: Dict[str, List[dict]]) -> bool:
     Args:
         profiles: {browser_key: [profiles,...]}
     """
+    logger.warning(
+        "profile_cache.save_profiles() устарел: используйте PersistentProfileCache для записи и TTL-валидности"
+    )
     try:
         # Убедимся, что все пользовательские директории существуют
         try:
