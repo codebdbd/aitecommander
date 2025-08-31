@@ -96,10 +96,8 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 logger.error(f"Failed to update category after deletion: {e}")
         # Централизованное обновление верхних панелей через сигнал
         try:
-            link_ops = self.link_operations
-            if link_ops:
-                # Удаление влияет на панель "Недавние", а не на избранное
-                link_ops.emit_recents_changed()
+            # Удаление влияет на панель "Недавние", а не на избранное
+            self.link_operations.emit_recents_changed()
         except Exception as e:
             logger.debug(f"Failed to emit recents_changed after delete_links: {e}")
 

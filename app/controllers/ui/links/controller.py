@@ -35,11 +35,13 @@ class LinksUIController(QObject):
         if links_table_controller is None:
             logger.error("LinksUIController: links_table_controller is required")
             raise ValueError("LinksUIController: links_table_controller is required")
+        if link_operations is None:
+            logger.error("LinksUIController: link_operations is required")
+            raise ValueError("LinksUIController: link_operations is required")
         self.table = table_widget
         self.business = business_logic
         self.main = main_window
         self._row_by_link_id: dict[int, int] = {}
-        self.link_operations = link_operations
         self.table_controller = links_table_controller
 
         # Инициализация подмодулей с явными зависимостями

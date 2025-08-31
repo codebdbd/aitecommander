@@ -71,6 +71,14 @@ class FavoritesPanelLike(Protocol):
 
 
 @runtime_checkable
+class FavoritesPanelWithClear(FavoritesPanelLike, Protocol):
+    """Расширенный протокол панели избранного: поддерживает очистку на стороне виджета."""
+
+    def clear_favorites(self) -> None:
+        ...
+
+
+@runtime_checkable
 class RecentsPanelLike(Protocol):
     """Панель недавних ссылок, требующая метод set_recent_links."""
 

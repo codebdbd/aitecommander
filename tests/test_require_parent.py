@@ -3,17 +3,13 @@ import logging
 from typing import Any, Callable, Dict, Optional
 
 from app.controllers.structure_modules import helpers
-from app.controllers.structure_modules.base import (
-    DefaultValidationStrategy,
-    StructureItemType,
-)
+from app.controllers.structure_modules.base import StructureItemType
 
 
 class FakeController:
     """Минимальная реализация протокола StructureController для тестов."""
 
     def __init__(self) -> None:
-        self.valid = DefaultValidationStrategy()
         self.logger = logging.getLogger(__name__)
 
     def _upsert_and_emit(
@@ -40,8 +36,19 @@ class FakeController:
         *,
         require_parent: bool = True,
     ) -> Any:
-        # Эмулируем базовую логику: сначала валидация, затем операция
-        self.valid.validate(data, item_type, require_parent=require_parent)
+        # Эмулируем базовую логику BaseOperations._validate_data: сначала валидация, затем операция
+        if not isinstance(data, dict):
+            return None
+        if not data.get("name", "").strip():
+            return None
+        if require_parent:
+            parent_field = {
+                StructureItemType.SECTION: "sphere_id",
+                StructureItemType.CATEGORY: "section_id",
+                StructureItemType.LINK: "category_id",
+            }[item_type]
+            if parent_field not in data or data[parent_field] is None:
+                return None
         return operation()
 
 

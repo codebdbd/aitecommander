@@ -141,7 +141,7 @@ class SignalType:
 
 
 class ValidationStrategy(ABC):
-    """Абстрактная стратегия валидации."""
+    """Сохранено для обратной совместимости импортов (больше не используется)."""
 
     @abstractmethod
     def validate(
@@ -150,46 +150,11 @@ class ValidationStrategy(ABC):
         item_type: StructureItemType,
         require_parent: bool = True,
     ) -> None:
-        """Валидирует данные для элемента структуры."""
-        pass
-
-
-class DefaultValidationStrategy(ValidationStrategy):
-    """Стратегия валидации по умолчанию."""
-
-    def validate(
-        self,
-        data: Dict[str, Any],
-        item_type: StructureItemType,
-        require_parent: bool = True,
-    ) -> None:
-        """Базовая валидация данных."""
-        if not isinstance(data, dict):
-            raise ValidationError(
-                "Данные должны быть словарем", item_type=item_type.value
-            )
-
-        if not data.get("name", "").strip():
-            raise ValidationError(
-                "Поле 'name' обязательно", field="name", item_type=item_type.value
-            )
-
-        if require_parent:
-            try:
-                config = ItemTypeRegistry.get_config(item_type)
-                parent_field = config.parent_field
-                if parent_field not in data or data[parent_field] is None:
-                    raise ValidationError(
-                        f"Поле '{parent_field}' обязательно",
-                        field=parent_field,
-                        item_type=item_type.value,
-                    )
-            except ValueError as e:
-                raise ValidationError(str(e), item_type=item_type.value) from e
+        raise NotImplementedError
 
 
 class StructureOperationStrategy(ABC):
-    """Абстрактная стратегия для операций со структурой."""
+    """Сохранено для обратной совместимости импортов (больше не используется)."""
 
     @abstractmethod
     def execute_upsert(
@@ -198,36 +163,7 @@ class StructureOperationStrategy(ABC):
         data: Dict[str, Any],
         config: ItemTypeConfig,
     ) -> int:
-        """Выполняет upsert операцию."""
-        pass
-
-
-class DefaultOperationStrategy(StructureOperationStrategy):
-    """Стратегия операций по умолчанию."""
-
-    def execute_upsert(
-        self,
-        model: StructureModelProtocol,
-        data: Dict[str, Any],
-        config: ItemTypeConfig,
-    ) -> int:
-        """Выполняет upsert через динамический вызов метода."""
-        upsert_method = getattr(model, config.upsert_method_name, None)
-        if not upsert_method:
-            raise StructureOperationError(
-                f"Метод {config.upsert_method_name} не найден в модели",
-                "upsert",
-                config.item_type.value,
-            )
-
-        try:
-            return upsert_method(data)
-        except Exception as e:
-            raise StructureOperationError(
-                f"Ошибка при выполнении {config.upsert_method_name}: {str(e)}",
-                "upsert",
-                config.item_type.value,
-            ) from e
+        raise NotImplementedError
 
 
 class StructureLogger:
@@ -290,8 +226,6 @@ class BaseOperations:
         emit_signal_func: Optional[
             Callable[[str, str, int, Dict[str, Any]], None]
         ] = None,
-        validation_strategy: Optional[ValidationStrategy] = None,
-        operation_strategy: Optional[StructureOperationStrategy] = None,
     ):
         self.structure_model = structure_model
         # Сохраняем обычный logger для совместимости со старыми модулями
@@ -302,8 +236,32 @@ class BaseOperations:
 
         # Инициализация компонентов
         self.signal_emitter = StructureSignalEmitter(emit_signal_func)
-        self.validation_strategy = validation_strategy or DefaultValidationStrategy()
-        self.operation_strategy = operation_strategy or DefaultOperationStrategy()
+
+    def _validate_data(
+        self,
+        data: Dict[str, Any],
+        item_type: StructureItemType,
+        require_parent: bool = True,
+    ) -> None:
+        """Базовая валидация данных (ранее выполнялась стратегией по умолчанию)."""
+        if not isinstance(data, dict):
+            raise ValidationError("Данные должны быть словарем", item_type=item_type.value)
+
+        if not data.get("name", "").strip():
+            raise ValidationError("Поле 'name' обязательно", field="name", item_type=item_type.value)
+
+        if require_parent:
+            try:
+                config = ItemTypeRegistry.get_config(item_type)
+                parent_field = config.parent_field
+                if parent_field not in data or data[parent_field] is None:
+                    raise ValidationError(
+                        f"Поле '{parent_field}' обязательно",
+                        field=parent_field,
+                        item_type=item_type.value,
+                    )
+            except ValueError as e:
+                raise ValidationError(str(e), item_type=item_type.value) from e
 
     def _exec_with_norm(
         self, operation_func: Callable, operation_name: str, default_return: Any
@@ -327,7 +285,7 @@ class BaseOperations:
         """Выполняет валидацию и операцию с обработкой ошибок."""
         try:
             # Валидация
-            self.validation_strategy.validate(data, item_type, require_parent)
+            self._validate_data(data, item_type, require_parent)
 
             # Выполнение операции
             return operation_func()
@@ -380,12 +338,23 @@ class BaseOperations:
             data_copy["id"] = item_id
 
         # Выполнение upsert операции
-        try:
-            result_id = self.operation_strategy.execute_upsert(
-                self.structure_model, data_copy, config
+        # Выполнение upsert операции (ранее выполнялось стратегией операций)
+        upsert_method = getattr(self.structure_model, config.upsert_method_name, None)
+        if not upsert_method:
+            raise StructureOperationError(
+                f"Метод {config.upsert_method_name} не найден в модели",
+                "upsert",
+                config.item_type.value,
             )
-        except StructureOperationError:
-            raise
+
+        try:
+            result_id = upsert_method(data_copy)
+        except Exception as e:
+            raise StructureOperationError(
+                f"Ошибка при выполнении {config.upsert_method_name}: {str(e)}",
+                "upsert",
+                config.item_type.value,
+            ) from e
 
         # Подготовка данных сигнала
         if not is_update:

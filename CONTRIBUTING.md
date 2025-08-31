@@ -187,3 +187,41 @@ python -m app.models.db --detect-duplicates
 - TTL в секундах; значения `<= 0` — запись невалидна.
 - LRU-вытеснение действует при превышении `max_size`.
 - Для тестов допускается переопределение конфигурации через ленивый прокси `app_config` (поддерживает `__setattr__/__delattr__`).
+
+---
+
+## Упрощение архитектуры операций структуры (удаление стратегий)
+
+В рамках рефакторинга удалены классы стратегий валидации и операций структуры, а логика перенесена напрямую в базовый класс операций.
+
+Изменения:
+
+- Удалены классы стратегий:
+  - `ValidationStrategy`, `DefaultValidationStrategy`
+  - `StructureOperationStrategy`, `DefaultOperationStrategy`
+- Класс `BaseOperations` теперь выполняет:
+  - Прямую валидацию входных данных в методе `BaseOperations._validate_data(data, item_type, require_parent=True)`
+  - Прямой вызов upsert-метода модели через `getattr(self.structure_model, config.upsert_method_name)(data_copy)` в `_upsert_and_emit(...)`
+- Публичный API `BaseOperations` не изменён: остаются `create_item`, `update_item`, `delete_item`, сигналы эмитятся через `StructureSignalEmitter`.
+
+Миграция кода:
+
+- Производные классы (`CategoryOperations`, `SectionOperations`, `SphereOperations`, `PositioningOperations`) изменений не требуют, если использовали публичные методы `BaseOperations`.
+- Если где-то извне создавались или использовались объекты удалённых стратегий — удалите такие импорты и зависимости. Валидация выполняется автоматически в `_execute_with_validation()`.
+
+Миграция тестов:
+
+- Тесты, ссылающиеся на `DefaultValidationStrategy`, нужно обновить:
+  - Удалить импорт стратегии
+  - При необходимости эмулировать валидацию по месту (эквивалент логуки `BaseOperations._validate_data`):
+    - `data` — `dict`
+    - `name` — непустая строка
+    - для `require_parent=True` обязательно поле-родитель по типу элемента:
+      - `SECTION` → `sphere_id`
+      - `CATEGORY` → `section_id`
+      - `LINK` → `category_id`
+
+Примечания:
+
+- Сигналы и логирование не изменялись.
+- При ошибках upsert формируется `StructureOperationError` с типом операции `"upsert"` и именем типа элемента.

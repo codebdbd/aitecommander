@@ -13,13 +13,15 @@ logger = logging.getLogger(__name__)
 class BaseLinksUIComponent:
     """Базовый класс для всех компонентов LinksUI."""
 
-    def __init__(self, controller, link_operations=None, links_table_controller=None):
+    def __init__(self, controller, link_operations, links_table_controller=None):
         self.controller = controller
         self.table = controller.table
         self.business = controller.business
         self.main = controller.main
-        # Явная зависимость для link_operations; fallback — взять из контроллера, если есть
-        self.link_operations = link_operations or getattr(controller, "link_operations", None)
+        # Обязательная зависимость: link_operations должен быть передан явно
+        if link_operations is None:
+            raise ValueError("BaseLinksUIComponent requires explicit 'link_operations' dependency")
+        self.link_operations = link_operations
         # Явная зависимость для links_table_controller; fallback — взять из контроллера, если есть
         self.links_table_controller = links_table_controller or getattr(controller, "table_controller", None)
 

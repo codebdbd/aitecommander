@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from PyQt6.QtCore import QTimer
-from app.interfaces import FavoritesPanelLike, RecentsPanelLike, RecentsPanelWithLimit
+from app.interfaces import FavoritesPanelLike, FavoritesPanelWithClear, RecentsPanelLike, RecentsPanelWithLimit
 
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,6 @@ class TopPanelsController:
         self._fav_refresh_timer = QTimer()
         self._recent_refresh_timer = QTimer()
         self._structure_refresh_timer = QTimer()
-        self._clearing_favorites = False
         try:
             self._refresh_timer.setParent(self.main)  # type: ignore[arg-type]
             self._fav_refresh_timer.setParent(self.main)  # type: ignore[arg-type]
@@ -141,36 +140,34 @@ class TopPanelsController:
             logger.exception("TopPanelsController.refresh_recent: неожиданная ошибка при установке недавних")
 
     def clear_favorites(self) -> None:
-        widget = self.fav_widget
-        if not widget:
-            return
-        if self._clearing_favorites:
-            return
-        self._clearing_favorites = True
-        try:
-            try:
-                if self.links_business is not None and hasattr(self.links_business, "clear_favorites"):
-                    self.links_business.clear_favorites()
-            except Exception:
-                logger.exception("TopPanelsController.clear_favorites: ошибка при очистке избранного в БД")
+        """Очистить избранное: бизнес-данные и виджет.
 
-            if hasattr(widget, "clear_favorites"):
-                try:
-                    widget.clear_favorites()
-                except Exception:
-                    logger.exception("TopPanelsController.clear_favorites: ошибка при очистке избранного")
+        Без вложенных try/except и без временных флагов. Ошибки логируем и не
+        пробрасываем наружу, чтобы не ронять UI-цепочку событий.
+        """
+        # 1) Бизнес-очистка
+        try:
+            if self.links_business is not None:
+                self.links_business.clear_favorites()
+        except Exception:
+            logger.error("TopPanelsController.clear_favorites: error in links_business.clear_favorites", exc_info=True)
+
+        # 2) Очистка виджета
+        try:
+            # Предпочитаем нативный метод очистки
+            if isinstance(self.fav_widget, FavoritesPanelWithClear):
+                self.fav_widget.clear_favorites()
             else:
-                try:
-                    if hasattr(widget, "set_favorites"):
-                        widget.set_favorites([])
-                    try:
-                        widget.setVisible(False)
-                    except Exception:
-                        pass
-                except Exception:
-                    logger.exception("TopPanelsController.clear_favorites: ошибка при программной очистке избранного")
-        finally:
-            self._clearing_favorites = False
+                # Фолбэк на set_favorites([]) при отсутствии расширенного протокола
+                self.fav_widget.set_favorites([])
+        except AttributeError:
+            # Контракт сломан — пробуем мягкий откат через set_favorites([])
+            try:
+                self.fav_widget.set_favorites([])
+            except Exception:
+                logger.error("TopPanelsController.clear_favorites: widget fallback set_favorites failed", exc_info=True)
+        except Exception:
+            logger.error("TopPanelsController.clear_favorites: widget clear failed", exc_info=True)
 
     def schedule_structure_refresh(self) -> None:
         """Запланировать обновление верхних панелей по структурным событиям с фиксированным интервалом."""
