@@ -96,22 +96,24 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     window.app_shutdown = controllers["app_shutdown"]
 
     try:
+        # Явно передаем созданные выше зависимости, без controllers.get
+        window.links = links_ctrl
+        window.link_operations = link_ops
         window.links_actions = LinksActions(
             window,
-            links=controllers.get("links"),
-            link_ops=controllers.get("link_operations"),
+            links=links_ctrl,
+            link_ops=link_ops,
         )
         controllers["links_actions"] = window.links_actions
-    except Exception as e:
+    except (AttributeError, TypeError, ValueError) as e:
         logger.error(f"Failed to create LinksActions: {e}")
+        raise SetupError("LinksActions creation failed") from e
 
     # ui_state и category_tiles_controller уже созданы выше
 
-    try:
-        window.links_table_controller = links_table_ctrl
-        controllers["links_table_controller"] = window.links_table_controller
-    except Exception as e:
-        logger.error(f"Failed to assign LinksTableController: {e}")
+    # Прямая привязка контроллера таблицы
+    window.links_table_controller = links_table_ctrl
+    controllers["links_table_controller"] = window.links_table_controller
 
     window.action_controller = ActionController(window)
     controllers["action_controller"] = window.action_controller
@@ -135,45 +137,47 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
         controllers["top_panels_controller"] = window.top_panels_controller
         # Прокидывание в бизнес-логику структуры — опционально; ошибки не фатальны
         try:
-            sb = controllers.get("structure_business")
-            if sb is not None:
-                setattr(sb, "top_panels_controller", window.top_panels_controller)
+            setattr(structure_business, "top_panels_controller", window.top_panels_controller)
         except (AttributeError, TypeError) as e:
             logger.warning(f"Failed to assign top_panels_controller to structure_business: {e}")
     except (AttributeError, TypeError) as e:
         logger.error(f"Failed to create TopPanelsController: {e}")
         raise SetupError("Failed to create TopPanelsController") from e
 
-    try:
-        link_ops = controllers.get("link_operations")
-        links_table_ctrl = controllers.get("links_table_controller")
-        top_panels_ctrl = controllers.get("top_panels_controller")
-        if link_ops:
-            if links_table_ctrl:
-                try:
-                    link_ops.links_changed.connect(links_table_ctrl.on_links_changed)
-                    link_ops.link_saved.connect(links_table_ctrl.on_link_saved)
-                    link_ops.link_deleted.connect(links_table_ctrl.on_link_deleted)
-                except (AttributeError, TypeError) as e:
-                    logger.warning(f"Failed to connect LinkOperations->LinksTableController: {e}")
-            if top_panels_ctrl:
-                try:
-                    # Точные обновления по типу события
-                    link_ops.favorites_changed.connect(top_panels_ctrl.request_favorites_refresh)
-                    if hasattr(link_ops, 'recents_changed'):
-                        link_ops.recents_changed.connect(top_panels_ctrl.request_recents_refresh)
-                except (AttributeError, TypeError) as e:
-                    logger.warning(f"Failed to connect LinkOperations->TopPanelsController: {e}")
+    # Подключение сигналов — явные зависимости и конкретные исключения
+    link_ops_ref = link_ops
+    table_ref = window.links_table_controller
+    top_panels_ref = window.top_panels_controller
+    if not link_ops_ref:
+        raise SetupError("LinkOperationsController is required for signals wiring")
+    if not table_ref:
+        raise SetupError("LinksTableController is required for signals wiring")
+    if not top_panels_ref:
+        raise SetupError("TopPanelsController is required for signals wiring")
 
-        # Подключаем бизнес-сигналы загрузки к централизованному контроллеру таблицы
-        if links_table_ctrl and links_business:
-            try:
-                links_business.links_loaded.connect(links_table_ctrl.on_links_loaded)
-                links_business.search_results_ready.connect(links_table_ctrl.on_search_results)
-            except (AttributeError, TypeError) as e:
-                logger.warning(f"Failed to connect business signals to LinksTableController: {e}")
-    except Exception as e:
-        logger.exception(f"Failed to connect signals: {e}")
+    try:
+        link_ops_ref.links_changed.connect(table_ref.on_links_changed)
+        link_ops_ref.link_saved.connect(table_ref.on_link_saved)
+        link_ops_ref.link_deleted.connect(table_ref.on_link_deleted)
+    except (AttributeError, TypeError) as e:
+        raise SetupError(f"Failed to connect LinkOperations -> LinksTableController: {e}") from e
+
+    try:
+        link_ops_ref.favorites_changed.connect(top_panels_ref.request_favorites_refresh)
+        # Требуем явного наличия сигнала recents_changed
+        rec_sig = getattr(link_ops_ref, "recents_changed", None)
+        if rec_sig is None:
+            raise SetupError("LinkOperationsController.recents_changed signal is required")
+        rec_sig.connect(top_panels_ref.request_recents_refresh)
+    except (AttributeError, TypeError) as e:
+        raise SetupError(f"Failed to connect LinkOperations -> TopPanelsController: {e}") from e
+
+    # Подключаем бизнес-сигналы загрузки к контроллеру таблицы
+    try:
+        links_business.links_loaded.connect(table_ref.on_links_loaded)
+        links_business.search_results_ready.connect(table_ref.on_search_results)
+    except (AttributeError, TypeError) as e:
+        raise SetupError(f"Failed to connect LinksBusiness -> LinksTableController: {e}") from e
 
 
 def setup_ui_elements(window, controllers: Dict[str, Any]) -> None:
@@ -215,8 +219,9 @@ def _deferred_setup(window, controllers: Dict[str, Any]) -> None:
     try:
         _inject_to_category_tiles(window, controllers)
         _connect_top_panels_signals(window, controllers)
-    except Exception as e:
+    except (AttributeError, TypeError, SetupError) as e:
         logger.error(f"Failed during deferred dependency injection: {e}")
+        raise
 
 
 def _inject_to_category_tiles(window, controllers: Dict[str, Any]) -> None:
@@ -255,30 +260,29 @@ def _inject_to_category_tiles(window, controllers: Dict[str, Any]) -> None:
         dialog_provider=dialog_provider,
     )
 
+    tiles = window.tiles
+    structure_ctrl = controllers["structure"]
+
+    def on_tiles_context_menu(category_id: int, global_pos):
+        try:
+            builder = CategoryMenuBuilder(tiles.view, window)
+            menu, edit_action, delete_action, add_link_action = builder.build(
+                category_id,
+                edit_cb=structure_ctrl.handle_edit_category,
+                delete_cb=structure_ctrl.handle_delete_category,
+                add_link_cb=dialog_provider.show_link_dialog_for_category,
+            )
+            menu.popup(global_pos)
+        except Exception as e:
+            logger.warning(f"Failed to show category tiles context menu: {e}")
+
     try:
-        tiles = window.tiles
-        structure_ctrl = controllers["structure"]
-
-        def on_tiles_context_menu(category_id: int, global_pos):
-            try:
-                builder = CategoryMenuBuilder(tiles.view, window)
-                menu, edit_action, delete_action, add_link_action = builder.build(
-                    category_id,
-                    edit_cb=structure_ctrl.handle_edit_category,
-                    delete_cb=structure_ctrl.handle_delete_category,
-                    add_link_cb=dialog_provider.show_link_dialog_for_category,
-                )
-                menu.popup(global_pos)
-            except Exception as e:
-                logger.warning(f"Failed to show category tiles context menu: {e}")
-
         tiles.contextMenuRequested.connect(on_tiles_context_menu)
-
         tiles.editRequested.connect(structure_ctrl.handle_edit_category)
         tiles.deleteRequested.connect(structure_ctrl.handle_delete_category)
         tiles.addLinkRequested.connect(dialog_provider.show_link_dialog_for_category)
-    except Exception as e:
-        logger.warning(f"Failed to connect CategoryTiles signals: {e}")
+    except (AttributeError, TypeError) as e:
+        raise SetupError(f"Failed to connect CategoryTiles signals: {e}") from e
 
 
 def _setup_quick_add_widget(window, controllers: Dict[str, Any]) -> None:
@@ -300,10 +304,10 @@ def _connect_quick_add_signal(window, controllers: Dict[str, Any]) -> None:
     """Подключение сигнала QuickAddWidget."""
     try:
         window.quick_add_widget.quickAddRequested.connect(
-            controllers["links"].on_quick_add_requested
+            window.links.on_quick_add_requested
         )
     except (AttributeError, TypeError) as e:
-        logger.warning(f"Failed to connect quick add signal: {e}")
+        raise SetupError(f"Failed to connect quick add signal: {e}") from e
 
 
 def _add_quick_add_to_top_bar(window) -> None:
@@ -329,16 +333,16 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
         try:
             window.fav_widget.linkClicked.connect(window.links_actions.open_link)
         except (AttributeError, TypeError) as e:
-            logger.warning(f"Failed to connect favorites link click: {e}")
+            raise SetupError(f"Failed to connect favorites link click: {e}") from e
 
-        top_ctrl = controllers.get("top_panels_controller")
+        top_ctrl = window.top_panels_controller
         if not top_ctrl:
             raise SetupError("TopPanelsController is required for favorites panel wiring")
         try:
             window.fav_widget.refresh_requested.connect(top_ctrl.refresh_favorites)
             window.fav_widget.clear_requested.connect(top_ctrl.clear_favorites)
         except (AttributeError, TypeError) as e:
-            raise SetupError(f"Failed to wire Favorites to TopPanelsController: {e}")
+            raise SetupError(f"Failed to wire Favorites to TopPanelsController: {e}") from e
 
     # Recent panel wiring — критично требует TopPanelsController
     if not hasattr(window, "recent_links_widget") or not window.recent_links_widget:
@@ -347,31 +351,29 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
         try:
             window.recent_links_widget.linkClicked.connect(window.links_actions.open_link)
         except (AttributeError, TypeError) as e:
-            logger.warning(f"Failed to connect recent link click: {e}")
+            raise SetupError(f"Failed to connect recent link click: {e}") from e
 
-        top_ctrl = controllers.get("top_panels_controller")
+        top_ctrl = window.top_panels_controller
         if not top_ctrl:
             raise SetupError("TopPanelsController is required for recent panel wiring")
 
         def _on_recent_refresh_requested(_limit: int) -> None:
-            try:
-                top_ctrl.refresh_recent()
-            except Exception as ex:
-                logger.warning(f"Top panels recent refresh handler failed: {ex}")
+            # Явный обработчик вместо лямбды
+            top_ctrl.refresh_recent()
 
         try:
             window.recent_links_widget.refresh_requested[int].connect(_on_recent_refresh_requested)
         except (AttributeError, TypeError) as e:
-            raise SetupError(f"Failed to wire Recents to TopPanelsController: {e}")
+            raise SetupError(f"Failed to wire Recents to TopPanelsController: {e}") from e
 
     # Единичный дебаунс-запрос обновления обеих панелей после первичного подключения
-    top_ctrl = controllers.get("top_panels_controller")
+    top_ctrl = window.top_panels_controller
     if not top_ctrl:
         raise SetupError("TopPanelsController not available for initial refresh")
     try:
         top_ctrl.request_refresh()
     except (AttributeError, TypeError) as e:
-        raise SetupError(f"Failed to request initial top panels refresh: {e}")
+        raise SetupError(f"Failed to request initial top panels refresh: {e}") from e
 
     try:
         filt = getattr(window, "_auto_hide_tree_filter", None)

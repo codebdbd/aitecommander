@@ -76,3 +76,11 @@ class RecentsPanelLike(Protocol):
 
     def set_recent_links(self, items: list[Any]) -> None:
         ...
+
+
+@runtime_checkable
+class RecentsPanelWithLimit(RecentsPanelLike, Protocol):
+    """Расширенный протокол панели недавних: предоставляет лимит элементов."""
+
+    def get_limit(self) -> Optional[int]:
+        ...

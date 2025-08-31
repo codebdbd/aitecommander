@@ -55,6 +55,14 @@ class RecentWidgetMock:
         self.recent = items
         self.set_calls += 1
 
+    def get_limit(self):
+        # Совместимость: поддерживаем оба поля, выбирая приоритетно limit
+        if isinstance(self.limit, int) and self.limit > 0:
+            return self.limit
+        if isinstance(self.max_items, int) and self.max_items > 0:
+            return self.max_items
+        return None
+
 
 def make_link_ops():
     db = types.SimpleNamespace()

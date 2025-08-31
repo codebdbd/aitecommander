@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from PyQt6.QtCore import QTimer
-from app.interfaces import FavoritesPanelLike, RecentsPanelLike
+from app.interfaces import FavoritesPanelLike, RecentsPanelLike, RecentsPanelWithLimit
 
 
 logger = logging.getLogger(__name__)
@@ -111,24 +111,34 @@ class TopPanelsController:
 
     def refresh_recent(self) -> None:
         widget = self.recent_links_widget
-        try:
-            limit = 10
+        # Определяем лимит через расширенный протокол, без hasattr
+        limit = 10
+        if isinstance(widget, RecentsPanelWithLimit):
             try:
-                if widget is not None:
-                    if hasattr(widget, "limit"):
-                        limit = int(getattr(widget, "limit"))
-                    elif hasattr(widget, "max_items"):
-                        limit = int(getattr(widget, "max_items"))
-            except Exception:
-                limit = None
-            if limit is None:
-                limit = 10
-            if self.links_business is not None:
+                val = widget.get_limit()
+                if isinstance(val, int) and val > 0:
+                    limit = val
+            except (TypeError, ValueError):
+                # некорректное значение лимита — оставляем default
+                pass
+
+        items = []
+        if self.links_business is not None:
+            try:
                 items = self.links_business.get_recent_links(limit)
-                if widget:
-                    widget.set_recent_links(items)
-        except Exception as e:
-            logger.exception("TopPanelsController.refresh_recent: ошибка при загрузке/установке недавних")
+            except (TypeError, ValueError):
+                logger.error("TopPanelsController.refresh_recent: неверные аргументы при загрузке недавних", exc_info=True)
+                return
+            except Exception:
+                logger.exception("TopPanelsController.refresh_recent: неожиданная ошибка при загрузке недавних")
+                return
+
+        try:
+            widget.set_recent_links(items)
+        except (TypeError, ValueError):
+            logger.error("TopPanelsController.refresh_recent: ошибка сигнатуры при установке недавних", exc_info=True)
+        except Exception:
+            logger.exception("TopPanelsController.refresh_recent: неожиданная ошибка при установке недавних")
 
     def clear_favorites(self) -> None:
         widget = self.fav_widget
@@ -162,25 +172,20 @@ class TopPanelsController:
         finally:
             self._clearing_favorites = False
 
-    def schedule_structure_refresh(self, delay_ms: int | None = None, *args, **kwargs) -> None:
-        """Запланировать централизованное обновление верхних панелей по структурным событиям."""
+    def schedule_structure_refresh(self) -> None:
+        """Запланировать обновление верхних панелей по структурным событиям с фиксированным интервалом."""
+        timer = self._structure_refresh_timer
         try:
-            timer = self._structure_refresh_timer
-            if delay_ms is not None:
-                try:
-                    val = int(delay_ms)
-                    if val > 0:
-                        timer.setInterval(val)
-                except Exception:
-                    pass
+            # Интервал фиксирован, задаётся в __init__ (по умолчанию 200 мс)
             if timer.isActive():
                 return
             timer.start()
+        except (ValueError, RuntimeError):
+            # Ожидаемые ошибки — логируем, без немедленного обновления
+            logger.error("TopPanelsController.schedule_structure_refresh: failed to start structure timer", exc_info=True)
         except Exception:
-            try:
-                self.request_refresh()
-            except Exception:
-                logger.exception("TopPanelsController.schedule_structure_refresh: immediate refresh failed")
+            # Неожиданные ошибки логируем, повторных обновлений не делаем
+            logger.exception("TopPanelsController.schedule_structure_refresh: unexpected error")
 
 
     def _on_refresh_timeout(self) -> None:
@@ -205,8 +210,11 @@ class TopPanelsController:
         """Единый обработчик таймаута для структурных событий."""
         try:
             self.request_refresh()
+        except (ValueError, RuntimeError):
+            logger.error("TopPanelsController._on_structure_refresh_timeout: expected error during request_refresh", exc_info=True)
         except Exception:
-            logger.exception("TopPanelsController._on_structure_refresh_timeout failed")
+            # Неожиданная ошибка — только лог, без повторного обновления
+            logger.exception("TopPanelsController._on_structure_refresh_timeout: unexpected error")
 
     def _normalize_delay(self, delay_ms, args, kwargs) -> int:
         """Безопасно привести задержку к int; игнорирует нерелевантные payload сигналов."""
