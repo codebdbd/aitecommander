@@ -339,7 +339,7 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
         if not top_ctrl:
             raise SetupError("TopPanelsController is required for favorites panel wiring")
         try:
-            window.fav_widget.refresh_requested.connect(top_ctrl.refresh_favorites)
+            window.fav_widget.refresh_requested.connect(top_ctrl.request_favorites_refresh)
             window.fav_widget.clear_requested.connect(top_ctrl.clear_favorites)
         except (AttributeError, TypeError) as e:
             raise SetupError(f"Failed to wire Favorites to TopPanelsController: {e}") from e
@@ -356,13 +356,8 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
         top_ctrl = window.top_panels_controller
         if not top_ctrl:
             raise SetupError("TopPanelsController is required for recent panel wiring")
-
-        def _on_recent_refresh_requested(_limit: int) -> None:
-            # Явный обработчик вместо лямбды
-            top_ctrl.refresh_recent()
-
         try:
-            window.recent_links_widget.refresh_requested[int].connect(_on_recent_refresh_requested)
+            window.recent_links_widget.refresh_requested[int].connect(lambda *_: top_ctrl.request_recents_refresh())
         except (AttributeError, TypeError) as e:
             raise SetupError(f"Failed to wire Recents to TopPanelsController: {e}") from e
 
@@ -453,6 +448,17 @@ def _connect_structure_signals(window) -> None:
     # Удалены прямые подключения к section_selected/category_selected, т.к. не влияют на данные верхних панелей
     window._structure_signals_connected = True
 
+    # После подключения сигналов сразу выставим визуальное состояние активной кнопки,
+    # если текущая сфера уже известна (исправляет отсутствие фокуса/чека на старте)
+    try:
+        curr_id = getattr(window.structure_business, "current_sphere_id", None)
+        if isinstance(curr_id, int) and curr_id > 0:
+            updater = getattr(window.spheres_controller, "update_active_sphere_button", None)
+            if callable(updater):
+                updater(int(curr_id))
+    except Exception:
+        pass
+
 
 def _connect_database_signals(window) -> None:
     """Подключение сигналов базы данных."""
@@ -538,24 +544,12 @@ class DatabaseEventHandler:
     @staticmethod
     def handle_favorites_cleared(window):
         """Обработка очистки избранного."""
-        # Немедленно очистим панель избранного централизованно через TopPanelsController,
-        # чтобы избежать лишних перерисовок и дергания
-        try:
-            top_ctrl = getattr(window, "top_panels_controller", None)
-            if top_ctrl:
-                top_ctrl.clear_favorites()
-                # После очистки запросим обновление, чтобы привести состояние к консистентному
-                try:
-                    top_ctrl.request_favorites_refresh()
-                except Exception:
-                    pass
-        except Exception:
-            # Фолбэк на старое поведение (на случай отсутствия контроллера)
-            try:
-                if hasattr(window, "fav_widget") and window.fav_widget:
-                    window.fav_widget.clear_favorites()
-            except Exception:
-                pass
+        # Всегда выполняем через TopPanelsController — без обхода виджета
+        top_ctrl = getattr(window, "top_panels_controller", None)
+        if not top_ctrl:
+            raise SetupError("TopPanelsController is required to clear favorites")
+        top_ctrl.clear_favorites()
+        top_ctrl.request_favorites_refresh()
 
         category_id = window.get_current_category_id()
         if category_id:
@@ -697,8 +691,11 @@ class WindowControllersSetup:
     def initialize_spheres(self):
         """Инициализация сфер."""
         try:
-            self.window.spheres_controller = SpheresBarController(self.window)
-            self.window.spheres_controller.init()
+            sc = getattr(self.window, "spheres_controller", None)
+            if sc is None:
+                sc = SpheresBarController(self.window)
+                self.window.spheres_controller = sc
+            sc.init()
         except Exception as e:
             logger.error(f"Failed to initialize spheres: {e}")
 

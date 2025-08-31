@@ -146,14 +146,12 @@ class LinksUILinkOperations(BaseLinksUIComponent):
 
             # Централизованное обновление верхних панелей через корректный сигнал недавних
             try:
-                link_ops = self.link_operations
-                if link_ops:
-                    # Теперь используем централизованные методы LinkOperationsController
-                    link_ops.emit_recents_changed()
-                    # Сообщаем таблице о возможном изменении данных текущей категории
-                    cat_id = link_data.get("category_id")
-                    if isinstance(cat_id, int) and cat_id > 0:
-                        link_ops.emit_links_changed(cat_id)
+                # Теперь используем централизованные методы LinkOperationsController
+                self.link_operations.emit_recents_changed()
+                # Сообщаем таблице о возможном изменении данных текущей категории
+                cat_id = link_data.get("category_id")
+                if isinstance(cat_id, int) and cat_id > 0:
+                    self.link_operations.emit_links_changed(cat_id)
             except Exception as e:
                 logger.debug(f"Failed to emit recents_changed after opening link: {e}")
 

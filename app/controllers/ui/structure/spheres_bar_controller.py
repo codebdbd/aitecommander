@@ -95,8 +95,22 @@ class SpheresBarController:
             # Явное обновление после массовых операций
             self.w.spheres_bar.update()
 
+        # Устанавливаем визуальное состояние и/или активную сферу
         if spheres:
-            self.switch_sphere(spheres[0]["id"])
+            try:
+                sb = getattr(self.w, "structure_business", None)
+                current_id = getattr(sb, "current_sphere_id", None) if sb else None
+            except Exception:
+                current_id = None
+
+            if isinstance(current_id, int) and current_id > 0:
+                # Сфера уже выбрана — только обновим кнопку и фокус
+                self.update_active_sphere_button(int(current_id))
+            else:
+                # Текущая сфера не задана — выберем первую и запустим переключение
+                first_id = spheres[0].get("id")
+                if isinstance(first_id, int) and first_id > 0:
+                    self.switch_sphere(int(first_id))
 
     @signal_guard("update_active_sphere_button")
     def update_active_sphere_button(self, sphere_id: int):

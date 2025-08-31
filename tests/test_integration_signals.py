@@ -181,8 +181,16 @@ def test_links_ui_controller_uses_table_controller_reload(monkeypatch, caplog):
     business = LinksBusinessDummy()
     main = SimpleNamespace(get_current_category_id=lambda: 42)
     table_ctrl_mock = LinksTableControllerMock()
+    # Обязательная зависимость link_operations — передаём простую заглушку
+    link_ops_stub = SimpleNamespace()
 
-    ui_ctrl = LinksUIController(table_view, business, main, links_table_controller=table_ctrl_mock)
+    ui_ctrl = LinksUIController(
+        table_view,
+        business,
+        main,
+        link_operations=link_ops_stub,
+        links_table_controller=table_ctrl_mock,
+    )
 
     # В конструкторе вызывается _reload_current_category()
     assert table_ctrl_mock.reload_calls == [42]

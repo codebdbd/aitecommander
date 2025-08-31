@@ -92,11 +92,8 @@ class LinksUIHandlers(BaseLinksUIComponent):
 
         # Убираем прямое обновление таблицы: используем централизованный контроллер через сигнал
         try:
-            link_ops = self.link_operations
-            if link_ops and isinstance(category_id, int) and category_id > 0:
-                link_ops.emit_links_changed(category_id)
-            else:
-                logger.debug("LinksUIHandlers: link_operations not available, cannot emit links_changed")
+            if isinstance(category_id, int) and category_id > 0:
+                self.link_operations.emit_links_changed(category_id)
         except Exception as e:
             logger.warning(f"Failed to emit links_changed from _update_table: {e}")
 
@@ -117,23 +114,19 @@ class LinksUIHandlers(BaseLinksUIComponent):
         """Завершить переключение избранного."""
         # Эмитим сигналы вместо прямых обращений к контроллерам
         try:
-            link_ops = self.link_operations
-            if link_ops:
-                # Сообщаем о возможном изменении таблицы ссылок (категория из ссылки или текущая)
-                cat_id = None
-                if link is not None:
-                    cat_id = link.get("category_id")
-                if not isinstance(cat_id, int) or cat_id <= 0:
-                    try:
-                        cat_id = getattr(self.main, "get_current_category_id", lambda: None)()
-                    except Exception:
-                        cat_id = None
-                if isinstance(cat_id, int) and cat_id > 0:
-                    link_ops.emit_links_changed(cat_id)
-                # В любом случае сигнализируем об изменении избранного
-                link_ops.emit_favorites_changed()
-            else:
-                logger.debug("LinksUIHandlers: link_operations not available to emit signals")
+            # Сообщаем о возможном изменении таблицы ссылок (категория из ссылки или текущая)
+            cat_id = None
+            if link is not None:
+                cat_id = link.get("category_id")
+            if not isinstance(cat_id, int) or cat_id <= 0:
+                try:
+                    cat_id = getattr(self.main, "get_current_category_id", lambda: None)()
+                except Exception:
+                    cat_id = None
+            if isinstance(cat_id, int) and cat_id > 0:
+                self.link_operations.emit_links_changed(cat_id)
+            # В любом случае сигнализируем об изменении избранного
+            self.link_operations.emit_favorites_changed()
         except Exception as e:
             logger.warning(f"Failed to emit signals after toggle favorite: {e}")
 
@@ -157,15 +150,11 @@ class LinksUIHandlers(BaseLinksUIComponent):
 
         # Эмитим сигналы вместо прямых обновлений UI
         try:
-            link_ops = self.link_operations
-            if link_ops:
-                cat_id = updated_link.get("category_id")
-                if isinstance(cat_id, int) and cat_id > 0:
-                    link_ops.emit_links_changed(cat_id)
-                # Обновление ссылки (заметки, атрибутов) влияет на панель "Недавние"
-                link_ops.emit_recents_changed()
-            else:
-                logger.debug("LinksUIHandlers: link_operations not available to emit signals on link update")
+            cat_id = updated_link.get("category_id")
+            if isinstance(cat_id, int) and cat_id > 0:
+                self.link_operations.emit_links_changed(cat_id)
+            # Обновление ссылки (заметки, атрибутов) влияет на панель "Недавние"
+            self.link_operations.emit_recents_changed()
         except Exception as e:
             logger.warning(f"Failed to emit signals after link update: {e}")
 
