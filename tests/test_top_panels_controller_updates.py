@@ -34,6 +34,13 @@ class RecentWidgetMock:
         self.recent = items
         self.set_calls += 1
 
+    def get_limit(self):
+        if isinstance(self.limit, int) and self.limit > 0:
+            return self.limit
+        if isinstance(self.max_items, int) and self.max_items > 0:
+            return self.max_items
+        return None
+
 
 class LinksBusinessMock:
     def __init__(self):
