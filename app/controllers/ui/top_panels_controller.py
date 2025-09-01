@@ -198,13 +198,13 @@ class TopPanelsController:
         try:
             self.links_business.clear_favorites()
         except Exception:
-            logger.error("TopPanelsController.clear_favorites: error in links_business.clear_favorites", exc_info=True)
+            logger.exception("TopPanelsController.clear_favorites: error in links_business.clear_favorites")
 
         # 2) Очистка виджета — без фолбэков, контракт обязателен
         try:
             self.fav_widget.clear_favorites()
         except Exception:
-            logger.error("TopPanelsController.clear_favorites: widget clear failed", exc_info=True)
+            logger.exception("TopPanelsController.clear_favorites: widget clear failed")
 
     def schedule_structure_refresh(self) -> None:
         """Запланировать обновление верхних панелей по структурным событиям с фиксированным интервалом."""
