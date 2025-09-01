@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, QObject
 from app.interfaces import FavoritesPanelLike, FavoritesPanelWithClear, RecentsPanelLike, RecentsPanelWithLimit
 
 
@@ -46,21 +46,26 @@ class TopPanelsController:
         self._fav_refresh_timer = QTimer()
         self._recent_refresh_timer = QTimer()
         self._structure_refresh_timer = QTimer()
-        try:
-            self._refresh_timer.setParent(self.main)  # type: ignore[arg-type]
-            self._fav_refresh_timer.setParent(self.main)  # type: ignore[arg-type]
-            self._recent_refresh_timer.setParent(self.main)  # type: ignore[arg-type]
-            self._structure_refresh_timer.setParent(self.main)  # type: ignore[arg-type]
-        except Exception:
-            pass
+        # Привязка таймеров к главному окну, если это QObject
+        parent_obj = self.main if isinstance(self.main, QObject) else None
+        if parent_obj is not None:
+            try:
+                self._refresh_timer.setParent(parent_obj)
+                self._fav_refresh_timer.setParent(parent_obj)
+                self._recent_refresh_timer.setParent(parent_obj)
+                self._structure_refresh_timer.setParent(parent_obj)
+            except Exception as e:
+                logger.exception("TopPanelsController: failed to set QTimer parent")
+                raise SetupError("Failed to bind timers to main window") from e
         self._refresh_timer.setSingleShot(True)
         self._fav_refresh_timer.setSingleShot(True)
         self._recent_refresh_timer.setSingleShot(True)
         self._structure_refresh_timer.setSingleShot(True)
         try:
             self._structure_refresh_timer.setInterval(200)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.exception("TopPanelsController: failed to set structure timer interval")
+            raise SetupError("Failed to configure structure refresh timer interval") from e
         self._refresh_timer.timeout.connect(self._on_refresh_timeout)
         self._fav_refresh_timer.timeout.connect(self._on_fav_refresh_timeout)
         self._recent_refresh_timer.timeout.connect(self._on_recent_refresh_timeout)
