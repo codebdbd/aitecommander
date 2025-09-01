@@ -430,12 +430,10 @@ def _connect_structure_signals(window) -> None:
             try:
                 # Централизованный дебаунс на стороне контроллера
                 top_ctrl.schedule_structure_refresh()
-            except Exception:
-                # Fallback: немедленное обновление без дебаунса
-                try:
-                    top_ctrl.request_refresh()
-                except Exception:
-                    pass
+            except Exception as e:
+                logger.error(f"Failed to schedule structure-driven top panels refresh: {e}")
+                # Не скрываем причину: установка должна завершиться ошибкой
+                raise SetupError("Scheduling structure-driven top panels refresh failed") from e
 
         # Подключаем только действительно влияющие на панели события
         window.structure_business.active_sphere_changed.connect(_on_structure_changed_schedule_refresh)

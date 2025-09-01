@@ -11,6 +11,12 @@ logger = logging.getLogger(__name__)
 class LinksUIHandlers(BaseLinksUIComponent):
     """Обработчики событий для LinksUIController."""
 
+    def __init__(self, controller, *, link_operations, links_table_controller):
+        # Явное требование зависимостей для лучшей диагностируемости
+        if links_table_controller is None:
+            raise ValueError("LinksUIHandlers requires explicit 'links_table_controller' dependency")
+        super().__init__(controller, link_operations, links_table_controller=links_table_controller)
+
     def _connect_signals(self):
         """Подключение сигналов от бизнес-логики."""
         if getattr(self, "_signals_connected", False):
@@ -99,14 +105,12 @@ class LinksUIHandlers(BaseLinksUIComponent):
 
     def _update_search_results(self, search_results: List[Dict]):
         """Обновить результаты поиска."""
-        ctrl = getattr(self, "links_table_controller", None)
-        if not (ctrl and hasattr(ctrl, "on_search_results")):
-            logger.error("LinksUIHandlers._update_search_results: links_table_controller is not available")
-            return
         try:
-            ctrl.on_search_results(search_results)
+            self.links_table_controller.on_search_results(search_results)
         except Exception:
-            logger.exception("LinksUIHandlers._update_search_results: controller.on_search_results failed")
+            logger.exception(
+                "LinksUIHandlers._update_search_results: links_table_controller.on_search_results failed"
+            )
 
     def _complete_toggle_fav(
         self, fav_count: int, links: List[Dict], link: Optional[Dict]

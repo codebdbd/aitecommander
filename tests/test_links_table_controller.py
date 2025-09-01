@@ -38,6 +38,10 @@ class TableMock:
         if self._err:
             raise self._err
 
+    # Добавлено для соответствия LinksTableLike
+    def populate(self, links, mode: str = "default"):
+        self.calls.append(("populate", mode, list(links) if links is not None else []))
+
 
 def make_controller(table=None, business=None):
     # main_window=None, чтобы QObject не требовал валидного родителя
