@@ -14,6 +14,10 @@ logger = logging.getLogger(__name__)
 _DEFAULT_DEBOUNCE_MS = 150
 
 
+class SetupError(Exception):
+    """Ошибка конфигурации/настройки TopPanelsController."""
+
+
 class TopPanelsController:
     """Контроллер верхних панелей (Избранное/Недавние)."""
 
@@ -210,18 +214,24 @@ class TopPanelsController:
 
     def schedule_structure_refresh(self) -> None:
         """Запланировать обновление верхних панелей по структурным событиям с фиксированным интервалом."""
-        timer = self._structure_refresh_timer
         try:
+            timer = getattr(self, "_structure_refresh_timer", None)
+            if timer is None:
+                raise SetupError("Structure refresh timer is not configured")
             # Интервал фиксирован, задаётся в __init__ (по умолчанию 200 мс)
             if timer.isActive():
                 return
             timer.start()
-        except (ValueError, RuntimeError):
+        except (ValueError, RuntimeError) as e:
             # Ожидаемые ошибки — логируем, без немедленного обновления
-            logger.error("TopPanelsController.schedule_structure_refresh: failed to start structure timer", exc_info=True)
-        except Exception:
-            # Неожиданные ошибки логируем, повторных обновлений не делаем
+            logger.error("TopPanelsController.schedule_structure_refresh: failed to start structure timer: %s", e, exc_info=True)
+            return
+        except SetupError:
+            raise
+        except Exception as e:
+            # Неожиданные ошибки — считаем ошибкой конфигурации
             logger.exception("TopPanelsController.schedule_structure_refresh: unexpected error")
+            raise SetupError("Failed to schedule structure-driven refresh") from e
 
 
     def _on_refresh_timeout(self) -> None:
@@ -246,11 +256,12 @@ class TopPanelsController:
         """Единый обработчик таймаута для структурных событий."""
         try:
             self.request_refresh()
-        except (ValueError, RuntimeError):
-            logger.error("TopPanelsController._on_structure_refresh_timeout: expected error during request_refresh", exc_info=True)
-        except Exception:
-            # Неожиданная ошибка — только лог, без повторного обновления
+        except (ValueError, RuntimeError) as e:
+            logger.error("TopPanelsController._on_structure_refresh_timeout: expected error during request_refresh: %s", e, exc_info=True)
+        except Exception as e:
+            # Неожиданная ошибка — поднимаем как SetupError
             logger.exception("TopPanelsController._on_structure_refresh_timeout: unexpected error")
+            raise SetupError("Structure refresh timeout handler failed") from e
 
     def _normalize_delay(self, delay_ms, args, kwargs) -> int:
         """Безопасно привести задержку к int; игнорирует нерелевантные payload сигналов."""

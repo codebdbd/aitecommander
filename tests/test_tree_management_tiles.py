@@ -17,10 +17,22 @@ class DummyTilesController:
             raise self.raise_exc
 
 
+class _MinimalModel:
+    def insert_sections(self, *_):
+        pass
+    def insert_categories(self, *_):
+        pass
+    def update_item(self, *_):
+        pass
+
+class _TreeWithModel:
+    def model(self):
+        return _MinimalModel()
+
 @pytest.fixture
 def controller_stub():
-    # Только то, что нужно для инициализации TreeManagement
-    return SimpleNamespace(tree=None, icon_handler=None)
+    # Минимальный контроллер с деревом, у которого есть валидная модель
+    return SimpleNamespace(tree=_TreeWithModel(), icon_handler=None)
 
 
 def test_refresh_section_tiles_calls_controller(controller_stub):
