@@ -72,24 +72,35 @@ class TreeManagement:
 
     def _on_item_added(self, item_type: str, parent_id: int, data: dict) -> None:
         # Инкрементальная вставка через модель
+        # Примечание: при ошибке вставки требуется полная перезагрузка структуры —
+        # ожидаемые ошибки модели (ValueError, RuntimeError) логируем и пробрасываем вверх,
+        # неожиданные исключения также не подавляются.
         model = getattr(self.tree, "model", lambda: None)()
         if not model:
             return
-        try:
-            if item_type == "section":
-                # Вставляем раздел в конец (или позицию из data.get('row'))
-                row = int(data.get("row")) if isinstance(data.get("row"), int) else -1
+        if item_type == "section":
+            # Вставляем раздел в конец (или позицию из data.get('row'))
+            row = int(data.get("row")) if isinstance(data.get("row"), int) else -1
+            try:
                 model.insert_sections(row, [data])
-            elif item_type == "category" and isinstance(parent_id, int):
-                row = int(data.get("row")) if isinstance(data.get("row"), int) else -1
+            except (ValueError, RuntimeError):
+                logger.exception(
+                    "TreeManagement._on_item_added: ошибка инкрементальной вставки section"
+                )
+                raise
+        elif item_type == "category" and isinstance(parent_id, int):
+            row = int(data.get("row")) if isinstance(data.get("row"), int) else -1
+            try:
                 model.insert_categories(parent_id, row, [data])
-                # Обновим плитки выбранного раздела, если это не Undo вставка
-                # Флаг '__from_undo__' добавляется отправителем сигнала, чтобы избежать смены фокуса
-                if not bool(data.get("__from_undo__")):
-                    self.refresh_section_tiles(parent_id)
-        except Exception:
-            # В случае ошибки оставим обработку на полную перезагрузку структуры
-            logger.exception("TreeManagement._on_item_added: ошибка инкрементальной вставки %s", item_type)
+            except (ValueError, RuntimeError):
+                logger.exception(
+                    "TreeManagement._on_item_added: ошибка инкрементальной вставки category"
+                )
+                raise
+            # Обновим плитки выбранного раздела, если это не Undo вставка
+            # Флаг '__from_undo__' добавляется отправителем сигнала, чтобы избежать смены фокуса
+            if not bool(data.get("__from_undo__")):
+                self.refresh_section_tiles(parent_id)
 
         # Сфокусируемся на новом элементе
         item_id = data.get("id")
