@@ -167,8 +167,10 @@ class TreeManagement:
         """Обновить плитки раздела через переданный CategoryTilesController."""
         try:
             self.tiles_controller.refresh(int(section_id))
-        except Exception:
-            logger.exception("TreeManagement.refresh_section_tiles: controller refresh failed")
+        except (ValueError, RuntimeError):
+            # Ожидаемые ошибки контроллера плиток логируем и продолжаем работу UI
+            logger.exception("TreeManagement.refresh_section_tiles: controller refresh failed (expected)")
+        # Неожиданные исключения — не подавляем, пусть упадут до тестов/CI
 
     def _iter_indexes(self, parent: QModelIndex = QModelIndex()):
         model = self.tree.model()

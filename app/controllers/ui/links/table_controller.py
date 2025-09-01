@@ -1,10 +1,19 @@
 import logging
-from typing import Optional, Dict
+from typing import Optional, Dict, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QObject
 
 
 logger = logging.getLogger(__name__)
+
+
+@runtime_checkable
+class LinksTableLike(Protocol):
+    """Структурный протокол таблицы ссылок для ранней валидации зависимостей."""
+
+    def update_link_by_id(self, link: Dict) -> None: ...
+
+    def populate(self, links: list[Dict], mode: str = "default") -> None: ...
 
 
 class LinksTableController(QObject):
@@ -35,6 +44,11 @@ class LinksTableController(QObject):
         self.business = links_business
         if self.table is None or self.business is None:
             raise ValueError("LinksTableController: table и links_business должны быть переданы явно")
+        # Проверка интерфейса таблицы на старте, чтобы не игнорировать ошибки в рантайме
+        if not isinstance(self.table, LinksTableLike):
+            raise TypeError(
+                "LinksTableController: 'table' must implement LinksTableLike (update_link_by_id, populate)"
+            )
         self._reloading: bool = False
         self._queued_category_id: Optional[int] = None
         self._current_category_id: Optional[int] = None
@@ -104,10 +118,7 @@ class LinksTableController(QObject):
             if table is None:
                 logger.debug("LinksTableController.update_row: no table available")
                 return
-            if hasattr(table, "update_link_by_id"):
-                table.update_link_by_id(link_dict)
-            else:
-                logger.debug("LinksTableController.update_row: table has no update_link_by_id")
+            table.update_link_by_id(link_dict)
         except Exception as e:
             logger.warning("LinksTableController.update_row: failed: %s", e)
 
@@ -127,16 +138,14 @@ class LinksTableController(QObject):
                     current_category_id,
                 )
                 return
-            if hasattr(self.table, "populate"):
-                self.table.populate(links)
+            self.table.populate(links)
         except Exception as e:
             logger.error("LinksTableController.on_links_loaded: failed: %s", e, exc_info=True)
 
     def on_search_results(self, search_results: list[Dict]) -> None:
         """Обновить таблицу результатами поиска централизованно."""
         try:
-            if hasattr(self.table, "populate"):
-                self.table.populate(search_results, mode="search")
+            self.table.populate(search_results, mode="search")
         except Exception as e:
             logger.error("LinksTableController.on_search_results: failed: %s", e, exc_info=True)
 
