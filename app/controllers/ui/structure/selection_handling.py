@@ -104,7 +104,15 @@ class SelectionHandling:
                 first = model.index(0, 0)
                 if first.isValid():
                     sel_model.setCurrentIndex(first, sel_model.SelectionFlag.ClearAndSelect)
-                    self.tree.setFocus()
+                    # Восстанавливаем фокус на дереве через планировщик, без жёстких задержек
+                    try:
+                        schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
+                    except Exception:
+                        # Фолбэк на случай проблем с планировщиком
+                        try:
+                            self.tree.setFocus()
+                        except Exception:
+                            pass
         except Exception:
             pass
 
