@@ -34,6 +34,25 @@ logger = logging.getLogger(__name__)
 class SetupError(Exception):
     """Ошибки настройки компонентов окна."""
 
+
+def _resolve_structure_loader(structure_business: StructureBusinessLogic):
+    """Вернуть callable для загрузки структуры: load_structure_async или load_structure.
+
+    Если оба отсутствуют — поднять SetupError как явную ошибку конфигурации.
+    """
+    try:
+        loader = getattr(structure_business, "load_structure_async", None)
+        if callable(loader):
+            return loader
+        loader = getattr(structure_business, "load_structure", None)
+        if callable(loader):
+            return loader
+    except (AttributeError, TypeError) as e:
+        raise SetupError("Invalid structure business instance while resolving loader") from e
+    raise SetupError(
+        "StructureBusinessLogic must provide load_structure_async() or load_structure()"
+    )
+
 def _on_structure_changed_schedule_refresh(top_ctrl: TopPanelsController, *_args: Any) -> None:
     """Поставить отложенное обновление топ-панелей при структурном событии.
 
@@ -457,32 +476,22 @@ def _connect_structure_signals(
     try:
         handler = getattr(structure_business, "on_active_sphere_changed", None)
         if not callable(handler):
-            # Fallback-обработчик с прежней семантикой и ожидаемым сообщением в логах
-            def _fallback_on_active_sphere_changed(*_args):
+            # Разрешаем целевой загрузчик один раз при подключении, чтобы ошибка конфигурации проявилась сразу
+            loader = _resolve_structure_loader(structure_business)
+
+            def _on_active_sphere_changed(*_args: Any) -> None:
                 try:
-                    try:
-                        getattr(structure_business, "load_structure_async")()
-                        return
-                    except AttributeError:
-                        try:
-                            getattr(structure_business, "load_structure")()
-                            return
-                        except AttributeError:
-                            # Точное сообщение, ожидаемое тестами
-                            logger.error(
-                                "has no load_structure_async() or load_structure(); skipping reload"
-                            )
-                            return
+                    loader()
                 except TypeError as e:
                     raise SetupError("Invalid structure business loader signature") from e
                 except Exception as e:
                     logger.error(f"Unexpected error triggering structure reload: {e}")
                     raise SetupError("Failed to trigger structure reload") from e
 
-            handler = _fallback_on_active_sphere_changed
+            handler = _on_active_sphere_changed
         structure_business.active_sphere_changed.connect(handler)
-    except TypeError as e:
-        # Некорректная сигнатура connect/handler — это ошибка настройки
+    except (AttributeError, TypeError) as e:
+        # Ошибка сигнатуры/отсутствия сигналов — это ошибка настройки
         raise SetupError(
             f"Failed to connect active_sphere_changed to structure reload: {e}"
         ) from e

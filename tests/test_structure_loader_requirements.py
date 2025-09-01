@@ -29,7 +29,7 @@ class TopPanelsControllerMock:
         pass
 
 
-def test_missing_structure_loader_methods_log_and_skip_reload_but_schedule_refresh(caplog):
+def test_missing_structure_loader_methods_raise_setup_error_on_wiring():
     # structure_business без load_structure_async и load_structure
     structure_business = SimpleNamespace(
         active_sphere_changed=SignalMock(),
@@ -52,23 +52,12 @@ def test_missing_structure_loader_methods_log_and_skip_reload_but_schedule_refre
         _structure_signals_connected=False,
     )
 
-    # Устанавливаем подключения
-    _connect_structure_signals(
-        window,
-        top_panels_controller=window.top_panels_controller,
-        structure_business=window.structure_business,
-        structure=window.structure,
-        spheres_controller=window.spheres_controller,
-    )
-
-    caplog.set_level(logging.ERROR)
-    # Эмитим событие смены активной сферы — ожидаем лог об отсутствии методов и отсутствие исключения
-    window.structure_business.active_sphere_changed.emit(1)
-
-    # Должна быть записана ошибка о том, что методы отсутствуют и перезагрузка пропущена
-    assert any(
-        "has no load_structure_async() or load_structure(); skipping reload" in rec.getMessage()
-        for rec in caplog.records
-    )
-    # При этом должен быть запланирован refresh верхних панелей
-    assert isinstance(window.top_panels_controller, TopPanelsControllerMock)
+    # Ожидаем явную ошибка настройки при проводке
+    with pytest.raises(SetupError):
+        _connect_structure_signals(
+            window,
+            top_panels_controller=window.top_panels_controller,
+            structure_business=window.structure_business,
+            structure=window.structure,
+            spheres_controller=window.spheres_controller,
+        )

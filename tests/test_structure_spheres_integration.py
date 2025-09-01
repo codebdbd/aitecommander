@@ -50,6 +50,7 @@ def window_stub():
         active_sphere_changed=SignalMock(),
         structure_loaded=SignalMock(),
         current_sphere_id=None,
+        load_structure=lambda: None,
     )
     win = SimpleNamespace(
         structure_business=sb,
