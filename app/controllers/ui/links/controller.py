@@ -45,10 +45,20 @@ class LinksUIController(QObject):
         self.table_controller = links_table_controller
 
         # Инициализация подмодулей с явными зависимостями
+        # Передача провайдера категории: сначала ui_state, иначе сам main_window,
+        # если он предоставляет get_current_category_id (важно для тестов/заглушек)
+        _ui_state = getattr(main_window, "ui_state", None)
+        _kwargs = {}
+        if _ui_state is not None:
+            _kwargs["ui_state"] = _ui_state
+        elif hasattr(main_window, "get_current_category_id"):
+            _kwargs["category_provider"] = main_window
+
         self.handlers = LinksUIHandlers(
             self,
             link_operations=link_operations,
             links_table_controller=self.table_controller,
+            **_kwargs,
         )
         self.clipboard = LinksUIClipboard(self, link_operations=link_operations)
         self.link_ops = LinksUILinkOperations(self, link_operations=link_operations)

@@ -11,11 +11,36 @@ logger = logging.getLogger(__name__)
 class LinksUIHandlers(BaseLinksUIComponent):
     """Обработчики событий для LinksUIController."""
 
-    def __init__(self, controller, *, link_operations, links_table_controller):
-        # Явное требование зависимостей для лучшей диагностируемости
+    def __init__(
+        self,
+        controller,
+        *,
+        link_operations,
+        links_table_controller,
+        ui_state=None,
+        category_provider=None,
+    ):
+        # Явные требования зависимостей для лучшей диагностируемости
         if links_table_controller is None:
-            raise ValueError("LinksUIHandlers requires explicit 'links_table_controller' dependency")
-        super().__init__(controller, link_operations, links_table_controller=links_table_controller)
+            raise ValueError(
+                "LinksUIHandlers requires explicit 'links_table_controller' dependency"
+            )
+        provider = ui_state or category_provider
+        if provider is None:
+            raise ValueError(
+                "LinksUIHandlers requires 'ui_state' or 'category_provider' dependency"
+            )
+        # Обязательный контракт: требуется метод get_current_category_id()
+        getter = getattr(provider, "get_current_category_id", None)
+        if getter is None or not callable(getter):
+            raise TypeError(
+                "'ui_state'/'category_provider' must provide callable get_current_category_id()"
+            )
+        self._category_provider = provider
+
+        super().__init__(
+            controller, link_operations, links_table_controller=links_table_controller
+        )
 
     def _connect_signals(self):
         """Подключение сигналов от бизнес-логики."""
@@ -122,10 +147,8 @@ class LinksUIHandlers(BaseLinksUIComponent):
             if link is not None:
                 cat_id = link.get("category_id")
             if not isinstance(cat_id, int) or cat_id <= 0:
-                try:
-                    cat_id = getattr(self.main, "get_current_category_id", lambda: None)()
-                except Exception:
-                    cat_id = None
+                # Используем явный провайдер вместо getattr(self.main, ...)
+                cat_id = self._category_provider.get_current_category_id()
             self.link_operations.on_favorite_toggled(cat_id)
         except Exception as e:
             logger.warning(f"Failed to emit signals after toggle favorite: {e}")

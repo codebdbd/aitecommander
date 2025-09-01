@@ -47,8 +47,13 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
         window.category_tiles_controller = CategoryTilesController(
             ui_state=controllers["ui_state"],
             structure_business=structure_business,
-            tiles_widget=window.tiles,
         )
+        # Опционально прикрепляем виджет плиток для прямых операций
+        try:
+            if hasattr(window, "tiles") and window.tiles:
+                window.category_tiles_controller.attach_tiles_widget(window.tiles)
+        except Exception:
+            logger.debug("Failed to attach tiles widget to CategoryTilesController", exc_info=True)
         controllers["category_tiles_controller"] = window.category_tiles_controller
     except Exception as e:
         logger.error(f"Failed to create CategoryTilesController: {e}")
@@ -124,14 +129,16 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     window.action_controller = ActionController(window)
     controllers["action_controller"] = window.action_controller
 
+    # Обязательная зависимость: SpheresBarController должен успешно создаться
     try:
         window.spheres_controller = SpheresBarController(window)
         controllers["spheres_controller"] = window.spheres_controller
-    except Exception as e:
+    except (AttributeError, TypeError, ValueError) as e:
         logger.error(f"Failed to create SpheresBarController: {e}")
+        raise SetupError("SpheresBarController creation failed") from e
 
     try:
-        # Явно требуем наличие обоих виджетов
+        # Явно требуем наличие обоих виджетов (обязательные зависимости)
         fav_w = window.fav_widget  # may raise AttributeError
         rec_w = window.recent_links_widget  # may raise AttributeError
         window.top_panels_controller = TopPanelsController(
@@ -687,18 +694,22 @@ class WindowControllersSetup:
             try:
                 step(self.window, controllers)
                 logger.info(f"{name} completed")
-            except Exception as e:
+            except (AttributeError, TypeError, ValueError, SetupError) as e:
                 logger.error(f"{name} failed: {e}")
+                # Не скрываем проблемы конфигурации шагов — завершаем настройку ошибкой
+                raise SetupError(f"{name} failed during window setup") from e
 
     def initialize_spheres(self):
         """Инициализация сфер."""
         try:
             sc = getattr(self.window, "spheres_controller", None)
             if sc is None:
+                # Обязательная зависимость: SpheresBarController должен быть доступен
                 sc = SpheresBarController(self.window)
                 self.window.spheres_controller = sc
             sc.init()
-        except Exception as e:
+        except (AttributeError, TypeError, ValueError) as e:
             logger.error(f"Failed to initialize spheres: {e}")
+            raise SetupError("Spheres initialization failed") from e
 
 __all__ = ["WindowControllersSetup"]
