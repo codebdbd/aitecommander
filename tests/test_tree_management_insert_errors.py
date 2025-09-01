@@ -7,11 +7,19 @@ from app.controllers.ui.structure.tree_management import TreeManagement
 class ModelStubSectionsError:
     def insert_sections(self, row, items):
         raise ValueError("bad section data")
+    def insert_categories(self, parent_id, row, items):
+        pass
+    def update_item(self, *args, **kwargs):
+        pass
 
 
 class ModelStubCategoriesError:
+    def insert_sections(self, row, items):
+        pass
     def insert_categories(self, parent_id, row, items):
         raise RuntimeError("model failed")
+    def update_item(self, *args, **kwargs):
+        pass
 
 
 class TreeStub:
