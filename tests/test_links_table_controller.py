@@ -45,7 +45,12 @@ class TableMock:
 
 def make_controller(table=None, business=None):
     # main_window=None, чтобы QObject не требовал валидного родителя
-    return LinksTableController(None, table=table, links_business=business)
+    return LinksTableController(
+        None,
+        table=table,
+        links_business=business,
+        category_provider=SimpleNamespace(current_category_id=None),
+    )
 
 
 def test_reload_success_calls_business(caplog):

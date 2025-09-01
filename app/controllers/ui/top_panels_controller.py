@@ -17,7 +17,7 @@ _DEFAULT_DEBOUNCE_MS = 150
 class TopPanelsController:
     """Контроллер верхних панелей (Избранное/Недавние)."""
 
-    def __init__(self, main_window, *, fav_widget: FavoritesPanelLike, recent_links_widget: RecentsPanelLike, links_business=None):
+    def __init__(self, main_window, *, fav_widget: FavoritesPanelLike, recent_links_widget: RecentsPanelLike, links_business):
         self.main = main_window
         if fav_widget is None or recent_links_widget is None:
             raise ValueError(
@@ -30,6 +30,8 @@ class TopPanelsController:
             raise TypeError("recent_links_widget must implement RecentsPanelLike")
         self.fav_widget = fav_widget
         self.recent_links_widget = recent_links_widget
+        if links_business is None:
+            raise ValueError("TopPanelsController requires links_business")
         self.links_business = links_business
 
         self._pending_refresh = False
@@ -119,9 +121,6 @@ class TopPanelsController:
         widget = self.fav_widget
         # 1) Загрузка данных из бизнес-слоя
         items: list = []
-        if self.links_business is None:
-            logger.error("TopPanelsController.refresh_favorites: links_business is None")
-            return
         try:
             items = self.links_business.get_favorite_links()
         except (TypeError, ValueError):
@@ -157,9 +156,6 @@ class TopPanelsController:
                 pass
 
         # 1) Загрузка данных из бизнес-слоя
-        if self.links_business is None:
-            logger.error("TopPanelsController.refresh_recent: links_business is None")
-            return
         items: list = []
         try:
             items = self.links_business.get_recent_links(limit)

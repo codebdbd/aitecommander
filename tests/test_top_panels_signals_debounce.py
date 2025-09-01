@@ -40,6 +40,14 @@ class RecWidgetStub:
         pass
 
 
+class LinksBusinessStub:
+    def get_favorite_links(self):
+        return []
+
+    def get_recent_links(self, limit: int):
+        return []
+
+
 def test_top_panels_signals_are_debounced(monkeypatch, caplog):
     caplog.set_level(logging.DEBUG)
 
@@ -53,7 +61,12 @@ def test_top_panels_signals_are_debounced(monkeypatch, caplog):
     window.links_actions = SimpleNamespace(open_link=lambda *_: None)
 
     # Контроллер верхних панелей
-    ctrl = TopPanelsController(window, fav_widget=fav, recent_links_widget=rec)
+    ctrl = TopPanelsController(
+        window,
+        fav_widget=fav,
+        recent_links_widget=rec,
+        links_business=LinksBusinessStub(),
+    )
     window.top_panels_controller = ctrl
 
     # Подключаем сигналы (проверяем, что идут в request_* методы)
