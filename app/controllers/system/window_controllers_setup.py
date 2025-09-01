@@ -37,7 +37,6 @@ class SetupError(Exception):
 def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     """Создание и настройка основных контроллеров."""
     structure_business = StructureBusinessLogic(db)
-    links_business = LinksBusinessLogic(db)
 
     # Важно: сначала UIState и CategoryTilesController, затем StructureUIController (требует tiles-контроллер)
     window.ui_state = UIStateManager(window)
@@ -48,12 +47,17 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
             ui_state=controllers["ui_state"],
             structure_business=structure_business,
         )
-        # Опционально прикрепляем виджет плиток для прямых операций
+        # Требуем наличие корректного tiles-виджета и жёстко валидируем ошибки подключения
+        if not hasattr(window, "tiles") or not window.tiles:
+            raise SetupError("Tiles widget is required for CategoryTilesController setup")
         try:
-            if hasattr(window, "tiles") and window.tiles:
-                window.category_tiles_controller.attach_tiles_widget(window.tiles)
-        except Exception:
-            logger.debug("Failed to attach tiles widget to CategoryTilesController", exc_info=True)
+            window.category_tiles_controller.attach_tiles_widget(window.tiles)
+        except (AttributeError, TypeError) as e:
+            logger.error(f"Failed to attach tiles widget to CategoryTilesController: {e}")
+            raise SetupError("CategoryTilesController attach_tiles_widget failed: incompatible or missing tiles widget") from e
+        except Exception as e:
+            logger.error(f"Unexpected error during tiles widget attachment: {e}")
+            raise SetupError("Unexpected error while attaching tiles widget") from e
         controllers["category_tiles_controller"] = window.category_tiles_controller
     except Exception as e:
         logger.error(f"Failed to create CategoryTilesController: {e}")
@@ -69,10 +73,15 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
         _ = getattr(rec_sig, "connect")
     except Exception as e:
         raise SetupError("LinkOperationsController must expose recents_changed signal") from e
+    # Инициализируем LinksBusiness только после успешной настройки tiles,
+    # чтобы ошибки tiles не маскировались требованием DummyDB.links в тестах
+    links_business = LinksBusinessLogic(db)
+
     links_table_ctrl = LinksTableController(
         window,
         table=window.table,
         links_business=links_business,
+        category_provider=window,
     )
     links_ctrl = LinksUIController(
         window.table,

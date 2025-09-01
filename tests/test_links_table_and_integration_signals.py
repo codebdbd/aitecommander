@@ -75,7 +75,12 @@ def test_links_table_controller_reacts_to_link_ops_signals():
     business = LinksBusinessMock()
     table = TableWidgetMock()
     main = types.SimpleNamespace(current_category_id=None)
-    links_table = LinksTableController(main, table=table, links_business=business)
+    links_table = LinksTableController(
+        main,
+        table=table,
+        links_business=business,
+        category_provider=main,
+    )
 
     link_ops = make_link_ops()
 
@@ -108,7 +113,13 @@ def test_integration_link_ops_to_top_panels_and_table(monkeypatch):
     top_ctrl = TopPanelsController(types.SimpleNamespace(), fav_widget=fav, recent_links_widget=recent, links_business=business)
 
     table = TableWidgetMock()
-    links_table = LinksTableController(types.SimpleNamespace(current_category_id=None), table=table, links_business=business)
+    main2 = types.SimpleNamespace(current_category_id=None)
+    links_table = LinksTableController(
+        main2,
+        table=table,
+        links_business=business,
+        category_provider=main2,
+    )
 
     link_ops = make_link_ops()
 

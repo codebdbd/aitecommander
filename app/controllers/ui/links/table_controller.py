@@ -25,7 +25,7 @@ class LinksTableController(QObject):
     - Централизованное логирование и защита от параллельных обновлений
     """
 
-    def __init__(self, main_window, *, table, links_business):
+    def __init__(self, main_window, *, table, links_business, category_provider):
         """Инициализация контроллера с явными зависимостями.
 
         :param main_window: главное окно (родитель по QObject)
@@ -42,8 +42,14 @@ class LinksTableController(QObject):
         self.main = main_window
         self.table = table
         self.business = links_business
+        self.category_provider = category_provider
         if self.table is None or self.business is None:
             raise ValueError("LinksTableController: table и links_business должны быть переданы явно")
+        # Явная валидация провайдера категории
+        if not hasattr(self.category_provider, "current_category_id"):
+            raise ValueError(
+                "LinksTableController: category_provider must expose 'current_category_id' attribute"
+            )
         # Проверка интерфейса таблицы на старте, чтобы не игнорировать ошибки в рантайме
         if not isinstance(self.table, LinksTableLike):
             raise TypeError(
@@ -129,7 +135,8 @@ class LinksTableController(QObject):
         Выполняет populate только если это текущая категория, чтобы избежать рассинхронизации UI.
         """
         try:
-            current_category_id = getattr(self.main, "current_category_id", None)
+            # Явно используем переданный провайдер категории
+            current_category_id = self.category_provider.current_category_id
             if current_category_id is not None and category_id != current_category_id:
                 logger.info(
                     "Пропуск обновления таблицы: загружены ссылки для категории %s (task_id=%s), но текущая категория = %s",

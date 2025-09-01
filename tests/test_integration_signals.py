@@ -121,7 +121,12 @@ def test_links_table_reloads_on_link_ops_signals(caplog, main_window_stub):
     links_business = LinksBusinessMock()
     main_window_stub.current_category_id = 5
 
-    links_table_ctrl = LinksTableController(main_window_stub, table=table, links_business=links_business)
+    links_table_ctrl = LinksTableController(
+        main_window_stub,
+        table=table,
+        links_business=links_business,
+        category_provider=main_window_stub,
+    )
 
     dummy_db = SimpleNamespace()
     link_ops = LinkOperationsController(dummy_db, undo_stack=SimpleNamespace(), main_window=main_window_stub)

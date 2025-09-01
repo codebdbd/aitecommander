@@ -72,7 +72,13 @@ def window_stub():
 def test_connect_structure_signals_wires_active_sphere_and_schedules_refresh(window_stub, caplog):
     caplog.set_level(logging.DEBUG)
 
-    _connect_structure_signals(window_stub)
+    _connect_structure_signals(
+        window_stub,
+        top_panels_controller=window_stub.top_panels_controller,
+        structure_business=window_stub.structure_business,
+        structure=window_stub.structure,
+        spheres_controller=window_stub.spheres_controller,
+    )
 
     # Эмитим смену активной сферы
     window_stub.structure_business.active_sphere_changed.emit(5)
@@ -89,7 +95,13 @@ def test_initial_button_state_set_if_current_sphere_known(window_stub):
     # Если текущая сфера известна до подключения сигналов — кнопка должна обновиться сразу
     window_stub.structure_business.current_sphere_id = 3
 
-    _connect_structure_signals(window_stub)
+    _connect_structure_signals(
+        window_stub,
+        top_panels_controller=window_stub.top_panels_controller,
+        structure_business=window_stub.structure_business,
+        structure=window_stub.structure,
+        spheres_controller=window_stub.spheres_controller,
+    )
 
     # После подключения сигналов выполняется первичная установка состояния кнопок
     assert window_stub.spheres_controller.update_calls, "Ожидался первичный апдейт активной кнопки"
@@ -108,4 +120,10 @@ def test_connect_structure_signals_requires_top_panels_controller():
     )
 
     with pytest.raises(SetupError):
-        _connect_structure_signals(win)
+        _connect_structure_signals(
+            win,
+            top_panels_controller=win.top_panels_controller,
+            structure_business=win.structure_business,
+            structure=win.structure,
+            spheres_controller=win.spheres_controller,
+        )

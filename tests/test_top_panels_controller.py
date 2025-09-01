@@ -83,7 +83,12 @@ def test_clear_favorites_logs_on_error(caplog):
             raise RuntimeError("boom clear")
 
     caplog.set_level(logging.ERROR)
-    ctrl = TopPanelsController(SimpleNamespace(), fav_widget=ErrFav(), recent_links_widget=RecentLinksWidgetMock())
+    ctrl = TopPanelsController(
+        SimpleNamespace(),
+        fav_widget=ErrFav(),
+        recent_links_widget=RecentLinksWidgetMock(),
+        links_business=LinksBusinessStub(),
+    )
 
     ctrl.clear_favorites()
 
@@ -93,9 +98,19 @@ def test_clear_favorites_logs_on_error(caplog):
 
 def test_init_requires_widgets():
     with pytest.raises(ValueError):
-        TopPanelsController(SimpleNamespace(), fav_widget=None, recent_links_widget=RecentLinksWidgetMock())
+        TopPanelsController(
+            SimpleNamespace(),
+            fav_widget=None,
+            recent_links_widget=RecentLinksWidgetMock(),
+            links_business=LinksBusinessStub(),
+        )
     with pytest.raises(ValueError):
-        TopPanelsController(SimpleNamespace(), fav_widget=FavWidgetMock(), recent_links_widget=None)
+        TopPanelsController(
+            SimpleNamespace(),
+            fav_widget=FavWidgetMock(),
+            recent_links_widget=None,
+            links_business=LinksBusinessStub(),
+        )
 
 
 def test_refresh_favorites_requires_set_method():

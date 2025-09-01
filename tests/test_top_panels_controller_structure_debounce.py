@@ -15,7 +15,19 @@ def test_structure_signals_debounce_to_single_refresh(monkeypatch, caplog):
         def set_recent_links(self, items):
             pass
 
-    ctrl = TopPanelsController(SimpleNamespace(), fav_widget=_Fav(), recent_links_widget=_Rec())
+    class LinksBusinessStub:
+        def get_favorite_links(self):
+            return []
+
+        def get_recent_links(self, limit: int):
+            return []
+
+    ctrl = TopPanelsController(
+        SimpleNamespace(),
+        fav_widget=_Fav(),
+        recent_links_widget=_Rec(),
+        links_business=LinksBusinessStub(),
+    )
 
     calls: list[int] = []
 
