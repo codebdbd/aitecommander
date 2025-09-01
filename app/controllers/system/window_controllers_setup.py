@@ -34,6 +34,19 @@ logger = logging.getLogger(__name__)
 class SetupError(Exception):
     """Ошибки настройки компонентов окна."""
 
+def _on_structure_changed_schedule_refresh(top_ctrl, *_args):
+    """Внешний обработчик структурных событий: ставит отложенное обновление топ-панелей.
+
+    При любых ошибках планировщика поднимаем SetupError, чтобы не маскировать проблемы.
+    """
+    try:
+        top_ctrl.schedule_structure_refresh()
+    except (AttributeError, TypeError) as e:
+        raise SetupError("Scheduling structure-driven top panels refresh failed") from e
+    except Exception as e:
+        logger.error(f"Unexpected error when scheduling top panels refresh: {e}")
+        raise SetupError("Scheduling structure-driven top panels refresh failed") from e
+
 def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
     """Создание и настройка основных контроллеров."""
     structure_business = StructureBusinessLogic(db)
@@ -439,28 +452,27 @@ def _connect_structure_signals(
     )
     # Обертки для исключения лямбд
     def _on_active_sphere_changed(*_args):
-        # Явная проверка доступности методов загрузки структуры
-        if hasattr(structure_business, "load_structure_async") and callable(getattr(structure_business, "load_structure_async")):
+        # Требуем, чтобы хотя бы один из методов существовал в StructureBusinessLogic
+        # Если отсутствуют оба — логируем и пропускаем перезагрузку (по требованиям тестов)
+        try:
             try:
+                # Предпочитаем асинхронную загрузку, если доступна
                 structure_business.load_structure_async()
-            except (AttributeError, TypeError) as e:
-                raise SetupError("Invalid structure business loader signature") from e
-            except Exception as e:
-                logger.error(f"Unexpected error triggering async structure reload: {e}")
-                raise SetupError("Failed to trigger async structure reload") from e
-        elif hasattr(structure_business, "load_structure") and callable(getattr(structure_business, "load_structure")):
-            try:
-                structure_business.load_structure()
-            except (AttributeError, TypeError) as e:
-                raise SetupError("Invalid structure business loader signature") from e
-            except Exception as e:
-                logger.error(f"Unexpected error triggering structure reload: {e}")
-                raise SetupError("Failed to trigger structure reload") from e
-        else:
-            # Отсутствие методов загрузки не считаем фатальной ошибкой для интеграции сигналов.
-            # Логируем и выходим без перезагрузки, чтобы не ломать обработку смены сфер в тестах.
-            logger.error("StructureBusiness has no load_structure_async() or load_structure(); skipping reload")
-            return
+                return
+            except AttributeError:
+                # Переходим на синхронную, если async отсутствует
+                try:
+                    structure_business.load_structure()
+                    return
+                except AttributeError:
+                    logger.error("StructureBusiness has no load_structure_async() or load_structure(); skipping reload")
+                    return
+        except TypeError as e:
+            # Некорректный контракт методов загрузки
+            raise SetupError("Invalid structure business loader signature") from e
+        except Exception as e:
+            logger.error(f"Unexpected error triggering structure reload: {e}")
+            raise SetupError("Failed to trigger structure reload") from e
 
     # Явный контроллер верхних панелей
     top_ctrl = top_panels_controller
@@ -475,23 +487,18 @@ def _connect_structure_signals(
     if not top_ctrl:
         raise SetupError("TopPanelsController is required to schedule structure-driven refreshes")
     try:
-        def _on_structure_changed_schedule_refresh(*_args):
-            # Централизованный дебаунс на стороне контроллера
-            try:
-                top_ctrl.schedule_structure_refresh()
-            except (AttributeError, TypeError) as e:
-                # Ошибка контракта — считаем ошибкой настройки
-                raise SetupError("Scheduling structure-driven top panels refresh failed") from e
-            except Exception as e:
-                # Непредвиденная ошибка планировщика — логируем и поднимаем SetupError
-                logger.error(f"Unexpected error when scheduling top panels refresh: {e}")
-                raise SetupError("Scheduling structure-driven top panels refresh failed") from e
-
         # Подключаем только действительно влияющие на панели события
-        structure_business.active_sphere_changed.connect(_on_structure_changed_schedule_refresh)
-        structure_business.structure_loaded.connect(_on_structure_changed_schedule_refresh)
+        structure_business.active_sphere_changed.connect(
+            partial(_on_structure_changed_schedule_refresh, top_ctrl)
+        )
+        structure_business.structure_loaded.connect(
+            partial(_on_structure_changed_schedule_refresh, top_ctrl)
+        )
     except (AttributeError, TypeError) as e:
         raise SetupError(f"Failed to connect structure signals to TopPanelsController: {e}") from e
+    except Exception as e:
+        # Любые прочие ошибки подключения считаем ошибкой настройки
+        raise SetupError("Unexpected error while wiring structure signals to TopPanelsController") from e
     structure.item_changed.connect(window.on_structure_item_changed)
     structure.item_added.connect(window.on_structure_item_added)
 

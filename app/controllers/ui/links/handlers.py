@@ -121,7 +121,15 @@ class LinksUIHandlers(BaseLinksUIComponent):
             )
             return
 
-        # Убираем прямое обновление таблицы: используем централизованный контроллер через сигнал
+        # Напрямую обновляем таблицу, не полагаясь на асинхронную обработку сигнала
+        try:
+            self.links_table_controller.on_links_loaded(links, category_id, task_id)
+        except Exception:
+            logger.exception(
+                "LinksUIHandlers._update_table: links_table_controller.on_links_loaded failed"
+            )
+
+        # Сигнал оставляем для внешних подписчиков
         try:
             if isinstance(category_id, int) and category_id > 0:
                 self.link_operations.emit_links_changed(category_id)
