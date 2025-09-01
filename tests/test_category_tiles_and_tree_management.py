@@ -78,9 +78,8 @@ def test_tree_management_calls_tiles_controller_refresh(monkeypatch):
         def refresh(self, section_id: int):
             self.calls.append(section_id)
 
-    main_ctrl = type("Main", (), {})()
-    main_ctrl.tree = object()
-    main_ctrl.icon_handler = object()
+    # Используем контроллер-заглушку, который предоставляет дерево с валидной моделью
+    main_ctrl = ControllerStub()
 
     tiles_spy = TilesSpy()
     tm = TreeManagement(main_ctrl, category_tiles_controller=tiles_spy)
