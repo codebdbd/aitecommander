@@ -191,8 +191,7 @@ class TopPanelsController:
         """
         # 1) Бизнес-очистка
         try:
-            if self.links_business is not None:
-                self.links_business.clear_favorites()
+            self.links_business.clear_favorites()
         except Exception:
             logger.error("TopPanelsController.clear_favorites: error in links_business.clear_favorites", exc_info=True)
 

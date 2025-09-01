@@ -176,8 +176,25 @@ def test_links_ui_controller_uses_table_controller_reload(monkeypatch, caplog):
         def reload(self, category_id):
             self.reload_calls.append(category_id)
 
+    class _Signal:
+        def __init__(self):
+            self._subs = []
+        def connect(self, cb):
+            if not callable(cb):
+                raise TypeError("slot must be callable")
+            self._subs.append(cb)
+
+    class _SelModel:
+        def __init__(self):
+            self.selectionChanged = _Signal()
+
     class TableViewMock:
-        pass
+        def __init__(self):
+            self.doubleClicked = _Signal()
+            self.clicked = _Signal()
+            self.links_reordered = _Signal()
+        def selectionModel(self):
+            return _SelModel()
 
     class LinksBusinessDummy:
         pass
