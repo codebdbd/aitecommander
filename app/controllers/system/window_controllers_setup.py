@@ -58,6 +58,12 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
 
     # Создаём link_operations и links_table_controller до LinksUIController, чтобы явно передать зависимости
     link_ops = LinkOperationsController(db, window.undo_stack, window)
+    # Ранняя проверка наличия критичных сигналов LinkOperationsController
+    try:
+        rec_sig = link_ops.recents_changed  # должен существовать и иметь connect
+        _ = getattr(rec_sig, "connect")
+    except Exception as e:
+        raise SetupError("LinkOperationsController must expose recents_changed signal") from e
     links_table_ctrl = LinksTableController(
         window,
         table=window.table,
@@ -164,11 +170,8 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
 
     try:
         link_ops_ref.favorites_changed.connect(top_panels_ref.request_favorites_refresh)
-        # Требуем явного наличия сигнала recents_changed
-        rec_sig = getattr(link_ops_ref, "recents_changed", None)
-        if rec_sig is None:
-            raise SetupError("LinkOperationsController.recents_changed signal is required")
-        rec_sig.connect(top_panels_ref.request_recents_refresh)
+        # Прямое подключение без getattr
+        link_ops_ref.recents_changed.connect(top_panels_ref.request_recents_refresh)
     except (AttributeError, TypeError) as e:
         raise SetupError(f"Failed to connect LinkOperations -> TopPanelsController: {e}") from e
 
@@ -357,7 +360,8 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
         if not top_ctrl:
             raise SetupError("TopPanelsController is required for recent panel wiring")
         try:
-            window.recent_links_widget.refresh_requested[int].connect(lambda *_: top_ctrl.request_recents_refresh())
+            # Подключаем напрямую метод контроллера; сигнатуры совместимы
+            window.recent_links_widget.refresh_requested[int].connect(top_ctrl.request_recents_refresh)
         except (AttributeError, TypeError) as e:
             raise SetupError(f"Failed to wire Recents to TopPanelsController: {e}") from e
 

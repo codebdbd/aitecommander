@@ -144,16 +144,11 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             # Асинхронно сохранить в БД (старое поведение)
             self.business.save_link(link_data)
 
-            # Централизованное обновление верхних панелей через корректный сигнал недавних
+            # Централизованная эмиссия сигналов через LinkOperationsController
             try:
-                # Теперь используем централизованные методы LinkOperationsController
-                self.link_operations.emit_recents_changed()
-                # Сообщаем таблице о возможном изменении данных текущей категории
-                cat_id = link_data.get("category_id")
-                if isinstance(cat_id, int) and cat_id > 0:
-                    self.link_operations.emit_links_changed(cat_id)
+                self.link_operations.on_link_opened(link_data)
             except Exception as e:
-                logger.debug(f"Failed to emit recents_changed after opening link: {e}")
+                logger.debug(f"Failed to emit signals after opening link: {e}")
 
     def _toggle_fav(self, link: Dict = None):
         """Переключить статус избранного."""

@@ -6,6 +6,7 @@ from PyQt6.QtCore import QModelIndex
 
 from app.utils.db.synchronization import signal_guard
 from app.utils.ui.qt.roles import get_tree_tuple
+from app.controllers.ui.state.task_scheduler import schedule_focus
 
 # Используем строковые литералы "section" и "category"
 
@@ -237,6 +238,15 @@ class SelectionHandling:
             sel = self.tree.selectionModel()
             sel.setCurrentIndex(index, sel.SelectionFlag.ClearAndSelect)
             self.tree.scrollTo(index)
+            # Восстанавливаем фокус на дереве после выбора
+            try:
+                schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
+            except Exception:
+                # На случай проблем с планировщиком — прямой вызов как запасной вариант
+                try:
+                    self.tree.setFocus()
+                except Exception:
+                    pass
             if item_type == "category":
                 # ЦЕНТРАЛИЗОВАНО: Для новой категории показываем таблицу ссылок
                 if hasattr(self.main, "ui_state") and self.main.ui_state:
@@ -276,3 +286,11 @@ class SelectionHandling:
             self.tree.blockSignals(False)
             # Гарантируем полную обработку выбора и переключение UI
             self._handle_item_selection(index)
+            # И явное восстановление фокуса на дереве (после обновления модели/выделения)
+            try:
+                schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
+            except Exception:
+                try:
+                    self.tree.setFocus()
+                except Exception:
+                    pass

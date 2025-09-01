@@ -32,6 +32,7 @@ class ItemOperations:
         if item_to_select:
             from app.controllers.ui.state.task_scheduler import (
                 schedule_selection_restore,
+                schedule_focus,
             )
 
             item_type, item_id = item_to_select
@@ -42,6 +43,11 @@ class ItemOperations:
                 ),
                 f"{item_type}_{item_id}",
             )
+            # И дополнительно восстановим фокус на дереве
+            try:
+                schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
+            except Exception:
+                pass
 
     def switch_sphere(self, sphere_id: int) -> None:
         """Переключает сферу и перезагружает структуру.

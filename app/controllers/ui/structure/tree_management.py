@@ -3,7 +3,7 @@
 from PyQt6.QtCore import QModelIndex, Qt
 import logging
 
-from app.controllers.ui.state.task_scheduler import schedule_selection_restore
+from app.controllers.ui.state.task_scheduler import schedule_selection_restore, schedule_focus
 from app.utils.ui.qt.roles import get_tree_tuple
 
 
@@ -100,6 +100,11 @@ class TreeManagement:
                 ),
                 f"new_{item_type}_{item_id}",
             )
+            # Дополнительно восстановим фокус на дереве
+            try:
+                schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
+            except Exception:
+                pass
 
     def _on_item_updated(self, item_type: str, item_id: int, data: dict) -> None:
         # Инкрементальное обновление
@@ -121,6 +126,11 @@ class TreeManagement:
                 ),
                 f"restore_cat_{item_id}",
             )
+            # Дополнительно восстановим фокус на дереве
+            try:
+                schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
+            except Exception:
+                pass
 
     def _on_item_deleted(self, item_type: str, item_id: int) -> None:
         # Инкрементальное удаление

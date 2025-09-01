@@ -13,6 +13,7 @@ from app.controllers.ui.undo.commands_links import (
 )
 from app.controllers.ui.undo.stack import UndoManager
 from app.views.dialogs.link_dialog.link_dialog import LinkDialog
+from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 
 # Константы для макросов отмены/повтора
 MACRO_DELETE_LINKS_TEXT = "Удаление {count} ссылок"
@@ -95,6 +96,52 @@ class LinkOperationsController(QObject):
                 self.link_deleted.emit(payload)
         except Exception:
             logger.exception("emit_link_deleted: failed to emit signal")
+
+    # --- Централизованные обработчики событий операций ---
+    def on_link_opened(self, link_data: dict) -> None:
+        """Вызвать после успешного открытия ссылки (обновляет недавние и таблицу категории)."""
+        try:
+            self.emit_recents_changed()
+            cat_id = link_data.get("category_id") if isinstance(link_data, dict) else None
+            if isinstance(cat_id, int) and cat_id > 0:
+                self.emit_links_changed(cat_id)
+        except Exception:
+            logger.exception("on_link_opened: failed to emit signals")
+
+    def on_favorite_toggled(self, category_id: int | None) -> None:
+        """Вызвать после завершения операции переключения избранного."""
+        try:
+            self.emit_favorites_changed()
+            if isinstance(category_id, int) and category_id > 0:
+                self.emit_links_changed(category_id)
+        except Exception:
+            logger.exception("on_favorite_toggled: failed to emit signals")
+
+    def on_link_updated(self, updated_link: dict) -> None:
+        """Вызвать после обновления ссылки (влияет на недавние и возможно таблицу)."""
+        try:
+            self.emit_recents_changed()
+            cat_id = updated_link.get("category_id") if isinstance(updated_link, dict) else None
+            if isinstance(cat_id, int) and cat_id > 0:
+                self.emit_links_changed(cat_id)
+        except Exception:
+            logger.exception("on_link_updated: failed to emit signals")
+
+    def on_links_deleted(self, links: list[dict]) -> None:
+        """Вызвать после удаления ссылок (батч/одиночные)."""
+        try:
+            # Обновляем таблицу по категории первой ссылки (как и раньше)
+            cat_id = (links[0] if links else {}).get("category_id")
+            if isinstance(cat_id, int) and cat_id > 0:
+                self.emit_links_changed(cat_id)
+            # Удаление может повлиять на недавние
+            self.emit_recents_changed()
+            # Пробрасываем точечные события удаления
+            for payload in links or []:
+                if isinstance(payload, dict):
+                    self.emit_link_deleted(payload)
+        except Exception:
+            logger.exception("on_links_deleted: failed to emit signals")
 
     def get_dialog_initialization_data(self, category_id=None):
         """Получить данные для инициализации диалога ссылки."""
@@ -183,32 +230,35 @@ class LinkOperationsController(QObject):
                 )
                 self.undo_stack.push(cmd)
 
-                # Если среди сохраняемых ссылок есть изменение признака избранного — уведомим UI
+                # Если среди сохраняемых ссылок есть изменение признака избранного — уведомим UI централизованно
                 try:
                     if any(isinstance(p, dict) and ("is_favorite" in p) for p in links_to_save):
-                        self.emit_favorites_changed()
+                        # Передаём None, чтобы не дублировать финальный links_changed ниже
+                        self.on_favorite_toggled(None)
                 except Exception:
-                    logger.exception("show_link_dialog: emit_favorites_changed failed")
+                    logger.exception("show_link_dialog: on_favorite_toggled failed")
 
-                # Устанавливаем фокус на первую добавленную ссылку
+                # Устанавливаем фокус на первую добавленную ссылку через планировщик
                 if hasattr(self.main_window, "links_actions") and hasattr(
                     self.main_window.links_actions, "focus_on_link"
                 ):
-                    # Используем QTimer для отложенной фокусировки после обновления UI
-                    from PyQt6.QtCore import QTimer
-
                     first_link_id = (
                         cmd.created_ids[0]
                         if hasattr(cmd, "created_ids") and cmd.created_ids
                         else None
                     )
                     if first_link_id:
-                        QTimer.singleShot(
-                            200,
-                            lambda: self.main_window.links_actions.focus_on_link(
-                                first_link_id
-                            ),
-                        )
+                        try:
+                            schedule_selection_restore(
+                                lambda: self.main_window.links_actions.focus_on_link(
+                                    first_link_id
+                                ),
+                                first_link_id,
+                            )
+                        except Exception:
+                            logger.exception(
+                                "show_link_dialog(batch): schedule focus failed"
+                            )
                 # Эмит событий о сохранённых ссылках (пакетно)
                 try:
                     for payload in links_to_save:
@@ -239,14 +289,15 @@ class LinkOperationsController(QObject):
                     )
                     self.undo_stack.push(cmd)
 
-                    # Если запись содержит поле is_favorite — уведомим об изменении избранного
+                    # Если запись содержит поле is_favorite — уведомим централизованно
                     try:
                         if isinstance(data, dict) and ("is_favorite" in data):
-                            self.emit_favorites_changed()
+                            # Передаём None, чтобы не дублировать финальный links_changed ниже
+                            self.on_favorite_toggled(None)
                     except Exception:
-                        logger.exception("show_link_dialog(single): emit_favorites_changed failed")
+                        logger.exception("show_link_dialog(single): on_favorite_toggled failed")
 
-                    # Устанавливаем фокус на добавленную ссылку (только для новых ссылок)
+                    # Планируем восстановление фокуса на ссылке (для новых и обновлённых)
                     logger.debug(
                         f"Focus check: is_update={is_update_single}, has_links_actions={hasattr(self.main_window, 'links_actions')}"
                     )
@@ -255,28 +306,25 @@ class LinkOperationsController(QObject):
                             f"LinksActions exists, has_focus_method={hasattr(self.main_window.links_actions, 'focus_on_link')}"
                         )
 
-                    if (
-                        not is_update_single
-                        and hasattr(self.main_window, "links_actions")
-                        and hasattr(self.main_window.links_actions, "focus_on_link")
+                    if hasattr(self.main_window, "links_actions") and hasattr(
+                        self.main_window.links_actions, "focus_on_link"
                     ):
-                        # Используем QTimer для отложенной фокусировки после обновления UI
-                        from PyQt6.QtCore import QTimer
-
                         link_id = cmd.created_id or data.get("id")
                         logger.info(
                             f"Attempting to focus on link: cmd.created_id={cmd.created_id}, data.id={data.get('id')}, final_link_id={link_id}"
                         )
                         if link_id:
-                            logger.info(
-                                f"Scheduling focus on link ID {link_id} in 200ms"
-                            )
-                            QTimer.singleShot(
-                                200,
-                                lambda: self.main_window.links_actions.focus_on_link(
-                                    link_id
-                                ),
-                            )
+                            try:
+                                schedule_selection_restore(
+                                    lambda: self.main_window.links_actions.focus_on_link(
+                                        link_id
+                                    ),
+                                    link_id,
+                                )
+                            except Exception:
+                                logger.exception(
+                                    "show_link_dialog(single): schedule focus failed"
+                                )
                         else:
                             logger.warning("No link ID available for focusing")
                     # Эмит события о сохранении одиночной ссылки
@@ -315,18 +363,11 @@ class LinkOperationsController(QObject):
             except Exception:
                 logger.exception("delete_links_with_confirmation(single): failed to set _suppress_ui")
             self.undo_stack.push(cmd)
-            # Эмитим сигналы вместо прямых обновлений UI
+            # Централизованный вызов сигналов
             try:
-                cat_id = links[0].get("category_id")
-                if isinstance(cat_id, int) and cat_id > 0:
-                    self.links_changed.emit(cat_id)
-                # Удаление может повлиять на список недавних — триггерим его обновление
-                self.recents_changed.emit()
-                # Точечный сигнал об удалении
-                if isinstance(links[0], dict):
-                    self.link_deleted.emit(links[0])
+                self.on_links_deleted(links)
             except Exception:
-                logger.exception("delete_links_with_confirmation(single): signal emission failed")
+                logger.exception("delete_links_with_confirmation(single): on_links_deleted failed")
             return
 
         # Пакетное удаление — без подтверждения, с макросом для Undo
@@ -340,19 +381,8 @@ class LinkOperationsController(QObject):
             except Exception:
                 pass
             self.undo_stack.push(cmd)
-        # После батч-удаления оповещаем слушателей о необходимости обновления
+        # После батч-удаления централизованно оповещаем слушателей
         try:
-            cat_id = (links[0] if links else {}).get("category_id")
-            if isinstance(cat_id, int) and cat_id > 0:
-                self.links_changed.emit(cat_id)
-            # Удаление может повлиять на список недавних — триггерим его обновление
-            self.recents_changed.emit()
-            # Точечные сигналы об удалении для каждой ссылки
-            try:
-                for payload in links:
-                    if isinstance(payload, dict):
-                        self.link_deleted.emit(payload)
-            except Exception:
-                logger.exception("delete_links_with_confirmation(batch): emit link_deleted failed")
+            self.on_links_deleted(links)
         except Exception:
-            logger.exception("delete_links_with_confirmation(batch): signal emission failed")
+            logger.exception("delete_links_with_confirmation(batch): on_links_deleted failed")

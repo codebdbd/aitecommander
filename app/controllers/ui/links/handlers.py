@@ -112,9 +112,8 @@ class LinksUIHandlers(BaseLinksUIComponent):
         self, fav_count: int, links: List[Dict], link: Optional[Dict]
     ):
         """Завершить переключение избранного."""
-        # Эмитим сигналы вместо прямых обращений к контроллерам
+        # Централизуем эмиссию сигналов в LinkOperationsController
         try:
-            # Сообщаем о возможном изменении таблицы ссылок (категория из ссылки или текущая)
             cat_id = None
             if link is not None:
                 cat_id = link.get("category_id")
@@ -123,10 +122,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
                     cat_id = getattr(self.main, "get_current_category_id", lambda: None)()
                 except Exception:
                     cat_id = None
-            if isinstance(cat_id, int) and cat_id > 0:
-                self.link_operations.emit_links_changed(cat_id)
-            # В любом случае сигнализируем об изменении избранного
-            self.link_operations.emit_favorites_changed()
+            self.link_operations.on_favorite_toggled(cat_id)
         except Exception as e:
             logger.warning(f"Failed to emit signals after toggle favorite: {e}")
 
@@ -148,13 +144,9 @@ class LinksUIHandlers(BaseLinksUIComponent):
         except Exception:
             pass
 
-        # Эмитим сигналы вместо прямых обновлений UI
+        # Централизуем эмиссию сигналов в LinkOperationsController
         try:
-            cat_id = updated_link.get("category_id")
-            if isinstance(cat_id, int) and cat_id > 0:
-                self.link_operations.emit_links_changed(cat_id)
-            # Обновление ссылки (заметки, атрибутов) влияет на панель "Недавние"
-            self.link_operations.emit_recents_changed()
+            self.link_operations.on_link_updated(updated_link)
         except Exception as e:
             logger.warning(f"Failed to emit signals after link update: {e}")
 

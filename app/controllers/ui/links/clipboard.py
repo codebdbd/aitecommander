@@ -94,12 +94,11 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 self._update_category_safe(category_id)
             except DatabaseError as e:
                 logger.error(f"Failed to update category after deletion: {e}")
-        # Централизованное обновление верхних панелей через сигнал
+        # Централизованная эмиссия сигналов через LinkOperationsController
         try:
-            # Удаление влияет на панель "Недавние", а не на избранное
-            self.link_operations.emit_recents_changed()
+            self.link_operations.on_links_deleted(links)
         except Exception as e:
-            logger.debug(f"Failed to emit recents_changed after delete_links: {e}")
+            logger.debug(f"Failed to emit signals after delete_links: {e}")
 
     def get_selected_links(self) -> List[Dict]:
         """Получить выбранные ссылки."""

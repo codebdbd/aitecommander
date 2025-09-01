@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from PyQt6.QtCore import QTimer
 from app.interfaces import FavoritesPanelLike, FavoritesPanelWithClear, RecentsPanelLike, RecentsPanelWithLimit
 
@@ -58,6 +59,9 @@ class TopPanelsController:
         self._recent_refresh_timer.timeout.connect(self._on_recent_refresh_timeout)
         self._structure_refresh_timer.timeout.connect(self._on_structure_refresh_timeout)
 
+        # Strict-режим: при неожиданных исключениях в refresh_* повторно выбрасывать
+        self._strict = str(os.getenv("APP_TOP_PANELS_STRICT", "")).lower() in {"1", "true", "yes", "on"}
+
     def refresh_all(self) -> None:
         """Обновить обе панели: избранное и недавние."""
         self.refresh_favorites()
@@ -71,9 +75,13 @@ class TopPanelsController:
             self._pending_refresh = True
             delay = self._normalize_delay(delay_ms, args, kwargs)
             self._refresh_timer.start(delay)
-        except Exception:
-            logger.exception("TopPanelsController.request_refresh failed")
+        except (TypeError, ValueError) as e:
+            logger.error("TopPanelsController.request_refresh: invalid args: %s", e)
             self._pending_refresh = False
+        except Exception:
+            logger.exception("TopPanelsController.request_refresh: unexpected failure")
+            self._pending_refresh = False
+            raise
 
     def request_favorites_refresh(self, delay_ms: int | None = None, *args, **kwargs) -> None:
         """Запросить обновление только панели избранного с дебаунсом."""
@@ -83,9 +91,13 @@ class TopPanelsController:
             self._pending_fav_refresh = True
             delay = self._normalize_delay(delay_ms, args, kwargs)
             self._fav_refresh_timer.start(delay)
-        except Exception:
-            logger.exception("TopPanelsController.request_favorites_refresh failed")
+        except (TypeError, ValueError) as e:
+            logger.error("TopPanelsController.request_favorites_refresh: invalid args: %s", e)
             self._pending_fav_refresh = False
+        except Exception:
+            logger.exception("TopPanelsController.request_favorites_refresh: unexpected failure")
+            self._pending_fav_refresh = False
+            raise
 
     def request_recents_refresh(self, delay_ms: int | None = None, *args, **kwargs) -> None:
         """Запросить обновление только панели недавних ссылок с дебаунсом."""
@@ -95,18 +107,41 @@ class TopPanelsController:
             self._pending_recent_refresh = True
             delay = self._normalize_delay(delay_ms, args, kwargs)
             self._recent_refresh_timer.start(delay)
-        except Exception:
-            logger.exception("TopPanelsController.request_recents_refresh failed")
+        except (TypeError, ValueError) as e:
+            logger.error("TopPanelsController.request_recents_refresh: invalid args: %s", e)
             self._pending_recent_refresh = False
+        except Exception:
+            logger.exception("TopPanelsController.request_recents_refresh: unexpected failure")
+            self._pending_recent_refresh = False
+            raise
 
     def refresh_favorites(self) -> None:
         widget = self.fav_widget
+        # 1) Загрузка данных из бизнес-слоя
+        items: list = []
+        if self.links_business is None:
+            logger.error("TopPanelsController.refresh_favorites: links_business is None")
+            return
         try:
-            if self.links_business is not None:
-                items = self.links_business.get_favorite_links()
-                widget.set_favorites(items)
-        except Exception as e:
-            logger.exception("TopPanelsController.refresh_favorites: ошибка при загрузке/установке избранного")
+            items = self.links_business.get_favorite_links()
+        except (TypeError, ValueError):
+            logger.error("TopPanelsController.refresh_favorites: invalid data from business", exc_info=True)
+            return
+        except Exception:
+            logger.exception("TopPanelsController.refresh_favorites failed: business layer error")
+            if self._strict:
+                raise
+            return
+
+        # 2) Обновление виджета
+        try:
+            widget.set_favorites(items)
+        except (TypeError, ValueError):
+            logger.error("TopPanelsController.refresh_favorites: widget set_favorites signature error", exc_info=True)
+        except Exception:
+            logger.exception("TopPanelsController.refresh_favorites failed: widget update error")
+            if self._strict:
+                raise
 
     def refresh_recent(self) -> None:
         widget = self.recent_links_widget
@@ -121,23 +156,31 @@ class TopPanelsController:
                 # некорректное значение лимита — оставляем default
                 pass
 
-        items = []
-        if self.links_business is not None:
-            try:
-                items = self.links_business.get_recent_links(limit)
-            except (TypeError, ValueError):
-                logger.error("TopPanelsController.refresh_recent: неверные аргументы при загрузке недавних", exc_info=True)
-                return
-            except Exception:
-                logger.exception("TopPanelsController.refresh_recent: неожиданная ошибка при загрузке недавних")
-                return
+        # 1) Загрузка данных из бизнес-слоя
+        if self.links_business is None:
+            logger.error("TopPanelsController.refresh_recent: links_business is None")
+            return
+        items: list = []
+        try:
+            items = self.links_business.get_recent_links(limit)
+        except (TypeError, ValueError):
+            logger.error("TopPanelsController.refresh_recent: invalid args/data during recent load", exc_info=True)
+            return
+        except Exception:
+            logger.exception("TopPanelsController.refresh_recent failed: business layer error")
+            if self._strict:
+                raise
+            return
 
+        # 2) Обновление виджета
         try:
             widget.set_recent_links(items)
         except (TypeError, ValueError):
-            logger.error("TopPanelsController.refresh_recent: ошибка сигнатуры при установке недавних", exc_info=True)
+            logger.error("TopPanelsController.refresh_recent: widget set_recent_links signature error", exc_info=True)
         except Exception:
-            logger.exception("TopPanelsController.refresh_recent: неожиданная ошибка при установке недавних")
+            logger.exception("TopPanelsController.refresh_recent failed: widget update error")
+            if self._strict:
+                raise
 
     def clear_favorites(self) -> None:
         """Очистить избранное: бизнес-данные и виджет.
