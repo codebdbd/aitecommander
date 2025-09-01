@@ -157,6 +157,11 @@ class TreeManagement:
                     self.refresh_section_tiles(section_id)
             except Exception:
                 logger.exception("TreeManagement._on_item_deleted: ошибка обновления плиток после удаления категории")
+        # Гарантируем восстановление фокуса на дереве после удаления
+        try:
+            schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
+        except Exception:
+            pass
 
     def refresh_section_tiles(self, section_id: int) -> None:
         """Обновить плитки раздела через переданный CategoryTilesController."""

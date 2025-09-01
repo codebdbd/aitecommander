@@ -173,21 +173,20 @@ class BatchDeleteLinksCmd(BaseCommand):
             logger.warning("BatchDeleteLinksCmd.undo: batch upsert failed, fallback to single: %s", exc)
             for link in self.links:
                 LinksService(self.db).create_or_update_link(link)
-        # Обновление UI после восстановления
+        # Обновление UI после восстановления (игнорируем подавление для Undo)
         try:
-            if not getattr(self, "_suppress_ui", False):
-                cat_id = (self.links[0] if self.links else {}).get("category_id")
-                if isinstance(cat_id, int) and cat_id > 0:
-                    ctrl = getattr(self.main, "links_table_controller", None)
-                    if ctrl:
-                        ctrl.reload(cat_id)
-                    else:
-                        links_business = getattr(self.main, "links_business", None)
-                        if links_business:
-                            try:
-                                links_business.load_links(cat_id)
-                            except Exception:
-                                pass
+            cat_id = (self.links[0] if self.links else {}).get("category_id")
+            if isinstance(cat_id, int) and cat_id > 0:
+                ctrl = getattr(self.main, "links_table_controller", None)
+                if ctrl:
+                    ctrl.reload(cat_id)
+                else:
+                    links_business = getattr(self.main, "links_business", None)
+                    if links_business:
+                        try:
+                            links_business.load_links(cat_id)
+                        except Exception:
+                            pass
         except Exception as exc:
             logger.warning(
                 "BatchDeleteLinksCmd.undo: reload failed: %s",
@@ -246,21 +245,20 @@ class DeleteLinkCmd(BaseCommand):
                 self.main.links_business.link_updated.emit(self.link)
             except Exception as exc:
                 logger.warning("DeleteLinkCmd.undo: link_updated emit failed: %s", exc)
-            # Перезагружаем таблицу после undo, если не подавлено
+            # Перезагружаем таблицу после undo (игнорируем подавление для Undo)
             try:
-                if not getattr(self, "_suppress_ui", False):
-                    cat_id = self.link.get("category_id")
-                    if isinstance(cat_id, int) and cat_id > 0:
-                        ctrl = getattr(self.main, "links_table_controller", None)
-                        if ctrl:
-                            ctrl.reload(cat_id)
-                        else:
-                            links_business = getattr(self.main, "links_business", None)
-                            if links_business:
-                                try:
-                                    links_business.load_links(cat_id)
-                                except Exception:
-                                    pass
+                cat_id = self.link.get("category_id")
+                if isinstance(cat_id, int) and cat_id > 0:
+                    ctrl = getattr(self.main, "links_table_controller", None)
+                    if ctrl:
+                        ctrl.reload(cat_id)
+                    else:
+                        links_business = getattr(self.main, "links_business", None)
+                        if links_business:
+                            try:
+                                links_business.load_links(cat_id)
+                            except Exception:
+                                pass
             except Exception as exc:
                 logger.warning(
                     "DeleteLinkCmd.undo: reload failed: %s",
