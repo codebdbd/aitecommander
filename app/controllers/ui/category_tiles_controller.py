@@ -1,9 +1,13 @@
 # app/controllers/ui/category_tiles_controller.py
 
 import logging
-from typing import Optional
+from typing import Optional, Protocol, List, Dict
 
 logger = logging.getLogger(__name__)
+
+
+class CategoryTilesLike(Protocol):
+    def set_categories(self, categories: List[Dict]) -> None: ...
 
 
 class CategoryTilesController:
@@ -19,9 +23,9 @@ class CategoryTilesController:
             raise ValueError("CategoryTilesController requires ui_state and structure_business")
         self.ui_state = ui_state
         self.business = structure_business
-        self._tiles: Optional[object] = None
+        self._tiles: Optional[CategoryTilesLike] = None
 
-    def attach_tiles_widget(self, tiles_widget: object) -> None:
+    def attach_tiles_widget(self, tiles_widget: CategoryTilesLike) -> None:
         """Опционально задать виджет плиток для прямых операций обновления."""
         self._tiles = tiles_widget
 
@@ -36,11 +40,8 @@ class CategoryTilesController:
             # Основной путь: через ui_state (централизует переключение стека)
             self.ui_state.switch_to_category_tiles(categories or [])
             # Опционально: прямое обновление, если виджет подключён
-            try:
-                if self._tiles and hasattr(self._tiles, "set_categories"):
-                    self._tiles.set_categories(categories or [])
-            except Exception:
-                logger.debug("CategoryTilesController.refresh: direct tiles update failed", exc_info=True)
+            if self._tiles is not None:
+                self._tiles.set_categories(categories or [])
         except Exception:
             logger.exception(
                 "CategoryTilesController.refresh: ошибка обновления плиток раздела #%s",
@@ -51,10 +52,7 @@ class CategoryTilesController:
         """Очистить плитки категорий (показать пустой набор)."""
         try:
             self.ui_state.switch_to_category_tiles([])
-            try:
-                if self._tiles and hasattr(self._tiles, "set_categories"):
-                    self._tiles.set_categories([])
-            except Exception:
-                logger.debug("CategoryTilesController.clear: direct tiles update failed", exc_info=True)
+            if self._tiles is not None:
+                self._tiles.set_categories([])
         except Exception:
             logger.exception("CategoryTilesController.clear: ошибка очистки плиток категорий")

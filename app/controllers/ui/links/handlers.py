@@ -109,14 +109,14 @@ class LinksUIHandlers(BaseLinksUIComponent):
     def _update_table(self, links: List[Dict], category_id: int, task_id: int):
         """Обновляет таблицу ссылок новыми данными."""
         # Защита от рассинхронизации: принимаем только ссылки для текущей категории
-        current_category_id = getattr(self.main, "current_category_id", None)
-        if current_category_id is not None and category_id != current_category_id:
+        current_category_id = self._category_provider.get_current_category_id()
+        if category_id != current_category_id:
             # Например, пользователь успел переключить категорию, пока грузились ссылки
-            logger.info(
-                "Пропуск обновления таблицы: загружены ссылки для категории %s (task_id=%s), "
+            logger.debug(
+                "Игнорируем результаты task_id=%s: категория результатов = %s, "
                 "но текущая категория = %s",
-                category_id,
                 task_id,
+                category_id,
                 current_category_id,
             )
             return

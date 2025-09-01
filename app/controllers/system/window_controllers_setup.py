@@ -397,58 +397,73 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
 
 def setup_signal_connections(window, controllers: Dict[str, Any]) -> None:
     """Подключение сигналов контроллеров и UI."""
-    _connect_structure_signals(window)
+    _connect_structure_signals(
+        window,
+        top_panels_controller=window.top_panels_controller,
+        structure_business=window.structure_business,
+        structure=window.structure,
+        spheres_controller=window.spheres_controller,
+    )
     _connect_database_signals(window)
     QTimer.singleShot(0, partial(_connect_ui_signals, window))
 
 
-def _connect_structure_signals(window) -> None:
+def _connect_structure_signals(
+    window,
+    *,
+    top_panels_controller,
+    structure_business,
+    structure,
+    spheres_controller,
+) -> None:
     """Подключение сигналов структуры."""
     if getattr(window, "_structure_signals_connected", False):
         return
     try:
-        window.structure_business.active_sphere_changed.connect(
-            window.spheres_controller.update_active_sphere_button
+        structure_business.active_sphere_changed.connect(
+            spheres_controller.update_active_sphere_button
         )
     except (AttributeError, TypeError) as e:
         logger.error(f"Failed to connect sphere button update: {e}")
-    window.structure_business.active_sphere_changed.connect(
+    structure_business.active_sphere_changed.connect(
         window._update_left_panel_style
     )
     # Обертки для исключения лямбд
     def _on_active_sphere_changed(*_args):
         try:
-            loader = getattr(window.structure_business, "load_structure_async", None)
+            loader = getattr(structure_business, "load_structure_async", None)
             if callable(loader):
                 loader()
             else:
-                window.structure_business.load_structure()
+                structure_business.load_structure()
         except Exception as e:
             logger.warning(f"Failed to trigger structure reload: {e}")
 
-    # Найдём контроллер верхних панелей и настроим агрегирующий дебаунс-обработчик
-    top_ctrl = getattr(window, "top_panels_controller", None)
+    # Явный контроллер верхних панелей
+    top_ctrl = top_panels_controller
 
     # Планировщик единого обновления верхних панелей при каскадных структурных событиях
     if not top_ctrl:
         raise SetupError("TopPanelsController is required to schedule structure-driven refreshes")
     try:
         def _on_structure_changed_schedule_refresh(*_args):
+            # Централизованный дебаунс на стороне контроллера
             try:
-                # Централизованный дебаунс на стороне контроллера
                 top_ctrl.schedule_structure_refresh()
+            except (AttributeError, TypeError) as e:
+                # Ошибка контракта — считаем ошибкой настройки
+                raise SetupError("Scheduling structure-driven top panels refresh failed") from e
             except Exception as e:
-                logger.error(f"Failed to schedule structure-driven top panels refresh: {e}")
-                # Не скрываем причину: установка должна завершиться ошибкой
+                # Непредвиденная ошибка планировщика — также считаем ошибкой настройки
                 raise SetupError("Scheduling structure-driven top panels refresh failed") from e
 
         # Подключаем только действительно влияющие на панели события
-        window.structure_business.active_sphere_changed.connect(_on_structure_changed_schedule_refresh)
-        window.structure_business.structure_loaded.connect(_on_structure_changed_schedule_refresh)
+        structure_business.active_sphere_changed.connect(_on_structure_changed_schedule_refresh)
+        structure_business.structure_loaded.connect(_on_structure_changed_schedule_refresh)
     except (AttributeError, TypeError) as e:
-        raise SetupError(f"Failed to connect structure signals to TopPanelsController: {e}")
-    window.structure.item_changed.connect(window.on_structure_item_changed)
-    window.structure.item_added.connect(window.on_structure_item_added)
+        raise SetupError(f"Failed to connect structure signals to TopPanelsController: {e}") from e
+    structure.item_changed.connect(window.on_structure_item_changed)
+    structure.item_added.connect(window.on_structure_item_added)
 
     # Обработка выбора категории централизована через
     # StructureUIController.SelectionHandling._on_category_selected,
@@ -460,9 +475,9 @@ def _connect_structure_signals(window) -> None:
     # После подключения сигналов сразу выставим визуальное состояние активной кнопки,
     # если текущая сфера уже известна (исправляет отсутствие фокуса/чека на старте)
     try:
-        curr_id = getattr(window.structure_business, "current_sphere_id", None)
+        curr_id = getattr(structure_business, "current_sphere_id", None)
         if isinstance(curr_id, int) and curr_id > 0:
-            updater = getattr(window.spheres_controller, "update_active_sphere_button", None)
+            updater = getattr(spheres_controller, "update_active_sphere_button", None)
             if callable(updater):
                 updater(int(curr_id))
     except Exception:

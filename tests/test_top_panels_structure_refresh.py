@@ -77,7 +77,13 @@ class DummyWindow:
 
 def test_schedule_only_called_on_structure_events():
     window = DummyWindow()
-    _connect_structure_signals(window)
+    _connect_structure_signals(
+        window,
+        top_panels_controller=window.top_panels_controller,
+        structure_business=window.structure_business,
+        structure=window.structure,
+        spheres_controller=window.spheres_controller,
+    )
 
     # Эмитим события структуры
     window.structure_business.active_sphere_changed.emit()
@@ -91,7 +97,26 @@ def test_schedule_only_called_on_structure_events():
 def test_setup_error_raised_when_scheduler_fails():
     window = DummyWindow()
     window.top_panels_controller.fail = True
-    _connect_structure_signals(window)
+    _connect_structure_signals(
+        window,
+        top_panels_controller=window.top_panels_controller,
+        structure_business=window.structure_business,
+        structure=window.structure,
+        spheres_controller=window.spheres_controller,
+    )
 
     with pytest.raises(SetupError):
         window.structure_business.active_sphere_changed.emit()
+
+
+def test_setup_error_when_top_panels_controller_missing():
+    window = DummyWindow()
+    # Явно передаем None, эмулируя отсутствие контроллера верхних панелей
+    with pytest.raises(SetupError):
+        _connect_structure_signals(
+            window,
+            top_panels_controller=None,
+            structure_business=window.structure_business,
+            structure=window.structure,
+            spheres_controller=window.spheres_controller,
+        )
