@@ -20,6 +20,26 @@ class TreeManagement:
             raise ValueError("TreeManagement requires a non-None category_tiles_controller")
         self.tiles_controller = category_tiles_controller
 
+        # Явная ссылка на модель дерева и проверка контракта
+        try:
+            model_getter = getattr(self.tree, "model")
+            self.model = model_getter() if callable(model_getter) else None
+        except Exception:
+            self.model = None
+        if not self.model:
+            raise ValueError("TreeManagement requires a valid tree model")
+        # Проверяем наличие ключевых методов модели, используемых для инкрементальных операций
+        required_methods = [
+            "insert_sections",
+            "insert_categories",
+            "update_item",
+        ]
+        for m in required_methods:
+            if not hasattr(self.model, m) or not callable(getattr(self.model, m)):
+                raise ValueError(
+                    f"TreeManagement requires a model providing methods: {', '.join(required_methods)}"
+                )
+
     def _on_structure_loaded(self, sections_data: list) -> None:
         # Сохраняем текущее выделение и состояние разворота до перезагрузки модели
         cur_index = self.tree.currentIndex()
@@ -75,9 +95,7 @@ class TreeManagement:
         # Примечание: при ошибке вставки требуется полная перезагрузка структуры —
         # ожидаемые ошибки модели (ValueError, RuntimeError) логируем и пробрасываем вверх,
         # неожиданные исключения также не подавляются.
-        model = getattr(self.tree, "model", lambda: None)()
-        if not model:
-            return
+        model = self.model
         if item_type == "section":
             # Вставляем раздел в конец (или позицию из data.get('row'))
             row = int(data.get("row")) if isinstance(data.get("row"), int) else -1
@@ -119,16 +137,16 @@ class TreeManagement:
 
     def _on_item_updated(self, item_type: str, item_id: int, data: dict) -> None:
         # Инкрементальное обновление
-        model = getattr(self.tree, "model", lambda: None)()
-        if model:
-            try:
-                model.update_item(item_type, item_id, data or {})
-            except Exception:
-                logger.exception(
-                    "TreeManagement._on_item_updated: ошибка обновления элемента %s #%s",
-                    item_type,
-                    item_id,
-                )
+        model = self.model
+        try:
+            model.update_item(item_type, item_id, data or {})
+        except (ValueError, RuntimeError):
+            logger.exception(
+                "TreeManagement._on_item_updated: ошибка обновления элемента %s #%s",
+                item_type,
+                item_id,
+            )
+            raise
         # Сохраняем UX восстановления выделения категории
         if item_type == "category" and isinstance(item_id, int):
             schedule_selection_restore(

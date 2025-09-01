@@ -528,7 +528,12 @@ def _connect_database_signals(window) -> None:
             partial(DatabaseEventHandler.handle_database_connected, window)
         )
         db_controller.favorites_cleared.connect(
-            partial(DatabaseEventHandler.handle_favorites_cleared, window)
+            partial(
+                DatabaseEventHandler.handle_favorites_cleared,
+                window,
+                top_panels_controller=window.top_panels_controller,
+                links_table_controller=window.links_table_controller,
+            )
         )
         db_controller.operation_success.connect(
             partial(MessageHandler.show_success_message, window)
@@ -596,30 +601,23 @@ class DatabaseEventHandler:
         window.update_statusbar()
 
     @staticmethod
-    def handle_favorites_cleared(window):
-        """Обработка очистки избранного."""
-        # Всегда выполняем через TopPanelsController — без обхода виджета
-        top_ctrl = getattr(window, "top_panels_controller", None)
-        if not top_ctrl:
+    def handle_favorites_cleared(window, *, top_panels_controller, links_table_controller):
+        """Обработка очистки избранного.
+        Требует явных зависимостей: TopPanelsController и LinksTableController.
+        """
+        # Валидация зависимостей
+        if not top_panels_controller:
             raise SetupError("TopPanelsController is required to clear favorites")
-        top_ctrl.clear_favorites()
-        top_ctrl.request_favorites_refresh()
+        if not links_table_controller:
+            raise SetupError("LinksTableController is required to reload table after favorites clear")
+
+        # Действия через контроллеры
+        top_panels_controller.clear_favorites()
+        top_panels_controller.request_favorites_refresh()
 
         category_id = window.get_current_category_id()
         if category_id:
-            try:
-                ctrl = getattr(window, "links_table_controller", None)
-                if ctrl:
-                    ctrl.reload(category_id)
-                else:
-                    links_business = getattr(window, "links_business", None)
-                    if links_business:
-                        try:
-                            links_business.load_links(category_id)
-                        except Exception:
-                            pass
-            except Exception:
-                pass
+            links_table_controller.reload(category_id)
 
     @staticmethod
     def _update_controllers_with_new_db(window, new_db):

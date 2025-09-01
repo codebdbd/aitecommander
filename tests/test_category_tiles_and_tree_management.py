@@ -29,8 +29,18 @@ class StructureBusinessMock:
 
 class ControllerStub:
     def __init__(self):
-        # TreeManagement ожидает tree и icon_handler, но в тестах они не используются нашими вызовами
-        self.tree = types.SimpleNamespace()
+        # TreeManagement ожидает tree с валидной моделью и icon_handler
+        class _MinimalModel:
+            def insert_sections(self, *_):
+                pass
+            def insert_categories(self, *_):
+                pass
+            def update_item(self, *_):
+                pass
+        class _TreeWithModel:
+            def model(self):
+                return _MinimalModel()
+        self.tree = _TreeWithModel()
         self.icon_handler = object()
 
 
