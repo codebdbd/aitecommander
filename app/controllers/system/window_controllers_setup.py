@@ -439,17 +439,37 @@ def _connect_structure_signals(
     )
     # Обертки для исключения лямбд
     def _on_active_sphere_changed(*_args):
-        try:
-            loader = getattr(structure_business, "load_structure_async", None)
-            if callable(loader):
-                loader()
-            else:
+        # Явная проверка доступности методов загрузки структуры
+        if hasattr(structure_business, "load_structure_async") and callable(getattr(structure_business, "load_structure_async")):
+            try:
+                structure_business.load_structure_async()
+            except (AttributeError, TypeError) as e:
+                raise SetupError("Invalid structure business loader signature") from e
+            except Exception as e:
+                logger.error(f"Unexpected error triggering async structure reload: {e}")
+                raise SetupError("Failed to trigger async structure reload") from e
+        elif hasattr(structure_business, "load_structure") and callable(getattr(structure_business, "load_structure")):
+            try:
                 structure_business.load_structure()
-        except Exception as e:
-            logger.warning(f"Failed to trigger structure reload: {e}")
+            except (AttributeError, TypeError) as e:
+                raise SetupError("Invalid structure business loader signature") from e
+            except Exception as e:
+                logger.error(f"Unexpected error triggering structure reload: {e}")
+                raise SetupError("Failed to trigger structure reload") from e
+        else:
+            # Отсутствие методов загрузки не считаем фатальной ошибкой для интеграции сигналов.
+            # Логируем и выходим без перезагрузки, чтобы не ломать обработку смены сфер в тестах.
+            logger.error("StructureBusiness has no load_structure_async() or load_structure(); skipping reload")
+            return
 
     # Явный контроллер верхних панелей
     top_ctrl = top_panels_controller
+
+    # Подключаем обработчик смены активной сферы к перезагрузке структуры
+    try:
+        structure_business.active_sphere_changed.connect(_on_active_sphere_changed)
+    except (AttributeError, TypeError) as e:
+        raise SetupError(f"Failed to connect active_sphere_changed to structure reload: {e}") from e
 
     # Планировщик единого обновления верхних панелей при каскадных структурных событиях
     if not top_ctrl:
@@ -463,7 +483,8 @@ def _connect_structure_signals(
                 # Ошибка контракта — считаем ошибкой настройки
                 raise SetupError("Scheduling structure-driven top panels refresh failed") from e
             except Exception as e:
-                # Непредвиденная ошибка планировщика — также считаем ошибкой настройки
+                # Непредвиденная ошибка планировщика — логируем и поднимаем SetupError
+                logger.error(f"Unexpected error when scheduling top panels refresh: {e}")
                 raise SetupError("Scheduling structure-driven top panels refresh failed") from e
 
         # Подключаем только действительно влияющие на панели события
