@@ -28,8 +28,9 @@ class TopPanelsController:
                 "TopPanelsController requires fav_widget and recent_links_widget"
             )
         # Жёсткая проверка рантайм-совместимости с Protocol
-        if not isinstance(fav_widget, FavoritesPanelLike):
-            raise TypeError("fav_widget must implement FavoritesPanelLike")
+        # Требуем расширенный контракт с clear_favorites
+        if not isinstance(fav_widget, FavoritesPanelWithClear):
+            raise TypeError("fav_widget must implement FavoritesPanelWithClear")
         if not isinstance(recent_links_widget, RecentsPanelLike):
             raise TypeError("recent_links_widget must implement RecentsPanelLike")
         self.fav_widget = fav_widget
@@ -195,20 +196,9 @@ class TopPanelsController:
         except Exception:
             logger.error("TopPanelsController.clear_favorites: error in links_business.clear_favorites", exc_info=True)
 
-        # 2) Очистка виджета
+        # 2) Очистка виджета — без фолбэков, контракт обязателен
         try:
-            # Предпочитаем нативный метод очистки
-            if isinstance(self.fav_widget, FavoritesPanelWithClear):
-                self.fav_widget.clear_favorites()
-            else:
-                # Фолбэк на set_favorites([]) при отсутствии расширенного протокола
-                self.fav_widget.set_favorites([])
-        except AttributeError:
-            # Контракт сломан — пробуем мягкий откат через set_favorites([])
-            try:
-                self.fav_widget.set_favorites([])
-            except Exception:
-                logger.error("TopPanelsController.clear_favorites: widget fallback set_favorites failed", exc_info=True)
+            self.fav_widget.clear_favorites()
         except Exception:
             logger.error("TopPanelsController.clear_favorites: widget clear failed", exc_info=True)
 

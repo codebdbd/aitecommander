@@ -10,6 +10,8 @@ def test_structure_signals_debounce_to_single_refresh(monkeypatch, caplog):
     class _Fav:
         def set_favorites(self, items):
             pass
+        def clear_favorites(self):
+            pass
 
     class _Rec:
         def set_recent_links(self, items):

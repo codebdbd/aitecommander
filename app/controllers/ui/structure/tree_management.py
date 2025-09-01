@@ -163,19 +163,21 @@ class TreeManagement:
 
     def _on_item_deleted(self, item_type: str, item_id: int) -> None:
         # Инкрементальное удаление
-        model = getattr(self.tree, "model", lambda: None)()
-        if model:
-            try:
-                if item_type == "section":
-                    model.remove_sections([int(item_id)])
-                elif item_type == "category":
-                    model.remove_categories([int(item_id)])
-            except Exception:
-                logger.exception(
-                    "TreeManagement._on_item_deleted: ошибка удаления элемента %s #%s",
-                    item_type,
-                    item_id,
-                )
+        model = self.model
+        if not model:
+            logger.error("TreeManagement._on_item_deleted: model is not available")
+            return
+        try:
+            if item_type == "section":
+                model.remove_sections([int(item_id)])
+            elif item_type == "category":
+                model.remove_categories([int(item_id)])
+        except Exception:
+            logger.exception(
+                "TreeManagement._on_item_deleted: ошибка удаления элемента %s #%s",
+                item_type,
+                item_id,
+            )
         # Если удалили категорию и сейчас выбран раздел — обновим плитки для него.
         if item_type == "category":
             try:
@@ -250,11 +252,12 @@ class TreeManagement:
         Совместимый хелпер для вызовов из `ItemOperations` и действий меню.
         """
         try:
-            model = getattr(self.tree, "model", lambda: None)()
+            model = self.model
             if not model or not hasattr(model, "index_for"):
+                logger.error("TreeManagement._find_item_by_id: model is not available or has no index_for")
                 return None
             idx = model.index_for(item_type, int(item_id))
-            if idx and idx.isValid():
+            if idx and hasattr(idx, "isValid") and idx.isValid():
                 return idx
         except Exception:
             logger.exception(
