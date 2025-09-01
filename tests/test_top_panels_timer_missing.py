@@ -7,6 +7,8 @@ from app.controllers.ui.top_panels_controller import TopPanelsController, SetupE
 class FavWidget:
     def set_favorites(self, items):
         pass
+    def clear_favorites(self):
+        pass
 
 
 class RecentsWidget:

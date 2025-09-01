@@ -29,6 +29,8 @@ class FavWidgetStub:
 
     def set_favorites(self, items):
         pass
+    def clear_favorites(self):
+        pass
 
 
 class RecWidgetStub:

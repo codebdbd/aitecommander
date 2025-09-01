@@ -12,6 +12,8 @@ class DummyFavWidget:
 
     def set_favorites(self, items):
         self.items = items
+    def clear_favorites(self):
+        self.items = []
 
 
 class DummyRecentsWidget:
