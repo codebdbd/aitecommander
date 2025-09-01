@@ -205,13 +205,12 @@ class TopPanelsController:
     def schedule_structure_refresh(self) -> None:
         """Запланировать обновление верхних панелей по структурным событиям с фиксированным интервалом."""
         try:
-            timer = getattr(self, "_structure_refresh_timer", None)
-            if timer is None:
+            if self._structure_refresh_timer is None:
                 raise SetupError("Structure refresh timer is not configured")
             # Интервал фиксирован, задаётся в __init__ (по умолчанию 200 мс)
-            if timer.isActive():
+            if self._structure_refresh_timer.isActive():
                 return
-            timer.start()
+            self._structure_refresh_timer.start()
         except (ValueError, RuntimeError) as e:
             # Ожидаемые ошибки — логируем, без немедленного обновления
             logger.error("TopPanelsController.schedule_structure_refresh: failed to start structure timer: %s", e, exc_info=True)
@@ -248,10 +247,10 @@ class TopPanelsController:
             self.request_refresh()
         except (ValueError, RuntimeError) as e:
             logger.error("TopPanelsController._on_structure_refresh_timeout: expected error during request_refresh: %s", e, exc_info=True)
-        except Exception as e:
-            # Неожиданная ошибка — поднимаем как SetupError
-            logger.exception("TopPanelsController._on_structure_refresh_timeout: unexpected error")
-            raise SetupError("Structure refresh timeout handler failed") from e
+        except SetupError:
+            # Конфигурационная ошибка — пробрасываем наверх после логирования
+            logger.exception("TopPanelsController._on_structure_refresh_timeout: setup error")
+            raise
 
     def _normalize_delay(self, delay_ms, args, kwargs) -> int:
         """Безопасно привести задержку к int; игнорирует нерелевантные payload сигналов."""

@@ -4,32 +4,14 @@ from types import SimpleNamespace
 from app.controllers.ui.top_panels_controller import TopPanelsController
 
 
-def test_request_refresh_debounce(monkeypatch, caplog):
+def test_request_refresh_debounce(monkeypatch, caplog, fav_widget_stub_min, rec_widget_stub_min, links_business_stub):
     caplog.set_level(logging.DEBUG)
-
-    # Минимальные совместимые стабовые виджеты
-    class _Fav:
-        def set_favorites(self, items):
-            pass
-        def clear_favorites(self):
-            pass
-
-    class _Rec:
-        def set_recent_links(self, items):
-            pass
-
-    class LinksBusinessStub:
-        def get_favorite_links(self):
-            return []
-
-        def get_recent_links(self, limit: int):
-            return []
 
     ctrl = TopPanelsController(
         SimpleNamespace(),
-        fav_widget=_Fav(),
-        recent_links_widget=_Rec(),
-        links_business=LinksBusinessStub(),
+        fav_widget=fav_widget_stub_min,
+        recent_links_widget=rec_widget_stub_min,
+        links_business=links_business_stub,
     )
 
     calls: list[int] = []
