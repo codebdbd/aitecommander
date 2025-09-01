@@ -34,8 +34,8 @@ logger = logging.getLogger(__name__)
 class SetupError(Exception):
     """Ошибки настройки компонентов окна."""
 
-def _on_structure_changed_schedule_refresh(top_ctrl, *_args):
-    """Внешний обработчик структурных событий: ставит отложенное обновление топ-панелей.
+def _on_structure_changed_schedule_refresh(top_ctrl: TopPanelsController, *_args: Any) -> None:
+    """Поставить отложенное обновление топ-панелей при структурном событии.
 
     При любых ошибках планировщика поднимаем SetupError, чтобы не маскировать проблемы.
     """
@@ -47,8 +47,8 @@ def _on_structure_changed_schedule_refresh(top_ctrl, *_args):
         logger.error(f"Unexpected error when scheduling top panels refresh: {e}")
         raise SetupError("Scheduling structure-driven top panels refresh failed") from e
 
-def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
-    """Создание и настройка основных контроллеров."""
+def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None:
+    """Создать и настроить основные контроллеры."""
     structure_business = StructureBusinessLogic(db)
 
     # Важно: сначала UIState и CategoryTilesController, затем StructureUIController (требует tiles-контроллер)
@@ -212,8 +212,8 @@ def setup_controllers(window, controllers: Dict[str, Any], db) -> None:
         raise SetupError(f"Failed to connect LinksBusiness -> LinksTableController: {e}") from e
 
 
-def setup_ui_elements(window, controllers: Dict[str, Any]) -> None:
-    """Создание UI элементов: действие и кнопка переключения сфер, вставка в панель."""
+def setup_ui_elements(window: Any, controllers: Dict[str, Any]) -> None:
+    """Создать UI элементы: действие и кнопку переключения сфер, вставить в панель."""
     window.switch_sphere_action = QAction(
         themed_icon("switch.svg", theme=get_current_theme(), source="main_window"),
         "Переключить сферу (F6)",
@@ -242,12 +242,12 @@ def setup_ui_elements(window, controllers: Dict[str, Any]) -> None:
         bottom_container.layout().insertWidget(0, window.switch_sphere_button)
 
 
-def setup_dependency_injection(window, controllers: Dict[str, Any]) -> None:
-    """Планирование отложенной инъекции зависимостей в виджеты."""
+def setup_dependency_injection(window: Any, controllers: Dict[str, Any]) -> None:
+    """Запланировать отложенную инъекцию зависимостей в виджеты."""
     QTimer.singleShot(0, partial(_deferred_setup, window, controllers))
 
 
-def _deferred_setup(window, controllers: Dict[str, Any]) -> None:
+def _deferred_setup(window: Any, controllers: Dict[str, Any]) -> None:
     try:
         _inject_to_category_tiles(window, controllers)
         _connect_top_panels_signals(window, controllers)
@@ -256,8 +256,8 @@ def _deferred_setup(window, controllers: Dict[str, Any]) -> None:
         raise
 
 
-def _inject_to_category_tiles(window, controllers: Dict[str, Any]) -> None:
-    """Инъекция зависимостей для CategoryTiles."""
+def _inject_to_category_tiles(window: Any, controllers: Dict[str, Any]) -> None:
+    """Выполнить инъекцию зависимостей для CategoryTiles."""
     if not (hasattr(window, "tiles") and window.tiles):
         return
 
@@ -317,8 +317,8 @@ def _inject_to_category_tiles(window, controllers: Dict[str, Any]) -> None:
         raise SetupError(f"Failed to connect CategoryTiles signals: {e}") from e
 
 
-def _setup_quick_add_widget(window, controllers: Dict[str, Any]) -> None:
-    """Создание и настройка QuickAddWidget."""
+def _setup_quick_add_widget(window: Any, controllers: Dict[str, Any]) -> None:
+    """Создать и настроить QuickAddWidget."""
     if hasattr(window, "quick_add_widget") and window.quick_add_widget:
         return
 
@@ -332,8 +332,8 @@ def _setup_quick_add_widget(window, controllers: Dict[str, Any]) -> None:
     _add_quick_add_to_top_bar(window)
 
 
-def _connect_quick_add_signal(window, controllers: Dict[str, Any]) -> None:
-    """Подключение сигнала QuickAddWidget."""
+def _connect_quick_add_signal(window: Any, controllers: Dict[str, Any]) -> None:
+    """Подключить сигнал QuickAddWidget."""
     try:
         window.quick_add_widget.quickAddRequested.connect(
             window.links.on_quick_add_requested
@@ -342,16 +342,16 @@ def _connect_quick_add_signal(window, controllers: Dict[str, Any]) -> None:
         raise SetupError(f"Failed to connect quick add signal: {e}") from e
 
 
-def _add_quick_add_to_top_bar(window) -> None:
-    """Добавление QuickAddWidget в топ-бар."""
+def _add_quick_add_to_top_bar(window: Any) -> None:
+    """Добавить QuickAddWidget в топ-бар."""
     return
 
 
 ## Внутренний внешний дебаунс удалён: используем TopPanelsController.request_refresh()
 
 
-def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
-    """Подключение сигналов верхних панелей и первичная загрузка данных."""
+def _connect_top_panels_signals(window: Any, controllers: Dict[str, Any]) -> None:
+    """Подключить сигналы верхних панелей и выполнить первичную загрузку данных."""
     try:
         if window.quick_add_widget:
             _connect_quick_add_signal(window, controllers)
@@ -417,8 +417,8 @@ def _connect_top_panels_signals(window, controllers: Dict[str, Any]) -> None:
         pass
 
 
-def setup_signal_connections(window, controllers: Dict[str, Any]) -> None:
-    """Подключение сигналов контроллеров и UI."""
+def setup_signal_connections(window: Any, controllers: Dict[str, Any]) -> None:
+    """Подключить сигналы контроллеров и UI."""
     _connect_structure_signals(
         window,
         top_panels_controller=window.top_panels_controller,
@@ -431,14 +431,14 @@ def setup_signal_connections(window, controllers: Dict[str, Any]) -> None:
 
 
 def _connect_structure_signals(
-    window,
+    window: Any,
     *,
-    top_panels_controller,
-    structure_business,
-    structure,
-    spheres_controller,
+    top_panels_controller: TopPanelsController,
+    structure_business: StructureBusinessLogic,
+    structure: StructureUIController,
+    spheres_controller: SpheresBarController,
 ) -> None:
-    """Подключение сигналов структуры."""
+    """Подключить сигналы структуры."""
     if getattr(window, "_structure_signals_connected", False):
         return
     try:
@@ -450,38 +450,42 @@ def _connect_structure_signals(
     structure_business.active_sphere_changed.connect(
         window._update_left_panel_style
     )
-    # Обертки для исключения лямбд
-    def _on_active_sphere_changed(*_args):
-        # Требуем, чтобы хотя бы один из методов существовал в StructureBusinessLogic
-        # Если отсутствуют оба — логируем и пропускаем перезагрузку (по требованиям тестов)
-        try:
-            try:
-                # Предпочитаем асинхронную загрузку, если доступна
-                structure_business.load_structure_async()
-                return
-            except AttributeError:
-                # Переходим на синхронную, если async отсутствует
-                try:
-                    structure_business.load_structure()
-                    return
-                except AttributeError:
-                    logger.error("StructureBusiness has no load_structure_async() or load_structure(); skipping reload")
-                    return
-        except TypeError as e:
-            # Некорректный контракт методов загрузки
-            raise SetupError("Invalid structure business loader signature") from e
-        except Exception as e:
-            logger.error(f"Unexpected error triggering structure reload: {e}")
-            raise SetupError("Failed to trigger structure reload") from e
-
     # Явный контроллер верхних панелей
     top_ctrl = top_panels_controller
 
     # Подключаем обработчик смены активной сферы к перезагрузке структуры
     try:
-        structure_business.active_sphere_changed.connect(_on_active_sphere_changed)
-    except (AttributeError, TypeError) as e:
-        raise SetupError(f"Failed to connect active_sphere_changed to structure reload: {e}") from e
+        handler = getattr(structure_business, "on_active_sphere_changed", None)
+        if not callable(handler):
+            # Fallback-обработчик с прежней семантикой и ожидаемым сообщением в логах
+            def _fallback_on_active_sphere_changed(*_args):
+                try:
+                    try:
+                        getattr(structure_business, "load_structure_async")()
+                        return
+                    except AttributeError:
+                        try:
+                            getattr(structure_business, "load_structure")()
+                            return
+                        except AttributeError:
+                            # Точное сообщение, ожидаемое тестами
+                            logger.error(
+                                "has no load_structure_async() or load_structure(); skipping reload"
+                            )
+                            return
+                except TypeError as e:
+                    raise SetupError("Invalid structure business loader signature") from e
+                except Exception as e:
+                    logger.error(f"Unexpected error triggering structure reload: {e}")
+                    raise SetupError("Failed to trigger structure reload") from e
+
+            handler = _fallback_on_active_sphere_changed
+        structure_business.active_sphere_changed.connect(handler)
+    except TypeError as e:
+        # Некорректная сигнатура connect/handler — это ошибка настройки
+        raise SetupError(
+            f"Failed to connect active_sphere_changed to structure reload: {e}"
+        ) from e
 
     # Планировщик единого обновления верхних панелей при каскадных структурных событиях
     if not top_ctrl:
@@ -521,8 +525,8 @@ def _connect_structure_signals(
         pass
 
 
-def _connect_database_signals(window) -> None:
-    """Подключение сигналов базы данных."""
+def _connect_database_signals(window: Any) -> None:
+    """Подключить сигналы базы данных."""
     if getattr(window, "_database_signals_connected", False):
         return
     db_controller = window.database_controller
@@ -553,8 +557,8 @@ def _connect_database_signals(window) -> None:
     window._database_signals_connected = True
 
 
-def _connect_ui_signals(window) -> None:
-    """Подключение сигналов UI."""
+def _connect_ui_signals(window: Any) -> None:
+    """Подключить сигналы UI."""
     if getattr(window, "_ui_signals_connected", False):
         return
     try:
@@ -583,8 +587,8 @@ def _connect_ui_signals(window) -> None:
     window._ui_signals_connected = True
 
 
-def setup_keyboard(window, controllers: Dict[str, Any]) -> None:
-    """Настройка централизованного управления горячими клавишами."""
+def setup_keyboard(window: Any, controllers: Dict[str, Any]) -> None:
+    """Настроить централизованное управление горячими клавишами."""
     window.keyboard_manager = KeyboardManager(window)
 
 
@@ -592,24 +596,29 @@ class DatabaseEventHandler:
     """Обработчик событий базы данных."""
 
     @staticmethod
-    def handle_database_restored(window, new_db):
-        """Обработка восстановления базы данных."""
+    def handle_database_restored(window: Any, new_db: Any):
+        """Обработать восстановление базы данных."""
         window.db = new_db
         DatabaseEventHandler._update_controllers_with_new_db(window, new_db)
         DatabaseEventHandler._restore_ui_state(window)
         window.update_statusbar()
 
     @staticmethod
-    def handle_database_connected(window, new_db):
-        """Обработка подключения новой базы данных."""
+    def handle_database_connected(window: Any, new_db: Any):
+        """Обработать подключение новой базы данных."""
         window.db = new_db
         DatabaseEventHandler._update_controllers_with_new_db(window, new_db)
         DatabaseEventHandler._restore_ui_state(window)
         window.update_statusbar()
 
     @staticmethod
-    def handle_favorites_cleared(window, *, top_panels_controller, links_table_controller):
-        """Обработка очистки избранного.
+    def handle_favorites_cleared(
+        window: Any,
+        *,
+        top_panels_controller: TopPanelsController,
+        links_table_controller: LinksTableController,
+    ):
+        """Обработать очистку избранного.
         Требует явных зависимостей: TopPanelsController и LinksTableController.
         """
         # Валидация зависимостей
@@ -627,8 +636,8 @@ class DatabaseEventHandler:
             links_table_controller.reload(category_id)
 
     @staticmethod
-    def _update_controllers_with_new_db(window, new_db):
-        """Обновить все контроллеры с новой БД."""
+    def _update_controllers_with_new_db(window: Any, new_db: Any):
+        """Обновить все контроллеры новой БД."""
         if hasattr(window, "structure"):
             window.structure.db = new_db
             window.structure.spheres = new_db.spheres
@@ -667,7 +676,7 @@ class DatabaseEventHandler:
                 pass
 
     @staticmethod
-    def _restore_ui_state(window):
+    def _restore_ui_state(window: Any):
         """Восстановить состояние UI после смены БД."""
         category_id = window.get_current_category_id()
         if category_id:
@@ -690,7 +699,7 @@ class MessageHandler:
     """Обработчик сообщений пользователю."""
 
     @staticmethod
-    def show_success_message(window, title: str, message: str):
+    def show_success_message(window: Any, title: str, message: str):
         """Показать сообщение об успехе."""
         from app.controllers.ui.dialogs import DialogManager
 
@@ -702,7 +711,7 @@ class MessageHandler:
         )
 
     @staticmethod
-    def show_error_message(window, title: str, message: str):
+    def show_error_message(window: Any, title: str, message: str):
         """Показать сообщение об ошибке."""
         from app.controllers.ui.dialogs import DialogManager
 
@@ -717,13 +726,13 @@ class MessageHandler:
 class WindowControllersSetup:
     """Координатор настройки контроллеров и компонентов главного окна."""
 
-    def __init__(self, window_initializer):
+    def __init__(self, window_initializer: Any):
         self.window_initializer = window_initializer
         self.window = window_initializer.window
         self.db = window_initializer.db
 
-    def setup_controllers(self):
-        """Настройка контроллеров и компонентов."""
+    def setup_controllers(self) -> None:
+        """Настроить контроллеры и компоненты."""
         controllers: Dict[str, Any] = {}
 
         try:

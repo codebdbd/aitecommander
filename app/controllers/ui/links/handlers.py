@@ -8,6 +8,10 @@ from .base_component import BaseLinksUIComponent
 logger = logging.getLogger(__name__)
 
 
+class SetupError(Exception):
+    """Ошибка проводки критичных сигналов LinksUIHandlers."""
+
+
 class LinksUIHandlers(BaseLinksUIComponent):
     """Обработчики событий для LinksUIController."""
 
@@ -67,12 +71,12 @@ class LinksUIHandlers(BaseLinksUIComponent):
             if hasattr(self.table, "setContextMenuPolicy"):
                 self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         except Exception:
-            pass
+            logger.exception("Failed to set context menu policy on links table")
         try:
             if hasattr(self.table, "customContextMenuRequested"):
                 self.table.customContextMenuRequested.connect(self._on_context_menu)
         except Exception:
-            pass
+            logger.exception("Failed to connect customContextMenuRequested for links table")
 
         # QTableView: используем index-based сигналы и адаптируем к существующим обработчикам
         try:
@@ -80,13 +84,13 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 lambda idx: self._on_double_click(idx.row(), idx.column())
             )
         except Exception:
-            pass
+            logger.exception("Failed to connect doubleClicked for links table")
         try:
             self.table.clicked.connect(
                 lambda idx: self._on_cell_clicked(idx.row(), idx.column())
             )
         except Exception:
-            pass
+            logger.exception("Failed to connect clicked for links table")
         # Флаг реентрантности для защиты от зацикливания при переупорядочивании
         # (например, когда обновление порядка в БД приводит к перезагрузке UI)
         self._handling_reorder: bool = False
@@ -94,14 +98,19 @@ class LinksUIHandlers(BaseLinksUIComponent):
             if hasattr(self.table, "links_reordered"):
                 self.table.links_reordered.connect(self._on_links_reordered)
         except Exception:
-            pass
+            logger.exception("Failed to connect links_reordered for links table")
         # Эксклюзивность выбора: любое выделение в таблице снимает выделение в дереве
         try:
-            sel_model = self.table.selectionModel()
-            if sel_model is not None:
-                sel_model.selectionChanged.connect(self._on_table_selection_changed)
+            if hasattr(self.table, "selectionModel"):
+                sel_model = self.table.selectionModel()
+                if sel_model is not None:
+                    sel_model.selectionChanged.connect(self._on_table_selection_changed)
+                else:
+                    logger.exception("Links table selectionModel() returned None")
+            else:
+                logger.exception("Links table has no selectionModel()")
         except Exception:
-            pass
+            logger.exception("Failed to connect selectionChanged for links table")
         self._table_signals_connected = True
 
         # Обработка клавиш теперь централизована в KeyboardManager

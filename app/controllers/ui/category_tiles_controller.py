@@ -31,28 +31,41 @@ class CategoryTilesController:
 
     def refresh(self, section_id: int) -> None:
         """Обновить плитки для указанного раздела."""
-        try:
-            if not isinstance(section_id, int) or section_id <= 0:
-                logger.warning("CategoryTilesController.refresh: invalid section_id=%s", section_id)
-                return
+        if not isinstance(section_id, int) or section_id <= 0:
+            logger.warning("CategoryTilesController.refresh: invalid section_id=%s", section_id)
+            return
 
+        try:
             categories = self.business.get_categories(int(section_id))
-            # Основной путь: через ui_state (централизует переключение стека)
+        except (ValueError, RuntimeError):
+            # Ожидаемые ошибки получения данных — журналируем и завершаем без исключения
+            logger.exception("CategoryTilesController.refresh: get_categories failed for section #%s", section_id)
+            return
+
+        # Основной путь: через ui_state (централизует переключение стека)
+        try:
             self.ui_state.switch_to_category_tiles(categories or [])
-            # Опционально: прямое обновление, если виджет подключён
-            if self._tiles is not None:
+        except (ValueError, RuntimeError):
+            logger.exception("CategoryTilesController.refresh: ui_state switch failed for section #%s", section_id)
+            return
+        # Опционально: прямое обновление, если виджет подключён
+        if self._tiles is not None:
+            try:
                 self._tiles.set_categories(categories or [])
-        except Exception:
-            logger.exception(
-                "CategoryTilesController.refresh: ошибка обновления плиток раздела #%s",
-                section_id,
-            )
+            except (ValueError, RuntimeError):
+                logger.exception("CategoryTilesController.refresh: tiles.set_categories failed for section #%s", section_id)
+                return
 
     def clear(self) -> None:
         """Очистить плитки категорий (показать пустой набор)."""
         try:
             self.ui_state.switch_to_category_tiles([])
-            if self._tiles is not None:
+        except (ValueError, RuntimeError):
+            logger.exception("CategoryTilesController.clear: ui_state switch failed")
+            return
+        if self._tiles is not None:
+            try:
                 self._tiles.set_categories([])
-        except Exception:
-            logger.exception("CategoryTilesController.clear: ошибка очистки плиток категорий")
+            except (ValueError, RuntimeError):
+                logger.exception("CategoryTilesController.clear: tiles.set_categories failed")
+                return

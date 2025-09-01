@@ -471,6 +471,35 @@ class StructureBusinessLogic(QObject):
             cache_set=self.cache_manager.set,
         )
 
+    # =============================================================================
+    # СИГНАЛЬНЫЕ ОБРАБОТЧИКИ ДЛЯ ПОДКЛЮЧЕНИЯ ИЗ НАСТРОЙКИ ОКНА
+    # =============================================================================
+    def on_active_sphere_changed(self, *_args: Any) -> None:
+        """Обработчик смены активной сферы для подключения напрямую к сигналу.
+
+        Предпочитает асинхронную перезагрузку структуры, если доступен соответствующий
+        метод, иначе выполняет синхронную загрузку через `load_structure()`.
+
+        Замечание: неожиданные исключения не перехватываются здесь намеренно, чтобы
+        логика настройки могла эскалировать ошибку в SetupError при необходимости.
+        """
+        # Попытка вызвать явный async-метод, если он предоставлен бизнес-логикой
+        loader_async = getattr(self, "load_structure_async", None)
+        if callable(loader_async):
+            loader_async()
+            return
+
+        # Фолбэк на синхронную загрузку (метод существует в текущей реализации)
+        loader_sync = getattr(self, "load_structure", None)
+        if callable(loader_sync):
+            loader_sync()
+            return
+
+        # Если ни один метод не обнаружен — зафиксируем и завершим без исключения
+        self.logger.error(
+            "StructureBusinessLogic has no load_structure_async() or load_structure(); skipping reload"
+        )
+
     def get_target_section_id(self) -> Optional[int]:
         """Совместимое имя-обёртка для получения первой категории текущей сферы."""
         return self.utility_service.get_target_section_id(
