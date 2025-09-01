@@ -56,10 +56,12 @@ def _resolve_structure_loader(structure_business: StructureBusinessLogic):
 def _on_structure_changed_schedule_refresh(top_ctrl: TopPanelsController, *_args: Any) -> None:
     """Поставить отложенное обновление топ-панелей при структурном событии.
 
-    При любых ошибках планировщика поднимаем SetupError, чтобы не маскировать проблемы.
+    Используем единый внутренний дебаунс TopPanelsController.request_refresh().
+    При любых ошибках поднимаем SetupError, чтобы не маскировать проблемы.
     """
     try:
-        top_ctrl.schedule_structure_refresh()
+        # Без прямых вызовов refresh_all, только дебаунс-запрос
+        top_ctrl.request_refresh()
     except (AttributeError, TypeError) as e:
         raise SetupError("Scheduling structure-driven top panels refresh failed") from e
     except Exception as e:
