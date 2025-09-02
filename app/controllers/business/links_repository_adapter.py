@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Dict, List, Optional
+import time
+from typing import Any, Dict, List, Optional, Tuple
 
 from app.models.db import Database
 from app.services.uow import UnitOfWork
@@ -15,6 +16,35 @@ class LinksRepositoryAdapter:
     def __init__(self, db: Database, logger=None) -> None:
         self.db = db
         self.logger = logger or logging.getLogger(self.__class__.__name__)
+        # Простой TTL-кэш: key -> (expires_at, value)
+        self._cache: Dict[str, Tuple[float, Any]] = {}
+        self._ttl_seconds: int = 3
+
+    # --- Кэш-помощники ---
+    def _cache_key(self, name: str, *parts: Any) -> str:
+        return f"{name}:{parts!r}"
+
+    def _cache_get(self, key: str) -> Optional[Any]:
+        item = self._cache.get(key)
+        if not item:
+            return None
+        expires_at, value = item
+        if expires_at < time.monotonic():
+            # Просрочено — удаляем
+            self._cache.pop(key, None)
+            return None
+        self.logger.debug("cache hit: %s", key)
+        return value
+
+    def _cache_set(self, key: str, value: Any) -> Any:
+        self._cache[key] = (time.monotonic() + float(self._ttl_seconds), value)
+        self.logger.debug("cache set: %s", key)
+        return value
+
+    def _cache_invalidate_all(self) -> None:
+        if self._cache:
+            self.logger.debug("cache invalidate: %d entries", len(self._cache))
+        self._cache.clear()
 
     # Чтение/поиск
     def fetch_links(self, category_id: int) -> List[Dict]:
@@ -22,7 +52,12 @@ class LinksRepositoryAdapter:
             self.logger.warning("fetch_links: invalid category_id=%r", category_id)
             return []
         try:
-            return self.db.links.get_links(category_id) or []
+            key = self._cache_key("fetch_links", category_id)
+            cached = self._cache_get(key)
+            if cached is not None:
+                return cached
+            res = self.db.links.get_links(category_id) or []
+            return self._cache_set(key, res)
         except Exception as e:
             self.logger.error("fetch_links failed: %s", e)
             raise
@@ -33,14 +68,24 @@ class LinksRepositoryAdapter:
             # Пустой запрос — предсказуемый пустой результат
             return []
         try:
-            return self.db.links.search_links(q) or []
+            key = self._cache_key("search_links", q)
+            cached = self._cache_get(key)
+            if cached is not None:
+                return cached
+            res = self.db.links.search_links(q) or []
+            return self._cache_set(key, res)
         except Exception as e:
             self.logger.error("search_links failed: %s", e)
             raise
 
     def count_favorites(self) -> int:
         try:
-            return int(self.db.links.count_favorites() or 0)
+            key = self._cache_key("count_favorites")
+            cached = self._cache_get(key)
+            if cached is not None:
+                return int(cached)
+            res = int(self.db.links.count_favorites() or 0)
+            return int(self._cache_set(key, res))
         except Exception as e:
             self.logger.error("count_favorites failed: %s", e)
             raise
@@ -52,7 +97,12 @@ class LinksRepositoryAdapter:
             )
             return []
         try:
-            return self.db.links.get_links_for_category(category_id) or []
+            key = self._cache_key("get_links_for_category", category_id)
+            cached = self._cache_get(key)
+            if cached is not None:
+                return cached
+            res = self.db.links.get_links_for_category(category_id) or []
+            return self._cache_set(key, res)
         except Exception as e:
             self.logger.error("get_links_for_category failed: %s", e)
             raise
@@ -66,6 +116,7 @@ class LinksRepositoryAdapter:
             return
         try:
             self.db.links.update_link_order(ids)
+            self._cache_invalidate_all()
         except Exception as e:
             self.logger.error("reorder failed: %s", e)
             raise
@@ -76,7 +127,9 @@ class LinksRepositoryAdapter:
             return None
         with UnitOfWork(self.db):
             try:
-                return self.db.links.upsert_link(link_data)
+                res = self.db.links.upsert_link(link_data)
+                self._cache_invalidate_all()
+                return res
             except Exception as e:
                 self.logger.error("create_or_update_link failed: %s", e)
                 raise
@@ -88,6 +141,7 @@ class LinksRepositoryAdapter:
         with UnitOfWork(self.db):
             try:
                 self.db.links.delete_link(link_id)
+                self._cache_invalidate_all()
             except Exception as e:
                 self.logger.error("delete_link failed: %s", e)
                 raise
@@ -99,6 +153,7 @@ class LinksRepositoryAdapter:
         with UnitOfWork(self.db):
             try:
                 self.db.links.update_link_last_used(link_id)
+                self._cache_invalidate_all()
             except Exception as e:
                 self.logger.error("update_last_used failed: %s", e)
                 raise
@@ -109,14 +164,24 @@ class LinksRepositoryAdapter:
             self.logger.warning("get_recent_links: invalid limit=%r", limit)
             return []
         try:
-            return self.db.links.get_recent_links(lim) or []
+            key = self._cache_key("get_recent_links", lim)
+            cached = self._cache_get(key)
+            if cached is not None:
+                return cached
+            res = self.db.links.get_recent_links(lim) or []
+            return self._cache_set(key, res)
         except Exception as e:
             self.logger.error("get_recent_links failed: %s", e)
             raise
 
     def get_favorite_links(self) -> List[Dict]:
         try:
-            return self.db.links.get_favorite_links() or []
+            key = self._cache_key("get_favorite_links")
+            cached = self._cache_get(key)
+            if cached is not None:
+                return cached
+            res = self.db.links.get_favorite_links() or []
+            return self._cache_set(key, res)
         except Exception as e:
             self.logger.error("get_favorite_links failed: %s", e)
             raise
@@ -129,6 +194,7 @@ class LinksRepositoryAdapter:
                 # clear_favorites в модели может не возвращать счётчик в старых версиях
                 # Считаем как 0 в таком случае — вызывающая сторона обработает/заллогирует
                 affected = 0
+        self._cache_invalidate_all()
         self.logger.debug("clear_favorites affected=%s", affected)
         return affected
 
@@ -137,7 +203,12 @@ class LinksRepositoryAdapter:
             self.logger.warning("get_link_by_id: invalid id=%r", link_id)
             return None
         try:
-            return self.db.links.get_link_by_id(link_id)
+            key = self._cache_key("get_link_by_id", link_id)
+            cached = self._cache_get(key)
+            if cached is not None:
+                return cached
+            res = self.db.links.get_link_by_id(link_id)
+            return self._cache_set(key, res)
         except Exception as e:
             self.logger.error("get_link_by_id failed: %s", e)
             raise
@@ -149,7 +220,12 @@ class LinksRepositoryAdapter:
             )
             return 0
         try:
-            return int(self.db.links.get_next_position(category_id) or 0)
+            key = self._cache_key("get_next_position", category_id)
+            cached = self._cache_get(key)
+            if cached is not None:
+                return int(cached)
+            res = int(self.db.links.get_next_position(category_id) or 0)
+            return int(self._cache_set(key, res))
         except Exception as e:
             self.logger.error("get_next_position failed: %s", e)
             raise
@@ -161,7 +237,10 @@ class LinksRepositoryAdapter:
             self.logger.debug("batch_update: empty payload, no-op")
             return False
         try:
-            return bool(self.db.links.batch_update_links(items))
+            res = bool(self.db.links.batch_update_links(items))
+            if res:
+                self._cache_invalidate_all()
+            return res
         except Exception as e:
             self.logger.error("batch_update failed: %s", e)
             raise
@@ -176,7 +255,10 @@ class LinksRepositoryAdapter:
             self.logger.debug("batch_create_or_update_links: empty payload, no-op")
             return []
         try:
-            return self.db.links.batch_upsert_links(items) or []
+            res = self.db.links.batch_upsert_links(items) or []
+            if res is not None:
+                self._cache_invalidate_all()
+            return res
         except Exception as e:
             self.logger.error("batch_create_or_update_links failed: %s", e)
             raise
@@ -191,7 +273,10 @@ class LinksRepositoryAdapter:
             self.logger.debug("batch_delete_links: empty/invalid ids, no-op")
             return 0
         try:
-            return int(self.db.links.batch_delete_links(ids) or 0)
+            res = int(self.db.links.batch_delete_links(ids) or 0)
+            if res:
+                self._cache_invalidate_all()
+            return res
         except Exception as e:
             self.logger.error("batch_delete_links failed: %s", e)
             raise
