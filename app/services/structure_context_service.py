@@ -9,7 +9,7 @@ from typing import Any, Iterable, Optional
 
 from PyQt6.QtWidgets import QApplication
 
-from app.services.links_service import LinksService
+from app.controllers.business.links_repository_adapter import LinksRepositoryAdapter
 from app.services.structure_service import StructureService
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class StructureContextService:
     def __init__(self, db: Any):
         self.db = db
         self._ss = StructureService(db)
-        self._ls = LinksService(db)
+        self._ls = LinksRepositoryAdapter(db)
 
     # --- Clipboard helpers ---
     def clipboard_has_text(self) -> bool:

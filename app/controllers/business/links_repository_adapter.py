@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from app.models.db import Database
-from app.services import LinksService
+from app.services.uow import UnitOfWork
 
 
 class LinksRepositoryAdapter:
@@ -12,9 +12,8 @@ class LinksRepositoryAdapter:
     скрывая детали от бизнес-логики.
     """
 
-    def __init__(self, db: Database, service: Optional[LinksService] = None, logger=None) -> None:
+    def __init__(self, db: Database, logger=None) -> None:
         self.db = db
-        self.service = service or LinksService(db)
         self.logger = logger or logging.getLogger(self.__class__.__name__)
 
     # Чтение/поиск
@@ -28,42 +27,63 @@ class LinksRepositoryAdapter:
         return int(self.db.links.count_favorites())
 
     def get_links_for_category(self, category_id: int) -> List[Dict]:
-        return self.service.get_links_for_category(category_id) or []
+        return self.db.links.get_links_for_category(category_id) or []
 
     def get_all_links(self) -> List[Dict]:
         try:
-            return self.service.get_all_links() or []
+            return self.db.links.get_all_links() or []
         except Exception:
             # совместимость с текущей бизнес-логикой
             return []
 
     # Мутации/операции
     def reorder(self, link_ids: List[int]) -> None:
-        self.service.reorder(link_ids)
+        # ВАЖНО: repo.update_link_order сам управляет транзакцией
+        self.db.links.update_link_order(link_ids)
 
     def create_or_update_link(self, link_data: Dict[str, Any]) -> Optional[int]:
-        return self.service.create_or_update_link(link_data)
+        with UnitOfWork(self.db):
+            return self.db.links.upsert_link(link_data)
 
     def delete_link(self, link_id: int) -> None:
-        self.service.delete_link(link_id)
+        with UnitOfWork(self.db):
+            self.db.links.delete_link(link_id)
 
     def update_last_used(self, link_id: int) -> None:
-        self.service.update_last_used(link_id)
+        with UnitOfWork(self.db):
+            self.db.links.update_link_last_used(link_id)
 
     def get_recent_links(self, limit: int = 10) -> List[Dict]:
-        return self.service.get_recent_links(limit) or []
+        return self.db.links.get_recent_links(limit) or []
 
     def get_favorite_links(self) -> List[Dict]:
-        return self.service.get_favorite_links() or []
+        return self.db.links.get_favorite_links() or []
 
     def clear_favorites(self) -> bool:
-        return bool(self.service.clear_favorites() or True)
+        with UnitOfWork(self.db):
+            self.db.links.clear_favorites()
+        return True
 
     def get_link_by_id(self, link_id: int) -> Optional[Dict]:
-        return self.service.get_link_by_id(link_id)
+        return self.db.links.get_link_by_id(link_id)
 
     def get_next_position(self, category_id: int) -> int:
-        return int(self.service.get_next_position(category_id) or 0)
+        return int(self.db.links.get_next_position(category_id) or 0)
 
     def batch_update(self, links_data: List[Dict]) -> bool:
-        return bool(self.service.batch_update(links_data))
+        # ВАЖНО: repo.batch_update_links сам управляет транзакцией
+        return bool(self.db.links.batch_update_links(links_data))
+
+    def batch_create_or_update_links(self, links_data: List[Dict]) -> List[int]:
+        """Пакетный upsert ссылок. Возвращает список созданных ID.
+
+        ВАЖНО: repo.batch_upsert_links сам управляет транзакцией.
+        """
+        return self.db.links.batch_upsert_links(links_data) or []
+
+    def batch_delete_links(self, link_ids: List[int]) -> int:
+        """Пакетное удаление ссылок. Возвращает число удалённых записей.
+
+        ВАЖНО: repo.batch_delete_links сам управляет транзакцией.
+        """
+        return int(self.db.links.batch_delete_links(link_ids) or 0)
