@@ -23,6 +23,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
         links_table_controller,
         ui_state=None,
         category_provider=None,
+        structure_tree=None,
     ):
         # Явные требования зависимостей для лучшей диагностируемости
         if links_table_controller is None:
@@ -41,6 +42,10 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 "'ui_state'/'category_provider' must provide callable get_current_category_id()"
             )
         self._category_provider = provider
+
+        # Зависимость дерева структуры для очистки выбора (инжектируется контроллером окна)
+        # Для unit-тестов wiring может отсутствовать, тогда поведение будет только логировать ошибку
+        self._structure_tree = structure_tree
 
         super().__init__(
             controller, link_operations, links_table_controller=links_table_controller
@@ -288,9 +293,10 @@ class LinksUIHandlers(BaseLinksUIComponent):
     def _on_table_selection_changed(self, _selected, _deselected):
         """Эксклюзивность: при выделении в таблице очищаем выделение в дереве."""
         try:
-            structure = getattr(self.main, "structure", None)
-            tree = getattr(structure, "tree", None) if structure else None
-            if tree and hasattr(tree, "clearSelection"):
+            tree = self._structure_tree
+            if hasattr(tree, "clearSelection"):
                 tree.clearSelection()
+            else:
+                raise AttributeError("structure_tree lacks clearSelection()")
         except Exception:
-            pass
+            logger.exception("Failed to clear selection on structure_tree from table selection change")

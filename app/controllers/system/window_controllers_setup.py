@@ -388,12 +388,13 @@ def _add_quick_add_to_top_bar(window: Any) -> None:
 
 
 def _connect_top_panels_signals(window: Any, controllers: Dict[str, Any]) -> None:
-    """Подключить сигналы верхних панелей и выполнить первичную загрузку данных."""
-    try:
-        if window.quick_add_widget:
+    """Подключить сигналы верхних панелей."""
+    # QuickAddWidget — необязательная часть: подключаем только если присутствует
+    if hasattr(window, "quick_add_widget") and window.quick_add_widget:
+        try:
             _connect_quick_add_signal(window, controllers)
-    except (AttributeError, TypeError) as e:
-        logger.warning(f"Failed to wire quick add: {e}")
+        except (AttributeError, TypeError) as e:
+            raise SetupError(f"Failed to wire quick add: {e}") from e
 
     # Favorites panel wiring — критично требует TopPanelsController
     if not hasattr(window, "fav_widget") or not window.fav_widget:
@@ -431,27 +432,19 @@ def _connect_top_panels_signals(window: Any, controllers: Dict[str, Any]) -> Non
         except (AttributeError, TypeError) as e:
             raise SetupError(f"Failed to wire Recents to TopPanelsController: {e}") from e
 
-    # Единичный дебаунс-запрос обновления обеих панелей после первичного подключения
-    top_ctrl = window.top_panels_controller
-    if not top_ctrl:
-        raise SetupError("TopPanelsController not available for initial refresh")
-    try:
-        top_ctrl.request_refresh()
-    except (AttributeError, TypeError) as e:
-        raise SetupError(f"Failed to request initial top panels refresh: {e}") from e
-
+    # Доп. настройки интерфейса — ошибки считаем ошибкой настройки, не подавляем
     try:
         filt = getattr(window, "_auto_hide_tree_filter", None)
         if filt:
             QTimer.singleShot(0, filt._apply)
-    except (AttributeError, TypeError):
-        pass
+    except (AttributeError, TypeError) as e:
+        raise SetupError(f"Failed to apply auto-hide tree filter: {e}") from e
     try:
         mgr = getattr(window, "_topbar_manager", None)
         if mgr:
             QTimer.singleShot(0, mgr.adjust)
-    except (AttributeError, TypeError):
-        pass
+    except (AttributeError, TypeError) as e:
+        raise SetupError(f"Failed to adjust topbar manager: {e}") from e
 
 
 def setup_signal_connections(window: Any, controllers: Dict[str, Any]) -> None:
@@ -465,6 +458,14 @@ def setup_signal_connections(window: Any, controllers: Dict[str, Any]) -> None:
     )
     _connect_database_signals(window)
     QTimer.singleShot(0, partial(_connect_ui_signals, window))
+    # Выполнить первичное обновление верхних панелей отдельно от проводки
+    top_ctrl = getattr(window, "top_panels_controller", None)
+    if not top_ctrl:
+        raise SetupError("TopPanelsController not available for initial refresh")
+    try:
+        top_ctrl.request_refresh()
+    except (AttributeError, TypeError) as e:
+        raise SetupError(f"Failed to request initial top panels refresh: {e}") from e
 
 
 def _connect_structure_signals(

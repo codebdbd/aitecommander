@@ -54,6 +54,12 @@ class LinksUIController(QObject):
         elif hasattr(main_window, "get_current_category_id"):
             _kwargs["category_provider"] = main_window
 
+        # Явная проводка зависимости structure_tree для LinksUIHandlers (если доступна)
+        structure = getattr(main_window, "structure", None)
+        tree = getattr(structure, "tree", None) if structure is not None else None
+        if tree is not None:
+            _kwargs["structure_tree"] = tree
+
         self.handlers = LinksUIHandlers(
             self,
             link_operations=link_operations,
