@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 from PyQt6.QtCore import QObject
 
 from app.controllers.business.links_business import LinksBusinessLogic
+from app.utils.ui.qt.roles import get_selected_rows as get_selected_rows_util
 from app.views.link import LinksTableView
 
 from .clipboard import LinksUIClipboard
@@ -103,19 +104,15 @@ class LinksUIController(QObject):
             self.business.search_links(text)
 
     def get_link_at(self, row: int) -> Optional[Dict]:
-        """Получить ссылку по номеру строки."""
+        """Получить ссылку по номеру строки, делегируя вызов таблице.
+
+        Проверки границ и обработка ошибок инкапсулированы в методе представления.
+        """
         try:
-            model = self.table.model()
-            total = model.rowCount() if model is not None else 0
-        except Exception:
-            total = 0
-        if 0 <= row < total:
-            link = self.table.get_link_at(row)
-
-            # ДИАГНОСТИЧЕСКОЕ ЛОГИРОВАНИЕ ДЛЯ ARGS
-
-            return link
-        return None
+            return self.table.get_link_at(row)
+        except Exception as e:
+            logger.error(f"Ошибка при вызове table.get_link_at: {e}")
+            return None
 
     def get_row_count(self) -> int:
         """Получить количество строк в таблице."""
@@ -169,11 +166,10 @@ class LinksUIController(QObject):
         except Exception:
             pass
 
-    # get_link_by_row удалён как дублирующий get_link_at
 
     def get_selected_rows(self) -> List[int]:
-        """Получить номера выделенных строк."""
-        return sorted({idx.row() for idx in self.table.selectionModel().selectedRows()})
+        """Получить номера выделенных строк через общую утилиту."""
+        return get_selected_rows_util(self.table)
 
     def quick_add_link(self, link_type: str, category_id: int = None):
         """Быстрое добавление ссылки."""

@@ -53,31 +53,43 @@ class DragDropHandlerMixin:
             logging.error(f"[DRAG] Ошибка извлечения ID из элементов: {e}")
             return []
 
-    def _move_row_visually(self, source_row: int, target_row: int):
-        """Перемещает строку через модель (beginMoveRows/endMoveRows)."""
+    def _rebuild_current_links(self):
+        """Очищает и перестраивает кэш _current_links из модели.
+
+        Вызывается после операций, изменяющих порядок строк (сортировка, DnD).
+        """
         try:
-            model = getattr(self, "model", lambda: None)()
-            if model is None:
-                return
-            model.move_rows([source_row], target_row)
-            # Перестраиваем кэш на основе актуального порядка
             self._current_links.clear()
+            model = getattr(self, "model", lambda: None)()
+            if not model:
+                return
+
             for row in range(model.rowCount()):
                 link_data = self.get_link_at(row)
                 if link_data:
                     self._current_links[row] = link_data
         except Exception as e:
+            logging.error(f"[DRAG] Ошибка перестроения кэша ссылок: {e}")
+            self._current_links.clear()  # В случае ошибки кэш должен быть пустым
+
+    def _move_row_visually(self, source_row: int, target_row: int):
+        """Перемещает строку через модель и перестраивает кэш.
+
+        Использует `finally`, чтобы гарантировать перестроение кэша.
+        """        
+        try:
+            model = getattr(self, "model", lambda: None)()
+            if model is None:
+                return
+            # Вызываем `move_rows` из модели, который должен вызвать begin/endMoveRows
+            model.move_rows([source_row], target_row)
+        except Exception as e:
             logging.error(
                 f"[LinksTableView] Ошибка визуального перемещения строки {source_row} -> {target_row}: {e}"
             )
-            # Фолбэк: пересканирование кэша
-            self._current_links.clear()
-            model = getattr(self, "model", lambda: None)()
-            total = model.rowCount() if model is not None else 0
-            for row in range(total):
-                link_data = self.get_link_at(row)
-                if link_data:
-                    self._current_links[row] = link_data
+        finally:
+            # Кэш перестраивается в любом случае, чтобы отразить фактическое состояние модели
+            self._rebuild_current_links()
 
     def _get_current_order(self) -> List[int]:
         """Получает текущий порядок ID ссылок по фактическому порядку строк модели."""
@@ -98,34 +110,9 @@ class DragDropHandlerMixin:
 # --- Переиспользуемые хелперы для таблиц ---
 
 
-def get_selected_rows(table) -> List[int]:
-    """Возвращает отсортированный список уникальных выбранных строк (QTableView).
-
-    Использует ``selectionModel().selectedIndexes()`` и агрегирует уникальные
-    номера строк. Совместимо с любой реализацией на базе ``QAbstractItemView``
-    и моделью ``QAbstractItemModel``.
-    """
-    try:
-        selection_model = table.selectionModel()
-        if not selection_model:
-            return []
-
-        selected_rows = set()
-
-        # Индексы из selectionModel
-        for index in selection_model.selectedIndexes():
-            if index.isValid():
-                selected_rows.add(index.row())
-
-        # Альтернатива через selectedRanges
-        if not selected_rows:
-            for selection_range in selection_model.selectedRanges():
-                for row in range(selection_range.top(), selection_range.bottom() + 1):
-                    selected_rows.add(row)
-
-        return sorted(selected_rows)
-    except Exception:
-        return []
+def get_selected_rows(view) -> List[int]:
+    """Получает отсортированный список уникальных выбранных строк через общую утилиту."""
+    return get_selected_rows_util(view)
 
 
 def extract_source_rows_from_mime(table, event, mime_type: str) -> List[int]:

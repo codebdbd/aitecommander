@@ -94,15 +94,23 @@ def get_row_userrole(view, row: int, column: int = 0, role: Qt.ItemDataRole = Qt
         return None
 
 
-def get_selected_rows(view) -> Tuple[int, ...]:
-    """Возвращает кортеж выбранных индексов строк из selectionModel().selectedRows()."""
+def get_selected_rows(view) -> list[int]:
+    """Возвращает отсортированный список уникальных выбранных строк.
+
+    Безопасно работает с QTableView/QTreeView, используя selectionModel().selectedRows().
+    При любой ошибке или отсутствии выделения возвращает пустой список.
+    """
     try:
-        sel = view.selectionModel()
-        if not sel:
-            return tuple()
-        return tuple(sorted({idx.row() for idx in sel.selectedRows()}))
+        selection_model = view.selectionModel()
+        if not selection_model:
+            return []
+
+        # selectedRows() возвращает индексы только для выбранных строк (по одному на строку)
+        # Это эффективнее, чем собирать индексы из selectedIndexes() и удалять дубликаты
+        selected_rows = {index.row() for index in selection_model.selectedRows()}
+        return sorted(list(selected_rows))
     except Exception:
-        return tuple()
+        return []
 
 
 def find_index_by_role(
