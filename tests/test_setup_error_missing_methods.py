@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 from app.controllers.system.window_controllers_setup import (
     SetupError,
     _connect_structure_signals,
+    _resolve_structure_loader,
     DatabaseEventHandler,
 )
 from app.controllers.ui.links.handlers import LinksUIHandlers
@@ -172,3 +173,63 @@ def test_links_ui_handlers_update_table_unexpected_error_not_suppressed():
         handlers._update_table([], 1, 123)
     
     assert "Unexpected error" in str(exc_info.value)
+
+
+def test_resolve_structure_loader_without_methods_raises_setup_error():
+    """Тест проверяет, что _resolve_structure_loader без методов загрузки вызывает SetupError."""
+    # Создаем объект без методов load_structure_async и load_structure
+    structure_business = SimpleNamespace()
+    
+    with pytest.raises(SetupError) as exc_info:
+        _resolve_structure_loader(structure_business)
+    
+    assert "must provide load_structure_async() or load_structure()" in str(exc_info.value)
+
+
+def test_resolve_structure_loader_with_non_callable_async_raises_setup_error():
+    """Тест проверяет, что _resolve_structure_loader с некорректным load_structure_async вызывает SetupError."""
+    structure_business = SimpleNamespace()
+    structure_business.load_structure_async = "not_callable"  # Не callable
+    
+    with pytest.raises(SetupError) as exc_info:
+        _resolve_structure_loader(structure_business)
+    
+    assert "load_structure_async must be callable" in str(exc_info.value)
+
+
+def test_resolve_structure_loader_with_non_callable_sync_raises_setup_error():
+    """Тест проверяет, что _resolve_structure_loader с некорректным load_structure вызывает SetupError."""
+    structure_business = SimpleNamespace()
+    structure_business.load_structure = "not_callable"  # Не callable
+    
+    with pytest.raises(SetupError) as exc_info:
+        _resolve_structure_loader(structure_business)
+    
+    assert "load_structure must be callable" in str(exc_info.value)
+
+
+def test_resolve_structure_loader_prefers_async_method():
+    """Тест проверяет, что _resolve_structure_loader предпочитает async метод."""
+    structure_business = SimpleNamespace()
+    
+    async_mock = Mock()
+    sync_mock = Mock()
+    
+    structure_business.load_structure_async = async_mock
+    structure_business.load_structure = sync_mock
+    
+    result = _resolve_structure_loader(structure_business)
+    
+    assert result is async_mock
+
+
+def test_resolve_structure_loader_fallback_to_sync():
+    """Тест проверяет, что _resolve_structure_loader использует sync метод при отсутствии async."""
+    structure_business = SimpleNamespace()
+    
+    sync_mock = Mock()
+    structure_business.load_structure = sync_mock
+    
+    result = _resolve_structure_loader(structure_business)
+    
+    assert result is sync_mock

@@ -38,24 +38,41 @@ class SetupError(Exception):
 def _resolve_structure_loader(structure_business: StructureBusinessLogic):
     """Вернуть callable для загрузки структуры: load_structure_async или load_structure.
 
-    Жёсткая типизация: используем hasattr для проверки наличия методов и сразу
-    поднимаем SetupError, если ни один не найден. Неожиданные ошибки логируем и пробрасываем.
+    Строго типизированный поиск загрузчика: проверяем наличие методов через hasattr
+    и сразу поднимаем SetupError, если оба метода отсутствуют.
     """
+    # Проверяем наличие методов загрузки до попытки их использования
+    has_async = hasattr(structure_business, "load_structure_async")
+    has_sync = hasattr(structure_business, "load_structure")
+    
+    if not has_async and not has_sync:
+        raise SetupError(
+            "StructureBusinessLogic must provide load_structure_async() or load_structure()"
+        )
+    
     try:
-        if hasattr(structure_business, "load_structure_async"):
+        # Приоритет async методу, если доступен
+        if has_async:
             loader = structure_business.load_structure_async  # type: ignore[attr-defined]
-            if callable(loader):
-                return loader
-        if hasattr(structure_business, "load_structure"):
+            if not callable(loader):
+                raise SetupError("StructureBusinessLogic.load_structure_async must be callable")
+            return loader
+        
+        if has_sync:
             loader = structure_business.load_structure  # type: ignore[attr-defined]
-            if callable(loader):
-                return loader
+            if not callable(loader):
+                raise SetupError("StructureBusinessLogic.load_structure must be callable")
+            return loader
+            
+    except SetupError:
+        # SetupError уже содержит информативное сообщение - пробрасываем как есть
+        raise
     except Exception as e:
         logger.exception("Unexpected error while resolving structure loader")
-        raise
-    raise SetupError(
-        "StructureBusinessLogic must provide load_structure_async() or load_structure()"
-    )
+        raise SetupError("Failed to resolve structure loader due to unexpected error") from e
+    
+    # Этот код никогда не должен выполниться из-за проверок выше
+    raise SetupError("Internal error: structure loader resolution failed")
 
 def _on_structure_changed_schedule_refresh(top_ctrl: TopPanelsController, *_args: Any) -> None:
     """Поставить отложенное обновление топ-панелей при структурном событии.
@@ -109,7 +126,8 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
     # Ранняя проверка наличия критичных сигналов LinkOperationsController
     try:
         rec_sig = link_ops.recents_changed  # должен существовать и иметь connect
-        _ = getattr(rec_sig, "connect")
+        if not hasattr(rec_sig, "connect"):
+            raise AttributeError("recents_changed must have connect")
     except Exception as e:
         raise SetupError("LinkOperationsController must expose recents_changed signal") from e
     # Инициализируем LinksBusiness только после успешной настройки tiles,
@@ -445,15 +463,13 @@ def _connect_top_panels_signals_explicit(
 
     # Доп. настройки интерфейса — валидируем callables, без getattr от window
     if auto_hide_tree_filter is not None:
-        apply_fn = getattr(auto_hide_tree_filter, "_apply", None)
-        if not callable(apply_fn):
+        if not hasattr(auto_hide_tree_filter, "_apply") or not callable(auto_hide_tree_filter._apply):
             raise SetupError("_auto_hide_tree_filter must provide callable _apply()")
-        QTimer.singleShot(0, apply_fn)
+        QTimer.singleShot(0, auto_hide_tree_filter._apply)
     if topbar_manager is not None:
-        adjust_fn = getattr(topbar_manager, "adjust", None)
-        if not callable(adjust_fn):
+        if not hasattr(topbar_manager, "adjust") or not callable(topbar_manager.adjust):
             raise SetupError("_topbar_manager must provide callable adjust()")
-        QTimer.singleShot(0, adjust_fn)
+        QTimer.singleShot(0, topbar_manager.adjust)
 
 
  
@@ -493,7 +509,7 @@ def _connect_structure_signals(
     spheres_controller: SpheresBarController,
 ) -> None:
     """Подключить сигналы структуры."""
-    if getattr(window, "_structure_signals_connected", False):
+    if hasattr(window, "_structure_signals_connected") and window._structure_signals_connected:
         return
     try:
         structure_business.active_sphere_changed.connect(
@@ -563,19 +579,18 @@ def _connect_structure_signals(
 
     # После подключения сигналов сразу выставим визуальное состояние активной кнопки,
     # если текущая сфера уже известна (исправляет отсутствие фокуса/чека на старте)
-    curr_id = getattr(structure_business, "current_sphere_id", None)
+    curr_id = structure_business.current_sphere_id if hasattr(structure_business, "current_sphere_id") else None
     if isinstance(curr_id, int) and curr_id > 0:
-        updater = getattr(spheres_controller, "update_active_sphere_button", None)
-        if callable(updater):
+        if hasattr(spheres_controller, "update_active_sphere_button") and callable(spheres_controller.update_active_sphere_button):
             try:
-                updater(int(curr_id))
+                spheres_controller.update_active_sphere_button(int(curr_id))
             except (TypeError, ValueError):
                 logger.debug("Failed to update active sphere button with current_sphere_id", exc_info=False)
 
 
 def _connect_database_signals(window: Any) -> None:
     """Подключить сигналы базы данных."""
-    if getattr(window, "_database_signals_connected", False):
+    if hasattr(window, "_database_signals_connected") and window._database_signals_connected:
         return
     db_controller = window.database_controller
 
@@ -607,7 +622,7 @@ def _connect_database_signals(window: Any) -> None:
 
 def _connect_ui_signals(window: Any) -> None:
     """Подключить сигналы UI."""
-    if getattr(window, "_ui_signals_connected", False):
+    if hasattr(window, "_ui_signals_connected") and window._ui_signals_connected:
         return
     # Дерево структуры: подключаем без широких исключений
     if hasattr(window, "tree") and window.tree:
@@ -750,7 +765,8 @@ class DatabaseEventHandler:
             try:
                 def _set_first_sphere_once(spheres_list):
                     try:
-                        if spheres_list and getattr(sb, "get_current_sphere_id", None) and sb.get_current_sphere_id() is None:
+                        has_get = hasattr(sb, "get_current_sphere_id") and callable(sb.get_current_sphere_id)
+                        if spheres_list and has_get and sb.get_current_sphere_id() is None:
                             first_sphere_id = spheres_list[0].get("id", 1)
                             sb.set_current_sphere(first_sphere_id)
                     finally:
@@ -759,7 +775,7 @@ class DatabaseEventHandler:
                         except Exception:
                             logger.exception("Failed to disconnect _set_first_sphere_once from spheres_loaded")
                 sb.spheres_loaded.connect(_set_first_sphere_once)
-                if getattr(sb, "load_spheres_async", None):
+                if hasattr(sb, "load_spheres_async") and callable(sb.load_spheres_async):
                     sb.load_spheres_async()
             except Exception:
                 logger.exception("Failed to update structure_business with new DB")
@@ -770,10 +786,9 @@ class DatabaseEventHandler:
         """Восстановить состояние UI после смены БД."""
         category_id = window.get_current_category_id()
         if category_id:
-            ctrl = getattr(window, "links_table_controller", None)
-            if ctrl:
+            if hasattr(window, "links_table_controller") and window.links_table_controller:
                 try:
-                    ctrl.reload(category_id)
+                    window.links_table_controller.reload(category_id)
                 except (AttributeError, TypeError) as e:
                     logger.error(
                         "_restore_ui_state: links_table_controller.reload failed due to interface error: %s",
@@ -784,10 +799,9 @@ class DatabaseEventHandler:
                     logger.exception("_restore_ui_state: unexpected error during table reload")
                     raise
             else:
-                links_business = getattr(window, "links_business", None)
-                if links_business:
+                if hasattr(window, "links_business") and window.links_business:
                     try:
-                        links_business.load_links(category_id)
+                        window.links_business.load_links(category_id)
                     except (AttributeError, TypeError) as e:
                         logger.error(
                             "_restore_ui_state: links_business.load_links failed due to interface error: %s",
