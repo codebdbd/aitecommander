@@ -199,12 +199,18 @@ class LinksUIHandlers(BaseLinksUIComponent):
             )
             raise
 
-    def _complete_toggle_fav(self, fav_count: int):
+    def _complete_toggle_fav(
+        self, fav_count: int, links: List[Dict], link: Optional[Dict]
+    ):
         """Завершить переключение избранного."""
         # Централизуем эмиссию сигналов в LinkOperationsController
         try:
-            # Используем явный провайдер вместо getattr(self.main, ...)
-            cat_id = self._category_provider.get_current_category_id()
+            cat_id = None
+            if link is not None:
+                cat_id = link.get("category_id")
+            if not isinstance(cat_id, int) or cat_id <= 0:
+                # Используем явный провайдер вместо getattr(self.main, ...)
+                cat_id = self._category_provider.get_current_category_id()
             self.link_operations.on_favorite_toggled(cat_id)
         except Exception as e:
             logger.warning(f"Failed to emit signals after toggle favorite: {e}")

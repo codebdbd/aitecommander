@@ -288,18 +288,14 @@ class LinkModel(DatabaseBase):
         )
         return cursor[0]
 
-    def clear_favorites(self) -> int:
-        """Сбрасывает признак избранного у всех ссылок. Возвращает число затронутых строк."""
+    def clear_favorites(self):
+        """Сбрасывает признак избранного у всех ссылок."""
         try:
-            cursor = self._execute_with_error_handling(
+            self._execute_with_error_handling(
                 "UPDATE link SET is_favorite=0 WHERE is_favorite=1"
             )
-            try:
-                affected = int(getattr(cursor, "rowcount", 0) or 0)
-            except Exception:
-                affected = 0
-            logger.info("Очищены все избранные ссылки, затронуто: %s", affected)
-            return affected
+            
+            logger.info("Очищены все избранные ссылки")
         except Exception as e:
             logger.error(f"Ошибка очистки избранного: {e}")
             raise DatabaseError(f"Не удалось очистить избранное: {e}")

@@ -21,18 +21,6 @@ All notable changes to this project will be documented in this file.
   - Added shared stubs/fixtures in `tests/conftest.py` (signals, minimal favorites/recents widgets, links business).
   - Updated tests to use shared fixtures; fixed missing imports; added tests for model cache and setup errors.
 
- - Links domain refactor: async delegation and DI
-   - `LinksBusinessLogic` очищен от легаси-асинхрона; асинхронные операции делегируются в `LinkAsyncController`; доступ к данным — в `LinksRepositoryAdapter`.
-   - Сохранён публичный контракт сигналов UI: `links_loaded`, `search_results_ready`, `favorites_counted`, `link_updated`, `error_occurred`.
-   - `LinksBusinessLogic.shutdown(timeout)` теперь проксирует таймаут в `LinkAsyncController.shutdown(timeout_ms)`.
- - Dependency Injection в `window_controllers_setup.py`
-   - Явное создание `LinksRepositoryAdapter` и `LinkAsyncController` и передача в `LinksBusinessLogic`.
-   - Защита: адаптер создаётся только при наличии `db.links`, чтобы ранние `SetupError` в тестах не маскировались созданием адаптера.
- - Тесты ссылок
-   - Добавлены `tests/test_link_async_controller.py` (юнит‑тесты без Qt для `LinkAsyncController`).
-   - Добавлены `tests/test_links_business_logic_async_delegation.py` (делегирование и сигналы `LinksBusinessLogic`).
-   - Добавлен `tests/test_app_shutdown_controller_links_business.py` (вызов `links_business.shutdown()` из `AppShutdownController`).
-
 ### Summary
 - TopPanelsController жёстко требует виджеты и бизнес‑слой, инициализирует четыре QTimer и предоставляет методы с дебаунсом `request_refresh`, `request_favorites_refresh` и `request_recents_refresh`, логируя ошибки загрузки и обновления панелей.
 - CategoryTilesController принимает `ui_state` и `structure_business` как обязательные зависимости и обновляет плитки через состояние, опционально передавая данные напрямую в виджет, при этом фиксируя ошибки получения категорий или переключения состояния.
