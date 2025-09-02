@@ -3,8 +3,6 @@ from dataclasses import dataclass
 
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.business.links_business import LinksBusinessLogic
-from app.controllers.business.links_repository_adapter import LinksRepositoryAdapter
-from app.controllers.business.link_async_controller import LinkAsyncController
 from app.controllers.system.app_shutdown_controller import AppShutdownController
 from app.controllers.ui.dialogs import (
     DatabaseController,
@@ -34,10 +32,7 @@ def build_controllers(window) -> ControllersFacade:
     """
     # Бизнес-логика
     structure_business = StructureBusinessLogic(window.db)
-    # Новая DI-схема для LinksBusinessLogic: через адаптер и async-контроллер
-    repo = LinksRepositoryAdapter(window.db)
-    link_async = LinkAsyncController()
-    links_business = LinksBusinessLogic(repository=repo, async_controller=link_async)
+    links_business = LinksBusinessLogic(window.db)
 
     # UI-контроллеры и специализированные контроллеры
     structure_ctrl = StructureUIController(window.tree, structure_business, window)

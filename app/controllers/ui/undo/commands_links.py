@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 
 import logging
 
-from app.controllers.business.links_repository_adapter import LinksRepositoryAdapter
+from app.services import LinksService
 from app.controllers.ui.undo.base import BaseCommand, log_command
 
 logger = logging.getLogger(__name__)
@@ -42,12 +42,12 @@ class SaveLinkCmd(BaseCommand):
         except Exception as exc:
             logger.exception("SaveLinkCmd.redo: failed to merge old/new data: %s", exc)
 
-        # Сохраняем ссылку через бизнес-слой, иначе — через адаптер (UnitOfWork внутри)
+        # Сохраняем ссылку через сервисный слой (UnitOfWork внутри)
         if hasattr(self.main, "links_business") and self.main.links_business:
             result = self.main.links_business.links.create_or_update_link(self.new_data)
         else:
-            # Фоллбек через адаптер
-            result = LinksRepositoryAdapter(self.db).create_or_update_link(self.new_data)
+            # Фоллбек через сервисный слой
+            result = LinksService(self.db).create_or_update_link(self.new_data)
         if result and not self.new_data.get("id"):
             self.new_data["id"] = result
             self.created_id = result
@@ -89,14 +89,14 @@ class SaveLinkCmd(BaseCommand):
             if hasattr(self.main, "links_business") and self.main.links_business:
                 self.main.links_business.links.delete_link(link_id)
             else:
-                LinksRepositoryAdapter(self.db).delete_link(link_id)
+                LinksService(self.db).delete_link(link_id)
         else:
             # Иначе восстанавливаем старые данные
             if self.old_data:
                 if hasattr(self.main, "links_business") and self.main.links_business:
                     self.main.links_business.links.create_or_update_link(self.old_data)
                 else:
-                    LinksRepositoryAdapter(self.db).create_or_update_link(self.old_data)
+                    LinksService(self.db).create_or_update_link(self.old_data)
                 if hasattr(self.main, "links_business") and self.main.links_business:
                     try:
                         self.main.links_business.link_updated.emit(self.old_data)
@@ -140,8 +140,8 @@ class BatchDeleteLinksCmd(BaseCommand):
         ids = [x.get("id") for x in self.links if isinstance(x.get("id"), int)]
         if not ids:
             return
-        # Пакетное удаление через адаптер
-        LinksRepositoryAdapter(self.db).batch_delete_links(ids)
+        # Пакетное удаление через сервисный слой
+        LinksService(self.db).batch_delete_links(ids)
         # Разовая перезагрузка таблицы, если не подавлено
         try:
             if not getattr(self, "_suppress_ui", False):
@@ -167,12 +167,12 @@ class BatchDeleteLinksCmd(BaseCommand):
     def undo(self):
         # Восстанавливаем все удалённые записи (batch upsert)
         try:
-            LinksRepositoryAdapter(self.db).batch_create_or_update_links(self.links)
+            LinksService(self.db).batch_create_or_update_links(self.links)
         except Exception as exc:
             # Fallback: поштучно
             logger.warning("BatchDeleteLinksCmd.undo: batch upsert failed, fallback to single: %s", exc)
             for link in self.links:
-                LinksRepositoryAdapter(self.db).create_or_update_link(link)
+                LinksService(self.db).create_or_update_link(link)
         # Обновление UI после восстановления (игнорируем подавление для Undo)
         try:
             cat_id = (self.links[0] if self.links else {}).get("category_id")
@@ -209,8 +209,8 @@ class DeleteLinkCmd(BaseCommand):
             if hasattr(self.main, "links_business") and self.main.links_business:
                 self.main.links_business.links.delete_link(link_id)
             else:
-                # Фоллбек через адаптер
-                LinksRepositoryAdapter(self.db).delete_link(link_id)
+                # Фоллбек через сервисный слой
+                LinksService(self.db).delete_link(link_id)
         # После удаления перезагружаем таблицу соответствующей категории, если не подавлено
         try:
             if not getattr(self, "_suppress_ui", False):
@@ -238,8 +238,8 @@ class DeleteLinkCmd(BaseCommand):
         if hasattr(self.main, "links_business") and self.main.links_business:
             self.main.links_business.links.create_or_update_link(self.link)
         else:
-            # Фоллбек через адаптер доступа к данным
-            LinksRepositoryAdapter(self.db).create_or_update_link(self.link)
+            # Фоллбек через сервисный слой
+            LinksService(self.db).create_or_update_link(self.link)
         if hasattr(self.main, "links_business") and self.main.links_business:
             try:
                 self.main.links_business.link_updated.emit(self.link)
@@ -286,7 +286,7 @@ class BatchSaveLinksCmd(BaseCommand):
                 self.links_data
             )
         else:
-            created = LinksRepositoryAdapter(self.db).batch_create_or_update_links(
+            created = LinksService(self.db).batch_create_or_update_links(
                 self.links_data
             )
         self.created_ids.extend(created or [])
@@ -315,7 +315,7 @@ class BatchSaveLinksCmd(BaseCommand):
         # Удаляем созданные записи одним батчем
         ids = [lid for lid in self.created_ids if isinstance(lid, int) and lid > 0]
         if ids:
-            LinksRepositoryAdapter(self.db).batch_delete_links(ids)
+            LinksService(self.db).batch_delete_links(ids)
         # Перезагрузить таблицу, если не подавлено
         try:
             if not getattr(self, "_suppress_ui", False):
