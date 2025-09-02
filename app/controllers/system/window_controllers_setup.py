@@ -691,19 +691,39 @@ class DatabaseEventHandler:
             window.structure.categories = new_db.categories
             window.structure.load()
 
-        try:
-            la = getattr(window, "links_actions", None)
-            if la and getattr(la, "links", None):
-                la.links.db = new_db
-                la.links.links = new_db.links
-        except Exception:
-            pass
+        la = getattr(window, "links_actions", None)
+        if la:
+            # Критичная зависимость: links_actions.links должен существовать
+            if not getattr(la, "links", None):
+                logger.error("links_actions.links is missing during DB switch")
+                raise SetupError("links_actions.links is required when switching database")
+            links = la.links
+            # И должен поддерживать необходимые атрибуты
+            if not hasattr(links, "db") or not hasattr(links, "links"):
+                logger.error("links_actions.links must expose 'db' and 'links' attributes")
+                raise SetupError("links_actions.links must have 'db' and 'links' attributes")
+            try:
+                links.db = new_db
+                links.links = new_db.links
+            except Exception:
+                logger.exception("Failed to update links_actions.links with new DB")
+                raise
 
         if hasattr(window, "structure_business"):
-            window.structure_business.db = new_db
+            sb = window.structure_business
+            sb.db = new_db
+            # Критичные проверки интерфейса
+            if not hasattr(sb, "spheres_loaded"):
+                logger.error("structure_business.spheres_loaded signal is required")
+                raise SetupError("structure_business must expose 'spheres_loaded' signal")
+            signal = sb.spheres_loaded
+            if not hasattr(signal, "connect") or not hasattr(signal, "disconnect"):
+                logger.error("structure_business.spheres_loaded must support connect/disconnect")
+                raise SetupError("structure_business.spheres_loaded must support connect/disconnect")
+            if not hasattr(sb, "get_current_sphere_id") or not hasattr(sb, "set_current_sphere"):
+                logger.error("structure_business must implement get_current_sphere_id/set_current_sphere")
+                raise SetupError("structure_business must implement get_current_sphere_id and set_current_sphere")
             try:
-                sb = window.structure_business
-
                 def _set_first_sphere_once(spheres_list):
                     try:
                         if spheres_list and getattr(sb, "get_current_sphere_id", None) and sb.get_current_sphere_id() is None:
@@ -713,32 +733,45 @@ class DatabaseEventHandler:
                         try:
                             sb.spheres_loaded.disconnect(_set_first_sphere_once)
                         except Exception:
-                            pass
-
+                            logger.exception("Failed to disconnect _set_first_sphere_once from spheres_loaded")
                 sb.spheres_loaded.connect(_set_first_sphere_once)
                 if getattr(sb, "load_spheres_async", None):
                     sb.load_spheres_async()
             except Exception:
-                pass
+                logger.exception("Failed to update structure_business with new DB")
+                raise
 
     @staticmethod
     def _restore_ui_state(window: Any):
         """Восстановить состояние UI после смены БД."""
         category_id = window.get_current_category_id()
         if category_id:
-            try:
-                ctrl = getattr(window, "links_table_controller", None)
-                if ctrl:
+            ctrl = getattr(window, "links_table_controller", None)
+            if ctrl:
+                try:
                     ctrl.reload(category_id)
-                else:
-                    links_business = getattr(window, "links_business", None)
-                    if links_business:
-                        try:
-                            links_business.load_links(category_id)
-                        except Exception:
-                            pass
-            except Exception:
-                pass
+                except (AttributeError, TypeError) as e:
+                    logger.error(
+                        "_restore_ui_state: links_table_controller.reload failed due to interface error: %s",
+                        e,
+                    )
+                except Exception as e:
+                    # Неожиданная ошибка — не скрываем
+                    logger.exception("_restore_ui_state: unexpected error during table reload")
+                    raise
+            else:
+                links_business = getattr(window, "links_business", None)
+                if links_business:
+                    try:
+                        links_business.load_links(category_id)
+                    except (AttributeError, TypeError) as e:
+                        logger.error(
+                            "_restore_ui_state: links_business.load_links failed due to interface error: %s",
+                            e,
+                        )
+                    except Exception as e:
+                        logger.exception("_restore_ui_state: unexpected error during business load_links")
+                        raise
 
 
 class MessageHandler:
