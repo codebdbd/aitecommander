@@ -18,39 +18,108 @@ class LinksRepositoryAdapter:
 
     # Чтение/поиск
     def fetch_links(self, category_id: int) -> List[Dict]:
-        return self.db.links.get_links(category_id) or []
+        if not isinstance(category_id, int) or category_id <= 0:
+            self.logger.warning("fetch_links: invalid category_id=%r", category_id)
+            return []
+        try:
+            return self.db.links.get_links(category_id) or []
+        except Exception as e:
+            self.logger.error("fetch_links failed: %s", e)
+            raise
 
     def search_links(self, query: str) -> List[Dict]:
-        return self.db.links.search_links(query) or []
+        q = (query or "").strip()
+        if not q:
+            # Пустой запрос — предсказуемый пустой результат
+            return []
+        try:
+            return self.db.links.search_links(q) or []
+        except Exception as e:
+            self.logger.error("search_links failed: %s", e)
+            raise
 
     def count_favorites(self) -> int:
-        return int(self.db.links.count_favorites())
+        try:
+            return int(self.db.links.count_favorites() or 0)
+        except Exception as e:
+            self.logger.error("count_favorites failed: %s", e)
+            raise
 
     def get_links_for_category(self, category_id: int) -> List[Dict]:
-        return self.db.links.get_links_for_category(category_id) or []
+        if not isinstance(category_id, int) or category_id <= 0:
+            self.logger.warning(
+                "get_links_for_category: invalid category_id=%r", category_id
+            )
+            return []
+        try:
+            return self.db.links.get_links_for_category(category_id) or []
+        except Exception as e:
+            self.logger.error("get_links_for_category failed: %s", e)
+            raise
 
     # Мутации/операции
     def reorder(self, link_ids: List[int]) -> None:
         # ВАЖНО: repo.update_link_order сам управляет транзакцией
-        self.db.links.update_link_order(link_ids)
+        ids = [i for i in (link_ids or []) if isinstance(i, int) and i > 0]
+        if not ids:
+            self.logger.debug("reorder: empty/invalid ids, no-op")
+            return
+        try:
+            self.db.links.update_link_order(ids)
+        except Exception as e:
+            self.logger.error("reorder failed: %s", e)
+            raise
 
     def create_or_update_link(self, link_data: Dict[str, Any]) -> Optional[int]:
+        if not isinstance(link_data, dict) or not link_data:
+            self.logger.warning("create_or_update_link: empty or invalid payload")
+            return None
         with UnitOfWork(self.db):
-            return self.db.links.upsert_link(link_data)
+            try:
+                return self.db.links.upsert_link(link_data)
+            except Exception as e:
+                self.logger.error("create_or_update_link failed: %s", e)
+                raise
 
     def delete_link(self, link_id: int) -> None:
+        if not isinstance(link_id, int) or link_id <= 0:
+            self.logger.warning("delete_link: invalid id=%r", link_id)
+            return
         with UnitOfWork(self.db):
-            self.db.links.delete_link(link_id)
+            try:
+                self.db.links.delete_link(link_id)
+            except Exception as e:
+                self.logger.error("delete_link failed: %s", e)
+                raise
 
     def update_last_used(self, link_id: int) -> None:
+        if not isinstance(link_id, int) or link_id <= 0:
+            self.logger.warning("update_last_used: invalid id=%r", link_id)
+            return
         with UnitOfWork(self.db):
-            self.db.links.update_link_last_used(link_id)
+            try:
+                self.db.links.update_link_last_used(link_id)
+            except Exception as e:
+                self.logger.error("update_last_used failed: %s", e)
+                raise
 
     def get_recent_links(self, limit: int = 10) -> List[Dict]:
-        return self.db.links.get_recent_links(limit) or []
+        lim = int(limit or 0)
+        if lim <= 0:
+            self.logger.warning("get_recent_links: invalid limit=%r", limit)
+            return []
+        try:
+            return self.db.links.get_recent_links(lim) or []
+        except Exception as e:
+            self.logger.error("get_recent_links failed: %s", e)
+            raise
 
     def get_favorite_links(self) -> List[Dict]:
-        return self.db.links.get_favorite_links() or []
+        try:
+            return self.db.links.get_favorite_links() or []
+        except Exception as e:
+            self.logger.error("get_favorite_links failed: %s", e)
+            raise
 
     def clear_favorites(self) -> int:
         with UnitOfWork(self.db):
@@ -64,25 +133,65 @@ class LinksRepositoryAdapter:
         return affected
 
     def get_link_by_id(self, link_id: int) -> Optional[Dict]:
-        return self.db.links.get_link_by_id(link_id)
+        if not isinstance(link_id, int) or link_id <= 0:
+            self.logger.warning("get_link_by_id: invalid id=%r", link_id)
+            return None
+        try:
+            return self.db.links.get_link_by_id(link_id)
+        except Exception as e:
+            self.logger.error("get_link_by_id failed: %s", e)
+            raise
 
     def get_next_position(self, category_id: int) -> int:
-        return int(self.db.links.get_next_position(category_id) or 0)
+        if not isinstance(category_id, int) or category_id <= 0:
+            self.logger.warning(
+                "get_next_position: invalid category_id=%r", category_id
+            )
+            return 0
+        try:
+            return int(self.db.links.get_next_position(category_id) or 0)
+        except Exception as e:
+            self.logger.error("get_next_position failed: %s", e)
+            raise
 
     def batch_update(self, links_data: List[Dict]) -> bool:
         # ВАЖНО: repo.batch_update_links сам управляет транзакцией
-        return bool(self.db.links.batch_update_links(links_data))
+        items = [x for x in (links_data or []) if isinstance(x, dict) and x]
+        if not items:
+            self.logger.debug("batch_update: empty payload, no-op")
+            return False
+        try:
+            return bool(self.db.links.batch_update_links(items))
+        except Exception as e:
+            self.logger.error("batch_update failed: %s", e)
+            raise
 
     def batch_create_or_update_links(self, links_data: List[Dict]) -> List[int]:
         """Пакетный upsert ссылок. Возвращает список созданных ID.
 
         ВАЖНО: repo.batch_upsert_links сам управляет транзакцией.
         """
-        return self.db.links.batch_upsert_links(links_data) or []
+        items = [x for x in (links_data or []) if isinstance(x, dict) and x]
+        if not items:
+            self.logger.debug("batch_create_or_update_links: empty payload, no-op")
+            return []
+        try:
+            return self.db.links.batch_upsert_links(items) or []
+        except Exception as e:
+            self.logger.error("batch_create_or_update_links failed: %s", e)
+            raise
 
     def batch_delete_links(self, link_ids: List[int]) -> int:
         """Пакетное удаление ссылок. Возвращает число удалённых записей.
 
         ВАЖНО: repo.batch_delete_links сам управляет транзакцией.
         """
-        return int(self.db.links.batch_delete_links(link_ids) or 0)
+        ids = [i for i in (link_ids or []) if isinstance(i, int) and i > 0]
+        if not ids:
+            self.logger.debug("batch_delete_links: empty/invalid ids, no-op")
+            return 0
+        try:
+            return int(self.db.links.batch_delete_links(ids) or 0)
+        except Exception as e:
+            self.logger.error("batch_delete_links failed: %s", e)
+            raise
