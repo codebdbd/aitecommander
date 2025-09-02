@@ -201,17 +201,21 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
         except (AttributeError, TypeError) as e:
             logger.warning(f"Failed to inject TopPanelsController into StructureBusinessLogic: {e}")
 
-        # Внедряем TopPanelsController в ThemeController (для последующего refresh_all())
-        try:
-            theme_ctrl = getattr(window, "theme_ctrl", None)
-            if theme_ctrl is not None:
-                if hasattr(theme_ctrl, "set_top_panels_controller"):
+        # Внедряем TopPanelsController в ThemeController: требуем явный сеттер
+        theme_ctrl = getattr(window, "theme_ctrl", None)
+        if theme_ctrl is not None:
+            if hasattr(theme_ctrl, "set_top_panels_controller"):
+                try:
                     theme_ctrl.set_top_panels_controller(window.top_panels_controller)
-                else:
-                    # Фолбэк для старых версий ThemeController
-                    setattr(theme_ctrl, "top_panels_controller", window.top_panels_controller)
-        except Exception as e:
-            logger.warning(f"Failed to inject TopPanelsController into ThemeController: {e}")
+                except (AttributeError, TypeError) as e:
+                    raise SetupError(
+                        "Failed to inject TopPanelsController into ThemeController: incompatible set_top_panels_controller"
+                    ) from e
+            else:
+                # Больше не поддерживаем скрытый фолбэк через setattr — это маскирует ошибки интерфейса
+                raise SetupError(
+                    "ThemeController must implement set_top_panels_controller(top_panels_controller)"
+                )
     except (AttributeError, TypeError) as e:
         logger.error(f"Failed to create TopPanelsController: {e}")
         raise SetupError("Failed to create TopPanelsController") from e
