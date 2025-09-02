@@ -39,18 +39,12 @@ class DummyAsync:
         self.calls.append(("search_links_async", query))
         self._last_callbacks["search"] = (search_fn, on_finished, on_error, query)
 
-    def count_favorites_async(self, *, count_fn, all_links_supplier, link_ctx, on_finished, on_error):
+    def count_favorites_async(self, *, count_fn, links, link_ctx, on_finished, on_error):
         self.calls.append(("count_favorites_async", link_ctx))
-        self._last_callbacks["fav"] = (count_fn, all_links_supplier, on_finished, on_error, link_ctx)
+        self._last_callbacks["fav"] = (count_fn, links, on_finished, on_error, link_ctx)
 
     def shutdown(self, timeout_ms):
         self.shutdown_called_with = timeout_ms
-
-
-class DbStub:
-    def __init__(self):
-        # db.links is accessed by LinksBusinessLogic
-        self.links = object()
 
 
 class SignalStub:
@@ -74,7 +68,7 @@ class SignalStub:
 def business_with_stubs(monkeypatch):
     repo = DummyRepo()
     async_ctrl = DummyAsync()
-    logic = LinksBusinessLogic(db=DbStub(), repository=repo, async_controller=async_ctrl)
+    logic = LinksBusinessLogic(repository=repo, async_controller=async_ctrl)
 
     # Подменяем PyQt сигналы на простые стабы
     logic.links_loaded = SignalStub()
@@ -130,9 +124,8 @@ def test_count_favorites_delegates_and_emits(business_with_stubs):
 
     assert ("count_favorites_async", ctx) in async_ctrl.calls
 
-    count_fn, all_links_supplier, on_finished, _on_error, link_ctx = async_ctrl._last_callbacks["fav"]
+    count_fn, all_links, on_finished, _on_error, link_ctx = async_ctrl._last_callbacks["fav"]
     fav_count = count_fn()
-    all_links = all_links_supplier()
     on_finished(fav_count, all_links, link_ctx)
 
     assert logic.favorites_counted.emitted[-1] == (3, [{"id": 10}], ctx)

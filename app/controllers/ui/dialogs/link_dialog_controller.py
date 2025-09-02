@@ -4,6 +4,8 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from app.controllers.business.links_business import LinksBusinessLogic
+from app.controllers.business.links_repository_adapter import LinksRepositoryAdapter
+from app.controllers.business.link_async_controller import LinkAsyncController
 from app.models.db import Database
 from app.utils.browser.browser_profiles import get_profile_manager
 
@@ -15,7 +17,9 @@ class LinkDialogController:
 
     def __init__(self, database: Database):
         self.database = database
-        self.links_business = LinksBusinessLogic(database)
+        repo = LinksRepositoryAdapter(database)
+        async_ctrl = LinkAsyncController()
+        self.links_business = LinksBusinessLogic(repository=repo, async_controller=async_ctrl)
         self.result_data: List[Dict[str, Any]] = []
         # Единый менеджер профилей через фабрику — исключаем повторные сканы профилей
         self.profile_manager = get_profile_manager()
