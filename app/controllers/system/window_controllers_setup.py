@@ -133,18 +133,12 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
     except Exception as e:
         raise SetupError("LinkOperationsController must expose recents_changed signal") from e
     # Инициализируем LinksBusiness только после успешной настройки tiles.
-    # Важно: не трогаем LinksRepositoryAdapter, если у db нет .links —
-    # тесты ожидают, что SetupError по структуре/теме поднимется раньше.
-    if hasattr(db, "links"):
-        repo = LinksRepositoryAdapter(db)
-        async_ctrl = LinkAsyncController(logger=logger)
-        try:
-            links_business = LinksBusinessLogic(db, repository=repo, async_controller=async_ctrl)
-        except TypeError:
-            # На случай, если LinksBusinessLogic подменён в тестах и не принимает kwargs
-            links_business = LinksBusinessLogic(db)
-    else:
-        links_business = LinksBusinessLogic(db)
+    # Требуем наличие db.links для сборки адаптера данных.
+    if not hasattr(db, "links"):
+        raise SetupError("Database must provide .links model for LinksBusinessLogic wiring")
+    repo = LinksRepositoryAdapter(db)
+    async_ctrl = LinkAsyncController(logger=logger)
+    links_business = LinksBusinessLogic(repository=repo, async_controller=async_ctrl, logger=logger)
 
     links_table_ctrl = LinksTableController(
         window,

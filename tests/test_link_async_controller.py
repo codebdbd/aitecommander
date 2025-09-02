@@ -85,14 +85,14 @@ def test_count_favorites_async_passes_all_links_and_ctx_and_casts_int():
     def count():
         return 5.0  # будет приведено к int
 
-    all_links_supplier = lambda: [{"id": 7}]
+    links = [{"id": 7}]
     ctx = {"id": 7}
 
     calls = []
 
     controller.count_favorites_async(
         count_fn=count,
-        all_links_supplier=all_links_supplier,
+        links=links,
         link_ctx=ctx,
         on_finished=lambda fav_count, links, link_ctx: calls.append((fav_count, links, link_ctx)),
         on_error=lambda e: pytest.fail(f"Unexpected error: {e}"),

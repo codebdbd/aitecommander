@@ -81,16 +81,15 @@ class LinkAsyncController:
         self,
         *,
         count_fn: Callable[[], int],
-        all_links_supplier: Callable[[], List[Dict]],
+        links: List[Dict],
         link_ctx: Optional[Dict],
         on_finished: Callable[[int, List[Dict], Optional[Dict]], None],
         on_error: Callable[[str], None],
     ) -> None:
-        all_links = all_links_supplier()
         self._run_db(
             count_fn,
             description="count_favorites()",
-            on_finished=lambda fav_count: on_finished(int(fav_count), all_links, link_ctx),
+            on_finished=lambda fav_count: on_finished(int(fav_count), links, link_ctx),
             on_error=lambda e: on_error(str(e)),
         )
 

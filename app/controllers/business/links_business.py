@@ -5,8 +5,6 @@ from typing import Any, Dict, List, Optional
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
-from app.models.db import Database
-from app.services import LinksService
 from app.utils.db.db_error_handler import handle_db_error
 from app.controllers.business.links_repository_adapter import LinksRepositoryAdapter
 from app.utils.validators.validate_link_payload import (
@@ -14,6 +12,10 @@ from app.utils.validators.validate_link_payload import (
     ValidationError,
 )
 from app.controllers.business.link_async_controller import LinkAsyncController
+from app.utils.validators.links_business_validators import (
+    validate_toggle_favorite_input,
+    validate_batch_update_links_input,
+)
 
 
 class LinksBusinessLogic(QObject):
@@ -32,17 +34,18 @@ class LinksBusinessLogic(QObject):
     link_updated: pyqtSignal = pyqtSignal(dict)  # Dict - обновленная ссылка
     error_occurred: pyqtSignal = pyqtSignal(str)  # str - сообщение об ошибке
 
-    def __init__(self, db: Database, logger=None, repository: Optional[LinksRepositoryAdapter] = None, async_controller: Optional[LinkAsyncController] = None):
+    def __init__(
+        self,
+        *,
+        repository: LinksRepositoryAdapter,
+        async_controller: LinkAsyncController,
+        logger=None,
+    ):
         super().__init__()
-        self.db = db
-        # Используем унифицированную LinkModel напрямую из database
-        self.links_model = db.links
-        # Сервисный слой поверх репозитория для снижения дублирования и транзакций
-        self.links = LinksService(db)
-        # Новый адаптер данных; сохраняем обратную совместимость конструктора
-        self.repo = repository or LinksRepositoryAdapter(db)
-        # Новый контроллер асинхронных задач; пока внедряем без удаления старых полей
-        self.async_controller = async_controller or LinkAsyncController(logger=logger)
+        # Единый слой доступа к данным
+        self.repo = repository
+        # Единый контроллер асинхронных задач
+        self.async_controller = async_controller
         self.logger = logger or logging.getLogger(self.__class__.__name__)
         # worker-сигналы не требуются: используем собственные сигналы класса + run_db
 
@@ -98,9 +101,16 @@ class LinksBusinessLogic(QObject):
 
     def count_favorites(self, link: Optional[Dict] = None):
         """Подсчитать количество избранных ссылок (асинхронно через контроллер)."""
+        # Изоляция получения списка ссылок от BLL: получаем один раз через repo
+        links_snapshot = []
+        try:
+            links_snapshot = self.repo.get_all_links()
+        except Exception as e:
+            self.logger.error(f"Error preparing links snapshot for favorites count: {e}")
+            # Не прерываем: считаем только число
         self.async_controller.count_favorites_async(
             count_fn=lambda: self.repo.count_favorites(),
-            all_links_supplier=self._get_all_links_safe,
+            links=links_snapshot,
             link_ctx=link,
             on_finished=self._on_favorites_counted,
             on_error=self._on_worker_error,
@@ -180,9 +190,8 @@ class LinksBusinessLogic(QObject):
 
     def toggle_favorite(self, link: Dict):
         """Переключить статус избранного для ссылки."""
-        # Для переключения избранного достаточно валидного словаря и корректного id
-        if not isinstance(link, dict) or not isinstance(link.get("id"), int) or link["id"] <= 0:
-            raise ValueError("Invalid link data for toggle_favorite")
+        # Централизованная валидация входных данных
+        validate_toggle_favorite_input(link)
 
         old_status = link.get("is_favorite", False)
         new_status = not old_status
@@ -200,9 +209,6 @@ class LinksBusinessLogic(QObject):
             self.logger.info(
                 f"Favorite status updated successfully, result ID: {result}"
             )
-
-            # Отправляем сигнал об обновлении ссылки
-            self.link_updated.emit(link_data)
 
             # Обновляем счетчик избранного
             self.count_favorites(link_data)
@@ -278,16 +284,13 @@ class LinksBusinessLogic(QObject):
 
     def batch_update_links(self, links_data: List[Dict]) -> bool:
         """Выполняет пакетное обновление ссылок в транзакции."""
-        if not links_data:
-            self.logger.warning("Empty links_data for batch_update_links")
-            return True
-
-        # Валидация всех ссылок перед обновлением
-        for i, link_data in enumerate(links_data):
-            # Нестрогая проверка: ожидаем непустые словари записей
-            if not isinstance(link_data, dict) or not link_data:
-                self.logger.error(f"Invalid link data at index {i}: {link_data}")
+        # Централизованная валидация входных данных
+        try:
+            if not validate_batch_update_links_input(links_data):
                 return False
+        except ValidationError as ve:
+            self.logger.error(f"Invalid batch update payload: {ve}")
+            return False
 
         try:
             return self.repo.batch_update(links_data)
@@ -343,14 +346,6 @@ class LinksBusinessLogic(QObject):
         return True
 
     
-
-    def _get_all_links_safe(self) -> List[Dict]:
-        """Безопасное получение всех ссылок для внутреннего использования."""
-        try:
-            return self.repo.get_all_links()
-        except Exception as e:
-            self.logger.error(f"Error getting all links: {e}")
-            return []
 
     # Слоты для обработки результатов воркеров
 
