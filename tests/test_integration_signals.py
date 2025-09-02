@@ -193,6 +193,10 @@ def test_links_ui_controller_uses_table_controller_reload(monkeypatch, caplog):
             self.doubleClicked = _Signal()
             self.clicked = _Signal()
             self.links_reordered = _Signal()
+            # Новые обязательные элементы интерфейса таблицы
+            self.customContextMenuRequested = _Signal()
+        def setContextMenuPolicy(self, *_args, **_kwargs):
+            pass
         def selectionModel(self):
             return _SelModel()
 

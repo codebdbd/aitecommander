@@ -105,7 +105,8 @@ def test_setup_error_raised_when_scheduler_fails():
         spheres_controller=window.spheres_controller,
     )
 
-    with pytest.raises(SetupError):
+    # Теперь неожиданные ошибки планировщика пробрасываются как есть (RuntimeError)
+    with pytest.raises(RuntimeError):
         window.structure_business.active_sphere_changed.emit()
 
 

@@ -72,17 +72,32 @@ class LinksUIHandlers(BaseLinksUIComponent):
         """Подключение сигналов от таблицы."""
         if getattr(self, "_table_signals_connected", False):
             return
-        # Некритичные настройки контекстного меню — только логируем ошибки
+        # Обязательные сигналы/методы таблицы для контекстного меню — строгая проверка интерфейса
+        set_policy = getattr(self.table, "setContextMenuPolicy", None)
+        if set_policy is None or not callable(set_policy):
+            raise SetupError("links table must provide callable setContextMenuPolicy()")
+        context_sig = getattr(self.table, "customContextMenuRequested", None)
+        connect_fn = getattr(context_sig, "connect", None) if context_sig is not None else None
+        if connect_fn is None or not callable(connect_fn):
+            raise SetupError("links table must expose signal customContextMenuRequested with connect()")
+
+        # Подключение обязательных обработчиков контекстного меню
         try:
-            if hasattr(self.table, "setContextMenuPolicy"):
-                self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        except (AttributeError, TypeError):
-            logger.exception("Failed to set context menu policy on links table")
+            set_policy(Qt.ContextMenuPolicy.CustomContextMenu)
+        except (AttributeError, TypeError) as e:
+            logger.error("Failed to set context menu policy on links table: %s", e, exc_info=True)
+            raise SetupError("Failed to set context menu policy on links table") from e
+        except Exception:
+            logger.exception("Unexpected error while setting context menu policy on links table")
+            raise
         try:
-            if hasattr(self.table, "customContextMenuRequested"):
-                self.table.customContextMenuRequested.connect(self._on_context_menu)
-        except (AttributeError, TypeError):
-            logger.exception("Failed to connect customContextMenuRequested for links table")
+            connect_fn(self._on_context_menu)
+        except (AttributeError, TypeError) as e:
+            logger.error("Failed to connect customContextMenuRequested for links table: %s", e, exc_info=True)
+            raise SetupError("Failed to connect customContextMenuRequested for links table") from e
+        except Exception:
+            logger.exception("Unexpected error while connecting customContextMenuRequested for links table")
+            raise
 
         # QTableView: используем index-based сигналы и адаптируем к существующим обработчикам
         try:

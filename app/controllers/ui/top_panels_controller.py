@@ -223,10 +223,10 @@ class TopPanelsController:
             return
         except SetupError:
             raise
-        except Exception as e:
-            # Неожиданные ошибки — считаем ошибкой конфигурации
+        except Exception:
+            # Неожиданные ошибки — не скрываем тип исключения
             logger.exception("TopPanelsController.schedule_structure_refresh: unexpected error")
-            raise SetupError("Failed to schedule structure-driven refresh") from e
+            raise
 
 
     def _on_refresh_timeout(self) -> None:

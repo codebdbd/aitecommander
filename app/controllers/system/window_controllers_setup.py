@@ -64,9 +64,10 @@ def _on_structure_changed_schedule_refresh(top_ctrl: TopPanelsController, *_args
         top_ctrl.schedule_structure_refresh()
     except (AttributeError, TypeError) as e:
         raise SetupError("Scheduling structure-driven top panels refresh failed") from e
-    except Exception as e:
-        logger.error(f"Unexpected error when scheduling top panels refresh: {e}")
-        raise SetupError("Scheduling structure-driven top panels refresh failed") from e
+    except Exception:
+        logger.exception("Unexpected error when scheduling top panels refresh")
+        # Не скрываем тип исключения: пробрасываем как есть
+        raise
 
 def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None:
     """Создать и настроить основные контроллеры."""
@@ -388,9 +389,6 @@ def _add_quick_add_to_top_bar(window: Any) -> None:
     return
 
 
-## Внутренний внешний дебаунс удалён: используем TopPanelsController.request_refresh()
-
-
 def _connect_top_panels_signals(window: Any, controllers: Dict[str, Any]) -> None:
     """Подключить сигналы верхних панелей."""
     # QuickAddWidget — необязательная часть: подключаем только если присутствует
@@ -542,11 +540,7 @@ def _connect_structure_signals(
     structure.item_changed.connect(window.on_structure_item_changed)
     structure.item_added.connect(window.on_structure_item_added)
 
-    # Обработка выбора категории централизована через
-    # StructureUIController.SelectionHandling._on_category_selected,
-    # поэтому прямое подключение к UIStateManager здесь не требуется.
-
-    # Удалены прямые подключения к section_selected/category_selected, т.к. не влияют на данные верхних панелей
+    
     window._structure_signals_connected = True
 
     # После подключения сигналов сразу выставим визуальное состояние активной кнопки,
