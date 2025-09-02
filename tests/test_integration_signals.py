@@ -200,8 +200,16 @@ def test_links_ui_controller_uses_table_controller_reload(monkeypatch, caplog):
         def selectionModel(self):
             return _SelModel()
 
+    class _BizSignal:
+        def connect(self, *_a, **_k):
+            return None
+
     class LinksBusinessDummy:
-        pass
+        # Требуемые сигналы для LinksUIHandlers._connect_signals
+        def __init__(self):
+            self.favorites_counted = _BizSignal()
+            self.link_updated = _BizSignal()
+            self.error_occurred = _BizSignal()
 
     table_view = TableViewMock()
     business = LinksBusinessDummy()

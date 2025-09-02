@@ -9,11 +9,25 @@ from .dialog_manager import DialogManager
 logger = logging.getLogger(__name__)
 
 
+class SetupError(Exception):
+    """Ошибка настройки зависимостей SystemDialogController."""
+
+
 class SystemDialogController:
     """Контроллер для управления системными диалогами."""
 
-    def __init__(self, main_window):
+    def __init__(self, main_window, *, database_controller, links_table_controller, links_business):
         self.main_window = main_window
+        self.database_controller = database_controller
+        self.links_table_controller = links_table_controller
+        self.links_business = links_business
+        # Валидация обязательных зависимостей
+        if self.database_controller is None:
+            raise SetupError("SystemDialogController requires 'database_controller'")
+        if self.links_table_controller is None:
+            raise SetupError("SystemDialogController requires 'links_table_controller'")
+        if self.links_business is None:
+            raise SetupError("SystemDialogController requires 'links_business'")
 
     def handle_import_browser_bookmarks(self):
         """Импорт закладок браузера."""
@@ -70,16 +84,19 @@ class SystemDialogController:
             categories,
             section_id,
             self.main_window.structure_business,
-            self.main_window.links_business,
+            self.links_business,
         )
 
         if success:
             # Создаем резервную копию после большой операции импорта
             try:
-                dc = getattr(self.main_window, "database_controller", None)
-                db = getattr(dc, "db", None)
-                if db is not None:
-                    db.backup()
+                db = getattr(self.database_controller, "db", None)
+                if db is None:
+                    raise SetupError("database_controller.db is required for backup")
+                db.backup()
+            except SetupError:
+                logger.exception("SystemDialogController: backup failed due to setup error")
+                raise
             except Exception as backup_err:
                 logger.warning(
                     f"Не удалось создать резервную копию после импорта закладок: {backup_err}"
@@ -89,15 +106,14 @@ class SystemDialogController:
                 self.main_window.structure_business.load_structure()
             category_id = self.main_window.get_current_category_id()
             if category_id:
-                # Централизовано: обновляем таблицу через LinksTableController, без прямого UI
+                # Централизовано: обновляем таблицу через LinksTableController, без getattr/fallback
                 try:
-                    ctrl = getattr(self.main_window, "links_table_controller", None)
-                    if ctrl:
-                        ctrl.reload(category_id)
-                    else:
-                        links_business = getattr(self.main_window, "links_business", None)
-                        if links_business:
-                            links_business.load_links(category_id)
+                    if not hasattr(self.links_table_controller, "reload"):
+                        raise SetupError("links_table_controller must expose reload()")
+                    self.links_table_controller.reload(category_id)
+                except SetupError:
+                    logger.exception("SystemDialogController: reload after import failed (setup error)")
+                    raise
                 except Exception as _e:
                     logger.debug("SystemDialogController: reload after import failed: %s", _e)
             self.main_window.update_statusbar()

@@ -90,7 +90,8 @@ class LinksTableController(QObject):
             self._current_category_id = category_id
 
             # Централизовано: загружаем данные через бизнес-логику; UI подписан на изменения
-            self._fallback_load(category_id)
+            # Исключения ловим здесь, чтобы вести единообразное логирование и не падать UI
+            self.business.load_links(category_id)
         except Exception as e:
             logger.error("LinksTableController.reload: unexpected error: %s", e, exc_info=True)
         finally:
@@ -187,12 +188,3 @@ class LinksTableController(QObject):
             logger.exception("LinksTableController.on_link_deleted: failed")
 
     # --- Internals ---
-    def _fallback_load(self, category_id: int) -> None:
-        business = self.business
-        if business is not None:
-            # Пусть исключения поднимутся в reload(), где будет единообразное логирование
-            business.load_links(category_id)
-            return
-        logger.warning(
-            "LinksTableController._fallback_load: no business available to load links"
-        )

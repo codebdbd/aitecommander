@@ -56,16 +56,33 @@ class LinksUIHandlers(BaseLinksUIComponent):
         if getattr(self, "_signals_connected", False):
             return
         # Перенесено в централизованный LinksTableController, чтобы избежать прямых populate и возможных циклов
+        # Строго требуем наличие критичных сигналов бизнес-логики и их совместимость
         try:
-            if hasattr(self.business, "favorites_counted"):
-                self.business.favorites_counted.connect(self._complete_toggle_fav)
-            if hasattr(self.business, "link_updated"):
-                self.business.link_updated.connect(self._on_link_updated)
-            if hasattr(self.business, "error_occurred"):
-                self.business.error_occurred.connect(self._handle_error)
+            biz = self.business
+            # Обязательные сигналы
+            required = {
+                "favorites_counted": self._complete_toggle_fav,
+                "link_updated": self._on_link_updated,
+                "error_occurred": self._handle_error,
+            }
+            for sig_name, slot in required.items():
+                sig = getattr(biz, sig_name, None)
+                if sig is None:
+                    raise SetupError(f"Missing required business signal: {sig_name}")
+                connect_fn = getattr(sig, "connect", None)
+                if connect_fn is None or not callable(connect_fn):
+                    raise SetupError(
+                        f"Business signal '{sig_name}' must expose callable connect()"
+                    )
+                connect_fn(slot)
+        except SetupError:
+            # Уже информативное сообщение — пробрасываем как есть, но логируем стек
+            logger.exception("Failed to wire LinksUIHandlers business signals (setup error)")
+            raise
         except Exception:
-            # Безопасность: в тестах бизнес может быть простым мок-объектом
-            pass
+            # Любые иные ошибки считаем ошибкой настройки, чтобы не маскировать дефекты DI
+            logger.exception("Unexpected error wiring LinksUIHandlers business signals")
+            raise SetupError("Failed to connect LinksUIHandlers to business signals")
         self._signals_connected = True
 
     def _connect_table_signals(self):
