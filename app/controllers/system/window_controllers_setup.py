@@ -335,6 +335,8 @@ def _inject_to_category_tiles(window: Any, controllers: Dict[str, Any]) -> None:
     structure_ctrl = controllers["structure"]
 
     def on_tiles_context_menu(category_id: int, global_pos):
+        # Ошибки контекстного меню не относятся к wiring и не должны скрываться.
+        # Логируем неожиданные ошибки, но не используем общий перехват в wiring-блоках.
         try:
             builder = CategoryMenuBuilder(tiles.view, window)
             menu, edit_action, delete_action, add_link_action = builder.build(
@@ -344,17 +346,17 @@ def _inject_to_category_tiles(window: Any, controllers: Dict[str, Any]) -> None:
                 add_link_cb=dialog_provider.show_link_dialog_for_category,
             )
             menu.popup(global_pos)
-        except Exception as e:
-            logger.warning(f"Failed to show category tiles context menu: {e}")
+        except Exception:
+            logger.exception("Failed to show category tiles context menu")
 
     try:
         tiles.contextMenuRequested.connect(on_tiles_context_menu)
         tiles.editRequested.connect(structure_ctrl.handle_edit_category)
         tiles.deleteRequested.connect(structure_ctrl.handle_delete_category)
         tiles.addLinkRequested.connect(dialog_provider.show_link_dialog_for_category)
-    except (AttributeError, TypeError):
-        logger.error("Failed to connect CategoryTiles signals")
-        raise SetupError("Failed to connect CategoryTiles signals")
+    except (AttributeError, TypeError) as e:
+        logger.error("Failed to connect CategoryTiles signals: %s", e, exc_info=True)
+        raise SetupError("Failed to connect CategoryTiles signals") from e
 
 
 def _setup_quick_add_widget(window: Any, controllers: Dict[str, Any]) -> None:

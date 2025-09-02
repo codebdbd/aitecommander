@@ -184,10 +184,12 @@ class LinksUIHandlers(BaseLinksUIComponent):
         """Обновить результаты поиска."""
         try:
             self.links_table_controller.on_search_results(search_results)
-        except Exception:
+        except (TypeError, ValueError):
+            # Ошибки контракта контроллера таблицы не скрываем
             logger.exception(
-                "LinksUIHandlers._update_search_results: links_table_controller.on_search_results failed"
+                "LinksUIHandlers._update_search_results: on_search_results contract error"
             )
+            raise
 
     def _complete_toggle_fav(
         self, fav_count: int, links: List[Dict], link: Optional[Dict]
