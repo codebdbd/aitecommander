@@ -20,6 +20,10 @@ class SelectionHandling:
         self.main = controller.main
         self.business = controller.business
         # Явная зависимость: контроллер плиток категорий
+        if category_tiles_controller is None:
+            raise ValueError(
+                "SelectionHandling requires a category_tiles_controller dependency"
+            )
         self.tiles_controller = category_tiles_controller
         # Запоминаем последний обработанный выбор, чтобы игнорировать дубликаты подряд
         # Формат: ("section"|"category", int id)
@@ -61,14 +65,7 @@ class SelectionHandling:
         Новый формат сигнала: передаётся только section_id без categories_data.
         """
         try:
-            ctrl = getattr(self, "tiles_controller", None)
-            if ctrl:
-                ctrl.refresh(int(section_id))
-            else:
-                logger.warning(
-                    "SelectionHandling: tiles_controller not provided; skip tiles refresh for section #%s",
-                    section_id,
-                )
+            self.tiles_controller.refresh(int(section_id))
         except Exception:
             logger.exception("SelectionHandling._on_section_selected: controller refresh failed")
 
@@ -186,16 +183,9 @@ class SelectionHandling:
             logger.info(f"Handling selection: {typ} #{id_}")
 
             if typ == "section":
-                # Используем контроллер плиток категорий из конструктора
+                # Используем контроллер плиток категорий из конструктора (обязательная зависимость)
                 try:
-                    ctrl = getattr(self, "tiles_controller", None)
-                    if ctrl:
-                        ctrl.refresh(int(id_))
-                    else:
-                        logger.warning(
-                            "SelectionHandling: tiles_controller not provided; skip tiles refresh for section #%s",
-                            id_,
-                        )
+                    self.tiles_controller.refresh(int(id_))
                 except Exception:
                     logger.exception(
                         "SelectionHandling._handle_item_selection: controller refresh failed"
