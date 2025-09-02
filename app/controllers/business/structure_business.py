@@ -121,6 +121,39 @@ class StructureBusinessLogic(QObject):
                 exc_info=True,
             )
 
+    def set_top_panels_controller(self, top_panels_controller: Any) -> None:
+        """Внедрить TopPanelsController и распространить зависимость во все уровни.
+
+        Явно сохраняем ссылку и прокидываем её в AsyncOperations и AsyncSignalHandlers,
+        чтобы обработчики сигналов вызывали методы контроллера напрямую без getattr.
+        """
+        try:
+            # Локальная ссылка в бизнес-логике (может использоваться UI/другими службами)
+            setattr(self, "top_panels_controller", top_panels_controller)
+        except Exception as e:
+            self.logger.warning(
+                f"Failed to set top_panels_controller on StructureBusinessLogic: {e}",
+                exc_info=True,
+            )
+        try:
+            # Прямая ссылка для асинхронного слоя
+            if hasattr(self, "async_operations") and self.async_operations:
+                self.async_operations.top_panels = top_panels_controller
+        except Exception as e:
+            self.logger.warning(
+                f"Failed to inject TopPanelsController into AsyncOperations: {e}",
+                exc_info=True,
+            )
+        try:
+            # И немедленно для уже подключённых обработчиков сигналов
+            if hasattr(self, "_async_handlers") and self._async_handlers:
+                self._async_handlers.top_panels = top_panels_controller
+        except Exception as e:
+            self.logger.warning(
+                f"Failed to inject TopPanelsController into AsyncSignalHandlers: {e}",
+                exc_info=True,
+            )
+
     def _initialize_system(self) -> None:
         """Инициализация системы."""
         self.logger.info("Инициализация StructureBusinessLogic")

@@ -22,12 +22,15 @@ class ThemeController:
         logger=None,
         stylesheet_applier: Optional[callable] = None,
         gui_scheduler: Optional[callable] = None,
+        top_panels_controller=None,
     ):
         """Инициализация контроллера тем."""
         # Deprecated: параметр logger больше не используется; логирование ведётся модульным логгером
         self._deprecated_logger_param = logger
         self.settings = settings
         self.main_window = main_window
+        # Явная зависимость (внедряется позже через setup при текущем порядке инициализации)
+        self.top_panels_controller = top_panels_controller
         self._qss_cache: OrderedDict[str, str] = OrderedDict()
         self._common_qss: Optional[str] = None
         self._themes: List[Dict[str, Any]] = []
@@ -44,6 +47,15 @@ class ThemeController:
 
         # Темы зафиксированы (light/dark)
         self._init_fixed_themes()
+
+    def set_top_panels_controller(self, top_panels_controller) -> None:
+        """Внедряет обязательную зависимость TopPanelsController.
+
+        Поднимает ValueError, если зависимость не передана или некорректна.
+        """
+        if top_panels_controller is None:
+            raise ValueError("TopPanelsController must be provided to ThemeController")
+        self.top_panels_controller = top_panels_controller
 
     def _normalize_theme_input(self, name: Optional[str]) -> str:
         """Нормализует входное имя темы: обрезает пробелы, приводит к нижнему регистру,
@@ -377,11 +389,15 @@ class ThemeController:
         except Exception as exc:
             logger.warning("Ошибка перезагрузки иконок структуры: %s", exc)
 
-        # Обновление верхних панелей
+        # Обновление верхних панелей — только через явную зависимость
+        top_ctrl = getattr(self, "top_panels_controller", None)
+        if not top_ctrl:
+            # Строго требуем DI для корректного обновления UI после смены темы
+            raise ValueError(
+                "TopPanelsController not injected into ThemeController; call set_top_panels_controller() during window setup"
+            )
         try:
-            top_ctrl = getattr(mw, "top_panels_controller", None)
-            if top_ctrl and hasattr(top_ctrl, "refresh_all"):
-                top_ctrl.refresh_all()
+            top_ctrl.refresh_all()
         except Exception as exc:
             logger.warning("Ошибка обновления верхних панелей: %s", exc)
 

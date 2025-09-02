@@ -52,8 +52,6 @@ class StructureSignals(QObject):
 
     # Обновление UI
     update_ui: pyqtSignal = pyqtSignal(int)
-    update_favorites: pyqtSignal = pyqtSignal()
-    update_recent_links: pyqtSignal = pyqtSignal()
 
     # Информация о ссылках
     link_info_finished: pyqtSignal = pyqtSignal(dict)
@@ -66,13 +64,20 @@ class StructureSignals(QObject):
 class AsyncOperations:
     """Класс для управления асинхронными операциями структуры."""
 
-    def __init__(self, db: Database, logger: Optional[logging.Logger] = None):
+    def __init__(
+        self,
+        db: Database,
+        logger: Optional[logging.Logger] = None,
+        top_panels_controller: Optional[Any] = None,
+    ):
         self.db = db
         self.logger = logger or globals().get("logger") or logging.getLogger(__name__)
         # Единый глобальный планировщик задач вместо QThreadPool.globalInstance()
         self._scheduler = get_task_scheduler()
         self._worker_signals = StructureSignals()
         self._pending_tasks = {}
+        # Прямая зависимость от TopPanelsController для обновления верхних панелей
+        self.top_panels = top_panels_controller
 
     def get_worker_signals(self) -> StructureSignals:
         """Возвращает объект сигналов воркеров для подключения."""
@@ -84,6 +89,13 @@ class AsyncOperations:
         Гарантирует согласованность подписок между `StructureWorkerSignals` и
         методами `AsyncSignalHandlers`.
         """
+        # Инъекция TopPanelsController в обработчики (избегаем getattr в рантайме)
+        try:
+            handlers.top_panels = getattr(self, "top_panels", None)
+        except Exception:
+            # Не должен падать, просто оставим None
+            handlers.top_panels = None
+
         # Загрузка
         self._worker_signals.spheres_loaded.connect(handlers.on_spheres_loaded)
         self._worker_signals.structure_loaded.connect(handlers.on_structure_loaded)
@@ -105,10 +117,6 @@ class AsyncOperations:
         self._worker_signals.loading_started.connect(handlers.on_loading_started)
         # Обновление UI
         self._worker_signals.update_ui.connect(handlers.on_update_ui)
-        self._worker_signals.update_favorites.connect(handlers.on_update_favorites)
-        self._worker_signals.update_recent_links.connect(
-            handlers.on_update_recent_links
-        )
         # Ошибки
         self._worker_signals.error.connect(handlers.on_error)
         self._worker_signals.simple_error.connect(handlers.on_simple_error)
@@ -144,12 +152,6 @@ class AsyncOperations:
             )
             self._worker_signals.loading_started.disconnect(handlers.on_loading_started)
             self._worker_signals.update_ui.disconnect(handlers.on_update_ui)
-            self._worker_signals.update_favorites.disconnect(
-                handlers.on_update_favorites
-            )
-            self._worker_signals.update_recent_links.disconnect(
-                handlers.on_update_recent_links
-            )
             self._worker_signals.error.disconnect(handlers.on_error)
             self._worker_signals.simple_error.disconnect(handlers.on_simple_error)
         except Exception:
@@ -547,6 +549,8 @@ class AsyncSignalHandlers:
     def __init__(self, controller_instance):
         self.controller = controller_instance
         self.logger = controller_instance.logger
+        # Инжектится извне через AsyncOperations.connect_signal_handlers
+        self.top_panels: Optional[Any] = None
 
     def on_spheres_loaded(self, spheres: List[Dict[str, Any]]) -> None:
         """Обработчик завершения загрузки сфер."""
@@ -808,24 +812,11 @@ class AsyncSignalHandlers:
 
     def on_update_favorites(self) -> None:
         try:
-            self.logger.debug("Обновление избранного (через TopPanelsController, если доступен)")
-            # Предпочитаем централизованный контроллер верхних панелей
-            try:
-                top_ctrl = getattr(self.controller, "top_panels_controller", None)
-                if top_ctrl and hasattr(top_ctrl, "request_favorites_refresh"):
-                    top_ctrl.request_favorites_refresh()
-                    return
-            except Exception as inner_exc:
-                self.logger.warning(
-                    f"TopPanelsController недоступен для обновления избранного: {inner_exc}"
-                )
-            # Совместимость: если у контроллера всё же есть старый сигнал, эмитим его
-            if hasattr(self.controller, "update_favorites"):
-                try:
-                    self.controller.update_favorites.emit()
-                except Exception:
-                    # Не валим поток, логгируем и продолжаем
-                    self.logger.debug("Legacy update_favorites.emit() недоступен")
+            self.logger.debug("Обновление избранного (через TopPanelsController)")
+            if not self.top_panels:
+                self.logger.warning("top_panels не инжектирован; пропускаем обновление избранного")
+                return
+            self.top_panels.request_favorites_refresh()
         except Exception as e:
             self.logger.error(
                 f"Ошибка в обработчике on_update_favorites: {e}", exc_info=True
@@ -833,23 +824,11 @@ class AsyncSignalHandlers:
 
     def on_update_recent_links(self) -> None:
         try:
-            self.logger.debug("Обновление недавних ссылок (через TopPanelsController, если доступен)")
-            # Предпочитаем централизованный контроллер верхних панелей
-            try:
-                top_ctrl = getattr(self.controller, "top_panels_controller", None)
-                if top_ctrl and hasattr(top_ctrl, "request_recents_refresh"):
-                    top_ctrl.request_recents_refresh()
-                    return
-            except Exception as inner_exc:
-                self.logger.warning(
-                    f"TopPanelsController недоступен для обновления недавних ссылок: {inner_exc}"
-                )
-            # Совместимость: если у контроллера всё же есть старый сигнал, эмитим его
-            if hasattr(self.controller, "update_recent_links"):
-                try:
-                    self.controller.update_recent_links.emit()
-                except Exception:
-                    self.logger.debug("Legacy update_recent_links.emit() недоступен")
+            self.logger.debug("Обновление недавних ссылок (через TopPanelsController)")
+            if not self.top_panels:
+                self.logger.warning("top_panels не инжектирован; пропускаем обновление недавних ссылок")
+                return
+            self.top_panels.request_recents_refresh()
         except Exception as e:
             self.logger.error(
                 f"Ошибка в обработчике on_update_recent_links: {e}", exc_info=True

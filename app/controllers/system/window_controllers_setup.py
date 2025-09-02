@@ -56,12 +56,12 @@ def _resolve_structure_loader(structure_business: StructureBusinessLogic):
 def _on_structure_changed_schedule_refresh(top_ctrl: TopPanelsController, *_args: Any) -> None:
     """Поставить отложенное обновление топ-панелей при структурном событии.
 
-    Используем единый внутренний дебаунс TopPanelsController.request_refresh().
+    Используем внутренний таймер структуры TopPanelsController.schedule_structure_refresh().
     При любых ошибках поднимаем SetupError, чтобы не маскировать проблемы.
     """
     try:
-        # Без прямых вызовов refresh_all, только дебаунс-запрос
-        top_ctrl.request_refresh()
+        # Без прямых вызовов refresh_all/request_refresh — только планирование через структурный таймер
+        top_ctrl.schedule_structure_refresh()
     except (AttributeError, TypeError) as e:
         raise SetupError("Scheduling structure-driven top panels refresh failed") from e
     except Exception as e:
@@ -191,11 +191,27 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
             links_business=links_business,
         )
         controllers["top_panels_controller"] = window.top_panels_controller
-        # Прокидывание в бизнес-логику структуры — опционально; ошибки не фатальны
+        # Внедряем контроллер верхних панелей в бизнес-логику явным сеттером
         try:
-            setattr(structure_business, "top_panels_controller", window.top_panels_controller)
+            if hasattr(structure_business, "set_top_panels_controller"):
+                structure_business.set_top_panels_controller(window.top_panels_controller)
+            else:
+                # Резерв на случай несовместимой сборки: не прерываем инициализацию
+                logger.warning("StructureBusinessLogic lacks set_top_panels_controller(); skipping DI")
         except (AttributeError, TypeError) as e:
-            logger.warning(f"Failed to assign top_panels_controller to structure_business: {e}")
+            logger.warning(f"Failed to inject TopPanelsController into StructureBusinessLogic: {e}")
+
+        # Внедряем TopPanelsController в ThemeController (для последующего refresh_all())
+        try:
+            theme_ctrl = getattr(window, "theme_ctrl", None)
+            if theme_ctrl is not None:
+                if hasattr(theme_ctrl, "set_top_panels_controller"):
+                    theme_ctrl.set_top_panels_controller(window.top_panels_controller)
+                else:
+                    # Фолбэк для старых версий ThemeController
+                    setattr(theme_ctrl, "top_panels_controller", window.top_panels_controller)
+        except Exception as e:
+            logger.warning(f"Failed to inject TopPanelsController into ThemeController: {e}")
     except (AttributeError, TypeError) as e:
         logger.error(f"Failed to create TopPanelsController: {e}")
         raise SetupError("Failed to create TopPanelsController") from e
