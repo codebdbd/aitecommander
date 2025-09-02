@@ -200,11 +200,12 @@ class TopPanelsController:
         except Exception:
             logger.exception("TopPanelsController.clear_favorites: error in links_business.clear_favorites")
 
-        # 2) Очистка виджета — без фолбэков, контракт обязателен
+        # 2) Обновление виджета через контролируемый путь без повторной эмиссии clear_requested
+        #    (прямой вызов fav_widget.clear_favorites() вызывает clearRequested/clear_requested и цикл)
         try:
-            self.fav_widget.clear_favorites()
+            self.refresh_favorites()
         except Exception:
-            logger.exception("TopPanelsController.clear_favorites: widget clear failed")
+            logger.exception("TopPanelsController.clear_favorites: widget refresh after clear failed")
 
     def schedule_structure_refresh(self) -> None:
         """Запланировать обновление верхних панелей по структурным событиям с фиксированным интервалом."""
@@ -215,6 +216,7 @@ class TopPanelsController:
             if self._structure_refresh_timer.isActive():
                 return
             self._structure_refresh_timer.start()
+            logger.debug("TopPanelsController.schedule_structure_refresh: timer started")
         except (ValueError, RuntimeError) as e:
             # Ожидаемые ошибки — логируем, без немедленного обновления
             logger.error("TopPanelsController.schedule_structure_refresh: failed to start structure timer: %s", e, exc_info=True)
@@ -246,15 +248,33 @@ class TopPanelsController:
             self._pending_recent_refresh = False
 
     def _on_structure_refresh_timeout(self) -> None:
-        """Единый обработчик таймаута для структурных событий."""
+        """Единый обработчик таймаута для структурных событий.
+
+        Поведение при ошибках:
+        - Любые ошибки внутри `request_refresh()` не должны оставлять таймер активным.
+        - Таймер всегда останавливается в finally, чтобы избежать повторных попыток при сбое.
+        Ожидаемый жизненный цикл: schedule -> timeout -> request_refresh -> stop.
+        """
         try:
             self.request_refresh()
         except (ValueError, RuntimeError) as e:
-            logger.error("TopPanelsController._on_structure_refresh_timeout: expected error during request_refresh: %s", e, exc_info=True)
+            logger.error(
+                "TopPanelsController._on_structure_refresh_timeout: expected error during request_refresh: %s",
+                e,
+                exc_info=True,
+            )
         except SetupError:
             # Конфигурационная ошибка — пробрасываем наверх после логирования
             logger.exception("TopPanelsController._on_structure_refresh_timeout: setup error")
             raise
+        finally:
+            try:
+                # Гарантированно останавливаем таймер, чтобы не было повторных вызовов при ошибке
+                if self._structure_refresh_timer and self._structure_refresh_timer.isActive():
+                    self._structure_refresh_timer.stop()
+            except Exception:
+                # Безопасный best-effort stop
+                logger.debug("TopPanelsController._on_structure_refresh_timeout: timer stop failed", exc_info=False)
 
     def _normalize_delay(self, delay_ms, args, kwargs) -> int:
         """Безопасно привести задержку к int; игнорирует нерелевантные payload сигналов."""

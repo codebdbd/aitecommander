@@ -101,10 +101,9 @@ def test_update_row_handles_errors(caplog):
     table = TableMock(raise_on_update=RuntimeError("boom"))
     ctrl = make_controller(table=table, business=BusinessMock())
 
-    ctrl.update_row({"id": 1})
-
-    # Ошибка не выброшена наружу, но залогирована
-    assert any("LinksTableController.update_row" in rec.getMessage() for rec in caplog.records)
+    # Неожиданная ошибка должна ПРОБРАСЫВАТЬСЯ, чтобы CI поймал проблему таблицы
+    with pytest.raises(RuntimeError):
+        ctrl.update_row({"id": 1})
 
 
 def test_reload_handles_unexpected_error(caplog):
