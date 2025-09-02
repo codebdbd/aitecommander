@@ -447,23 +447,27 @@ def _connect_top_panels_signals(window: Any, controllers: Dict[str, Any]) -> Non
         raise SetupError(f"Failed to adjust topbar manager: {e}") from e
 
 
-def setup_signal_connections(window: Any, controllers: Dict[str, Any]) -> None:
-    """Подключить сигналы контроллеров и UI."""
+def setup_signal_connections(window: Any, controllers: Dict[str, Any], *, top_panels_controller: TopPanelsController) -> None:
+    """Подключить сигналы контроллеров и UI.
+
+    Требует явной передачи top_panels_controller для ранней валидации DI.
+    """
+    # Ранняя валидация явной зависимости
+    if not top_panels_controller:
+        raise SetupError("TopPanelsController must be provided to setup_signal_connections")
+
     _connect_structure_signals(
         window,
-        top_panels_controller=window.top_panels_controller,
+        top_panels_controller=top_panels_controller,
         structure_business=window.structure_business,
         structure=window.structure,
         spheres_controller=window.spheres_controller,
     )
     _connect_database_signals(window)
     QTimer.singleShot(0, partial(_connect_ui_signals, window))
-    # Выполнить первичное обновление верхних панелей отдельно от проводки
-    top_ctrl = getattr(window, "top_panels_controller", None)
-    if not top_ctrl:
-        raise SetupError("TopPanelsController not available for initial refresh")
+    # Выполнить первичное обновление верхних панелей отдельно от проводки — через явный контроллер
     try:
-        top_ctrl.request_refresh()
+        top_panels_controller.request_refresh()
     except (AttributeError, TypeError) as e:
         raise SetupError(f"Failed to request initial top panels refresh: {e}") from e
 
@@ -779,7 +783,11 @@ class WindowControllersSetup:
             ("KeyboardSetup", setup_keyboard),
         ):
             try:
-                step(self.window, controllers)
+                if step is setup_signal_connections:
+                    # Явно передаем TopPanelsController для ранней валидации DI
+                    step(self.window, controllers, top_panels_controller=self.window.top_panels_controller)
+                else:
+                    step(self.window, controllers)
                 logger.info(f"{name} completed")
             except (AttributeError, TypeError, ValueError, SetupError) as e:
                 logger.error(f"{name} failed: {e}")
