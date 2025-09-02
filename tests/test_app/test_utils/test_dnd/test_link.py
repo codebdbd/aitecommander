@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.utils.ui.dnd.link import DragDropHandlerMixin
+from app.utils.ui.dnd.link import DragDropHandlerMixin, move_row_visually
 
 
 # Dummy class that uses the mixin for testing purposes
@@ -106,3 +106,36 @@ class TestDragDropHandlerMixin:
             1: {"id": 2, "name": "Link 2"},
             2: {"id": 3, "name": "Link 3"},
         }
+
+
+class TestMoveRowVisuallyFunction:
+    """Tests for the standalone `move_row_visually` helper function."""
+
+    def test_calls_rebuild_if_available(self, mock_view, mock_model):
+        """Test that it calls `_rebuild_current_links` on a compatible object."""
+        # Arrange: Spy on the method to ensure it's called.
+        mock_view._rebuild_current_links = MagicMock()
+
+        # Act
+        move_row_visually(mock_view, source_row=0, target_row=1)
+
+        # Assert
+        mock_model.move_rows.assert_called_once_with([0], 1)
+        mock_view._rebuild_current_links.assert_called_once()
+
+    def test_logs_warning_if_rebuild_not_available(self, mock_model, caplog):
+        """Test that a warning is logged if the object is not compatible."""
+        # Arrange: A plain object that has a model but no rebuild method.
+        incompatible_table = MagicMock()
+        incompatible_table.model.return_value = mock_model
+        # Ensure the method we check for is missing
+        del incompatible_table._rebuild_current_links
+
+        # Act
+        with caplog.at_level(logging.WARNING):
+            move_row_visually(incompatible_table, source_row=0, target_row=1)
+
+        # Assert
+        mock_model.move_rows.assert_called_once_with([0], 1)
+        assert "не имеет метода _rebuild_current_links" in caplog.text
+        assert "Кэш может быть неактуален" in caplog.text

@@ -119,7 +119,8 @@ class LinksUIController(QObject):
         try:
             model = self.table.model()
             return model.rowCount() if model is not None else 0
-        except Exception:
+        except (AttributeError, RuntimeError) as e:
+            logger.error(f"Ошибка при получении количества строк: {e}")
             return 0
 
     def has_selection(self) -> bool:
@@ -127,7 +128,8 @@ class LinksUIController(QObject):
         try:
             sel = self.table.selectionModel()
             return bool(sel and sel.hasSelection())
-        except Exception:
+        except (AttributeError, RuntimeError) as e:
+            logger.error(f"Ошибка при проверке выделения: {e}")
             return False
 
     def current_row(self) -> int:
@@ -135,7 +137,8 @@ class LinksUIController(QObject):
         try:
             idx = self.table.currentIndex()
             return idx.row() if idx and idx.isValid() else -1
-        except Exception:
+        except (AttributeError, RuntimeError) as e:
+            logger.error(f"Ошибка при получении текущей строки: {e}")
             return -1
 
     def select_row(self, row: int) -> None:
@@ -151,8 +154,8 @@ class LinksUIController(QObject):
             index = model.index(row, column)
             if index and index.isValid():
                 self.table.setCurrentIndex(index)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.error(f"Ошибка при установке текущей ячейки: {e}")
 
     def scroll_to_row(self, row: int) -> None:
         """Прокрутить таблицу к строке."""
@@ -163,8 +166,8 @@ class LinksUIController(QObject):
             index = model.index(row, 0)
             if index and index.isValid():
                 self.table.scrollTo(index)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.error(f"Ошибка при прокрутке к строке: {e}")
 
 
     def get_selected_rows(self) -> List[int]:

@@ -15,6 +15,8 @@ from typing import List, Optional
 
 from PyQt6.QtCore import Qt
 
+from app.utils.ui.qt.roles import get_selected_rows as get_selected_rows_util
+
 
 class DragDropHandlerMixin:
     """Миксин для обработки Drag & Drop в таблице ссылок (QTableView)."""
@@ -151,37 +153,30 @@ def extract_source_rows_from_mime(table, event, mime_type: str) -> List[int]:
 
 
 def move_row_visually(table, source_row: int, target_row: int) -> None:
-    """Централизованно перемещает одну строку через модель и обновляет кэш."""
+    """Централизованно перемещает одну строку и инициирует обновление кэша.
+
+    Если у `table` есть метод `_rebuild_current_links`, он будет вызван.
+    Это позволяет избежать дублирования логики перестроения кэша.
+    """
     try:
         model = getattr(table, "model", lambda: None)()
         if model is None:
             return
         model.move_rows([source_row], target_row)
-        # Перестроить кэш
-        if hasattr(table, "_current_links"):
-            table._current_links.clear()
-            for row in range(model.rowCount()):
-                try:
-                    link_data = table.get_link_at(row)
-                except Exception:
-                    link_data = None
-                if link_data:
-                    table._current_links[row] = link_data
     except Exception as e:
         logging.error(
             f"[DnD] Ошибка визуального перемещения строки {source_row}->{target_row}: {e}"
         )
-        if hasattr(table, "_current_links"):
-            table._current_links.clear()
-            model = getattr(table, "model", lambda: None)()
-            total = model.rowCount() if model is not None else 0
-            for row in range(total):
-                try:
-                    link_data = table.get_link_at(row)
-                except Exception:
-                    link_data = None
-                if link_data:
-                    table._current_links[row] = link_data
+    finally:
+        # Если у таблицы есть метод для перестройки кэша, используем его.
+        # Это основной сценарий при использовании DragDropHandlerMixin.
+        if hasattr(table, '_rebuild_current_links') and callable(getattr(table, '_rebuild_current_links')):
+            table._rebuild_current_links()
+        else:
+            logging.warning(
+                f"[DnD] Объект {type(table).__name__} не имеет метода _rebuild_current_links. "
+                f"Кэш может быть неактуален."
+            )
 
 
 def move_rows_visually(table, source_rows: List[int], target_row: int) -> None:
