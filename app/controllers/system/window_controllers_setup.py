@@ -192,31 +192,10 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
             links_business=links_business,
         )
         controllers["top_panels_controller"] = window.top_panels_controller
-        # Внедряем контроллер верхних панелей в бизнес-логику явным сеттером
-        try:
-            if hasattr(structure_business, "set_top_panels_controller"):
-                structure_business.set_top_panels_controller(window.top_panels_controller)
-            else:
-                # Резерв на случай несовместимой сборки: не прерываем инициализацию
-                logger.warning("StructureBusinessLogic lacks set_top_panels_controller(); skipping DI")
-        except (AttributeError, TypeError) as e:
-            logger.warning(f"Failed to inject TopPanelsController into StructureBusinessLogic: {e}")
-
-        # Внедряем TopPanelsController в ThemeController: требуем явный сеттер
-        theme_ctrl = getattr(window, "theme_ctrl", None)
-        if theme_ctrl is not None:
-            if hasattr(theme_ctrl, "set_top_panels_controller"):
-                try:
-                    theme_ctrl.set_top_panels_controller(window.top_panels_controller)
-                except (AttributeError, TypeError) as e:
-                    raise SetupError(
-                        "Failed to inject TopPanelsController into ThemeController: incompatible set_top_panels_controller"
-                    ) from e
-            else:
-                # Больше не поддерживаем скрытый фолбэк через setattr — это маскирует ошибки интерфейса
-                raise SetupError(
-                    "ThemeController must implement set_top_panels_controller(top_panels_controller)"
-                )
+        # Внедряем контроллер верхних панелей в бизнес-логику явным сеттером (обязательно)
+        if not hasattr(structure_business, "set_top_panels_controller"):
+            raise SetupError("StructureBusinessLogic must implement set_top_panels_controller")
+        structure_business.set_top_panels_controller(window.top_panels_controller)
     except (AttributeError, TypeError) as e:
         logger.error(f"Failed to create TopPanelsController: {e}")
         raise SetupError("Failed to create TopPanelsController") from e
@@ -355,8 +334,9 @@ def _inject_to_category_tiles(window: Any, controllers: Dict[str, Any]) -> None:
         tiles.editRequested.connect(structure_ctrl.handle_edit_category)
         tiles.deleteRequested.connect(structure_ctrl.handle_delete_category)
         tiles.addLinkRequested.connect(dialog_provider.show_link_dialog_for_category)
-    except (AttributeError, TypeError) as e:
-        raise SetupError(f"Failed to connect CategoryTiles signals: {e}") from e
+    except (AttributeError, TypeError):
+        logger.error("Failed to connect CategoryTiles signals")
+        raise SetupError("Failed to connect CategoryTiles signals")
 
 
 def _setup_quick_add_widget(window: Any, controllers: Dict[str, Any]) -> None:
