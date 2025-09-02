@@ -290,9 +290,13 @@ class LinksUIHandlers(BaseLinksUIComponent):
         """Эксклюзивность: при выделении в таблице очищаем выделение в дереве."""
         try:
             tree = self._structure_tree
-            if hasattr(tree, "clearSelection"):
-                tree.clearSelection()
+            if not tree:
+                logger.debug("structure_tree not injected; skipping selection clear")
+                return
+            clear = getattr(tree, "clearSelection", None)
+            if callable(clear):
+                clear()
             else:
-                raise AttributeError("structure_tree lacks clearSelection()")
+                logger.warning("structure_tree lacks clearSelection(); skipping")
         except Exception:
             logger.exception("Failed to clear selection on structure_tree from table selection change")

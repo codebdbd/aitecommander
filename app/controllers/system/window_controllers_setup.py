@@ -432,19 +432,19 @@ def _connect_top_panels_signals(window: Any, controllers: Dict[str, Any]) -> Non
         except (AttributeError, TypeError) as e:
             raise SetupError(f"Failed to wire Recents to TopPanelsController: {e}") from e
 
-    # Доп. настройки интерфейса — ошибки считаем ошибкой настройки, не подавляем
-    try:
-        filt = getattr(window, "_auto_hide_tree_filter", None)
-        if filt:
-            QTimer.singleShot(0, filt._apply)
-    except (AttributeError, TypeError) as e:
-        raise SetupError(f"Failed to apply auto-hide tree filter: {e}") from e
-    try:
-        mgr = getattr(window, "_topbar_manager", None)
-        if mgr:
-            QTimer.singleShot(0, mgr.adjust)
-    except (AttributeError, TypeError) as e:
-        raise SetupError(f"Failed to adjust topbar manager: {e}") from e
+    # Доп. настройки интерфейса — валидируем callables, не используем небезопасные getattr
+    filt = getattr(window, "_auto_hide_tree_filter", None)
+    if filt is not None:
+        apply_fn = getattr(filt, "_apply", None)
+        if not callable(apply_fn):
+            raise SetupError("_auto_hide_tree_filter must provide callable _apply()")
+        QTimer.singleShot(0, apply_fn)
+    mgr = getattr(window, "_topbar_manager", None)
+    if mgr is not None:
+        adjust_fn = getattr(mgr, "adjust", None)
+        if not callable(adjust_fn):
+            raise SetupError("_topbar_manager must provide callable adjust()")
+        QTimer.singleShot(0, adjust_fn)
 
 
 def setup_signal_connections(window: Any, controllers: Dict[str, Any], *, top_panels_controller: TopPanelsController) -> None:
@@ -547,14 +547,14 @@ def _connect_structure_signals(
 
     # После подключения сигналов сразу выставим визуальное состояние активной кнопки,
     # если текущая сфера уже известна (исправляет отсутствие фокуса/чека на старте)
-    try:
-        curr_id = getattr(structure_business, "current_sphere_id", None)
-        if isinstance(curr_id, int) and curr_id > 0:
-            updater = getattr(spheres_controller, "update_active_sphere_button", None)
-            if callable(updater):
+    curr_id = getattr(structure_business, "current_sphere_id", None)
+    if isinstance(curr_id, int) and curr_id > 0:
+        updater = getattr(spheres_controller, "update_active_sphere_button", None)
+        if callable(updater):
+            try:
                 updater(int(curr_id))
-    except Exception:
-        pass
+            except (TypeError, ValueError):
+                logger.debug("Failed to update active sphere button with current_sphere_id", exc_info=False)
 
 
 def _connect_database_signals(window: Any) -> None:
@@ -593,29 +593,39 @@ def _connect_ui_signals(window: Any) -> None:
     """Подключить сигналы UI."""
     if getattr(window, "_ui_signals_connected", False):
         return
-    try:
-        if hasattr(window, "tree") and window.tree:
-            tree = window.tree
-            try:
-                sel_model = getattr(tree, "selectionModel", lambda: None)()
-                if sel_model:
-                    def _update_statusbar_tree(*_):
-                        window.update_statusbar()
-                    sel_model.currentChanged.connect(_update_statusbar_tree)
-            except (AttributeError, TypeError):
-                pass
-    except Exception as e:
-        logger.warning(f"Failed to connect tree signals: {e}")
-
-    try:
-        if hasattr(window, "table") and window.table:
-            selection_model = window.table.selectionModel()
-            if selection_model:
-                def _update_statusbar_table(*_):
+    # Дерево структуры: подключаем без широких исключений
+    if hasattr(window, "tree") and window.tree:
+        tree = window.tree
+        try:
+            sel_model = tree.selectionModel()
+        except (AttributeError, TypeError):
+            sel_model = None
+        if sel_model:
+            def _update_statusbar_tree(*_):
+                try:
                     window.update_statusbar()
+                except Exception:
+                    logger.debug("update_statusbar failed during tree selection change", exc_info=False)
+            try:
+                sel_model.currentChanged.connect(_update_statusbar_tree)
+            except (AttributeError, TypeError) as e:
+                logger.warning(f"Failed to connect tree selection signals: {e}")
+
+    if hasattr(window, "table") and window.table:
+        try:
+            selection_model = window.table.selectionModel()
+        except (AttributeError, TypeError):
+            selection_model = None
+        if selection_model:
+            def _update_statusbar_table(*_):
+                try:
+                    window.update_statusbar()
+                except Exception:
+                    logger.debug("update_statusbar failed during table selection change", exc_info=False)
+            try:
                 selection_model.selectionChanged.connect(_update_statusbar_table)
-    except (AttributeError, TypeError) as e:
-        logger.warning(f"Failed to connect table selection signals: {e}")
+            except (AttributeError, TypeError) as e:
+                logger.warning(f"Failed to connect table selection signals: {e}")
     window._ui_signals_connected = True
 
 

@@ -50,6 +50,9 @@ class LinksBusinessMock:
 
     def get_favorite_links(self):
         self.fav_requests += 1
+        # После очистки бизнес-слоем список избранного должен быть пуст
+        if self.clears > 0:
+            return []
         return ["A", "B"]
 
     def get_recent_links(self, limit):

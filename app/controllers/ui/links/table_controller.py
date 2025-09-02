@@ -119,14 +119,19 @@ class LinksTableController(QObject):
         """
         if not link_dict:
             return
+        table = self.table
+        if table is None:
+            logger.debug("LinksTableController.update_row: no table available")
+            return
         try:
-            table = self.table
-            if table is None:
-                logger.debug("LinksTableController.update_row: no table available")
-                return
             table.update_link_by_id(link_dict)
-        except Exception as e:
-            logger.warning("LinksTableController.update_row: failed: %s", e)
+        except (TypeError, ValueError) as e:
+            # Некорректный link_dict — не падаем, но явно логируем
+            logger.warning("LinksTableController.update_row: invalid link_dict: %s", e)
+        except AttributeError as e:
+            # Таблица не реализует требуемый метод — это программная ошибка, пробрасываем
+            logger.error("LinksTableController.update_row: table missing update_link_by_id: %s", e)
+            raise
 
     # --- Slots for business signals ---
     def on_links_loaded(self, links: list[Dict], category_id: int, task_id: int) -> None:
