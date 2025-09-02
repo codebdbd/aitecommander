@@ -35,7 +35,10 @@ class StructureContextService:
                 return False
             md = app.clipboard().mimeData()
             return bool(md and md.hasText() and md.text())
-        except Exception:
+        except RuntimeError as e:
+            logger.error(
+                "clipboard_has_text failed: %s: %s", type(e).__name__, e
+            )
             return False
 
     def _clipboard_get_json(self) -> Optional[dict | list]:
@@ -47,7 +50,10 @@ class StructureContextService:
                 return None
             txt = app.clipboard().text()
             return json.loads(txt) if txt else None
-        except Exception:
+        except (json.JSONDecodeError, RuntimeError, TypeError) as e:
+            logger.warning(
+                "Failed to get and parse JSON from clipboard: %s: %s", type(e).__name__, e
+            )
             return None
 
     def clipboard_has_pastable_category(self) -> bool:
@@ -80,8 +86,10 @@ class StructureContextService:
             tree = self._ss.export_category_tree(int(cat_id))
             payload = {"type": "category_tree", "tree": tree}
             app.clipboard().setText(json.dumps(payload, ensure_ascii=False))
-        except Exception:
-            logger.exception("copy_category_tree_to_clipboard failed")
+        except (ValueError, TypeError, RuntimeError) as e:
+            logger.exception(
+                "copy_category_tree_to_clipboard failed for cat_id=%s", cat_id
+            )
 
     def copy_categories_to_clipboard(self, cat_ids: Iterable[int]) -> None:
         """Копирует несколько категорий (каждую с её ссылками) в буфер обмена."""
@@ -93,13 +101,16 @@ class StructureContextService:
             for cid in cat_ids:
                 try:
                     trees.append(self._ss.export_category_tree(int(cid)))
-                except Exception:
+                except (ValueError, TypeError) as e:
+                    logger.warning(
+                        "Skipping category with id=%s during copy: %s", cid, e
+                    )
                     continue
             if not trees:
                 return
             payload = {"type": "category_trees", "trees": trees}
             app.clipboard().setText(json.dumps(payload, ensure_ascii=False))
-        except Exception:
+        except (RuntimeError, TypeError) as e:
             logger.exception("copy_categories_to_clipboard failed")
 
     # --- Paste operations ---
@@ -197,6 +208,8 @@ class StructureContextService:
                     self._ls.batch_create_or_update_links(all_links)
 
             return created_categories
-        except Exception:
-            logger.exception("paste_from_clipboard_to_section failed")
+        except (ValueError, TypeError, KeyError, RuntimeError) as e:
+            logger.exception(
+                "paste_from_clipboard_to_section(section_id=%s) failed", section_id
+            )
             return []

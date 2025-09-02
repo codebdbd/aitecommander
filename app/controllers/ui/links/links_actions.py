@@ -102,19 +102,6 @@ class LinksActions:
             return []
         return self.links.get_selected_rows()
 
-    def get_link_by_row(self, row: int):
-        """Совместимость: вернуть ссылку по номеру строки.
-        В UI-контроллере метод get_link_by_row удалён, используем get_link_at.
-        """
-        if not self.links:
-            return None
-        # Предпочитаем прямой вызов актуального метода
-        if hasattr(self.links, "get_link_at"):
-            return self.links.get_link_at(row)
-        # Fallback на случай наличия старого метода где-то ещё
-        if hasattr(self.links, "get_link_by_row"):
-            return self.links.get_link_by_row(row)
-        return None
 
     def current_row(self) -> Optional[int]:
         if not self.links or not hasattr(self.links, "current_row"):
