@@ -53,11 +53,18 @@ class LinkAsyncController:
                     self._pending_tasks.remove(task_id)
             on_loaded(links, category_id, task_id)
 
+        def _on_error(e: Exception):
+            # Снимаем из pending при ошибке тоже
+            with self._tasks_lock:
+                if task_id in self._pending_tasks:
+                    self._pending_tasks.remove(task_id)
+            on_error(str(e))
+
         self._run_db(
             fetch_fn,
             description=f"load_links(category_id={category_id})",
             on_finished=_finished,
-            on_error=lambda e: on_error(str(e)),
+            on_error=_on_error,
         )
         return task_id
 
@@ -81,15 +88,13 @@ class LinkAsyncController:
         self,
         *,
         count_fn: Callable[[], int],
-        links: List[Dict],
-        link_ctx: Optional[Dict],
-        on_finished: Callable[[int, List[Dict], Optional[Dict]], None],
+        on_finished: Callable[[int], None],
         on_error: Callable[[str], None],
     ) -> None:
         self._run_db(
             count_fn,
             description="count_favorites()",
-            on_finished=lambda fav_count: on_finished(int(fav_count), links, link_ctx),
+            on_finished=lambda fav_count: on_finished(int(fav_count)),
             on_error=lambda e: on_error(str(e)),
         )
 

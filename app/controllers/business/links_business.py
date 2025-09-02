@@ -29,8 +29,8 @@ class LinksBusinessLogic(QObject):
         list
     )  # List[Dict] - результаты поиска
     favorites_counted: pyqtSignal = pyqtSignal(
-        int, list, object
-    )  # int, List[Dict], Optional[Dict] - количество, ссылки, текущая ссылка
+        int
+    )  # int - количество избранных
     link_updated: pyqtSignal = pyqtSignal(dict)  # Dict - обновленная ссылка
     error_occurred: pyqtSignal = pyqtSignal(str)  # str - сообщение об ошибке
 
@@ -100,18 +100,12 @@ class LinksBusinessLogic(QObject):
                 raise
 
     def count_favorites(self, link: Optional[Dict] = None):
-        """Подсчитать количество избранных ссылок (асинхронно через контроллер)."""
-        # Изоляция получения списка ссылок от BLL: получаем один раз через repo
-        links_snapshot = []
-        try:
-            links_snapshot = self.repo.get_all_links()
-        except Exception as e:
-            self.logger.error(f"Error preparing links snapshot for favorites count: {e}")
-            # Не прерываем: считаем только число
+        """Подсчитать количество избранных ссылок (асинхронно через контроллер).
+
+        Передаём только функцию подсчёта; UI больше не получает снапшот ссылок.
+        """
         self.async_controller.count_favorites_async(
             count_fn=lambda: self.repo.count_favorites(),
-            links=links_snapshot,
-            link_ctx=link,
             on_finished=self._on_favorites_counted,
             on_error=self._on_worker_error,
         )
@@ -359,11 +353,9 @@ class LinksBusinessLogic(QObject):
         """Обработка результатов поиска."""
         self.search_results_ready.emit(search_results)
 
-    def _on_favorites_counted(
-        self, fav_count: int, links: List[Dict], link: Optional[Dict]
-    ):
-        """Обработка подсчета избранного."""
-        self.favorites_counted.emit(fav_count, links, link)
+    def _on_favorites_counted(self, fav_count: int):
+        """Обработка подсчёта избранного: эмитим только число."""
+        self.favorites_counted.emit(fav_count)
 
     def _on_worker_error(self, error_msg: str):
         """Обработка ошибок воркеров."""

@@ -20,10 +20,6 @@ class DummyRepo:
         self.calls.append(("count_favorites",))
         return 3
 
-    def get_all_links(self):
-        self.calls.append(("get_all_links",))
-        return [{"id": 10}]
-
 
 class DummyAsync:
     def __init__(self):
@@ -39,9 +35,9 @@ class DummyAsync:
         self.calls.append(("search_links_async", query))
         self._last_callbacks["search"] = (search_fn, on_finished, on_error, query)
 
-    def count_favorites_async(self, *, count_fn, links, link_ctx, on_finished, on_error):
-        self.calls.append(("count_favorites_async", link_ctx))
-        self._last_callbacks["fav"] = (count_fn, links, on_finished, on_error, link_ctx)
+    def count_favorites_async(self, *, count_fn, on_finished, on_error):
+        self.calls.append(("count_favorites_async",))
+        self._last_callbacks["fav"] = (count_fn, on_finished, on_error)
 
     def shutdown(self, timeout_ms):
         self.shutdown_called_with = timeout_ms
@@ -122,15 +118,14 @@ def test_count_favorites_delegates_and_emits(business_with_stubs):
     ctx = {"id": 5}
     logic.count_favorites(ctx)
 
-    assert ("count_favorites_async", ctx) in async_ctrl.calls
+    assert ("count_favorites_async",) in async_ctrl.calls
 
-    count_fn, all_links, on_finished, _on_error, link_ctx = async_ctrl._last_callbacks["fav"]
+    count_fn, on_finished, _on_error = async_ctrl._last_callbacks["fav"]
     fav_count = count_fn()
-    on_finished(fav_count, all_links, link_ctx)
+    on_finished(fav_count)
 
-    assert logic.favorites_counted.emitted[-1] == (3, [{"id": 10}], ctx)
+    assert logic.favorites_counted.emitted[-1] == (3,)
     assert ("count_favorites",) in repo.calls
-    assert ("get_all_links",) in repo.calls
 
 
 def test_shutdown_propagates_timeout(business_with_stubs):
