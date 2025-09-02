@@ -509,8 +509,16 @@ def _connect_structure_signals(
 
     # Подключаем обработчик смены активной сферы к перезагрузке структуры
     try:
-        handler = getattr(structure_business, "on_active_sphere_changed", None)
-        if not callable(handler):
+        # Явная проверка наличия метода on_active_sphere_changed
+        if hasattr(structure_business, "on_active_sphere_changed"):
+            handler = structure_business.on_active_sphere_changed
+            if not callable(handler):
+                raise SetupError("StructureBusinessLogic.on_active_sphere_changed must be callable")
+        else:
+            # Проверяем наличие методов загрузки до создания обработчика
+            if not (hasattr(structure_business, "load_structure_async") or hasattr(structure_business, "load_structure")):
+                raise SetupError("StructureBusinessLogic must provide on_active_sphere_changed, load_structure_async, or load_structure")
+            
             # Разрешаем целевой загрузчик один раз при подключении, чтобы ошибка конфигурации проявилась сразу
             loader = _resolve_structure_loader(structure_business)
 
@@ -649,7 +657,9 @@ class DatabaseEventHandler:
     def handle_database_restored(window: Any, new_db: Any):
         """Обработать восстановление базы данных."""
         window.db = new_db
-        DatabaseEventHandler._update_controllers_with_new_db(window, new_db)
+        # Явно передаем links_actions как зависимость
+        links_actions = getattr(window, "links_actions", None)
+        DatabaseEventHandler._update_controllers_with_new_db(window, new_db, links_actions=links_actions)
         DatabaseEventHandler._restore_ui_state(window)
         window.update_statusbar()
 
@@ -657,7 +667,9 @@ class DatabaseEventHandler:
     def handle_database_connected(window: Any, new_db: Any):
         """Обработать подключение новой базы данных."""
         window.db = new_db
-        DatabaseEventHandler._update_controllers_with_new_db(window, new_db)
+        # Явно передаем links_actions как зависимость
+        links_actions = getattr(window, "links_actions", None)
+        DatabaseEventHandler._update_controllers_with_new_db(window, new_db, links_actions=links_actions)
         DatabaseEventHandler._restore_ui_state(window)
         window.update_statusbar()
 
@@ -686,8 +698,14 @@ class DatabaseEventHandler:
             links_table_controller.reload(category_id)
 
     @staticmethod
-    def _update_controllers_with_new_db(window: Any, new_db: Any):
-        """Обновить все контроллеры новой БД."""
+    def _update_controllers_with_new_db(window: Any, new_db: Any, *, links_actions: Any = None):
+        """Обновить все контроллеры новой БД.
+        
+        Args:
+            window: Главное окно приложения
+            new_db: Новая база данных
+            links_actions: LinksActions контроллер (обязательная зависимость)
+        """
         if hasattr(window, "structure"):
             window.structure.db = new_db
             window.structure.spheres = new_db.spheres
@@ -695,23 +713,25 @@ class DatabaseEventHandler:
             window.structure.categories = new_db.categories
             window.structure.load()
 
-        la = getattr(window, "links_actions", None)
-        if la:
-            # Критичная зависимость: links_actions.links должен существовать
-            if not getattr(la, "links", None):
-                logger.error("links_actions.links is missing during DB switch")
-                raise SetupError("links_actions.links is required when switching database")
-            links = la.links
-            # И должен поддерживать необходимые атрибуты
-            if not hasattr(links, "db") or not hasattr(links, "links"):
-                logger.error("links_actions.links must expose 'db' and 'links' attributes")
-                raise SetupError("links_actions.links must have 'db' and 'links' attributes")
-            try:
-                links.db = new_db
-                links.links = new_db.links
-            except Exception:
-                logger.exception("Failed to update links_actions.links with new DB")
-                raise
+        # Явная проверка обязательной зависимости links_actions
+        if links_actions is None:
+            raise SetupError("links_actions is required when switching database")
+        
+        # Критичная зависимость: links_actions.links должен существовать
+        if not hasattr(links_actions, "links") or links_actions.links is None:
+            raise SetupError("links_actions.links is required when switching database")
+        
+        links = links_actions.links
+        # И должен поддерживать необходимые атрибуты
+        if not hasattr(links, "db") or not hasattr(links, "links"):
+            raise SetupError("links_actions.links must have 'db' and 'links' attributes")
+        
+        try:
+            links.db = new_db
+            links.links = new_db.links
+        except Exception:
+            logger.exception("Failed to update links_actions.links with new DB")
+            raise
 
         if hasattr(window, "structure_business"):
             sb = window.structure_business
