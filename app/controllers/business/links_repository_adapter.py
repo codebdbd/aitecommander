@@ -8,8 +8,8 @@ from app.services.uow import UnitOfWork
 class LinksRepositoryAdapter:
     """Адаптер доступа к данным ссылок.
 
-    Инкапсулирует обращения к LinksService и, при необходимости, к Database.links,
-    скрывая детали от бизнес-логики.
+    Единая точка доступа к Database.links с единообразной политикой транзакций (UnitOfWork
+    там, где это требуется) и нормализацией результатов для бизнес-слоя.
     """
 
     def __init__(self, db: Database, logger=None) -> None:
