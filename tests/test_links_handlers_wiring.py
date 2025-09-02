@@ -89,3 +89,29 @@ def test_connect_table_signals_raises_setup_error_on_missing_critical_signals(ta
 
     with pytest.raises(SetupError):
         handlers._connect_table_signals()
+
+
+def test_connect_business_signals_raises_when_required_signal_missing():
+    # Контроллер с бизнес-логикой без обязательного сигнала
+    class BizMissing:
+        # только часть сигналов
+        def __init__(self):
+            self.link_updated = Signal()
+            # favorites_counted отсутствует
+            self.error_occurred = Signal()
+
+    table = SimpleNamespace(
+        # минимально необходимое для конструктора BaseLinksUIComponent
+    )
+    controller = ControllerStub(table)
+    controller.business = BizMissing()
+
+    handlers = LinksUIHandlers(
+        controller,
+        link_operations=DummyLinkOps(),
+        links_table_controller=DummyLinksTableController(),
+        ui_state=Provider(),
+    )
+
+    with pytest.raises(SetupError):
+        handlers._connect_signals()

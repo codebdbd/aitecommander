@@ -53,7 +53,7 @@ class DatabaseControllerStub:
 
 
 class SystemDialogControllerStub:
-    def __init__(self, window):  # noqa: ARG002
+    def __init__(self, window, *, database_controller=None, links_table_controller=None, links_business=None):  # noqa: ARG002
         pass
 
 

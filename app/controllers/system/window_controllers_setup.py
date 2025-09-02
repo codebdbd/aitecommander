@@ -126,7 +126,12 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
         links_table_controller=links_table_ctrl,
     )
     db_ctrl = DatabaseController(db, window)
-    sys_dialogs = SystemDialogController(window)
+    sys_dialogs = SystemDialogController(
+        window,
+        database_controller=db_ctrl,
+        links_table_controller=links_table_ctrl,
+        links_business=links_business,
+    )
     app_shutdown = AppShutdownController(window)
 
     controllers.update(

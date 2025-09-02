@@ -63,7 +63,7 @@ def test_setup_raises_if_structure_business_lacks_setter(monkeypatch):
             self.operation_error = SimpleNamespace(connect=lambda *_a, **_k: None)
 
     class DummySystemDialogController:
-        def __init__(self, window):
+        def __init__(self, window, *, database_controller=None, links_table_controller=None, links_business=None):  # noqa: ARG002
             pass
 
     class DummyAppShutdownController:
