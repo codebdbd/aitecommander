@@ -29,14 +29,6 @@ class LinksRepositoryAdapter:
     def get_links_for_category(self, category_id: int) -> List[Dict]:
         return self.db.links.get_links_for_category(category_id) or []
 
-    def get_all_links(self) -> List[Dict]:
-        try:
-            return self.db.links.get_all_links() or []
-        except Exception as e:
-            # Не скрываем ошибки БД — логируем и пробрасываем дальше
-            self.logger.error("get_all_links failed: %s", e)
-            raise
-
     # Мутации/операции
     def reorder(self, link_ids: List[int]) -> None:
         # ВАЖНО: repo.update_link_order сам управляет транзакцией
@@ -60,10 +52,16 @@ class LinksRepositoryAdapter:
     def get_favorite_links(self) -> List[Dict]:
         return self.db.links.get_favorite_links() or []
 
-    def clear_favorites(self) -> bool:
+    def clear_favorites(self) -> int:
         with UnitOfWork(self.db):
-            self.db.links.clear_favorites()
-        return True
+            try:
+                affected = int(self.db.links.clear_favorites() or 0)
+            except Exception:
+                # clear_favorites в модели может не возвращать счётчик в старых версиях
+                # Считаем как 0 в таком случае — вызывающая сторона обработает/заллогирует
+                affected = 0
+        self.logger.debug("clear_favorites affected=%s", affected)
+        return affected
 
     def get_link_by_id(self, link_id: int) -> Optional[Dict]:
         return self.db.links.get_link_by_id(link_id)

@@ -75,14 +75,33 @@ class LinkAsyncController:
         search_fn: Callable[[], List[Dict]],
         on_finished: Callable[[List[Dict]], None],
         on_error: Callable[[str], None],
-    ) -> None:
-        self.logger.debug("Searching links for query: %s", query)
+    ) -> int:
+        """Запустить поиск ссылок. Возвращает task_id и трекает задачу в pending."""
+        self._task_counter += 1
+        task_id = self._task_counter
+        with self._tasks_lock:
+            self._pending_tasks.add(task_id)
+        self.logger.debug("Searching links for query: %s, task_id=%s", query, task_id)
+
+        def _finished(results: List[Dict]):
+            with self._tasks_lock:
+                if task_id in self._pending_tasks:
+                    self._pending_tasks.remove(task_id)
+            on_finished(results)
+
+        def _on_error(e: Exception):
+            with self._tasks_lock:
+                if task_id in self._pending_tasks:
+                    self._pending_tasks.remove(task_id)
+            on_error(str(e))
+
         self._run_db(
             search_fn,
             description=f"search_links(query={query!r})",
-            on_finished=on_finished,
-            on_error=lambda e: on_error(str(e)),
+            on_finished=_finished,
+            on_error=_on_error,
         )
+        return task_id
 
     def count_favorites_async(
         self,
@@ -90,13 +109,32 @@ class LinkAsyncController:
         count_fn: Callable[[], int],
         on_finished: Callable[[int], None],
         on_error: Callable[[str], None],
-    ) -> None:
+    ) -> int:
+        """Подсчёт избранного. Возвращает task_id и трекает в pending."""
+        self._task_counter += 1
+        task_id = self._task_counter
+        with self._tasks_lock:
+            self._pending_tasks.add(task_id)
+
+        def _finished(fav_count: int):
+            with self._tasks_lock:
+                if task_id in self._pending_tasks:
+                    self._pending_tasks.remove(task_id)
+            on_finished(int(fav_count))
+
+        def _on_error(e: Exception):
+            with self._tasks_lock:
+                if task_id in self._pending_tasks:
+                    self._pending_tasks.remove(task_id)
+            on_error(str(e))
+
         self._run_db(
             count_fn,
             description="count_favorites()",
-            on_finished=lambda fav_count: on_finished(int(fav_count)),
-            on_error=lambda e: on_error(str(e)),
+            on_finished=_finished,
+            on_error=_on_error,
         )
+        return task_id
 
     # Завершение работы
     def shutdown(self, timeout_ms: int = 2000) -> None:

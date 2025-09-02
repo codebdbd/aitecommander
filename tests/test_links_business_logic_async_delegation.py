@@ -115,8 +115,7 @@ def test_search_links_delegates_and_emits(business_with_stubs):
 def test_count_favorites_delegates_and_emits(business_with_stubs):
     logic, repo, async_ctrl = business_with_stubs
 
-    ctx = {"id": 5}
-    logic.count_favorites(ctx)
+    logic.count_favorites()
 
     assert ("count_favorites_async",) in async_ctrl.calls
 
