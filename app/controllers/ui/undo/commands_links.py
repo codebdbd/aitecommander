@@ -238,8 +238,8 @@ class DeleteLinkCmd(BaseCommand):
         if hasattr(self.main, "links_business") and self.main.links_business:
             self.main.links_business.links.create_or_update_link(self.link)
         else:
-            # Фоллбек через сервисный слой
-            LinksService(self.db).create_or_update_link(self.link)
+            # Фоллбек через адаптер доступа к данным
+            LinksRepositoryAdapter(self.db).create_or_update_link(self.link)
         if hasattr(self.main, "links_business") and self.main.links_business:
             try:
                 self.main.links_business.link_updated.emit(self.link)
@@ -286,7 +286,7 @@ class BatchSaveLinksCmd(BaseCommand):
                 self.links_data
             )
         else:
-            created = LinksService(self.db).batch_create_or_update_links(
+            created = LinksRepositoryAdapter(self.db).batch_create_or_update_links(
                 self.links_data
             )
         self.created_ids.extend(created or [])
