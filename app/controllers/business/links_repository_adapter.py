@@ -32,9 +32,10 @@ class LinksRepositoryAdapter:
     def get_all_links(self) -> List[Dict]:
         try:
             return self.db.links.get_all_links() or []
-        except Exception:
-            # совместимость с текущей бизнес-логикой
-            return []
+        except Exception as e:
+            # Не скрываем ошибки БД — логируем и пробрасываем дальше
+            self.logger.error("get_all_links failed: %s", e)
+            raise
 
     # Мутации/операции
     def reorder(self, link_ids: List[int]) -> None:

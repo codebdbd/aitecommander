@@ -79,28 +79,21 @@ def test_search_links_async_calls_on_finished():
     assert results == [[1, 2, 3]]
 
 
-def test_count_favorites_async_passes_all_links_and_ctx_and_casts_int():
+def test_count_favorites_async_passes_count_and_casts_int():
     controller = LinkAsyncController(scheduler=DummyScheduler(DummyThreadPool()), run_db_fn=immediate_run_db)
 
     def count():
         return 5.0  # будет приведено к int
 
-    links = [{"id": 7}]
-    ctx = {"id": 7}
-
     calls = []
 
     controller.count_favorites_async(
         count_fn=count,
-        links=links,
-        link_ctx=ctx,
-        on_finished=lambda fav_count, links, link_ctx: calls.append((fav_count, links, link_ctx)),
+        on_finished=lambda fav_count: calls.append(fav_count),
         on_error=lambda e: pytest.fail(f"Unexpected error: {e}"),
     )
 
-    assert calls and calls[0][0] == 5
-    assert calls[0][1] == [{"id": 7}]
-    assert calls[0][2] == ctx
+    assert calls and calls[0] == 5
 
 
 def test_shutdown_waits_thread_pool_with_timeout():
