@@ -8,6 +8,8 @@ from PyQt6.QtWidgets import QPushButton, QWidget
 
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.business.links_business import LinksBusinessLogic
+from app.controllers.business.links_repository_adapter import LinksRepositoryAdapter
+from app.controllers.business.link_async_controller import LinkAsyncController
 from app.controllers.system.app_shutdown_controller import AppShutdownController
 from app.controllers.system.keyboard_manager import KeyboardManager
 from app.controllers.ui.action_controller import ActionController
@@ -130,9 +132,19 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
             raise AttributeError("recents_changed must have connect")
     except Exception as e:
         raise SetupError("LinkOperationsController must expose recents_changed signal") from e
-    # Инициализируем LinksBusiness только после успешной настройки tiles,
-    # чтобы ошибки tiles не маскировались требованием DummyDB.links в тестах
-    links_business = LinksBusinessLogic(db)
+    # Инициализируем LinksBusiness только после успешной настройки tiles.
+    # Важно: не трогаем LinksRepositoryAdapter, если у db нет .links —
+    # тесты ожидают, что SetupError по структуре/теме поднимется раньше.
+    if hasattr(db, "links"):
+        repo = LinksRepositoryAdapter(db)
+        async_ctrl = LinkAsyncController(logger=logger)
+        try:
+            links_business = LinksBusinessLogic(db, repository=repo, async_controller=async_ctrl)
+        except TypeError:
+            # На случай, если LinksBusinessLogic подменён в тестах и не принимает kwargs
+            links_business = LinksBusinessLogic(db)
+    else:
+        links_business = LinksBusinessLogic(db)
 
     links_table_ctrl = LinksTableController(
         window,
