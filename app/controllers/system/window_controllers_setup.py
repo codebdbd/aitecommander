@@ -276,7 +276,16 @@ def setup_dependency_injection(window: Any, controllers: Dict[str, Any]) -> None
 def _deferred_setup(window: Any, controllers: Dict[str, Any]) -> None:
     try:
         _inject_to_category_tiles(window, controllers)
-        _connect_top_panels_signals(window, controllers)
+        _connect_top_panels_signals_explicit(
+            top_panels_controller=window.top_panels_controller,
+            links_actions=window.links_actions,
+            fav_widget=window.fav_widget,
+            recent_links_widget=window.recent_links_widget,
+            links=controllers.get("links"),
+            quick_add_widget=getattr(window, "quick_add_widget", None),
+            auto_hide_tree_filter=getattr(window, "_auto_hide_tree_filter", None),
+            topbar_manager=getattr(window, "_topbar_manager", None),
+        )
     except (AttributeError, TypeError, SetupError) as e:
         logger.error(f"Failed during deferred dependency injection: {e}")
         raise
@@ -355,16 +364,19 @@ def _setup_quick_add_widget(window: Any, controllers: Dict[str, Any]) -> None:
         window, mode="quick", category_provider=window
     )
 
-    _connect_quick_add_signal(window, controllers)
+    _connect_quick_add_signal(
+        quick_add_widget=window.quick_add_widget,
+        links=controllers.get("links"),
+    )
     _add_quick_add_to_top_bar(window)
 
 
-def _connect_quick_add_signal(window: Any, controllers: Dict[str, Any]) -> None:
-    """Подключить сигнал QuickAddWidget."""
+def _connect_quick_add_signal(*, quick_add_widget: Any, links: Any) -> None:
+    """Подключить сигнал QuickAddWidget c явными зависимостями."""
+    if not quick_add_widget:
+        return
     try:
-        window.quick_add_widget.quickAddRequested.connect(
-            window.links.on_quick_add_requested
-        )
+        quick_add_widget.quickAddRequested.connect(links.on_quick_add_requested)
     except (AttributeError, TypeError) as e:
         raise SetupError(f"Failed to connect quick add signal: {e}") from e
 
@@ -374,64 +386,90 @@ def _add_quick_add_to_top_bar(window: Any) -> None:
     return
 
 
-def _connect_top_panels_signals(window: Any, controllers: Dict[str, Any]) -> None:
-    """Подключить сигналы верхних панелей."""
-    # QuickAddWidget — необязательная часть: подключаем только если присутствует
-    if hasattr(window, "quick_add_widget") and window.quick_add_widget:
+def _connect_top_panels_signals_explicit(
+    *,
+    top_panels_controller: TopPanelsController,
+    links_actions: Any,
+    fav_widget: Any,
+    recent_links_widget: Any,
+    links: Any,
+    quick_add_widget: Any | None = None,
+    auto_hide_tree_filter: Any | None = None,
+    topbar_manager: Any | None = None,
+) -> None:
+    """Подключить сигналы верхних панелей с явной передачей зависимостей."""
+    # QuickAddWidget — необязательная часть
+    if quick_add_widget is not None:
         try:
-            _connect_quick_add_signal(window, controllers)
+            _connect_quick_add_signal(quick_add_widget=quick_add_widget, links=links)
         except (AttributeError, TypeError) as e:
             raise SetupError(f"Failed to wire quick add: {e}") from e
 
     # Favorites panel wiring — критично требует TopPanelsController
-    if not hasattr(window, "fav_widget") or not window.fav_widget:
+    if not fav_widget:
         raise SetupError("Favorites widget is required for wiring")
-    else:
-        try:
-            window.fav_widget.linkClicked.connect(window.links_actions.open_link)
-        except (AttributeError, TypeError) as e:
-            raise SetupError(f"Failed to connect favorites link click: {e}") from e
+    try:
+        fav_widget.linkClicked.connect(links_actions.open_link)
+    except (AttributeError, TypeError) as e:
+        raise SetupError(f"Failed to connect favorites link click: {e}") from e
 
-        top_ctrl = window.top_panels_controller
-        if not top_ctrl:
-            raise SetupError("TopPanelsController is required for favorites panel wiring")
-        try:
-            window.fav_widget.refresh_requested.connect(top_ctrl.request_favorites_refresh)
-            window.fav_widget.clear_requested.connect(top_ctrl.clear_favorites)
-        except (AttributeError, TypeError) as e:
-            raise SetupError(f"Failed to wire Favorites to TopPanelsController: {e}") from e
+    if not top_panels_controller:
+        raise SetupError("TopPanelsController is required for favorites panel wiring")
+    try:
+        fav_widget.refresh_requested.connect(top_panels_controller.request_favorites_refresh)
+        fav_widget.clear_requested.connect(top_panels_controller.clear_favorites)
+    except (AttributeError, TypeError) as e:
+        raise SetupError(f"Failed to wire Favorites to TopPanelsController: {e}") from e
 
     # Recent panel wiring — критично требует TopPanelsController
-    if not hasattr(window, "recent_links_widget") or not window.recent_links_widget:
+    if not recent_links_widget:
         raise SetupError("Recent links widget is required for wiring")
-    else:
-        try:
-            window.recent_links_widget.linkClicked.connect(window.links_actions.open_link)
-        except (AttributeError, TypeError) as e:
-            raise SetupError(f"Failed to connect recent link click: {e}") from e
+    try:
+        recent_links_widget.linkClicked.connect(links_actions.open_link)
+    except (AttributeError, TypeError) as e:
+        raise SetupError(f"Failed to connect recent link click: {e}") from e
 
-        top_ctrl = window.top_panels_controller
-        if not top_ctrl:
-            raise SetupError("TopPanelsController is required for recent panel wiring")
-        try:
-            # Подключаем напрямую метод контроллера; сигнатуры совместимы
-            window.recent_links_widget.refresh_requested[int].connect(top_ctrl.request_recents_refresh)
-        except (AttributeError, TypeError) as e:
-            raise SetupError(f"Failed to wire Recents to TopPanelsController: {e}") from e
+    if not top_panels_controller:
+        raise SetupError("TopPanelsController is required for recent panel wiring")
+    try:
+        # Подключаем напрямую метод контроллера; сигнатуры совместимы
+        recent_links_widget.refresh_requested[int].connect(top_panels_controller.request_recents_refresh)
+    except (AttributeError, TypeError) as e:
+        raise SetupError(f"Failed to wire Recents to TopPanelsController: {e}") from e
 
-    # Доп. настройки интерфейса — валидируем callables, не используем небезопасные getattr
-    filt = getattr(window, "_auto_hide_tree_filter", None)
-    if filt is not None:
-        apply_fn = getattr(filt, "_apply", None)
+    # Доп. настройки интерфейса — валидируем callables, без getattr от window
+    if auto_hide_tree_filter is not None:
+        apply_fn = getattr(auto_hide_tree_filter, "_apply", None)
         if not callable(apply_fn):
             raise SetupError("_auto_hide_tree_filter must provide callable _apply()")
         QTimer.singleShot(0, apply_fn)
-    mgr = getattr(window, "_topbar_manager", None)
-    if mgr is not None:
-        adjust_fn = getattr(mgr, "adjust", None)
+    if topbar_manager is not None:
+        adjust_fn = getattr(topbar_manager, "adjust", None)
         if not callable(adjust_fn):
             raise SetupError("_topbar_manager must provide callable adjust()")
         QTimer.singleShot(0, adjust_fn)
+
+
+def _connect_top_panels_signals(window: Any, controllers: Dict[str, Any] | None = None) -> None:
+    """Backward-compatible обёртка для тестов и старого кода.
+
+    Извлекает зависимости из window и проксирует вызов в явный вариант.
+    """
+    if controllers is None:
+        controllers = {}
+    try:
+        _connect_top_panels_signals_explicit(
+            top_panels_controller=getattr(window, "top_panels_controller", None),
+            links_actions=getattr(window, "links_actions", None),
+            fav_widget=getattr(window, "fav_widget", None),
+            recent_links_widget=getattr(window, "recent_links_widget", None),
+            links=controllers.get("links", getattr(window, "links", None)),
+            quick_add_widget=getattr(window, "quick_add_widget", None),
+            auto_hide_tree_filter=getattr(window, "_auto_hide_tree_filter", None),
+            topbar_manager=getattr(window, "_topbar_manager", None),
+        )
+    except (AttributeError, TypeError) as e:
+        raise SetupError(f"Failed to connect top panels signals: {e}") from e
 
 
 def setup_signal_connections(window: Any, controllers: Dict[str, Any], *, top_panels_controller: TopPanelsController) -> None:
