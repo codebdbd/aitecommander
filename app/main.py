@@ -55,7 +55,26 @@ class ApplicationInitializer:
     def initialize_theme_controller(self) -> bool:
         """Инициализирует контроллер темы."""
         try:
-            self.theme_controller = ThemeController(self.settings)
+            # На момент инициализации ThemeController TopPanelsController ещё не создан.
+            # Передаём явный временный стаб с минимально необходимым API; реальный контроллер
+            # будет внедрён позже в window_controllers_setup.setup_controllers().
+            class _TopPanelsStub:
+                def request_refresh(self):
+                    pass
+
+                def request_favorites_refresh(self, *_args, **_kwargs):
+                    pass
+
+                def request_recents_refresh(self, *_args, **_kwargs):
+                    pass
+
+                def refresh_all(self):
+                    pass
+
+            self.theme_controller = ThemeController(
+                self.settings,
+                top_panels_controller=_TopPanelsStub(),
+            )
             return True
         except Exception as e:
             logging.error(f"Ошибка создания контроллера темы: {e}", exc_info=True)

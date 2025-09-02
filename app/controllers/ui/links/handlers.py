@@ -145,12 +145,8 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 "LinksUIHandlers._update_table: links_table_controller.on_links_loaded failed"
             )
 
-        # Сигнал оставляем для внешних подписчиков
-        try:
-            if isinstance(category_id, int) and category_id > 0:
-                self.link_operations.emit_links_changed(category_id)
-        except Exception as e:
-            logger.warning(f"Failed to emit links_changed from _update_table: {e}")
+        # Не эмитим links_changed здесь, чтобы не провоцировать повторные перезагрузки
+        # Уведомления о загрузке обрабатываются в LinksTableController.on_links_loaded
 
     def _update_search_results(self, search_results: List[Dict]):
         """Обновить результаты поиска."""

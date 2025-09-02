@@ -22,14 +22,17 @@ class ThemeController:
         logger=None,
         stylesheet_applier: Optional[callable] = None,
         gui_scheduler: Optional[callable] = None,
-        top_panels_controller=None,
+        *,
+        top_panels_controller,
     ):
         """Инициализация контроллера тем."""
         # Deprecated: параметр logger больше не используется; логирование ведётся модульным логгером
         self._deprecated_logger_param = logger
         self.settings = settings
         self.main_window = main_window
-        # Явная зависимость (внедряется позже через setup при текущем порядке инициализации)
+        # Обязательная зависимость TopPanelsController — требуем на этапе инициализации
+        if top_panels_controller is None:
+            raise ValueError("ThemeController requires explicit 'top_panels_controller' dependency")
         self.top_panels_controller = top_panels_controller
         self._qss_cache: OrderedDict[str, str] = OrderedDict()
         self._common_qss: Optional[str] = None
@@ -389,15 +392,9 @@ class ThemeController:
         except Exception as exc:
             logger.warning("Ошибка перезагрузки иконок структуры: %s", exc)
 
-        # Обновление верхних панелей — только через явную зависимость
-        top_ctrl = getattr(self, "top_panels_controller", None)
-        if not top_ctrl:
-            # Строго требуем DI для корректного обновления UI после смены темы
-            raise ValueError(
-                "TopPanelsController not injected into ThemeController; call set_top_panels_controller() during window setup"
-            )
+        # Обновление верхних панелей — прямая зависимость из конструктора
         try:
-            top_ctrl.refresh_all()
+            self.top_panels_controller.refresh_all()
         except Exception as exc:
             logger.warning("Ошибка обновления верхних панелей: %s", exc)
 
