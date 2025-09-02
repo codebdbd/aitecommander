@@ -1,7 +1,7 @@
 import logging
 from types import SimpleNamespace
 
-from app.controllers.system.window_controllers_setup import _connect_top_panels_signals
+from app.controllers.system.window_controllers_setup import _connect_top_panels_signals_explicit
 from app.controllers.ui.top_panels_controller import TopPanelsController
 
 
@@ -71,8 +71,17 @@ def test_top_panels_signals_are_debounced(monkeypatch, caplog):
     )
     window.top_panels_controller = ctrl
 
-    # Подключаем сигналы (проверяем, что идут в request_* методы)
-    _connect_top_panels_signals(window, {})
+    # Подключаем сигналы (проверяем, что идут в request_* методы) — явный вызов
+    _connect_top_panels_signals_explicit(
+        top_panels_controller=window.top_panels_controller,
+        links_actions=window.links_actions,
+        fav_widget=window.fav_widget,
+        recent_links_widget=window.recent_links_widget,
+        links=None,
+        quick_add_widget=None,
+        auto_hide_tree_filter=None,
+        topbar_manager=None,
+    )
 
     fav_calls = []
     rec_calls = []

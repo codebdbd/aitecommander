@@ -38,17 +38,21 @@ class SetupError(Exception):
 def _resolve_structure_loader(structure_business: StructureBusinessLogic):
     """Вернуть callable для загрузки структуры: load_structure_async или load_structure.
 
-    Если оба отсутствуют — поднять SetupError как явную ошибку конфигурации.
+    Жёсткая типизация: используем hasattr для проверки наличия методов и сразу
+    поднимаем SetupError, если ни один не найден. Неожиданные ошибки логируем и пробрасываем.
     """
     try:
-        loader = getattr(structure_business, "load_structure_async", None)
-        if callable(loader):
-            return loader
-        loader = getattr(structure_business, "load_structure", None)
-        if callable(loader):
-            return loader
-    except (AttributeError, TypeError) as e:
-        raise SetupError("Invalid structure business instance while resolving loader") from e
+        if hasattr(structure_business, "load_structure_async"):
+            loader = structure_business.load_structure_async  # type: ignore[attr-defined]
+            if callable(loader):
+                return loader
+        if hasattr(structure_business, "load_structure"):
+            loader = structure_business.load_structure  # type: ignore[attr-defined]
+            if callable(loader):
+                return loader
+    except Exception as e:
+        logger.exception("Unexpected error while resolving structure loader")
+        raise
     raise SetupError(
         "StructureBusinessLogic must provide load_structure_async() or load_structure()"
     )
@@ -282,9 +286,9 @@ def _deferred_setup(window: Any, controllers: Dict[str, Any]) -> None:
             fav_widget=window.fav_widget,
             recent_links_widget=window.recent_links_widget,
             links=controllers.get("links"),
-            quick_add_widget=getattr(window, "quick_add_widget", None),
-            auto_hide_tree_filter=getattr(window, "_auto_hide_tree_filter", None),
-            topbar_manager=getattr(window, "_topbar_manager", None),
+            quick_add_widget=(window.quick_add_widget if hasattr(window, "quick_add_widget") else None),
+            auto_hide_tree_filter=(window._auto_hide_tree_filter if hasattr(window, "_auto_hide_tree_filter") else None),
+            topbar_manager=(window._topbar_manager if hasattr(window, "_topbar_manager") else None),
         )
     except (AttributeError, TypeError, SetupError) as e:
         logger.error(f"Failed during deferred dependency injection: {e}")
@@ -450,26 +454,7 @@ def _connect_top_panels_signals_explicit(
         QTimer.singleShot(0, adjust_fn)
 
 
-def _connect_top_panels_signals(window: Any, controllers: Dict[str, Any] | None = None) -> None:
-    """Backward-compatible обёртка для тестов и старого кода.
-
-    Извлекает зависимости из window и проксирует вызов в явный вариант.
-    """
-    if controllers is None:
-        controllers = {}
-    try:
-        _connect_top_panels_signals_explicit(
-            top_panels_controller=getattr(window, "top_panels_controller", None),
-            links_actions=getattr(window, "links_actions", None),
-            fav_widget=getattr(window, "fav_widget", None),
-            recent_links_widget=getattr(window, "recent_links_widget", None),
-            links=controllers.get("links", getattr(window, "links", None)),
-            quick_add_widget=getattr(window, "quick_add_widget", None),
-            auto_hide_tree_filter=getattr(window, "_auto_hide_tree_filter", None),
-            topbar_manager=getattr(window, "_topbar_manager", None),
-        )
-    except (AttributeError, TypeError) as e:
-        raise SetupError(f"Failed to connect top panels signals: {e}") from e
+ 
 
 
 def setup_signal_connections(window: Any, controllers: Dict[str, Any], *, top_panels_controller: TopPanelsController) -> None:

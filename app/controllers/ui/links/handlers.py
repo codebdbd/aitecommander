@@ -36,8 +36,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 "LinksUIHandlers requires 'ui_state' or 'category_provider' dependency"
             )
         # Обязательный контракт: требуется метод get_current_category_id()
-        getter = getattr(provider, "get_current_category_id", None)
-        if getter is None or not callable(getter):
+        if not hasattr(provider, "get_current_category_id") or not callable(provider.get_current_category_id):
             raise TypeError(
                 "'ui_state'/'category_provider' must provide callable get_current_category_id()"
             )
@@ -90,17 +89,18 @@ class LinksUIHandlers(BaseLinksUIComponent):
         if getattr(self, "_table_signals_connected", False):
             return
         # Обязательные сигналы/методы таблицы для контекстного меню — строгая проверка интерфейса
-        set_policy = getattr(self.table, "setContextMenuPolicy", None)
-        if set_policy is None or not callable(set_policy):
+        if not hasattr(self.table, "setContextMenuPolicy") or not callable(self.table.setContextMenuPolicy):
             raise SetupError("links table must provide callable setContextMenuPolicy()")
-        context_sig = getattr(self.table, "customContextMenuRequested", None)
-        connect_fn = getattr(context_sig, "connect", None) if context_sig is not None else None
-        if connect_fn is None or not callable(connect_fn):
+        if not hasattr(self.table, "customContextMenuRequested"):
             raise SetupError("links table must expose signal customContextMenuRequested with connect()")
+        context_sig = self.table.customContextMenuRequested
+        if not hasattr(context_sig, "connect") or not callable(context_sig.connect):
+            raise SetupError("links table must expose signal customContextMenuRequested with connect()")
+        connect_fn = context_sig.connect
 
         # Подключение обязательных обработчиков контекстного меню
         try:
-            set_policy(Qt.ContextMenuPolicy.CustomContextMenu)
+            self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         except (AttributeError, TypeError) as e:
             logger.error("Failed to set context menu policy on links table: %s", e, exc_info=True)
             raise SetupError("Failed to set context menu policy on links table") from e
@@ -325,9 +325,8 @@ class LinksUIHandlers(BaseLinksUIComponent):
             if not tree:
                 logger.debug("structure_tree not injected; skipping selection clear")
                 return
-            clear = getattr(tree, "clearSelection", None)
-            if callable(clear):
-                clear()
+            if hasattr(tree, "clearSelection") and callable(tree.clearSelection):
+                tree.clearSelection()
             else:
                 logger.warning("structure_tree lacks clearSelection(); skipping")
         except Exception:

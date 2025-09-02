@@ -1,6 +1,6 @@
 import pytest
 
-from app.controllers.system.window_controllers_setup import _connect_top_panels_signals, SetupError
+from app.controllers.system.window_controllers_setup import _connect_top_panels_signals_explicit, SetupError
 
 
 class WindowStub:
@@ -13,7 +13,16 @@ class WindowStub:
 def test_missing_favorites_widget_raises_setup_error():
     w = WindowStub()
     with pytest.raises(SetupError):
-        _connect_top_panels_signals(w, controllers={})
+        _connect_top_panels_signals_explicit(
+            top_panels_controller=w.top_panels_controller,
+            links_actions=w.links_actions,
+            fav_widget=getattr(w, "fav_widget", None),
+            recent_links_widget=getattr(w, "recent_links_widget", None),
+            links=None,
+            quick_add_widget=None,
+            auto_hide_tree_filter=None,
+            topbar_manager=None,
+        )
 
 
 def test_missing_recent_links_widget_raises_setup_error():
@@ -36,4 +45,13 @@ def test_missing_recent_links_widget_raises_setup_error():
             )()
     w = W()
     with pytest.raises(SetupError):
-        _connect_top_panels_signals(w, controllers={})
+        _connect_top_panels_signals_explicit(
+            top_panels_controller=w.top_panels_controller,
+            links_actions=w.links_actions,
+            fav_widget=getattr(w, "fav_widget", None),
+            recent_links_widget=getattr(w, "recent_links_widget", None),
+            links=None,
+            quick_add_widget=None,
+            auto_hide_tree_filter=None,
+            topbar_manager=None,
+        )
