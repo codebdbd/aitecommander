@@ -73,11 +73,11 @@ class LinksBusinessLogic(QObject):
             on_error=self._on_worker_error,
         )
 
-    def search_links(self, query: str):
-        """Поиск ссылок по запросу (асинхронно через контроллер)."""
+    def search_links(self, query: str) -> Optional[int]:
+        """Поиск ссылок по запросу (асинхронно через контроллер). Возвращает task_id или None для пустого запроса."""
         if not query.strip():
-            return
-        self.async_controller.search_links_async(
+            return None
+        return self.async_controller.search_links_async(
             query=query,
             search_fn=lambda: self.repo.search_links(query),
             on_finished=self._on_search_finished,
@@ -99,12 +99,12 @@ class LinksBusinessLogic(QObject):
             if not handle_db_error(e, self):
                 raise
 
-    def count_favorites(self, link: Optional[Dict] = None):
-        """Подсчитать количество избранных ссылок (асинхронно через контроллер).
+    def count_favorites(self) -> int:
+        """Подсчитать количество избранных ссылок (асинхронно через контроллер). Возвращает task_id.
 
         Передаём только функцию подсчёта; UI больше не получает снапшот ссылок.
         """
-        self.async_controller.count_favorites_async(
+        return self.async_controller.count_favorites_async(
             count_fn=lambda: self.repo.count_favorites(),
             on_finished=self._on_favorites_counted,
             on_error=self._on_worker_error,
@@ -205,7 +205,7 @@ class LinksBusinessLogic(QObject):
             )
 
             # Обновляем счетчик избранного
-            self.count_favorites(link_data)
+            self.count_favorites()
 
         except Exception as e:
             self.logger.error(f"Ошибка при сохранении избранного: {e}")
@@ -235,17 +235,17 @@ class LinksBusinessLogic(QObject):
                 raise
             return []
 
-    def clear_favorites(self) -> bool:
-        """Очистить все избранные ссылки."""
+    def clear_favorites(self) -> int:
+        """Очистить все избранные ссылки. Возвращает количество удалённых записей."""
         try:
-            result = self.repo.clear_favorites() or True
-            self.logger.info("Избранные ссылки очищены")
-            return result
+            deleted_count = int(self.repo.clear_favorites() or 0)
+            self.logger.info(f"Избранные ссылки очищены: удалено {deleted_count}")
+            return deleted_count
         except Exception as e:
             self.logger.error(f"Ошибка очистки избранных ссылок: {e}")
             if not handle_db_error(e, self):
                 raise
-            return False
+            return 0
 
     def get_link_by_id(self, link_id: int) -> Optional[Dict]:
         """Получает ссылку по ID."""
