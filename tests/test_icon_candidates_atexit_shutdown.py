@@ -1,5 +1,4 @@
 import types
-from bs4 import BeautifulSoup
 
 from app.utils.links.parser import icon_candidates as ic
 

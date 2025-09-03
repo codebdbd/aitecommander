@@ -39,6 +39,7 @@ from .http_client import http_request
 
 _MANIFEST_EXECUTOR = None
 _MANIFEST_EXECUTOR_GUARD = threading.Lock()
+_MANIFEST_ATEXIT_HANDLER = None  # stores the registered atexit handler to support unregister
 
 # Markers that make og:image likely unsuitable for favicon usage
 OG_IMAGE_BANNED_MARKERS = [
@@ -81,9 +82,19 @@ def _get_manifest_executor() -> ThreadPoolExecutor:
                 max_workers = 4
             _MANIFEST_EXECUTOR = ThreadPoolExecutor(max_workers=max(1, max_workers), thread_name_prefix="manifest")
             try:
-                # Capture the current executor instance to avoid referencing a None
-                # after manual shutdown and ensure idempotent atexit behavior.
-                atexit.register(lambda e=_MANIFEST_EXECUTOR: (e.shutdown(wait=False, cancel_futures=True) if e is not None else None))
+                # Remove previously registered handler if any (in case of recreation)
+                global _MANIFEST_ATEXIT_HANDLER
+                if _MANIFEST_ATEXIT_HANDLER is not None:
+                    try:
+                        atexit.unregister(_MANIFEST_ATEXIT_HANDLER)
+                    except Exception:
+                        logger.debug("Failed to unregister previous atexit handler for manifest executor", exc_info=True)
+                    finally:
+                        _MANIFEST_ATEXIT_HANDLER = None
+
+                # Capture the current executor instance to avoid referencing None after manual shutdown
+                handler = (lambda e=_MANIFEST_EXECUTOR: (e.shutdown(wait=False, cancel_futures=True) if e is not None else None))
+                _MANIFEST_ATEXIT_HANDLER = atexit.register(handler)
             except Exception:
                 logger.debug("Failed to register atexit shutdown for manifest executor", exc_info=True)
     return _MANIFEST_EXECUTOR
@@ -97,7 +108,7 @@ def shutdown_manifest_executor(wait: bool = False, cancel_futures: bool = True) 
     was nothing to do. A future call to `_get_manifest_executor()` will lazily
     recreate the pool on demand.
     """
-    global _MANIFEST_EXECUTOR
+    global _MANIFEST_EXECUTOR, _MANIFEST_ATEXIT_HANDLER
     with _MANIFEST_EXECUTOR_GUARD:
         if _MANIFEST_EXECUTOR is None:
             return False
@@ -105,6 +116,14 @@ def shutdown_manifest_executor(wait: bool = False, cancel_futures: bool = True) 
             _MANIFEST_EXECUTOR.shutdown(wait=wait, cancel_futures=cancel_futures)
         finally:
             _MANIFEST_EXECUTOR = None
+            # Ensure atexit handler is removed to avoid accumulation on recreation
+            if _MANIFEST_ATEXIT_HANDLER is not None:
+                try:
+                    atexit.unregister(_MANIFEST_ATEXIT_HANDLER)
+                except Exception:
+                    logger.debug("Failed to unregister atexit handler during shutdown", exc_info=True)
+                finally:
+                    _MANIFEST_ATEXIT_HANDLER = None
     return True
 def parse_icon_size(sizes_attr: str) -> int:
     """Parse sizes attribute and return the maximum declared size.
@@ -170,8 +189,8 @@ def _detect_format(href: str, type_attr: str | None) -> str:
 
 
 def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[dict], list[str], bool]:
-    candidates: List[dict] = []
-    manifest_urls: List[str] = []
+    candidates: list[dict] = []
+    manifest_urls: list[str] = []
 
     def _add_link_candidate(link, rel_label: str, base_priority: int):
         href = link.get("href")
@@ -416,7 +435,7 @@ def _add_external_services(base_url: str, use_external: bool, candidates: list[d
 
 
 def _append_og_image(soup: BeautifulSoup, base_url: str, candidates: list[dict]) -> list[str]:
-    og_urls: List[str] = []
+    og_urls: list[str] = []
     # Append og:image only when there are no primary link-icons present.
     # Primary icons are those with base_priority == 0 (link-icon/mask/apple).
     if not any(c.get("base_priority", 9) == 0 for c in candidates):
@@ -474,12 +493,12 @@ def find_favicon_candidates(
     - soup: разобранный BeautifulSoup HTML-документ.
     - base_url: базовый URL страницы для разрешения относительных ссылок.
     - config: объект конфигурации, передаваемый HTTP-клиенту.
-    - on_manifest_icons: необязательный колбэк `Callable[[List[str]], None]`, который будет вызван
+    - on_manifest_icons: необязательный колбэк `Callable[[list[str]], None]`, который будет вызван
       асинхронно с URL иконок из манифестов.
     - use_external: добавлять ли внешние fallback-сервисы.
 
     Возвращает:
-    - Список URL (List[str]) в порядке приоритета: сначала кандидаты из link/manifest/sync,
+    - Список URL (list[str]) в порядке приоритета: сначала кандидаты из link/manifest/sync,
       потом fallback пути, затем внешние сервисы (если включены), затем допустимые og:image.
       Список дедуплицирован, относительные пути резолвятся относительно `base_url`.
     """
