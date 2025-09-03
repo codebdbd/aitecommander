@@ -13,6 +13,13 @@ class DummyResp:
         self.headers = headers or {}
         self.content = content
 
+    def close(self):
+        pass
+
+    def iter_content(self, chunk_size=8192):
+        if self.content:
+            yield self.content
+
 
 def test_read_write_meta_roundtrip(tmp_path, monkeypatch):
     # Redirect user icons dir to tmp
@@ -32,19 +39,13 @@ def test_save_icon_rejects_non_image_head(monkeypatch, tmp_path):
     # Redirect user icons dir to tmp
     monkeypatch.setattr(mod.icon_path_service, "get_user_icons_dir", lambda: tmp_path)
 
-    calls = {"n": 0}
+    # Mock underlying GET to return non-image content-type
+    def fake_request(method, url, headers=None, timeout=None, stream=None, allow_redirects=True):
+        assert method == "GET"
+        return DummyResp(200, {"Content-Type": "text/html; charset=utf-8"}, b"<html></html>")
 
-    def fake_http_request(url, config, extra_headers=None, allow_non_2xx=False, timeout_override=None, retries=0, http_get=None, method="GET"):
-        calls["n"] += 1
-        if method == "HEAD":
-            # Non-image content-type to trigger skip at HEAD
-            return DummyResp(200, {"Content-Type": "text/html; charset=utf-8"})
-        # Would not be reached for this test
-        return DummyResp(200, {"Content-Type": "image/png"}, b"\x89PNG\r\n\x1a\n")
-
-    monkeypatch.setattr(mod, "http_request", fake_http_request)
+    monkeypatch.setattr(mod.http_session, "request", fake_request)
 
     result = mod.save_icon("https://example.com/favicon", "example.com", DummyConfig())
 
     assert result is None
-    assert calls["n"] >= 1

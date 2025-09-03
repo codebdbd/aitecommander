@@ -253,6 +253,7 @@ class IconDownloader:
 
         # Единый streaming GET с условными заголовками
         headers = {k: v for k, v in cond_headers.items() if v}
+
         try:
             resp = http_session.request(
                 "GET",
@@ -415,7 +416,8 @@ def pick_icon_parallel(
     logger.debug(f"Trying {len(candidates)} favicon candidates for {domain}")
 
     max_elapsed = float(getattr(config, "ICON_PICK_MAX_SECONDS", 6.0))
-    finish_by = time.monotonic() + max(1.0, max_elapsed)
+    # Уважаем заданный тайм-аут без принудительного минимума 1s
+    finish_by = time.monotonic() + max(0.05, max_elapsed)
 
     def _try_candidates_parallel(icon_urls, is_fallback: bool) -> Optional[str]:
         if not icon_urls:
@@ -436,24 +438,28 @@ def pick_icon_parallel(
                 executor.submit(save_icon, u, domain, config, is_fallback, force_refresh)
                 for u in icon_urls
             ]
-            timeout = max(0.1, finish_by - time.monotonic())
-            for fut in as_completed(futures, timeout=timeout):
-                try:
-                    saved = fut.result()
-                except Exception as e:
-                    # Логируем, но продолжаем ожидать другие результаты
-                    logger.debug(f"Parallel fetch error: {e}")
-                    continue
-                if saved:
-                    # Отменяем оставшиеся задачи и выходим
-                    for f in futures:
-                        if f is not fut and not f.done():
-                            f.cancel()
-                    return saved
-        except TimeoutError:
-            # Превысили лимит времени: отменяем оставшиеся задачи и не ждём
-            logger.debug("Parallel wait timeout: cancelled pending futures")
-            return None
+            # Неблокирующий опрос futures до дедлайна
+            while True:
+                if time.monotonic() >= finish_by:
+                    logger.debug("Parallel wait timeout: cancelled pending futures")
+                    return None
+                any_done = False
+                for fut in futures:
+                    if fut.done():
+                        any_done = True
+                        try:
+                            saved = fut.result()
+                        except Exception as e:
+                            logger.debug(f"Parallel fetch error: {e}")
+                            continue
+                        if saved:
+                            for f in futures:
+                                if f is not fut and not f.done():
+                                    f.cancel()
+                            return saved
+                if not any_done:
+                    # Короткий сон, чтобы не крутить CPU
+                    time.sleep(0.01)
         except Exception as e:
             logger.debug(f"Parallel wait error: {e}")
             return None
