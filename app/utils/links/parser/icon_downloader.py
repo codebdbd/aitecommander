@@ -17,8 +17,9 @@ import json
 import os
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError
 from io import BytesIO
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Optional
 from collections import OrderedDict
 
@@ -34,13 +35,41 @@ if TYPE_CHECKING:
     from bs4 import BeautifulSoup
 
 from .constants import MIN_GOOD_SIZE, TARGET_SIZE, logger
-from .http_client import http_request
 from .http_client import session as http_session
 from .icon_candidates import find_favicon_candidates
 from .svg_convert import convert_svg
 
 _ICON_LOCKS: "OrderedDict[str, threading.Lock]" = OrderedDict()
 _ICON_LOCKS_GUARD = threading.Lock()
+
+# Guard for thread-safe temporary changes to PIL global settings
+_PIL_MAX_PIXELS_GUARD = threading.Lock()
+
+
+@contextmanager
+def _pil_max_pixels(limit: int):
+    """Temporarily set PIL Image.MAX_IMAGE_PIXELS in a thread-safe way.
+
+    Ensures that concurrent calls don't step on each other's toes and that the
+    original setting is restored even if exceptions occur.
+    """
+    _PIL_MAX_PIXELS_GUARD.acquire()
+    prev = getattr(Image, "MAX_IMAGE_PIXELS", None)
+    try:
+        Image.MAX_IMAGE_PIXELS = limit
+        yield
+    finally:
+        try:
+            if prev is None:
+                try:
+                    delattr(Image, "MAX_IMAGE_PIXELS")
+                except Exception:
+                    pass
+            else:
+                Image.MAX_IMAGE_PIXELS = prev
+        except Exception:
+            pass
+        _PIL_MAX_PIXELS_GUARD.release()
 
 
 # === Метаданные и пути ===
@@ -127,28 +156,6 @@ class IconDownloader:
             lambda u, headers, timeout: requests.get(u, headers=headers, timeout=timeout)
         )
 
-
-    # === GET ===
-    def perform_get(self, icon_url: str, cond_headers: dict):
-        resp = http_request(
-            icon_url,
-            self.config,
-            extra_headers=cond_headers,
-            allow_non_2xx=True,
-            timeout_override=(5, 8),
-            retries=1,
-            http_get=self.http_get,
-            method="GET",
-        )
-        if not resp:
-            logger.info(f"[icon] skip reason=request_failed url={icon_url}")
-            return None
-        if getattr(resp, "status_code", 0) >= 400:
-            logger.info(
-                f"[icon] skip reason=bad_status status={resp.status_code} url={icon_url}"
-            )
-            return None
-        return resp
 
     # === Валидация и декодирование ===
     @staticmethod
@@ -348,30 +355,32 @@ class IconDownloader:
             return None
 
         # Безопасное открытие изображения с ограничением на количество пикселей и проверкой содержимого
-        prev_max_pixels = getattr(Image, "MAX_IMAGE_PIXELS", None)
         try:
-            # Устанавливаем консервативный лимит пикселей для веб-иконок (~2 Мп)
-            Image.MAX_IMAGE_PIXELS = 2_000_000
+            try:
+                max_pixels_limit = int(getattr(app_config, "ICON_MAX_IMAGE_PIXELS", 2_000_000) or 2_000_000)
+            except Exception:
+                max_pixels_limit = 2_000_000
 
-            # Первая фаза: быстрая проверка контейнера без декодирования пикселей
-            with Image.open(BytesIO(data2)) as _probe:
-                _probe.verify()
+            with _pil_max_pixels(max_pixels_limit):
+                # Первая фаза: быстрая проверка контейнера без декодирования пикселей
+                with Image.open(BytesIO(data2)) as _probe:
+                    _probe.verify()
 
-            # Вторая фаза: повторно открываем для реального чтения/обработки
-            with Image.open(BytesIO(data2)) as _img:
-                img = self.select_best_frame(_img)
-                # На случай ленивой загрузки делаем копию в память
-                img = img.copy()
-                if not self.validate_image_geometry(img, icon_url):
-                    return None
-                path = self.save_png_with_meta(domain, icon_url, resp.headers, img, data2, is_fallback, meta)
-                etag = resp.headers.get("ETag")
-                lm = resp.headers.get("Last-Modified")
-                w, h = img.size
-                logger.info(
-                    f"[icon] saved path={path} size={w}x{h} url={icon_url} status={resp.status_code} ct={ct_dbg} len={cl_dbg} etag={etag} lm={lm}"
-                )
-                return path
+                # Вторая фаза: повторно открываем для реального чтения/обработки
+                with Image.open(BytesIO(data2)) as _img:
+                    img = self.select_best_frame(_img)
+                    # На случай ленивой загрузки делаем копию в память
+                    img = img.copy()
+                    if not self.validate_image_geometry(img, icon_url):
+                        return None
+                    path = self.save_png_with_meta(domain, icon_url, resp.headers, img, data2, is_fallback, meta)
+                    etag = resp.headers.get("ETag")
+                    lm = resp.headers.get("Last-Modified")
+                    w, h = img.size
+                    logger.info(
+                        f"[icon] saved path={path} size={w}x{h} url={icon_url} status={resp.status_code} ct={ct_dbg} len={cl_dbg} etag={etag} lm={lm}"
+                    )
+                    return path
         except (UnidentifiedImageError, Image.DecompressionBombError) as e:
             logger.warning(f"[icon] unsafe_or_invalid_image url={icon_url}: {e}")
             return None
@@ -379,17 +388,8 @@ class IconDownloader:
             logger.error(f"Save icon error {icon_url}: {e}")
             return None
         finally:
-            # Восстанавливаем глобальную настройку PIL
-            if prev_max_pixels is None:
-                try:
-                    delattr(Image, "MAX_IMAGE_PIXELS")
-                except Exception:
-                    pass
-            else:
-                try:
-                    Image.MAX_IMAGE_PIXELS = prev_max_pixels
-                except Exception:
-                    pass
+            # MAX_IMAGE_PIXELS восстанавливается контекстным менеджером
+            pass
 
 
 def save_icon(
@@ -430,29 +430,38 @@ def pick_icon_parallel(
         logger.debug(
             f"Parallel fetch (workers={max_workers}, size={len(icon_urls)}, fallback={is_fallback}) for {domain}"
         )
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        try:
             futures = [
                 executor.submit(save_icon, u, domain, config, is_fallback, force_refresh)
                 for u in icon_urls
             ]
+            timeout = max(0.1, finish_by - time.monotonic())
+            for fut in as_completed(futures, timeout=timeout):
+                try:
+                    saved = fut.result()
+                except Exception as e:
+                    # Логируем, но продолжаем ожидать другие результаты
+                    logger.debug(f"Parallel fetch error: {e}")
+                    continue
+                if saved:
+                    # Отменяем оставшиеся задачи и выходим
+                    for f in futures:
+                        if f is not fut and not f.done():
+                            f.cancel()
+                    return saved
+        except TimeoutError:
+            # Превысили лимит времени: отменяем оставшиеся задачи и не ждём
+            logger.debug("Parallel wait timeout: cancelled pending futures")
+            return None
+        except Exception as e:
+            logger.debug(f"Parallel wait error: {e}")
+            return None
+        finally:
             try:
-                timeout = max(0.1, finish_by - time.monotonic())
-                for fut in as_completed(futures, timeout=timeout):
-                    try:
-                        saved = fut.result()
-                    except Exception as e:
-                        # Логируем, но продолжаем ожидать другие результаты
-                        logger.debug(f"Parallel fetch error: {e}")
-                        continue
-                    if saved:
-                        # Отменяем оставшиеся задачи
-                        for f in futures:
-                            if f is not fut and not f.done():
-                                f.cancel()
-                        return saved
-            except Exception as e:
-                logger.debug(f"Parallel wait error/timeout: {e}")
-                return None
+                executor.shutdown(wait=False, cancel_futures=True)
+            except Exception:
+                pass
         return None
 
     tried_urls = set(candidates)
