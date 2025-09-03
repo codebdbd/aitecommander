@@ -143,37 +143,45 @@ class PathConfig(BaseConfig):
             return p if p.is_absolute() else self.get_base_path() / p
         return None
 
-    def get_chrome_profiles_dir(self) -> Optional[Path]:
-        """Директория профилей Chrome или None."""
-        env, vendor, key = self.__BROWSER_PARAMS["chrome"]
+    def get_browser_profiles_dir(self, browser: str) -> Optional[Path]:
+        """Возвращает директорию профилей указанного браузера или None.
+
+        Допустимые значения browser: ключи из справочника `__BROWSER_PARAMS`
+        ("chrome", "firefox", "edge", "brave", "vivaldi", "opera", "yandex").
+
+        Для обратной совместимости специализированные методы `get_*_profiles_dir`
+        делегируют в этот универсальный метод.
+        """
+        params = self.__BROWSER_PARAMS.get(browser)
+        if not params:
+            return None
+        env, vendor, key = params
         return self.__get_browser_dir(env, vendor, key)
+
+    def get_chrome_profiles_dir(self) -> Optional[Path]:
+        """Директория профилей Chrome или None (обертка над get_browser_profiles_dir)."""
+        return self.get_browser_profiles_dir("chrome")
 
     def get_firefox_profiles_dir(self) -> Optional[Path]:
-        """Директория профилей Firefox или None."""
-        env, vendor, key = self.__BROWSER_PARAMS["firefox"]
-        return self.__get_browser_dir(env, vendor, key)
+        """Директория профилей Firefox или None (обертка над get_browser_profiles_dir)."""
+        return self.get_browser_profiles_dir("firefox")
 
     def get_edge_profiles_dir(self) -> Optional[Path]:
-        """Директория профилей Edge или None."""
-        env, vendor, key = self.__BROWSER_PARAMS["edge"]
-        return self.__get_browser_dir(env, vendor, key)
+        """Директория профилей Edge или None (обертка над get_browser_profiles_dir)."""
+        return self.get_browser_profiles_dir("edge")
 
     def get_brave_profiles_dir(self) -> Optional[Path]:
-        """Директория профилей Brave или None."""
-        env, vendor, key = self.__BROWSER_PARAMS["brave"]
-        return self.__get_browser_dir(env, vendor, key)
+        """Директория профилей Brave или None (обертка над get_browser_profiles_dir)."""
+        return self.get_browser_profiles_dir("brave")
 
     def get_vivaldi_profiles_dir(self) -> Optional[Path]:
-        """Директория профилей Vivaldi или None."""
-        env, vendor, key = self.__BROWSER_PARAMS["vivaldi"]
-        return self.__get_browser_dir(env, vendor, key)
+        """Директория профилей Vivaldi или None (обертка над get_browser_profiles_dir)."""
+        return self.get_browser_profiles_dir("vivaldi")
 
     def get_opera_profiles_dir(self) -> Optional[Path]:
-        """Директория профилей Opera или None."""
-        env, vendor, key = self.__BROWSER_PARAMS["opera"]
-        return self.__get_browser_dir(env, vendor, key)
+        """Директория профилей Opera или None (обертка над get_browser_profiles_dir)."""
+        return self.get_browser_profiles_dir("opera")
 
     def get_yandex_profiles_dir(self) -> Optional[Path]:
-        """Директория профилей Yandex или None."""
-        env, vendor, key = self.__BROWSER_PARAMS["yandex"]
-        return self.__get_browser_dir(env, vendor, key)
+        """Директория профилей Yandex или None (обертка над get_browser_profiles_dir)."""
+        return self.get_browser_profiles_dir("yandex")

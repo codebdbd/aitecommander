@@ -19,7 +19,7 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
     def __init__(self):
         from app.config_data import app_config
 
-        dir_path = app_config.paths.get_firefox_profiles_dir()
+        dir_path = app_config.paths.get_browser_profiles_dir("firefox")
         self.profiles_dir = str(dir_path) if dir_path else ""
         self.browser_name = "Mozilla Firefox"
 
