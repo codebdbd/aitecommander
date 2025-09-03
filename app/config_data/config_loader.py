@@ -30,6 +30,30 @@ class AppConfig:
         self.limits = LimitsConfig(self._config)
         self.settings = SettingsConfig(self._config)
 
+    def __getattr__(self, name: str):
+        """Делегирование неизвестных атрибутов к подконфигурациям.
+
+        Порядок: ui -> paths -> limits -> settings.
+        Возвращает найденный атрибут (метод или свойство) соответствующего
+        объекта подконфигурации. Если атрибут не найден ни в одном из них,
+        возбуждается AttributeError как обычно.
+
+        Это позволяет убрать дублирующие геттеры уровня AppConfig, сохраняя
+        обратную совместимость: существующие методы остаются и работают, а
+        новые обращения могут вызываться напрямую через app_config.<method>.
+        """
+        for sub in (self.ui, self.paths, self.limits, self.settings):
+            if hasattr(sub, name):
+                return getattr(sub, name)
+        raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
+
+    def __dir__(self):
+        """Расширяет dir() за счет атрибутов подконфигураций для удобства IDE."""
+        base = set(super().__dir__())
+        for sub in (self.ui, self.paths, self.limits, self.settings):
+            base.update(dir(sub))
+        return sorted(base)
+
     def _load_config(self) -> Dict[str, Any]:
         """Загрузка конфигурации из JSON файла."""
         if not self._config_path.exists():

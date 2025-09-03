@@ -27,10 +27,18 @@ class StructureContextService:
         self._ss = StructureService(db)
         self._ls = LinksService(db)
 
+    # --- Qt helpers ---
+    def _get_qapp(self):
+        """Безопасно получает экземпляр QApplication или None."""
+        try:
+            return QApplication.instance()
+        except RuntimeError:
+            return None
+
     # --- Clipboard helpers ---
     def clipboard_has_text(self) -> bool:
         try:
-            app = QApplication.instance()
+            app = self._get_qapp()
             if not app:
                 return False
             md = app.clipboard().mimeData()
@@ -45,7 +53,7 @@ class StructureContextService:
         if not self.clipboard_has_text():
             return None
         try:
-            app = QApplication.instance()
+            app = self._get_qapp()
             if not app:
                 return None
             txt = app.clipboard().text()
@@ -80,7 +88,7 @@ class StructureContextService:
     def copy_category_tree_to_clipboard(self, cat_id: int) -> None:
         """Копирует полное поддерево категории в буфер обмена."""
         try:
-            app = QApplication.instance()
+            app = self._get_qapp()
             if not app:
                 return
             tree = self._ss.export_category_tree(int(cat_id))
@@ -94,7 +102,7 @@ class StructureContextService:
     def copy_categories_to_clipboard(self, cat_ids: Iterable[int]) -> None:
         """Копирует несколько категорий (каждую с её ссылками) в буфер обмена."""
         try:
-            app = QApplication.instance()
+            app = self._get_qapp()
             if not app:
                 return
             trees: list[dict] = []
@@ -144,68 +152,30 @@ class StructureContextService:
             if not trees:
                 return []
 
-            # 1) Создаём категории батчем
-            batch_cats: list[dict] = []
-            for tree in trees:
-                src_cat = dict(tree.get("category", {}))
-                new_cat_data = {k: v for k, v in src_cat.items() if k not in {"id", "section_id"}}
-                new_cat_data["section_id"] = int(section_id)
-                batch_cats.append(new_cat_data)
+            # 1) Подготовка категорий и батчевое создание
+            batch_cats = self._prepare_categories_for_section(trees, section_id)
+            if not batch_cats:
+                return []
 
+            created_list = self._ss.create_categories_bulk(batch_cats) or []
+            if not created_list:
+                return []
+
+            # Индекс по имени для сопоставления созданных id с исходными деревьями
+            index_by_name: dict[str, list[dict]] = {}
+            for c in created_list:
+                nm = c.get("name")
+                if nm is None:
+                    continue
+                index_by_name.setdefault(nm, []).append(c)
+
+            # 2) Генерация ссылок лениво и сбор созданных категорий
             created_categories: list[dict] = []
-            if batch_cats:
-                created_list = self._ss.create_categories_bulk(batch_cats) or []
-                # индекс по имени (учёт дублей — списки)
-                index_by_name: dict[str, list[dict]] = {}
-                for c in created_list:
-                    nm = c.get("name")
-                    if nm is None:
-                        continue
-                    index_by_name.setdefault(nm, []).append(c)
-
-                # 2) Собираем все ссылки для вставки
-                all_links: list[dict] = []
-                for tree in trees:
-                    src_cat = dict(tree.get("category", {}))
-                    src_links = list(tree.get("links", []))
-                    nm = src_cat.get("name")
-                    cat_row: Optional[dict] = None
-                    if nm in index_by_name and index_by_name[nm]:
-                        cat_row = index_by_name[nm].pop(0)
-                    if not cat_row:
-                        continue
-                    created_categories.append(dict(cat_row))
-                    new_cat_id = int(cat_row.get("id"))
-
-                    for link in src_links:
-                        src = dict(link)
-                        name = src.get("name") or ""
-                        url = src.get("url") or ""
-                        ltype = src.get("type") or "web"
-                        if not url or not name:
-                            continue
-                        notes = src.get("notes") or ""
-                        is_favorite = int(src.get("is_favorite") or 0)
-                        icon_path = src.get("icon_path") or "default.ico"
-                        args = src.get("args") or ""
-                        browser_key = src.get("browser_key")
-
-                        link_data = {
-                            "category_id": new_cat_id,
-                            "name": name,
-                            "url": url,
-                            "type": ltype,
-                            "notes": notes,
-                            "is_favorite": is_favorite,
-                            "icon_path": icon_path,
-                            "args": args,
-                        }
-                        if browser_key is not None:
-                            link_data["browser_key"] = browser_key
-                        all_links.append(link_data)
-
-                if all_links:
-                    self._ls.batch_create_or_update_links(all_links)
+            links_iter = self._iter_links_for_created_categories(trees, index_by_name, created_categories)
+            # Собираем ссылки в список единожды для батчевой вставки
+            all_links = list(links_iter)
+            if all_links:
+                self._ls.batch_create_or_update_links(all_links)
 
             return created_categories
         except (ValueError, TypeError, KeyError, RuntimeError) as e:
@@ -213,3 +183,72 @@ class StructureContextService:
                 "paste_from_clipboard_to_section(section_id=%s) failed", section_id
             )
             return []
+
+    # --- Internal helpers ---
+    def _prepare_categories_for_section(self, trees: Iterable[dict], section_id: int) -> list[dict]:
+        """Готовит данные категорий для вставки в указанный раздел.
+
+        Возвращает список словарей для batch-создания. Исключает поля id/section_id из исходных данных.
+        """
+        def gen():
+            sid = int(section_id)
+            for tree in trees:
+                src_cat = dict((tree or {}).get("category", {}))
+                # исключаем служебные поля
+                new_cat = {k: v for k, v in src_cat.items() if k not in {"id", "section_id"}}
+                new_cat["section_id"] = sid
+                yield new_cat
+
+        return list(gen())
+
+    def _iter_links_for_created_categories(
+        self,
+        trees: Iterable[dict],
+        index_by_name: dict[str, list[dict]],
+        created_categories_out: list[dict],
+    ) -> Iterable[dict]:
+        """Генерирует словари ссылок для только что созданных категорий.
+
+        По имени категории сопоставляет созданные строки и возвращает ссылки, указывая верный category_id.
+        Попутно заполняет created_categories_out копиями созданных категорий в порядке обработки.
+        """
+        for tree in trees:
+            src_cat = dict((tree or {}).get("category", {}))
+            src_links = (tree or {}).get("links", []) or []
+            nm = src_cat.get("name")
+            if not nm:
+                continue
+            if nm not in index_by_name or not index_by_name[nm]:
+                continue
+            cat_row = index_by_name[nm].pop(0)
+            if not cat_row:
+                continue
+            created_categories_out.append(dict(cat_row))
+            new_cat_id = int(cat_row.get("id"))
+
+            for link in src_links:
+                src = dict(link or {})
+                name = src.get("name") or ""
+                url = src.get("url") or ""
+                if not name or not url:
+                    continue
+                ltype = src.get("type") or "web"
+                notes = src.get("notes") or ""
+                is_favorite = int(src.get("is_favorite") or 0)
+                icon_path = src.get("icon_path") or "default.ico"
+                args = src.get("args") or ""
+                browser_key = src.get("browser_key")
+
+                payload = {
+                    "category_id": new_cat_id,
+                    "name": name,
+                    "url": url,
+                    "type": ltype,
+                    "notes": notes,
+                    "is_favorite": is_favorite,
+                    "icon_path": icon_path,
+                    "args": args,
+                }
+                if browser_key is not None:
+                    payload["browser_key"] = browser_key
+                yield payload

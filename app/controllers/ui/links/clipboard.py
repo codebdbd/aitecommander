@@ -52,7 +52,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 return
 
             # Получаем существующие ссылки для проверки дубликатов
-            existing = self.links_business.get_links(current_category_id)
+            existing = self.business.get_links(current_category_id)
 
             # Оптимизированная фильтрация дубликатов с использованием set
             new_links = self._filter_duplicates_optimized(
