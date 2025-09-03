@@ -173,7 +173,7 @@ class LinkDialogHandlers:
         path = ""
 
         # Получить путь по умолчанию из конфига
-        default_paths = app_config.get_default_browse_paths()
+        default_paths = app_config.settings.get_default_browse_paths()
         start_dir = default_paths.get(link_type, "")
 
         # Обработка путей: GUID пути не проверяем через os.path.exists

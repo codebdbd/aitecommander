@@ -38,9 +38,9 @@ class LinkDialogUI:
     def build_ui(self, link_types: list) -> None:
         """Построение пользовательского интерфейса."""
         vbox = QVBoxLayout(self.parent)
-        margins = app_config.get("ui.link_dialog_margins", 20)
+        margins = app_config.ui.get_link_dialog_margins()
         vbox.setContentsMargins(margins, margins, margins, margins)
-        vbox.setSpacing(app_config.get("ui.link_dialog_spacing", 10))
+        vbox.setSpacing(app_config.ui.get_link_dialog_spacing())
 
         # Тип ссылки
         vbox.addWidget(QLabel("Тип ссылки:"))
@@ -55,8 +55,8 @@ class LinkDialogUI:
                 icon_path = resolve_icon_for_link({"type": code, "icon_path": ""})
                 if icon_path:
                     btn.setIcon(create_icon_from_path(str(icon_path)))
-                    # Размер иконки типовой кнопки берём из конфига (с дефолтом 32)
-                    type_icon_size = int(app_config.get("ui.link_dialog_type_icon_size", 32))
+                    # Размер иконки типовой кнопки берём из UI-конфига
+                    type_icon_size = app_config.ui.get_link_dialog_type_icon_size()
                     btn.setIconSize(QSize(type_icon_size, type_icon_size))
             except Exception:
                 pass
@@ -83,11 +83,11 @@ class LinkDialogUI:
         hl_path.addWidget(self.url_le, 1)
 
         self.browse_btn = QPushButton("Обзор…")
-        self.browse_btn.setFixedWidth(app_config.get("ui.fixed_button_width", 100))
+        self.browse_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
         hl_path.addWidget(self.browse_btn)
 
         self.profile_btn = QPushButton("Профиль")
-        self.profile_btn.setFixedWidth(app_config.get("ui.fixed_button_width", 100))
+        self.profile_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
         hl_path.addWidget(self.profile_btn)
 
         self.form.addRow("URL/Путь:", hl_path)
@@ -105,11 +105,11 @@ class LinkDialogUI:
         hl_name.addWidget(self.name_le, 1)
 
         self.icon_btn = QPushButton("Иконка")
-        self.icon_btn.setFixedWidth(app_config.get("ui.fixed_button_width", 100))
+        self.icon_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
         # Выравниваем поведение с диалогами сущностей: иконка 24x24
         try:
             # Централизуем размер через UIConfig: используем размер иконки по умолчанию
-            default_icon = int(app_config.get_default_icon_size())
+            default_icon = int(app_config.ui.get_default_icon_size())
             self.icon_btn.setIconSize(QSize(default_icon, default_icon))
         except Exception:
             pass
@@ -176,7 +176,7 @@ class LinkDialogUI:
             ok_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         except Exception:
             pass
-        ok_btn.setFixedWidth(app_config.get("ui.fixed_button_width", 100))
+        ok_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
 
         cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_btn.setText("Отмена")
@@ -186,7 +186,7 @@ class LinkDialogUI:
             cancel_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         except Exception:
             pass
-        cancel_btn.setFixedWidth(app_config.get("ui.fixed_button_width", 100))
+        cancel_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
 
         vbox.addWidget(self.button_box)
         self.widgets["button_box"] = self.button_box

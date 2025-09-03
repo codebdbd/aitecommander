@@ -403,7 +403,7 @@ class WindowUISetup:
         tiles_wrapper = QWidget()
         tiles_layout = QVBoxLayout(tiles_wrapper)
         tiles_layout.setContentsMargins(*app_config.ui.get_layout_margins("tiles"))
-        tiles_layout.setSpacing(app_config.ui.get("ui.layout.spacing.tiles", 0))
+        tiles_layout.setSpacing(app_config.ui.get_tiles_layout_spacing())
         tiles_layout.addWidget(self.window.tiles_scroll)
 
         # Обертка для таблицы
@@ -486,7 +486,7 @@ class WindowUISetup:
         # Отступы панели берём из конфигурации (можно выставить в 0,0,0,0 для полного прилегания)
         bot.setContentsMargins(*app_config.ui.get_layout_margins("bottom"))
         # Расстояние между кнопками: берём из конфига, по умолчанию 0 — кнопки занимают всю ширину без зазоров
-        bot.setSpacing(app_config.get("ui.layout.spacing.bottom", 0))
+        bot.setSpacing(app_config.ui.get_bottom_layout_spacing())
 
         # Используем глобальный размер шрифта приложения для кнопок нижней панели
         font10 = QFont()

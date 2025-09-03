@@ -20,7 +20,7 @@ class ActionController:
     def edit_current(self):
         """Определить контекст и выполнить редактирование текущего элемента."""
         # Проверяем плитки категорий
-        tiles_stack_index = app_config.get("ui.stack_indices.tiles", 0)
+        tiles_stack_index = app_config.ui.get_stack_index_tiles()
         stack = getattr(self.main_window, "stack", None)
         tiles = getattr(self.main_window, "tiles", None)
         if (
@@ -34,7 +34,7 @@ class ActionController:
             return
 
         # Проверяем таблицу ссылок (активная)
-        table_stack_index = app_config.get("ui.stack_indices.table", 1)
+        table_stack_index = app_config.ui.get_stack_index_table()
         if (
             stack is not None
             and stack.currentIndex() == table_stack_index

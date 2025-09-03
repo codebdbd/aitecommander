@@ -51,7 +51,7 @@ class BasePanelWidget(QWidget):
         self.panel_layout = QHBoxLayout(self.bg_frame)
         self.panel_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.panel_layout.setContentsMargins(0, 0, 0, 0)
-        self.panel_layout.setSpacing(app_config.get_top_bar_buttons_spacing())
+        self.panel_layout.setSpacing(app_config.ui.get_top_bar_buttons_spacing())
         self.panel_layout.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         main_layout = QVBoxLayout(self)
@@ -98,8 +98,8 @@ class BaseLinksPanelWidget(BasePanelWidget):
         """Создаёт кнопку ссылки с иконкой, синхронизированной с таблицей."""
         button = QToolButton()
 
-        button_size = app_config.get_top_panel_button_size()
-        icon_size = app_config.get_top_panel_icon_size()
+        button_size = app_config.ui.get_top_panel_button_size()
+        icon_size = app_config.ui.get_top_panel_icon_size()
         button.setFixedSize(button_size, button_size)
         button.setIconSize(QSize(icon_size[0], icon_size[1]))
         button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)

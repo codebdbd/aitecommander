@@ -49,7 +49,7 @@ class DialogManager:
         msg_box.setText(message)
         if informative_text:
             msg_box.setInformativeText(informative_text)
-        if app_config.get("ui.dialogs.enable_details", False) and details:
+        if app_config.ui.get_dialogs_enable_details() and details:
             msg_box.setDetailedText(details)
         msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg_box.exec()
@@ -76,7 +76,7 @@ class DialogManager:
         msg_box.setText(message)
         if informative_text:
             msg_box.setInformativeText(informative_text)
-        if app_config.get("ui.dialogs.enable_details", False) and details:
+        if app_config.ui.get_dialogs_enable_details() and details:
             msg_box.setDetailedText(details)
         msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg_box.exec()
@@ -110,7 +110,7 @@ class DialogManager:
         msg_box.setText(message)
         if informative_text:
             msg_box.setInformativeText(informative_text)
-        if app_config.get("ui.dialogs.enable_details", False) and details:
+        if app_config.ui.get_dialogs_enable_details() and details:
             msg_box.setDetailedText(details)
         msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg_box.exec()
@@ -142,7 +142,7 @@ class DialogManager:
         msg_box.setText(message)
         if informative_text:
             msg_box.setInformativeText(informative_text)
-        if app_config.get("ui.dialogs.enable_details", False) and details:
+        if app_config.ui.get_dialogs_enable_details() and details:
             msg_box.setDetailedText(details)
         msg_box.setStandardButtons(
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No

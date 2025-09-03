@@ -305,7 +305,7 @@ class AppShutdownController:
         )
         # 2) Ожидание пулов потоков (строгий, критичный)
         # Согласуем таймаут обработчика с конфигом ui.thread_pool_shutdown_timeout, добавив буфер
-        tp_timeout = app_config.get("ui.thread_pool_shutdown_timeout", 2000)
+        tp_timeout = app_config.ui.get_thread_pool_shutdown_timeout()
         handler_timeout = max(tp_timeout + 1000, 3000)  # небольшой буфер во избежание ложных таймаутов
         self.add_shutdown_handler(
             "thread_pools_wait",
@@ -411,7 +411,7 @@ class AppShutdownController:
 
     def _wait_for_thread_pools(self):
         """Ожидание завершения потоков - улучшенная версия оригинала."""
-        timeout = app_config.get("ui.thread_pool_shutdown_timeout", 2000)
+        timeout = app_config.ui.get_thread_pool_shutdown_timeout()
 
         # Глобальный thread pool
         try:

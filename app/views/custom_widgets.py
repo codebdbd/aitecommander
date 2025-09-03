@@ -151,7 +151,7 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
         base = super().sizeHint(option, index)
         # Жёстко возвращаем единую высоту строки из глобальной конфигурации (ui.row_height)
         try:
-            row_h = int(app_config.get_row_height())
+            row_h = int(app_config.ui.get_row_height())
         except (AttributeError, TypeError, ValueError) as e:
             logging.warning("HighQualityTreeDelegate.sizeHint: using fallback height due to config error: %s", e)
             row_h = self._item_height if self._item_height else base.height()
@@ -210,7 +210,7 @@ class StructureTreeView(QTreeView):
 
         # Делегат высокого качества (иконки, высота строки)
         try:
-            item_h = int(app_config.get_row_height())
+            item_h = int(app_config.ui.get_row_height())
         except (AttributeError, TypeError, ValueError) as e:
             logging.warning("StructureTreeView._setup_tree_view: invalid row_height in config, fallback to None: %s", e)
             item_h = None
