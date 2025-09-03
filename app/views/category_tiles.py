@@ -44,7 +44,7 @@ logger = logging.getLogger("category_tiles")
 class _CategoryListView(QListView):
     """QListView with custom drag that serialises category id from model UserRole."""
 
-    MIME_TYPE = app_config.get_category_mime_type()
+    MIME_TYPE = app_config.settings.get_category_mime_type()
     # Сигнал активации по клавише Enter/Return
     enterActivated = pyqtSignal(object)
 
@@ -174,7 +174,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
                 painter.setFont(f)
             else:
                 # Fallback: берем из конфигурации, чтобы сохранить обратную совместимость
-                cfg_sz = app_config.get_tile_text_font_size()
+                cfg_sz = app_config.ui.get_tile_text_font_size()
                 if isinstance(cfg_sz, (int, float)) and cfg_sz > 0:
                     f = painter.font()
                     f.setPointSize(int(cfg_sz))
@@ -236,7 +236,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
                         logger.debug(
                             "CategoryTileDelegate font diag: family='%s', requested_px=%s, pixelSize=%s, pointSizeF=%.2f, fm.height=%s, fm.lineSpacing=%s",
                             painter.font().family(),
-                            app_config.get_tile_text_font_size(),
+                            app_config.ui.get_tile_text_font_size(),
                             painter.font().pixelSize(),
                             painter.font().pointSizeF(),
                             fm_diag.height(),
@@ -262,7 +262,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
             y = 0
             available_w = text_rect.width()
             try:
-                max_lines = int(app_config.get_tile_text_max_lines())
+                max_lines = int(app_config.ui.get_tile_text_max_lines())
             except (TypeError, ValueError, AttributeError) as e:
                 logger.debug("Invalid max_lines config, fallback to 3: %s", e)
                 max_lines = 3
@@ -328,13 +328,13 @@ class CategoryTileDelegate(QStyledItemDelegate):
             if isinstance(explicit_pt, (int, float)) and explicit_pt > 0:
                 font.setPointSize(int(explicit_pt))
             else:
-                cfg_sz = app_config.get_tile_text_font_size()
+                cfg_sz = app_config.ui.get_tile_text_font_size()
                 if isinstance(cfg_sz, (int, float)) and cfg_sz > 0:
                     font.setPointSize(int(cfg_sz))
         except (TypeError, ValueError, AttributeError) as e:
             logger.debug("Failed to set font size from config in sizeHint: %s", e)
         try:
-            max_lines = int(app_config.get_tile_text_max_lines())
+            max_lines = int(app_config.ui.get_tile_text_max_lines())
         except (TypeError, ValueError, AttributeError) as e:
             logger.debug("Invalid max_lines config in sizeHint, fallback to 3: %s", e)
             max_lines = 3
@@ -376,7 +376,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
                 return super().helpEvent(event, view, option, index)
 
             try:
-                max_lines = int(app_config.get_tile_text_max_lines())
+                max_lines = int(app_config.ui.get_tile_text_max_lines())
             except (TypeError, ValueError, AttributeError) as e:
                 logger.debug(
                     "Invalid max_lines config in helpEvent, fallback to 3: %s", e
@@ -396,7 +396,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
                 if isinstance(explicit_pt, (int, float)) and explicit_pt > 0:
                     font.setPointSize(int(explicit_pt))
                 else:
-                    cfg_sz = app_config.get_tile_text_font_size()
+                    cfg_sz = app_config.ui.get_tile_text_font_size()
                     if isinstance(cfg_sz, (int, float)) and cfg_sz > 0:
                         font.setPointSize(int(cfg_sz))
             except (TypeError, ValueError, AttributeError) as e:
@@ -507,8 +507,8 @@ class CategoryTiles(QWidget):
 
         try:
             if (
-                getattr(app_config, "get_debug_show_tile_font_sample", None)
-                and app_config.get_debug_show_tile_font_sample()
+                getattr(app_config.ui, "get_debug_show_tile_font_sample", None)
+                and app_config.ui.get_debug_show_tile_font_sample()
             ):
                 sample = QLabel("Sample: Абв ABC 123")
                 sample.setObjectName("tileFontSample")

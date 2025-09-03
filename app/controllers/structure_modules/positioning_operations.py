@@ -13,11 +13,11 @@ from .base import BaseOperations
 # Тип-алиас для батч-обновлений: (имя_таблицы, список_ID)
 UpdateSpec = Tuple[str, List[int]]
 
-# Безопасный импорт конфигурации с запасным вариантом
+# Ленивый доступ к конфигурации приложения (без прямой зависимости от config_loader)
 try:
-    from app.config_data.config_loader import AppConfig  # type: ignore
+    from app.config_data import app_config  # type: ignore
 except Exception:  # pragma: no cover - на случай проблем с импортом
-    AppConfig = None  # type: ignore
+    app_config = None  # type: ignore
 
 
 class PositioningOperations(BaseOperations):
@@ -30,9 +30,8 @@ class PositioningOperations(BaseOperations):
         # Порог медленного обновления (секунды), читаем из конфига с безопасным фолбэком
         self._slow_threshold: float = 1.0
         try:
-            if AppConfig is not None:
-                cfg = AppConfig()
-                val = cfg.get("limits.slow_update_positions_threshold_sec", None)
+            if app_config is not None:
+                val = app_config.get("limits.slow_update_positions_threshold_sec", None)
                 if isinstance(val, (int, float)) and val > 0:
                     self._slow_threshold = float(val)
         except Exception:
