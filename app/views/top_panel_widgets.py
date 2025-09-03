@@ -100,11 +100,11 @@ class TopPanelWidget(BaseLinksPanelWidget):
         except Exception:
             pass
 
-        # Попросим менеджер топ-бара пересчитать видимость кнопок/панелей
+        # Синхронно пересчитаем топ-бар, чтобы избежать переключения размеров поиска
         try:
             mgr = getattr(self._main_window, "_topbar_manager", None)
             if mgr:
-                mgr._request_adjust()
+                mgr.adjust()
         except Exception:
             pass
 
