@@ -20,6 +20,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from typing import TYPE_CHECKING, Optional
+from collections import OrderedDict
 
 import requests
 from PIL import Image
@@ -38,7 +39,7 @@ from .http_client import session as http_session
 from .icon_candidates import find_favicon_candidates
 from .svg_convert import convert_svg
 
-_ICON_LOCKS: dict[str, threading.Lock] = {}
+_ICON_LOCKS: "OrderedDict[str, threading.Lock]" = OrderedDict()
 _ICON_LOCKS_GUARD = threading.Lock()
 
 
@@ -81,9 +82,38 @@ def _get_icon_lock(domain: str) -> threading.Lock:
     d = domain or ""
     with _ICON_LOCKS_GUARD:
         lock = _ICON_LOCKS.get(d)
-        if not lock:
+        if lock is None:
             lock = threading.Lock()
-        _ICON_LOCKS[d] = lock
+            _ICON_LOCKS[d] = lock
+        # Помечаем как недавно использованный
+        try:
+            _ICON_LOCKS.move_to_end(d)
+        except Exception:
+            pass
+
+        # LRU-очистка при превышении лимита
+        try:
+            max_locks = int(getattr(app_config, "ICON_LOCKS_MAX", 1024) or 1024)
+        except Exception:
+            max_locks = 1024
+        if len(_ICON_LOCKS) > max_locks:
+            # Пытаемся удалить самый старый незахваченный замок
+            keys_to_check = list(_ICON_LOCKS.keys())
+            for k in keys_to_check:
+                if len(_ICON_LOCKS) <= max_locks:
+                    break
+                if k == d:
+                    # не трогаем только что использованный ключ
+                    continue
+                l = _ICON_LOCKS.get(k)
+                if l is None:
+                    continue
+                if not l.locked():
+                    try:
+                        _ICON_LOCKS.pop(k, None)
+                    except Exception:
+                        pass
+            # Если все были захвачены, размер временно может оставаться > max_locks
         return lock
 
 
@@ -97,67 +127,6 @@ class IconDownloader:
             lambda u, headers, timeout: requests.get(u, headers=headers, timeout=timeout)
         )
 
-    # === HEAD ===
-    def head_check(self, icon_url: str, domain: str, cond_headers: dict, force_refresh: bool, meta: dict) -> Optional[str]:
-        head_resp = http_request(
-            icon_url,
-            self.config,
-            extra_headers=cond_headers,
-            allow_non_2xx=True,
-            timeout_override=(5, 8),
-            retries=1,
-            http_get=self.http_get,
-            method="HEAD",
-        )
-        if not head_resp:
-            logger.info(f"[icon] head_request_failed, will try GET fallback url={icon_url}")
-            return None
-        # 304
-        if getattr(head_resp, "status_code", 0) == 304 and not force_refresh:
-            logger.info(f"[conditional] 304 Not Modified for {icon_url}")
-            icon_filename = f"web_{domain.replace('.', '_')}.png"
-            path = str(icon_path_service.get_user_icons_dir() / icon_filename)
-            if os.path.exists(path):
-                meta2 = read_icon_meta(domain)
-                meta2["saved_at"] = time.time()
-                write_icon_meta(domain, meta2)
-                return path
-            return None
-        # Недопустимый статус
-        if getattr(head_resp, "status_code", 200) != 200:
-            if head_resp.status_code in (401, 403, 405):
-                logger.info(
-                    f"[icon] head_status={head_resp.status_code}, trying GET fallback url={icon_url}"
-                )
-                return None
-            logger.info(
-                f"[icon] skip reason=head_bad_status status={head_resp.status_code} url={icon_url}"
-            )
-            return "__SKIP__"
-        # Проверка content-type и content-length
-        ct = (head_resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
-        if not ct.startswith("image/"):
-            lower = icon_url.lower().split("?")[0].split("#")[0]
-            img_ext = lower.endswith((".png", ".ico", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg"))
-            if img_ext:
-                logger.info(
-                    f"[icon] non_image_head ct={ct}, but URL suggests image; trying GET {icon_url}"
-                )
-            else:
-                logger.info(f"[icon] skip reason=non_image_head ct={ct} url={icon_url}")
-                return "__SKIP__"
-        head_limit = max(app_config.get_max_web_icon_size() * 2, 5 * 1024 * 1024)
-        if "Content-Length" in head_resp.headers:
-            try:
-                cl_val = int(head_resp.headers.get("Content-Length", "-1"))
-            except Exception:
-                cl_val = -1
-            if cl_val > 0 and cl_val > head_limit:
-                logger.info(
-                    f"[icon] skip reason=head_content_length_excess len={cl_val} head_limit={head_limit} url={icon_url}"
-                )
-                return "__SKIP__"
-        return None
 
     # === GET ===
     def perform_get(self, icon_url: str, cond_headers: dict):

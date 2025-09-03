@@ -26,7 +26,9 @@ TARGET_SIZE = 64
 FORMAT_RANK = {
     "ico": 0,
     "png": 1,
+    "apng": 1,  # Animated PNG: приоритизируем как PNG
     "webp": 2,
+    "avif": 2,  # Современный формат; поддержка зависит от PIL-плагинов
     "gif": 3,
     "jpg": 4,
     "jpeg": 4,

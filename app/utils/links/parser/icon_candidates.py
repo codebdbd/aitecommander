@@ -38,6 +38,11 @@ def find_favicon_candidates(
             if "." in lower:
                 ext = lower.rsplit(".", 1)[-1]
         t = (type_attr or "").lower()
+        # Modern/animated formats first
+        if "avif" in t or ext == "avif":
+            return "avif"
+        if "apng" in t or ext == "apng":
+            return "apng"
         if "svg" in t or ext == "svg":
             return "svg"
         if "x-icon" in t or ext == "ico":
@@ -108,67 +113,87 @@ def find_favicon_candidates(
                 else:
                     _add_link_candidate(link, "link-icon", 0)
 
-        # Манифест обрабатываем ПОСЛЕ основных link-иконок и ТОЛЬКО если нет первичных иконок
+        # Манифест(ы) обрабатываем ПОСЛЕ основных link-иконок и ТОЛЬКО если нет первичных иконок
         has_primary = any(
             c.get("type") in {"link-icon", "mask-icon", "apple-touch-icon"} for c in candidates
         )
         if (not has_primary) and manifest_links and config is not None:
-            m_href = manifest_links[0].get("href")
-            if m_href and not m_href.startswith("data:"):
-                m_url = urljoin(base_url, m_href)
+            # Собираем валидные href всех manifest-ссылок
+            manifest_urls = []
+            for m_link in manifest_links:
+                m_href = m_link.get("href")
+                if m_href and not m_href.startswith("data:"):
+                    manifest_urls.append(urljoin(base_url, m_href))
 
-                def _fetch_manifest_and_emit():
-                    try:
-                        m_resp_local = http_request(m_url, config, allow_non_2xx=True)
-                        urls: List[str] = []
-                        if m_resp_local and getattr(m_resp_local, "ok", False):
-                            try:
-                                m_json = json.loads(m_resp_local.text)
-                                icons = m_json.get("icons") or []
-                                for icon in icons:
-                                    src = icon.get("src")
-                                    if not src:
-                                        continue
-                                    i_url = urljoin(m_url, src)
-                                    urls.append(i_url)
-                            except Exception:
-                                pass
-                        if on_manifest_icons and urls:
-                            try:
-                                on_manifest_icons(urls)
-                            except Exception:
-                                pass
-                    except Exception:
-                        pass
-
+            if manifest_urls:
                 if on_manifest_icons is not None:
-                    # Асинхронно: не блокируем основной поток
+                    # Асинхронно: обрабатываем все манифесты и вызываем callback ОДИН раз со сводным списком URL
                     import threading
 
-                    t = threading.Thread(target=_fetch_manifest_and_emit, name="fetch_manifest_icons", daemon=True)
+                    def _fetch_all_manifests_and_emit():
+                        all_urls: List[str] = []
+                        for m_url in manifest_urls:
+                            try:
+                                m_resp_local = http_request(m_url, config, allow_non_2xx=True)
+                                if m_resp_local and getattr(m_resp_local, "ok", False):
+                                    try:
+                                        m_json = json.loads(m_resp_local.text)
+                                        icons = m_json.get("icons") or []
+                                        for icon in icons:
+                                            src = icon.get("src")
+                                            if not src:
+                                                continue
+                                            i_url = urljoin(m_url, src)
+                                            all_urls.append(i_url)
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
+                        if all_urls:
+                            try:
+                                on_manifest_icons(all_urls)
+                            except Exception:
+                                pass
+
+                    t = threading.Thread(target=_fetch_all_manifests_and_emit, name="fetch_manifest_icons", daemon=True)
                     t.start()
                 else:
-                    # Обратная совместимость: если callback не передан, работаем синхронно
-                    try:
-                        m_resp = http_request(m_url, config, allow_non_2xx=True)
-                        if m_resp and getattr(m_resp, "ok", False):
-                            try:
-                                m_json = json.loads(m_resp.text)
-                                icons = m_json.get("icons") or []
-                                for icon in icons:
-                                    src = icon.get("src")
-                                    if not src:
-                                        continue
-                                    i_url = urljoin(m_url, src)
-                                    sizes = str(icon.get("sizes") or "").split()
-                                    type_attr = icon.get("type") or ""
-                                    fmt = _detect_format(i_url, type_attr)
-                                    if sizes:
-                                        for sz in sizes:
+                    # Синхронно: объединяем кандидатов из всех манифестов
+                    for m_url in manifest_urls:
+                        try:
+                            m_resp = http_request(m_url, config, allow_non_2xx=True)
+                            if m_resp and getattr(m_resp, "ok", False):
+                                try:
+                                    m_json = json.loads(m_resp.text)
+                                    icons = m_json.get("icons") or []
+                                    for icon in icons:
+                                        src = icon.get("src")
+                                        if not src:
+                                            continue
+                                        i_url = urljoin(m_url, src)
+                                        sizes = str(icon.get("sizes") or "").split()
+                                        type_attr = icon.get("type") or ""
+                                        fmt = _detect_format(i_url, type_attr)
+                                        if sizes:
+                                            for sz in sizes:
+                                                candidates.append(
+                                                    {
+                                                        "url": i_url,
+                                                        "size": parse_icon_size(sz),
+                                                        "format": fmt,
+                                                        "format_rank": FORMAT_RANK.get(
+                                                            fmt, FORMAT_RANK["unknown"]
+                                                        ),
+                                                        "base_priority": 1,
+                                                        "media_priority": 0,
+                                                        "type": "manifest",
+                                                    }
+                                                )
+                                        else:
                                             candidates.append(
                                                 {
                                                     "url": i_url,
-                                                    "size": parse_icon_size(sz),
+                                                    "size": 0,
                                                     "format": fmt,
                                                     "format_rank": FORMAT_RANK.get(
                                                         fmt, FORMAT_RANK["unknown"]
@@ -178,24 +203,10 @@ def find_favicon_candidates(
                                                     "type": "manifest",
                                                 }
                                             )
-                                    else:
-                                        candidates.append(
-                                            {
-                                                "url": i_url,
-                                                "size": 0,
-                                                "format": fmt,
-                                                "format_rank": FORMAT_RANK.get(
-                                                    fmt, FORMAT_RANK["unknown"]
-                                                ),
-                                                "base_priority": 1,
-                                                "media_priority": 0,
-                                                "type": "manifest",
-                                            }
-                                        )
-                            except Exception:
-                                pass
-                    except Exception:
-                        pass
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
     except Exception:
         pass
 
