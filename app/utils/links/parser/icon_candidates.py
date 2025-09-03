@@ -4,14 +4,38 @@ from __future__ import annotations
 
 import json
 from typing import List, Optional, Callable
+import atexit
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
 from .constants import FORMAT_RANK, TARGET_SIZE, logger
+from app.config_data import app_config
 from .http_client import http_request
 
 
+_MANIFEST_EXECUTOR = None
+_MANIFEST_EXECUTOR_GUARD = threading.Lock()
+
+
+def _get_manifest_executor() -> ThreadPoolExecutor:
+    global _MANIFEST_EXECUTOR
+    if _MANIFEST_EXECUTOR is not None:
+        return _MANIFEST_EXECUTOR
+    with _MANIFEST_EXECUTOR_GUARD:
+        if _MANIFEST_EXECUTOR is None:
+            try:
+                max_workers = int(getattr(app_config, "ICON_MANIFEST_MAX_WORKERS", 4) or 4)
+            except Exception:
+                max_workers = 4
+            _MANIFEST_EXECUTOR = ThreadPoolExecutor(max_workers=max(1, max_workers), thread_name_prefix="manifest")
+            try:
+                atexit.register(lambda: _MANIFEST_EXECUTOR.shutdown(wait=False, cancel_futures=True))
+            except Exception:
+                pass
+    return _MANIFEST_EXECUTOR
 def parse_icon_size(sizes_attr: str) -> int:
     if not sizes_attr:
         return 0
@@ -127,9 +151,7 @@ def find_favicon_candidates(
 
             if manifest_urls:
                 if on_manifest_icons is not None:
-                    # Асинхронно: обрабатываем все манифесты и вызываем callback ОДИН раз со сводным списком URL
-                    import threading
-
+                    # Асинхронно через общий пул: обрабатываем все манифесты и вызываем callback ОДИН раз со сводным списком URL
                     def _fetch_all_manifests_and_emit():
                         all_urls: List[str] = []
                         for m_url in manifest_urls:
@@ -155,8 +177,7 @@ def find_favicon_candidates(
                             except Exception:
                                 pass
 
-                    t = threading.Thread(target=_fetch_all_manifests_and_emit, name="fetch_manifest_icons", daemon=True)
-                    t.start()
+                    _get_manifest_executor().submit(_fetch_all_manifests_and_emit)
                 else:
                     # Синхронно: объединяем кандидатов из всех манифестов
                     for m_url in manifest_urls:

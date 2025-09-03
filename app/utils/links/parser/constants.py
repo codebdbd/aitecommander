@@ -31,7 +31,6 @@ FORMAT_RANK = {
     "avif": 2,  # Современный формат; поддержка зависит от PIL-плагинов
     "gif": 3,
     "jpg": 4,
-    "jpeg": 4,
     "bmp": 5,
     "svg": 9,  # SVG last
     "unknown": 6,

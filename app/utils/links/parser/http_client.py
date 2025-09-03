@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import time
 from typing import Dict, Optional
+import atexit
+import threading
 
 import requests
 from requests.exceptions import RequestException
@@ -15,6 +17,50 @@ try:
 except Exception:  # pragma: no cover - optional dependency
     cloudscraper = None  # type: ignore
     logger.warning("cloudscraper not installed, some sites may fail to fetch")
+
+# Lazy, shared cloudscraper instance
+_CLOUDSCRAPER = None
+_CLOUDSCRAPER_GUARD = threading.Lock()
+
+
+def get_cloudscraper():
+    global _CLOUDSCRAPER
+    if cloudscraper is None:
+        return None
+    if _CLOUDSCRAPER is not None:
+        return _CLOUDSCRAPER
+    with _CLOUDSCRAPER_GUARD:
+        if _CLOUDSCRAPER is None:
+            try:
+                _CLOUDSCRAPER = cloudscraper.create_scraper(
+                    browser={
+                        "browser": "chrome",
+                        "platform": "windows",
+                        "mobile": False,
+                    }
+                )
+            except Exception as e:  # pragma: no cover - creation failure
+                logger.warning(f"cloudscraper init failed: {e}")
+                return None
+            try:
+                atexit.register(lambda: shutdown_cloudscraper(wait=False))
+            except Exception:
+                pass
+    return _CLOUDSCRAPER
+
+
+def shutdown_cloudscraper(wait: bool = False):
+    global _CLOUDSCRAPER
+    try:
+        s = _CLOUDSCRAPER
+        _CLOUDSCRAPER = None
+        if s is not None:
+            # cloudscraper returns a requests.Session-like object
+            close = getattr(s, "close", None)
+            if callable(close):
+                close()
+    except Exception:
+        pass
 
 # Global session with browser-like headers
 session = requests.Session()
@@ -59,15 +105,9 @@ def http_request(
                     return resp
                 resp.raise_for_status()
                 return resp
-            if cloudscraper:
+            scraper = get_cloudscraper()
+            if scraper is not None:
                 try:
-                    scraper = cloudscraper.create_scraper(
-                        browser={
-                            "browser": "chrome",
-                            "platform": "windows",
-                            "mobile": False,
-                        }
-                    )
                     logger.debug(f"[cloudscraper] {method} {url}")
                     resp = scraper.request(
                         method, url, headers=headers, timeout=timeout
@@ -101,18 +141,13 @@ def http_request(
             )
             if (
                 not cf_fallback_attempted
-                and cloudscraper
                 and method == "GET"
                 and should_try_cf
             ):
                 try:
-                    scraper = cloudscraper.create_scraper(
-                        browser={
-                            "browser": "chrome",
-                            "platform": "windows",
-                            "mobile": False,
-                        }
-                    )
+                    scraper = get_cloudscraper()
+                    if scraper is None:
+                        raise RequestException("cloudscraper unavailable")
                     logger.debug(f"[fallback->cloudscraper] {method} {url}")
                     resp = scraper.request(
                         method, url, headers=headers, timeout=timeout
