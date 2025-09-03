@@ -3,7 +3,6 @@
 """Модуль для нормализации данных из базы данных."""
 
 import logging
-import warnings
 from typing import Any, Dict, List, Protocol, Union, runtime_checkable
 
 # Модульный логгер
@@ -135,27 +134,6 @@ def normalize_rows(rows: Any, logger: logging.Logger = None) -> List[Dict[str, A
     return result
 
 
-def row_to_dict(row: Any, logger: logging.Logger = None) -> Dict[str, Any]:
-    """Устаревший метод - используйте normalize_row().
-
-    Args:
-        row: Строка данных из БД
-        logger: Логгер для предупреждений
-
-    Returns:
-        Dict[str, Any]: Нормализованный словарь
-
-    Deprecated:
-        Используйте normalize_row() вместо этого метода.
-    """
-    warnings.warn(
-        "row_to_dict() устарел. Используйте normalize_row()",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return normalize_row(row, logger)
-
-
 def validate_normalized_data(
     data: Union[Dict[str, Any], List[Dict[str, Any]]], required_keys: List[str] = None
 ) -> bool:
@@ -188,7 +166,6 @@ def validate_normalized_data(
 __all__ = [
     "normalize_row",
     "normalize_rows",
-    "row_to_dict",
     "validate_normalized_data",
     "SupportedRowType",
     "RowLike",

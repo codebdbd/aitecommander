@@ -29,7 +29,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ..base_dialog import BaseDialog
-from .search_worker import FileSearchWorker as ExternalFileSearchWorker
+from .search_worker import FileSearchWorker
 
 logger = logging.getLogger(__name__)
 
@@ -624,10 +624,3 @@ class FileSearchDialog(BaseDialog):
         self.status_label.setText(f"Поиск завершен. Найдено файлов: {count}")
         self._update_buttons()
 
-
-class FileSearchWorker(ExternalFileSearchWorker):
-    """DEPRECATED shim: используйте search_worker.FileSearchWorker.
-    Оставлено для обратной совместимости и минимизации изменений.
-    """
-
-    pass

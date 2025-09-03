@@ -7,7 +7,7 @@ from .base import ItemTypes, ItemTypeStr, StructureItemType, ValidationError
 from .cache_manager import CacheManager
 from .category_operations import CategoryOperations
 from .exceptions import handle_exceptions
-from .normalization import normalize_row, normalize_rows, row_to_dict
+from .normalization import normalize_row, normalize_rows
 
 # LinkOperations удален - используйте LinksBusinessLogic
 from .positioning_operations import PositioningOperations
@@ -30,9 +30,7 @@ __all__ = [
     "validate_section_data",
     "validate_category_data",
     # Normalization
-    "normalize_row",
     "normalize_rows",
-    "row_to_dict",
     # Core modules
     "CacheManager",
     "SphereOperations",
