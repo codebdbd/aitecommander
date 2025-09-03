@@ -6,7 +6,7 @@ import json
 from typing import List, Optional, Callable
 import atexit
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
@@ -37,15 +37,38 @@ def _get_manifest_executor() -> ThreadPoolExecutor:
                 pass
     return _MANIFEST_EXECUTOR
 def parse_icon_size(sizes_attr: str) -> int:
+    """Parse sizes attribute and return the maximum declared size.
+
+    - Supports multiple space-separated entries, e.g. "16x16 32x32 180x180" → 180
+    - Treats "any" as 0 (unknown vector/scalable size)
+    - Falls back to first integer if no WxH pattern is found
+    """
     if not sizes_attr:
+        return 0
+    s = (sizes_attr or "").strip().lower()
+    if s == "any":
         return 0
     import re
 
-    match = re.search(r"(\d+)x?\d*", sizes_attr.lower())
-    if not match:
-        logger.debug(f"Invalid sizes attribute: {sizes_attr}")
-        return 0
-    return int(match.group(1))
+    pairs = re.findall(r"(\d+)\s*x\s*(\d+)", s)
+    if pairs:
+        sizes = []
+        for w, h in pairs:
+            try:
+                sizes.append(max(int(w), int(h)))
+            except Exception:
+                continue
+        if sizes:
+            return max(sizes)
+    # Fallback: take first integer if present (non-standard values)
+    m = re.search(r"(\d+)", s)
+    if m:
+        try:
+            return int(m.group(1))
+        except Exception:
+            pass
+    logger.debug(f"Invalid sizes attribute: {sizes_attr}")
+    return 0
 
 
 def find_favicon_candidates(
@@ -154,7 +177,9 @@ def find_favicon_candidates(
                     # Асинхронно через общий пул: обрабатываем все манифесты и вызываем callback ОДИН раз со сводным списком URL
                     def _fetch_all_manifests_and_emit():
                         all_urls: List[str] = []
-                        for m_url in manifest_urls:
+
+                        def _fetch_one(m_url: str) -> List[str]:
+                            urls: List[str] = []
                             try:
                                 m_resp_local = http_request(m_url, config, allow_non_2xx=True)
                                 if m_resp_local and getattr(m_resp_local, "ok", False):
@@ -166,11 +191,33 @@ def find_favicon_candidates(
                                             if not src:
                                                 continue
                                             i_url = urljoin(m_url, src)
-                                            all_urls.append(i_url)
+                                            urls.append(i_url)
                                     except Exception:
                                         pass
                             except Exception:
                                 pass
+                            return urls
+
+                        if not manifest_urls:
+                            return
+
+                        try:
+                            try:
+                                max_workers = int(getattr(app_config, "ICON_MANIFEST_MAX_WORKERS", 4) or 4)
+                            except Exception:
+                                max_workers = 4
+                            with ThreadPoolExecutor(max_workers=max(1, max_workers), thread_name_prefix="manifest-fetch") as executor:
+                                futures = [executor.submit(_fetch_one, m_url) for m_url in manifest_urls]
+                                for fut in as_completed(futures):
+                                    try:
+                                        urls = fut.result() or []
+                                        if urls:
+                                            all_urls.extend(urls)
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            pass
+
                         if all_urls:
                             try:
                                 on_manifest_icons(all_urls)
