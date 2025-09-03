@@ -223,6 +223,4 @@ class BrowserBookmarksImporter:
         return True, f"Добавлено ссылок: {added}", added
 
 
-# Backward-compat thin wrapper (может использоваться в тестах/старых местах)
-def parse_browser_bookmarks(html_path):
-    return BrowserBookmarksImporter().parse_bookmarks(html_path)
+ 

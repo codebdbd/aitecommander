@@ -187,7 +187,6 @@ def fetch_web_link_info(
             current = {
                 "url": url,
                 "title": title,
-                "name": title,
                 "icon": resolved,
                 "timestamp": __import__("time").time(),
                 "ttl": apply_jitter(CACHE_TTL, config),
@@ -234,7 +233,6 @@ def fetch_web_link_info(
     result = {
         "url": url,
         "title": title,
-        "name": title,  # backward-compat with legacy callers expecting 'name'
         "icon": icon_path or default_icon,
         "timestamp": __import__("time").time(),
         "ttl": apply_jitter(CACHE_TTL, config),

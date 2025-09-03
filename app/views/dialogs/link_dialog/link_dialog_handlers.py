@@ -529,10 +529,10 @@ class LinkDialogHandlers:
                         force_refresh=False,
                         defer_icon=True,
                         on_icon_ready=lambda icon_path: self.signals.link_info_finished.emit(
-                            {"name": "", "icon": icon_path}
+                            {"title": "", "icon": icon_path}
                         ),
                     )
-                    return {"name": info.get("name"), "icon": info.get("icon")}
+                    return {"title": info.get("title"), "icon": info.get("icon")}
                 # Локальные пути
                 info = parse_local_link(link_type, path, app_config, args=args_val)
                 return info or {"name": "", "icon": ""}
@@ -564,9 +564,9 @@ class LinkDialogHandlers:
         self._is_processing = False
         self._active_worker = None
 
-        name = info.get("name")
-        if name and not self.dialog.ui.get_widget("name_le").text().strip():
-            self.dialog.ui.set_widget_value("name_le", name)
+        title = info.get("title") or info.get("name")
+        if title and not self.dialog.ui.get_widget("name_le").text().strip():
+            self.dialog.ui.set_widget_value("name_le", title)
 
         icon_path_str = info.get("icon")
         if icon_path_str and Path(icon_path_str).exists():
