@@ -23,7 +23,7 @@ Testing/Utilities:
 from __future__ import annotations
 
 import json
-from typing import Optional, Callable
+from collections.abc import Callable
 import atexit
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -189,6 +189,18 @@ def _detect_format(href: str, type_attr: str | None) -> str:
 
 
 def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[dict], list[str], bool]:
+    """Собирает кандидатов из <link> и ссылки на манифесты.
+
+    Аргументы:
+    - soup: разобранный документ BeautifulSoup.
+    - base_url: базовый URL для резолвинга относительных путей.
+
+    Возвращает:
+    - tuple: (candidates, manifest_urls, has_primary), где
+      candidates — список словарей-кандидатов,
+      manifest_urls — ссылки на манифесты,
+      has_primary — есть ли первичные link-иконки.
+    """
     candidates: list[dict] = []
     manifest_urls: list[str] = []
 
@@ -254,7 +266,17 @@ def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[dict],
         return candidates, manifest_urls, False
 
 
-def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manifest_icons: Optional[Callable[[list[str]], None]], candidates: list[dict]):
+def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manifest_icons: Callable[[list[str]], None] | None, candidates: list[dict]):
+    """Обрабатывает манифесты: асинхронно вызывает колбэк или синхронно дополняет кандидатов.
+
+    Аргументы:
+    - manifest_urls: список URL манифестов.
+    - base_url: базовый URL для резолвинга относительных путей.
+    - config: конфигурация HTTP-клиента.
+    - on_manifest_icons: Callable[[list[str]], None] | None — если задан, будет вызван с URL иконок;
+      иначе иконки из манифестов добавляются в candidates синхронно.
+    - candidates: коллекция, которую можно дополнить.
+    """
     if not manifest_urls or config is None:
         return
 
@@ -371,6 +393,11 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
 
 
 def _add_fallback_paths(base_url: str, candidates: list[dict]):
+    """Добавляет стандартные fallback-пути (favicon.ico и др.) для основного и www-хоста.
+
+    Из особенностей: формирует варианты хостов с/без префикса www. и добавляет
+    кандидатов с нулевым размером и вычисленным форматом.
+    """
     p = urlparse(base_url)
     host = p.netloc
     hosts = {host}
@@ -404,6 +431,13 @@ def _add_fallback_paths(base_url: str, candidates: list[dict]):
 
 
 def _add_external_services(base_url: str, use_external: bool, candidates: list[dict]):
+    """Добавляет внешние fallback-сервисы (Google, DuckDuckGo), если разрешено.
+
+    Аргументы:
+    - base_url: URL страницы, используется только для извлечения хоста.
+    - use_external: флаг включения внешних сервисов.
+    - candidates: список кандидатов для дополнения.
+    """
     if not use_external:
         return
     p = urlparse(base_url)
@@ -435,6 +469,11 @@ def _add_external_services(base_url: str, use_external: bool, candidates: list[d
 
 
 def _append_og_image(soup: BeautifulSoup, base_url: str, candidates: list[dict]) -> list[str]:
+    """Возвращает URL из og:image, если нет первичных link-иконок и URL похож на иконку.
+
+    Фильтрует по запрещённым маркерам (OG_IMAGE_BANNED_MARKERS) и ключевым словам
+    (icon/favicon). Возвращает список подходящих URL.
+    """
     og_urls: list[str] = []
     # Append og:image only when there are no primary link-icons present.
     # Primary icons are those with base_priority == 0 (link-icon/mask/apple).
@@ -455,6 +494,7 @@ def _append_og_image(soup: BeautifulSoup, base_url: str, candidates: list[dict])
 
 
 def _sort_candidates(candidates: list[dict]):
+    """Сортирует кандидатов по приоритетам: base_priority, format_rank, size, media_priority."""
     def sort_key(c: dict):
         size = c.get("size", 0)
         return (
@@ -471,7 +511,7 @@ def find_favicon_candidates(
     soup: BeautifulSoup,
     base_url: str,
     config=None,
-    on_manifest_icons: Optional[Callable[[list[str]], None]] = None,
+    on_manifest_icons: Callable[[list[str]], None] | None = None,
     use_external: bool = False,
 ) -> list[str]:
     """Собирает кандидатов на иконку страницы и возвращает список URL в порядке приоритета.
