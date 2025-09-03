@@ -213,7 +213,7 @@ class WindowUISetup:
         top_bar_host.setObjectName("topBarHost")
         top_bar_host.setLayout(top_bar)
         try:
-            top_bar_host.setFixedHeight(app_config.get_top_panel_container_height())
+            top_bar_host.setFixedHeight(app_config.get_top_bar_height())
             top_bar_host.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         except (RuntimeError, TypeError, AttributeError):
             logging.warning("TopPanel: failed to set top bar host size policy/height", exc_info=True)
@@ -230,14 +230,13 @@ class WindowUISetup:
             # Не блокируем инициализацию UI при ошибке менеджера
             self.window._topbar_manager = None
             logger.exception("TopPanel: failed to initialize TopBarLayoutManager")
-        # Первичный пересчёт после создания
+        # Первичный пересчёт после создания (через внутренний троттлинг менеджера)
         try:
-            from PyQt6.QtCore import QTimer
-
-            if getattr(self.window, "_topbar_manager", None):
-                QTimer.singleShot(0, self.window._topbar_manager.adjust)
-        except (ImportError, AttributeError, TypeError, RuntimeError):
-            logging.debug("TopPanel: failed to schedule initial topbar adjust", exc_info=True)
+            mgr = getattr(self.window, "_topbar_manager", None)
+            if mgr:
+                mgr._request_adjust()
+        except (AttributeError, TypeError, RuntimeError):
+            logging.debug("TopPanel: failed to request initial topbar adjust", exc_info=True)
         
 
     def _create_top_panel_widget(
@@ -295,15 +294,26 @@ class WindowUISetup:
         except (TypeError, ValueError, RuntimeError):
             self.window.search.setFixedHeight(32)
             logging.warning("SearchWidget: invalid search height in config; using 32")
+        # Политика размеров и минимальная ширина — задаются один раз при инициализации
         # Разрешаем горизонтальное сжатие/растяжение
         self.window.search.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
+        try:
+            min_search_w = int(getattr(app_config, "get_top_panel_search_min_width", lambda: 140)())
+        except (TypeError, ValueError):
+            min_search_w = 140
+            logging.debug("SearchWidget: fallback to default min_search_width=140")
+        try:
+            self.window.search.setMinimumWidth(min_search_w)
+        except Exception:
+            logging.debug("SearchWidget: failed to set minimum width", exc_info=True)
         self.window.search.setObjectName("mainSearch")
 
         # Размер шрифта поля поиска берётся из глобального шрифта приложения (без локальной установки)
         self.window.search.textChanged.connect(self.window.on_search)
-        top_bar.addWidget(self.window.search)
+        # Добавляем со stretch-фактором, чтобы строка поиска занимала всё оставшееся место
+        top_bar.addWidget(self.window.search, 1)
 
     def setup_main_content(self) -> None:
         """Настройка основного содержимого."""

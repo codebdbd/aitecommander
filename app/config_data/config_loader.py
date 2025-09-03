@@ -228,6 +228,11 @@ class AppConfig:
         """Получение высоты контейнера верхней панели."""
         return self.ui.get_top_panel_container_height()
 
+    def get_top_bar_height(self) -> int:
+        """Получение высоты хоста верхней панели (новый ключ ui.top_bar_height с b/c)."""
+        # Делегирует в UIConfig.get_top_bar_height(), который сам поддерживает фоллбэк
+        return self.ui.get_top_bar_height()
+
     def get_top_panel_search_width(self) -> int:
         """Получение ширины поля поиска в верхней панели."""
         return self.ui.get_top_panel_search_width()

@@ -203,20 +203,20 @@ QFrame#recentPanelBg {
 
 /* Поле поиска в верхней панели — размеры/внутренние отступы см. ниже (единый блок с border) */
 
-/* Контейнер верхней панели и его прямые дети — без внешних отступов
-   Примечание: высота контейнера задаётся из кода (ui.top_panel_container_height),
+/* Контейнер верхней панели (текущий: topBarHost) и его прямые дети — без внешних отступов
+   Примечание: высота контейнера задаётся из кода (ui.top_bar_height | ui.top_panel_container_height b/c),
    отступы/spacing layout — из кода (ui.top_bar_margins, ui.layout.spacing.top_bar) */
-QWidget#topPanelContainer {
+QWidget#topBarHost {
     margin: 0;
     padding: 0;
 }
 
-QWidget#topPanelContainer > QWidget {
+QWidget#topBarHost > QWidget {
     margin: 0;
     padding: 0;
 }
 
-QWidget#topPanelContainer QToolButton {
+QWidget#topBarHost QToolButton {
     border: 1px solid;
     border-color: transparent;
     border-radius: 4px;
@@ -228,15 +228,15 @@ QWidget#topPanelContainer QToolButton {
        (например, ui.top_panel_icon_size, ui.quick_add_button_size) */
 }
 
-QWidget#topPanelContainer QToolButton:hover,
-QWidget#topPanelContainer QToolButton:pressed,
-QWidget#topPanelContainer QToolButton:checked {
+QWidget#topBarHost QToolButton:hover,
+QWidget#topBarHost QToolButton:pressed,
+QWidget#topBarHost QToolButton:checked {
     border: 1px solid;
     border-color: transparent;
 }
 
 /* Кнопки верхней панели типа QPushButton — приводим к тем же размерам */
-QWidget#topPanelContainer QPushButton {
+QWidget#topBarHost QPushButton {
     border: 1px solid;
     border-color: transparent;
     border-radius: 8px;
@@ -245,15 +245,15 @@ QWidget#topPanelContainer QPushButton {
     min-height: 32px;
     max-height: 32px;
 }
-QWidget#topPanelContainer QPushButton:hover,
-QWidget#topPanelContainer QPushButton:pressed,
-QWidget#topPanelContainer QPushButton:checked {
+QWidget#topBarHost QPushButton:hover,
+QWidget#topBarHost QPushButton:pressed,
+QWidget#topBarHost QPushButton:checked {
     border: 1px solid;
     border-color: transparent;
 }
 
 /* Поле поиска — альтернативный профиль размеров (используется в некоторых конфигурациях) */
-QWidget#topPanelContainer QLineEdit {
+QWidget#topBarHost QLineEdit {
     border: 1px solid;
     border-color: transparent;
     border-radius: 8px;
@@ -596,9 +596,9 @@ QListView#categoryTiles::item:hover,
 QWidget#spheres_bar QToolButton:hover,
 QWidget#spheres_bar QToolButton:pressed,
 QWidget#spheres_bar QToolButton:checked,
-QWidget#topPanelContainer QToolButton:hover,
-QWidget#topPanelContainer QToolButton:pressed,
-QWidget#topPanelContainer QToolButton:checked,
+QWidget#topBarHost QToolButton:hover,
+QWidget#topBarHost QToolButton:pressed,
+QWidget#topBarHost QToolButton:checked,
 QLineEdit#mainSearch:hover,
 QLineEdit#mainSearch:focus,
 QDialog QToolButton#linkTypeBtn:hover,

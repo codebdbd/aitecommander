@@ -93,18 +93,18 @@ class TopPanelWidget(BaseLinksPanelWidget):
             else self._create_recent_button
         )
         self._populate_panel(items, factory)
+
         # Корректно выставим видимость панели в зависимости от наличия элементов
         try:
             self.setVisible(bool(items))
         except Exception:
             pass
+
         # Попросим менеджер топ-бара пересчитать видимость кнопок/панелей
         try:
             mgr = getattr(self._main_window, "_topbar_manager", None)
             if mgr:
-                from PyQt6.QtCore import QTimer
-
-                QTimer.singleShot(0, mgr.adjust)
+                mgr._request_adjust()
         except Exception:
             pass
 
