@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     # For type hints only; avoids runtime dependency and fixes Ruff F821
     from bs4 import BeautifulSoup
 
-from .constants import MIN_GOOD_SIZE, logger
+from .constants import MIN_GOOD_SIZE, TARGET_SIZE, logger
 from .http_client import http_request
 from .http_client import session as http_session
 from .icon_candidates import find_favicon_candidates
@@ -162,7 +162,11 @@ class IconDownloader:
     def maybe_convert_svg(icon_url: str, ct: str, ext: str, data: bytes) -> Optional[bytes]:
         if "image/svg" in ct or ext == "svg" or b"<svg" in data[:200].lower():
             logger.debug(f"SVG detected {icon_url}")
-            return convert_svg(data)
+            try:
+                target = int(getattr(app_config, "ICON_TARGET_SIZE", TARGET_SIZE) or TARGET_SIZE)
+            except Exception:
+                target = TARGET_SIZE
+            return convert_svg(data, target_size=target)
         return data
 
     @staticmethod
@@ -207,7 +211,7 @@ class IconDownloader:
         return True
 
     @staticmethod
-    def save_png_with_meta(domain: str, icon_url: str, response_headers: dict, img: Image.Image, data: bytes, is_fallback: bool) -> Optional[str]:
+    def save_png_with_meta(domain: str, icon_url: str, response_headers: dict, img: Image.Image, data: bytes, is_fallback: bool, meta: Optional[dict] = None) -> Optional[str]:
         path = os.path.join(
             str(icon_path_service.get_user_icons_dir()),
             f"web_{domain.replace('.', '_')}.png",
@@ -219,9 +223,10 @@ class IconDownloader:
                 img = img.convert("RGBA")
             img.save(path, format="PNG")
             try:
+                prev_meta = meta or {}
                 meta_update = {
-                    "etag": response_headers.get("ETag") or read_icon_meta(domain).get("etag"),
-                    "last_modified": response_headers.get("Last-Modified") or read_icon_meta(domain).get("last_modified"),
+                    "etag": response_headers.get("ETag") or prev_meta.get("etag"),
+                    "last_modified": response_headers.get("Last-Modified") or prev_meta.get("last_modified"),
                     "saved_at": time.time(),
                     "source_url": icon_url,
                     "content_hash": hashlib.sha256(data).hexdigest(),
@@ -359,7 +364,7 @@ class IconDownloader:
                 img = img.copy()
                 if not self.validate_image_geometry(img, icon_url):
                     return None
-                path = self.save_png_with_meta(domain, icon_url, resp.headers, img, data2, is_fallback)
+                path = self.save_png_with_meta(domain, icon_url, resp.headers, img, data2, is_fallback, meta)
                 etag = resp.headers.get("ETag")
                 lm = resp.headers.get("Last-Modified")
                 w, h = img.size
