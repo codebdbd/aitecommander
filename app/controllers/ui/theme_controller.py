@@ -447,23 +447,23 @@ class ThemeController:
         Возвращает строку QSS. Пустая строка, если нечего перекрывать.
         """
         try:
-            menu_font_size = int(app_config.get_menu_font_size())
+            menu_font_size = int(app_config.ui.get_menu_font_size())
         except Exception:
             menu_font_size = None
         try:
-            menubar_font_size = int(app_config.get_menubar_font_size())
+            menubar_font_size = int(app_config.ui.get_menubar_font_size())
         except Exception:
             menubar_font_size = None
         try:
-            menubar_item_height = int(app_config.get_menubar_item_height())
+            menubar_item_height = int(app_config.ui.get_menubar_item_height())
         except Exception:
             menubar_item_height = None
         try:
-            menu_icon_size = int(app_config.get_menu_icon_size())
+            menu_icon_size = int(app_config.ui.get_menu_icon_size())
         except Exception:
             menu_icon_size = None
         try:
-            menu_indicator_size = int(app_config.get_menu_indicator_size())
+            menu_indicator_size = int(app_config.ui.get_menu_indicator_size())
         except Exception:
             menu_indicator_size = None
 

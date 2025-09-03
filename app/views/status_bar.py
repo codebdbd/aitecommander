@@ -20,14 +20,14 @@ def setup_status_bar(window) -> QStatusBar:
     # Внешние отступы статус-бара: слева/справа 6px
     status.setContentsMargins(6, 0, 6, 0)
 
-    window.db_status_label = QLabel(app_config.get_db_connected_text())
+    window.db_status_label = QLabel(app_config.ui.get_db_connected_text())
     window.db_status_label.setObjectName("dbStatusLabel")
     window.path_label = QLabel("Путь: ")
     window.path_label.setObjectName("pathLabel")
-    window.path_label.setMinimumWidth(app_config.get_path_label_min_width())
-    window.links_count_label = QLabel(app_config.get_links_count_text())
+    window.path_label.setMinimumWidth(app_config.ui.get_path_label_min_width())
+    window.links_count_label = QLabel(app_config.ui.get_links_count_text())
     window.links_count_label.setObjectName("linksCountLabel")
-    window.message_label = QLabel(app_config.get_status_ready_text())
+    window.message_label = QLabel(app_config.ui.get_status_ready_text())
 
     # Отступы внутри элементов для ровного визуала
     window.message_label.setContentsMargins(6, 0, 12, 0)
@@ -69,9 +69,9 @@ def update_status_bar(window) -> None:
         dc = getattr(window, "database_controller", None)
         db = getattr(dc, "db", None)
         if db is not None and getattr(db, "is_connected", lambda: False)():
-            window.db_status_label.setText(app_config.get_db_connected_text())
+            window.db_status_label.setText(app_config.ui.get_db_connected_text())
         else:
-            window.db_status_label.setText(app_config.get_db_disconnected_text())
+            window.db_status_label.setText(app_config.ui.get_db_disconnected_text())
 
         # Путь в дереве + активная сфера (QTreeView-only)
         parts = []

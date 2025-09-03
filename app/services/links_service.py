@@ -22,9 +22,6 @@ class LinksService:
     def get_links(self, category_id: int) -> List[Dict[str, Any]]:
         return self.repo.get_links(category_id)
 
-    def get_links_for_category(self, category_id: int) -> List[Dict[str, Any]]:
-        # Совместимость: эквивалент прежнего метода (SELECT * ... ORDER BY position)
-        return self.repo.get_links(category_id, all_fields=True)
 
     def get_all_links(self) -> List[Dict[str, Any]]:
         return self.repo.get_all_links()
@@ -53,6 +50,22 @@ class LinksService:
         self, category_id: int, name: str, url: str, args: str = ""
     ) -> Optional[Dict[str, Any]]:
         return self.repo.get_link_by_name_url_args(category_id, name, url, args)
+
+    def find_by_unique_fields(
+        self,
+        category_id: int,
+        url: str,
+        args: str = "",
+        link_type: str = "web",
+        name: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """Поиск ссылки по уникальным полям (совместимо с репозиторием).
+
+        Используется как резервный путь, если поиск по (name,url,args) не дал результата.
+        """
+        return self.repo.get_link_by_unique_fields(
+            category_id, url, args, link_type, name
+        )
 
     # --- Мутации ---
     def create_or_update_link(self, link_data: Dict[str, Any]) -> int:

@@ -133,18 +133,7 @@ class LinksBusinessLogic(QObject):
             on_error=lambda e: self._on_worker_error(str(e)),
         )
 
-    def get_links_for_category(self, category_id: int) -> List[Dict]:
-        """Получить ссылки для категории синхронно (DEPRECATED: используйте links.get_links)."""
-        try:
-            # Совместимость с прежним поведением: выбираем все поля
-            return self.links.get_links_for_category(category_id)
-        except Exception as e:
-            self.logger.error(
-                f"Ошибка получения ссылок для категории {category_id}: {e}"
-            )
-            if not handle_db_error(e, self):
-                raise
-            return []
+    
 
     def delete_link(self, link_id: int):
         """Удалить ссылку."""

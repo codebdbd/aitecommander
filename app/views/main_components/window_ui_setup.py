@@ -179,13 +179,13 @@ class WindowUISetup:
         """Настройка центрального виджета."""
         central = QFrame()
         central.setFrameShape(
-            getattr(QFrame.Shape, app_config.get_central_frame_shape())
+            getattr(QFrame.Shape, app_config.ui.get_central_frame_shape())
         )
         self.window.setCentralWidget(central)
 
         self.main_layout = QVBoxLayout(central)
-        self.main_layout.setContentsMargins(*app_config.get_main_layout_margins())
-        self.main_layout.setSpacing(app_config.get_main_layout_spacing())
+        self.main_layout.setContentsMargins(*app_config.ui.get_main_layout_margins())
+        self.main_layout.setSpacing(app_config.ui.get_main_layout_spacing())
 
     def setup_top_panel(self) -> None:
         """Настройка верхней панели."""
@@ -197,7 +197,7 @@ class WindowUISetup:
         # Создание top_bar: без разделителей, только spacing и внешние маргины по side
         top_bar = QHBoxLayout()
         try:
-            side = int(app_config.get_top_bar_widgets_side_spacing())
+            side = int(app_config.ui.get_top_bar_widgets_side_spacing())
         except (TypeError, ValueError):
             side = 8
             logging.warning("TopPanel: invalid side spacing in config; using default 8")
@@ -213,7 +213,7 @@ class WindowUISetup:
         top_bar_host.setObjectName("topBarHost")
         top_bar_host.setLayout(top_bar)
         try:
-            top_bar_host.setFixedHeight(app_config.get_top_bar_height())
+            top_bar_host.setFixedHeight(app_config.ui.get_top_bar_height())
             top_bar_host.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         except (RuntimeError, TypeError, AttributeError):
             logging.warning("TopPanel: failed to set top bar host size policy/height", exc_info=True)
@@ -286,11 +286,11 @@ class WindowUISetup:
     def setup_search_widget(self, top_bar: QHBoxLayout) -> None:
         """Настройка поля поиска."""
         self.window.search = QLineEdit()
-        self.window.search.setPlaceholderText(app_config.get_search_placeholder())
+        self.window.search.setPlaceholderText(app_config.ui.get_search_placeholder())
         self.window.search.setClearButtonEnabled(True)
         # Высота поля поиска берётся из конфигурации
         try:
-            self.window.search.setFixedHeight(int(app_config.get_top_panel_search_height()))
+            self.window.search.setFixedHeight(int(app_config.ui.get_top_panel_search_height()))
         except (TypeError, ValueError, RuntimeError):
             self.window.search.setFixedHeight(32)
             logging.warning("SearchWidget: invalid search height in config; using 32")
@@ -300,7 +300,7 @@ class WindowUISetup:
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         try:
-            min_search_w = int(getattr(app_config, "get_top_panel_search_min_width", lambda: 140)())
+            min_search_w = int(getattr(app_config.ui, "get_top_panel_search_min_width", lambda: 140)())
         except (TypeError, ValueError):
             min_search_w = 140
             logging.debug("SearchWidget: fallback to default min_search_width=140")
@@ -323,7 +323,7 @@ class WindowUISetup:
         self.main_layout.addWidget(h_line_top)
 
         mid = QHBoxLayout()
-        mid.setContentsMargins(*app_config.get_layout_margins("mid"))
+        mid.setContentsMargins(*app_config.ui.get_layout_margins("mid"))
 
         # Левая панель
         self.setup_left_panel(mid)
@@ -346,7 +346,7 @@ class WindowUISetup:
         left_panel.setAutoFillBackground(True)
 
         left_layout = QVBoxLayout(left_panel)
-        left_layout.setContentsMargins(*app_config.get_layout_margins("left"))
+        left_layout.setContentsMargins(*app_config.ui.get_layout_margins("left"))
 
         # Дерево структуры: используем QTreeView + QAbstractItemModel
         self.window.tree = StructureTreeView()
@@ -356,8 +356,8 @@ class WindowUISetup:
         self.window.tree.setModel(self.window.tree_model)
 
         # Конфиг гарантирует list[int] -> берём ширину, ограничиваем высотой строки
-        tree_icon_size = app_config.get_tree_icon_size()
-        row_h = app_config.get_row_height()
+        tree_icon_size = app_config.ui.get_tree_icon_size()
+        row_h = app_config.ui.get_row_height()
         base_icon = int(tree_icon_size[0])
         eff_icon = max(0, min(base_icon, max(0, int(row_h) - 8)))  # 4px сверху + 4px снизу
         self.window.tree.setIconSize(QSize(eff_icon, eff_icon))
@@ -373,13 +373,13 @@ class WindowUISetup:
         self.window.spheres_bar = QWidget()
         self.window.spheres_bar.setObjectName("spheres_bar")
         # Фиксированная высота берется из конфигурации (spheres_bar_height)
-        self.window.spheres_bar.setFixedHeight(app_config.get_spheres_bar_height())
+        self.window.spheres_bar.setFixedHeight(app_config.ui.get_spheres_bar_height())
 
         s_layout = QHBoxLayout(self.window.spheres_bar)
         # Отступы панели сфер: поддержка левого/правого через ui.spheres_bar_margin_left/right
-        s_layout.setContentsMargins(*app_config.get_spheres_bar_margins())
+        s_layout.setContentsMargins(*app_config.ui.get_spheres_bar_margins())
         # Расстояние между элементами панели сфер
-        s_layout.setSpacing(app_config.get_spheres_bar_spacing())
+        s_layout.setSpacing(app_config.ui.get_spheres_bar_spacing())
         self.window.sphere_group = QButtonGroup(self.window)
 
         left_layout.addWidget(self.window.spheres_bar)
@@ -402,14 +402,14 @@ class WindowUISetup:
 
         tiles_wrapper = QWidget()
         tiles_layout = QVBoxLayout(tiles_wrapper)
-        tiles_layout.setContentsMargins(*app_config.get_layout_margins("tiles"))
+        tiles_layout.setContentsMargins(*app_config.ui.get_layout_margins("tiles"))
         tiles_layout.setSpacing(app_config.get("ui.layout.spacing.tiles", 0))
         tiles_layout.addWidget(self.window.tiles_scroll)
 
         # Обертка для таблицы
         table_wrapper = QWidget()
         table_layout = QVBoxLayout(table_wrapper)
-        table_layout.setContentsMargins(*app_config.get_layout_margins("table"))
+        table_layout.setContentsMargins(*app_config.ui.get_layout_margins("table"))
         table_layout.setSpacing(app_config.get("ui.layout.spacing.table", 4))
         table_layout.addWidget(self.window.table)
 
@@ -432,7 +432,7 @@ class WindowUISetup:
         # Толщина ручки сплиттера из конфигурации
         try:
             self.window.splitter.setHandleWidth(
-                int(app_config.get_splitter_handle_width())
+                int(app_config.ui.get_splitter_handle_width())
             )
         except (TypeError, ValueError, RuntimeError):
             self.window.splitter.setHandleWidth(1)
@@ -445,19 +445,19 @@ class WindowUISetup:
         except (RuntimeError, TypeError):
             logging.debug("RightPanel: failed to set splitter collapsible(0, True)", exc_info=True)
 
-        stretch_factors = app_config.get_splitter_stretch_factors()
+        stretch_factors = app_config.ui.get_splitter_stretch_factors()
         self.window.splitter.setStretchFactor(0, stretch_factors[0])
         self.window.splitter.setStretchFactor(1, stretch_factors[1])
 
         mid.addWidget(self.window.splitter)
 
-        splitter_sizes = app_config.get_splitter_sizes()
+        splitter_sizes = app_config.ui.get_splitter_sizes()
         self.window.splitter.setSizes(splitter_sizes)
         self.window._first_structure_load = True
 
         # Установка фильтра авто-скрытия дерева при узком окне
         try:
-            min_w = int(app_config.get_window_min_width())
+            min_w = int(app_config.ui.get_window_min_width())
         except (TypeError, ValueError):
             min_w = 280
             logging.warning("RightPanel: invalid window_min_width in config; using 280")
@@ -484,7 +484,7 @@ class WindowUISetup:
         """Настройка нижней панели."""
         bot = QHBoxLayout()
         # Отступы панели берём из конфигурации (можно выставить в 0,0,0,0 для полного прилегания)
-        bot.setContentsMargins(*app_config.get_layout_margins("bottom"))
+        bot.setContentsMargins(*app_config.ui.get_layout_margins("bottom"))
         # Расстояние между кнопками: берём из конфига, по умолчанию 0 — кнопки занимают всю ширину без зазоров
         bot.setSpacing(app_config.get("ui.layout.spacing.bottom", 0))
 
@@ -505,7 +505,7 @@ class WindowUISetup:
         self.window.switch_sphere_button = None
 
         # Дополнительные кнопки из конфигурации
-        bottom_actions = app_config.get_bottom_actions()
+        bottom_actions = app_config.ui.get_bottom_actions()
         bottom_btns = []
         for text, fn_name in bottom_actions:
             btn = QPushButton(text)
@@ -575,12 +575,12 @@ class WindowUISetup:
 
     def setup_window_properties(self) -> None:
         """Настройка базовых свойств окна."""
-        self.window.setWindowTitle(app_config.get_main_window_title())
-        self.window.resize(*app_config.get_main_window_size())
+        self.window.setWindowTitle(app_config.ui.get_main_window_title())
+        self.window.resize(*app_config.ui.get_main_window_size())
         # Применяем минимальные размеры окна из конфига, чтобы окно могло сжиматься
         try:
-            min_w = int(app_config.get_window_min_width())
-            min_h = int(app_config.get_window_min_height())
+            min_w = int(app_config.ui.get_window_min_width())
+            min_h = int(app_config.ui.get_window_min_height())
             self.window.setMinimumSize(min_w, min_h)
         except (TypeError, ValueError):
             # В случае некорректных значений не блокируем инициализацию

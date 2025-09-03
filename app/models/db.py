@@ -459,7 +459,7 @@ class Database(DatabaseBase):
     def _get_max_backups(self) -> int:
         """Возвращает максимальное количество резервных копий из пользовательских настроек."""
         from app.config_data import app_config
-        return app_config.get_max_backups()
+        return app_config.settings.get_max_backups()
 
     def export_section_tree(self, section_id: int) -> dict:
         """Экспортирует раздел вместе со всеми категориями и ссылками."""

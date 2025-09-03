@@ -172,7 +172,11 @@ class BatchDeleteLinksCmd(BaseCommand):
             # Fallback: поштучно
             logger.warning("BatchDeleteLinksCmd.undo: batch upsert failed, fallback to single: %s", exc)
             for link in self.links:
-                LinksService(self.db).create_or_update_link(link)
+                try:
+                    LinksService(self.db).create_or_update_link(link)
+                except Exception:
+                    # продолжаем попытки для остальных
+                    pass
         # Обновление UI после восстановления (игнорируем подавление для Undo)
         try:
             cat_id = (self.links[0] if self.links else {}).get("category_id")
