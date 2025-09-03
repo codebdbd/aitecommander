@@ -553,46 +553,8 @@ class Database(DatabaseBase):
 
     def import_category_tree(self, tree: dict):
         """Восстанавливает категорию и все ссылки из backup-структуры."""
-        cat = (tree or {}).get("category") or {}
-        links = (tree or {}).get("links") or []
-        if not cat:
-            return
-
         with self.connection:
-            # --- Upsert категории с сохранением ID ---
-            cat_id = cat.get("id")
-            name = cat.get("name")
-            section_id = cat.get("section_id")
-            icon_path = cat.get("icon_path", "")
-            position = cat.get("position", 0)
-
-            if cat_id:
-                cur = self.connection.execute(
-                    "UPDATE category SET name=?, section_id=?, icon_path=?, position=? WHERE id=?",
-                    (name, section_id, icon_path, position, cat_id),
-                )
-                if cur.rowcount == 0:
-                    self.connection.execute(
-                        "INSERT INTO category (id, name, section_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
-                        (cat_id, name, section_id, icon_path, position),
-                    )
-            else:
-                cur = self.connection.execute(
-                    "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
-                    (name, section_id, icon_path, position),
-                )
-                cat_id = cur.lastrowid
-
-            # --- Upsert ссылок без вложенных транзакций ---
-            raw_links = []
-            for link in links:
-                if not isinstance(link, dict):
-                    continue
-                link_copy = dict(link)
-                link_copy["category_id"] = cat_id
-                raw_links.append(link_copy)
-            if raw_links:
-                self.links._upsert_links_no_tx(raw_links)
+            _upsert_category_tree(tree, self.connection)
 
     def import_category_trees_bulk(self, trees: List[dict]) -> None:
         """Импортирует несколько поддеревьев категорий в ОДНОЙ транзакции.
@@ -613,48 +575,7 @@ class Database(DatabaseBase):
                 for tree in trees:
                     if not tree:
                         continue
-                    cat = (tree or {}).get("category") or {}
-                    if not cat:
-                        continue
-                    # --- Upsert категории с сохранением ID ---
-                    # Поля категории
-                    cat_id = cat.get("id")
-                    name = cat.get("name")
-                    section_id = cat.get("section_id")
-                    icon_path = cat.get("icon_path", "")
-                    position = cat.get("position", 0)
-
-                    if cat_id:
-                        cur = self.connection.execute(
-                            "UPDATE category SET name=?, section_id=?, icon_path=?, position=? WHERE id=?",
-                            (name, section_id, icon_path, position, cat_id),
-                        )
-                        if cur.rowcount == 0:
-                            # Вставка с заданным ID (восстановление)
-                            self.connection.execute(
-                                "INSERT INTO category (id, name, section_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
-                                (cat_id, name, section_id, icon_path, position),
-                            )
-                    else:
-                        # Без ID — обычная вставка, позицию оставляем как в бэкапе
-                        cur = self.connection.execute(
-                            "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
-                            (name, section_id, icon_path, position),
-                        )
-                        cat_id = cur.lastrowid
-
-                    # --- Upsert ссылок для категории через LinkModel без собственной транзакции ---
-                    raw_links = []
-                    for link in (tree or {}).get("links", []) or []:
-                        if not isinstance(link, dict):
-                            continue
-                        link_copy = dict(link)
-                        link_copy["category_id"] = cat_id
-                        raw_links.append(link_copy)
-
-                    # Переиспользуем единую логику апсерта без вложенных транзакций
-                    if raw_links:
-                        self.links._upsert_links_no_tx(raw_links)
+                    _upsert_category_tree(tree, self.connection)
 
             # Резервная копия после успешного bulk-импорта
             try:
@@ -832,6 +753,171 @@ class Database(DatabaseBase):
                 """
             )
             self.commit()
+
+# === Вспомогательная функция апсерта категории и её ссылок (без транзакций) ===
+def _upsert_category_tree(tree: dict, connection: sqlite3.Connection) -> None:
+    """Выполняет апсерт категории и её ссылок, используя только переданное соединение.
+
+    Требования:
+    - Не открывает и не завершает транзакции (ожидается внешняя обёртка).
+    - Не обращается к внешнему состоянию/моделям; работает с готовыми словарями.
+    - Поведение для ссылок соответствует поштучным INSERT без временных таблиц:
+      при конфликте по UNIQUE(category_id,name,url,args) извлекается существующий id
+      без дополнительного обновления остальных полей.
+    """
+    if not tree:
+        return
+
+    cat = (tree or {}).get("category") or {}
+    links = (tree or {}).get("links") or []
+    if not isinstance(cat, dict) or not cat:
+        return
+
+    # --- Upsert категории с сохранением ID ---
+    cat_id = cat.get("id")
+    name = cat.get("name")
+    section_id = cat.get("section_id")
+    icon_path = cat.get("icon_path", "")
+    position = cat.get("position", 0)
+
+    if cat_id:
+        cur = connection.execute(
+            "UPDATE category SET name=?, section_id=?, icon_path=?, position=? WHERE id=?",
+            (name, section_id, icon_path, position, cat_id),
+        )
+        if getattr(cur, "rowcount", 0) == 0:
+            connection.execute(
+                "INSERT INTO category (id, name, section_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
+                (cat_id, name, section_id, icon_path, position),
+            )
+    else:
+        cur = connection.execute(
+            "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
+            (name, section_id, icon_path, position),
+        )
+        try:
+            cat_id = int(getattr(cur, "lastrowid", 0) or 0)
+        except Exception:
+            cat_id = None
+
+    if not cat_id:
+        return
+
+    # --- Upsert ссылок для категории (поштучно, без вложенных транзакций) ---
+    # Нормализация входных элементов и назначение category_id
+    prepared_links: List[dict] = []
+    for link in (links or []):
+        if not isinstance(link, dict):
+            continue
+        rec = dict(link)
+        rec["category_id"] = cat_id
+        # Нормализация значений по умолчанию
+        rec["name"] = rec.get("name", "") or ""
+        rec["url"] = rec.get("url", "") or ""
+        rec["args"] = rec.get("args", "") or ""
+        rec["type"] = rec.get("type", "web") or "web"
+        rec["notes"] = rec.get("notes", "") or ""
+        rec["is_favorite"] = int(rec.get("is_favorite", 0) or 0)
+        rec["icon_path"] = rec.get("icon_path", "default.ico") or "default.ico"
+        prepared_links.append(rec)
+
+    if not prepared_links:
+        return
+
+    # Подготовка столбцов таблицы link
+    all_fields = [
+        "id",
+        "category_id",
+        "name",
+        "url",
+        "type",
+        "notes",
+        "is_favorite",
+        "last_used",
+        "icon_path",
+        "args",
+        "browser_key",
+        "position",
+    ]
+
+    # Для вычисления позиции при необходимости будем кэшировать следующий position на категорию
+    # (внутри одной категории cat_id один общий счётчик)
+    # Стартовое значение: COALESCE(MAX(position), -1) + 1
+    next_pos: Optional[int] = None
+
+    def ensure_position(rec: dict) -> None:
+        nonlocal next_pos
+        if rec.get("position") is not None:
+            return
+        if next_pos is None:
+            row = connection.execute(
+                "SELECT COALESCE(MAX(position), -1) + 1 FROM link WHERE category_id=?",
+                (cat_id,),
+            ).fetchone()
+            try:
+                next_pos = int(row[0]) if row is not None else 0
+            except Exception:
+                next_pos = 0
+        rec["position"] = next_pos
+        next_pos += 1 if next_pos is not None else 1
+
+    for rec in prepared_links:
+        iid = rec.get("id")
+        if iid:  # Обновление/восстановление по id
+            # position по умолчанию 0 при обновлении, если None
+            if rec.get("position") is None:
+                rec["position"] = 0
+            update_fields = [f for f in all_fields if f != "id"]
+            update_placeholders = ", ".join([f"{f}=?" for f in update_fields])
+            update_values = [rec.get(f) for f in update_fields]
+            cur = connection.execute(
+                f"UPDATE link SET {update_placeholders} WHERE id=?",
+                tuple(update_values + [iid]),
+            )
+            if getattr(cur, "rowcount", 0) == 0:
+                # Вставка с фиксированным id
+                insert_fields = all_fields
+                placeholders = ", ".join(["?"] * len(insert_fields))
+                insert_values = [rec.get(f) for f in insert_fields]
+                connection.execute(
+                    f"INSERT INTO link ({', '.join(insert_fields)}) VALUES ({placeholders})",
+                    tuple(insert_values),
+                )
+            continue
+
+        # Новая запись: назначаем позицию при необходимости
+        ensure_position(rec)
+        columns = [f for f in all_fields if f != "id"]
+        placeholders = ", ".join(["?"] * len(columns))
+        values = [rec.get(c) for c in columns]
+        try:
+            cur = connection.execute(
+                f"INSERT INTO link ({', '.join(columns)}) VALUES ({placeholders})",
+                tuple(values),
+            )
+            # можно сохранить cur.lastrowid в rec["id"], если нужно далее
+            try:
+                new_id = int(getattr(cur, "lastrowid", 0) or 0)
+                if new_id:
+                    rec["id"] = new_id
+            except Exception:
+                pass
+        except sqlite3.IntegrityError:
+            # Дубликат по (category_id,name,url,args) — находим существующий id
+            row = connection.execute(
+                "SELECT id FROM link WHERE category_id=? AND name=? AND url=? AND args=?",
+                (
+                    rec.get("category_id"),
+                    rec.get("name", ""),
+                    rec.get("url", ""),
+                    rec.get("args", ""),
+                ),
+            ).fetchone()
+            if row:
+                try:
+                    rec["id"] = int(row[0] if isinstance(row, tuple) else row["id"])  # type: ignore[index]
+                except Exception:
+                    pass
 
 def _print_duplicates_human(dups: dict) -> None:
     print("== Дубликаты (регистронезависимые) ==")

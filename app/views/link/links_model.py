@@ -291,14 +291,13 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
 
         # Разреженный набор: переупорядочиваем список одним проходом через layoutChanged
         # Семантика: удаляем выбранные строки, затем вставляем их (в исходном порядке)
-        # в позицию target_row с учётом сдвига индексов после удаления исходных строк.
-        removed_before_target = sum(1 for r in src if r < target_row)
-        adjusted_target = target_row - removed_before_target
-        # Строим списки
+        # в позицию target_row среди оставшихся элементов БЕЗ вычитания удалённых до target.
+        # Это соответствует пользовательскому ожиданию: "вставить перед элементом,
+        # который был на позиции target_row до перемещения".
         src_set = set(src)
         remaining: List[Dict[str, Any]] = [item for i, item in enumerate(self._links) if i not in src_set]
         segment: List[Dict[str, Any]] = [self._links[i] for i in src]
-        insert_at = max(0, min(adjusted_target, len(remaining)))
+        insert_at = max(0, min(target_row, len(remaining)))
         self.layoutAboutToBeChanged.emit()
         try:
             self._links = remaining[:insert_at] + segment + remaining[insert_at:]
