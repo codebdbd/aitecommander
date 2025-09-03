@@ -175,8 +175,8 @@ class EdgeProfileFinder(ChromiumBaseBrowserFinder):
 
     def __init__(self):
         from app.config_data import app_config
-
-        super().__init__(app_config.get_edge_profiles_dir(), "Microsoft Edge")
+        dir_path = app_config.paths.get_edge_profiles_dir()
+        super().__init__(str(dir_path) if dir_path else "", "Microsoft Edge")
 
 
 class BraveProfileFinder(ChromiumBaseBrowserFinder):
@@ -184,8 +184,8 @@ class BraveProfileFinder(ChromiumBaseBrowserFinder):
 
     def __init__(self):
         from app.config_data import app_config
-
-        super().__init__(app_config.get_brave_profiles_dir(), "Brave")
+        dir_path = app_config.paths.get_brave_profiles_dir()
+        super().__init__(str(dir_path) if dir_path else "", "Brave")
 
 
 class VivaldiProfileFinder(ChromiumBaseBrowserFinder):
@@ -193,8 +193,8 @@ class VivaldiProfileFinder(ChromiumBaseBrowserFinder):
 
     def __init__(self):
         from app.config_data import app_config
-
-        super().__init__(app_config.get_vivaldi_profiles_dir(), "Vivaldi")
+        dir_path = app_config.paths.get_vivaldi_profiles_dir()
+        super().__init__(str(dir_path) if dir_path else "", "Vivaldi")
 
 
 class OperaProfileFinder(ChromiumBaseBrowserFinder):
@@ -202,8 +202,8 @@ class OperaProfileFinder(ChromiumBaseBrowserFinder):
 
     def __init__(self):
         from app.config_data import app_config
-
-        super().__init__(app_config.get_opera_profiles_dir(), "Opera")
+        dir_path = app_config.paths.get_opera_profiles_dir()
+        super().__init__(str(dir_path) if dir_path else "", "Opera")
 
 
 class YandexProfileFinder(ChromiumBaseBrowserFinder):
@@ -211,8 +211,8 @@ class YandexProfileFinder(ChromiumBaseBrowserFinder):
 
     def __init__(self):
         from app.config_data import app_config
-
-        super().__init__(app_config.get_yandex_profiles_dir(), "Yandex Browser")
+        dir_path = app_config.paths.get_yandex_profiles_dir()
+        super().__init__(str(dir_path) if dir_path else "", "Yandex Browser")
 
 
 class ChromeProfileFinder(ChromiumBaseBrowserFinder):
@@ -220,5 +220,5 @@ class ChromeProfileFinder(ChromiumBaseBrowserFinder):
 
     def __init__(self):
         from app.config_data import app_config
-
-        super().__init__(app_config.get_chrome_profiles_dir(), "Google Chrome")
+        dir_path = app_config.paths.get_chrome_profiles_dir()
+        super().__init__(str(dir_path) if dir_path else "", "Google Chrome")

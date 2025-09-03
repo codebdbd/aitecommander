@@ -73,40 +73,5 @@ class AppConfig:
         """Возвращает путь к UI-иконкам как строку."""
         return str(self.paths.get_ui_icons_dir())
 
-    def get_chrome_profiles_dir(self) -> Optional[str]:
-        """Получение пути к директории профилей Chrome."""
-        p = self.paths.get_chrome_profiles_dir()
-        return str(p) if p else None
-
-    def get_firefox_profiles_dir(self) -> Optional[str]:
-        """Получение пути к директории профилей Firefox."""
-        p = self.paths.get_firefox_profiles_dir()
-        return str(p) if p else None
-
-    def get_edge_profiles_dir(self) -> Optional[str]:
-        """Получение пути к директории профилей Edge."""
-        p = self.paths.get_edge_profiles_dir()
-        return str(p) if p else None
-
-    def get_brave_profiles_dir(self) -> Optional[str]:
-        """Получение пути к директории профилей Brave."""
-        p = self.paths.get_brave_profiles_dir()
-        return str(p) if p else None
-
-    def get_vivaldi_profiles_dir(self) -> Optional[str]:
-        """Получение пути к директории профилей Vivaldi."""
-        p = self.paths.get_vivaldi_profiles_dir()
-        return str(p) if p else None
-
-    def get_opera_profiles_dir(self) -> Optional[str]:
-        """Получение пути к директории профилей Opera."""
-        p = self.paths.get_opera_profiles_dir()
-        return str(p) if p else None
-
-    def get_yandex_profiles_dir(self) -> Optional[str]:
-        """Получение пути к директории профилей Yandex."""
-        p = self.paths.get_yandex_profiles_dir()
-        return str(p) if p else None
-
     # Часть прежних get_* удалена как чистые прокси. Доступ к ним делегируется
     # через __getattr__ напрямую в ui/paths/limits/settings.
