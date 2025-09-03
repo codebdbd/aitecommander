@@ -26,7 +26,7 @@ import json
 from typing import List, Optional, Callable
 import atexit
 import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
@@ -38,6 +38,22 @@ from .http_client import http_request
 
 _MANIFEST_EXECUTOR = None
 _MANIFEST_EXECUTOR_GUARD = threading.Lock()
+
+# Markers that make og:image likely unsuitable for favicon usage
+OG_IMAGE_BANNED_MARKERS = [
+    "1200",
+    "1080",
+    "1024",
+    "800",
+    "630",
+    "600",
+    "banner",
+    "social",
+    "share",
+    "opengraph",
+    "og:",
+    ".svg",
+]
 
 
 def _get_manifest_executor() -> ThreadPoolExecutor:
@@ -399,21 +415,7 @@ def _append_og_image(soup: BeautifulSoup, base_url: str, candidates: list[dict])
                 og_content = meta.get("content") or ""
                 og_url = urljoin(base_url, og_content)
                 low = og_url.lower()
-                banned_markers = [
-                    "1200",
-                    "1080",
-                    "1024",
-                    "800",
-                    "630",
-                    "600",
-                    "banner",
-                    "social",
-                    "share",
-                    "opengraph",
-                    "og:",
-                    ".svg",
-                ]
-                if not any(m in low for m in banned_markers):
+                if not any(m in low for m in OG_IMAGE_BANNED_MARKERS):
                     if any(k in low for k in ["icon", "favicon"]):
                         og_urls.append(og_url)
 
