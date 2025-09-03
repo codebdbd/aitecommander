@@ -23,7 +23,7 @@ Testing/Utilities:
 from __future__ import annotations
 
 import json
-from typing import List, Optional, Callable
+from typing import Optional, Callable
 import atexit
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -58,6 +58,8 @@ OG_IMAGE_BANNED_MARKERS = [
 
 # Precompiled regex for sizes like "16x16 32x32"
 SIZE_RE = re.compile(r"(\d+)\s*x\s*(\d+)")
+# Precompiled regex for first integer fallback
+FIRST_INT_RE = re.compile(r"(\d+)")
 
 
 def _get_manifest_executor() -> ThreadPoolExecutor:
@@ -128,7 +130,7 @@ def parse_icon_size(sizes_attr: str) -> int:
         if sizes:
             return max(sizes)
     # Fallback: take first integer if present (non-standard values)
-    m = re.search(r"(\d+)", s)
+    m = FIRST_INT_RE.search(s)
     if m:
         try:
             return int(m.group(1))
@@ -233,16 +235,23 @@ def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[dict],
         return candidates, manifest_urls, False
 
 
-def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manifest_icons: Optional[Callable[[List[str]], None]], candidates: list[dict]):
+def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manifest_icons: Optional[Callable[[list[str]], None]], candidates: list[dict]):
     if not manifest_urls or config is None:
         return
 
+    # Deduplicate while preserving order to avoid duplicate network requests
+    try:
+        manifest_urls = list(dict.fromkeys(manifest_urls))
+    except Exception:
+        # Fallback in case of unexpected types; better to proceed than fail
+        manifest_urls = list(manifest_urls)
+
     if on_manifest_icons is not None:
         def _fetch_all_manifests_and_emit():
-            all_urls: List[str] = []
+            all_urls: list[str] = []
 
-            def _fetch_one(m_url: str) -> List[str]:
-                urls: List[str] = []
+            def _fetch_one(m_url: str) -> list[str]:
+                urls: list[str] = []
                 try:
                     m_resp_local = http_request(m_url, config, allow_non_2xx=True)
                     if m_resp_local and getattr(m_resp_local, "ok", False):
@@ -443,9 +452,37 @@ def find_favicon_candidates(
     soup: BeautifulSoup,
     base_url: str,
     config=None,
-    on_manifest_icons: Optional[Callable[[List[str]], None]] = None,
+    on_manifest_icons: Optional[Callable[[list[str]], None]] = None,
     use_external: bool = False,
-) -> List[str]:
+) -> list[str]:
+    """Собирает кандидатов на иконку страницы и возвращает список URL в порядке приоритета.
+
+    Назначение:
+    - Парсит `<link rel="icon"|"mask-icon"|"apple-touch-icon">` и формирует кандидатов.
+    - Находит `<link rel="manifest">` и:
+      - если `on_manifest_icons` передан — асинхронно загружает манифесты в глобальном пуле
+        и по готовности вызывает колбэк с URL иконок из манифестов (основной список
+        возвращаемого значения при этом не дополняется);
+      - если `on_manifest_icons` не передан — синхронно добавляет иконки из манифестов в
+        общий список кандидатов.
+    - Добавляет запасные пути (`/favicon.ico`, `apple-touch-icon*.png`) для основного хоста и `www.`-варианта.
+    - При `use_external=True` добавляет fallback сервисы (Google, DuckDuckGo).
+    - Если нет первичных link-иконок, дополнительно может добавить `og:image`, если он похож на иконку
+      и не содержит запрещённых маркеров (`OG_IMAGE_BANNED_MARKERS`).
+
+    Аргументы:
+    - soup: разобранный BeautifulSoup HTML-документ.
+    - base_url: базовый URL страницы для разрешения относительных ссылок.
+    - config: объект конфигурации, передаваемый HTTP-клиенту.
+    - on_manifest_icons: необязательный колбэк `Callable[[List[str]], None]`, который будет вызван
+      асинхронно с URL иконок из манифестов.
+    - use_external: добавлять ли внешние fallback-сервисы.
+
+    Возвращает:
+    - Список URL (List[str]) в порядке приоритета: сначала кандидаты из link/manifest/sync,
+      потом fallback пути, затем внешние сервисы (если включены), затем допустимые og:image.
+      Список дедуплицирован, относительные пути резолвятся относительно `base_url`.
+    """
     candidates, manifest_urls, has_primary = _collect_link_icons(soup, base_url)
     if not has_primary:
         _handle_manifests(manifest_urls, base_url, config, on_manifest_icons, candidates)

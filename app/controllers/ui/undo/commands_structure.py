@@ -512,7 +512,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                     )
                 except Exception:
                     pass
-            except Exception as exc:
+            except Exception:
                 # Если bulk не удался, пробуем поштучно как fallback
                 for cid in ids:
                     try:

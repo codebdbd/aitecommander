@@ -794,7 +794,7 @@ class DatabaseEventHandler:
                         "_restore_ui_state: links_table_controller.reload failed due to interface error: %s",
                         e,
                     )
-                except Exception as e:
+                except Exception:
                     # Неожиданная ошибка — не скрываем
                     logger.exception("_restore_ui_state: unexpected error during table reload")
                     raise
@@ -807,7 +807,7 @@ class DatabaseEventHandler:
                             "_restore_ui_state: links_business.load_links failed due to interface error: %s",
                             e,
                         )
-                    except Exception as e:
+                    except Exception:
                         logger.exception("_restore_ui_state: unexpected error during business load_links")
                         raise
 

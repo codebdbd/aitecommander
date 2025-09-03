@@ -172,7 +172,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
         # Напрямую обновляем таблицу, не полагаясь на асинхронную обработку сигнала
         try:
             self.links_table_controller.on_links_loaded(links, category_id, task_id)
-        except (ValueError, RuntimeError) as e:
+        except (ValueError, RuntimeError):
             # Ожидаемые ошибки контракта контроллера таблицы - логируем и повторно выбрасываем
             logger.exception(
                 "LinksUIHandlers._update_table: links_table_controller.on_links_loaded contract error"

@@ -94,7 +94,7 @@ class StructureContextService:
             tree = self._ss.export_category_tree(int(cat_id))
             payload = {"type": "category_tree", "tree": tree}
             app.clipboard().setText(json.dumps(payload, ensure_ascii=False))
-        except (ValueError, TypeError, RuntimeError) as e:
+        except (ValueError, TypeError, RuntimeError):
             logger.exception(
                 "copy_category_tree_to_clipboard failed for cat_id=%s", cat_id
             )
@@ -118,7 +118,7 @@ class StructureContextService:
                 return
             payload = {"type": "category_trees", "trees": trees}
             app.clipboard().setText(json.dumps(payload, ensure_ascii=False))
-        except (RuntimeError, TypeError) as e:
+        except (RuntimeError, TypeError):
             logger.exception("copy_categories_to_clipboard failed")
 
     # --- Paste operations ---
@@ -178,7 +178,7 @@ class StructureContextService:
                 self._ls.batch_create_or_update_links(all_links)
 
             return created_categories
-        except (ValueError, TypeError, KeyError, RuntimeError) as e:
+        except (ValueError, TypeError, KeyError, RuntimeError):
             logger.exception(
                 "paste_from_clipboard_to_section(section_id=%s) failed", section_id
             )

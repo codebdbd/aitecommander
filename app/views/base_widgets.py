@@ -1,7 +1,6 @@
 """Базовые виджеты для переиспользования в UI AITE."""
 
 import logging
-logger = logging.getLogger(__name__)
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Callable, Iterable
 
@@ -40,6 +39,8 @@ from app.utils.ui.icon.icon_resolver import (
     resolve_icon_for_link,
     resolve_icon_path,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class BasePanelWidget(QWidget):
@@ -119,8 +120,8 @@ class BaseLinksPanelWidget(BasePanelWidget):
             button.setIcon(icon)
             # Диагностика фактических размеров и DPR
             try:
-                from PyQt6.QtGui import QGuiApplication
                 from PyQt6.QtCore import QSize as _QSize
+                from PyQt6.QtGui import QGuiApplication
                 req_size = _QSize(icon_size[0], icon_size[1])
                 actual = icon.actualSize(req_size)
                 screen = QGuiApplication.primaryScreen()
@@ -198,7 +199,7 @@ class BaseLinksPanelWidget(BasePanelWidget):
         logging.debug("[BaseLinksPanelWidget] link clicked: %s", link_info)
         try:
             self.linkClicked.emit(link_info)
-        except (TypeError, RuntimeError) as exc:
+        except (TypeError, RuntimeError):
             try:
                 link_ctx = {
                     'id': getattr(link_info, 'id', None) or (link_info.get('id') if isinstance(link_info, dict) else None),
