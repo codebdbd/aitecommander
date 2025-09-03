@@ -70,9 +70,9 @@ class BaseEntityDialog(BaseDialog):
         except Exception:
             pass
         self.icon_btn = QPushButton("Иконка")
-        self.icon_btn.setFixedWidth(app_config.get("ui.fixed_button_width", 100))
+        self.icon_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
         # Use centralized dialog icon size from UIConfig
-        self.icon_btn.setIconSize(QSize(*app_config.get_dialog_icon_size()))
+        self.icon_btn.setIconSize(QSize(*app_config.ui.get_dialog_icon_size()))
         self.icon_btn.setIcon(
             create_icon_from_path(
                 str(icon_path_service.get_ui_icons_dir() / self._icon_filename)
@@ -92,7 +92,7 @@ class BaseEntityDialog(BaseDialog):
         )
         ok_btn = bb.button(QDialogButtonBox.StandardButton.Ok)
         ok_btn.setText("Сохранить")
-        ok_btn.setFixedWidth(app_config.get("ui.fixed_button_width", 100))
+        ok_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
         # Не делаем кнопку по умолчанию, чтобы не было подсветки default/autoDefault без фокуса
         try:
             ok_btn.setDefault(False)
@@ -104,7 +104,7 @@ class BaseEntityDialog(BaseDialog):
 
         cancel_btn = bb.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_btn.setText("Отмена")
-        cancel_btn.setFixedWidth(app_config.get("ui.fixed_button_width", 100))
+        cancel_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
         # Также убираем default/autoDefault у Cancel, чтобы кнопки не перехватывали фокус по умолчанию
         try:
             cancel_btn.setDefault(False)

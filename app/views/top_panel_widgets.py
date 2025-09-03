@@ -186,10 +186,10 @@ class TopPanelWidget(BaseLinksPanelWidget):
     # ---------- Кнопки Quick Add ----------
 
     def _setup_quick_buttons(self) -> None:
-        quick_types = app_config.get_quick_types()
-        button_size = app_config.get_top_panel_button_size()
-        icon_size = app_config.get_top_panel_icon_size()
-        quick_type_tooltips = app_config.get_quick_type_tooltips()
+        quick_types = app_config.settings.get_quick_types()
+        button_size = app_config.ui.get_top_panel_button_size()
+        icon_size = app_config.ui.get_top_panel_icon_size()
+        quick_type_tooltips = app_config.settings.get_quick_type_tooltips()
 
         for code, icon_name, tooltip in quick_types:
             btn = QToolButton()

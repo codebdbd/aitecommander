@@ -47,7 +47,7 @@ class StructureUIController(QObject):
         self.tree.setHeaderHidden(True)
         # Размер иконок в дереве — из конфигурации (ui.tree_icon_size)
         try:
-            w, h = app_config.get_tree_icon_size()
+            w, h = app_config.ui.get_tree_icon_size()
             self.tree.setIconSize(QSize(int(w), int(h)))
         except Exception:
             # Fallback на безопасное значение
@@ -156,7 +156,7 @@ class StructureUIController(QObject):
         """
         # 1) Если активен режим плиток категорий — используем текущую плитку
         try:
-            tiles_stack_index = app_config.get("ui.stack_indices.tiles", 0)
+            tiles_stack_index = app_config.ui.get_stack_index_tiles()
             stack = getattr(self.main, "stack", None)
             tiles = getattr(self.main, "tiles", None)
             if (

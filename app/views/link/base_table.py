@@ -128,7 +128,7 @@ class LinksTableView(
         self.items_reordered.connect(self.links_reordered.emit)
 
     def _setup_table(self):
-        headers = app_config.get_links_table_headers()
+        headers = app_config.ui.get_links_table_headers()
         model = LinksTableModel([])
         model.set_headers(headers)
         self.setModel(model)
@@ -137,15 +137,15 @@ class LinksTableView(
         self.setAlternatingRowColors(True)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setShowGrid(False)
-        col_widths = app_config.get_col_widths()
+        col_widths = app_config.ui.get_col_widths()
         try:
             self.setColumnWidth(0, col_widths[0])
         except Exception:
             pass
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        _icon_sz = app_config.get_icon_size()
+        _icon_sz = app_config.ui.get_icon_size()
         self.setIconSize(QSize(_icon_sz[0], _icon_sz[1]))
-        self.verticalHeader().setDefaultSectionSize(app_config.get_row_height())
+        self.verticalHeader().setDefaultSectionSize(app_config.ui.get_row_height())
         header = self.horizontalHeader()
         header.setStretchLastSection(True)
         try:

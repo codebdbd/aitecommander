@@ -285,12 +285,22 @@ class UIConfig(BaseConfig):
         return self.get("ui.top_panel_search_height", 32)
 
     def get_stack_index_tiles(self) -> int:
-        """Получение индекса стека для отображения плиток."""
-        return self.get("ui.stack_index_tiles", 0)
+        """Получение индекса стека для отображения плиток.
+        Поддерживает оба ключа: ui.stack_indices.tiles (новый) и ui.stack_index_tiles (старый).
+        """
+        val = self.get("ui.stack_indices.tiles")
+        if val is None:
+            val = self.get("ui.stack_index_tiles", 0)
+        return int(val)
 
     def get_stack_index_table(self) -> int:
-        """Получение индекса стека для отображения таблицы."""
-        return self.get("ui.stack_index_table", 1)
+        """Получение индекса стека для отображения таблицы.
+        Поддерживает оба ключа: ui.stack_indices.table (новый) и ui.stack_index_table (старый).
+        """
+        val = self.get("ui.stack_indices.table")
+        if val is None:
+            val = self.get("ui.stack_index_table", 1)
+        return int(val)
 
     def get_table_selection_restore_delay(self) -> int:
         """Получение задержки восстановления выделения в таблице."""
@@ -301,6 +311,10 @@ class UIConfig(BaseConfig):
         return self.get("ui.thread_pool_shutdown_timeout", 2000)
 
     # === Диалоги ===
+ 
+    def get_dialogs_enable_details(self) -> bool:
+        """Включать ли секцию подробностей в стандартных диалогах (QMessageBox)."""
+        return self.get("ui.dialogs.enable_details", False)
 
     def get_delete_confirm_title(self) -> str:
         """Получение заголовка диалога подтверждения удаления."""
@@ -336,6 +350,10 @@ class UIConfig(BaseConfig):
     def get_link_dialog_spacing(self) -> int:
         """Получение расстояния между элементами в диалоге ссылок."""
         return self.get("ui.link_dialog_spacing", 10)
+
+    def get_link_dialog_type_icon_size(self) -> int:
+        """Размер иконки типа ссылки в LinkDialog (кнопки выбора типа)."""
+        return int(self.get("ui.link_dialog_type_icon_size", 32))
 
     # === Нижняя панель ===
 
@@ -445,10 +463,18 @@ class UIConfig(BaseConfig):
         """Получение расстояния между элементами в таблице layout."""
         return self.get("ui.table_layout_spacing", 6)
 
+    def get_tiles_layout_spacing(self) -> int:
+        """Получение расстояния между элементами в layout плиток."""
+        return self.get("ui.layout.spacing.tiles", 0)
+
     def get_bottom_layout_margins(self) -> tuple:
         """Получение отступов нижнего layout."""
         margins = self.get("ui.bottom_layout_margins", [5, 5, 5, 5])
         return tuple(margins)
+
+    def get_bottom_layout_spacing(self) -> int:
+        """Получение расстояния между элементами нижнего layout."""
+        return self.get("ui.layout.spacing.bottom", 0)
 
     def get_spheres_layout_margins(self) -> tuple:
         """Получение отступов layout сфер."""

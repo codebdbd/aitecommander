@@ -39,7 +39,7 @@ class LinkDialog(BaseDialog):
         super().__init__(parent)
 
         # Получаем типы ссылок из конфигурации
-        self.link_types = app_config.get_link_types()
+        self.link_types = app_config.settings.get_link_types()
 
         # Инициализация основных свойств
         self._init_core_properties(
@@ -148,8 +148,8 @@ class LinkDialog(BaseDialog):
         """Настраивает свойства UI диалога."""
         self.setWindowTitle("Редактировать ссылку" if self.link else "Добавить ссылку")
         self.setFixedSize(
-            app_config.get("ui.link_dialog_width", 600),
-            app_config.get("ui.link_dialog_height", 520),
+            app_config.ui.get_link_dialog_width(),
+            app_config.ui.get_link_dialog_height(),
         )
 
     def _load_initial(self) -> None:

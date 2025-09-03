@@ -60,7 +60,7 @@ class UIStateManager:
                     if hasattr(self.main, "stack")
                     else None
                 )
-                table_idx = app_config.get_stack_index_table()
+                table_idx = app_config.ui.get_stack_index_table()
             except Exception:
                 current_idx = None
                 table_idx = None
@@ -106,7 +106,7 @@ class UIStateManager:
         """Переключить UI на таблицу ссылок."""
         if hasattr(self.main, "stack"):
             # Используем согласованный геттер конфигурации
-            table_index = app_config.get_stack_index_table()
+            table_index = app_config.ui.get_stack_index_table()
             count = (
                 self.main.stack.count() if hasattr(self.main.stack, "count") else None
             )
@@ -158,7 +158,7 @@ class UIStateManager:
             #    Это предотвращает "пустой экран" при временном отсутствии выбора во время перезагрузки дерева
             if hasattr(self.main, "stack") and categories_data:
                 # Используем согласованный геттер конфигурации
-                tiles_index = app_config.get_stack_index_tiles()
+                tiles_index = app_config.ui.get_stack_index_tiles()
                 count = (
                     self.main.stack.count()
                     if hasattr(self.main.stack, "count")
@@ -245,11 +245,11 @@ class UIStateManager:
 
     def get_stack_index_table(self) -> int:
         """Получить индекс стека для таблицы ссылок."""
-        return app_config.get("ui.stack_indices.table", 1)
+        return app_config.ui.get_stack_index_table()
 
     def get_stack_index_tiles(self) -> int:
         """Получить индекс стека для плиток категорий."""
-        return app_config.get("ui.stack_indices.tiles", 0)
+        return app_config.ui.get_stack_index_tiles()
 
     # ========== МЕТОДЫ ДЛЯ ОТЛАДКИ И МОНИТОРИНГА ==========
 
