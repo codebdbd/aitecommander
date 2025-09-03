@@ -59,7 +59,9 @@ def _get_manifest_executor() -> ThreadPoolExecutor:
                 max_workers = 4
             _MANIFEST_EXECUTOR = ThreadPoolExecutor(max_workers=max(1, max_workers), thread_name_prefix="manifest")
             try:
-                atexit.register(lambda: _MANIFEST_EXECUTOR.shutdown(wait=False, cancel_futures=True))
+                # Capture the current executor instance to avoid referencing a None
+                # after manual shutdown and ensure idempotent atexit behavior.
+                atexit.register(lambda e=_MANIFEST_EXECUTOR: (e.shutdown(wait=False, cancel_futures=True) if e is not None else None))
             except Exception:
                 logger.debug("Failed to register atexit shutdown for manifest executor", exc_info=True)
     return _MANIFEST_EXECUTOR
@@ -245,20 +247,17 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
                 return
 
             try:
-                try:
-                    max_workers = int(getattr(app_config, "ICON_MANIFEST_MAX_WORKERS", 4) or 4)
-                except Exception:
-                    logger.debug("Failed to read ICON_MANIFEST_MAX_WORKERS from app_config; using default 4", exc_info=True)
-                    max_workers = 4
-                with ThreadPoolExecutor(max_workers=max(1, max_workers), thread_name_prefix="manifest-fetch") as executor:
-                    futures = [executor.submit(_fetch_one, m_url) for m_url in manifest_urls]
-                    for fut in as_completed(futures):
-                        try:
-                            urls = fut.result() or []
-                            if urls:
-                                all_urls.extend(urls)
-                        except Exception:
-                            logger.warning("Manifest fetch task raised an exception", exc_info=True)
+                # Reuse the global manifest executor for per-URL fetches.
+                executor = _get_manifest_executor()
+                futures = [executor.submit(_fetch_one, m_url) for m_url in manifest_urls]
+                # Collect results sequentially to support dummy futures used in tests
+                for fut in futures:
+                    try:
+                        urls = fut.result() or []
+                        if urls:
+                            all_urls.extend(urls)
+                    except Exception:
+                        logger.warning("Manifest fetch task raised an exception", exc_info=True)
             except Exception:
                 logger.warning("Manifest executor failure", exc_info=True)
 
@@ -268,7 +267,10 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
                 except Exception:
                     logger.warning("on_manifest_icons callback raised an exception", exc_info=True)
 
-        _get_manifest_executor().submit(_fetch_all_manifests_and_emit)
+        # Run the coordinator in a separate thread, not via the executor,
+        # so that only per-URL fetches are submitted to the global pool.
+        # In tests, threading.Thread can be monkeypatched to run synchronously.
+        threading.Thread(target=_fetch_all_manifests_and_emit, name="manifest-coordinator", daemon=True).start()
         return
 
     # sync path: enrich candidates
