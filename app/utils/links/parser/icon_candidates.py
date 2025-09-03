@@ -28,6 +28,7 @@ import atexit
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urljoin, urlparse
+import re
 
 from bs4 import BeautifulSoup
 
@@ -54,6 +55,9 @@ OG_IMAGE_BANNED_MARKERS = [
     "og:",
     ".svg",
 ]
+
+# Precompiled regex for sizes like "16x16 32x32"
+SIZE_RE = re.compile(r"(\d+)\s*x\s*(\d+)")
 
 
 def _get_manifest_executor() -> ThreadPoolExecutor:
@@ -112,15 +116,13 @@ def parse_icon_size(sizes_attr: str) -> int:
     s = (sizes_attr or "").strip().lower()
     if s == "any":
         return 0
-    import re
-
-    pairs = re.findall(r"(\d+)\s*x\s*(\d+)", s)
+    pairs = SIZE_RE.findall(s)
     if pairs:
         sizes = []
         for w, h in pairs:
             try:
                 sizes.append(max(int(w), int(h)))
-            except Exception:
+            except ValueError:
                 logger.debug(f"Invalid WxH pair in sizes attribute: {w}x{h}", exc_info=True)
                 continue
         if sizes:
@@ -130,7 +132,7 @@ def parse_icon_size(sizes_attr: str) -> int:
     if m:
         try:
             return int(m.group(1))
-        except Exception:
+        except ValueError:
             logger.debug("Failed to parse integer from sizes attribute", exc_info=True)
     logger.debug(f"Invalid sizes attribute: {sizes_attr}")
     return 0
@@ -253,7 +255,7 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
                                     continue
                                 i_url = urljoin(m_url, src)
                                 urls.append(i_url)
-                        except Exception:
+                        except json.JSONDecodeError:
                             logger.warning("Failed to parse manifest JSON from %s", m_url, exc_info=True)
                 except Exception:
                     logger.warning("Failed to fetch manifest %s", m_url, exc_info=True)
@@ -334,7 +336,7 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
                                     "type": "manifest",
                                 }
                             )
-                except Exception:
+                except json.JSONDecodeError:
                     logger.warning("Failed to parse manifest JSON from %s (sync)", m_url, exc_info=True)
         except Exception:
             logger.warning("Failed to fetch manifest %s (sync)", m_url, exc_info=True)
