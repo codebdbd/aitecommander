@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import List
+from typing import List, Optional, Callable
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
@@ -25,7 +25,11 @@ def parse_icon_size(sizes_attr: str) -> int:
 
 
 def find_favicon_candidates(
-    soup: BeautifulSoup, base_url: str, config=None
+    soup: BeautifulSoup,
+    base_url: str,
+    config=None,
+    on_manifest_icons: Optional[Callable[[List[str]], None]] = None,
+    use_external: bool = False,
 ) -> List[str]:
     def _detect_format(href: str, type_attr: str | None) -> str:
         ext = ""
@@ -74,7 +78,7 @@ def find_favicon_candidates(
             }
         )
 
-    # Web Manifest
+    # Единый проход по всем <link>: собираем manifest и добавляем кандидатов
     try:
         manifest_links = []
         for link in soup.find_all("link"):
@@ -87,79 +91,113 @@ def find_favicon_candidates(
                     rel_val if isinstance(rel_val, list) else str(rel_val).split()
                 )
             ]
+
+            # manifest
             if any(t == "manifest" for t in tokens):
                 manifest_links.append(link)
-        if manifest_links and config is not None:
+
+            # apple-touch (включая -precomposed)
+            if any(t in ("apple-touch-icon", "apple-touch-icon-precomposed") for t in tokens):
+                _add_link_candidate(link, "apple-touch-icon", 2)
+                continue  # уже обработано, не понижать приоритет до link-icon
+
+            # основные иконки и mask-icon
+            if any((t == "icon") or t.endswith("icon") for t in tokens):
+                if any(t == "mask-icon" for t in tokens):
+                    _add_link_candidate(link, "mask-icon", 4)
+                else:
+                    _add_link_candidate(link, "link-icon", 0)
+
+        # Манифест обрабатываем ПОСЛЕ основных link-иконок и ТОЛЬКО если нет первичных иконок
+        has_primary = any(
+            c.get("type") in {"link-icon", "mask-icon", "apple-touch-icon"} for c in candidates
+        )
+        if (not has_primary) and manifest_links and config is not None:
             m_href = manifest_links[0].get("href")
             if m_href and not m_href.startswith("data:"):
                 m_url = urljoin(base_url, m_href)
-                m_resp = http_request(m_url, config, allow_non_2xx=True)
-                if m_resp and getattr(m_resp, "ok", False):
+
+                def _fetch_manifest_and_emit():
                     try:
-                        m_json = json.loads(m_resp.text)
-                        icons = m_json.get("icons") or []
-                        for icon in icons:
-                            src = icon.get("src")
-                            if not src:
-                                continue
-                            i_url = urljoin(m_url, src)
-                            sizes = str(icon.get("sizes") or "").split()
-                            type_attr = icon.get("type") or ""
-                            fmt = _detect_format(i_url, type_attr)
-                            if sizes:
-                                for sz in sizes:
-                                    candidates.append(
-                                        {
-                                            "url": i_url,
-                                            "size": parse_icon_size(sz),
-                                            "format": fmt,
-                                            "format_rank": FORMAT_RANK.get(
-                                                fmt, FORMAT_RANK["unknown"]
-                                            ),
-                                            "base_priority": 1,
-                                            "media_priority": 0,
-                                            "type": "manifest",
-                                        }
-                                    )
-                            else:
-                                candidates.append(
-                                    {
-                                        "url": i_url,
-                                        "size": 0,
-                                        "format": fmt,
-                                        "format_rank": FORMAT_RANK.get(
-                                            fmt, FORMAT_RANK["unknown"]
-                                        ),
-                                        "base_priority": 1,
-                                        "media_priority": 0,
-                                        "type": "manifest",
-                                    }
-                                )
+                        m_resp_local = http_request(m_url, config, allow_non_2xx=True)
+                        urls: List[str] = []
+                        if m_resp_local and getattr(m_resp_local, "ok", False):
+                            try:
+                                m_json = json.loads(m_resp_local.text)
+                                icons = m_json.get("icons") or []
+                                for icon in icons:
+                                    src = icon.get("src")
+                                    if not src:
+                                        continue
+                                    i_url = urljoin(m_url, src)
+                                    urls.append(i_url)
+                            except Exception:
+                                pass
+                        if on_manifest_icons and urls:
+                            try:
+                                on_manifest_icons(urls)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+
+                if on_manifest_icons is not None:
+                    # Асинхронно: не блокируем основной поток
+                    import threading
+
+                    t = threading.Thread(target=_fetch_manifest_and_emit, name="fetch_manifest_icons", daemon=True)
+                    t.start()
+                else:
+                    # Обратная совместимость: если callback не передан, работаем синхронно
+                    try:
+                        m_resp = http_request(m_url, config, allow_non_2xx=True)
+                        if m_resp and getattr(m_resp, "ok", False):
+                            try:
+                                m_json = json.loads(m_resp.text)
+                                icons = m_json.get("icons") or []
+                                for icon in icons:
+                                    src = icon.get("src")
+                                    if not src:
+                                        continue
+                                    i_url = urljoin(m_url, src)
+                                    sizes = str(icon.get("sizes") or "").split()
+                                    type_attr = icon.get("type") or ""
+                                    fmt = _detect_format(i_url, type_attr)
+                                    if sizes:
+                                        for sz in sizes:
+                                            candidates.append(
+                                                {
+                                                    "url": i_url,
+                                                    "size": parse_icon_size(sz),
+                                                    "format": fmt,
+                                                    "format_rank": FORMAT_RANK.get(
+                                                        fmt, FORMAT_RANK["unknown"]
+                                                    ),
+                                                    "base_priority": 1,
+                                                    "media_priority": 0,
+                                                    "type": "manifest",
+                                                }
+                                            )
+                                    else:
+                                        candidates.append(
+                                            {
+                                                "url": i_url,
+                                                "size": 0,
+                                                "format": fmt,
+                                                "format_rank": FORMAT_RANK.get(
+                                                    fmt, FORMAT_RANK["unknown"]
+                                                ),
+                                                "base_priority": 1,
+                                                "media_priority": 0,
+                                                "type": "manifest",
+                                            }
+                                        )
+                            except Exception:
+                                pass
                     except Exception:
                         pass
     except Exception:
         pass
-
-    # Main favicons (multiple rel tokens)
-    for link in soup.find_all("link"):
-        rel_val = link.get("rel")
-        if not rel_val:
-            continue
-        tokens = [
-            t.lower()
-            for t in (rel_val if isinstance(rel_val, list) else str(rel_val).split())
-        ]
-        if any("icon" == t or t.endswith("icon") for t in tokens):
-            if any("mask-icon" == t for t in tokens):
-                _add_link_candidate(link, "mask-icon", 4)
-            else:
-                _add_link_candidate(link, "link-icon", 0)
-
-    # Apple touch
-    for link in soup.find_all("link", rel="apple-touch-icon"):
-        _add_link_candidate(link, "apple-touch-icon", 2)
-    for link in soup.find_all("link", rel="apple-touch-icon-precomposed"):
-        _add_link_candidate(link, "apple-touch-icon", 2)
 
     # Fallback paths and host variants
     p = urlparse(base_url)
@@ -193,31 +231,32 @@ def find_favicon_candidates(
                 }
             )
 
-    # Third-party services
-    google_url = f"https://www.google.com/s2/favicons?domain={host}&sz={TARGET_SIZE}"
-    candidates.append(
-        {
-            "url": google_url,
-            "size": TARGET_SIZE,
-            "format": "png",
-            "format_rank": FORMAT_RANK["png"],
-            "base_priority": 10,
-            "media_priority": 0,
-            "type": "google_fallback",
-        }
-    )
-    ddg_url = f"https://icons.duckduckgo.com/ip3/{host}.ico"
-    candidates.append(
-        {
-            "url": ddg_url,
-            "size": 0,
-            "format": "ico",
-            "format_rank": FORMAT_RANK["ico"],
-            "base_priority": 10,
-            "media_priority": 0,
-            "type": "ddg_fallback",
-        }
-    )
+    # Third-party services (опционально)
+    if use_external:
+        google_url = f"https://www.google.com/s2/favicons?domain={host}&sz={TARGET_SIZE}"
+        candidates.append(
+            {
+                "url": google_url,
+                "size": TARGET_SIZE,
+                "format": "png",
+                "format_rank": FORMAT_RANK["png"],
+                "base_priority": 10,
+                "media_priority": 0,
+                "type": "google_fallback",
+            }
+        )
+        ddg_url = f"https://icons.duckduckgo.com/ip3/{host}.ico"
+        candidates.append(
+            {
+                "url": ddg_url,
+                "size": 0,
+                "format": "ico",
+                "format_rank": FORMAT_RANK["ico"],
+                "base_priority": 10,
+                "media_priority": 0,
+                "type": "ddg_fallback",
+            }
+        )
 
     def sort_key(c: dict):
         size = c.get("size", 0)
