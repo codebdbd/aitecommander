@@ -70,11 +70,11 @@ class TestImportFullStructureFixes(unittest.TestCase):
         mock_conn.execute.return_value = MagicMock()
 
         with patch('app.models.db.Database.connection', new_callable=PropertyMock, return_value=mock_conn), \
-             patch.object(self.db.spheres, 'upsert_sphere') as mock_sphere, \
-             patch.object(self.db.sections, 'upsert_section') as mock_section, \
-             patch.object(self.db.categories, 'upsert_category') as mock_category, \
-             patch.object(self.db.links, 'upsert_link') as mock_link, \
-             patch.object(self.db, 'backup') as mock_backup, \
+             patch.object(self.db.spheres, 'upsert_sphere'), \
+             patch.object(self.db.sections, 'upsert_section'), \
+             patch.object(self.db.categories, 'upsert_category'), \
+             patch.object(self.db.links, 'upsert_link'), \
+             patch.object(self.db, 'backup'), \
              patch('app.models.db.db_lock'):
 
             # Выполняем импорт

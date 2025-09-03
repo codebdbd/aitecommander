@@ -218,7 +218,7 @@ def test_links_ui_controller_uses_table_controller_reload(monkeypatch, caplog):
     # Обязательная зависимость link_operations — передаём простую заглушку
     link_ops_stub = SimpleNamespace()
 
-    ui_ctrl = LinksUIController(
+    _ = LinksUIController(
         table_view,
         business,
         main,

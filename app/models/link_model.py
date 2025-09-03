@@ -678,7 +678,7 @@ class LinkModel(DatabaseBase):
             "is_favorite=?, last_used=?, icon_path=?, args=?, browser_key=?, position=? WHERE id=?"
         )
         try:
-            cur = self.connection.executemany(update_sql, updates)
+            self.connection.executemany(update_sql, updates)
         except sqlite3.IntegrityError as e:
             raise DatabaseError(f"UNIQUE constraint failed during batch update: {e}")
 
