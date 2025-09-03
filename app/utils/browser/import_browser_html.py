@@ -155,9 +155,9 @@ class BrowserBookmarksImporter:
             existing_name_url = set()
             try:
                 if links_business_logic:
-                    existing_links = links_business_logic.get_links_for_category(category_id)
+                    existing_links = links_business_logic.get_links(category_id)
                 elif hasattr(structure_business_logic, "links_business"):
-                    existing_links = structure_business_logic.links_business.get_links_for_category(category_id)
+                    existing_links = structure_business_logic.links_business.get_links(category_id)
                 else:
                     existing_links = []
             except Exception as e:

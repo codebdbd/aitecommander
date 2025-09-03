@@ -23,7 +23,8 @@ class LinksService:
         return self.repo.get_links(category_id)
 
     def get_links_for_category(self, category_id: int) -> List[Dict[str, Any]]:
-        return self.repo.get_links_for_category(category_id)
+        # Совместимость: эквивалент прежнего метода (SELECT * ... ORDER BY position)
+        return self.repo.get_links(category_id, all_fields=True)
 
     def get_all_links(self) -> List[Dict[str, Any]]:
         return self.repo.get_all_links()

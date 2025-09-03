@@ -19,13 +19,49 @@ class LinkModel(DatabaseBase):
         """Инициализирует LinkModel с менеджером соединений."""
         super().__init__(connection_manager)
 
-    def get_links(self, category_id: int):
-        """Возвращает список ссылок для указанной категории."""
+    def get_links(
+        self,
+        category_id: int,
+        *,
+        fields: Optional[List[str]] = None,
+        all_fields: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """Возвращает список ссылок для указанной категории.
+
+        Параметры:
+        - fields: необязательный список полей для выборки. Игнорируется, если указан all_fields.
+        - all_fields: если True — выбираются все столбцы (эквивалент прежнего get_links_for_category()).
+
+        По умолчанию выбирается стабильный поднабор столбцов для UI:
+        [id, category_id, name, url, type, notes, is_favorite, last_used, icon_path, args, browser_key, position].
+        """
         try:
+            if all_fields:
+                select_clause = "SELECT *"
+            else:
+                # Если передан конкретный список полей — используем его, иначе дефолтный поднабор как раньше
+                default_fields = [
+                    "id",
+                    "category_id",
+                    "name",
+                    "url",
+                    "type",
+                    "notes",
+                    "is_favorite",
+                    "last_used",
+                    "icon_path",
+                    "args",
+                    "browser_key",
+                    "position",
+                ]
+                use_fields = fields or default_fields
+                # Простейшая защита от пустого списка — фолбэк на *
+                select_clause = (
+                    f"SELECT {', '.join(use_fields)}" if use_fields else "SELECT *"
+                )
+
             rows = self._execute_with_error_handling(
-                "SELECT id, category_id, name, url, type, notes, "
-                "is_favorite, last_used, icon_path, args, browser_key, position "
-                "FROM link WHERE category_id=? ORDER BY position ASC",
+                f"{select_clause} FROM link WHERE category_id=? ORDER BY position ASC",
                 (category_id,),
                 fetch_method="all",
             )
@@ -478,18 +514,7 @@ class LinkModel(DatabaseBase):
             )
             return 1
 
-    def get_links_for_category(self, category_id: int) -> List[Dict[str, Any]]:
-        """Получить все ссылки для указанной категории."""
-        try:
-            rows = self._execute_with_error_handling(
-                "SELECT * FROM link WHERE category_id = ? ORDER BY position",
-                (category_id,),
-                fetch_method="all",
-            )
-            return [dict(row) for row in rows]
-        except Exception as e:
-            logger.error(f"Ошибка получения ссылок для категории {category_id}: {e}")
-            return []
+    # get_links_for_category был объединён с get_links (параметр all_fields=True)
 
     def batch_upsert_links(self, links_data: List[Dict[str, Any]]) -> List[int]:
         """Пакетное создание/обновление ссылок в одной транзакции.
