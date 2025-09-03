@@ -175,7 +175,7 @@ class EdgeProfileFinder(ChromiumBaseBrowserFinder):
 
     def __init__(self):
         from app.config_data import app_config
-        dir_path = app_config.paths.get_edge_profiles_dir()
+        dir_path = app_config.paths.get_browser_profiles_dir("edge")
         super().__init__(str(dir_path) if dir_path else "", "Microsoft Edge")
 
 
@@ -184,7 +184,7 @@ class BraveProfileFinder(ChromiumBaseBrowserFinder):
 
     def __init__(self):
         from app.config_data import app_config
-        dir_path = app_config.paths.get_brave_profiles_dir()
+        dir_path = app_config.paths.get_browser_profiles_dir("brave")
         super().__init__(str(dir_path) if dir_path else "", "Brave")
 
 
@@ -193,7 +193,7 @@ class VivaldiProfileFinder(ChromiumBaseBrowserFinder):
 
     def __init__(self):
         from app.config_data import app_config
-        dir_path = app_config.paths.get_vivaldi_profiles_dir()
+        dir_path = app_config.paths.get_browser_profiles_dir("vivaldi")
         super().__init__(str(dir_path) if dir_path else "", "Vivaldi")
 
 
@@ -202,7 +202,7 @@ class OperaProfileFinder(ChromiumBaseBrowserFinder):
 
     def __init__(self):
         from app.config_data import app_config
-        dir_path = app_config.paths.get_opera_profiles_dir()
+        dir_path = app_config.paths.get_browser_profiles_dir("opera")
         super().__init__(str(dir_path) if dir_path else "", "Opera")
 
 
@@ -211,7 +211,7 @@ class YandexProfileFinder(ChromiumBaseBrowserFinder):
 
     def __init__(self):
         from app.config_data import app_config
-        dir_path = app_config.paths.get_yandex_profiles_dir()
+        dir_path = app_config.paths.get_browser_profiles_dir("yandex")
         super().__init__(str(dir_path) if dir_path else "", "Yandex Browser")
 
 
@@ -220,5 +220,5 @@ class ChromeProfileFinder(ChromiumBaseBrowserFinder):
 
     def __init__(self):
         from app.config_data import app_config
-        dir_path = app_config.paths.get_chrome_profiles_dir()
+        dir_path = app_config.paths.get_browser_profiles_dir("chrome")
         super().__init__(str(dir_path) if dir_path else "", "Google Chrome")
