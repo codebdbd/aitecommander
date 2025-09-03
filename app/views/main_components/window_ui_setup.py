@@ -587,9 +587,25 @@ class WindowUISetup:
             logging.warning("WindowProps: failed to set minimum size from config", exc_info=True)
 
         # Настройка иконки
+        # Путь к логотипу приложения может отличаться в dev и в сборке (PyInstaller)
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        candidates = [
+            # 1) Реальное расположение в исходниках: app/views/resources/logo/logo.png
+            os.path.normpath(os.path.join(base_dir, "..", "resources", "logo", "logo.png")),
+            # 2) На случай, если структура изменится и ресурс окажется рядом
+            os.path.normpath(os.path.join(base_dir, "resources", "logo", "logo.png")),
+        ]
+        # 3) Варианты путей в упакованной версии
         if hasattr(sys, "_MEIPASS"):
-            base_path = sys._MEIPASS
+            candidates.extend(
+                [
+                    os.path.join(sys._MEIPASS, "app", "views", "resources", "logo", "logo.png"),
+                    os.path.join(sys._MEIPASS, "resources", "logo", "logo.png"),
+                ]
+            )
+
+        logo_path = next((p for p in candidates if os.path.exists(p)), None)
+        if logo_path:
+            self.window.setWindowIcon(create_icon_from_path(logo_path))
         else:
-            base_path = os.path.dirname(os.path.abspath(__file__))
-        logo_path = os.path.join(base_path, "resources", "logo", "logo.png")
-        self.window.setWindowIcon(create_icon_from_path(logo_path))
+            logger.warning("Logo icon not found in expected locations: %s", candidates)
