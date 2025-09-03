@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from dataclasses import dataclass
 import atexit
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -40,6 +41,17 @@ from .http_client import http_request
 _MANIFEST_EXECUTOR = None
 _MANIFEST_EXECUTOR_GUARD = threading.Lock()
 _MANIFEST_ATEXIT_HANDLER = None  # stores the registered atexit handler to support unregister
+
+
+@dataclass(slots=True)
+class IconCandidate:
+    url: str
+    size: int
+    format: str
+    format_rank: int
+    base_priority: int
+    media_priority: int
+    type: str
 
 # Markers that make og:image likely unsuitable for favicon usage
 OG_IMAGE_BANNED_MARKERS = [
@@ -188,7 +200,7 @@ def _detect_format(href: str, type_attr: str | None) -> str:
     return "unknown"
 
 
-def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[dict], list[str], bool]:
+def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[IconCandidate], list[str], bool]:
     """Собирает кандидатов из <link> и ссылки на манифесты.
 
     Аргументы:
@@ -197,11 +209,11 @@ def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[dict],
 
     Возвращает:
     - tuple: (candidates, manifest_urls, has_primary), где
-      candidates — список словарей-кандидатов,
+      candidates — список объектов IconCandidate,
       manifest_urls — ссылки на манифесты,
       has_primary — есть ли первичные link-иконки.
     """
-    candidates: list[dict] = []
+    candidates: list[IconCandidate] = []
     manifest_urls: list[str] = []
 
     def _add_link_candidate(link, rel_label: str, base_priority: int):
@@ -215,15 +227,15 @@ def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[dict],
         fmt = _detect_format(href, type_attr)
         media_priority = 0 if not media or "light" in media else 1
         candidates.append(
-            {
-                "url": urljoin(base_url, href),
-                "size": size_value,
-                "format": fmt,
-                "format_rank": FORMAT_RANK.get(fmt, FORMAT_RANK["unknown"]),
-                "base_priority": base_priority,
-                "media_priority": media_priority,
-                "type": rel_label,
-            }
+            IconCandidate(
+                url=urljoin(base_url, href),
+                size=size_value,
+                format=fmt,
+                format_rank=FORMAT_RANK.get(fmt, FORMAT_RANK["unknown"]),
+                base_priority=base_priority,
+                media_priority=media_priority,
+                type=rel_label,
+            )
         )
 
     try:
@@ -258,7 +270,7 @@ def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[dict],
                 manifest_urls.append(urljoin(base_url, m_href))
 
         has_primary = any(
-            c.get("type") in {"link-icon", "mask-icon", "apple-touch-icon"} for c in candidates
+            c.type in {"link-icon", "mask-icon", "apple-touch-icon"} for c in candidates
         )
         return candidates, manifest_urls, has_primary
     except (AttributeError, TypeError, ValueError):
@@ -266,7 +278,7 @@ def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[dict],
         return candidates, manifest_urls, False
 
 
-def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manifest_icons: Callable[[list[str]], None] | None, candidates: list[dict]):
+def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manifest_icons: Callable[[list[str]], None] | None, candidates: list[IconCandidate]):
     """Обрабатывает манифесты: асинхронно вызывает колбэк или синхронно дополняет кандидатов.
 
     Аргументы:
@@ -372,31 +384,27 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
                         if sizes:
                             for sz in sizes:
                                 candidates.append(
-                                    {
-                                        "url": i_url,
-                                        "size": parse_icon_size(sz),
-                                        "format": fmt,
-                                        "format_rank": FORMAT_RANK.get(
-                                            fmt, FORMAT_RANK["unknown"]
-                                        ),
-                                        "base_priority": 1,
-                                        "media_priority": 0,
-                                        "type": "manifest",
-                                    }
+                                    IconCandidate(
+                                        url=i_url,
+                                        size=parse_icon_size(sz),
+                                        format=fmt,
+                                        format_rank=FORMAT_RANK.get(fmt, FORMAT_RANK["unknown"]),
+                                        base_priority=1,
+                                        media_priority=0,
+                                        type="manifest",
+                                    )
                                 )
                         else:
                             candidates.append(
-                                {
-                                    "url": i_url,
-                                    "size": 0,
-                                    "format": fmt,
-                                    "format_rank": FORMAT_RANK.get(
-                                        fmt, FORMAT_RANK["unknown"]
-                                    ),
-                                    "base_priority": 1,
-                                    "media_priority": 0,
-                                    "type": "manifest",
-                                }
+                                IconCandidate(
+                                    url=i_url,
+                                    size=0,
+                                    format=fmt,
+                                    format_rank=FORMAT_RANK.get(fmt, FORMAT_RANK["unknown"]),
+                                    base_priority=1,
+                                    media_priority=0,
+                                    type="manifest",
+                                )
                             )
                 except json.JSONDecodeError:
                     logger.warning("Failed to parse manifest JSON from %s (sync)", m_url, exc_info=True)
@@ -404,7 +412,7 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
             logger.warning("Failed to fetch manifest %s (sync)", m_url, exc_info=True)
 
 
-def _add_fallback_paths(base_url: str, candidates: list[dict]):
+def _add_fallback_paths(base_url: str, candidates: list[IconCandidate]):
     """Добавляет стандартные fallback-пути (favicon.ico и др.) для основного и www-хоста.
 
     Из особенностей: формирует варианты хостов с/без префикса www. и добавляет
@@ -430,19 +438,19 @@ def _add_fallback_paths(base_url: str, candidates: list[dict]):
             url = urljoin(base + "/", path.lstrip("/"))
             fmt = _detect_format(url, None)
             candidates.append(
-                {
-                    "url": url,
-                    "size": 0,
-                    "format": fmt,
-                    "format_rank": FORMAT_RANK.get(fmt, FORMAT_RANK["unknown"]),
-                    "base_priority": 1,
-                    "media_priority": 0,
-                    "type": "fallback",
-                }
+                IconCandidate(
+                    url=url,
+                    size=0,
+                    format=fmt,
+                    format_rank=FORMAT_RANK.get(fmt, FORMAT_RANK["unknown"]),
+                    base_priority=1,
+                    media_priority=0,
+                    type="fallback",
+                )
             )
 
 
-def _add_external_services(base_url: str, use_external: bool, candidates: list[dict]):
+def _add_external_services(base_url: str, use_external: bool, candidates: list[IconCandidate]):
     """Добавляет внешние fallback-сервисы (Google, DuckDuckGo), если разрешено.
 
     Аргументы:
@@ -456,31 +464,31 @@ def _add_external_services(base_url: str, use_external: bool, candidates: list[d
     host = p.netloc
     google_url = f"https://www.google.com/s2/favicons?domain={host}&sz={TARGET_SIZE}"
     candidates.append(
-        {
-            "url": google_url,
-            "size": TARGET_SIZE,
-            "format": "png",
-            "format_rank": FORMAT_RANK["png"],
-            "base_priority": 10,
-            "media_priority": 0,
-            "type": "google_fallback",
-        }
+        IconCandidate(
+            url=google_url,
+            size=TARGET_SIZE,
+            format="png",
+            format_rank=FORMAT_RANK["png"],
+            base_priority=10,
+            media_priority=0,
+            type="google_fallback",
+        )
     )
     ddg_url = f"https://icons.duckduckgo.com/ip3/{host}.ico"
     candidates.append(
-        {
-            "url": ddg_url,
-            "size": 0,
-            "format": "ico",
-            "format_rank": FORMAT_RANK["ico"],
-            "base_priority": 10,
-            "media_priority": 0,
-            "type": "ddg_fallback",
-        }
+        IconCandidate(
+            url=ddg_url,
+            size=0,
+            format="ico",
+            format_rank=FORMAT_RANK["ico"],
+            base_priority=10,
+            media_priority=0,
+            type="ddg_fallback",
+        )
     )
 
 
-def _append_og_image(soup: BeautifulSoup, base_url: str, candidates: list[dict]) -> list[str]:
+def _append_og_image(soup: BeautifulSoup, base_url: str, candidates: list[IconCandidate]) -> list[str]:
     """Возвращает URL из og:image, если нет первичных link-иконок и URL похож на иконку.
 
     Фильтрует по запрещённым маркерам (OG_IMAGE_BANNED_MARKERS) и ключевым словам
@@ -489,7 +497,7 @@ def _append_og_image(soup: BeautifulSoup, base_url: str, candidates: list[dict])
     og_urls: list[str] = []
     # Append og:image only when there are no primary link-icons present.
     # Primary icons are those with base_priority == 0 (link-icon/mask/apple).
-    if not any(c.get("base_priority", 9) == 0 for c in candidates):
+    if not any(getattr(c, "base_priority", 9) == 0 for c in candidates):
         def _maybe_add_og(prop_name: str):
             meta = soup.find("meta", property=prop_name)
             if meta and meta.get("content"):
@@ -505,15 +513,15 @@ def _append_og_image(soup: BeautifulSoup, base_url: str, candidates: list[dict])
     return og_urls
 
 
-def _sort_candidates(candidates: list[dict]):
+def _sort_candidates(candidates: list[IconCandidate]):
     """Сортирует кандидатов по приоритетам: base_priority, format_rank, size, media_priority."""
-    def sort_key(c: dict):
-        size = c.get("size", 0)
+    def sort_key(c: IconCandidate):
+        size = getattr(c, "size", 0)
         return (
-            c.get("base_priority", 9),
-            -c.get("format_rank", FORMAT_RANK["unknown"]),
+            getattr(c, "base_priority", 9),
+            -getattr(c, "format_rank", FORMAT_RANK["unknown"]),
             -size,
-            c.get("media_priority", 0),
+            getattr(c, "media_priority", 0),
         )
 
     candidates.sort(key=sort_key)
@@ -566,16 +574,16 @@ def find_favicon_candidates(
     logger.debug(f"Found {len(candidates)} icon candidates (before og:image):")
     for cand in candidates[:5]:
         logger.debug(
-            f"  {cand['type']} {cand['size']}px {cand['format']} p{cand['base_priority']}/f{cand['format_rank']}: {cand['url']}"
+            f"  {cand.type} {cand.size}px {cand.format} p{cand.base_priority}/f{cand.format_rank}: {cand.url}"
         )
     if candidates:
         best = candidates[0]
         logger.info(
-            f"Best candidate: {best['type']} {best['size']}px {best['format']} from {best['url']}"
+            f"Best candidate: {best.type} {best.size}px {best.format} from {best.url}"
         )
 
     og_urls = _append_og_image(soup, base_url, candidates)
-    ordered_urls = [c["url"] for c in candidates] + og_urls
+    ordered_urls = [c.url for c in candidates] + og_urls
     seen = set()
     ordered_urls = [url for url in ordered_urls if not (url in seen or seen.add(url))]
     return ordered_urls
