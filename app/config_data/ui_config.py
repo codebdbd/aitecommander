@@ -258,6 +258,16 @@ class UIConfig(BaseConfig):
         """Получение политики размеров верхней панели."""
         return self.get("ui.top_panel_size_policy", ["Expanding", "Fixed"])
 
+    def get_top_bar_height(self) -> int:
+        """Высота хоста верхней панели (top_bar_host).
+        Новый ключ: ui.top_bar_height. Для обратной совместимости
+        поддерживается ui.top_panel_container_height.
+        """
+        value = self.get("ui.top_bar_height")
+        if value is None:
+            value = self.get("ui.top_panel_container_height", 48)
+        return int(value)
+
     def get_top_panel_container_height(self) -> int:
         """Получение высоты контейнера верхней панели."""
         return self.get("ui.top_panel_container_height", 48)

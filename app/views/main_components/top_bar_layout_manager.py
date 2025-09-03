@@ -316,15 +316,7 @@ class TopBarLayoutManager(QObject):
             else:
                 logging.debug(msg)
 
-            # Поиск: минимум, максимум не ограничиваем (Expanding)
-            if search:
-                search.setMinimumWidth(self._min_search_width)
-                try:
-                    search.setMaximumWidth(16777215)
-                except (RuntimeError, AttributeError, TypeError):
-                    pass
-                except Exception:
-                    logger.exception("TopBarLayoutManager.adjust: unexpected error setting search maximum width")
+            # Управление шириной поиска передано layout'у и единоразовой инициализации
 
         except (RuntimeError, AttributeError):
             # Не роняем UI из-за ожидаемых ошибок расчета
@@ -473,14 +465,5 @@ class TopBarLayoutManager(QObject):
         self._set_visible_count(recent, "recentButton", c_r)
         self._set_visible_count(fav, "favoriteButton", c_f)
         self._set_visible_count(quick, "quickButton", c_q)
-        if search:
-            try:
-                # В узком режиме позволяем занять всё
-                if c_r == c_f == c_q == 0:
-                    search.setMinimumWidth(0)
-                else:
-                    search.setMinimumWidth(self._min_search_width)
-                search.setMaximumWidth(16777215)
-            except Exception:
-                pass
+        # Не трогаем размеры поля поиска здесь — избегаем дергания min/max при каждом пересчёте
         self._last_applied = (width, c_r, c_f, c_q)
