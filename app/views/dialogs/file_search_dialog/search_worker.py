@@ -55,11 +55,3 @@ class FileSearchWorker(QRunnable):
             self.signals.error_occurred.emit(f"Ошибка при поиске: {str(e)}")
         finally:
             self.signals.search_finished.emit()
-
-    def _matches_criteria(
-        self, filepath: str, filename: str, name_regex, content_regex
-    ) -> bool:
-        """DEPRECATED: вызывать _matches_common напрямую из run()."""
-        return _matches_common(
-            self.config, filepath, filename, name_regex, content_regex
-        )
