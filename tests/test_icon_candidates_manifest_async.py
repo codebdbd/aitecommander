@@ -44,13 +44,16 @@ def test_manifest_async_merges_urls_and_excludes_from_main_result(monkeypatch):
     # Prepare fake manifests with different icons
     m1_url = "https://example.com/site.webmanifest"
     m2_url = "https://example.com/alt.webmanifest"
+    # Include a duplicate icon across two manifests to ensure dedup works and order preserved
     m1_json = {
         "icons": [
             {"src": "/icons/a-32.png", "sizes": "32x32", "type": "image/png"},
+            {"src": "/icons/common.png", "sizes": "64x64", "type": "image/png"},
         ]
     }
     m2_json = {
         "icons": [
+            {"src": "/icons/common.png", "sizes": "64x64", "type": "image/png"},
             {"src": "/icons/b-48.png", "sizes": "48x48", "type": "image/png"}
         ]
     }
@@ -72,8 +75,8 @@ def test_manifest_async_merges_urls_and_excludes_from_main_result(monkeypatch):
     received = {}
 
     def on_manifest_icons(urls):
-        # Save received urls as a set for assertions
-        received["urls"] = set(urls)
+        # Save received urls as a list to check order and deduplication
+        received["urls"] = list(urls)
         done.set()
 
     config = types.SimpleNamespace()
@@ -90,11 +93,16 @@ def test_manifest_async_merges_urls_and_excludes_from_main_result(monkeypatch):
     # Wait for callback (immediate due to DummySyncExecutor)
     assert done.is_set(), "Callback was not called synchronously as expected in test"
 
-    expected = {
+    expected_ordered = [
         "https://example.com/icons/a-32.png",
+        "https://example.com/icons/common.png",
         "https://example.com/icons/b-48.png",
-    }
-    assert expected == received.get("urls", set()), f"Callback did not receive combined manifest icons: {received}"
+    ]
+    assert expected_ordered == received.get("urls", []), (
+        f"Callback did not receive combined unique manifest icons in order: {received}"
+    )
 
     # Ensure main result does NOT contain manifest icon URLs (async path only emits via callback)
-    assert not expected.intersection(set(main_urls)), f"Main result should not include async manifest icons: {main_urls}"
+    assert not set(expected_ordered).intersection(set(main_urls)), (
+        f"Main result should not include async manifest icons: {main_urls}"
+    )

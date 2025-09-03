@@ -77,7 +77,7 @@ def _get_manifest_executor() -> ThreadPoolExecutor:
         if _MANIFEST_EXECUTOR is None:
             try:
                 max_workers = int(getattr(app_config, "ICON_MANIFEST_MAX_WORKERS", 4) or 4)
-            except Exception:
+            except (TypeError, ValueError):
                 logger.debug("Failed to read ICON_MANIFEST_MAX_WORKERS from app_config; using default 4", exc_info=True)
                 max_workers = 4
             _MANIFEST_EXECUTOR = ThreadPoolExecutor(max_workers=max(1, max_workers), thread_name_prefix="manifest")
@@ -261,7 +261,7 @@ def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[dict],
             c.get("type") in {"link-icon", "mask-icon", "apple-touch-icon"} for c in candidates
         )
         return candidates, manifest_urls, has_primary
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
         logger.warning("Error while collecting link and manifest icons", exc_info=True)
         return candidates, manifest_urls, False
 
@@ -330,6 +330,18 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
                 logger.warning("Manifest executor failure", exc_info=True)
 
             if all_urls:
+                # Deduplicate while preserving order before invoking callback
+                try:
+                    all_urls = list(dict.fromkeys(all_urls))
+                except Exception:
+                    # If something unexpected happens, fall back to a best-effort unique list
+                    seen = set()
+                    tmp = []
+                    for u in all_urls:
+                        if u not in seen:
+                            seen.add(u)
+                            tmp.append(u)
+                    all_urls = tmp
                 try:
                     on_manifest_icons(all_urls)
                 except Exception:
