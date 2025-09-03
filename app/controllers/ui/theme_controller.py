@@ -19,15 +19,12 @@ class ThemeController:
         self,
         settings,
         main_window=None,
-        logger=None,
         stylesheet_applier: Optional[callable] = None,
         gui_scheduler: Optional[callable] = None,
         *,
         top_panels_controller,
     ):
         """Инициализация контроллера тем."""
-        # Deprecated: параметр logger больше не используется; логирование ведётся модульным логгером
-        self._deprecated_logger_param = logger
         self.settings = settings
         self.main_window = main_window
         # Обязательная зависимость TopPanelsController — требуем на этапе инициализации

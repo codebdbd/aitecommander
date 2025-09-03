@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "StructureController",
     "process_item",
-    "process_item_old_signature",
 ]
 
 
@@ -152,19 +151,5 @@ def process_item(
         return False
 
 
-# Обратная совместимость: алиас для старой сигнатуры
-# Это позволяет вызывать как process_item(self, data, ...) без изменения существующего кода
-def process_item_old_signature(
-    self: Any,
-    data: Dict[str, Any],
-    item_type: StructureItemType,
-    item_id: Optional[int] = None,
-    is_update: bool = False,
-    *,
-    require_parent: bool = True,
-) -> bool:
-    """
-    Версия с старой сигнатурой для полной обратной совместимости.
-    Автоматически перенаправляет вызов на новую версию.
-    """
-    return process_item(self, data, item_type, item_id, is_update, require_parent=require_parent)
+# Внимание: поддерживается только новая сигнатура вызова `process_item(controller, data, item_type, ...)`.
+# Старая форма с передачей `self` первым аргументом удалена для упрощения API и поддержки.

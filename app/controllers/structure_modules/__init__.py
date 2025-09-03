@@ -42,9 +42,6 @@ __all__ = [
     "AsyncOperations",
     "AsyncSignalHandlers",
     "OperationCoordinator",
-    # Legacy support
-    "LegacySupport",
-    "StructureBusinessLogicLegacy",
 ]
 
 # Lazy import to avoid circular import during package initialization
@@ -52,14 +49,6 @@ def __getattr__(name):
     if name == "OperationCoordinator":
         from .coordination import OperationCoordinator  # local import to break cycle
         return OperationCoordinator
-    if name == "LegacySupport":
-        from .legacy_support import LegacySupport  # local import to break cycle
-        return LegacySupport
-    if name == "StructureBusinessLogicLegacy":
-        from .legacy_support import (
-            StructureBusinessLogicLegacy,  # local import to break cycle
-        )
-        return StructureBusinessLogicLegacy
     if name in ("validate_category_data", "validate_section_data"):
         from .validation import (
             validate_category_data,

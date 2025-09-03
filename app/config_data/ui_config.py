@@ -2,9 +2,12 @@
 Конфигурация пользовательского интерфейса.
 """
 
+import logging
 from typing import Dict
 
 from .base_config import BaseConfig
+
+logger = logging.getLogger(__name__)
 
 
 class UIConfig(BaseConfig):
@@ -115,19 +118,21 @@ class UIConfig(BaseConfig):
 
     def get_tile_size(self) -> list:
         """Получение размера плитки категорий."""
-        # Единый источник: ui.tile_width и ui.tile_height
-        # Обратная совместимость: ui.tile_size (массив/число)
-        w = self.get("ui.tile_width")
-        h = self.get("ui.tile_height")
-        if isinstance(w, int) and isinstance(h, int):
-            return [w, h]
-        legacy = self.get("ui.tile_size")
-        if isinstance(legacy, int):
-            return [legacy, legacy]
-        if isinstance(legacy, (list, tuple)) and len(legacy) >= 2:
-            return [int(legacy[0]), int(legacy[1])]
-        # По умолчанию согласовано со значениями по умолчанию ширины/высоты
-        return [self.get("ui.tile_width", 110), self.get("ui.tile_height", 110)]
+        # Поддерживается только ui.tile_width и ui.tile_height.
+        # Если обнаружен устаревший ключ ui.tile_size — логируем предупреждение один раз.
+        try:
+            if self.get("ui.tile_size") is not None and not getattr(self, "_warned_tile_size", False):
+                logger.warning(
+                    "Обнаружен устаревший ключ ui.tile_size. Используйте ui.tile_width и ui.tile_height."
+                )
+                setattr(self, "_warned_tile_size", True)
+        except Exception:
+            # Никогда не падаем из-за логирования предупреждения
+            pass
+
+        w = int(self.get("ui.tile_width", 110))
+        h = int(self.get("ui.tile_height", 110))
+        return [w, h]
 
     def get_tile_icon_size(self) -> list:
         """Получение размера иконки на плитке категорий."""
