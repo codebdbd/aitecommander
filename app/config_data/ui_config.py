@@ -118,18 +118,6 @@ class UIConfig(BaseConfig):
 
     def get_tile_size(self) -> list:
         """Получение размера плитки категорий."""
-        # Поддерживается только ui.tile_width и ui.tile_height.
-        # Если обнаружен устаревший ключ ui.tile_size — логируем предупреждение один раз.
-        try:
-            if self.get("ui.tile_size") is not None and not getattr(self, "_warned_tile_size", False):
-                logger.warning(
-                    "Обнаружен устаревший ключ ui.tile_size. Используйте ui.tile_width и ui.tile_height."
-                )
-                setattr(self, "_warned_tile_size", True)
-        except Exception:
-            # Никогда не падаем из-за логирования предупреждения
-            pass
-
         w = int(self.get("ui.tile_width", 110))
         h = int(self.get("ui.tile_height", 110))
         return [w, h]

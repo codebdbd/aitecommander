@@ -566,18 +566,6 @@ def _extract_title(soup: BeautifulSoup, url: str) -> str:
     return domain
 
 
-def _postprocess_title(title: str, domain: str) -> str:
-    """Legacy postprocessing function for backward compatibility"""
-    title = title.strip()
-    replacements = [" - YouTube", " | YouTube", " - YouTube Music", " - YouTube Gaming"]
-    for suffix in replacements:
-        if title.endswith(suffix):
-            title = title[: -len(suffix)].strip()
-    if not title:
-        return domain
-    return title
-
-
 def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
     """Main function to extract page title with enhanced parsing capabilities"""
     host = base_domain(urlparse(url).netloc)

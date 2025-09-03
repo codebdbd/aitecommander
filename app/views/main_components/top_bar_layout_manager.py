@@ -76,17 +76,14 @@ class TopBarLayoutManager(QObject):
         self._max_fav = 10
         self._max_quick = 10
 
-        # Подключаемся к контейнерам (поддерживаем новый top_bar_host и старые контейнеры)
+        # Подключаемся к актуальным контейнерам (top_bar_host, content_container)
         tb = self._safe_get(self.window, "top_bar_host")
         if isinstance(tb, QWidget):
             tb.installEventFilter(self)
         cc = self._safe_get(self.window, "content_container")
         if isinstance(cc, QWidget):
             cc.installEventFilter(self)
-        # legacy support — безопасно, если виджет существует
-        tpc = self._safe_get(self.window, "top_panel_container")
-        if isinstance(tpc, QWidget):
-            tpc.installEventFilter(self)
+        # Удалена поддержка устаревшего top_panel_container
         # На всякий случай слушаем и окно (Resize)
         try:
             if isinstance(self.window, QObject) and not _sip_isdeleted(self.window):
@@ -109,7 +106,6 @@ class TopBarLayoutManager(QObject):
 
         watched = (
             self._safe_get(self.window, "top_bar_host"),
-            self._safe_get(self.window, "top_panel_container"),
             self._safe_get(self.window, "content_container"),
             self.window if isinstance(self.window, QObject) else None,
         )
@@ -173,8 +169,6 @@ class TopBarLayoutManager(QObject):
         if self._container_widget and isinstance(self._container_widget, QWidget):
             return self._container_widget
         container: QWidget | None = self._safe_get(self.window, "top_bar_host")
-        if not container:
-            container = self._safe_get(self.window, "top_panel_container")
         if not container:
             container = self._safe_get(self.window, "content_container")
         self._container_widget = container
