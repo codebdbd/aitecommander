@@ -403,14 +403,14 @@ class WindowUISetup:
         tiles_wrapper = QWidget()
         tiles_layout = QVBoxLayout(tiles_wrapper)
         tiles_layout.setContentsMargins(*app_config.ui.get_layout_margins("tiles"))
-        tiles_layout.setSpacing(app_config.get("ui.layout.spacing.tiles", 0))
+        tiles_layout.setSpacing(app_config.ui.get("ui.layout.spacing.tiles", 0))
         tiles_layout.addWidget(self.window.tiles_scroll)
 
         # Обертка для таблицы
         table_wrapper = QWidget()
         table_layout = QVBoxLayout(table_wrapper)
         table_layout.setContentsMargins(*app_config.ui.get_layout_margins("table"))
-        table_layout.setSpacing(app_config.get("ui.layout.spacing.table", 4))
+        table_layout.setSpacing(app_config.ui.get_table_layout_spacing())
         table_layout.addWidget(self.window.table)
 
         # Стек для переключения между плитками и таблицей
