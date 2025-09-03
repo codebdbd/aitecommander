@@ -45,7 +45,7 @@ class MoveLinksCommand(BaseCommand):
         start_pos = links_business.get_next_position(self.new_category_id)
 
         # Получаем существующие ссылки для проверки дубликатов
-        existing_links = links_business.get_links_for_category(self.new_category_id)
+        existing_links = links_business.get_links(self.new_category_id)
 
         # Подготавливаем новые состояния
         temp_new_states = []
