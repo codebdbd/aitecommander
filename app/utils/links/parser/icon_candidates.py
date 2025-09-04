@@ -151,15 +151,20 @@ def parse_icon_size(sizes_attr: str) -> int:
         return 0
     pairs = SIZE_RE.findall(s)
     if pairs:
-        sizes = []
+        max_size = 0
         for w, h in pairs:
             try:
-                sizes.append(max(int(w), int(h)))
+                int_w = int(w)
+                int_h = int(h)
+                if int_w > max_size:
+                    max_size = int_w
+                if int_h > max_size:
+                    max_size = int_h
             except ValueError:
                 logger.debug(f"Invalid WxH pair in sizes attribute: {w}x{h}", exc_info=True)
                 continue
-        if sizes:
-            return max(sizes)
+        if max_size:
+            return max_size
     # Fallback: take first integer if present (non-standard values)
     m = FIRST_INT_RE.search(s)
     if m:
@@ -244,22 +249,28 @@ def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[IconCa
             rel_val = link.get("rel")
             if not rel_val:
                 continue
-            tokens = [
+            tokens = {
                 t.lower()
                 for t in (
                     rel_val if isinstance(rel_val, list) else str(rel_val).split()
                 )
-            ]
+            }
 
-            if any(t == "manifest" for t in tokens):
+            has_manifest = "manifest" in tokens
+            has_apple = ("apple-touch-icon" in tokens) or ("apple-touch-icon-precomposed" in tokens)
+            # Keep one pass for suffix check (covers e.g. mask-icon, any *icon tokens)
+            has_icon = ("icon" in tokens) or any(t.endswith("icon") for t in tokens)
+            has_mask = "mask-icon" in tokens
+
+            if has_manifest:
                 manifest_links.append(link)
 
-            if any(t in ("apple-touch-icon", "apple-touch-icon-precomposed") for t in tokens):
+            if has_apple:
                 _add_link_candidate(link, "apple-touch-icon", 2)
                 continue
 
-            if any((t == "icon") or t.endswith("icon") for t in tokens):
-                if any(t == "mask-icon" for t in tokens):
+            if has_icon:
+                if has_mask:
                     _add_link_candidate(link, "mask-icon", 4)
                 else:
                     _add_link_candidate(link, "link-icon", 0)
@@ -563,8 +574,7 @@ def find_favicon_candidates(
       Список дедуплицирован, относительные пути резолвятся относительно `base_url`.
     """
     candidates, manifest_urls, has_primary = _collect_link_icons(soup, base_url)
-    if not has_primary:
-        _handle_manifests(manifest_urls, base_url, config, on_manifest_icons, candidates)
+    _handle_manifests(manifest_urls, base_url, config, on_manifest_icons, candidates)
 
     _add_fallback_paths(base_url, candidates)
     _add_external_services(base_url, use_external, candidates)
