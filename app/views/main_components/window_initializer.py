@@ -13,8 +13,6 @@ from app.controllers.system.window_controllers_setup import WindowControllersSet
 from app.interfaces import MainWindowLike, SettingsLike
 from app.utils.ui.updates import suspend_updates
 from app.utils.metrics.startup_metrics import get_metrics
-
-# Компоненты для рефакторинга
 from .window_ui_setup import WindowUISetup
 
 
@@ -69,7 +67,7 @@ class WindowInitializer:
                     step()
 
         # Подключаем обновление текста статус-бара к событию показа окна
-        # (исключает попытки доступа к message_label до его создания)
+        # Слот проверяет наличие элементов UI, поэтому вызов безопасен даже при отложенном создании статус-бара
         try:
             if hasattr(self.window, "shown"):
                 # type: ignore[attr-defined] — сигнал присутствует в реальном MainWindow
@@ -77,86 +75,79 @@ class WindowInitializer:
         except Exception:
             logger.exception("WindowInitializer: не удалось подключить слот к сигналу 'shown'")
 
-        # Тяжёлые шаги переносим на следующий цикл событий после показа окна,
-        # чтобы минимизировать время до первого отображения
-        def _deferred_init():
-            try:
-                # Выполняем тяжёлые шаги уже после показа окна
-                with metrics.time_span("heavy:init_main_content"):
-                    self._init_main_content()
-                with metrics.time_span("heavy:init_bottom_panel"):
-                    self._init_bottom_panel()
-                with metrics.time_span("heavy:init_status_bar"):
-                    self._init_status_bar()
-                # После создания статус-бара безопасно обновляем сообщение статуса
-                try:
-                    if hasattr(self.window, "message_label") and self.window.message_label:
-                        self.window.message_label.setText("Загрузка интерфейса…")
-                except Exception:
-                    logger.exception("WindowInitializer: ошибка обновления текста статус-бара после инициализации")
-                with metrics.time_span("heavy:init_controllers"):
-                    self._init_controllers()
-                # Немедленно после создания контроллеров запускаем асинхронную
-                # загрузку данных структуры, чтобы не блокировать UI-поток
-                try:
-                    sb = getattr(self.window, "structure_business", None)
-                    ao = getattr(sb, "async_operations", None) if sb else None
-                    if ao is not None:
-                        # Внимание: запуск загрузки сфер выполняется в SpheresBarController.init().
-                        # Здесь не дублируем, чтобы избежать двойного вызова и логов.
+        # Показываем окно сразу после лёгких шагов, чтобы пользователь видел интерфейс
+        # пока выполняются тяжёлые операции в фоне
+        try:
+            if hasattr(self.window, "show"):
+                with metrics.time_span("light:window_show"):
+                    self.window.show()
+        except Exception:
+            logger.exception("WindowInitializer: не удалось показать окно после лёгких шагов")
 
-                        # Загрузка структуры текущей сферы, если она уже выбрана
-                        try:
-                            curr_id = getattr(sb, "current_sphere_id", None)
-                            if isinstance(curr_id, int) and curr_id > 0:
-                                # Старт измерения асинхронной загрузки структуры; остановка по сигналу structure_loaded
-                                metrics.start("async:structure_load")
-                                try:
-                                    if hasattr(sb, "structure_loaded"):
-                                        def _on_structure_loaded_once(*_args):
-                                            try:
-                                                metrics.stop("async:structure_load")
-                                            except Exception:
-                                                pass
-                                            try:
-                                                sb.structure_loaded.disconnect(_on_structure_loaded_once)  # type: ignore[attr-defined]
-                                            except Exception:
-                                                pass
-                                        sb.structure_loaded.connect(_on_structure_loaded_once)  # type: ignore[attr-defined]
-                                except Exception:
-                                    logger.debug("WindowInitializer: failed to wire metrics to structure_loaded", exc_info=False)
-                                QTimer.singleShot(0, lambda cid=int(curr_id): ao.load_structure_async(cid))
-                                metrics.mark("async:load_structure_async scheduled")
-                        except Exception:
-                            logger.exception("WindowInitializer: не удалось запланировать load_structure_async")
-                except Exception:
-                    # Общий страховочный перехват, чтобы отложенная инициализация не падала целиком
-                    logger.exception("WindowInitializer: ошибка планирования асинхронной загрузки структуры")
-                with metrics.time_span("heavy:apply_user_font_size"):
-                    self._apply_user_font_size()
-                # Завершаем инициализацию сфер и связанные расчёты
-                with metrics.time_span("heavy:initialize_spheres"):
-                    self._initialize_spheres()
-                # Показываем окно только после успешного завершения всех шагов
-                try:
-                    if hasattr(self.window, "show"):
-                        with metrics.time_span("heavy:window_show"):
-                            self.window.show()
-                except Exception:
-                    logger.exception("WindowInitializer: не удалось показать окно после инициализации")
-                finally:
-                    # Выводим сводку метрик старта в лог
-                    metrics.flush_log(logger)
+        # Тяжёлые шаги разбиваем на асинхронные этапы для предотвращения блокировки UI-потока
+        # Разделяем этапы на независимые от БД и зависящие от БД
+        self._current_init_step = 0
+        self._init_steps_before_db = [
+            ("Загрузка основного содержимого...", self._init_main_content),
+            ("Инициализация нижней панели...", self._init_bottom_panel),
+            ("Создание статус-бара...", self._init_status_bar),
+            ("Применение настроек шрифта...", self._apply_user_font_size),
+        ]
+        self._init_steps_after_db = [
+            ("Настройка контроллеров...", self._init_controllers),
+            ("Завершение инициализации...", self._initialize_spheres),
+        ]
+        self._db_ready = False
+        self._waiting_for_db = False
+        
+        def _execute_next_init_step():
+            """Выполняет следующий этап инициализации асинхронно."""
+            try:
+                # Проверяем, завершены ли этапы до БД
+                if self._current_init_step >= len(self._init_steps_before_db):
+                    if not self._db_ready:
+                        # БД ещё не готова, ждём
+                        if not self._waiting_for_db:
+                            self._waiting_for_db = True
+                            self._update_status_message("Ожидание готовности базы данных...")
+                            self._setup_db_ready_listener()
+                        return
+                    else:
+                        # БД готова, переходим к этапам после БД
+                        self._execute_db_dependent_steps()
+                        return
+                
+                step_name, step_func = self._init_steps_before_db[self._current_init_step]
+                
+                # Обновляем статус-бар если он уже создан
+                self._update_status_message(step_name)
+                
+                # Выполняем текущий этап
+                with metrics.time_span(f"heavy:{step_func.__name__}"):
+                    step_func()
+                
+                # Специальная обработка после создания статус-бара
+                if step_func == self._init_status_bar:
+                    self._post_status_bar_init()
+                
+                self._current_init_step += 1
+                
+                # Даём UI-потоку возможность обработать события
+                QApplication.processEvents()
+                
+                # Планируем следующий этап
+                QTimer.singleShot(10, _execute_next_init_step)
+                
             except Exception as e:
-                logger.exception("WindowInitializer: ошибка в отложенной инициализации — окно показано не будет")
-                # Даже при ошибке выведем накопленные метрики
+                logger.exception("WindowInitializer: ошибка в этапе инициализации — приложение будет закрыто")
                 try:
                     metrics.flush_log(logger)
                 except Exception:
                     pass
                 self._handle_deferred_init_error(e)
 
-        QTimer.singleShot(0, _deferred_init)
+        # Запускаем первый этап
+        QTimer.singleShot(0, _execute_next_init_step)
 
     # === Приватные шаги инициализации ===
     def _init_window_properties(self) -> None:
@@ -208,9 +199,167 @@ class WindowInitializer:
     def _initialize_spheres(self) -> None:
         self.controllers_setup.initialize_spheres()
 
+    # === Вспомогательные методы для асинхронной инициализации ===
+    def _update_status_message(self, message: str) -> None:
+        """Обновляет сообщение в статус-баре, если он уже создан."""
+        try:
+            if hasattr(self.window, "message_label") and self.window.message_label:
+                self.window.message_label.setText(message)
+        except Exception:
+            # Не логируем как ошибку, так как статус-бар может быть ещё не создан
+            pass
+
+    def _post_status_bar_init(self) -> None:
+        """Выполняется после создания статус-бара."""
+        try:
+            if hasattr(self.window, "message_label") and self.window.message_label:
+                self.window.message_label.setText("Загрузка интерфейса…")
+        except Exception:
+            logger.exception("WindowInitializer: ошибка обновления текста статус-бара после инициализации")
+
+    def _post_controllers_init(self) -> None:
+        """Выполняется после создания контроллеров - запускает асинхронную загрузку структуры."""
+        try:
+            sb = getattr(self.window, "structure_business", None)
+            ao = getattr(sb, "async_operations", None) if sb else None
+            if ao is not None:
+                # Внимание: запуск загрузки сфер выполняется в SpheresBarController.init().
+                # Здесь не дублируем, чтобы избежать двойного вызова и логов.
+
+                # Загрузка структуры текущей сферы, если она уже выбрана
+                try:
+                    curr_id = getattr(sb, "current_sphere_id", None)
+                    if isinstance(curr_id, int) and curr_id > 0:
+                        metrics = get_metrics()
+                        # Старт измерения асинхронной загрузки структуры; остановка по сигналу structure_loaded
+                        metrics.start("async:structure_load")
+                        try:
+                            if hasattr(sb, "structure_loaded"):
+                                def _on_structure_loaded_once(*_args):
+                                    try:
+                                        metrics.stop("async:structure_load")
+                                    except Exception:
+                                        pass
+                                    try:
+                                        sb.structure_loaded.disconnect(_on_structure_loaded_once)  # type: ignore[attr-defined]
+                                    except Exception:
+                                        pass
+                                sb.structure_loaded.connect(_on_structure_loaded_once)  # type: ignore[attr-defined]
+                        except Exception:
+                            logger.debug("WindowInitializer: failed to wire metrics to structure_loaded", exc_info=False)
+                        QTimer.singleShot(0, lambda cid=int(curr_id): ao.load_structure_async(cid))
+                        metrics.mark("async:load_structure_async scheduled")
+                except Exception:
+                    logger.exception("WindowInitializer: не удалось запланировать load_structure_async")
+        except Exception:
+            # Общий страховочный перехват, чтобы отложенная инициализация не падала целиком
+            logger.exception("WindowInitializer: ошибка планирования асинхронной загрузки структуры")
+
+    def _setup_db_ready_listener(self) -> None:
+        """Настраивает слушатель готовности БД."""
+        try:
+            # Проверяем, есть ли уже готовая БД (возможно, инициализация завершилась быстро)
+            if hasattr(self.window, 'isEnabled') and self.window.isEnabled():
+                # Окно разблокировано, значит БД готова
+                self._on_db_ready()
+                return
+            
+            # Устанавливаем таймер для периодической проверки готовности БД
+            self._db_check_timer = QTimer()
+            self._db_check_timer.timeout.connect(self._check_db_ready)
+            self._db_check_timer.start(100)  # Проверяем каждые 100 мс
+        except Exception:
+            logger.exception("WindowInitializer: ошибка настройки слушателя готовности БД")
+
+    def _check_db_ready(self) -> None:
+        """Проверяет готовность БД."""
+        try:
+            # БД считается готовой, когда главное окно разблокировано
+            if hasattr(self.window, 'isEnabled') and self.window.isEnabled():
+                self._on_db_ready()
+        except Exception:
+            logger.exception("WindowInitializer: ошибка проверки готовности БД")
+
+    def _on_db_ready(self) -> None:
+        """Вызывается когда БД готова к использованию."""
+        try:
+            self._db_ready = True
+            if hasattr(self, '_db_check_timer'):
+                self._db_check_timer.stop()
+                self._db_check_timer.deleteLater()
+            
+            logger.info("WindowInitializer: БД готова, продолжаем инициализацию контроллеров")
+            self._execute_db_dependent_steps()
+        except Exception:
+            logger.exception("WindowInitializer: ошибка при обработке готовности БД")
+
+    def _execute_db_dependent_steps(self) -> None:
+        """Выполняет этапы инициализации, зависящие от БД."""
+        self._current_db_step = 0
+        
+        def _execute_next_db_step():
+            """Выполняет следующий этап инициализации, зависящий от БД."""
+            try:
+                if self._current_db_step >= len(self._init_steps_after_db):
+                    # Все этапы завершены
+                    self._finalize_initialization()
+                    return
+                
+                step_name, step_func = self._init_steps_after_db[self._current_db_step]
+                
+                # Обновляем статус-бар
+                self._update_status_message(step_name)
+                
+                # Выполняем текущий этап
+                metrics = get_metrics()
+                with metrics.time_span(f"heavy:{step_func.__name__}"):
+                    step_func()
+                
+                # Специальная обработка после создания контроллеров
+                if step_func == self._init_controllers:
+                    self._post_controllers_init()
+                
+                self._current_db_step += 1
+                
+                # Даём UI-потоку возможность обработать события
+                QApplication.processEvents()
+                
+                # Планируем следующий этап
+                QTimer.singleShot(10, _execute_next_db_step)
+                
+            except Exception as e:
+                logger.exception("WindowInitializer: ошибка в этапе инициализации зависящем от БД — приложение будет закрыто")
+                try:
+                    metrics = get_metrics()
+                    metrics.flush_log(logger)
+                except Exception:
+                    pass
+                self._handle_deferred_init_error(e)
+        
+        # Запускаем первый этап зависящий от БД
+        QTimer.singleShot(0, _execute_next_db_step)
+
+    def _finalize_initialization(self) -> None:
+        """Завершает асинхронную инициализацию."""
+        try:
+            metrics = get_metrics()
+            # Выводим сводку метрик старта в лог
+            metrics.flush_log(logger)
+            
+            # Обновляем статус на "Готово"
+            self._update_status_message("Готово")
+            
+            logger.info("WindowInitializer: асинхронная инициализация завершена успешно")
+        except Exception:
+            logger.exception("WindowInitializer: ошибка при финализации инициализации")
+
     # === Слоты ===
     def _on_window_shown(self) -> None:
-        """Обновляем статус только после показа окна (и, соответственно, после инициализации статус-бара)."""
+        """Обновляем статус после показа окна.
+
+        Учтено, что статус-бар создаётся отложенно: слот безопасно проверяет наличие
+        необходимых элементов перед обновлением текста.
+        """
         try:
             if hasattr(self.window, "message_label") and self.window.message_label:
                 self.window.message_label.setText("Загрузка интерфейса…")
