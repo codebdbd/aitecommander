@@ -1,11 +1,10 @@
 """
-UI компоненты для LinkDialog.
-Содержит только UI элементы и их первичную настройку.
+Модуль для создания UI диалога добавления/редактирования ссылки.
 """
-
+import logging
 from typing import Any, Dict
 
-from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
@@ -20,11 +19,14 @@ from PyQt6.QtWidgets import (
     QTextEdit,
     QToolButton,
     QVBoxLayout,
+    QWidget,
 )
 
 from app.config_data import app_config
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
+
+logger = logging.getLogger(__name__)
 
 
 class LinkDialogUI:
@@ -33,7 +35,7 @@ class LinkDialogUI:
     def __init__(self, parent):
         """Инициализация UI компонентов."""
         self.parent = parent
-        self.widgets = {}
+        self.widgets: Dict[str, QWidget] = {}
 
     def build_ui(self, link_types: list) -> None:
         """Построение пользовательского интерфейса."""
@@ -58,8 +60,8 @@ class LinkDialogUI:
                     # Размер иконки типовой кнопки берём из UI-конфига
                     type_icon_size = app_config.ui.get_link_dialog_type_icon_size()
                     btn.setIconSize(QSize(type_icon_size, type_icon_size))
-            except Exception:
-                pass
+            except (AttributeError, RuntimeError) as e:
+                logger.warning(f"Ошибка настройки размера иконки типа ссылки: {e}")
             btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
             # Height by content. Width expands to share space equally.
             btn.setObjectName("linkTypeBtn")
@@ -111,8 +113,8 @@ class LinkDialogUI:
             # Централизуем размер через UIConfig: используем размер иконки по умолчанию
             default_icon = int(app_config.ui.get_default_icon_size())
             self.icon_btn.setIconSize(QSize(default_icon, default_icon))
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError, ValueError) as e:
+            logger.warning(f"Ошибка настройки размера иконки кнопки: {e}")
         hl_name.addWidget(self.icon_btn)
 
         self.form.addRow("Имя:", hl_name)
@@ -146,8 +148,8 @@ class LinkDialogUI:
         # Не перехватывать Tab внутри многострочного поля — пусть переключает фокус
         try:
             self.notes_te.setTabChangesFocus(True)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.warning(f"Ошибка настройки tabChangesFocus для notes_te: {e}")
         self.form.addRow("Заметки:", self.notes_te)
         self.widgets["notes_te"] = self.notes_te
 
@@ -174,8 +176,8 @@ class LinkDialogUI:
             ok_btn.setAutoDefault(False)
             ok_btn.setDefault(False)
             ok_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.warning(f"Ошибка настройки фокуса для OK кнопки: {e}")
         ok_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
 
         cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
@@ -184,8 +186,8 @@ class LinkDialogUI:
             cancel_btn.setAutoDefault(False)
             cancel_btn.setDefault(False)
             cancel_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.warning(f"Ошибка настройки фокуса для Cancel кнопки: {e}")
         cancel_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
 
         vbox.addWidget(self.button_box)
@@ -199,16 +201,16 @@ class LinkDialogUI:
             self.name_le.textChanged.connect(
                 lambda _t: self._update_save_button_state()
             )
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.warning(f"Ошибка подключения сигнала textChanged для name_le: {e}")
 
         # Начальный фокус ставим на поле URL/Путь (а не на кнопку)
         try:
             self.url_le.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.warning(f"Ошибка установки фокуса на url_le: {e}")
 
-    def get_widget(self, name: str):
+    def get_widget(self, name: str) -> QWidget | None:
         """Получить виджет по имени."""
         return self.widgets.get(name)
 
@@ -221,8 +223,8 @@ class LinkDialogUI:
                 QDialogButtonBox.StandardButton.Ok
             )
             ok_btn.setEnabled(url_ok and name_ok)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.warning(f"Ошибка обновления состояния кнопки сохранения: {e}")
 
     def set_form_data(self, data: Dict[str, Any]) -> None:
         """Установить данные формы из словаря."""

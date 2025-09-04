@@ -37,9 +37,9 @@ def apply_uniform_height(dialog: QDialog):
                 f = widget.font()
                 f.setPointSize(base_size)
                 widget.setFont(f)
-            except Exception as e:
+            except Exception:
                 # Fall back to leaving the current font as-is if something goes wrong
-                logger.exception("Failed to set uniform font size for QPushButton", exc_info=e)
+                logger.exception("Failed to set uniform font size for QPushButton")
 
 
 
@@ -91,9 +91,9 @@ def create_russian_context_menu(widget):
             )
             paste_action.triggered.connect(widget.paste)
             paste_action.setShortcut("Ctrl+V")
-    except Exception as e:
+    except Exception:
         # В случае ошибки проверки буфера не добавляем пункт вставки
-        logger.exception("Failed to evaluate clipboard state for context menu", exc_info=e)
+        logger.exception("Failed to evaluate clipboard state for context menu")
 
     delete_action = menu.addAction(
         icon_cache.get_icon("delete", theme, "context_menu"), "Удалить"
@@ -154,8 +154,8 @@ class BaseDialog(QDialog):
                 screen = wh.screen() if wh else None
                 if screen is not None:
                     scale = max(1.0, screen.logicalDotsPerInch() / 96.0)
-            except Exception as e:
-                logger.exception("Failed to determine DPI scale for combo boxes", exc_info=e)
+            except Exception:
+                logger.exception("Failed to determine DPI scale for combo boxes")
             # DPI-aware popup icon size based on 24px logical (was 20)
             target_icon = int(round(24 * scale))
             for combo in combos:
@@ -168,11 +168,11 @@ class BaseDialog(QDialog):
                     view = combo.view()
                     if view is not None:
                         view.setIconSize(QSize(target_icon, target_icon))
-                except Exception as e:
-                    logger.exception("Failed to apply combo popup styles to a QComboBox", exc_info=e)
+                except Exception:
+                    logger.exception("Failed to apply combo popup styles to a QComboBox")
                     continue
-        except Exception as e:
-            logger.exception("Failed to apply combo popup styles (outer)", exc_info=e)
+        except Exception:
+            logger.exception("Failed to apply combo popup styles (outer)")
 
     # --- Local message box helpers to avoid importing controllers in views ---
     def show_info(
@@ -195,8 +195,8 @@ class BaseDialog(QDialog):
             mb.setStandardButtons(QMessageBox.StandardButton.Ok)
             if not silent:
                 mb.exec()
-        except Exception as e:
-            logger.exception("Failed to show info message box", exc_info=e)
+        except Exception:
+            logger.exception("Failed to show info message box")
 
     def show_warning(
         self,
@@ -218,8 +218,8 @@ class BaseDialog(QDialog):
             mb.setStandardButtons(QMessageBox.StandardButton.Ok)
             if not silent:
                 mb.exec()
-        except Exception as e:
-            logger.exception("Failed to show warning message box", exc_info=e)
+        except Exception:
+            logger.exception("Failed to show warning message box")
 
     def show_error(
         self,
@@ -241,8 +241,8 @@ class BaseDialog(QDialog):
             mb.setStandardButtons(QMessageBox.StandardButton.Ok)
             if not silent:
                 mb.exec()
-        except Exception as e:
-            logger.exception("Failed to show error message box", exc_info=e)
+        except Exception:
+            logger.exception("Failed to show error message box")
 
     def ask_confirmation(
         self,
@@ -265,6 +265,6 @@ class BaseDialog(QDialog):
             )
             mb.setDefaultButton(QMessageBox.StandardButton.No)
             return mb.exec() == QMessageBox.StandardButton.Yes
-        except Exception as e:
-            logger.exception("Failed to show confirmation dialog", exc_info=e)
+        except Exception:
+            logger.exception("Failed to show confirmation dialog")
             return False

@@ -1,7 +1,4 @@
-import logging
 from typing import List, Dict, Optional
-
-import pytest
 from PyQt6.QtCore import Qt
 
 from app.views.link.data_management import DataManagementMixin

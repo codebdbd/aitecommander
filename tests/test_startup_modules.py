@@ -3,7 +3,7 @@
 import logging
 import sys
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from app.startup.argument_parser import parse_arguments, determine_log_level, AppArguments
 from app.startup.logging_setup import setup_logging, log_system_info, log_shutdown

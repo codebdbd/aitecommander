@@ -574,7 +574,7 @@ class FileSearchDialog(BaseDialog):
             "case_sensitive": self.case_cb.isChecked(),
         }
 
-    def _add_result(self, file_path: str):
+    def _add_result(self, file_path: str, _ext: str = ""):
         """Добавление результата поиска в таблицу"""
         try:
             file_stat = os.stat(file_path)

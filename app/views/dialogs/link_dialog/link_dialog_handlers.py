@@ -14,11 +14,12 @@ from PyQt6.QtWidgets import QDialog, QFileDialog
 
 from app.config_data import app_config
 from app.utils.db.api import run_db
-from app.utils.links.link_parser import parse_local_link
+from app.utils.links.link_parser import parse_local_link, _parse_lnk
 from app.utils.links.parser.fetcher import fetch_web_link_info
+from app.utils.ui.icon.ui_helpers import set_icon_to_button
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.selection import choose_icon_and_copy
-from app.utils.ui.icon.ui_helpers import set_icon_to_button
+from .icon_utils import make_icon
 
 logger = logging.getLogger(__name__)
 
@@ -52,24 +53,7 @@ class LinkDialogHandlers:
         """Пытается создать QIcon по сохранённому пути.
         Поддерживает абсолютные пути и относительные относительно пользовательской и UI-папок иконок.
         """
-        try:
-            if not icon_path_str:
-                return None
-            p = Path(icon_path_str)
-            # Абсолютный путь
-            if p.exists():
-                return QIcon(str(p))
-            # Пользовательская папка
-            user_p = self.dialog.get_user_icons_dir() / icon_path_str
-            if user_p.exists():
-                return QIcon(str(user_p))
-            # UI папка
-            ui_p = self.dialog.get_ui_icons_dir() / icon_path_str
-            if ui_p.exists():
-                return QIcon(str(ui_p))
-        except Exception:
-            pass
-        return None
+        return make_icon(icon_path_str)
 
     def connect_signals(self) -> None:
         """Подключение сигналов к слотам."""
@@ -84,8 +68,8 @@ class LinkDialogHandlers:
         # Немедленный триггер при завершении редактирования (Enter/потеря фокуса)
         try:
             url_widget.editingFinished.connect(self._trigger_link_processing)
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.warning(f"Ошибка подключения сигнала editingFinished для url_widget: {e}")
 
         # Кнопки
         self.dialog.ui.get_widget("browse_btn").clicked.connect(self._on_browse)
@@ -118,19 +102,20 @@ class LinkDialogHandlers:
         self._is_processing = False
 
         # Отмена активной задачи при смене типа ссылки
-        if hasattr(self.dialog, "_active_worker") and self.dialog._active_worker:
+        if self._active_worker:
             try:
-                self.dialog._active_worker.cancel()
-            except Exception:
-                pass  # Игнорируем ошибки отмены
-            self.dialog._active_worker = None
+                self._active_worker.cancel()
+            except (AttributeError, RuntimeError) as e:
+                logger.debug(f"Ошибка отмены активного воркера: {e}")
+            self._active_worker = None
 
         # Установка иконки по умолчанию через централизованный резолвер
         try:
             resolved_icon_path = resolve_icon_for_link(
                 {"type": link_type, "icon_path": ""}
             )
-        except Exception:
+        except (AttributeError, KeyError, ValueError) as e:
+            logger.warning(f"Ошибка резолвинга иконки для типа {link_type}: {e}")
             resolved_icon_path = ""
         self.dialog.icon_name = (
             Path(resolved_icon_path).name if resolved_icon_path else ""
@@ -231,8 +216,6 @@ class LinkDialogHandlers:
 
             # Для типа "program" - разрешить .lnk ярлыки в реальные пути к .exe
             if link_type == "program" and normalized_path.lower().endswith(".lnk"):
-                from app.utils.links.link_parser import _parse_lnk
-
                 lnk_info = _parse_lnk(normalized_path)
                 if lnk_info and lnk_info.get("path"):
                     # Используем реальный путь к .exe вместо ярлыка
@@ -348,89 +331,120 @@ class LinkDialogHandlers:
                     category_cb.addItem(cat["name"], cat["id"])
 
     def _on_accept(self) -> None:
-        """Обработчик подтверждения диалога."""
-        form_data = self._collect_form_data()
-
-        if hasattr(self.dialog, "link_controller") and self.dialog.link_controller:
-            result = self.dialog.link_controller.validate_and_save(form_data)
-        else:
-            result = self.dialog.dialog_controller.validate_and_save(form_data)
-
+        """Обработчик подтверждения диалога (orchestration логика)."""
+        form_data = self._build_form_data()
+        result = self._validate_and_save_data(form_data)
+        
         if result["is_valid"]:
             self.dialog.accept()
         else:
-            # Специальный мягкий сценарий: пустая форма (без URL и имени)
-            name_empty = not (form_data.get("name") or "").strip()
-            url_empty = not (form_data.get("url") or "").strip()
-            if name_empty and url_empty:
-                # Используем помощники BaseDialog у экземпляра диалога
-                self.dialog.show_info(
-                    "Пусто, как холодильник в конце месяца 🥶 — добавьте хоть адрес или название, и будет что сохранить!",
-                    "Подсказка",
-                    informative_text="Введите URL или имя и попробуйте снова.",
-                    silent=True,
-                )
-            else:
-                errors: List[str] = result.get("errors", [])
-                error_text = "\n".join(errors)
-                # Сформируем более понятный, короткий список проблемных полей
-                problems = set()
-                lower_errors = [e.lower() for e in errors]
-                field_map = {
-                    "name": "Название",
-                    "url": "Адрес",
-                    "link_type": "Тип ссылки",
-                    "type": "Тип ссылки",
-                    "category": "Категория",
-                    "category_id": "Категория",
-                    "args": "Аргументы",
-                }
-                for key, label in field_map.items():
-                    if any(key in e for e in lower_errors):
-                        problems.add(label)
-                # Составим конкретные подсказки по полям
-                hint_map = {
-                    "Название": "Укажите понятное название (например, 'Документация API').",
-                    "Адрес": "Введите корректный URL вида https://example.com.",
-                    "Тип ссылки": "Выберите тип ссылки (веб, файл, папка и т.д.).",
-                    "Категория": "Выберите категорию для ссылки.",
-                    "Аргументы": "Проверьте аргументы запуска — допустимы только безопасные значения.",
-                }
-                hints = [hint_map[p] for p in sorted(problems) if p in hint_map]
-                # Ограничим длину подсказок, чтобы не перегружать окно
-                short_hints = hints[:2]
-                if problems:
-                    main_msg = f"Заполните/исправьте: {', '.join(sorted(problems))}."
-                    extra = (" " + " ".join(short_hints)) if short_hints else ""
-                    info_msg = (
-                        "Проверьте подсказки возле полей."
-                        + extra
-                        + " Полный список замечаний — в подробностях."
-                    )
-                else:
-                    main_msg = "Пожалуйста, проверьте данные перед сохранением."
-                    info_msg = "Проверьте выделенные поля и всплывающие подсказки."
+            self._handle_validation_errors(form_data, result)
 
-                self.dialog.show_info(
-                    main_msg,
-                    "Небольшая подсказка",
-                    informative_text=info_msg,
-                    details=error_text,
-                    silent=True,
-                )
+    def _build_form_data(self) -> Dict[str, Any]:
+        """Формирует данные формы из UI компонентов."""
+        return self._collect_form_data()
 
-                # Перевести фокус на первое проблемное поле (если удаётся определить)
-                try:
-                    if "Адрес" in problems:
-                        self.dialog.ui.get_widget("url_le").setFocus()
-                    elif "Название" in problems:
-                        self.dialog.ui.get_widget("name_le").setFocus()
-                    elif "Категория" in problems:
-                        self.dialog.ui.get_widget("category_cb").setFocus()
-                    elif "Аргументы" in problems:
-                        self.dialog.ui.get_widget("args_le").setFocus()
-                except Exception:
-                    pass
+    def _validate_and_save_data(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Проверяет и сохраняет данные формы."""
+        if hasattr(self.dialog, "link_controller") and self.dialog.link_controller:
+            return self.dialog.link_controller.validate_and_save(form_data)
+        else:
+            return self.dialog.dialog_controller.validate_and_save(form_data)
+
+    def _handle_validation_errors(self, form_data: Dict[str, Any], result: Dict[str, Any]) -> None:
+        """Обрабатывает ошибки валидации и показывает соответствующие сообщения."""
+        # Специальный мягкий сценарий: пустая форма (без URL и имени)
+        name_empty = not (form_data.get("name") or "").strip()
+        url_empty = not (form_data.get("url") or "").strip()
+        
+        if name_empty and url_empty:
+            self._show_empty_form_message()
+        else:
+            errors = result.get("errors", [])
+            problems = self._extract_problematic_fields(errors)
+            self._show_validation_error_message(errors, problems)
+            self._focus_problematic_field(problems)
+
+    def _show_empty_form_message(self) -> None:
+        """Показывает сообщение для пустой формы."""
+        self.dialog.show_info(
+            "Пусто, как холодильник в конце месяца 🥶 — добавьте хоть адрес или название, и будет что сохранить!",
+            "Подсказка",
+            informative_text="Введите URL или имя и попробуйте снова.",
+            silent=True,
+        )
+
+    def _extract_problematic_fields(self, errors: List[str]) -> set:
+        """Извлекает проблемные поля из списка ошибок."""
+        problems = set()
+        lower_errors = [e.lower() for e in errors]
+        field_map = {
+            "name": "Название",
+            "url": "Адрес",
+            "link_type": "Тип ссылки",
+            "type": "Тип ссылки",
+            "category": "Категория",
+            "category_id": "Категория",
+            "args": "Аргументы",
+        }
+        for key, label in field_map.items():
+            if any(key in e for e in lower_errors):
+                problems.add(label)
+        return problems
+
+    def _generate_error_messages(self, problems: set) -> tuple[str, str]:
+        """Генерирует сообщения об ошибках на основе проблемных полей."""
+        hint_map = {
+            "Название": "Укажите понятное название (например, 'Документация API').",
+            "Адрес": "Введите корректный URL вида https://example.com.",
+            "Тип ссылки": "Выберите тип ссылки (веб, файл, папка и т.д.).",
+            "Категория": "Выберите категорию для ссылки.",
+            "Аргументы": "Проверьте аргументы запуска — допустимы только безопасные значения.",
+        }
+        hints = [hint_map[p] for p in sorted(problems) if p in hint_map]
+        # Ограничим длину подсказок, чтобы не перегружать окно
+        short_hints = hints[:2]
+        
+        if problems:
+            main_msg = f"Заполните/исправьте: {', '.join(sorted(problems))}."
+            extra = (" " + " ".join(short_hints)) if short_hints else ""
+            info_msg = (
+                "Проверьте подсказки возле полей."
+                + extra
+                + " Полный список замечаний — в подробностях."
+            )
+        else:
+            main_msg = "Пожалуйста, проверьте данные перед сохранением."
+            info_msg = "Проверьте выделенные поля и всплывающие подсказки."
+        
+        return main_msg, info_msg
+
+    def _show_validation_error_message(self, errors: List[str], problems: set) -> None:
+        """Показывает сообщение об ошибках валидации."""
+        error_text = "\n".join(errors)
+        main_msg, info_msg = self._generate_error_messages(problems)
+        
+        self.dialog.show_info(
+            main_msg,
+            "Небольшая подсказка",
+            informative_text=info_msg,
+            details=error_text,
+            silent=True,
+        )
+
+    def _focus_problematic_field(self, problems: set) -> None:
+        """Устанавливает фокус на первое проблемное поле."""
+        try:
+            if "Адрес" in problems:
+                self.dialog.ui.get_widget("url_le").setFocus()
+            elif "Название" in problems:
+                self.dialog.ui.get_widget("name_le").setFocus()
+            elif "Категория" in problems:
+                self.dialog.ui.get_widget("category_cb").setFocus()
+            elif "Аргументы" in problems:
+                self.dialog.ui.get_widget("args_le").setFocus()
+        except (AttributeError, RuntimeError) as e:
+            logger.warning(f"Ошибка установки фокуса на проблемное поле: {e}")
 
     def _collect_form_data(self) -> Dict[str, Any]:
         """Сбор данных из формы."""
@@ -547,12 +561,8 @@ class LinkDialogHandlers:
             on_error=lambda e: self.signals.simple_error.emit(str(e)),
         )
 
-        # Совместимость: храним handle в том же атрибуте и на объекте диалога
+        # Сохраняем handle активного воркера
         self._active_worker = handle
-        try:
-            self.dialog._active_worker = handle
-        except Exception:
-            pass
 
     def _trigger_link_processing(self) -> None:
         """Внутренний метод для запуска обработки ссылки из таймера."""
@@ -581,7 +591,8 @@ class LinkDialogHandlers:
                         "icon_path": self.dialog.icon_name or "",
                     }
                 )
-            except Exception:
+            except (AttributeError, KeyError, ValueError) as e:
+                logger.warning(f"Ошибка резолвинга иконки для ссылки: {e}")
                 resolved_icon_path = ""
             if resolved_icon_path and Path(resolved_icon_path).exists():
                 set_icon_to_button(

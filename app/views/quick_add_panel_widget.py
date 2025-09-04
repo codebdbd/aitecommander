@@ -1,9 +1,9 @@
 """Quick add panel widget for top bar."""
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Optional
 
-from PyQt6.QtCore import QSize, pyqtSignal
+from PyQt6.QtCore import QSize
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
 
 from app.config_data import app_config

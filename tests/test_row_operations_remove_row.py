@@ -1,6 +1,3 @@
-import types
-import pytest
-
 from app.views.link.row_operations import RowOperationsMixin
 
 

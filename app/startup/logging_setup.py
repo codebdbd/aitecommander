@@ -4,7 +4,6 @@ import logging
 import os
 import platform
 import sys
-from typing import Optional
 
 from app.utils.logging.application_logger import ApplicationLogger
 from app.utils.logging.exception_handler import ExceptionHandler

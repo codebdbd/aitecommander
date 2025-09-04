@@ -50,8 +50,18 @@ class PopulationManagerMixin:
 
             # Инкрементальное обновление
             try:
-                self.blockSignals(True)
-                self.horizontalHeader().blockSignals(True)
+                # Безопасно блокируем сигналы, если методы доступны (в тестовом окружении может их не быть)
+                try:
+                    if hasattr(self, "blockSignals"):
+                        self.blockSignals(True)
+                except Exception:
+                    pass
+                try:
+                    header = self.horizontalHeader()
+                    if header is not None and hasattr(header, "blockSignals"):
+                        header.blockSignals(True)
+                except Exception:
+                    pass
                 # Гарантируем корректность кэша перед диффом
                 cache_ok = self.validate_cache_integrity()
                 if not cache_ok:
@@ -156,8 +166,18 @@ class PopulationManagerMixin:
                 # В случае ошибки делаем полное обновление
                 self._full_populate(links, mode)
             finally:
-                self.horizontalHeader().blockSignals(False)
-                self.blockSignals(False)
+                # Всегда аккуратно разблокируем сигналы, если методы доступны
+                try:
+                    header = self.horizontalHeader()
+                    if header is not None and hasattr(header, "blockSignals"):
+                        header.blockSignals(False)
+                except Exception:
+                    pass
+                try:
+                    if hasattr(self, "blockSignals"):
+                        self.blockSignals(False)
+                except Exception:
+                    pass
                 self._restore_ui_state(
                     current_selection, current_scroll_pos, sort_col, sort_order
                 )

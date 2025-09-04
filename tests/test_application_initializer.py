@@ -1,6 +1,5 @@
 """Тесты для ApplicationInitializer (app/main.py)."""
 
-import sqlite3
 import unittest
 from unittest.mock import Mock, patch
 
