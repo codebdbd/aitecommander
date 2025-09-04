@@ -83,9 +83,22 @@ def resolve_link_type_icon(link_type: Optional[str]) -> str:
         lt = ((link_type or "file").strip() or "file").lower()
         icon_name = defaults.get(lt, defaults.get("default", ""))
         path = resolve_icon_path(icon_name)
-        return path or str(get_default_icon_path())
+        if path and os.path.exists(path) and is_valid_icon_file(path):
+            return path
+        # fallback to configured default path if valid
+        try:
+            default_path = str(get_default_icon_path())
+        except Exception:
+            default_path = ""
+        if default_path and os.path.exists(default_path) and is_valid_icon_file(default_path):
+            return default_path
+        return ""
     except Exception:
-        return str(get_default_icon_path())
+        try:
+            default_path = str(get_default_icon_path())
+        except Exception:
+            default_path = ""
+        return default_path if (default_path and os.path.exists(default_path) and is_valid_icon_file(default_path)) else ""
 
 
 def resolve_icon_for_link(link_data: dict | None) -> str:
@@ -117,11 +130,25 @@ def resolve_icon_for_link(link_data: dict | None) -> str:
                 and os.path.normcase(path) == os.path.normcase(default_path)
             ):
                 type_path = resolve_link_type_icon(link_type)
-                return type_path or path
-            return path or str(get_default_icon_path())
+                if type_path and os.path.exists(type_path) and is_valid_icon_file(type_path):
+                    return type_path
+            # prefer explicit path if valid
+            if path and os.path.exists(path) and is_valid_icon_file(path):
+                return path
+            # fallback to default if valid
+            if default_path and os.path.exists(default_path) and is_valid_icon_file(default_path):
+                return default_path
+            return ""
 
         # No explicit icon -> by type
-        return resolve_link_type_icon(link_type)
+        path_by_type = resolve_link_type_icon(link_type)
+        if path_by_type and os.path.exists(path_by_type) and is_valid_icon_file(path_by_type):
+            return path_by_type
+        try:
+            default_path = str(get_default_icon_path())
+        except Exception:
+            default_path = ""
+        return default_path if (default_path and os.path.exists(default_path) and is_valid_icon_file(default_path)) else ""
     except Exception:
         return str(get_default_icon_path())
 
