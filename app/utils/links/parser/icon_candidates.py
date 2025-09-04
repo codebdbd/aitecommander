@@ -51,7 +51,7 @@ class IconCandidate:
     format_rank: int
     base_priority: int
     media_priority: int
-    type: str
+    kind: str
 
 # Markers that make og:image likely unsuitable for favicon usage
 OG_IMAGE_BANNED_MARKERS = [
@@ -234,7 +234,7 @@ def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[IconCa
                 format_rank=FORMAT_RANK.get(fmt, FORMAT_RANK["unknown"]),
                 base_priority=base_priority,
                 media_priority=media_priority,
-                type=rel_label,
+                kind=rel_label,
             )
         )
 
@@ -270,7 +270,7 @@ def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[IconCa
                 manifest_urls.append(urljoin(base_url, m_href))
 
         has_primary = any(
-            c.type in {"link-icon", "mask-icon", "apple-touch-icon"} for c in candidates
+            c.kind in {"link-icon", "mask-icon", "apple-touch-icon"} for c in candidates
         )
         return candidates, manifest_urls, has_primary
     except (AttributeError, TypeError, ValueError):
@@ -391,7 +391,7 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
                                         format_rank=FORMAT_RANK.get(fmt, FORMAT_RANK["unknown"]),
                                         base_priority=1,
                                         media_priority=0,
-                                        type="manifest",
+                                        kind="manifest",
                                     )
                                 )
                         else:
@@ -403,7 +403,7 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
                                     format_rank=FORMAT_RANK.get(fmt, FORMAT_RANK["unknown"]),
                                     base_priority=1,
                                     media_priority=0,
-                                    type="manifest",
+                                    kind="manifest",
                                 )
                             )
                 except json.JSONDecodeError:
@@ -445,7 +445,7 @@ def _add_fallback_paths(base_url: str, candidates: list[IconCandidate]):
                     format_rank=FORMAT_RANK.get(fmt, FORMAT_RANK["unknown"]),
                     base_priority=1,
                     media_priority=0,
-                    type="fallback",
+                    kind="fallback",
                 )
             )
 
@@ -471,7 +471,7 @@ def _add_external_services(base_url: str, use_external: bool, candidates: list[I
             format_rank=FORMAT_RANK["png"],
             base_priority=10,
             media_priority=0,
-            type="google_fallback",
+            kind="google_fallback",
         )
     )
     ddg_url = f"https://icons.duckduckgo.com/ip3/{host}.ico"
@@ -483,7 +483,7 @@ def _add_external_services(base_url: str, use_external: bool, candidates: list[I
             format_rank=FORMAT_RANK["ico"],
             base_priority=10,
             media_priority=0,
-            type="ddg_fallback",
+            kind="ddg_fallback",
         )
     )
 
@@ -574,12 +574,12 @@ def find_favicon_candidates(
     logger.debug(f"Found {len(candidates)} icon candidates (before og:image):")
     for cand in candidates[:5]:
         logger.debug(
-            f"  {cand.type} {cand.size}px {cand.format} p{cand.base_priority}/f{cand.format_rank}: {cand.url}"
+            f"  {cand.kind} {cand.size}px {cand.format} p{cand.base_priority}/f{cand.format_rank}: {cand.url}"
         )
     if candidates:
         best = candidates[0]
         logger.info(
-            f"Best candidate: {best.type} {best.size}px {best.format} from {best.url}"
+            f"Best candidate: {best.kind} {best.size}px {best.format} from {best.url}"
         )
 
     og_urls = _append_og_image(soup, base_url, candidates)
