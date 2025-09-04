@@ -195,6 +195,29 @@ class BrowserProfileManager:
         self.cache.clear()
         logger.info("Кеш профилей очищен")
 
+    def update_profiles_bulk(self, data: Dict[str, List[dict]]) -> None:
+        """Пакетно обновляет кэш профилей для нескольких браузеров.
+
+        Аргумент `data` — словарь вида {browser_key: [profiles...]}
+        Данные сразу попадают в персистентный кэш через публичный API `PersistentProfileCache.set`.
+        """
+        if not isinstance(data, dict):
+            return
+        try:
+            # Используем контекст для гарантированного сброса на диск
+            with self.cache:
+                for key, profiles in data.items():
+                    if not isinstance(key, str):
+                        continue
+                    try:
+                        self.cache.set(key, profiles)
+                    except Exception:
+                        # Не срываем общий апдейт из-за одной неудачной записи
+                        continue
+        except Exception:
+            # Безопасный фолбэк: ничего не делаем
+            pass
+
 
 # Модульный синглтон для переиспользования одного экземпляра менеджера
 _PROFILE_MANAGER: Optional[BrowserProfileManager] = None

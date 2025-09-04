@@ -3,8 +3,8 @@ import logging
 import os
 import sys
 
-from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtCore import QTimer, Qt
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from app.controllers.system.bootstrap import create_main_window
 from app.controllers.ui.theme_controller import ThemeController
@@ -32,6 +32,23 @@ class ApplicationInitializer:
                 self.database.close()
         except Exception as e:
             logging.error(f"Ошибка при закрытии соединения с базой данных: {e}")
+        # Корректно дожидаемся завершения фоновых задач БД (run_db)
+        try:
+            from app.utils.db.executors.pool import get_thread_pool
+
+            pool = get_thread_pool()
+            try:
+                # Пытаемся дождаться завершения с таймаутом (если поддерживается)
+                if hasattr(pool, "waitForDone"):
+                    try:
+                        pool.waitForDone(5000)  # 5 секунд на мягкое завершение
+                    except TypeError:
+                        # В некоторых версиях сигнатура без аргументов
+                        pool.waitForDone()
+            except Exception as e:
+                logging.debug("Исключение при ожидании завершения пула потоков: %s", e)
+        except Exception as e:
+            logging.debug("Не удалось получить пул потоков для задач БД: %s", e)
 
     def initialize_settings(self) -> bool:
         """Инициализирует настройки приложения."""
@@ -55,25 +72,9 @@ class ApplicationInitializer:
     def initialize_theme_controller(self) -> bool:
         """Инициализирует контроллер темы."""
         try:
-            # На момент инициализации ThemeController TopPanelsController ещё не создан.
-            # Передаём явный временный стаб с минимально необходимым API; реальный контроллер
-            # будет внедрён позже в window_controllers_setup.setup_controllers().
-            class _TopPanelsStub:
-                def request_refresh(self):
-                    pass
-
-                def request_favorites_refresh(self, *_args, **_kwargs):
-                    pass
-
-                def request_recents_refresh(self, *_args, **_kwargs):
-                    pass
-
-                def refresh_all(self):
-                    pass
-
             self.theme_controller = ThemeController(
                 self.settings,
-                top_panels_controller=_TopPanelsStub(),
+                top_panels_controller=None,
             )
             return True
         except Exception as e:
@@ -108,12 +109,13 @@ class ApplicationInitializer:
 
     def initialize_all(self) -> bool:
         """Выполняет полную инициализацию всех компонентов."""
+        # Применяем тему до создания главного окна, чтобы избежать "белой вспышки"
         initialization_steps = [
             ("настроек", self.initialize_settings),
             ("базы данных", self.initialize_database),
             ("контроллера темы", self.initialize_theme_controller),
-            ("главного окна", self.initialize_main_window),
             ("темы оформления", self.apply_initial_theme),
+            ("главного окна", self.initialize_main_window),
         ]
         for step_name, step_func in initialization_steps:
             if not step_func():
@@ -124,6 +126,13 @@ class ApplicationInitializer:
 
 def _log_system_info():
     """Логирует системную информацию для отладки."""
+    # Сокращаем объём логирования при обычном запуске — только в режиме DEBUG
+    try:
+        root_logger = logging.getLogger()
+        if not root_logger.isEnabledFor(logging.DEBUG):
+            return
+    except Exception:
+        pass
     import platform
 
     from PyQt6.QtCore import QT_VERSION_STR
@@ -212,7 +221,27 @@ def main():
             except Exception:
                 pass
 
-            def _on_db_init_finished(_res=None):
+            def _on_db_init_finished(res=None):
+                # Проверяем результат фоновой инициализации БД
+                if not res:
+                    try:
+                        # Сообщаем пользователю и завершаем приложение
+                        QMessageBox.critical(
+                            mw if 'mw' in globals() else None,
+                            "Ошибка инициализации БД",
+                            "Произошла ошибка при инициализации базы данных. Приложение будет закрыто.",
+                        )
+                    except Exception:
+                        pass
+                    try:
+                        app_inst = QApplication.instance()
+                        if app_inst is not None:
+                            app_inst.quit()
+                    except Exception:
+                        pass
+                    return
+
+                # При успехе — завершаем штатные действия
                 try:
                     # Создаём соединение в главном потоке по требованию
                     _ = db.connection
@@ -244,8 +273,8 @@ def main():
                     db.initialize_or_migrate()
                     return True
                 except Exception:
-                    # Исключение обработается в on_error через run_db
-                    raise
+                    # Не выбрасываем исключение, чтобы результат обработался в on_finished(res)
+                    return False
 
             run_db(_do_db_init, use_lock=False, description="db_init", on_finished=_on_db_init_finished, on_error=_on_db_init_error)
         except Exception as e:
@@ -273,16 +302,25 @@ def main():
                                         cache.set(key, profiles)
                                     except Exception:
                                         pass
-                                # Обновить кеш синхронного менеджера
+                                # Обновить кеш через публичный API менеджера профилей
                                 mgr = _pm.get_profile_manager()
-                                now = __import__("time").time()
-                                for key, profiles in (all_profiles or {}).items():
-                                    mgr._cache[key] = profiles
-                                    mgr._last_update[key] = now
+                                try:
+                                    mgr.update_profiles_bulk(all_profiles or {})
+                                except Exception:
+                                    pass
                             except Exception as e:
                                 logging.warning("Ошибка сохранения/обновления кеша профилей: %s", e)
+                            finally:
+                                # Одноразовое подключение: после первого вызова отключаем слот
+                                try:
+                                    async_mgr.all_profiles_ready.disconnect(_save_and_update)
+                                except Exception:
+                                    pass
 
-                        async_mgr.all_profiles_ready.connect(_save_and_update)
+                        async_mgr.all_profiles_ready.connect(
+                            _save_and_update,
+                            type=Qt.ConnectionType.UniqueConnection,
+                        )
                         async_mgr.load_all_profiles_async(use_cache=False)
                 except Exception as e:
                     logging.debug("Ленивая загрузка профилей пропущена: %s", e)

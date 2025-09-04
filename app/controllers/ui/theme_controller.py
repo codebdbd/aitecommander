@@ -22,14 +22,12 @@ class ThemeController:
         stylesheet_applier: Optional[callable] = None,
         gui_scheduler: Optional[callable] = None,
         *,
-        top_panels_controller,
+        top_panels_controller: Optional[Any] = None,
     ):
         """Инициализация контроллера тем."""
         self.settings = settings
         self.main_window = main_window
-        # Обязательная зависимость TopPanelsController — требуем на этапе инициализации
-        if top_panels_controller is None:
-            raise ValueError("ThemeController requires explicit 'top_panels_controller' dependency")
+        # TopPanelsController может быть внедрён позже через set_top_panels_controller()
         self.top_panels_controller = top_panels_controller
         self._qss_cache: OrderedDict[str, str] = OrderedDict()
         self._common_qss: Optional[str] = None
@@ -49,9 +47,11 @@ class ThemeController:
         self._init_fixed_themes()
 
     def set_top_panels_controller(self, top_panels_controller) -> None:
-        """Внедряет обязательную зависимость TopPanelsController.
+        """Внедряет зависимость TopPanelsController.
 
-        Поднимает ValueError, если зависимость не передана или некорректна.
+        Может вызываться после инициализации ThemeController, когда
+        TopPanelsController становится доступен. Поднимает ValueError,
+        если зависимость не передана или некорректна.
         """
         if top_panels_controller is None:
             raise ValueError("TopPanelsController must be provided to ThemeController")
