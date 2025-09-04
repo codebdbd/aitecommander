@@ -1,7 +1,3 @@
-import types
-
-import pytest
-
 from app.controllers.ui.top_panels_controller import TopPanelsController
 
 

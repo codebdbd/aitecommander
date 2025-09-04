@@ -1,7 +1,6 @@
-import logging
 import pytest
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from app.controllers.system.window_controllers_setup import (
     SetupError,

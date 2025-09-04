@@ -1,7 +1,4 @@
 import time
-import threading
-
-import pytest
 
 from app.utils.links.parser.icon_candidates import parse_icon_size
 from app.utils.links.parser import icon_downloader as icon_dl

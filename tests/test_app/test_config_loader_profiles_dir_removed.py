@@ -1,4 +1,3 @@
-import inspect
 import pytest
 
 from app.config_data.config_loader import AppConfig

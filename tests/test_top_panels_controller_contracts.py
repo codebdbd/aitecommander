@@ -1,4 +1,3 @@
-import logging
 from types import SimpleNamespace
 
 import pytest

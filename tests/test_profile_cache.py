@@ -1,5 +1,3 @@
-import time
-
 import app.utils.browser.browser_profiles.persistent_cache as pc_mod
 from app.utils.browser.browser_profiles import PersistentProfileCache
 

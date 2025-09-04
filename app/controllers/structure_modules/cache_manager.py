@@ -3,7 +3,7 @@
 """Модуль для управления кэшем структуры."""
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from app.utils.cache.base import InMemoryCache
 

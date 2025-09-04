@@ -1,6 +1,4 @@
-import types
 import pytest
-
 from types import SimpleNamespace
 
 from app.controllers.system.window_controllers_setup import setup_controllers, SetupError

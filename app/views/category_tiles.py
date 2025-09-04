@@ -26,7 +26,6 @@ from PyQt6.QtGui import (
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
-    QLabel,
     QListView,
     QStyledItemDelegate,
     QToolTip,

@@ -7,7 +7,7 @@ from .base import ItemTypes, ItemTypeStr, StructureItemType, ValidationError
 from .cache_manager import CacheManager
 from .category_operations import CategoryOperations
 from .exceptions import handle_exceptions
-from .normalization import normalize_row, normalize_rows
+from .normalization import normalize_rows
 
 # LinkOperations удален - используйте LinksBusinessLogic
 from .positioning_operations import PositioningOperations
