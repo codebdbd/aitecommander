@@ -223,6 +223,14 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
         if not hasattr(structure_business, "set_top_panels_controller"):
             raise SetupError("StructureBusinessLogic must implement set_top_panels_controller")
         structure_business.set_top_panels_controller(window.top_panels_controller)
+        # Также внедряем TopPanelsController в ThemeController, если доступен
+        try:
+            theme_ctrl = getattr(window, "theme_ctrl", None)
+            if theme_ctrl and hasattr(theme_ctrl, "set_top_panels_controller"):
+                theme_ctrl.set_top_panels_controller(window.top_panels_controller)
+        except Exception as e:
+            # Не считаем критичным для продолжения работы UI, но логируем для диагностики
+            logger.warning(f"Failed to inject TopPanelsController into ThemeController: {e}")
     except (AttributeError, TypeError) as e:
         logger.error(f"Failed to create TopPanelsController: {e}")
         raise SetupError("Failed to create TopPanelsController") from e

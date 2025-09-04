@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 from contextlib import suppress
 from typing import Any
 
+from PyQt6.QtCore import QTimer
 from app.controllers.system.window_controllers_setup import WindowControllersSetup
 from app.interfaces import MainWindowLike, SettingsLike
 from app.utils.ui.updates import suspend_updates
@@ -45,29 +46,41 @@ class WindowInitializer:
 
     def initialize_window(self) -> None:
         """Выполняет полную инициализацию главного окна пошагово."""
-        # Список шагов инициализации, выполняемых с отключёнными обновлениями
-        init_steps = (
+        # Лёгкие шаги инициализации выполняем синхронно с отключёнными обновлениями,
+        # чтобы окно появлялось быстрее и уже со стандартной структурой
+        light_steps = (
             self._init_window_properties,
             self._init_basic_attributes,
             self._init_menu,
             self._init_central_widget,
             self._capture_main_layout,
-            self._init_top_panel,
-            self._init_main_content,
-            self._init_bottom_panel,
-            self._init_status_bar,
-            self._init_controllers,
-            self._init_shortcuts,
-            self._apply_user_font_size,
         )
 
-        # На время инициализации отключаем обновления через контекстный менеджер
         with suspend_updates(self.window):
-            for step in init_steps:
+            for step in light_steps:
                 step()
 
-        # Инициализация сфер выполняется асинхронно (вне suspend_updates)
-        self._initialize_spheres()
+        # Тяжёлые шаги переносим на следующий цикл событий, чтобы не блокировать показ окна
+        def _deferred_init():
+            try:
+                with suspend_updates(self.window):
+                    self._init_top_panel()
+                    self._init_main_content()
+                    self._init_bottom_panel()
+                    self._init_status_bar()
+                    self._init_controllers()
+                    self._init_shortcuts()
+                    self._apply_user_font_size()
+            except Exception:
+                logger.exception("WindowInitializer: ошибка в отложенной инициализации")
+            finally:
+                # Сферы инициализируем уже вне suspend_updates
+                try:
+                    self._initialize_spheres()
+                except Exception:
+                    logger.exception("WindowInitializer: ошибка инициализации сфер")
+
+        QTimer.singleShot(0, _deferred_init)
 
     # === Приватные шаги инициализации ===
     def _init_window_properties(self) -> None:
