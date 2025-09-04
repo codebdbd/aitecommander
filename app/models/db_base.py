@@ -111,7 +111,8 @@ class DatabaseBase:
             return (max_pos + 1) if max_pos is not None else 0
         except Exception as e:
             logger.error(f"Ошибка получения позиции для таблицы {table_name}: {e}")
-            return 0
+            # Пробрасываем как DatabaseError, чтобы не скрывать проблемы с БД и порядком элементов
+            raise DatabaseError(f"Не удалось вычислить позицию для {table_name}: {e}")
 
     def _execute_with_error_handling(
         self, query: str, params: tuple = (), fetch_method: str = None
