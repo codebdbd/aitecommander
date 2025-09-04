@@ -1,6 +1,7 @@
 # app/controllers/keyboard/keyboard_manager.py
 
 import time
+import logging
 from typing import Any, Optional, TypeVar
 
 from PyQt6.QtCore import QItemSelection, QItemSelectionModel, QObject, Qt, QTimer
@@ -8,6 +9,8 @@ from PyQt6.QtGui import QKeyEvent, QKeySequence, QShortcut
 from PyQt6.QtWidgets import QApplication, QWidget
 
 from app.utils.ui.qt.roles import get_tree_tuple
+
+logger = logging.getLogger(__name__)
 
 # =====================
 # Встроенные обработчики
@@ -73,8 +76,8 @@ class BaseKeyHandler:
             if method and callable(method):
                 result = method(*args, **kwargs)
                 return result if result is not None else default
-        except (AttributeError, TypeError):
-            pass
+        except (AttributeError, TypeError) as e:
+            logger.debug(f"_safe_call failed for {obj!r}.{method_name}(*args, **kwargs): {e}")
         return default
 
 
@@ -95,8 +98,8 @@ class ClipboardKeyHandler(BaseKeyHandler):
                 tree = self._safe_getattr(structure, "tree") if structure else None
                 if tree and hasattr(tree, "clearSelection"):
                     tree.clearSelection()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("ClipboardKeyHandler.handle_select_all: failed to clear tree selection", exc_info=e)
             self._safe_call(table, "selectAll")
 
     def _handle_tree_select_all(self) -> None:
@@ -112,8 +115,8 @@ class ClipboardKeyHandler(BaseKeyHandler):
             table = self._safe_getattr(self.main_window, "table")
             if table and hasattr(table, "clearSelection"):
                 self._safe_call(table, "clearSelection")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("ClipboardKeyHandler._handle_tree_select_all: failed to clear table selection", exc_info=e)
         # QTreeView: используем модель и selectionModel
         try:
             if hasattr(tree, "currentIndex") and callable(getattr(tree, "currentIndex")):
@@ -148,10 +151,10 @@ class ClipboardKeyHandler(BaseKeyHandler):
                             | QItemSelectionModel.SelectionFlag.Rows,
                         )
                         return
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                except Exception as e:
+                    logger.debug("ClipboardKeyHandler._handle_tree_select_all: selection application failed", exc_info=e)
+        except Exception as e:
+            logger.debug("ClipboardKeyHandler._handle_tree_select_all: unexpected error", exc_info=e)
 
 
     def handle_copy(self) -> None:
@@ -220,12 +223,14 @@ class EditingKeyHandler(BaseKeyHandler):
         try:
             idx = table.currentIndex() if hasattr(table, "currentIndex") else None
             current_row = idx.row() if idx and idx.isValid() else -1
-        except Exception:
+        except Exception as e:
+            logger.debug("EditingKeyHandler._handle_table_enter: failed to read current index", exc_info=e)
             current_row = -1
         try:
             model = table.model() if hasattr(table, "model") else None
             row_count = model.rowCount() if model else 0
-        except Exception:
+        except Exception as e:
+            logger.debug("EditingKeyHandler._handle_table_enter: failed to read row count", exc_info=e)
             row_count = 0
 
         if 0 <= current_row < row_count:
@@ -425,9 +430,9 @@ class KeyboardManager(QObject):
             # Область действия: на виджете и его детях (таблица внутри окна)
             try:
                 shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-            except Exception:
+            except Exception as e:
                 # На случай несовместимости — оставим контекст по умолчанию
-                pass
+                logger.debug("KeyboardManager._setup_shortcuts: setContext not supported", exc_info=e)
             shortcut.activated.connect(handler)
             self.shortcuts.append(shortcut)
 

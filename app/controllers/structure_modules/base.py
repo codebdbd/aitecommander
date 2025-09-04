@@ -3,7 +3,6 @@
 """Базовые классы, енумы и константы для структуры."""
 
 import logging
-from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Callable, Dict, Optional, Protocol
 
@@ -140,32 +139,6 @@ class SignalType:
     ITEM_DELETED = "item_deleted"
 
 
-class ValidationStrategy(ABC):
-    """Сохранено для обратной совместимости импортов (больше не используется)."""
-
-    @abstractmethod
-    def validate(
-        self,
-        data: Dict[str, Any],
-        item_type: StructureItemType,
-        require_parent: bool = True,
-    ) -> None:
-        raise NotImplementedError
-
-
-class StructureOperationStrategy(ABC):
-    """Сохранено для обратной совместимости импортов (больше не используется)."""
-
-    @abstractmethod
-    def execute_upsert(
-        self,
-        model: StructureModelProtocol,
-        data: Dict[str, Any],
-        config: ItemTypeConfig,
-    ) -> int:
-        raise NotImplementedError
-
-
 class StructureLogger:
     """Обертка для логирования операций структуры."""
 
@@ -212,7 +185,6 @@ class BaseOperations:
     """Базовый класс для модулей операций структуры.
 
     Рефакторинг с улучшенной архитектурой:
-    - Использование стратегий для валидации и операций
     - Разделение ответственностей
     - Улучшенная обработка ошибок
     - Поддержка всех типов элементов через реестр
@@ -243,7 +215,7 @@ class BaseOperations:
         item_type: StructureItemType,
         require_parent: bool = True,
     ) -> None:
-        """Базовая валидация данных (ранее выполнялась стратегией по умолчанию)."""
+        """Базовая валидация данных."""
         if not isinstance(data, dict):
             raise ValidationError("Данные должны быть словарем", item_type=item_type.value)
 
@@ -338,7 +310,6 @@ class BaseOperations:
             data_copy["id"] = item_id
 
         # Выполнение upsert операции
-        # Выполнение upsert операции (ранее выполнялось стратегией операций)
         upsert_method = getattr(self.structure_model, config.upsert_method_name, None)
         if not upsert_method:
             raise StructureOperationError(

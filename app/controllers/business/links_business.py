@@ -118,17 +118,15 @@ class LinksBusinessLogic(QObject):
 
     def count_favorites(self, link: Optional[Dict] = None):
         """Подсчитать количество избранных ссылок."""
-        # Получаем список всех ссылок для CountFavoritesWorker
-        all_links = self._get_all_links_safe()
-
         def _count():
             return self.db.links.count_favorites()
 
         run_db(
             _count,
             description="count_favorites()",
+            # Передаём пустой список вместо полной выборки ссылок, чтобы не грузить БД/память
             on_finished=lambda fav_count: self._on_favorites_counted(
-                int(fav_count), all_links, link
+                int(fav_count), [], link
             ),
             on_error=lambda e: self._on_worker_error(str(e)),
         )
@@ -228,8 +226,7 @@ class LinksBusinessLogic(QObject):
                 f"Favorite status updated successfully, result ID: {result}"
             )
 
-            # Отправляем сигнал об обновлении ссылки
-            self.link_updated.emit(link_data)
+            # Сигнал link_updated уже эмитится внутри save_link; не дублируем
 
             # Обновляем счетчик избранного
             self.count_favorites(link_data)

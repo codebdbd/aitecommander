@@ -17,6 +17,20 @@ from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.models.db import Database
 from app.services import StructureService
 from app.utils.db.api import run_db
+try:
+    # Корректная точка доступа к метрикам старта
+    from app.utils.metrics.startup_metrics import get_metrics  # type: ignore
+
+    metrics = get_metrics()
+except Exception:  # надёжный фолбэк: метрики отключены, логика не ломается
+    class _NoOpMetrics:
+        def start(self, _name: str) -> None:
+            pass
+
+        def stop(self, _name: str) -> None:
+            pass
+
+    metrics = _NoOpMetrics()
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +92,8 @@ class AsyncOperations:
         self._pending_tasks = {}
         # Прямая зависимость от TopPanelsController для обновления верхних панелей
         self.top_panels = top_panels_controller
+        # Активные спаны метрик асинхронных операций (для защиты от дублей)
+        self._active_metric_spans = set()
 
     def get_worker_signals(self) -> StructureSignals:
         """Возвращает объект сигналов воркеров для подключения."""
@@ -126,40 +142,79 @@ class AsyncOperations:
 
         Безопасно игнорирует уже отсоединённые связи.
         """
+        def _disc(signal, handler, name: str) -> None:
+            try:
+                signal.disconnect(handler)
+            except TypeError as e:
+                # Обычно означает, что слот не был подключен
+                self.logger.debug(
+                    f"disconnect_signal_handlers: handler не подключен к сигналу '{name}'",
+                    exc_info=e,
+                )
+            except RuntimeError as e:
+                # QObject удалён или недействителен
+                self.logger.debug(
+                    f"disconnect_signal_handlers: недействительный объект для сигнала '{name}'",
+                    exc_info=e,
+                )
+            except Exception as e:
+                # Нежданные ошибки — предупредим, но продолжим отписку остальных
+                self.logger.warning(
+                    f"disconnect_signal_handlers: сбой отписки от сигнала '{name}': {e}",
+                    exc_info=True,
+                )
+
+        _disc(self._worker_signals.spheres_loaded, handlers.on_spheres_loaded, "spheres_loaded")
+        _disc(self._worker_signals.structure_loaded, handlers.on_structure_loaded, "structure_loaded")
+        _disc(self._worker_signals.sections_loaded, handlers.on_sections_loaded, "sections_loaded")
+        _disc(self._worker_signals.categories_loaded, handlers.on_categories_loaded, "categories_loaded")
+        _disc(self._worker_signals.search_results, handlers.on_search_results, "search_results")
+        _disc(self._worker_signals.links_loaded, handlers.on_links_loaded, "links_loaded")
+        _disc(self._worker_signals.link_info_finished, handlers.on_link_info_finished, "link_info_finished")
+        _disc(self._worker_signals.count_finished, handlers.on_count_finished, "count_finished")
+        _disc(self._worker_signals.item_created, handlers.on_item_created, "item_created")
+        _disc(self._worker_signals.item_updated, handlers.on_item_updated, "item_updated")
+        _disc(self._worker_signals.item_deleted, handlers.on_item_deleted, "item_deleted")
+        _disc(self._worker_signals.operation_started, handlers.on_operation_started, "operation_started")
+        _disc(self._worker_signals.operation_finished, handlers.on_operation_finished, "operation_finished")
+        _disc(self._worker_signals.loading_started, handlers.on_loading_started, "loading_started")
+        _disc(self._worker_signals.update_ui, handlers.on_update_ui, "update_ui")
+        _disc(self._worker_signals.error, handlers.on_error, "error")
+        _disc(self._worker_signals.simple_error, handlers.on_simple_error, "simple_error")
+
+    # ===== Метрики асинхронных операций =====
+    def _start_async_metric(self, name: str, stop_signal: pyqtSignal) -> None:
+        """Стартует метрику name и останавливает по первому срабатыванию stop_signal.
+
+        Защищает от повторного старта: пока спан активен, повторные вызовы игнорируются.
+        """
         try:
-            self._worker_signals.spheres_loaded.disconnect(handlers.on_spheres_loaded)
-            self._worker_signals.structure_loaded.disconnect(
-                handlers.on_structure_loaded
-            )
-            self._worker_signals.sections_loaded.disconnect(handlers.on_sections_loaded)
-            self._worker_signals.categories_loaded.disconnect(
-                handlers.on_categories_loaded
-            )
-            self._worker_signals.search_results.disconnect(handlers.on_search_results)
-            self._worker_signals.links_loaded.disconnect(handlers.on_links_loaded)
-            self._worker_signals.link_info_finished.disconnect(
-                handlers.on_link_info_finished
-            )
-            self._worker_signals.count_finished.disconnect(handlers.on_count_finished)
-            self._worker_signals.item_created.disconnect(handlers.on_item_created)
-            self._worker_signals.item_updated.disconnect(handlers.on_item_updated)
-            self._worker_signals.item_deleted.disconnect(handlers.on_item_deleted)
-            self._worker_signals.operation_started.disconnect(
-                handlers.on_operation_started
-            )
-            self._worker_signals.operation_finished.disconnect(
-                handlers.on_operation_finished
-            )
-            self._worker_signals.loading_started.disconnect(handlers.on_loading_started)
-            self._worker_signals.update_ui.disconnect(handlers.on_update_ui)
-            self._worker_signals.error.disconnect(handlers.on_error)
-            self._worker_signals.simple_error.disconnect(handlers.on_simple_error)
+            if name in self._active_metric_spans:
+                return
+            metrics.start(name)
+            self._active_metric_spans.add(name)
+
+            def _on_stop(*_args):
+                try:
+                    metrics.stop(name)
+                except Exception:
+                    # Логируем только в debug, чтобы не засорять логи пользователя
+                    self.logger.debug(f"Metrics: failed to stop span {name}")
+                try:
+                    stop_signal.disconnect(_on_stop)
+                except Exception:
+                    pass
+                self._active_metric_spans.discard(name)
+
+            stop_signal.connect(_on_stop)
         except Exception:
-            # Тихое игнорирование частичных отписок
-            pass
+            # Никогда не ломаем бизнес-логику из-за метрик
+            self.logger.debug(f"Metrics: failed to start span {name}")
 
     def load_spheres_async(self) -> None:
         """Асинхронная загрузка всех сфер через run_db."""
+        # Метрика асинхронной загрузки сфер: старт здесь, стоп по сигналу spheres_loaded
+        self._start_async_metric("async:spheres_load", self._worker_signals.spheres_loaded)
         self._worker_signals.operation_started.emit("Загрузка сфер...")
 
         def _fetch():
@@ -184,6 +239,8 @@ class AsyncOperations:
             return
 
         desc = f"Загрузка структуры для сферы {current_sphere_id}..."
+        # Метрика асинхронной загрузки структуры: старт здесь, стоп по сигналу structure_loaded
+        self._start_async_metric("async:structure_load", self._worker_signals.structure_loaded)
         self._worker_signals.operation_started.emit(desc)
 
         def _fetch():

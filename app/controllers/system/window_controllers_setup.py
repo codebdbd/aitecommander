@@ -473,7 +473,9 @@ def _connect_top_panels_signals_explicit(
     if auto_hide_tree_filter is not None:
         if not hasattr(auto_hide_tree_filter, "_apply") or not callable(auto_hide_tree_filter._apply):
             raise SetupError("_auto_hide_tree_filter must provide callable _apply()")
-        QTimer.singleShot(0, auto_hide_tree_filter._apply)
+        # Первоначальное применение авто-скрытия теперь планируется в window_ui_setup.py
+        # после показа окна (через сигнал shown или QTimer.singleShot). Здесь не дублируем,
+        # чтобы исключить ранний вызов до отображения и гонки таймингов.
     if topbar_manager is not None:
         if not hasattr(topbar_manager, "adjust") or not callable(topbar_manager.adjust):
             raise SetupError("_topbar_manager must provide callable adjust()")
