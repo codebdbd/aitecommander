@@ -101,17 +101,12 @@ class LinkDialog(BaseDialog):
 
         # Инициализация воркеров и таймеров
         self._init_workers_and_timers()
-
-    def _make_icon(self, icon_path_str: str) -> Optional[QIcon]:
-        """Создаёт QIcon из пути (абсолютного или относительного к папкам иконок)."""
-        return make_icon(icon_path_str)
-
+        
     def _init_workers_and_timers(self) -> None:
         """Инициализирует воркеры и таймеры для обработки ссылок."""
         self._processing_timer = QTimer(self)
         self._processing_timer.setSingleShot(True)
         self._processing_timer.timeout.connect(self.handlers._trigger_link_processing)
-        self._link_info_worker = None
 
     def _validate_configuration(self) -> bool:
         """Проверяет конфигурацию диалога."""
@@ -265,7 +260,7 @@ class LinkDialog(BaseDialog):
                 ]
                 section_cb.clear()
                 for sec in sections:
-                    icon = self._make_icon(sec.get("icon_path", ""))
+                    icon = make_icon(sec.get("icon_path", ""))
                     if icon:
                         section_cb.addItem(icon, sec["name"], sec["id"])
                     else:
@@ -281,7 +276,7 @@ class LinkDialog(BaseDialog):
                     ]
                     category_cb.clear()
                     for cat in categories:
-                        icon = self._make_icon(cat.get("icon_path", ""))
+                        icon = make_icon(cat.get("icon_path", ""))
                         if icon:
                             category_cb.addItem(icon, cat["name"], cat["id"])
                         else:
