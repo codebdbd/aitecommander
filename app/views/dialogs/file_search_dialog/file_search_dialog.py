@@ -123,7 +123,6 @@ class FileSearchDialog(BaseDialog):
         layout = QVBoxLayout(self)
 
         # --- Панель основных фильтров ---
-        top_layout = QHBoxLayout()
 
         # Выбор папки
         folder_layout = QHBoxLayout()
@@ -275,8 +274,6 @@ class FileSearchDialog(BaseDialog):
         # Чекбоксы после даты
         self.hidden_cb = QCheckBox("Скрытые")
         self.readonly_cb = QCheckBox("Только для чтения")
-        self.content_regex_cb = QCheckBox("Regex")
-        self.case_cb = QCheckBox("Учёт регистра")
         filter_row1.addWidget(self.hidden_cb)
         filter_row1.addWidget(self.readonly_cb)
         filter_row1.addWidget(self.content_regex_cb)
@@ -332,7 +329,6 @@ class FileSearchDialog(BaseDialog):
         btns_layout.addWidget(close_btn)
 
         # Сборка основного layout
-        layout.addLayout(top_layout)
         layout.addLayout(filter_row1)
         layout.addWidget(self.progress_bar)
         layout.addWidget(self.table)
