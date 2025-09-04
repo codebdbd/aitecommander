@@ -1,8 +1,7 @@
 """
-LinkDialog - диалог добавления/редактирования ссылок.
-Основной класс с бизнес-логикой, использующий модульную структуру.
+LinkDialog - диалог добавления/редактирования ссылки.
 """
-
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -15,10 +14,13 @@ from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
 from app.utils.ui.icon.validation import validate_config_for_icons
 from app.views.effects.neon_effect import NeonEventFilter
+from .icon_utils import make_icon
 
 from ..base_dialog import BaseDialog
 from .link_dialog_handlers import LinkDialogHandlers
 from .link_dialog_ui import LinkDialogUI
+
+logger = logging.getLogger(__name__)
 
 # Обеспечиваем существование директории пользовательских иконок
 icon_path_service.ensure_user_icons_dir()
@@ -89,9 +91,9 @@ class LinkDialog(BaseDialog):
             )
             for btn in self.ui.get_widget("type_group").buttons():
                 btn.installEventFilter(self._neon_link_filter)
-        except Exception:
+        except (AttributeError, RuntimeError) as e:
             # Не блокируем диалог при ошибке эффекта
-            pass
+            logger.warning(f"Ошибка установки neon эффекта на кнопки типов: {e}")
 
         # Обработчики событий
         self.handlers = LinkDialogHandlers(self)
@@ -102,32 +104,14 @@ class LinkDialog(BaseDialog):
 
     def _make_icon(self, icon_path_str: str) -> Optional[QIcon]:
         """Создаёт QIcon из пути (абсолютного или относительного к папкам иконок)."""
-        try:
-            if not icon_path_str:
-                return None
-            p = Path(icon_path_str)
-            if p.exists():
-                return QIcon(str(p))
-            user_p = self.get_user_icons_dir() / icon_path_str
-            if user_p.exists():
-                return QIcon(str(user_p))
-            ui_p = self.get_ui_icons_dir() / icon_path_str
-            if ui_p.exists():
-                return QIcon(str(ui_p))
-        except Exception:
-            pass
-        return None
+        return make_icon(icon_path_str)
 
     def _init_workers_and_timers(self) -> None:
         """Инициализирует воркеры и таймеры для обработки ссылок."""
-        self._worker_task_id = 0  # Для защиты от race condition
         self._processing_timer = QTimer(self)
         self._processing_timer.setSingleShot(True)
         self._processing_timer.timeout.connect(self.handlers._trigger_link_processing)
         self._link_info_worker = None
-        self._is_processing = False
-        self._last_processed_path = ""
-        self._active_worker = None  # Для отслеживания активного воркера
 
     def _validate_configuration(self) -> bool:
         """Проверяет конфигурацию диалога."""
@@ -154,7 +138,10 @@ class LinkDialog(BaseDialog):
 
     def _load_initial(self) -> None:
         """Загружает начальные данные в форму."""
-        # ДИАГНОСТИЧЕСКОЕ ЛОГИРОВАНИЕ ДЛЯ ARGS
+        logger.debug(
+            f"Инициализация формы: link_type={self.link_type}, "
+            f"category_id={self.initial_category}, link_keys={list(self.link.keys())}"
+        )
 
         # Установка типа ссылки
         type_group = self.ui.get_widget("type_group")
@@ -172,11 +159,11 @@ class LinkDialog(BaseDialog):
             "fav_chk": bool(self.link.get("is_favorite", False)),
         }
 
-        # ДИАГНОСТИЧЕСКОЕ ЛОГИРОВАНИЕ ДЛЯ FORM_DATA
+        logger.debug(f"Исходные данные формы: {form_data}")
 
         self.ui.set_form_data(form_data)
 
-        # ДИАГНОСТИЧЕСКОЕ ЛОГИРОВАНИЕ ПОСЛЕ УСТАНОВКИ В UI
+        logger.debug("Начальные значения установлены в UI; продолжаем установку иконки")
 
         # Установка иконки
         self._set_initial_icon()
@@ -322,33 +309,29 @@ class LinkDialog(BaseDialog):
     def closeEvent(self, event) -> None:
         """Обработчик события закрытия окна."""
         # Если идёт обработка ссылки, попросим подтверждение у пользователя
-        if getattr(self, "_is_processing", False) or getattr(
-            self, "_active_worker", None
-        ):
-            path_info = getattr(self, "_last_processed_path", "") or self.link.get(
-                "url", ""
-            )
+        if self.handlers._is_processing or self.handlers._active_worker:
+            path_info = self.handlers._last_processed_path or self.link.get("url", "")
             proceed = self.ask_confirmation(
-                "Идёт обработка ссылки. Прервать и закрыть диалог?",
+                f"Идёт обработка ссылки '{path_info}'. Закрыть окно?",
                 "Подтверждение закрытия",
-                informative_text="Текущая операция будет отменена и изменения могут быть потеряны.",
-                details=(f"Последний путь/URL: {path_info}" if path_info else None),
             )
             if not proceed:
                 event.ignore()
                 return
+
+        # Остановка таймера
         self._processing_timer.stop()
         self._processing_timer.deleteLater()
         # Корректно отменяем воркер, отписываемся от сигналов и сбрасываем ссылки
-        if hasattr(self, "_active_worker") and self._active_worker:
+        if self.handlers._active_worker:
             try:
-                self._active_worker.signals.finished.disconnect()
-            except Exception:
-                pass
+                self.handlers._active_worker.signals.finished.disconnect()
+            except (AttributeError, RuntimeError) as e:
+                logger.debug(f"Ошибка отключения сигнала finished: {e}")
             try:
-                self._active_worker.signals.error.disconnect()
-            except Exception:
-                pass
-            self._active_worker.cancel()
-            self._active_worker = None
+                self.handlers._active_worker.signals.error.disconnect()
+            except (AttributeError, RuntimeError) as e:
+                logger.debug(f"Ошибка отключения сигнала error: {e}")
+            self.handlers._active_worker.cancel()
+            self.handlers._active_worker = None
         super().closeEvent(event)
