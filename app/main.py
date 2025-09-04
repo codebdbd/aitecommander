@@ -197,8 +197,7 @@ def main():
         _log_system_info()
         logging.info(f"PID процесса: {os.getpid()}")
         logging.info(f"Количество аргументов командной строки: {len(sys.argv)}")
-        settings = AppSettings()
-        initializer = ApplicationInitializer(settings)
+        initializer = ApplicationInitializer()
         from PyQt6.QtGui import QFont
 
         # Централизовано: фиксируем базовый размер шрифта приложения на 10 pt (DPI‑дружественно)
@@ -221,14 +220,28 @@ def main():
                     mw.message_label.setText("Инициализация базы данных…")
             except Exception:
                 pass
+            # Временно заблокировать взаимодействие с UI на время инициализации БД
+            try:
+                if mw:
+                    mw.setEnabled(False)
+            except Exception:
+                pass
 
             def _on_db_init_finished(res=None):
                 # Проверяем результат фоновой инициализации БД
                 if not res:
+                    # Разблокировать UI при ошибке
+                    try:
+                        if mw:
+                            mw.setEnabled(True)
+                    except Exception:
+                        pass
                     try:
                         # Сообщаем пользователю и завершаем приложение
+                        if mw is None:
+                            logging.critical("Главное окно отсутствует при показе ошибки инициализации БД; диалог будет показан без родителя")
                         QMessageBox.critical(
-                            mw if 'mw' in globals() else None,
+                            mw if mw is not None else None,
                             "Ошибка инициализации БД",
                             "Произошла ошибка при инициализации базы данных. Приложение будет закрыто.",
                         )
@@ -254,6 +267,9 @@ def main():
                         mw.update_statusbar()
                     if hasattr(mw, "message_label") and mw.message_label:
                         mw.message_label.setText("Готово")
+                    # Разблокировать UI после успешной инициализации
+                    if mw:
+                        mw.setEnabled(True)
                 except Exception:
                     pass
 
@@ -264,6 +280,9 @@ def main():
                         mw.message_label.setText("Ошибка инициализации БД")
                     if hasattr(mw, "update_statusbar"):
                         mw.update_statusbar()
+                    # Разблокировать UI при ошибке
+                    if mw:
+                        mw.setEnabled(True)
                 except Exception:
                     pass
 
@@ -277,7 +296,7 @@ def main():
                     # Не выбрасываем исключение, чтобы результат обработался в on_finished(res)
                     return False
 
-            run_db(_do_db_init, use_lock=False, description="db_init", on_finished=_on_db_init_finished, on_error=_on_db_init_error)
+            run_db(_do_db_init, use_lock=True, description="db_init", on_finished=_on_db_init_finished, on_error=_on_db_init_error)
         except Exception as e:
             logging.debug("Не удалось запустить фоновую инициализацию БД: %s", e)
         # После показа окна: однажды фоново загрузить профили браузеров, если кеша нет

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from PyQt6.QtWidgets import QMenuBar
 
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
-from app.utils.ui.menu_builders.menu_actions import ActionBuilder
+from app.utils.ui.menu_builders.menu_actions import ActionBuilder, Shortcuts
 
 if TYPE_CHECKING:
     from app.main_window import MainWindow
@@ -28,9 +28,12 @@ class MainMenuBuilder:
 
         menubar = QMenuBar(self.main_window)
 
+        # Первым пунктом — унифицированное меню действий
+        self._create_actions_menu(menubar)
+        # Вторым пунктом — меню данных
+        self._create_data_menu(menubar)
         self._create_file_menu(menubar)
         self._create_search_menu(menubar)
-        self._create_edit_menu(menubar)
         self._create_themes_menu(menubar)
         self._create_help_menu(menubar)
 
@@ -40,6 +43,83 @@ class MainMenuBuilder:
         """Получить иконку с учётом темы."""
         return icon_cache.get_icon(name, self.theme, source)
 
+    def _create_actions_menu(self, menubar: QMenuBar):
+        """Создаёт меню 'Действия' первым пунктом, унифицированное с контекстным меню."""
+        actions_menu = menubar.addMenu("&Действия")
+
+        # Добавить раздел
+        actions_menu.addAction(
+            self.actions.create(
+                "Добавить раздел",
+                getattr(self.main_window, "show_section_dialog", None),
+                Shortcuts.ADD_SECTION,
+                self._get_icon("add_section"),
+            )
+        )
+
+        # Добавить категорию
+        actions_menu.addAction(
+            self.actions.create(
+                "Добавить категорию",
+                getattr(self.main_window, "add_new_category", None),
+                Shortcuts.ADD_CATEGORY,
+                self._get_icon("add_category"),
+            )
+        )
+
+        # Добавить ссылку (для текущей категории)
+        def _add_link_current_category():
+            try:
+                cat_id = None
+                if hasattr(self.main_window, "get_current_category_id"):
+                    cat_id = self.main_window.get_current_category_id()
+                if hasattr(self.main_window, "show_link_dialog_for_category"):
+                    self.main_window.show_link_dialog_for_category(cat_id)
+            except Exception:
+                logger.exception("[MainMenu] Ошибка при добавлении ссылки из меню Действия")
+
+        actions_menu.addAction(
+            self.actions.create(
+                "Добавить ссылку",
+                _add_link_current_category,
+                Shortcuts.ADD_LINK,
+                self._get_icon("add_link"),
+            )
+        )
+
+        actions_menu.addSeparator()
+
+        # Отменить/Повторить — через публичный метод окна
+        undo_action, redo_action = self.main_window.create_undo_redo_actions()
+        if undo_action and redo_action:
+            undo_action.setIcon(self._get_icon("undo"))
+            redo_action.setIcon(self._get_icon("redo"))
+
+        if getattr(self.main_window, "undo_action", None) is not None:
+            actions_menu.addAction(self.main_window.undo_action)
+        if getattr(self.main_window, "redo_action", None) is not None:
+            actions_menu.addAction(self.main_window.redo_action)
+
+        actions_menu.addSeparator()
+
+        # Очистить избранное — перед выходом
+        actions_menu.addAction(
+            self.actions.create(
+                "Очистить избранное",
+                self._clear_favorites,
+                icon=self._get_icon("delete"),
+            )
+        )
+
+        # Выход
+        actions_menu.addAction(
+            self.actions.create(
+                "Выход",
+                getattr(self.main_window, "close", None),
+                icon=self._get_icon("exit"),
+            )
+        )
+
     def _create_file_menu(self, menubar: QMenuBar):
         """Создаёт меню 'Файл'."""
         file_menu = menubar.addMenu("&Файл")
@@ -47,23 +127,39 @@ class MainMenuBuilder:
         # Настройки
         file_menu.addAction(
             self.actions.create(
-                "Настройки...",
+                "Настройки",
                 self.main_window.show_settings_dialog,
                 icon=self._get_icon("settings"),
             )
         )
 
-        # Очистить избранное
-        file_menu.addAction(
+        # Пункты перенесены: Импорт/База/Иконки — см. меню "Данные". Выход — в "Действия".
+
+    def _create_data_menu(self, menubar: QMenuBar):
+        """Создаёт меню 'Данные'."""
+        data_menu = menubar.addMenu("&Данные")
+
+        # Сохранить/Восстановить/Подключить базу
+        data_menu.addAction(
             self.actions.create(
-                "Очистить избранное...",
-                self._clear_favorites,
-                icon=self._get_icon("delete"),
+                "Сохранить базу", self._save_database, icon=self._get_icon("export")
+            )
+        )
+        data_menu.addAction(
+            self.actions.create(
+                "Восстановить базу", self._restore_database, icon=self._get_icon("dbrestore")
+            )
+        )
+        data_menu.addAction(
+            self.actions.create(
+                "Подключить базу", self._connect_database, icon=self._get_icon("import")
             )
         )
 
+        data_menu.addSeparator()
+
         # Импорт из браузера
-        file_menu.addAction(
+        data_menu.addAction(
             self.actions.create(
                 "Импорт из браузера",
                 self.main_window.handle_import_browser_bookmarks,
@@ -71,52 +167,17 @@ class MainMenuBuilder:
             )
         )
 
-        file_menu.addSeparator()
-
-        # Операции с базой данных
-        file_menu.addAction(
-            self.actions.create(
-                "Восстановить базу...",
-                self._restore_database,
-                icon=self._get_icon("dbrestore"),
-            )
-        )
-
-        file_menu.addAction(
-            self.actions.create(
-                "Подключить базу...",
-                self._connect_database,
-                icon=self._get_icon("import"),
-            )
-        )
-
-        file_menu.addAction(
-            self.actions.create(
-                "Сохранить базу...", self._save_database, icon=self._get_icon("export")
-            )
-        )
-
-        file_menu.addSeparator()
+        data_menu.addSeparator()
 
         # Операции с иконками
-        file_menu.addAction(
+        data_menu.addAction(
             self.actions.create(
-                "Сохранить иконки...", self._save_icons, icon=self._get_icon("zip_ico")
+                "Экспорт иконок", self._save_icons, icon=self._get_icon("zip_ico")
             )
         )
-
-        file_menu.addAction(
+        data_menu.addAction(
             self.actions.create(
-                "Вставить иконки...", self._load_icons, icon=self._get_icon("add_ico")
-            )
-        )
-
-        file_menu.addSeparator()
-
-        # Выход
-        file_menu.addAction(
-            self.actions.create(
-                "Выход", self.main_window.close, icon=self._get_icon("exit")
+                "Импорт иконок", self._load_icons, icon=self._get_icon("add_ico")
             )
         )
 
@@ -125,28 +186,12 @@ class MainMenuBuilder:
         search_menu = menubar.addMenu("&Поиск")
         search_menu.addAction(
             self.actions.create(
-                "Поиск файлов...",
+                "Поиск файлов",
                 self.main_window.show_file_search_dialog,
                 icon=self._get_icon("search"),
             )
         )
 
-    def _create_edit_menu(self, menubar: QMenuBar):
-        """Создаёт меню 'Правка'."""
-        edit_menu = menubar.addMenu("&Правка")
-
-        # Создание undo/redo действий через публичный метод
-        undo_action, redo_action = self.main_window.create_undo_redo_actions()
-
-        if undo_action and redo_action:
-            undo_action.setIcon(self._get_icon("undo"))
-            redo_action.setIcon(self._get_icon("redo"))
-
-        # Добавляем действия только если они существуют
-        if getattr(self.main_window, "undo_action", None) is not None:
-            edit_menu.addAction(self.main_window.undo_action)
-        if getattr(self.main_window, "redo_action", None) is not None:
-            edit_menu.addAction(self.main_window.redo_action)
 
     def _create_themes_menu(self, menubar: QMenuBar):
         """Создаёт меню 'Темы'."""
