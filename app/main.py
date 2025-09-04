@@ -208,8 +208,9 @@ def main():
             if app:
                 app.quit()
             return 1
-        initializer.main_window.show()
-        # Вариант B: мгновенно показать окно и инициализировать БД в фоне
+        # Показ окна перенесён в WindowInitializer._deferred_init(),
+        # чтобы избежать белого экрана до подготовки UI
+        # Вариант B: инициализировать БД в фоне
         try:
             db = initializer.database
             mw = initializer.main_window

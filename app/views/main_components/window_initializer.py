@@ -69,11 +69,17 @@ class WindowInitializer:
                     self._init_bottom_panel()
                     self._init_status_bar()
                     self._init_controllers()
-                    self._init_shortcuts()
                     self._apply_user_font_size()
             except Exception:
                 logger.exception("WindowInitializer: ошибка в отложенной инициализации")
             finally:
+                # Показываем окно после того, как все UI-компоненты и контроллеры готовы,
+                # чтобы избежать белого экрана на старте
+                try:
+                    if hasattr(self.window, "show"):
+                        self.window.show()
+                except Exception:
+                    logger.exception("WindowInitializer: не удалось показать окно")
                 # Сферы инициализируем уже вне suspend_updates
                 try:
                     self._initialize_spheres()
@@ -115,9 +121,6 @@ class WindowInitializer:
         # Контроллеры должны быть созданы до горячих клавиш
         self.controllers_setup.setup_controllers()
 
-    def _init_shortcuts(self) -> None:
-        # Горячие клавиши после создания контроллеров
-        self.ui_setup.setup_shortcuts()
 
     def _apply_user_font_size(self) -> None:
         # Централизованно применяем пользовательский размер шрифта к дереву и таблице
