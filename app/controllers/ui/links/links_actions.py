@@ -133,6 +133,23 @@ class LinksActions:
             return True
         return False
 
+    # --- Unified action handler for new panel widgets ---
+    def on_action_requested(self, action_data):
+        """Handles unified actions from refactored panel widgets."""
+        if not isinstance(action_data, dict):
+            return
+        
+        action_type = action_data.get("type")
+        if action_type == "open_link":
+            link = action_data.get("link")
+            if link:
+                self.open_link(link)
+        elif action_type == "quick_add":
+            # Handle quick add action
+            if hasattr(self.main, "show_link_dialog"):
+                category_id = action_data.get("category_id")
+                self.main.show_link_dialog(category_id=category_id)
+
     # --- Делегаты для пассивных виджетов (Recent/Favorites) ---
     def on_recent_refresh_requested(self, limit: int):
         if self.links and hasattr(self.links, "on_recent_refresh_requested"):

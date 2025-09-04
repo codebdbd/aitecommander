@@ -33,7 +33,9 @@ from app.views.link import LinksTableView
 from app.views.main_components.top_bar_layout_manager import TopBarLayoutManager
 from app.views.models.structure_tree_model import StructureTreeModel
 from app.views.status_bar import setup_status_bar as init_status_bar
-from app.views.top_panel_widgets import TopPanelWidget
+from app.views.favorites_panel_widget import FavoritesPanelWidget
+from app.views.recent_panel_widget import RecentPanelWidget
+from app.views.quick_add_panel_widget import QuickAddPanelWidget
 
 
 class _AutoHideTreeFilter(QObject):
@@ -273,9 +275,13 @@ class WindowUISetup:
         t_start = time.perf_counter()
         try:
             if mode == "quick":
-                widget = TopPanelWidget(self.window, mode=mode, category_provider=self.window)
+                widget = QuickAddPanelWidget(self.window, category_provider=self.window)
+            elif mode == "favorites":
+                widget = FavoritesPanelWidget(self.window)
+            elif mode == "recent":
+                widget = RecentPanelWidget(self.window)
             else:
-                widget = TopPanelWidget(self.window, mode=mode)
+                raise ValueError(f"Unknown panel mode: {mode}")
             if object_name:
                 widget.setObjectName(object_name)
             widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)

@@ -6,7 +6,7 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, Optional
 import weakref
 
-from PyQt6.QtCore import QTimer, pyqtSignal
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QKeySequence, QUndoStack, QAction
 from PyQt6.QtWidgets import QMainWindow, QWidget
 
@@ -349,7 +349,8 @@ class MainWindow(QMainWindow):
         super().showEvent(event)
         if not hasattr(self, "_shown_emitted"):
             self._shown_emitted = True
-            QTimer.singleShot(200, self.shown.emit)
+            # Эмитим сигнал немедленно, без искусственной задержки
+            self.shown.emit()
 
     def closeEvent(self, event):
         """Корректно завершает работу и закрывает ресурсы."""

@@ -93,7 +93,7 @@ class TopBarLayoutManager(QObject):
 
         # Инициализационный пересчет после показа окна (один раз)
         if hasattr(self.window, "shown"):
-            self.window.shown.connect(lambda: QTimer.singleShot(0, self.adjust))
+            self.window.shown.connect(self.adjust)
 
     # ---------------------------- Event Filter -----------------------------
     def eventFilter(self, obj: QObject, event: QtCore.QEvent) -> bool:
