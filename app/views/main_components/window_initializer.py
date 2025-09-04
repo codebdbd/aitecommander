@@ -8,6 +8,7 @@ from contextlib import suppress
 from typing import Any
 
 from PyQt6.QtCore import QTimer
+from PyQt6.QtWidgets import QApplication, QMessageBox
 from app.controllers.system.window_controllers_setup import WindowControllersSetup
 from app.interfaces import MainWindowLike, SettingsLike
 from app.utils.ui.updates import suspend_updates
@@ -60,13 +61,6 @@ class WindowInitializer:
             for step in light_steps:
                 step()
 
-        # Показываем окно на следующем тике цикла событий, чтобы пользователь сразу увидел каркас UI
-        try:
-            if hasattr(self.window, "show"):
-                QTimer.singleShot(0, self.window.show)
-        except Exception:
-            logger.exception("WindowInitializer: не удалось показать окно")
-
         # Подключаем обновление текста статус-бара к событию показа окна
         # (исключает попытки доступа к message_label до его создания)
         try:
@@ -115,15 +109,17 @@ class WindowInitializer:
                     # Общий страховочный перехват, чтобы отложенная инициализация не падала целиком
                     logger.exception("WindowInitializer: ошибка планирования асинхронной загрузки структуры")
                 self._apply_user_font_size()
-            except Exception:
-                logger.exception("WindowInitializer: ошибка в отложенной инициализации")
-            finally:
-                # Сначала завершаем инициализацию сфер и все связанные расчёты размеров,
-                # избегая долгой блокировки обновлений
+                # Завершаем инициализацию сфер и связанные расчёты
+                self._initialize_spheres()
+                # Показываем окно только после успешного завершения всех шагов
                 try:
-                    self._initialize_spheres()
+                    if hasattr(self.window, "show"):
+                        self.window.show()
                 except Exception:
-                    logger.exception("WindowInitializer: ошибка инициализации сфер")
+                    logger.exception("WindowInitializer: не удалось показать окно после инициализации")
+            except Exception as e:
+                logger.exception("WindowInitializer: ошибка в отложенной инициализации — окно показано не будет")
+                self._handle_deferred_init_error(e)
 
         QTimer.singleShot(0, _deferred_init)
 
@@ -185,3 +181,16 @@ class WindowInitializer:
                 self.window.message_label.setText("Загрузка интерфейса…")
         except Exception:
             logger.exception("WindowInitializer: ошибка обновления текста статус-бара в _on_window_shown")
+
+    # === Обработчики ошибок ===
+    def _handle_deferred_init_error(self, exc: Exception) -> None:
+        """Показывает диалог ошибки и завершает приложение при сбое отложенной инициализации."""
+        try:
+            parent = self.window if hasattr(self.window, "isVisible") else None
+            QMessageBox.critical(parent, "Ошибка инициализации", f"Произошла ошибка при инициализации UI:\n{exc}")
+        except Exception:
+            logger.exception("WindowInitializer: не удалось показать диалог ошибки инициализации")
+        finally:
+            app = QApplication.instance()
+            if app is not None:
+                app.quit()
