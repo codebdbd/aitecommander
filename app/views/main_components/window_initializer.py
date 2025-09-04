@@ -60,34 +60,70 @@ class WindowInitializer:
             for step in light_steps:
                 step()
 
-        # Тяжёлые шаги переносим на следующий цикл событий, чтобы не блокировать показ окна
+        # Показываем окно на следующем тике цикла событий, чтобы пользователь сразу увидел каркас UI
+        try:
+            if hasattr(self.window, "show"):
+                QTimer.singleShot(0, self.window.show)
+        except Exception:
+            logger.exception("WindowInitializer: не удалось показать окно")
+
+        # Подключаем обновление текста статус-бара к событию показа окна
+        # (исключает попытки доступа к message_label до его создания)
+        try:
+            if hasattr(self.window, "shown"):
+                # type: ignore[attr-defined] — сигнал присутствует в реальном MainWindow
+                self.window.shown.connect(self._on_window_shown)  # noqa: E501
+        except Exception:
+            logger.exception("WindowInitializer: не удалось подключить слот к сигналу 'shown'")
+
+        # Тяжёлые шаги переносим на следующий цикл событий после показа окна,
+        # чтобы минимизировать время до первого отображения
         def _deferred_init():
             try:
-                with suspend_updates(self.window):
-                    self._init_top_panel()
-                    self._init_main_content()
-                    self._init_bottom_panel()
-                    self._init_status_bar()
-                    self._init_controllers()
-                    self._apply_user_font_size()
+                # Выполняем тяжёлые шаги уже после показа окна
+                self._init_top_panel()
+                self._init_main_content()
+                self._init_bottom_panel()
+                self._init_status_bar()
+                # После создания статус-бара безопасно обновляем сообщение статуса
+                try:
+                    if hasattr(self.window, "message_label") and self.window.message_label:
+                        self.window.message_label.setText("Загрузка интерфейса…")
+                except Exception:
+                    logger.exception("WindowInitializer: ошибка обновления текста статус-бара после инициализации")
+                self._init_controllers()
+                # Немедленно после создания контроллеров запускаем асинхронную
+                # загрузку данных структуры, чтобы не блокировать UI-поток
+                try:
+                    sb = getattr(self.window, "structure_business", None)
+                    ao = getattr(sb, "async_operations", None) if sb else None
+                    if ao is not None:
+                        # Загрузка доступных сфер
+                        try:
+                            QTimer.singleShot(0, ao.load_spheres_async)
+                        except Exception:
+                            logger.exception("WindowInitializer: не удалось запланировать load_spheres_async")
+
+                        # Загрузка структуры текущей сферы, если она уже выбрана
+                        try:
+                            curr_id = getattr(sb, "current_sphere_id", None)
+                            if isinstance(curr_id, int) and curr_id > 0:
+                                QTimer.singleShot(0, lambda cid=int(curr_id): ao.load_structure_async(cid))
+                        except Exception:
+                            logger.exception("WindowInitializer: не удалось запланировать load_structure_async")
+                except Exception:
+                    # Общий страховочный перехват, чтобы отложенная инициализация не падала целиком
+                    logger.exception("WindowInitializer: ошибка планирования асинхронной загрузки структуры")
+                self._apply_user_font_size()
             except Exception:
                 logger.exception("WindowInitializer: ошибка в отложенной инициализации")
             finally:
                 # Сначала завершаем инициализацию сфер и все связанные расчёты размеров,
-                # удерживая окно с отключёнными обновлениями для предотвращения мерцания.
+                # избегая долгой блокировки обновлений
                 try:
-                    with suspend_updates(self.window):
-                        self._initialize_spheres()
+                    self._initialize_spheres()
                 except Exception:
                     logger.exception("WindowInitializer: ошибка инициализации сфер")
-
-                # Показываем окно на следующем тике цикла событий, чтобы дать Qt
-                # возможность дорассчитать setSizes()/layout перед отрисовкой.
-                try:
-                    if hasattr(self.window, "show"):
-                        QTimer.singleShot(0, self.window.show)
-                except Exception:
-                    logger.exception("WindowInitializer: не удалось показать окно")
 
         QTimer.singleShot(0, _deferred_init)
 
@@ -140,3 +176,12 @@ class WindowInitializer:
 
     def _initialize_spheres(self) -> None:
         self.controllers_setup.initialize_spheres()
+
+    # === Слоты ===
+    def _on_window_shown(self) -> None:
+        """Обновляем статус только после показа окна (и, соответственно, после инициализации статус-бара)."""
+        try:
+            if hasattr(self.window, "message_label") and self.window.message_label:
+                self.window.message_label.setText("Загрузка интерфейса…")
+        except Exception:
+            logger.exception("WindowInitializer: ошибка обновления текста статус-бара в _on_window_shown")
