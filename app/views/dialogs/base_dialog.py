@@ -1,3 +1,4 @@
+import logging
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtWidgets import (
     QComboBox,
@@ -15,6 +16,7 @@ from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.qt.delegates.combo_row_height_delegate import ComboRowHeightDelegate
 
+logger = logging.getLogger(__name__)
 
 def apply_uniform_height(dialog: QDialog):
     """
@@ -35,9 +37,9 @@ def apply_uniform_height(dialog: QDialog):
                 f = widget.font()
                 f.setPointSize(base_size)
                 widget.setFont(f)
-            except Exception:
+            except Exception as e:
                 # Fall back to leaving the current font as-is if something goes wrong
-                pass
+                logger.exception("Failed to set uniform font size for QPushButton", exc_info=e)
 
 
 
@@ -89,9 +91,9 @@ def create_russian_context_menu(widget):
             )
             paste_action.triggered.connect(widget.paste)
             paste_action.setShortcut("Ctrl+V")
-    except Exception:
+    except Exception as e:
         # В случае ошибки проверки буфера не добавляем пункт вставки
-        pass
+        logger.exception("Failed to evaluate clipboard state for context menu", exc_info=e)
 
     delete_action = menu.addAction(
         icon_cache.get_icon("delete", theme, "context_menu"), "Удалить"
@@ -152,8 +154,8 @@ class BaseDialog(QDialog):
                 screen = wh.screen() if wh else None
                 if screen is not None:
                     scale = max(1.0, screen.logicalDotsPerInch() / 96.0)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.exception("Failed to determine DPI scale for combo boxes", exc_info=e)
             # DPI-aware popup icon size based on 24px logical (was 20)
             target_icon = int(round(24 * scale))
             for combo in combos:
@@ -166,10 +168,11 @@ class BaseDialog(QDialog):
                     view = combo.view()
                     if view is not None:
                         view.setIconSize(QSize(target_icon, target_icon))
-                except Exception:
+                except Exception as e:
+                    logger.exception("Failed to apply combo popup styles to a QComboBox", exc_info=e)
                     continue
-        except Exception:
-            pass
+        except Exception as e:
+            logger.exception("Failed to apply combo popup styles (outer)", exc_info=e)
 
     # --- Local message box helpers to avoid importing controllers in views ---
     def show_info(
@@ -192,8 +195,8 @@ class BaseDialog(QDialog):
             mb.setStandardButtons(QMessageBox.StandardButton.Ok)
             if not silent:
                 mb.exec()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.exception("Failed to show info message box", exc_info=e)
 
     def show_warning(
         self,
@@ -215,8 +218,8 @@ class BaseDialog(QDialog):
             mb.setStandardButtons(QMessageBox.StandardButton.Ok)
             if not silent:
                 mb.exec()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.exception("Failed to show warning message box", exc_info=e)
 
     def show_error(
         self,
@@ -238,8 +241,8 @@ class BaseDialog(QDialog):
             mb.setStandardButtons(QMessageBox.StandardButton.Ok)
             if not silent:
                 mb.exec()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.exception("Failed to show error message box", exc_info=e)
 
     def ask_confirmation(
         self,
@@ -262,5 +265,6 @@ class BaseDialog(QDialog):
             )
             mb.setDefaultButton(QMessageBox.StandardButton.No)
             return mb.exec() == QMessageBox.StandardButton.Yes
-        except Exception:
+        except Exception as e:
+            logger.exception("Failed to show confirmation dialog", exc_info=e)
             return False
