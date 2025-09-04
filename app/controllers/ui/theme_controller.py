@@ -363,6 +363,9 @@ class ThemeController:
         - Пересобирает главное меню
         - Перезагружает иконки дерева структуры
         - Обновляет верхние панели (Избранное/Недавние)
+
+        Все массовые операции выполняются при приостановленной перерисовке
+        главного окна, чтобы избежать визуального дергания размеров панелей.
         """
         try:
             clear_icon_cache()
@@ -373,27 +376,58 @@ class ThemeController:
         if not mw:
             return
 
-        # Пересоздание главного меню
+        # Импорт лениво, чтобы избежать циклов импортов на старте
         try:
-            menu_ctrl = getattr(mw, "menu_controller", None)
-            if menu_ctrl:
-                menu_ctrl.rebuild_after_theme_change()
-        except Exception as exc:
-            logger.warning("Ошибка пересборки меню после смены темы: %s", exc)
+            from app.utils.ui.updates import suspend_updates
+        except Exception:
+            suspend_updates = None  # fallback, если модуль недоступен
 
-        # Перезагрузка иконок в структуре
-        try:
-            structure = getattr(mw, "structure", None)
-            if structure and hasattr(structure, "reload_icons"):
-                structure.reload_icons()
-        except Exception as exc:
-            logger.warning("Ошибка перезагрузки иконок структуры: %s", exc)
+        if suspend_updates is None:
+            # Fallback: выполняем операции без приостановки перерисовки
+            try:
+                menu_ctrl = getattr(mw, "menu_controller", None)
+                if menu_ctrl:
+                    menu_ctrl.rebuild_after_theme_change()
+            except Exception as exc:
+                logger.warning("Ошибка пересборки меню после смены темы: %s", exc)
+            try:
+                structure = getattr(mw, "structure", None)
+                if structure and hasattr(structure, "reload_icons"):
+                    structure.reload_icons()
+            except Exception as exc:
+                logger.warning("Ошибка перезагрузки иконок структуры: %s", exc)
+            try:
+                self.top_panels_controller.refresh_all()
+            except Exception as exc:
+                logger.warning("Ошибка обновления верхних панелей: %s", exc)
+            return
 
-        # Обновление верхних панелей — прямая зависимость из конструктора
+        # Основной путь: выполняем массовые обновления при приостановленной перерисовке окна
         try:
-            self.top_panels_controller.refresh_all()
+            with suspend_updates(mw):
+                # Пересоздание главного меню
+                try:
+                    menu_ctrl = getattr(mw, "menu_controller", None)
+                    if menu_ctrl:
+                        menu_ctrl.rebuild_after_theme_change()
+                except Exception as exc:
+                    logger.warning("Ошибка пересборки меню после смены темы: %s", exc)
+
+                # Перезагрузка иконок в структуре
+                try:
+                    structure = getattr(mw, "structure", None)
+                    if structure and hasattr(structure, "reload_icons"):
+                        structure.reload_icons()
+                except Exception as exc:
+                    logger.warning("Ошибка перезагрузки иконок структуры: %s", exc)
+
+                # Обновление верхних панелей — прямая зависимость из конструктора
+                try:
+                    self.top_panels_controller.refresh_all()
+                except Exception as exc:
+                    logger.warning("Ошибка обновления верхних панелей: %s", exc)
         except Exception as exc:
-            logger.warning("Ошибка обновления верхних панелей: %s", exc)
+            logger.warning("ThemeController: сбой при пакетном обновлении UI: %s", exc)
 
         # Не переустанавливаем размеры шрифтов при смене темы.
         # Базовый размер приложения и точечные размеры для меню/меню-бара управляются отдельно,

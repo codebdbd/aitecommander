@@ -96,9 +96,22 @@ class MenuController:
             old_menu = self.main_window.menuBar()
             if old_menu is not None:
                 old_menu.deleteLater()
-        except Exception:
-            # В случае, если меню ещё не инициализировалось
-            pass
+        except Exception as e:
+            # В случае, если меню ещё не инициализировалось или уже удалено
+            logger.warning(
+                "MenuController: не удалось корректно удалить старое меню при смене темы",
+                exc_info=e,
+            )
+            # Мягкая подсказка пользователю (если есть статус-бар)
+            try:
+                status_bar = getattr(self.main_window, "statusBar", None)
+                if callable(status_bar):
+                    sb = status_bar()
+                    if sb is not None and hasattr(sb, "showMessage"):
+                        sb.showMessage("Не удалось обновить старое меню, пытаемся пересобрать...", 3000)
+            except Exception:
+                # Не препятствуем дальнейшей пересборке меню
+                logger.debug("MenuController: подсказка в статус-бар не отображена")
 
         self.clear_cache()
         self.main_window.setMenuBar(self.create_main_menu())

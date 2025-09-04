@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 from app.controllers.system.window_controllers_setup import WindowControllersSetup
 from app.interfaces import MainWindowLike, SettingsLike
 from app.utils.ui.updates import suspend_updates
+from app.utils.metrics.startup_metrics import get_metrics
 
 # Компоненты для рефакторинга
 from .window_ui_setup import WindowUISetup
@@ -47,6 +48,8 @@ class WindowInitializer:
 
     def initialize_window(self) -> None:
         """Выполняет полную инициализацию главного окна пошагово."""
+        metrics = get_metrics()
+        metrics.reset()
         # Лёгкие шаги инициализации выполняем синхронно с отключёнными обновлениями,
         # чтобы окно появлялось быстрее и уже со стандартной структурой
         light_steps = (
@@ -55,11 +58,15 @@ class WindowInitializer:
             self._init_menu,
             self._init_central_widget,
             self._capture_main_layout,
+            # ВАЖНО: создаём верхнюю панель ДО показа окна,
+            # чтобы её высота была стабилизирована до первого рендера
+            self._init_top_panel,
         )
 
         with suspend_updates(self.window):
             for step in light_steps:
-                step()
+                with metrics.time_span(f"light:{step.__name__}"):
+                    step()
 
         # Подключаем обновление текста статус-бара к событию показа окна
         # (исключает попытки доступа к message_label до его создания)
@@ -75,50 +82,78 @@ class WindowInitializer:
         def _deferred_init():
             try:
                 # Выполняем тяжёлые шаги уже после показа окна
-                self._init_top_panel()
-                self._init_main_content()
-                self._init_bottom_panel()
-                self._init_status_bar()
+                with metrics.time_span("heavy:init_main_content"):
+                    self._init_main_content()
+                with metrics.time_span("heavy:init_bottom_panel"):
+                    self._init_bottom_panel()
+                with metrics.time_span("heavy:init_status_bar"):
+                    self._init_status_bar()
                 # После создания статус-бара безопасно обновляем сообщение статуса
                 try:
                     if hasattr(self.window, "message_label") and self.window.message_label:
                         self.window.message_label.setText("Загрузка интерфейса…")
                 except Exception:
                     logger.exception("WindowInitializer: ошибка обновления текста статус-бара после инициализации")
-                self._init_controllers()
+                with metrics.time_span("heavy:init_controllers"):
+                    self._init_controllers()
                 # Немедленно после создания контроллеров запускаем асинхронную
                 # загрузку данных структуры, чтобы не блокировать UI-поток
                 try:
                     sb = getattr(self.window, "structure_business", None)
                     ao = getattr(sb, "async_operations", None) if sb else None
                     if ao is not None:
-                        # Загрузка доступных сфер
-                        try:
-                            QTimer.singleShot(0, ao.load_spheres_async)
-                        except Exception:
-                            logger.exception("WindowInitializer: не удалось запланировать load_spheres_async")
+                        # Внимание: запуск загрузки сфер выполняется в SpheresBarController.init().
+                        # Здесь не дублируем, чтобы избежать двойного вызова и логов.
 
                         # Загрузка структуры текущей сферы, если она уже выбрана
                         try:
                             curr_id = getattr(sb, "current_sphere_id", None)
                             if isinstance(curr_id, int) and curr_id > 0:
+                                # Старт измерения асинхронной загрузки структуры; остановка по сигналу structure_loaded
+                                metrics.start("async:structure_load")
+                                try:
+                                    if hasattr(sb, "structure_loaded"):
+                                        def _on_structure_loaded_once(*_args):
+                                            try:
+                                                metrics.stop("async:structure_load")
+                                            except Exception:
+                                                pass
+                                            try:
+                                                sb.structure_loaded.disconnect(_on_structure_loaded_once)  # type: ignore[attr-defined]
+                                            except Exception:
+                                                pass
+                                        sb.structure_loaded.connect(_on_structure_loaded_once)  # type: ignore[attr-defined]
+                                except Exception:
+                                    logger.debug("WindowInitializer: failed to wire metrics to structure_loaded", exc_info=False)
                                 QTimer.singleShot(0, lambda cid=int(curr_id): ao.load_structure_async(cid))
+                                metrics.mark("async:load_structure_async scheduled")
                         except Exception:
                             logger.exception("WindowInitializer: не удалось запланировать load_structure_async")
                 except Exception:
                     # Общий страховочный перехват, чтобы отложенная инициализация не падала целиком
                     logger.exception("WindowInitializer: ошибка планирования асинхронной загрузки структуры")
-                self._apply_user_font_size()
+                with metrics.time_span("heavy:apply_user_font_size"):
+                    self._apply_user_font_size()
                 # Завершаем инициализацию сфер и связанные расчёты
-                self._initialize_spheres()
+                with metrics.time_span("heavy:initialize_spheres"):
+                    self._initialize_spheres()
                 # Показываем окно только после успешного завершения всех шагов
                 try:
                     if hasattr(self.window, "show"):
-                        self.window.show()
+                        with metrics.time_span("heavy:window_show"):
+                            self.window.show()
                 except Exception:
                     logger.exception("WindowInitializer: не удалось показать окно после инициализации")
+                finally:
+                    # Выводим сводку метрик старта в лог
+                    metrics.flush_log(logger)
             except Exception as e:
                 logger.exception("WindowInitializer: ошибка в отложенной инициализации — окно показано не будет")
+                # Даже при ошибке выведем накопленные метрики
+                try:
+                    metrics.flush_log(logger)
+                except Exception:
+                    pass
                 self._handle_deferred_init_error(e)
 
         QTimer.singleShot(0, _deferred_init)

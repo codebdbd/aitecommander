@@ -3,10 +3,11 @@
 import os
 import sys
 import logging
+import time
 logger = logging.getLogger(__name__)
 from typing import Any, Optional
 
-from PyQt6.QtCore import QEvent, QObject, QSize, Qt
+from PyQt6.QtCore import QEvent, QObject, QSize, Qt, QTimer
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -189,6 +190,7 @@ class WindowUISetup:
 
     def setup_top_panel(self) -> None:
         """Настройка верхней панели."""
+        t_total_start = time.perf_counter()
         # Верхний разделитель добавляем напрямую в основной layout
         h_line_top = QWidget()
         h_line_top.setProperty("class", "separator")
@@ -206,7 +208,13 @@ class WindowUISetup:
         top_bar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
         # Собираем виджеты верхней панели
+        t_widgets_start = time.perf_counter()
         self.setup_top_bar_widgets(top_bar)
+        t_widgets_dur = (time.perf_counter() - t_widgets_start) * 1000.0
+        try:
+            logger.info("TopPanelMetrics: setup_top_bar_widgets: %.1f ms", t_widgets_dur)
+        except Exception:
+            pass
 
         # Лёгкий хост для top_bar (без фиксированной высоты) и добавление в основной layout
         top_bar_host = QWidget()
@@ -225,7 +233,9 @@ class WindowUISetup:
 
         # Адаптивный менеджер верхней панели
         try:
+            t_mgr_start = time.perf_counter()
             self.window._topbar_manager = TopBarLayoutManager(self.window)
+            t_mgr_ctor = (time.perf_counter() - t_mgr_start) * 1000.0
         except (RuntimeError, TypeError):
             # Не блокируем инициализацию UI при ошибке менеджера
             self.window._topbar_manager = None
@@ -234,9 +244,21 @@ class WindowUISetup:
         try:
             mgr = getattr(self.window, "_topbar_manager", None)
             if mgr:
+                t_adj_start = time.perf_counter()
                 mgr._request_adjust()
+                t_adj_dur = (time.perf_counter() - t_adj_start) * 1000.0
+                try:
+                    logger.info("TopPanelMetrics: TopBarLayoutManager._request_adjust: %.1f ms (ctor: %.1f ms)", t_adj_dur, t_mgr_ctor)
+                except Exception:
+                    pass
         except (AttributeError, TypeError, RuntimeError):
             logging.debug("TopPanel: failed to request initial topbar adjust", exc_info=True)
+        finally:
+            try:
+                t_total_dur = (time.perf_counter() - t_total_start) * 1000.0
+                logger.info("TopPanelMetrics: setup_top_panel total: %.1f ms", t_total_dur)
+            except Exception:
+                pass
         
 
     def _create_top_panel_widget(
@@ -248,6 +270,7 @@ class WindowUISetup:
         log_label: str,
     ) -> None:
         """Фабрика для создания и добавления виджета верхней панели с обработкой ошибок."""
+        t_start = time.perf_counter()
         try:
             if mode == "quick":
                 widget = TopPanelWidget(self.window, mode=mode, category_provider=self.window)
@@ -256,8 +279,28 @@ class WindowUISetup:
             if object_name:
                 widget.setObjectName(object_name)
             widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            # Жестко фиксируем высоту панелей топ-бара, чтобы исключить изменение высоты
+            # после показа окна при отложенных перерисовках/обновлениях данных и тем.
+            try:
+                fixed_h = int(app_config.ui.get_top_panel_search_height())
+            except (TypeError, ValueError):
+                fixed_h = 32
+            try:
+                widget.setFixedHeight(fixed_h)
+            except Exception:
+                logging.debug("TopPanel: failed to set fixed height on %s widget", log_label, exc_info=True)
+            # Разрешаем горизонтальное сжатие ниже sizeHint, чтобы убирать мерцание при нехватке ширины
+            try:
+                widget.setMinimumWidth(0)
+            except Exception:
+                logging.debug("TopPanel: failed to set minimum width on %s widget", log_label, exc_info=True)
             setattr(self.window, attr_name, widget)
             top_bar.addWidget(widget)
+            try:
+                dur = (time.perf_counter() - t_start) * 1000.0
+                logger.info("TopPanelMetrics: create_widget[%s]: %.1f ms", log_label, dur)
+            except Exception:
+                pass
         except Exception:
             setattr(self.window, attr_name, None)
             logger.exception("TopPanel: failed to create %s widget", log_label)
@@ -267,10 +310,6 @@ class WindowUISetup:
         Создаём и добавляем все панели сразу, без отложенных прослоек:
         Порядок: QuickAdd → Favorites → Recent → Search
         """
-        # Создание таблицы (размер шрифта будет применён централизованно)
-        self.window.table = LinksTableView(self.window)
-        # Размер шрифта для таблицы устанавливается через MainWindow.apply_font_size_to_content()
-
         # Параметризованное создание QuickAdd, Favorites, Recent
         widgets_params = [
             ("quick", "quick_add_widget", None, "QuickAdd"),
@@ -285,6 +324,7 @@ class WindowUISetup:
 
     def setup_search_widget(self, top_bar: QHBoxLayout) -> None:
         """Настройка поля поиска."""
+        t_start = time.perf_counter()
         self.window.search = QLineEdit()
         self.window.search.setPlaceholderText(app_config.ui.get_search_placeholder())
         self.window.search.setClearButtonEnabled(True)
@@ -314,6 +354,11 @@ class WindowUISetup:
         self.window.search.textChanged.connect(self.window.on_search)
         # Добавляем со stretch-фактором, чтобы строка поиска занимала всё оставшееся место
         top_bar.addWidget(self.window.search, 1)
+        try:
+            dur = (time.perf_counter() - t_start) * 1000.0
+            logger.info("TopPanelMetrics: setup_search_widget: %.1f ms", dur)
+        except Exception:
+            pass
 
     def setup_main_content(self) -> None:
         """Настройка основного содержимого."""
@@ -406,6 +451,10 @@ class WindowUISetup:
         tiles_layout.setSpacing(app_config.ui.get_tiles_layout_spacing())
         tiles_layout.addWidget(self.window.tiles_scroll)
 
+        # Создание таблицы (перенесено сюда из top-bar, чтобы разгрузить раннюю фазу инициализации)
+        # Размер шрифта для таблицы будет установлен централизованно через MainWindow.apply_font_size_to_content()
+        self.window.table = LinksTableView(self.window)
+
         # Обертка для таблицы
         table_wrapper = QWidget()
         table_layout = QVBoxLayout(table_wrapper)
@@ -466,8 +515,15 @@ class WindowUISetup:
                 self.window, threshold_width=min_w, default_sizes=splitter_sizes
             )
             self.window.installEventFilter(self.window._auto_hide_tree_filter)
-            # Один раз применим после инициализации
-            self.window._auto_hide_tree_filter._apply()
+            # Применим после показа окна, чтобы корректно получить ширину и не уйти в ложное сужение
+            try:
+                if hasattr(self.window, "shown"):
+                    # type: ignore[attr-defined]
+                    self.window.shown.connect(self.window._auto_hide_tree_filter._apply)
+                else:
+                    QTimer.singleShot(0, self.window._auto_hide_tree_filter._apply)
+            except Exception:
+                logger.exception("RightPanel: failed to schedule AutoHideTree initial apply")
         except (RuntimeError, TypeError, AttributeError):
             # Не блокируем UI, если что-то пойдёт не так
             logger.exception("RightPanel: failed to initialize AutoHideTree filter")
