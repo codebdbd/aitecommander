@@ -562,16 +562,6 @@ class WindowUISetup:
         """Настройка статус-бара."""
         init_status_bar(self.window)
 
-    def setup_shortcuts(self) -> None:
-        """Устарело: горячие клавиши настраивает KeyboardManager.
-
-        Метод сохранён для обратной совместимости и намеренно ничего не делает,
-        чтобы не дублировать логику. Фактическая настройка хоткеев выполняется
-        централизованно через `KeyboardManager` в компоненте контроллеров.
-        """
-        logging.info(
-            "WindowUISetup.setup_shortcuts(): устарело; горячие клавиши управляются KeyboardManager"
-        )
 
     def setup_window_properties(self) -> None:
         """Настройка базовых свойств окна."""
