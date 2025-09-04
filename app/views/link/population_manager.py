@@ -106,7 +106,16 @@ class PopulationManagerMixin:
 
                 # Сортируем индексы в обратном порядке для корректного удаления
                 for row in sorted(rows_to_remove, reverse=True):
-                    self._remove_row(row)
+                    removed_ok = False
+                    try:
+                        removed_ok = bool(self._remove_row(row))
+                    except Exception as e:
+                        logging.debug(f"[LinksTableView] _remove_row исключение: {e}")
+                        removed_ok = False
+                    if not removed_ok:
+                        logging.warning(
+                            f"[LinksTableView] Не удалось удалить строку {row} при инкрементальном обновлении"
+                        )
 
                 # Обновляем изменившиеся ссылки
                 for row, current_link in list(self._current_links.items()):

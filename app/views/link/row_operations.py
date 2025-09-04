@@ -159,8 +159,8 @@ class RowOperationsMixin:
             logging.error(f"[LinksTableView] Ошибка добавления строки {row}: {e}")
             return False
 
-    def _remove_row(self, row: int):
-        """Удаляет строку через модель."""
+    def _remove_row(self, row: int) -> bool:
+        """Удаляет строку через модель. Возвращает True при успехе, иначе False."""
         try:
             # Проверка входных параметров
             try:
@@ -174,7 +174,7 @@ class RowOperationsMixin:
                 logging.warning(
                     f"[LinksTableView] Некорректный индекс строки для удаления: {row}"
                 )
-                return
+                return False
 
             removed = False
             if model is not None and hasattr(model, "remove_row"):
@@ -185,7 +185,7 @@ class RowOperationsMixin:
                     removed = False
 
             if not removed:
-                return
+                return False
 
             # Перестроить кэш по актуальным данным
             try:
@@ -193,5 +193,8 @@ class RowOperationsMixin:
             except Exception:
                 pass
 
+            return True
+
         except Exception as e:
             logging.error(f"[LinksTableView] Ошибка удаления строки {row}: {e}")
+            return False
