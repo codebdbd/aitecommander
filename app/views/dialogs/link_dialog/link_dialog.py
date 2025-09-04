@@ -1,12 +1,17 @@
 """
 LinkDialog - диалог добавления/редактирования ссылки.
+
+Интерфейсы контроллеров (для статической проверки):
+- DialogControllerProtocol: предоставляет иерархические данные и валидацию/сохранение.
+- LinkDataControllerProtocol: отвечает только за валидацию/сохранение данных формы.
 """
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QTimer
-from PyQt6.QtGui import QColor, QIcon
+from PyQt6.QtWidgets import QWidget
+from PyQt6.QtGui import QColor
 
 from app.config_data import app_config
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
@@ -26,17 +31,52 @@ logger = logging.getLogger(__name__)
 icon_path_service.ensure_user_icons_dir()
 
 
+@runtime_checkable
+class LinkDataControllerProtocol(Protocol):
+    """Протокол контроллера данных ссылки (минимальный контракт).
+
+    Ожидается реализация метода `validate_and_save`, который принимает
+    словарь данных формы и возвращает словарь результата с ключом `is_valid`
+    и необязательным списком `errors`.
+    """
+
+    def validate_and_save(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        ...
+
+
+@runtime_checkable
+class DialogControllerProtocol(LinkDataControllerProtocol, Protocol):
+    """Протокол диалогового контроллера с иерархическими данными.
+
+    Требуется предоставление списков разделов и категорий по идентификаторам.
+    Элементы списков должны быть словарями с ключами как минимум `id` и `name`,
+    опционально `icon_path`.
+    """
+
+    def get_sections_for_sphere(self, sphere_id: int) -> List[Dict[str, Any]]:
+        ...
+
+    def get_categories_for_section(self, section_id: int) -> List[Dict[str, Any]]:
+        ...
+
+
 class LinkDialog(BaseDialog):
     """Диалог добавления/редактирования ссылок с модульной структурой."""
+
+    # Настраиваемая задержка дебаунса обработки пути (URL) в миллисекундах.
+    # Используется таймером для отложенного старта парсинга пути при вводе пользователем,
+    # чтобы не триггерить фоновые задачи на каждый символ. Вынесено из "магического"
+    # значения для удобства настройки и тестирования.
+    PATH_DEBOUNCE_MS: int = 300
 
     def __init__(
         self,
         initialization_data: Dict,
-        dialog_controller,
+        dialog_controller: DialogControllerProtocol,
         link: Optional[Dict] = None,
         category_id: Optional[int] = None,
-        parent=None,
-        link_controller=None,
+        parent: Optional[QWidget] = None,
+        link_controller: Optional[LinkDataControllerProtocol] = None,
     ):
         super().__init__(parent)
 
@@ -211,7 +251,7 @@ class LinkDialog(BaseDialog):
                 btn.setChecked(True)
                 break
         # Запуск стандартной обработки
-        self.handlers._on_type_changed(link_type)
+        self.handlers.on_type_changed(link_type)
 
     def _populate_hierarchy(self) -> None:
         """Заполняет иерархические списки."""

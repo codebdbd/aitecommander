@@ -288,8 +288,16 @@ class WindowUISetup:
             # Жестко фиксируем высоту панелей топ-бара, чтобы исключить изменение высоты
             # после показа окна при отложенных перерисовках/обновлениях данных и тем.
             try:
-                fixed_h = int(app_config.ui.get_top_panel_search_height())
-            except (TypeError, ValueError):
+                try:
+                    search_h = int(app_config.ui.get_top_panel_search_height())
+                except (TypeError, ValueError):
+                    search_h = 32
+                try:
+                    btn_h = int(app_config.ui.get_top_panel_button_size())
+                except (TypeError, ValueError):
+                    btn_h = 32
+                fixed_h = max(search_h, btn_h)
+            except Exception:
                 fixed_h = 32
             try:
                 widget.setFixedHeight(fixed_h)
