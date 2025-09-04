@@ -357,7 +357,7 @@ def _inject_to_category_tiles(window: Any, controllers: Dict[str, Any]) -> None:
         # Логируем неожиданные ошибки, но не используем общий перехват в wiring-блоках.
         try:
             builder = CategoryMenuBuilder(tiles.view, window)
-            menu, edit_action, delete_action, add_link_action = builder.build(
+            menu, edit_action, add_link_action, delete_action = builder.build(
                 category_id,
                 edit_cb=structure_ctrl.handle_edit_category,
                 delete_cb=structure_ctrl.handle_delete_category,

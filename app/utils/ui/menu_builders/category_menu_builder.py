@@ -38,6 +38,9 @@ class CategoryMenuBuilder:
         - Добавить ссылку
         - Разделитель
         - Удалить категорию
+
+        Порядок возвращаемых значений соответствует визуальному порядку пунктов меню:
+        (menu, edit_action, add_link_action, delete_action).
         """
         menu = QMenu(self.list_widget)
 
@@ -70,7 +73,9 @@ class CategoryMenuBuilder:
         menu.addSeparator()
         menu.addAction(delete_action)
 
-        return menu, edit_action, delete_action, add_link_action
+        # Визуальный порядок: edit, add_link, [sep], delete
+        # Соответственно, возвращаем в порядке (menu, edit, add_link, delete)
+        return menu, edit_action, add_link_action, delete_action
 
     def _get_icon(self, name: str):
         """Получить иконку с учётом темы."""
