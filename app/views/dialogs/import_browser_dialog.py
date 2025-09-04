@@ -1,11 +1,11 @@
 """
 Диалог импорта ссылок из браузера.
 
-Исправления:
-- Использование Repository вместо прямой работы с Database
-- Улучшена обработка ошибок
-- Добавлено логирование
-- Валидация выбранного раздела
+Требования по UI (приведено к виду диалога добавления категории):
+- 1 строка: выбор сферы
+- 2 строка: выбор раздела в выбранной сфере
+
+Убрана прежняя реализация с единым комбобоксом «Сфера / Раздел».
 """
 
 import logging
@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QLabel,
     QVBoxLayout,
+    QFormLayout,
 )
 
 from .base_dialog import BaseDialog
@@ -31,27 +32,35 @@ class ImportBrowserDialog(BaseDialog):
 
         self.structure_business_logic = structure_business_logic
         self.selected_section_id = None
-        self.section_map = {}
 
         self.setWindowTitle("Импорт из браузера")
-        self.resize(400, 150)
+        self.resize(400, 180)
         self.setModal(True)
 
         self._init_ui()
-        self._populate_sections()
+        self._populate_spheres()
+        self._update_sections()
 
     def _init_ui(self) -> None:
         """Инициализирует пользовательский интерфейс."""
         vbox = QVBoxLayout(self)
 
         # Заголовок
-        label = QLabel("Выберите раздел для импорта ссылок:")
+        label = QLabel("Выберите место импорта ссылок:")
         vbox.addWidget(label)
 
-        # Комбобокс для выбора раздела
+        # Форма с 2 строками: Сфера, Раздел
+        form = QFormLayout()
+
+        self.sphere_cb = QComboBox()
+        self.sphere_cb.setMinimumHeight(32)
+        form.addRow("Сфера:", self.sphere_cb)
+
         self.section_cb = QComboBox()
         self.section_cb.setMinimumHeight(32)
-        vbox.addWidget(self.section_cb)
+        form.addRow("Раздел:", self.section_cb)
+
+        vbox.addLayout(form)
 
         # Кнопки
         button_box = QDialogButtonBox(
@@ -70,65 +79,57 @@ class ImportBrowserDialog(BaseDialog):
         vbox.addWidget(button_box)
 
         # Подключение сигналов
+        self.sphere_cb.currentIndexChanged.connect(self._update_sections)
         self.section_cb.currentIndexChanged.connect(self._on_section_changed)
 
-    def _populate_sections(self) -> None:
-        """Заполняет комбобокс разделами из всех сфер."""
+    def _populate_spheres(self) -> None:
+        """Заполняет комбобокс сферами."""
         try:
-            self.section_cb.clear()
-            self.section_map.clear()
-
-            # Получаем все сферы
+            self.sphere_cb.clear()
             spheres = self.structure_business_logic.get_spheres()
             logger.debug(f"Найдено сфер: {len(spheres)}")
-
             if not spheres:
+                # Нет сфер — блокируем оба комбобокса
                 self._show_no_data_message("Не найдено ни одной сферы")
                 return
-
-            sections_added = 0
-
-            # Проходим по всем сферам и их разделам
             for sphere in spheres:
-                try:
-                    sections = self.structure_business_logic.get_sections(sphere["id"])
+                self.sphere_cb.addItem(sphere["name"], sphere["id"])
+            if self.sphere_cb.count() > 0:
+                self.sphere_cb.setCurrentIndex(0)
+        except Exception as e:
+            logger.error(f"Ошибка при загрузке сфер: {e}")
+            self._show_error_message(f"Ошибка при загрузке данных: {str(e)}")
 
-                    for section in sections:
-                        # Формируем отображаемый текст
-                        display_text = f"{sphere['name']} / {section['name']}"
-
-                        # Добавляем в комбобокс
-                        self.section_cb.addItem(display_text, section["id"])
-
-                        # Сохраняем информацию о разделе
-                        self.section_map[section["id"]] = {
-                            "sphere_id": sphere["id"],
-                            "sphere_name": sphere["name"],
-                            "section_name": section["name"],
-                        }
-
-                        sections_added += 1
-
-                except Exception as e:
-                    logger.warning(
-                        f"Ошибка при получении разделов для сферы {sphere['name']}: {e}"
-                    )
-                    continue
-
-            if sections_added == 0:
-                self._show_no_data_message("Не найдено ни одного раздела")
-            else:
-                logger.info(f"Загружено разделов: {sections_added}")
-                # Выбираем первый раздел по умолчанию
-                if self.section_cb.count() > 0:
-                    self.section_cb.setCurrentIndex(0)
-
+    def _update_sections(self) -> None:
+        """Обновляет список разделов для выбранной сферы."""
+        try:
+            self.section_cb.clear()
+            sphere_id = self.sphere_cb.currentData()
+            if not sphere_id:
+                self._show_no_sections_message("Сначала выберите сферу")
+                return
+            sections = self.structure_business_logic.get_sections(sphere_id)
+            if not sections:
+                self._show_no_sections_message("В выбранной сфере нет разделов")
+                return
+            for section in sections:
+                self.section_cb.addItem(section["name"], section["id"])
+            if self.section_cb.count() > 0:
+                self.section_cb.setCurrentIndex(0)
         except Exception as e:
             logger.error(f"Ошибка при загрузке разделов: {e}")
             self._show_error_message(f"Ошибка при загрузке данных: {str(e)}")
 
     def _show_no_data_message(self, message: str) -> None:
-        """Показывает сообщение об отсутствии данных."""
+        """Показывает сообщение об отсутствии данных (нет сфер)."""
+        self.sphere_cb.addItem(message)
+        self.sphere_cb.setEnabled(False)
+        self.section_cb.addItem("Нет данных")
+        self.section_cb.setEnabled(False)
+        logger.warning(message)
+
+    def _show_no_sections_message(self, message: str) -> None:
+        """Показывает сообщение об отсутствии разделов в выбранной сфере."""
         self.section_cb.addItem(message)
         self.section_cb.setEnabled(False)
         logger.warning(message)
@@ -147,10 +148,11 @@ class ImportBrowserDialog(BaseDialog):
     def _on_section_changed(self) -> None:
         """Обработчик изменения выбранного раздела."""
         section_id = self.section_cb.currentData()
-        if section_id and section_id in self.section_map:
-            section_info = self.section_map[section_id]
+        if section_id:
+            sphere_name = self.sphere_cb.currentText()
+            section_name = self.section_cb.currentText()
             logger.debug(
-                f"Выбран раздел: {section_info['sphere_name']} / {section_info['section_name']}"
+                f"Выбран раздел: {sphere_name} / {section_name}"
             )
 
     def get_selected_section_id(self) -> Optional[int]:
@@ -160,11 +162,16 @@ class ImportBrowserDialog(BaseDialog):
         return self.section_cb.currentData()
 
     def get_selected_section_info(self) -> Optional[Dict]:
-        """Возвращает полную информацию о выбранном разделе."""
+        """Возвращает информацию о выбранном разделе и сфере."""
         section_id = self.get_selected_section_id()
-        if section_id and section_id in self.section_map:
-            return {"section_id": section_id, **self.section_map[section_id]}
-        return None
+        if not section_id:
+            return None
+        return {
+            "section_id": section_id,
+            "sphere_id": self.sphere_cb.currentData(),
+            "sphere_name": self.sphere_cb.currentText(),
+            "section_name": self.section_cb.currentText(),
+        }
 
     def accept(self) -> None:
         """Подтверждение выбора раздела."""

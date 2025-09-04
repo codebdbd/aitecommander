@@ -21,6 +21,10 @@ from app.utils.ui.icon.path_service import get_current_theme
 
 # Логгер модуля
 logger = logging.getLogger(__name__)
+# Имя пользовательского свойства на виджете, которым отмечаем, что обработчик уже подключён
+_PROP_CONNECTED = "_ctx_menu_icons_connected"
+# Имя python-атрибута на виджете, в котором храним ссылку на обработчик
+_ATTR_HANDLER = "_ctx_menu_icons_handler"
 # Соответствие стандартных действий (enum) нашим именам иконок
 _SHORTCUT_TO_ICON: dict[QKeySequence.StandardKey, str] = {
     QKeySequence.StandardKey.Cut: "cut",
@@ -54,15 +58,61 @@ _TEXT_TO_ICON: dict[str, str] = {
 def enable(widget: QWidget) -> None:
     """Включить тематические иконки для стандартного контекстного меню виджета.
 
-    Виджет должен быть QLineEdit, QTextEdit или QPlainTextEdit.
+    - Поддерживает: QLineEdit, QTextEdit, QPlainTextEdit.
+    - Безопасен к повторным вызовам: обработчик подключается только один раз.
+    - Ссылка на обработчик хранится на виджете (python-атрибут), а флаг подключения — в
+      пользовательском свойстве виджета для лёгкой проверки.
     """
     if not isinstance(widget, (QLineEdit, QTextEdit, QPlainTextEdit)):
         return
 
+    # Если уже подключали раньше — выходим, чтобы не создавать дубликаты слотов
+    try:
+        if bool(widget.property(_PROP_CONNECTED)):
+            return
+    except Exception:
+        # В случае экзотических ошибок свойств продолжаем обычным путём
+        pass
+
+    # Гарантируем CustomContextMenu и готовим обработчик
     widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-    widget.customContextMenuRequested.connect(
-        lambda pos, w=widget: _show_patched_menu(w, pos)
-    )
+
+    handler = getattr(widget, _ATTR_HANDLER, None)
+    if handler is None:
+        handler = (lambda pos, w=widget: _show_patched_menu(w, pos))
+        setattr(widget, _ATTR_HANDLER, handler)
+
+    # На всякий случай пробуем убрать возможную прежнюю связь с тем же handler,
+    # чтобы предотвратить дубликаты, если свойство оказалось невалидным
+    try:
+        widget.customContextMenuRequested.disconnect(handler)  # type: ignore[arg-type]
+    except Exception:
+        pass
+
+    widget.customContextMenuRequested.connect(handler)  # type: ignore[arg-type]
+    widget.setProperty(_PROP_CONNECTED, True)
+
+
+def disable(widget: QWidget) -> None:
+    """Отключить патчинг контекстного меню и разорвать сигнал, если был подключён.
+
+    Безопасно к многократным вызовам. Ничего не делает для неподдерживаемых виджетов.
+    """
+    if not isinstance(widget, (QLineEdit, QTextEdit, QPlainTextEdit)):
+        return
+
+    handler = getattr(widget, _ATTR_HANDLER, None)
+    if handler is None:
+        # Нечего отключать
+        widget.setProperty(_PROP_CONNECTED, False)
+        return
+
+    try:
+        widget.customContextMenuRequested.disconnect(handler)  # type: ignore[arg-type]
+    except Exception:
+        pass
+    finally:
+        widget.setProperty(_PROP_CONNECTED, False)
 
 
 def _show_patched_menu(widget: QWidget, pos: QPoint) -> None:
@@ -82,6 +132,17 @@ def _apply_theme_icons(menu: QMenu) -> None:
     for action in menu.actions():
         if not isinstance(action, QAction):
             continue
+        # Сначала рекурсивно применяем иконки к подменю, если оно существует.
+        # Делаем это вне зависимости от enabled-состояния родительского action,
+        # чтобы вложенные уровни не оставались без иконок.
+        try:
+            submenu = action.menu()
+        except Exception:
+            submenu = None
+        if submenu is not None:
+            _apply_theme_icons(submenu)
+
+        # Для самого действия пропускаем разделители и отключённые пункты
         if action.isSeparator() or not action.isEnabled():
             continue
 

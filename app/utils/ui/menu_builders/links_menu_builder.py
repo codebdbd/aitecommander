@@ -146,17 +146,16 @@ class LinksMenuBuilder:
 
     def _add_additional_actions(self, menu: QMenu, link: dict):
         """Добавляет дополнительные действия."""
-        # Найти действие "Отменить" для вставки перед ним
-        undo_action_in_menu = next(
-            (action for action in menu.actions() if action.text() == "&Отменить"), None
-        )
-
-        if undo_action_in_menu:
-            menu.insertSeparator(undo_action_in_menu)
+        # Используем явную ссылку на undo_action из главного окна
+        undo_anchor = getattr(self.main_window, "undo_action", None)
+        # Вставляем дополнительные действия только если undo присутствует в текущем меню,
+        # чтобы сохранить исходную логику расположения.
+        if undo_anchor and undo_anchor in menu.actions():
+            menu.insertSeparator(undo_anchor)
 
             # Выделить все
             menu.insertAction(
-                undo_action_in_menu,
+                undo_anchor,
                 self.actions.create(
                     "Выделить все",
                     self.main_window.select_all_links,
@@ -167,7 +166,7 @@ class LinksMenuBuilder:
 
             # Редактировать заметку
             menu.insertAction(
-                undo_action_in_menu,
+                undo_anchor,
                 self.actions.create(
                     "Редактировать заметку",
                     lambda: self.main_window.links_actions.show_note_dialog(link),
@@ -176,7 +175,7 @@ class LinksMenuBuilder:
                 ),
             )
 
-            menu.insertSeparator(undo_action_in_menu)
+            menu.insertSeparator(undo_anchor)
 
     def _add_empty_area_actions(self, menu: QMenu, paste_link_cb: Callable):
         """Добавляет действия для пустой области таблицы."""

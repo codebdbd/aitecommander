@@ -300,7 +300,9 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
       иначе иконки из манифестов добавляются в candidates синхронно.
     - candidates: коллекция, которую можно дополнить.
     """
-    if not manifest_urls or config is None:
+    # Разрешаем обработку манифестов даже если config не передан: http_request
+    # корректно работает с None, подставляя значения по умолчанию из constants.
+    if not manifest_urls:
         return
 
     # Deduplicate while preserving order to avoid duplicate network requests
@@ -432,10 +434,15 @@ def _add_fallback_paths(base_url: str, candidates: list[IconCandidate]):
     p = urlparse(base_url)
     host = p.netloc
     hosts = {host}
+    # Хосты для fallback:
+    # - Если начинается с www., добавляем базовый хост без www.
+    # - Если это вероятный корневой домен (ровно одна точка), добавляем www.<host>.
+    # - Если явный поддомен (>=2 точек и не начинается с www.), НЕ добавляем www.<host>, чтобы не плодить шумные 404.
     if host.startswith("www."):
         hosts.add(host[4:])
     else:
-        hosts.add("www." + host)
+        if host.count(".") == 1:
+            hosts.add("www." + host)
 
     fallback_paths = [
         "/favicon.ico",
@@ -509,6 +516,11 @@ def _append_og_image(soup: BeautifulSoup, base_url: str, candidates: list[IconCa
     # Append og:image only when there are no primary link-icons present.
     # Primary icons are those with base_priority == 0 (link-icon/mask/apple).
     if not any(getattr(c, "base_priority", 9) == 0 for c in candidates):
+        # Управляем строгостью фильтрации через конфиг. По умолчанию строгий режим.
+        try:
+            strict = bool(getattr(app_config, "ICONS_OG_IMAGE_STRICT", True))
+        except Exception:
+            strict = True
         def _maybe_add_og(prop_name: str):
             meta = soup.find("meta", property=prop_name)
             if meta and meta.get("content"):
@@ -516,7 +528,8 @@ def _append_og_image(soup: BeautifulSoup, base_url: str, candidates: list[IconCa
                 og_url = urljoin(base_url, og_content)
                 low = og_url.lower()
                 if not any(m in low for m in OG_IMAGE_BANNED_MARKERS):
-                    if any(k in low for k in ["icon", "favicon"]):
+                    # В строгом режиме требуем ключевые слова; в мягком — достаточно отсутствия запрещённых маркеров.
+                    if (not strict) or any(k in low for k in ["icon", "favicon"]):
                         og_urls.append(og_url)
 
         _maybe_add_og("og:image")
