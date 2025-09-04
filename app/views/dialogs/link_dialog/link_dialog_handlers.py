@@ -6,7 +6,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtGui import QIcon
@@ -53,7 +53,7 @@ class LinkDialogHandlers:
         """Подключение сигналов к слотам."""
         # Тип ссылки
         self.dialog.ui.type_group.buttonClicked.connect(
-            lambda b: self._on_type_changed(b.property("link_type"))
+            lambda b: self.on_type_changed(b.property("link_type"))
         )
 
         # URL изменение
@@ -82,7 +82,7 @@ class LinkDialogHandlers:
         self.dialog.ui.get_widget("button_box").accepted.connect(self._on_accept)
         self.dialog.ui.get_widget("button_box").rejected.connect(self.dialog.reject)
 
-    def _on_type_changed(self, link_type: str) -> None:
+    def on_type_changed(self, link_type: str) -> None:
         """Обработчик изменения типа ссылки."""
         self.dialog.link_type = link_type
 
@@ -237,8 +237,12 @@ class LinkDialogHandlers:
     def _on_path_changed(self, text: str) -> None:
         """Обработчик изменения пути."""
         self.dialog._processing_timer.stop()
-        # Уменьшаем задержку дебаунса, чтобы успеть запустить воркер до закрытия диалога
-        self.dialog._processing_timer.start(300)
+        # Используем настраиваемую задержку дебаунса из диалога (с фолбэком на 300 мс)
+        try:
+            debounce_ms = getattr(self.dialog, "PATH_DEBOUNCE_MS", 300)
+        except Exception:
+            debounce_ms = 300
+        self.dialog._processing_timer.start(int(debounce_ms) if debounce_ms else 300)
 
     def _on_profile(self) -> None:
         """Обработчик кнопки выбора профиля."""
@@ -490,7 +494,35 @@ class LinkDialogHandlers:
 
     def set_link_type(self, link_type: str) -> None:
         """Программно выбрать тип ссылки и обновить UI."""
-        if link_type not in {code for code, _ in self.dialog.LINK_TYPES}:
+        # Безопасно получаем список доступных типов из диалога
+        try:
+            link_types = getattr(self.dialog, "link_types", None)
+        except Exception:
+            link_types = None
+
+        if not link_types:
+            return
+
+        # Нормализуем link_types к множеству кодов типов
+        codes = set()
+        try:
+            for item in link_types:
+                if isinstance(item, (list, tuple)):
+                    if len(item) >= 1:
+                        codes.add(item[0])
+                elif isinstance(item, dict):
+                    code = item.get("code") or item.get("id") or item.get("type")
+                    if code:
+                        codes.add(code)
+                else:
+                    # Строка или произвольный скаляр
+                    codes.add(str(item))
+        except Exception as e:
+            # В спорных случаях просто выходим тихо, не меняя состояние
+            logging.debug(f"set_link_type: ошибка нормализации link_types: {e}")
+            return
+
+        if link_type not in codes:
             return
 
         type_group = self.dialog.ui.widgets["type_group"]
@@ -499,7 +531,7 @@ class LinkDialogHandlers:
                 btn.setChecked(True)
                 break
 
-        self._on_type_changed(link_type)
+        self.on_type_changed(link_type)
 
     def trigger_link_processing(self, path: str) -> None:
         """Запуск обработки информации о ссылке."""
@@ -610,6 +642,48 @@ class LinkDialogHandlers:
         self._is_processing = False
 
     def _on_link_info_error(self, error_message: str) -> None:
-        """Обработка ошибки получения информации."""
+        """Обработка ошибки получения информации.
+
+        Теперь метод не только сбрасывает внутреннее состояние, но и:
+        - логирует ошибку через logger.error с деталями контекста (тип ссылки, последний путь);
+        - уведомляет пользователя через диалоговое окно `show_error(...)` с подробностями.
+
+        :param error_message: Текст ошибки, полученный из фоновой задачи.
+        """
+        # Сброс внутреннего состояния обработки
         self._is_processing = False
         self._active_worker = None
+
+        # Логирование для диагностики
+        try:
+            link_type = getattr(self.dialog, "link_type", None) or "<unknown>"
+            last_path = self._last_processed_path or (
+                getattr(self.dialog, "link", {}) or {}
+            ).get("url", "")
+        except Exception:
+            link_type = "<unknown>"
+            last_path = ""
+
+        logger.error(
+            "Ошибка получения информации о ссылке (type=%s, path=%s): %s",
+            link_type,
+            last_path,
+            error_message,
+        )
+
+        # Дружелюбное уведомление пользователя с подробностями для диагностики
+        try:
+            self.dialog.show_error(
+                "Не удалось получить информацию о ссылке.",
+                "Ошибка обработки ссылки",
+                informative_text=(
+                    "Проверьте корректность пути/URL и доступность ресурса."
+                ),
+                details=str(error_message),
+                silent=True,
+            )
+        except Exception as e:
+            # Даже если уведомить пользователя не получилось, зафиксируем это в логах
+            logger.warning(
+                "Не удалось показать окно ошибки пользователю: %s", e
+            )

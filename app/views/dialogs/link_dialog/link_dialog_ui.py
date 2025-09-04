@@ -1,11 +1,15 @@
 """
 Модуль для создания UI диалога добавления/редактирования ссылки.
+
+Класс `LinkDialogUI` инкапсулирует построение виджетов и хранит ссылки
+на ключевые элементы через словарь `widgets`.
 """
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, List, Tuple
 
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtWidgets import (
+    QWidget,
     QButtonGroup,
     QCheckBox,
     QComboBox,
@@ -32,20 +36,48 @@ logger = logging.getLogger(__name__)
 class LinkDialogUI:
     """UI компоненты для LinkDialog."""
 
-    def __init__(self, parent):
-        """Инициализация UI компонентов."""
-        self.parent = parent
+    def __init__(self, parent: QWidget) -> None:
+        """Инициализация UI компонентов.
+
+        :param parent: Родительский виджет (обычно экземпляр `LinkDialog`).
+        """
+        self.parent: QWidget = parent
         self.widgets: Dict[str, QWidget] = {}
 
-    def build_ui(self, link_types: list) -> None:
-        """Построение пользовательского интерфейса."""
+    def build_ui(self, link_types: List[Tuple[str, str]]) -> None:
+        """Построение пользовательского интерфейса.
+
+        :param link_types: Список пар `(code, title)` для типов ссылок.
+        """
         vbox = QVBoxLayout(self.parent)
         margins = app_config.ui.get_link_dialog_margins()
         vbox.setContentsMargins(margins, margins, margins, margins)
         vbox.setSpacing(app_config.ui.get_link_dialog_spacing())
 
-        # Тип ссылки
-        vbox.addWidget(QLabel("Тип ссылки:"))
+        # Секции UI
+        self._build_type_section(vbox, link_types)
+        self._build_form_section(vbox)
+        self._build_buttons(vbox)
+
+        # Состояние кнопки "Сохранить": активно только если заполнены и Путь, и Имя
+        self._update_save_button_state()
+        try:
+            self.url_le.textChanged.connect(lambda _t: self._update_save_button_state())
+            self.name_le.textChanged.connect(
+                lambda _t: self._update_save_button_state()
+            )
+        except (AttributeError, RuntimeError) as e:
+            logger.warning(f"Ошибка подключения сигнала textChanged для name_le: {e}")
+
+        # Начальный фокус ставим на поле URL/Путь (а не на кнопку)
+        try:
+            self.url_le.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+        except (AttributeError, RuntimeError) as e:
+            logger.warning(f"Ошибка установки фокуса на url_le: {e}")
+
+    def _build_type_section(self, container: QVBoxLayout, link_types: List[Tuple[str, str]]) -> None:
+        """Создаёт секцию выбора типа ссылки и добавляет её в контейнер."""
+        container.addWidget(QLabel("Тип ссылки:"))
         self.type_group = QButtonGroup(self.parent)
         hl_type = QHBoxLayout()
 
@@ -72,14 +104,25 @@ class LinkDialogUI:
             btn.setProperty("link_type", code)
             hl_type.addWidget(btn, 1)
 
-        vbox.addLayout(hl_type)
+        container.addLayout(hl_type)
         self.widgets["type_group"] = self.type_group
 
-        # Форма
+    def _build_form_section(self, container: QVBoxLayout) -> None:
+        """Создаёт секцию формы (поля URL/Имя/Аргументы/Иерархия/Заметки/Избранное)."""
         self.form = QFormLayout()
         self.form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
-        # URL/Путь
+        # Построение строк формы по частям
+        self._form_add_path_row()
+        self._form_add_name_row()
+        self._form_add_args_row()
+        self._form_add_hierarchy_section()
+        self._form_add_notes_and_fav()
+
+        container.addLayout(self.form)
+
+    def _form_add_path_row(self) -> None:
+        """Добавляет строку URL/Путь с кнопками Обзор и Профиль."""
         self.url_le = QLineEdit()
         hl_path = QHBoxLayout()
         hl_path.addWidget(self.url_le, 1)
@@ -101,16 +144,15 @@ class LinkDialogUI:
             }
         )
 
-        # Имя
+    def _form_add_name_row(self) -> None:
+        """Добавляет строку Имя и кнопку выбора иконки."""
         self.name_le = QLineEdit()
         hl_name = QHBoxLayout()
         hl_name.addWidget(self.name_le, 1)
 
         self.icon_btn = QPushButton("Иконка")
         self.icon_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
-        # Выравниваем поведение с диалогами сущностей: иконка 24x24
         try:
-            # Централизуем размер через UIConfig: используем размер иконки по умолчанию
             default_icon = int(app_config.ui.get_default_icon_size())
             self.icon_btn.setIconSize(QSize(default_icon, default_icon))
         except (AttributeError, RuntimeError, ValueError) as e:
@@ -120,13 +162,15 @@ class LinkDialogUI:
         self.form.addRow("Имя:", hl_name)
         self.widgets.update({"name_le": self.name_le, "icon_btn": self.icon_btn})
 
-        # Аргументы
+    def _form_add_args_row(self) -> None:
+        """Добавляет строку для ввода аргументов запуска."""
         self.args_le = QLineEdit()
         self.args_label = QLabel("Аргументы:")
         self.form.addRow(self.args_label, self.args_le)
         self.widgets.update({"args_le": self.args_le, "args_label": self.args_label})
 
-        # Иерархия
+    def _form_add_hierarchy_section(self) -> None:
+        """Добавляет выпадающие списки иерархии: Сфера, Раздел, Категория."""
         self.sphere_cb = QComboBox()
         self.section_cb = QComboBox()
         self.category_cb = QComboBox()
@@ -143,9 +187,9 @@ class LinkDialogUI:
             }
         )
 
-        # Заметки
+    def _form_add_notes_and_fav(self) -> None:
+        """Добавляет поле заметок и чекбокс избранного."""
         self.notes_te = QTextEdit()
-        # Не перехватывать Tab внутри многострочного поля — пусть переключает фокус
         try:
             self.notes_te.setTabChangesFocus(True)
         except (AttributeError, RuntimeError) as e:
@@ -153,19 +197,17 @@ class LinkDialogUI:
         self.form.addRow("Заметки:", self.notes_te)
         self.widgets["notes_te"] = self.notes_te
 
-        # Избранное (не растягивать на всю ширину)
         self.fav_chk = QCheckBox("Добавить в избранное")
         fav_row = QHBoxLayout()
         fav_row.setContentsMargins(0, 0, 0, 0)
         fav_row.setSpacing(0)
         fav_row.addWidget(self.fav_chk)
-        fav_row.addStretch(1)  # фиксирует чекбокс слева, без растяжения
+        fav_row.addStretch(1)
         self.form.addRow("", fav_row)
         self.widgets["fav_chk"] = self.fav_chk
 
-        vbox.addLayout(self.form)
-
-        # Кнопки
+    def _build_buttons(self, container: QVBoxLayout) -> None:
+        """Создаёт панель кнопок OK/Cancel и добавляет её в контейнер."""
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
@@ -190,25 +232,9 @@ class LinkDialogUI:
             logger.warning(f"Ошибка настройки фокуса для Cancel кнопки: {e}")
         cancel_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
 
-        vbox.addWidget(self.button_box)
+        container.addWidget(self.button_box)
         self.widgets["button_box"] = self.button_box
         self.widgets["ok_btn"] = ok_btn
-
-        # Состояние кнопки "Сохранить": активно только если заполнены и Путь, и Имя
-        self._update_save_button_state()
-        try:
-            self.url_le.textChanged.connect(lambda _t: self._update_save_button_state())
-            self.name_le.textChanged.connect(
-                lambda _t: self._update_save_button_state()
-            )
-        except (AttributeError, RuntimeError) as e:
-            logger.warning(f"Ошибка подключения сигнала textChanged для name_le: {e}")
-
-        # Начальный фокус ставим на поле URL/Путь (а не на кнопку)
-        try:
-            self.url_le.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
-        except (AttributeError, RuntimeError) as e:
-            logger.warning(f"Ошибка установки фокуса на url_le: {e}")
 
     def get_widget(self, name: str) -> QWidget | None:
         """Получить виджет по имени."""
