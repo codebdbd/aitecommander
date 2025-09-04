@@ -1,5 +1,3 @@
-import types
-
 from app.utils.links.parser import favicon_cache as fc_module
 from app.utils.links.parser.favicon_cache import favicon_cache
 from app.utils.links.parser.constants import SHORT_NEGATIVE_TTL

@@ -1,4 +1,3 @@
-import pytest
 from types import SimpleNamespace
 
 from app.controllers.ui.links.handlers import LinksUIHandlers

@@ -1,6 +1,4 @@
 import pytest
-from types import SimpleNamespace
-
 from app.controllers.ui.structure.tree_management import TreeManagement
 
 

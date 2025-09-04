@@ -17,7 +17,7 @@ import json
 import os
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Optional
@@ -134,10 +134,10 @@ def _get_icon_lock(domain: str) -> threading.Lock:
                 if k == d:
                     # не трогаем только что использованный ключ
                     continue
-                l = _ICON_LOCKS.get(k)
-                if l is None:
+                lock_var = _ICON_LOCKS.get(k)
+                if lock_var is None:
                     continue
-                if not l.locked():
+                if not lock_var.locked():
                     try:
                         _ICON_LOCKS.pop(k, None)
                     except Exception:

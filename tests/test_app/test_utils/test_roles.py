@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import Mock
 
 from app.utils.ui.qt.roles import get_selected_rows
