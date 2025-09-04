@@ -73,18 +73,21 @@ class WindowInitializer:
             except Exception:
                 logger.exception("WindowInitializer: ошибка в отложенной инициализации")
             finally:
-                # Показываем окно после того, как все UI-компоненты и контроллеры готовы,
-                # чтобы избежать белого экрана на старте
+                # Сначала завершаем инициализацию сфер и все связанные расчёты размеров,
+                # удерживая окно с отключёнными обновлениями для предотвращения мерцания.
                 try:
-                    if hasattr(self.window, "show"):
-                        self.window.show()
-                except Exception:
-                    logger.exception("WindowInitializer: не удалось показать окно")
-                # Сферы инициализируем уже вне suspend_updates
-                try:
-                    self._initialize_spheres()
+                    with suspend_updates(self.window):
+                        self._initialize_spheres()
                 except Exception:
                     logger.exception("WindowInitializer: ошибка инициализации сфер")
+
+                # Показываем окно на следующем тике цикла событий, чтобы дать Qt
+                # возможность дорассчитать setSizes()/layout перед отрисовкой.
+                try:
+                    if hasattr(self.window, "show"):
+                        QTimer.singleShot(0, self.window.show)
+                except Exception:
+                    logger.exception("WindowInitializer: не удалось показать окно")
 
         QTimer.singleShot(0, _deferred_init)
 
