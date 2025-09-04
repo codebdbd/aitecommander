@@ -49,12 +49,6 @@ class LinkDialogHandlers:
         )
         self.signals.simple_error.connect(lambda error: self._on_link_info_error(error))
 
-    def _make_icon(self, icon_path_str: str) -> Optional[QIcon]:
-        """Пытается создать QIcon по сохранённому пути.
-        Поддерживает абсолютные пути и относительные относительно пользовательской и UI-папок иконок.
-        """
-        return make_icon(icon_path_str)
-
     def connect_signals(self) -> None:
         """Подключение сигналов к слотам."""
         # Тип ссылки
@@ -298,7 +292,7 @@ class LinkDialogHandlers:
                     if (hasattr(sec, "keys") and "icon_path" in sec.keys())
                     else ""
                 )
-                icon = self._make_icon(icon_path_val)
+                icon = make_icon(icon_path_val)
                 if icon:
                     section_cb.addItem(icon, sec["name"], sec["id"])
                 else:
@@ -324,7 +318,7 @@ class LinkDialogHandlers:
                     if (hasattr(cat, "keys") and "icon_path" in cat.keys())
                     else ""
                 )
-                icon = self._make_icon(icon_path_val)
+                icon = make_icon(icon_path_val)
                 if icon:
                     category_cb.addItem(icon, cat["name"], cat["id"])
                 else:
@@ -533,6 +527,15 @@ class LinkDialogHandlers:
         link_type = self.dialog.link_type
         args_val = self.dialog.ui.get_widget("args_le").text().strip()
 
+        def _emit_if_current(payload: Dict[str, Any]) -> None:
+            # Эмитим результат только если задача всё ещё актуальна
+            if _task_id == self._worker_task_id:
+                self.signals.link_info_finished.emit(payload)
+
+        def _emit_error_if_current(message: str) -> None:
+            if _task_id == self._worker_task_id:
+                self.signals.simple_error.emit(message)
+
         def _do_work() -> Dict[str, Any]:
             try:
                 if link_type == "web":
@@ -542,9 +545,7 @@ class LinkDialogHandlers:
                         app_config,
                         force_refresh=False,
                         defer_icon=True,
-                        on_icon_ready=lambda icon_path: self.signals.link_info_finished.emit(
-                            {"title": "", "icon": icon_path}
-                        ),
+                        on_icon_ready=lambda icon_path: _emit_if_current({"title": "", "icon": icon_path}),
                     )
                     return {"title": info.get("title"), "icon": info.get("icon")}
                 # Локальные пути
@@ -557,8 +558,8 @@ class LinkDialogHandlers:
         handle = run_db(
             _do_work,
             description=f"link_info:{link_type}",
-            on_finished=lambda info: self.signals.link_info_finished.emit(info),
-            on_error=lambda e: self.signals.simple_error.emit(str(e)),
+            on_finished=lambda info: _emit_if_current(info),
+            on_error=lambda e: _emit_error_if_current(str(e)),
         )
 
         # Сохраняем handle активного воркера
