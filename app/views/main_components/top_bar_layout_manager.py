@@ -82,8 +82,6 @@ class TopBarLayoutManager(QObject):
         self._max_fav = 10
         self._max_quick = 10
 
-        # Гистерезис не используется в базовой версии
-
         # Подключаемся к актуальным контейнерам (top_bar_host, content_container)
         tb = self._safe_get(self.window, "top_bar_host")
         if isinstance(tb, QWidget):
@@ -91,7 +89,6 @@ class TopBarLayoutManager(QObject):
         cc = self._safe_get(self.window, "content_container")
         if isinstance(cc, QWidget):
             cc.installEventFilter(self)
-        # Удалена поддержка устаревшего top_panel_container
         # На всякий случай слушаем и окно (Resize)
         try:
             if isinstance(self.window, QObject) and not _sip_isdeleted(self.window):
@@ -294,9 +291,7 @@ class TopBarLayoutManager(QObject):
                 logger.debug("TopBarLayoutManager._set_visible_count: updateGeometry() failed after visibility change: %s", e, exc_info=True)
 
         return count
-
-    # _fixed_width_except удалён как неиспользуемый (логика ширин инкапсулирована в _compute_visible_counts)
-
+    
     # ------------------------------ Adjust ---------------------------------
     def adjust(self):
         """Пересчет видимости элементов верхней панели."""
@@ -704,7 +699,6 @@ class TopBarLayoutManager(QObject):
                 except Exception:
                     pass
             i += 1
-        # Сообщаем layout'у, что геометрия поменялась
         try:
             if hasattr(top_bar, "invalidate"):
                 top_bar.invalidate()
