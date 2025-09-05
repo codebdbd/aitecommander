@@ -13,6 +13,7 @@ from app.utils.links.link_parser import parse_local_link
 from app.utils.links.parser.fetcher import fetch_web_link_info
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
+from app.models.link_type import LinkType
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class LinkProcessingMixin:
         # Используем настраиваемую задержку дебаунса из диалога (с фолбэком на 300 мс)
         try:
             debounce_ms = getattr(self.dialog, "PATH_DEBOUNCE_MS", 300)
-        except Exception:
+        except (AttributeError, TypeError):
             debounce_ms = 300
         self.dialog._processing_timer.start(int(debounce_ms) if debounce_ms else 300)
 
@@ -47,11 +48,11 @@ class LinkProcessingMixin:
         if self._active_worker:
             try:
                 self._active_worker.cancel()
-            except Exception as e:
+            except (AttributeError, RuntimeError) as e:
                 # Логируем ошибку отмены воркера, но продолжаем выполнение
                 logger.debug(f"Ошибка при отмене воркера: {e}")
 
-        link_type = self.dialog.link_type
+        lt = LinkType.from_value(self.dialog.link_type)
         args_val = self.dialog._get_args_le().text().strip()
 
         def _emit_if_current(payload: Dict[str, Any]) -> None:
@@ -64,27 +65,23 @@ class LinkProcessingMixin:
                 self.signals.simple_error.emit(message)
 
         def _do_work() -> Dict[str, Any]:
-            try:
-                if link_type == "web":
-                    # Иконку подберём отложенно, чтобы не блокировать UI
-                    info = fetch_web_link_info(
-                        path,
-                        app_config,
-                        force_refresh=False,
-                        defer_icon=True,
-                        on_icon_ready=lambda icon_path: _emit_if_current({"title": "", "icon": icon_path}),
-                    )
-                    return {"title": info.get("title"), "icon": info.get("icon")}
-                # Локальные пути
-                info = parse_local_link(link_type, path, app_config, args=args_val)
-                return info or {"name": "", "icon": ""}
-            except Exception as e:
-                # Пробросим как исключение, on_error обработает
-                raise e
+            if lt == LinkType.WEB:
+                # Иконку подберём отложенно, чтобы не блокировать UI
+                info = fetch_web_link_info(
+                    path,
+                    app_config,
+                    force_refresh=False,
+                    defer_icon=True,
+                    on_icon_ready=lambda icon_path: _emit_if_current({"title": "", "icon": icon_path}),
+                )
+                return {"title": info.get("title"), "icon": info.get("icon")}
+            # Локальные пути
+            info = parse_local_link(lt.value, path, app_config, args=args_val)
+            return info or {"name": "", "icon": ""}
 
         handle = run_db(
             _do_work,
-            description=f"link_info:{link_type}",
+            description=f"link_info:{lt.value}",
             on_finished=lambda info: _emit_if_current(info),
             on_error=lambda e: _emit_error_if_current(str(e)),
         )
@@ -129,7 +126,7 @@ class LinkProcessingMixin:
             else:
                 self.dialog._get_icon_btn().setIcon(QIcon())
 
-        if self.dialog.link_type in ("program", "script", "chromeapp"):
+        if LinkType.from_value(self.dialog.link_type) in (LinkType.PROGRAM, LinkType.SCRIPT, LinkType.CHROMEAPP):
             args = info.get("args", "")
             if not self.dialog._get_args_le().text().strip():
                 self.dialog.ui.set_widget_value("args_le", args)
@@ -155,7 +152,7 @@ class LinkProcessingMixin:
             last_path = self._last_processed_path or (
                 getattr(self.dialog, "link", {}) or {}
             ).get("url", "")
-        except Exception:
+        except (AttributeError, TypeError, RuntimeError):
             link_type = "<unknown>"
             last_path = ""
 
@@ -177,7 +174,7 @@ class LinkProcessingMixin:
                 details=str(error_message),
                 silent=True,
             )
-        except Exception as e:
+        except (AttributeError, RuntimeError) as e:
             # Даже если уведомить пользователя не получилось, зафиксируем это в логах
             logger.warning(
                 "Не удалось показать окно ошибки пользователю: %s", e

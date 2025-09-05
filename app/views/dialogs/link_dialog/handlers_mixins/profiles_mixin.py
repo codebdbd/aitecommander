@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 try:  # переносим импорт на верхний уровень для явного выражения зависимостей
     from app.views.dialogs.browser_profile_dialog import BrowserProfileDialog  # type: ignore
     _BPD_IMPORT_ERROR: Exception | None = None
-except Exception as _e:  # не прерываем импорт модуля, чтобы остальной функционал был доступен
+except ImportError as _e:  # не прерываем импорт модуля, чтобы остальной функционал был доступен
     BrowserProfileDialog = None  # type: ignore[assignment]
     _BPD_IMPORT_ERROR = _e
 
@@ -34,7 +34,7 @@ class ProfilesMixin:
                     ),
                     details=str(_BPD_IMPORT_ERROR) if _BPD_IMPORT_ERROR else None,
                 )
-            except Exception:
+            except (AttributeError, RuntimeError):
                 # На случай отсутствия show_warning просто тихо выходим
                 pass
             return
