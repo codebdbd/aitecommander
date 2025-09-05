@@ -77,6 +77,6 @@ class HierarchyMixin:
                 return item.get("icon_path", "")
             if hasattr(item, "keys") and "icon_path" in item.keys():
                 return item["icon_path"]
-        except Exception:
+        except (AttributeError, TypeError, KeyError):
             return ""
         return ""

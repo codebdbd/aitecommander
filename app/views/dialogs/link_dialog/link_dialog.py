@@ -32,6 +32,7 @@ from app.views.effects.neon_effect import NeonEventFilter
 from ..base_dialog import BaseDialog
 from .link_dialog_handlers import LinkDialogHandlers
 from .link_dialog_ui import LinkDialogUI
+from app.models.link_type import LinkType
 
 logger = logging.getLogger(__name__)
 
@@ -247,8 +248,9 @@ class LinkDialog(BaseDialog):
 
         # Установка типа ссылки
         type_group = self._get_type_group()
+        _lt = LinkType.from_value(self.link_type)
         for btn in type_group.buttons():
-            if btn.property("link_type") == self.link_type:
+            if btn.property("link_type") == _lt.value:
                 btn.setChecked(True)
                 break
 
@@ -284,7 +286,9 @@ class LinkDialog(BaseDialog):
 
     def _set_initial_icon(self) -> None:
         """Устанавливает начальную иконку."""
-        resolved, exists = self._resolve_and_apply_icon(self.link_type, self.icon_name)
+        resolved, exists = self._resolve_and_apply_icon(
+            LinkType.from_value(self.link_type).value, self.icon_name
+        )
         if not exists:
             # Сообщаем один раз, что иконка не найдена
             self.show_warning(
@@ -419,7 +423,7 @@ class LinkDialog(BaseDialog):
             if idx >= 0:
                 combo.setCurrentIndex(idx)
                 return True
-        except Exception:
+        except (AttributeError, RuntimeError, TypeError):
             # В спорных случаях не меняем состояние
             return False
         return False
@@ -434,7 +438,7 @@ class LinkDialog(BaseDialog):
             if combo.count() > 0 and combo.currentIndex() < 0:
                 combo.setCurrentIndex(0)
                 return True
-        except Exception:
+        except (AttributeError, RuntimeError):
             return False
         return False
 
@@ -469,20 +473,12 @@ class LinkDialog(BaseDialog):
             if not proceed:
                 event.ignore()
                 return
-
-        # Остановка таймера
-        self._processing_timer.stop()
-        self._processing_timer.deleteLater()
-        # Корректно отменяем воркер, отписываемся от сигналов и сбрасываем ссылки
-        if self.handlers._active_worker:
-            try:
-                self.handlers._active_worker.signals.finished.disconnect()
-            except (AttributeError, RuntimeError) as e:
-                logger.debug(f"Ошибка отключения сигнала finished: {e}")
-            try:
-                self.handlers._active_worker.signals.error.disconnect()
-            except (AttributeError, RuntimeError) as e:
-                logger.debug(f"Ошибка отключения сигнала error: {e}")
-            self.handlers._active_worker.cancel()
-            self.handlers._active_worker = None
+        # Делегируем корректное завершение фоновой обработки централизованному методу
+        self.handlers.cancel_processing()
+        # Уничтожаем таймер, если он ещё жив
+        try:
+            if getattr(self, "_processing_timer", None):
+                self._processing_timer.deleteLater()
+        except (AttributeError, RuntimeError) as e:
+            logger.debug(f"closeEvent: ошибка при deleteLater таймера: {e}")
         super().closeEvent(event)

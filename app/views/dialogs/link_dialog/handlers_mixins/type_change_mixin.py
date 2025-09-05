@@ -6,14 +6,16 @@ from pathlib import Path
 from PyQt6.QtGui import QIcon
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
+from app.models.link_type import LinkType
 
 logger = logging.getLogger(__name__)
 
 
 class TypeChangeMixin:
-    def on_type_changed(self, link_type: str) -> None:
+    def on_type_changed(self, link_type) -> None:
         """Обработчик изменения типа ссылки."""
-        self.dialog.link_type = link_type
+        lt = LinkType.from_value(link_type)
+        self.dialog.link_type = lt
 
         # Очистка полей при смене типа
         self.dialog.ui.set_widget_value("url_le", "")
@@ -35,7 +37,7 @@ class TypeChangeMixin:
         # Установка иконки по умолчанию через централизованный резолвер
         try:
             resolved_icon_path = resolve_icon_for_link(
-                {"type": link_type, "icon_path": ""}
+                {"type": lt.value, "icon_path": ""}
             )
         except (AttributeError, KeyError, ValueError) as e:
             logger.warning(f"Ошибка резолвинга иконки для типа {link_type}: {e}")
@@ -54,7 +56,8 @@ class TypeChangeMixin:
 
     def _update_ui_state(self) -> None:
         """Обновляет состояние UI в зависимости от типа ссылки."""
-        is_web = self.dialog.link_type == "web"
+        lt = LinkType.from_value(self.dialog.link_type)
+        is_web = lt == LinkType.WEB
         profile_btn = self.dialog._get_profile_btn()
         browse_btn = self.dialog._get_browse_btn()
         args_le = self.dialog._get_args_le()
@@ -64,28 +67,33 @@ class TypeChangeMixin:
 
         # Кнопка 'Обзор' для определенных типов
         browse_btn.setVisible(
-            self.dialog.link_type
-            in ("file", "folder", "program", "script", "chromeapp")
+            lt in (
+                LinkType.FILE,
+                LinkType.FOLDER,
+                LinkType.PROGRAM,
+                LinkType.SCRIPT,
+                LinkType.CHROMEAPP,
+            )
         )
 
         # Аргументы только для типов, где они предусмотрены
-        args_supported_types = ("program", "script", "chromeapp", "web")
-        show_args = self.dialog.link_type in args_supported_types
+        args_supported_types = (LinkType.PROGRAM, LinkType.SCRIPT, LinkType.CHROMEAPP, LinkType.WEB)
+        show_args = lt in args_supported_types
         args_le.setVisible(show_args)
         args_label.setVisible(show_args)
 
-    def set_link_type(self, link_type: str) -> None:
+    def set_link_type(self, link_type) -> None:
         """Программно выбрать тип ссылки и обновить UI."""
         # Безопасно получаем список доступных типов из диалога
         try:
             link_types = getattr(self.dialog, "link_types", None)
-        except Exception:
+        except (AttributeError, RuntimeError):
             link_types = None
 
         if not link_types:
             return
 
-        # Нормализуем link_types к множеству кодов типов
+        # Нормализуем link_types к множеству кодов типов (строки)
         codes = set()
         try:
             for item in link_types:
@@ -99,18 +107,22 @@ class TypeChangeMixin:
                 else:
                     # Строка или произвольный скаляр
                     codes.add(str(item))
-        except Exception as e:
+        except (TypeError, ValueError, AttributeError) as e:
             # В спорных случаях просто выходим тихо, не меняя состояние
             logging.debug(f"set_link_type: ошибка нормализации link_types: {e}")
             return
 
-        if link_type not in codes:
+        # Поддерживаем внешние вызовы как строками, так и Enum
+        lt = LinkType.from_value(link_type)
+        if lt.value not in codes:
             return
 
         type_group = self.dialog.ui.widgets["type_group"]
         for btn in type_group.buttons():
-            if btn.property("link_type") == link_type:
+            if btn.property("link_type") == lt.value:
                 btn.setChecked(True)
                 break
 
+        # Для обратной совместимости вызываем обработчик с исходным значением
+        # (строкой), так как тесты ожидают именно строковый аргумент.
         self.on_type_changed(link_type)

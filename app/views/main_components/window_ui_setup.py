@@ -284,7 +284,8 @@ class WindowUISetup:
                 raise ValueError(f"Unknown panel mode: {mode}")
             if object_name:
                 widget.setObjectName(object_name)
-            widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            # Разрешаем горизонтальное сжатие, фиксируем высоту
+            widget.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
             # Жестко фиксируем высоту панелей топ-бара, чтобы исключить изменение высоты
             # после показа окна при отложенных перерисовках/обновлениях данных и тем.
             try:
@@ -308,6 +309,11 @@ class WindowUISetup:
                 widget.setMinimumWidth(0)
             except Exception:
                 logging.debug("TopPanel: failed to set minimum width on %s widget", log_label, exc_info=True)
+            # Обновляем геометрию после изменения политик/высоты
+            try:
+                widget.updateGeometry()
+            except Exception:
+                logging.debug("TopPanel: updateGeometry failed for %s", log_label, exc_info=True)
             setattr(self.window, attr_name, widget)
             top_bar.addWidget(widget)
             try:

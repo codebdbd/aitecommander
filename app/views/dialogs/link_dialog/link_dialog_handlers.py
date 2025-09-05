@@ -90,3 +90,39 @@ class LinkDialogHandlers(
             self._handle_validation_errors(form_data, result)
 
     
+    def cancel_processing(self) -> None:
+        """Безопасно отменяет все фоновые задачи и таймеры обработки.
+
+        - Останавливает таймер отложенной обработки пути
+        - Отменяет активного воркера, отписывается от сигналов
+        - Сбрасывает внутренние флаги состояния
+        - Увеличивает идентификатор задачи, предотвращая гонки результатов
+        """
+        # Останов таймера (если он ещё не уничтожен)
+        try:
+            if getattr(self.dialog, "_processing_timer", None):
+                self.dialog._processing_timer.stop()
+        except (AttributeError, RuntimeError):
+            pass
+
+        # Отмена активного воркера
+        if self._active_worker:
+            try:
+                # Безопасное отключение сигналов воркера, если они есть
+                try:
+                    self._active_worker.signals.finished.disconnect()
+                except (AttributeError, RuntimeError):
+                    pass
+                try:
+                    self._active_worker.signals.error.disconnect()
+                except (AttributeError, RuntimeError):
+                    pass
+                self._active_worker.cancel()
+            except (AttributeError, RuntimeError) as e:
+                logger.debug(f"cancel_processing: ошибка отмены воркера: {e}")
+            finally:
+                self._active_worker = None
+
+        # Сброс состояния и предотвращение гонок результатов
+        self._is_processing = False
+        self._worker_task_id += 1

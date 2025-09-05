@@ -5,6 +5,7 @@ import os
 from PyQt6.QtWidgets import QFileDialog
 from app.config_data import app_config
 from app.utils.links.link_parser import parse_lnk
+from app.models.link_type import LinkType
 
 
 PROGRAM_FILES = "Программы (*.exe *.bat *.com *.msi *.lnk)"
@@ -47,12 +48,12 @@ BROWSE_CONFIG = {
 class FileDialogMixin:
     def _on_browse(self) -> None:
         """Обработчик кнопки 'Обзор'."""
-        link_type = self.dialog.link_type
+        lt = LinkType.from_value(self.dialog.link_type)
         path = ""
 
         # Получить путь по умолчанию из конфига
         default_paths = app_config.settings.get_default_browse_paths()
-        start_dir = default_paths.get(link_type, "")
+        start_dir = default_paths.get(lt.value, "")
 
         # Обработка путей: GUID пути не проверяем через os.path.exists
         if start_dir:
@@ -67,7 +68,7 @@ class FileDialogMixin:
 
         # Создаем новый диалог с принудительным сбросом директории
         dialog = QFileDialog(self.dialog)
-        cfg = BROWSE_CONFIG.get(link_type) or {
+        cfg = BROWSE_CONFIG.get(lt.value) or {
             "title": "Выбрать файл",
             "mode": QFileDialog.FileMode.ExistingFile,
             "filter": DOC_FILES,
@@ -94,10 +95,13 @@ class FileDialogMixin:
             normalized_path = path.replace("/", "\\")
 
             # Для типа "program" - разрешить .lnk ярлыки в реальные пути к .exe
-            if link_type == "program" and normalized_path.lower().endswith(".lnk"):
+            if lt == LinkType.PROGRAM and normalized_path.lower().endswith(".lnk"):
                 try:
                     lnk_info = parse_lnk(normalized_path)
-                except Exception:
+                except (FileNotFoundError, PermissionError, OSError, ValueError, RuntimeError) as e:
+                    # Логируем проблему разбора ярлыка, но не прерываем сценарий выбора файла
+                    import logging as _logging
+                    _logging.warning(f"parse_lnk: не удалось разобрать ярлык '{normalized_path}': {e}")
                     lnk_info = None
                 if lnk_info and lnk_info.get("path"):
                     # Используем реальный путь к .exe вместо ярлыка
@@ -117,7 +121,7 @@ class FileDialogMixin:
             if not name_widget.text().strip():
                 import os as _os
                 name = _os.path.basename(normalized_path)
-                if link_type in ("program", "chromeapp") or name.lower().endswith(
+                if lt in (LinkType.PROGRAM, LinkType.CHROMEAPP) or name.lower().endswith(
                     ".lnk"
                 ):
                     name = _os.path.splitext(name)[0]

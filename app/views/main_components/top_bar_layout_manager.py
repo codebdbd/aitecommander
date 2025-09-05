@@ -230,6 +230,8 @@ class TopBarLayoutManager(QObject):
             # Скрываем сам виджет, чтобы не занимал место
             if panel_widget:
                 panel_widget.setVisible(False)
+                # ВРЕМЕННОЕ ЛОГИРОВАНИЕ
+                logging.info("[DEBUG] Hiding panel %s (no buttons)", panel_widget.objectName())
             return 0
 
         count = max(0, min(count, len(buttons)))
@@ -239,6 +241,14 @@ class TopBarLayoutManager(QObject):
         # Видимость панели только по факту наличия видимых кнопок
         if panel_widget:
             panel_widget.setVisible(count > 0)
+            try:
+                # Важно: уведомить layout о том, что геометрия панели изменилась
+                panel_widget.updateGeometry()
+            except Exception:
+                logging.debug("TopBarLayoutManager: updateGeometry failed on panel %s", getattr(panel_widget, 'objectName', lambda: '')(), exc_info=True)
+            # ВРЕМЕННОЕ ЛОГИРОВАНИЕ
+            logging.info("[DEBUG] Panel %s: %d/%d buttons visible, panel visible: %s", 
+                        panel_widget.objectName(), count, len(buttons), count > 0)
 
         return count
 
@@ -304,6 +314,10 @@ class TopBarLayoutManager(QObject):
             state = (width, cnt_recent, cnt_fav, cnt_quick)
             if self._last_applied == state:
                 return
+        
+            # ВРЕМЕННОЕ ЛОГИРОВАНИЕ ДЛЯ ОТЛАДКИ
+            logging.info("[DEBUG] TopBarLayoutManager: width=%d, counts: recent=%d, fav=%d, quick=%d", 
+                        width, cnt_recent, cnt_fav, cnt_quick)
 
             # Установим видимые количества (без дополнительных ограничений ширины/политик)
             recent_visible = self._set_visible_count(recent, "recentButton", cnt_recent)
@@ -384,7 +398,7 @@ class TopBarLayoutManager(QObject):
         return cnt_recent, cnt_fav, cnt_quick
 
     def _panel_width(self, panel: QWidget | None, btns: list[QToolButton], count: int) -> int:
-        """Возвращает ширину панели для первых `count` кнопок с учётом spacing."""
+        """Возвращает ширину панели для первых `count` кнопок с учётом spacing и margins."""
         if not panel or not btns or count <= 0:
             return 0
         bg = getattr(panel, "bg_frame", None)
@@ -392,12 +406,27 @@ class TopBarLayoutManager(QObject):
             bg.layout() if isinstance(bg, QWidget) and callable(getattr(bg, "layout", None)) else None
         )
         spacing = lay.spacing() or 0 if lay else 0
+        
+        # Считаем ширину кнопок с spacing между ними
         total = 0
         for i, b in enumerate(btns[:count]):
             w = b.sizeHint().width()
             if i > 0:
                 w += spacing
             total += w
+        
+        # Добавляем margins layout'а панели
+        if lay:
+            margins = lay.contentsMargins()
+            total += margins.left() + margins.right()
+        
+        # Добавляем margins самой панели (если есть)
+        try:
+            panel_margins = panel.contentsMargins()
+            total += panel_margins.left() + panel_margins.right()
+        except (AttributeError, RuntimeError):
+            pass
+            
         return total
 
     def _total_width_for(
