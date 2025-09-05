@@ -4,7 +4,44 @@
 import os
 from PyQt6.QtWidgets import QFileDialog
 from app.config_data import app_config
-from app.utils.links.link_parser import _parse_lnk
+from app.utils.links.link_parser import parse_lnk
+
+
+PROGRAM_FILES = "Программы (*.exe *.bat *.com *.msi *.lnk)"
+SCRIPT_FILES = "Скрипты (*.py *.ps1 *.vbs *.js *.cmd)"
+LNK_FILES = "Ярлыки (*.lnk)"
+DOC_FILES = (
+    "Документы (*.txt *.pdf *.doc *.docx *.xls *.xlsx *.csv *.jpg *.png *.jpeg *.bmp *.gif);;Все файлы (*)"
+)
+
+# Конфигурации диалога по типам ссылок
+BROWSE_CONFIG = {
+    "program": {
+        "title": "Выбрать программу",
+        "mode": QFileDialog.FileMode.ExistingFile,
+        "filter": PROGRAM_FILES,
+    },
+    "script": {
+        "title": "Выбрать скрипт",
+        "mode": QFileDialog.FileMode.ExistingFile,
+        "filter": SCRIPT_FILES,
+    },
+    "folder": {
+        "title": "Выбрать папку",
+        "mode": QFileDialog.FileMode.Directory,
+        "filter": None,
+    },
+    "file": {
+        "title": "Выбрать файл",
+        "mode": QFileDialog.FileMode.ExistingFile,
+        "filter": DOC_FILES,
+    },
+    "chromeapp": {
+        "title": "Выбрать ярлык Chrome App",
+        "mode": QFileDialog.FileMode.ExistingFile,
+        "filter": LNK_FILES,
+    },
+}
 
 
 class FileDialogMixin:
@@ -28,31 +65,17 @@ class FileDialogMixin:
                 if not os.path.exists(start_dir):
                     start_dir = ""  # Fallback к "Мой компьютер"
 
-        PROGRAM_FILES = "Программы (*.exe *.bat *.com *.msi *.lnk)"
-        SCRIPT_FILES = "Скрипты (*.py *.ps1 *.vbs *.js *.cmd)"
-        LNK_FILES = "Ярлыки (*.lnk)"
-
         # Создаем новый диалог с принудительным сбросом директории
         dialog = QFileDialog(self.dialog)
-        dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
-
-        if link_type == "program":
-            dialog.setWindowTitle("Выбрать программу")
-            dialog.setNameFilter(PROGRAM_FILES)
-        elif link_type == "script":
-            dialog.setWindowTitle("Выбрать скрипт")
-            dialog.setNameFilter(SCRIPT_FILES)
-        elif link_type == "folder":
-            dialog.setFileMode(QFileDialog.FileMode.Directory)
-            dialog.setWindowTitle("Выбрать папку")
-        elif link_type == "file":
-            dialog.setWindowTitle("Выбрать файл")
-            dialog.setNameFilter(
-                "Документы (*.txt *.pdf *.doc *.docx *.xls *.xlsx *.csv *.jpg *.png *.jpeg *.bmp *.gif);;Все файлы (*)"
-            )
-        elif link_type == "chromeapp":
-            dialog.setWindowTitle("Выбрать ярлык Chrome App")
-            dialog.setNameFilter(LNK_FILES)
+        cfg = BROWSE_CONFIG.get(link_type) or {
+            "title": "Выбрать файл",
+            "mode": QFileDialog.FileMode.ExistingFile,
+            "filter": DOC_FILES,
+        }
+        dialog.setFileMode(cfg["mode"])
+        dialog.setWindowTitle(cfg["title"])
+        if cfg.get("filter"):
+            dialog.setNameFilter(cfg["filter"])
 
         # Принудительно устанавливаем директорию
         if start_dir:
@@ -72,7 +95,10 @@ class FileDialogMixin:
 
             # Для типа "program" - разрешить .lnk ярлыки в реальные пути к .exe
             if link_type == "program" and normalized_path.lower().endswith(".lnk"):
-                lnk_info = _parse_lnk(normalized_path)
+                try:
+                    lnk_info = parse_lnk(normalized_path)
+                except Exception:
+                    lnk_info = None
                 if lnk_info and lnk_info.get("path"):
                     # Используем реальный путь к .exe вместо ярлыка
                     normalized_path = lnk_info["path"]
