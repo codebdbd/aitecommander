@@ -26,8 +26,8 @@ class BaseTopPanelWidget(BasePanelWidget):
         self._main_window = main_window
         self._default_icon_path: Optional[Path] = None
         
-        # Наследуем политику размеров из BasePanelWidget (QSizePolicy.Minimum, QSizePolicy.Fixed)
-        # Не переопределяем sizePolicy здесь, чтобы избежать конфликта политик
+        # Common size policy for all top panel widgets
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
     def set_data(self, items: List[Dict[str, Any]]) -> None:
         """Sets panel data - to be implemented by subclasses."""
@@ -93,7 +93,6 @@ class BaseTopPanelWidget(BasePanelWidget):
         icon_size = app_config.ui.get_top_panel_icon_size()
         button.setFixedSize(button_size, button_size)
         button.setIconSize(QSize(icon_size[0], icon_size[1]))
-        # Keep buttons fixed size but allow panel to shrink
         button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         
         try:

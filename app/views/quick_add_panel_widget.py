@@ -44,7 +44,6 @@ class QuickAddPanelWidget(BaseTopPanelWidget):
             btn.setObjectName("quickButton")
             btn.setFixedSize(button_size, button_size)
             btn.setIconSize(QSize(icon_size[0], icon_size[1]))
-            # Keep buttons fixed size - panel can still shrink via layout
             btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
             
             # Set icon
