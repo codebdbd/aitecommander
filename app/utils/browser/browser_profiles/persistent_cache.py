@@ -41,6 +41,15 @@ class PersistentProfileCache(BaseCache):
         self._next_flush_ts: float = 0.0
         self._load_from_disk()
 
+    @property
+    def timeout(self) -> Optional[float]:
+        """Возвращает дефолтный TTL (секунды), если он задан для кэша.
+
+        Совместимость: ранее потребители могли ожидать наличие поля `timeout` у кэша.
+        Теперь предоставляем свойство, проксирующее `_default_ttl`.
+        """
+        return self._default_ttl
+
     # --- файловые операции ---
     def _load_from_disk(self) -> None:
         try:

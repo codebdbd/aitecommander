@@ -53,7 +53,7 @@ class LinkDialogHandlers(
         )
 
         # URL изменение
-        url_widget = self.dialog.ui.get_widget("url_le")
+        url_widget = self.dialog._get_url_le()
         url_widget.textChanged.connect(self._on_path_changed)
         # Немедленный триггер при завершении редактирования (Enter/потеря фокуса)
         try:
@@ -62,21 +62,21 @@ class LinkDialogHandlers(
             logger.warning(f"Ошибка подключения сигнала editingFinished для url_widget: {e}")
 
         # Кнопки
-        self.dialog.ui.get_widget("browse_btn").clicked.connect(self._on_browse)
-        self.dialog.ui.get_widget("profile_btn").clicked.connect(self._on_profile)
-        self.dialog.ui.get_widget("icon_btn").clicked.connect(self._on_choose_icon)
+        self.dialog._get_browse_btn().clicked.connect(self._on_browse)
+        self.dialog._get_profile_btn().clicked.connect(self._on_profile)
+        self.dialog._get_icon_btn().clicked.connect(self._on_choose_icon)
 
         # Иерархия
-        self.dialog.ui.get_widget("sphere_cb").currentIndexChanged.connect(
+        self.dialog._get_sphere_cb().currentIndexChanged.connect(
             self._update_sections
         )
-        self.dialog.ui.get_widget("section_cb").currentIndexChanged.connect(
+        self.dialog._get_section_cb().currentIndexChanged.connect(
             self._update_categories
         )
 
         # Кнопки диалога
-        self.dialog.ui.get_widget("button_box").accepted.connect(self._on_accept)
-        self.dialog.ui.get_widget("button_box").rejected.connect(self.dialog.reject)
+        self.dialog._get_button_box().accepted.connect(self._on_accept)
+        self.dialog._get_button_box().rejected.connect(self.dialog.reject)
 
   
     def _on_accept(self) -> None:

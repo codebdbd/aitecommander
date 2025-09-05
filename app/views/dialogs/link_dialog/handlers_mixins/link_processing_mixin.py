@@ -52,7 +52,7 @@ class LinkProcessingMixin:
                 logger.debug(f"Ошибка при отмене воркера: {e}")
 
         link_type = self.dialog.link_type
-        args_val = self.dialog.ui.get_widget("args_le").text().strip()
+        args_val = self.dialog._get_args_le().text().strip()
 
         def _emit_if_current(payload: Dict[str, Any]) -> None:
             # Эмитим результат только если задача всё ещё актуальна
@@ -94,7 +94,7 @@ class LinkProcessingMixin:
 
     def _trigger_link_processing(self) -> None:
         """Внутренний метод для запуска обработки ссылки из таймера."""
-        url = self.dialog.ui.get_widget("url_le").text().strip()
+        url = self.dialog._get_url_le().text().strip()
         self.trigger_link_processing(url)
 
     def _on_link_info_fetched(self, info: Dict) -> None:
@@ -103,13 +103,13 @@ class LinkProcessingMixin:
         self._active_worker = None
 
         title = info.get("title") or info.get("name")
-        if title and not self.dialog.ui.get_widget("name_le").text().strip():
+        if title and not self.dialog._get_name_le().text().strip():
             self.dialog.ui.set_widget_value("name_le", title)
 
         icon_path_str = info.get("icon")
         if icon_path_str and Path(icon_path_str).exists():
             self.dialog.icon_name = Path(icon_path_str).name
-            set_icon_to_button(self.dialog.ui.get_widget("icon_btn"), icon_path_str)
+            set_icon_to_button(self.dialog._get_icon_btn(), icon_path_str)
         else:
             # Фолбек через централизованный резолвер
             try:
@@ -124,14 +124,14 @@ class LinkProcessingMixin:
                 resolved_icon_path = ""
             if resolved_icon_path and Path(resolved_icon_path).exists():
                 set_icon_to_button(
-                    self.dialog.ui.get_widget("icon_btn"), resolved_icon_path
+                    self.dialog._get_icon_btn(), resolved_icon_path
                 )
             else:
-                self.dialog.ui.get_widget("icon_btn").setIcon(QIcon())
+                self.dialog._get_icon_btn().setIcon(QIcon())
 
         if self.dialog.link_type in ("program", "script", "chromeapp"):
             args = info.get("args", "")
-            if not self.dialog.ui.get_widget("args_le").text().strip():
+            if not self.dialog._get_args_le().text().strip():
                 self.dialog.ui.set_widget_value("args_le", args)
 
         self._is_processing = False

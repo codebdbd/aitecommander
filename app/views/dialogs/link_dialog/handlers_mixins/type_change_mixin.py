@@ -45,21 +45,20 @@ class TypeChangeMixin:
         )
         if resolved_icon_path and Path(resolved_icon_path).exists():
             set_icon_to_button(
-                self.dialog.ui.get_widget("icon_btn"), resolved_icon_path
+                self.dialog._get_icon_btn(), resolved_icon_path
             )
         else:
-            self.dialog.ui.get_widget("icon_btn").setIcon(QIcon())
+            self.dialog._get_icon_btn().setIcon(QIcon())
 
         self._update_ui_state()
 
     def _update_ui_state(self) -> None:
         """Обновляет состояние UI в зависимости от типа ссылки."""
         is_web = self.dialog.link_type == "web"
-
-        profile_btn = self.dialog.ui.get_widget("profile_btn")
-        browse_btn = self.dialog.ui.get_widget("browse_btn")
-        args_le = self.dialog.ui.get_widget("args_le")
-        args_label = self.dialog.ui.get_widget("args_label")
+        profile_btn = self.dialog._get_profile_btn()
+        browse_btn = self.dialog._get_browse_btn()
+        args_le = self.dialog._get_args_le()
+        args_label = self.dialog._get_args_label()
 
         profile_btn.setVisible(is_web)
 
