@@ -199,10 +199,18 @@ def _parse_lnk(lnk_path: str) -> Dict[str, str]:
     except pythoncom.com_error as e:
         logging.error(f"COM error parsing .lnk file {lnk_path}: {e}")
     except OSError as e:
-        logging.error(f"File error parsing .lnk file {lnk_path}: {e}")
+        logging.error(f"File error parsing .lnк file {lnk_path}: {e}")
     except Exception as e:
-        logging.error(f"Unexpected error parsing .lnk file {lnk_path}: {e}")
+        logging.error(f"Unexpected error parsing .lnк file {lnk_path}: {e}")
     return {}
+
+def parse_lnk(lnk_path: str) -> Dict[str, str]:
+    """Публичная оболочка для парсинга .lnk файлов.
+
+    Стабильный API для внешних модулей. Делегирует приватной реализации
+    `_parse_lnk`, позволяя в будущем менять внутренности без влияния на клиентов.
+    """
+    return _parse_lnk(lnk_path)
 
 
 def _get_name_for_link_type(link_type: str, path: str, lnk_info: Dict[str, str]) -> str:

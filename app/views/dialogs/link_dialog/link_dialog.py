@@ -27,9 +27,6 @@ from .link_dialog_ui import LinkDialogUI
 
 logger = logging.getLogger(__name__)
 
-# Обеспечиваем существование директории пользовательских иконок
-icon_path_service.ensure_user_icons_dir()
-
 
 @runtime_checkable
 class LinkDataControllerProtocol(Protocol):
@@ -79,6 +76,10 @@ class LinkDialog(BaseDialog):
         link_controller: Optional[LinkDataControllerProtocol] = None,
     ):
         super().__init__(parent)
+
+        # Обеспечиваем существование директории пользовательских иконок
+        # Перенесено из уровня модуля, чтобы исключить побочные эффекты при импорте
+        icon_path_service.ensure_user_icons_dir()
 
         # Получаем типы ссылок из конфигурации
         self.link_types = app_config.settings.get_link_types()
@@ -234,93 +235,112 @@ class LinkDialog(BaseDialog):
     def set_link_type(self, link_type: str) -> None:
         """Программно выбрать тип ссылки и обновить UI.
 
-        Вызывается внешним кодом (например, MainWindow.quick_add_link) вместо прямого
-        доступа к приватному _on_type_changed.
+        Единая реализация находится в миксине `TypeChangeMixin` (через `LinkDialogHandlers`).
+        Этот метод оставлен как стабильная точка входа для внешнего кода
+        (например, `MainWindow.quick_add_link`) и делегирует выполнение обработчику.
         """
-        if link_type not in {code for code, _ in self.link_types}:
-            self.show_warning(
-                "Неизвестный тип ссылки.",
-                "Ошибка типа",
-                informative_text="Допустимые значения берутся из конфигурации приложения.",
-                details=f"Получен тип: {link_type}. Доступные: {[code for code, _ in self.link_types]}",
-            )
-            return
-        # Отметить радиокнопку
-        for btn in self.ui.get_widget("type_group").buttons():
-            if btn.property("link_type") == link_type:
-                btn.setChecked(True)
-                break
-        # Запуск стандартной обработки
-        self.handlers.on_type_changed(link_type)
+        # Делегируем централизованной реализации в обработчиках
+        self.handlers.set_link_type(link_type)
 
     def _populate_hierarchy(self) -> None:
-        """Заполняет иерархические списки."""
+        """Заполняет иерархические списки (сферы/разделы/категории).
+
+        Разделён на этапы:
+        1) загрузка списка сфер из initialization_data,
+        2) применение начального выбора (по category_hierarchy, если есть),
+        3) делегирование обновления разделов/категорий миксину HierarchyMixin.
+        """
+        # 1) Загрузка сфер из initialization_data
+        self._populate_spheres()
+
         sphere_cb = self.ui.get_widget("sphere_cb")
         section_cb = self.ui.get_widget("section_cb")
         category_cb = self.ui.get_widget("category_cb")
 
-        # Используем данные из initialization_data вместо прямых запросов к БД
-        spheres = self.initialization_data.get("spheres", [])
-        for sp in spheres:
-            sphere_cb.addItem(sp["name"], sp["id"])
-        self.handlers._update_sections()
-
-        # Используем иерархию из initialization_data
+        # 2) Применение начального выбора (по ссылке/параметрам конструктора)
         cid = self.link.get("category_id") or self.initial_category
         if cid:
-            hierarchy = self.initialization_data.get("category_hierarchy")
-            if hierarchy:
-                # Устанавливаем сферу
-                sphere_idx = sphere_cb.findData(hierarchy["sphere_id"])
-                if sphere_idx >= 0:
-                    sphere_cb.setCurrentIndex(sphere_idx)
-                    self.handlers._update_sections()
+            hierarchy = self.initialization_data.get("category_hierarchy") or {}
 
-                    # Устанавливаем раздел
-                    section_idx = section_cb.findData(hierarchy["section_id"])
-                    if section_idx >= 0:
-                        section_cb.setCurrentIndex(section_idx)
-                        self.handlers._update_categories()
+            # Сначала выставляем сферу (если задана в иерархии)
+            sphere_idx = sphere_cb.findData(hierarchy.get("sphere_id"))
+            if sphere_idx >= 0:
+                sphere_cb.setCurrentIndex(sphere_idx)
 
-                        # Устанавливаем категорию
-                        category_idx = category_cb.findData(hierarchy["category_id"])
-                        if category_idx >= 0:
-                            category_cb.setCurrentIndex(category_idx)
+            # Обновляем разделы под текущую сферу
+            self.handlers._update_sections()
+
+            # Устанавливаем раздел, если задан, иначе оставляем текущий (или первый, если ещё не выбран)
+            section_id = hierarchy.get("section_id")
+            if section_id is not None:
+                idx = section_cb.findData(section_id)
+                if idx >= 0:
+                    section_cb.setCurrentIndex(idx)
+            else:
+                if section_cb.count() > 0 and section_cb.currentIndex() < 0:
+                    section_cb.setCurrentIndex(0)
+
+            # Обновляем категории под текущий раздел
+            self.handlers._update_categories()
+
+            # Устанавливаем категорию, если задана, иначе оставляем текущую (или первую, если ещё не выбрана)
+            category_id = hierarchy.get("category_id")
+            if category_id is not None:
+                idx = category_cb.findData(category_id)
+                if idx >= 0:
+                    category_cb.setCurrentIndex(idx)
+            else:
+                if category_cb.count() > 0 and category_cb.currentIndex() < 0:
+                    category_cb.setCurrentIndex(0)
         else:
-            # Устанавливаем первую сферу по умолчанию
-            if spheres:
-                sphere_cb.setCurrentIndex(0)
-                sphere_id = spheres[0]["id"]
+            # Значения по умолчанию: первая сфера/раздел/категория
+            self._apply_default_hierarchy_selection()
+            self.handlers._update_sections()
+            if section_cb.count() > 0:
+                section_cb.setCurrentIndex(0)
+                self.handlers._update_categories()
+                if category_cb.count() > 0:
+                    category_cb.setCurrentIndex(0)
 
-                # Обновляем разделы для первой сферы
-                sections = [
-                    s
-                    for s in self.initialization_data.get("sections", [])
-                    if s.get("sphere_id") == sphere_id
-                ]
-                section_cb.clear()
-                for sec in sections:
-                    icon = make_icon(sec.get("icon_path", ""))
-                    if icon:
-                        section_cb.addItem(icon, sec["name"], sec["id"])
-                    else:
-                        section_cb.addItem(sec["name"], sec["id"])
+    def _populate_spheres(self) -> None:
+        """Заполняет список сфер из initialization_data (без иконок)."""
+        sphere_cb = self.ui.get_widget("sphere_cb")
+        sphere_cb.clear()
+        for sp in self.initialization_data.get("spheres", []):
+            sphere_cb.addItem(sp["name"], sp["id"])
 
-                # Обновляем категории для первого раздела
-                if sections:
-                    section_id = sections[0]["id"]
-                    categories = [
-                        c
-                        for c in self.initialization_data.get("categories", [])
-                        if c.get("section_id") == section_id
-                    ]
-                    category_cb.clear()
-                    for cat in categories:
-                        icon = make_icon(cat.get("icon_path", ""))
-                        if icon:
-                            category_cb.addItem(icon, cat["name"], cat["id"])
-                        else:
-                            category_cb.addItem(cat["name"], cat["id"])
+    def _apply_initial_hierarchy_selection(self) -> None:
+        """Применяет начальный выбор сферы/раздела/категории на основе initialization_data['category_hierarchy']."""
+        sphere_cb = self.ui.get_widget("sphere_cb")
+        section_cb = self.ui.get_widget("section_cb")
+        category_cb = self.ui.get_widget("category_cb")
+
+        hierarchy = self.initialization_data.get("category_hierarchy") or {}
+        # Устанавливаем сферу
+        sphere_idx = sphere_cb.findData(hierarchy.get("sphere_id"))
+        if sphere_idx >= 0:
+            sphere_cb.setCurrentIndex(sphere_idx)
+        # Обновление разделов произойдёт в _update_sections()
+
+        # Попытка установить раздел (после того, как секции будут заполнены миксином)
+        section_id = hierarchy.get("section_id")
+        if section_id is not None:
+            idx = section_cb.findData(section_id)
+            if idx >= 0:
+                section_cb.setCurrentIndex(idx)
+
+        # Попытка установить категорию (после заполнения миксином)
+        category_id = hierarchy.get("category_id")
+        if category_id is not None:
+            idx = category_cb.findData(category_id)
+            if idx >= 0:
+                category_cb.setCurrentIndex(idx)
+
+    def _apply_default_hierarchy_selection(self) -> None:
+        """Устанавливает выбор по умолчанию: первая сфера, первый раздел, первая категория."""
+        sphere_cb = self.ui.get_widget("sphere_cb")
+        if sphere_cb.count() > 0:
+            sphere_cb.setCurrentIndex(0)
 
     def get_ui_icons_dir(self) -> Path:
         """Получает директорию UI иконок."""
