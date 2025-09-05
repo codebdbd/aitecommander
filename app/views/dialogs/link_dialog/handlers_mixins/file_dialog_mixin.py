@@ -2,10 +2,13 @@
 Миксин для обработки кнопки "Обзор" в LinkDialogHandlers.
 """
 import os
+import logging
 from PyQt6.QtWidgets import QFileDialog
 from app.config_data import app_config
 from app.utils.links.link_parser import parse_lnk
 from app.models.link_type import LinkType
+
+logger = logging.getLogger(__name__)
 
 
 PROGRAM_FILES = "Программы (*.exe *.bat *.com *.msi *.lnk)"
@@ -100,8 +103,7 @@ class FileDialogMixin:
                     lnk_info = parse_lnk(normalized_path)
                 except (FileNotFoundError, PermissionError, OSError, ValueError, RuntimeError) as e:
                     # Логируем проблему разбора ярлыка, но не прерываем сценарий выбора файла
-                    import logging as _logging
-                    _logging.warning(f"parse_lnk: не удалось разобрать ярлык '{normalized_path}': {e}")
+                    logger.warning(f"parse_lnk: не удалось разобрать ярлык '{normalized_path}': {e}")
                     lnk_info = None
                 if lnk_info and lnk_info.get("path"):
                     # Используем реальный путь к .exe вместо ярлыка
@@ -119,10 +121,10 @@ class FileDialogMixin:
 
             name_widget = self.dialog.ui.get_widget("name_le")
             if not name_widget.text().strip():
-                import os as _os
-                name = _os.path.basename(normalized_path)
+                name = os.path.basename(normalized_path)
                 if lt in (LinkType.PROGRAM, LinkType.CHROMEAPP) or name.lower().endswith(
                     ".lnk"
                 ):
-                    name = _os.path.splitext(name)[0]
+                    name = os.path.splitext(name)[0]
                 name_widget.setText(name)
+

@@ -252,11 +252,10 @@ QWidget#topBarHost QPushButton:checked {
     border-color: transparent;
 }
 
-/* Поле поиска — альтернативный профиль размеров (используется в некоторых конфигурациях) */
+/* Поле поиска — базовая рамка без задания радиуса (радиус задаётся ТОЛЬКО в QLineEdit#mainSearch) */
 QWidget#topBarHost QLineEdit {
     border: 1px solid;
     border-color: transparent;
-    border-radius: 8px;
     min-height: 32px;
     max-height: 32px;
     padding: 0 8px;
@@ -264,7 +263,7 @@ QWidget#topBarHost QLineEdit {
 
 /* Специфический стиль поискового поля (перебивает общие и темовые правила) */
 QLineEdit#mainSearch {
-    border-radius: 8px;
+    border-radius: 4px;
     min-height: 32px;
     max-height: 32px;
     padding: 0 8px;

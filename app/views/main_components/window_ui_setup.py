@@ -206,7 +206,8 @@ class WindowUISetup:
             side = 8
             logging.warning("TopPanel: invalid side spacing in config; using default 8")
         top_bar.setContentsMargins(side, 0, side, 0)
-        top_bar.setSpacing(side * 2)
+        # Убираем любой межвиджетный spacing — вместо него будут вертикальные разделители с локальными отступами
+        top_bar.setSpacing(0)
         top_bar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
         # Собираем виджеты верхней панели
@@ -227,6 +228,11 @@ class WindowUISetup:
             top_bar_host.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         except (RuntimeError, TypeError, AttributeError):
             logging.warning("TopPanel: failed to set top bar host size policy/height", exc_info=True)
+        # Скрываем top_bar_host до первого корректного пересчёта, чтобы исключить стартовый наезд
+        try:
+            top_bar_host.setVisible(False)
+        except Exception:
+            logging.debug("TopPanel: failed to initially hide top_bar_host", exc_info=True)
         self.main_layout.addWidget(top_bar_host)
 
         # Сохраняем ссылку на хост
@@ -242,19 +248,25 @@ class WindowUISetup:
             # Не блокируем инициализацию UI при ошибке менеджера
             self.window._topbar_manager = None
             logger.exception("TopPanel: failed to initialize TopBarLayoutManager")
-        # Первичный пересчёт после создания (через внутренний троттлинг менеджера)
+        # Первичный пересчёт запускаем по shown, чтобы исключить стартовые артефакты до финальной геометрии
         try:
             mgr = getattr(self.window, "_topbar_manager", None)
             if mgr:
-                t_adj_start = time.perf_counter()
-                mgr._request_adjust()
-                t_adj_dur = (time.perf_counter() - t_adj_start) * 1000.0
                 try:
-                    logger.info("TopPanelMetrics: TopBarLayoutManager._request_adjust: %.1f ms (ctor: %.1f ms)", t_adj_dur, t_mgr_ctor)
+                    if hasattr(self.window, "shown"):
+                        # type: ignore[attr-defined]
+                        # Пересчитать и показать атомарно: сначала adjust, затем показать хост
+                        self.window.shown.connect(lambda: QTimer.singleShot(0, lambda: (mgr.adjust(), self.window.top_bar_host.setVisible(True))))
+                        # Повторный проход через ~1 кадр для страховки
+                        self.window.shown.connect(lambda: QTimer.singleShot(16, mgr.adjust))
+                    else:
+                        # Фолбэк: если сигнала shown нет, пересчитать в следующий тик дважды
+                        QTimer.singleShot(0, lambda: (mgr.adjust(), self.window.top_bar_host.setVisible(True)))
+                        QTimer.singleShot(16, mgr.adjust)
                 except Exception:
-                    pass
+                    logging.debug("TopPanel: failed to schedule post-shown topbar adjusts", exc_info=True)
         except (AttributeError, TypeError, RuntimeError):
-            logging.debug("TopPanel: failed to request initial topbar adjust", exc_info=True)
+            logging.debug("TopPanel: failed to schedule initial topbar adjust", exc_info=True)
         finally:
             try:
                 t_total_dur = (time.perf_counter() - t_total_start) * 1000.0
@@ -284,7 +296,15 @@ class WindowUISetup:
                 raise ValueError(f"Unknown panel mode: {mode}")
             if object_name:
                 widget.setObjectName(object_name)
-            widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            widget.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+            # Изначально скрываем панель до первого пересчёта TopBarLayoutManager,
+            # чтобы исключить стартовое перекрытие до применения видимых количеств
+            try:
+                widget.setVisible(False)
+                # Жёстко ограничиваем стартовую ширину в 0, до момента первого пересчёта
+                widget.setMaximumWidth(0)
+            except Exception:
+                logging.debug("TopPanel: failed to set initial invisible state on %s widget", log_label, exc_info=True)
             # Жестко фиксируем высоту панелей топ-бара, чтобы исключить изменение высоты
             # после показа окна при отложенных перерисовках/обновлениях данных и тем.
             try:
@@ -330,11 +350,49 @@ class WindowUISetup:
             ("favorites", "fav_widget", "favoritesWidget", "Favorites"),
             ("recent", "recent_links_widget", "recentLinksWidget", "Recent"),
         ]
-        for mode, attr_name, obj_name, label in widgets_params:
+        for idx, (mode, attr_name, obj_name, label) in enumerate(widgets_params):
             self._create_top_panel_widget(top_bar, mode, attr_name, obj_name, label)
+            # Вставляем вертикальный разделитель между соседними панелями
+            if idx < len(widgets_params) - 1:
+                try:
+                    top_bar.addSpacing(4)
+                    top_bar.addWidget(self._create_vertical_separator())
+                    top_bar.addSpacing(4)
+                except Exception:
+                    logging.debug("TopPanel: failed to insert vertical separator between panels", exc_info=True)
+
+        # Разделитель перед поиском
+        try:
+            top_bar.addSpacing(4)
+            top_bar.addWidget(self._create_vertical_separator())
+            top_bar.addSpacing(4)
+        except Exception:
+            logging.debug("TopPanel: failed to insert vertical separator before search", exc_info=True)
 
         # Поиск (в конце, расширяется по ширине)
         self.setup_search_widget(top_bar)
+
+    def _create_vertical_separator(self) -> QWidget:
+        """Создаёт вертикальный разделитель по аналогии с горизонтальными.
+        Толщина берётся из ui.get_separator_width(), цвет/стиль — из QSS по классу 'separator'.
+        """
+        sep = QWidget()
+        sep.setObjectName("vSeparator")
+        # Используем отдельный класс, чтобы не конфликтовать со стилем горизонтальных разделителей
+        sep.setProperty("class", "vertical_separator")
+        try:
+            w = int(app_config.ui.get_separator_width())
+        except (TypeError, ValueError):
+            w = 1
+        try:
+            sep.setFixedWidth(max(1, w))
+        except Exception:
+            logging.debug("TopPanel: failed to set fixed width on vertical separator", exc_info=True)
+        try:
+            sep.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        except Exception:
+            logging.debug("TopPanel: failed to set size policy on vertical separator", exc_info=True)
+        return sep
 
     def setup_search_widget(self, top_bar: QHBoxLayout) -> None:
         """Настройка поля поиска."""

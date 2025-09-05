@@ -23,7 +23,6 @@ from PyQt6.QtWidgets import (
     QTextEdit,
     QToolButton,
     QVBoxLayout,
-    QWidget,
 )
 
 from app.config_data import app_config

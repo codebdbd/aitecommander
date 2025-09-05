@@ -125,4 +125,6 @@ class LinkDialogHandlers(
 
         # Сброс состояния и предотвращение гонок результатов
         self._is_processing = False
+        # Сбрасываем последний обработанный путь, чтобы не показывать устаревшие предупреждения при закрытии
+        self._last_processed_path = ""
         self._worker_task_id += 1
