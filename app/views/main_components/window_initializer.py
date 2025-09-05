@@ -131,6 +131,39 @@ class WindowInitializer:
         def _execute_next_init_step():
             """Выполняет следующий этап инициализации асинхронно."""
             try:
+                # Атомарно выполняем ВСЕ этапы до БД одним блоком без промежуточных перерисовок
+                if self._current_init_step == 0 and len(self._init_steps_before_db) > 0:
+                    try:
+                        from app.utils.ui.updates import suspend_updates as _suspend
+                    except Exception:
+                        _suspend = None  # type: ignore
+                    metrics = get_metrics()
+                    if _suspend is None:
+                        for step_name, step_func in self._init_steps_before_db:
+                            with metrics.time_span(f"heavy:{step_func.__name__}"):
+                                step_func()
+                            if step_func == self._init_status_bar:
+                                self._post_status_bar_init()
+                    else:
+                        with _suspend(self.window):
+                            for step_name, step_func in self._init_steps_before_db:
+                                with metrics.time_span(f"heavy:{step_func.__name__}"):
+                                    step_func()
+                                if step_func == self._init_status_bar:
+                                    self._post_status_bar_init()
+                    # Отмечаем, что все шаги до БД выполнены
+                    self._current_init_step = len(self._init_steps_before_db)
+                    # Переходим к ожиданию БД или к этапам после БД без промежуточных кадров
+                    if not self._db_ready:
+                        if not self._waiting_for_db:
+                            self._waiting_for_db = True
+                            self._update_status_message("Ожидание готовности базы данных...")
+                            self._setup_db_ready_listener()
+                        return
+                    else:
+                        self._execute_db_dependent_steps()
+                        return
+
                 # Проверяем, завершены ли этапы до БД
                 if self._current_init_step >= len(self._init_steps_before_db):
                     if not self._db_ready:
@@ -150,9 +183,17 @@ class WindowInitializer:
                 # Обновляем статус-бар если он уже создан
                 self._update_status_message(step_name)
                 
-                # Выполняем текущий этап
+                # Выполняем текущий этап при приостановленной перерисовке окна
                 with metrics.time_span(f"heavy:{step_func.__name__}"):
-                    step_func()
+                    try:
+                        from app.utils.ui.updates import suspend_updates as _suspend
+                    except Exception:
+                        _suspend = None  # type: ignore
+                    if _suspend is None:
+                        step_func()
+                    else:
+                        with _suspend(self.window):
+                            step_func()
                 
                 # Специальная обработка после создания статус-бара
                 if step_func == self._init_status_bar:
@@ -163,8 +204,8 @@ class WindowInitializer:
                 # Даём UI-потоку возможность обработать события
                 QApplication.processEvents()
                 
-                # Планируем следующий этап
-                QTimer.singleShot(10, _execute_next_init_step)
+                # Планируем следующий этап без лишней задержки
+                QTimer.singleShot(0, _execute_next_init_step)
                 
             except Exception as e:
                 logger.exception("WindowInitializer: ошибка в этапе инициализации — приложение будет закрыто")
@@ -198,7 +239,16 @@ class WindowInitializer:
         self.ui_setup.setup_top_panel()
 
     def _init_main_content(self) -> None:
-        self.ui_setup.setup_main_content()
+        # Избегаем промежуточных перерисовок при создании большого количества виджетов
+        try:
+            from app.utils.ui.updates import suspend_updates
+        except Exception:
+            suspend_updates = None  # type: ignore
+        if suspend_updates is None:
+            self.ui_setup.setup_main_content()
+        else:
+            with suspend_updates(self.window):
+                self.ui_setup.setup_main_content()
 
     def _init_bottom_panel(self) -> None:
         self.ui_setup.setup_bottom_panel()
@@ -208,6 +258,12 @@ class WindowInitializer:
 
     def _init_controllers(self) -> None:
         # Контроллеры должны быть созданы до горячих клавиш
+        # Гарантируем наличие таблицы перед инициализацией контроллеров (ленивая инициализация)
+        try:
+            if hasattr(self.ui_setup, "ensure_table_created"):
+                self.ui_setup.ensure_table_created()
+        except Exception:
+            logger.exception("WindowInitializer: failed to ensure table before controllers init")
         self.controllers_setup.setup_controllers()
 
 
@@ -218,6 +274,12 @@ class WindowInitializer:
             try:
                 with suppress(AttributeError, ValueError, TypeError):
                     if fs:
+                        # При ленивой инициализации таблицы гарантируем её наличие перед применением шрифта
+                        try:
+                            if hasattr(self.ui_setup, "ensure_table_created"):
+                                self.ui_setup.ensure_table_created()
+                        except Exception:
+                            logger.debug("_apply_user_font_size: failed to ensure table before applying font", exc_info=True)
                         # Тип окна может не объявлять этот метод в протоколе — вызываем под hasattr
                         self.window.apply_font_size_to_content(int(fs))  # type: ignore[attr-defined]
             except Exception:
@@ -338,10 +400,18 @@ class WindowInitializer:
                 # Обновляем статус-бар
                 self._update_status_message(step_name)
                 
-                # Выполняем текущий этап
+                # Выполняем текущий этап при приостановленной перерисовке окна
                 metrics = get_metrics()
                 with metrics.time_span(f"heavy:{step_func.__name__}"):
-                    step_func()
+                    try:
+                        from app.utils.ui.updates import suspend_updates as _suspend
+                    except Exception:
+                        _suspend = None  # type: ignore
+                    if _suspend is None:
+                        step_func()
+                    else:
+                        with _suspend(self.window):
+                            step_func()
                 
                 # Специальная обработка после создания контроллеров
                 if step_func == self._init_controllers:
@@ -352,8 +422,8 @@ class WindowInitializer:
                 # Даём UI-потоку возможность обработать события
                 QApplication.processEvents()
                 
-                # Планируем следующий этап
-                QTimer.singleShot(10, _execute_next_db_step)
+                # Планируем следующий этап без лишней задержки
+                QTimer.singleShot(0, _execute_next_db_step)
                 
             except Exception as e:
                 logger.exception("WindowInitializer: ошибка в этапе инициализации зависящем от БД — приложение будет закрыто")
@@ -387,11 +457,32 @@ class WindowInitializer:
             logger.exception("WindowInitializer: ошибка при финализации инициализации")
 
     # === Диагностика: перехват QWidget.show()/setVisible ===
+    def _diagnostics_enabled(self) -> bool:
+        """Возвращает True, если разрешены тяжёлые диагностические хуки.
+
+        Включается только при DEBUG-логировании или через переменную окружения
+        OSTEEN_DIAG_TOPLEVEL=1. В релизе (INFO и выше) — выключено.
+        """
+        try:
+            import os
+            if os.environ.get("OSTEEN_DIAG_TOPLEVEL") == "1":
+                return True
+        except Exception:
+            pass
+        try:
+            import logging as _logging
+            return logger.isEnabledFor(_logging.DEBUG)
+        except Exception:
+            return False
+
     def _install_widget_show_hooks(self) -> None:
         """Устанавливает перехват QWidget.show/setVisible для выявления топ‑левел маленьких окон.
 
         Логируем стек Python при показе top-level QWidget с size <= 300x300 или без родителя.
         """
+        # Отключаем в релизной сборке — дорого (сбор стеков) и засоряет логи
+        if not self._diagnostics_enabled():
+            return
         if getattr(QApplication, "_diag_show_hooks_installed", False):
             return
 

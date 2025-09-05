@@ -470,6 +470,20 @@ class WindowUISetup:
         self.window.left_panel = left_panel
         left_panel.setObjectName("LeftPanel")
         left_panel.setAutoFillBackground(True)
+        # Включаем стилизованный фон и мгновенно применяем QSS, чтобы фон появился сразу
+        try:
+            from PyQt6.QtCore import Qt
+            left_panel.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+            # Принудительное применение стиля к только что созданному виджету
+            try:
+                st = left_panel.style()
+                if st is not None:
+                    st.unpolish(left_panel)
+                    st.polish(left_panel)
+            except Exception:
+                pass
+        except Exception:
+            pass
 
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(*app_config.ui.get_layout_margins("left"))
@@ -535,16 +549,12 @@ class WindowUISetup:
         tiles_layout.setSpacing(app_config.ui.get_tiles_layout_spacing())
         tiles_layout.addWidget(self.window.tiles_scroll)
 
-        # Создание таблицы (перенесено сюда из top-bar, чтобы разгрузить раннюю фазу инициализации)
-        # Размер шрифта для таблицы будет установлен централизованно через MainWindow.apply_font_size_to_content()
-        self.window.table = LinksTableView(self.window)
-
-        # Обертка для таблицы
+        # Обертка для таблицы (ленивая инициализация LinksTableView — создаём позже при первом показе)
         table_wrapper = QWidget(parent=right_panel)
         table_layout = QVBoxLayout(table_wrapper)
         table_layout.setContentsMargins(*app_config.ui.get_layout_margins("table"))
         table_layout.setSpacing(app_config.ui.get_table_layout_spacing())
-        table_layout.addWidget(self.window.table)
+        # Таблица будет создана позже методом ensure_table_created(); пока контейнер пуст
 
         # Стек для переключения между плитками и таблицей
         self.window.stack = QStackedLayout()
@@ -556,6 +566,23 @@ class WindowUISetup:
         self.window.stack.addWidget(self.window.table_container)
 
         right_panel.setLayout(self.window.stack)
+
+        # Ленивая инициализация таблицы: создаём при первом переключении на соответствующую страницу
+        def _on_stack_changed(idx: int) -> None:
+            try:
+                wgt = self.window.stack.widget(idx)
+            except Exception:
+                return
+            try:
+                if wgt is self.window.table_container and getattr(self.window, "table", None) is None:
+                    self.ensure_table_created()
+            except Exception:
+                logger.exception("RightPanel: failed to lazily create table on stack change")
+
+        try:
+            self.window.stack.currentChanged.connect(_on_stack_changed)
+        except Exception:
+            logger.debug("RightPanel: failed to connect currentChanged for lazy table init", exc_info=True)
 
         # Сплиттер
         self.window.splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -617,6 +644,40 @@ class WindowUISetup:
         # Установить нижней панели NoFocus policy чтобы исключить из Tab
         if hasattr(self.window, "bottom_bar_container"):
             self.window.bottom_bar_container.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+    def ensure_table_created(self) -> None:
+        """Создаёт LinksTableView внутри table_container, если ещё не создана.
+
+        Размер шрифта будет применён централизованно через MainWindow.apply_font_size_to_content().
+        """
+        try:
+            if getattr(self.window, "table", None) is not None:
+                return
+            # Создание тяжёлого виджета таблицы только по требованию
+            self.window.table = LinksTableView(self.window)
+            # Помещаем таблицу внутрь существующего контейнера
+            container = getattr(self.window, "table_container", None)
+            if container is None:
+                logger.warning("ensure_table_created: table_container is None; creating wrapper on the fly")
+                container = QWidget(self.window)
+                lay = QVBoxLayout(container)
+                lay.setContentsMargins(*app_config.ui.get_layout_margins("table"))
+                lay.setSpacing(app_config.ui.get_table_layout_spacing())
+                lay.addWidget(self.window.table)
+                # Если стека нет — просто добавим как виджет; но в норме он уже есть
+                if getattr(self.window, "stack", None) is not None:
+                    self.window.table_container = container
+                    self.window.stack.addWidget(container)
+            else:
+                lay = getattr(container, "layout", lambda: None)()
+                if lay is None:
+                    lay = QVBoxLayout(container)
+                    lay.setContentsMargins(*app_config.ui.get_layout_margins("table"))
+                    lay.setSpacing(app_config.ui.get_table_layout_spacing())
+                lay.addWidget(self.window.table)
+        except Exception:
+            # Не даём упасть инициализации; логируем для диагностики
+            logger.exception("ensure_table_created: failed to create table")
 
     def setup_bottom_panel(self) -> None:
         """Настройка нижней панели."""
