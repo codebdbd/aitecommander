@@ -7,8 +7,8 @@ logger = logging.getLogger(__name__)
 from contextlib import suppress
 from typing import Any
 
-from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtCore import QTimer, QEvent, QObject, Qt
+from PyQt6.QtWidgets import QApplication, QMessageBox, QWidget
 from app.controllers.system.window_controllers_setup import WindowControllersSetup
 from app.interfaces import MainWindowLike, SettingsLike
 from app.utils.ui.updates import suspend_updates
@@ -48,6 +48,21 @@ class WindowInitializer:
         """Выполняет полную инициализацию главного окна пошагово."""
         metrics = get_metrics()
         metrics.reset()
+        # Диагностика фантомных окон: установить глобальный watcher один раз
+        try:
+            self._install_top_level_watcher()
+        except Exception:
+            logger.debug("DiagTopLevels: failed to install watcher", exc_info=True)
+        # Диагностика: логирование первых событий Resize/Move главного окна
+        try:
+            self._install_window_resize_logger()
+        except Exception:
+            logger.debug("DiagTopLevels: failed to install resize logger", exc_info=True)
+        # Диагностика: перехват вызовов QWidget.show()/setVisible(True) для top-level маленьких окон
+        try:
+            self._install_widget_show_hooks()
+        except Exception:
+            logger.debug("DiagTopLevels: failed to install QWidget.show hooks", exc_info=True)
         # Лёгкие шаги инициализации выполняем синхронно с отключёнными обновлениями,
         # чтобы окно появлялось быстрее и уже со стандартной структурой
         light_steps = (
@@ -75,14 +90,27 @@ class WindowInitializer:
         except Exception:
             logger.exception("WindowInitializer: не удалось подключить слот к сигналу 'shown'")
 
+        # Перед показом логируем текущее состояние top-level виджетов
+        try:
+            self._dump_top_levels("before window.show")
+        except Exception:
+            logger.debug("DiagTopLevels: failed to dump before show", exc_info=True)
+
         # Показываем окно сразу после лёгких шагов, чтобы пользователь видел интерфейс
-        # пока выполняются тяжёлые операции в фоне
         try:
             if hasattr(self.window, "show"):
                 with metrics.time_span("light:window_show"):
                     self.window.show()
         except Exception:
             logger.exception("WindowInitializer: не удалось показать окно после лёгких шагов")
+
+        # После показа — дампим top-level виджеты и планируем повторные проверки через 10 мс и 100 мс
+        try:
+            self._dump_top_levels("after window.show")
+            QTimer.singleShot(10,  lambda: self._dump_top_levels("+10ms after show"))
+            QTimer.singleShot(100, lambda: self._dump_top_levels("+100ms after show"))
+        except Exception:
+            logger.debug("DiagTopLevels: failed post-show dumps", exc_info=True)
 
         # Тяжёлые шаги разбиваем на асинхронные этапы для предотвращения блокировки UI-потока
         # Разделяем этапы на независимые от БД и зависящие от БД
@@ -350,8 +378,296 @@ class WindowInitializer:
             self._update_status_message("Готово")
             
             logger.info("WindowInitializer: асинхронная инициализация завершена успешно")
+            # Финальный снимок top-level виджетов
+            try:
+                self._dump_top_levels("finalize initialization")
+            except Exception:
+                logger.debug("DiagTopLevels: failed to dump at finalize", exc_info=True)
         except Exception:
             logger.exception("WindowInitializer: ошибка при финализации инициализации")
+
+    # === Диагностика: перехват QWidget.show()/setVisible ===
+    def _install_widget_show_hooks(self) -> None:
+        """Устанавливает перехват QWidget.show/setVisible для выявления топ‑левел маленьких окон.
+
+        Логируем стек Python при показе top-level QWidget с size <= 300x300 или без родителя.
+        """
+        if getattr(QApplication, "_diag_show_hooks_installed", False):
+            return
+
+        import traceback
+
+        def _log_widget(w: QWidget, method: str) -> None:
+            try:
+                parent_none = (w.parent() is None)
+            except Exception:
+                parent_none = True
+            try:
+                is_window = bool(w.isWindow())
+            except Exception:
+                is_window = False
+            try:
+                sz = w.size()
+                w_ = sz.width()
+                h_ = sz.height()
+            except Exception:
+                w_, h_ = -1, -1
+            # Логируем любые top-level (без родителя или isWindow), независимо от размера, чтобы поймать стек
+            if (parent_none or is_window):
+                try:
+                    name = w.objectName() or "<noname>"
+                except Exception:
+                    name = "<noname>"
+                try:
+                    title = w.windowTitle() or ""
+                except Exception:
+                    title = ""
+                try:
+                    flags = w.windowFlags()
+                    flags_s = hex(int(flags))
+                except Exception:
+                    flags_s = "?"
+                stack = "\n".join(traceback.format_stack(limit=25))
+                logger.info(
+                    "DiagTopLevels: QWidget.%s top-level show -> cls=%s name=%s title='%s' size=%sx%s flags=%s\n%s",
+                    method, type(w).__name__, name, title, w_, h_, flags_s, stack,
+                )
+
+        # Перехват show
+        if not hasattr(QWidget, "_orig_show_diag"):
+            QWidget._orig_show_diag = QWidget.show  # type: ignore[attr-defined]
+
+            def _diag_show(self: QWidget, *args, **kwargs):
+                try:
+                    _log_widget(self, "show")
+                except Exception:
+                    pass
+                return QWidget._orig_show_diag(self, *args, **kwargs)  # type: ignore[attr-defined]
+
+            QWidget.show = _diag_show  # type: ignore[assignment]
+
+        # Перехват setVisible(True)
+        if not hasattr(QWidget, "_orig_setVisible_diag"):
+            QWidget._orig_setVisible_diag = QWidget.setVisible  # type: ignore[attr-defined]
+
+            def _diag_setVisible(self: QWidget, vis: bool):
+                try:
+                    if bool(vis):
+                        _log_widget(self, "setVisible(True)")
+                except Exception:
+                    pass
+                return QWidget._orig_setVisible_diag(self, vis)  # type: ignore[attr-defined]
+
+            QWidget.setVisible = _diag_setVisible  # type: ignore[assignment]
+
+        QApplication._diag_show_hooks_installed = True  # type: ignore[attr-defined]
+
+    def _install_window_resize_logger(self) -> None:
+        """Вешает временный eventFilter на главное окно для логирования первых Resize/Move.
+
+        Помогает обнаружить, не показывается ли окно сначала в маленьком размере, а потом расширяется.
+        """
+        win = getattr(self, "window", None)
+        if not isinstance(win, QObject):
+            return
+        if getattr(win, "_diag_resize_logger_installed", False):
+            return
+
+        class _ResizeLogger(QObject):
+            def __init__(self, parent=None):
+                super().__init__(parent)
+                self._resizes = 0
+                self._moves = 0
+                self._max_events = 10
+
+            def eventFilter(self, obj, event):
+                et = event.type()
+                try:
+                    if et == QEvent.Type.Resize and self._resizes < self._max_events:
+                        self._resizes += 1
+                        try:
+                            sz = getattr(obj, "size", lambda: None)()
+                            size_s = f"{sz.width()}x{sz.height()}" if sz is not None else "?"
+                        except Exception:
+                            size_s = "?"
+                        logger.info("DiagTopLevels: Resize #%s -> %s", self._resizes, size_s)
+                    elif et == QEvent.Type.Move and self._moves < self._max_events:
+                        self._moves += 1
+                        try:
+                            pos = getattr(obj, "pos", lambda: None)()
+                            pos_s = f"({pos.x()},{pos.y()})" if pos is not None else "?"
+                        except Exception:
+                            pos_s = "?"
+                        logger.info("DiagTopLevels: Move #%s -> %s", self._moves, pos_s)
+                except Exception:
+                    pass
+                return QObject.eventFilter(self, obj, event)
+
+        rl = _ResizeLogger(win)
+        win.installEventFilter(rl)
+        # Удерживаем ссылку, чтобы фильтр не был собран GC
+        win._diag_resize_logger = rl  # type: ignore[attr-defined]
+        win._diag_resize_logger_installed = True  # type: ignore[attr-defined]
+
+    # === Диагностика top-level окон ===
+    def _install_top_level_watcher(self) -> None:
+        """Устанавливает глобальный eventFilter, который логирует появление top-level окон.
+
+        Логирует события Show/Hide/WindowActivate для всех виджетов; интересуются только isWindow()/parent is None.
+        """
+        app = QApplication.instance()
+        if app is None:
+            return
+
+        if getattr(app, "_diag_top_levels_installed", False):
+            return
+
+        class _TopLevelWatcher(QObject):
+            def eventFilter(self, obj, event):
+                try:
+                    et = event.type()
+                    if et in (QEvent.Type.Show, QEvent.Type.ShowToParent, QEvent.Type.WindowActivate):
+                        try:
+                            is_window = bool(getattr(obj, "isWindow", lambda: False)())
+                        except Exception:
+                            is_window = False
+                        parent_none = getattr(obj, "parent", lambda: None)() is None
+                        # Считаем подозрительным: реальное окно (isWindow) или отсутствие родителя
+                        if is_window or parent_none:
+                            name = getattr(obj, "objectName", lambda: "")() or "<noname>"
+                            cls = type(obj).__name__
+                            try:
+                                sz = getattr(obj, "size", lambda: None)()
+                                w_ = sz.width() if sz is not None else -1
+                                h_ = sz.height() if sz is not None else -1
+                                size_s = f"{w_}x{h_}" if sz is not None else "?"
+                            except Exception:
+                                w_, h_, size_s = -1, -1, "?"
+                            try:
+                                pos = getattr(obj, "pos", lambda: None)()
+                                pos_s = f"({pos.x()},{pos.y()})" if pos is not None else "?"
+                            except Exception:
+                                pos_s = "?"
+                            # Логируем как INFO один раз на событие
+                            logger.info(
+                                "DiagTopLevels: %s event for %s name=%s isWindow=%s parentNone=%s size=%s pos=%s",
+                                et.name if hasattr(et, "name") else str(int(et)), cls, name, is_window, parent_none, size_s, pos_s,
+                            )
+
+                            # Детальная диагностика маленьких top-level QWidget: дерево детей
+                            try:
+                                from PyQt6.QtWidgets import QWidget, QLabel
+                                if isinstance(obj, QWidget) and (w_ > 0 and h_ > 0 and w_ <= 300 and h_ <= 300):
+                                    details: list[str] = []
+                                    def _walk(w: QWidget, depth: int = 0):
+                                        if depth > 3:
+                                            return
+                                        try:
+                                            cname = type(w).__name__
+                                        except Exception:
+                                            cname = "<cls?>"
+                                        try:
+                                            oname = w.objectName() or "<noname>"
+                                        except Exception:
+                                            oname = "<noname>"
+                                        extra = ""
+                                        try:
+                                            if isinstance(w, QLabel):
+                                                txt = w.text()
+                                                if txt:
+                                                    extra = f" text='{txt[:40]}'"
+                                        except Exception:
+                                            pass
+                                        details.append(f"{'  '*depth}{cname}[{oname}]{extra}")
+                                        try:
+                                            for ch in w.findChildren(QWidget):
+                                                _walk(ch, depth+1)
+                                        except Exception:
+                                            pass
+                                    _walk(obj)
+                                    if details:
+                                        logger.info("DiagTopLevels: small QWidget children tree:\n%s", "\n".join(details))
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+                return QObject.eventFilter(self, obj, event)
+
+        watcher = _TopLevelWatcher(app)
+        app.installEventFilter(watcher)
+        # Храним ссылку, чтобы не был собран GC
+        app._diag_top_levels_watcher = watcher  # type: ignore[attr-defined]
+        app._diag_top_levels_installed = True   # type: ignore[attr-defined]
+
+        # Однократный снимок сразу после установки
+        self._dump_top_levels("watcher installed")
+
+    def _dump_top_levels(self, tag: str) -> None:
+        """Логирует текущее множество top-level виджетов Qt и окон QGuiApplication."""
+        app = QApplication.instance()
+        if app is None:
+            return
+        try:
+            tops = list(app.topLevelWidgets())
+        except Exception:
+            tops = []
+        info_list: list[str] = []
+        for w in tops:
+            try:
+                name = w.objectName() or "<noname>"
+            except Exception:
+                name = "<noname>"
+            cls = type(w).__name__
+            try:
+                sz = w.size()
+                size_s = f"{sz.width()}x{sz.height()}"
+            except Exception:
+                size_s = "?"
+            try:
+                pos = w.pos()
+                pos_s = f"({pos.x()},{pos.y()})"
+            except Exception:
+                pos_s = "?"
+            try:
+                visible = w.isVisible()
+            except Exception:
+                visible = False
+            # Дополнительная диагностика: title и флаги окна
+            try:
+                title = getattr(w, "windowTitle", lambda: "")() or ""
+            except Exception:
+                title = ""
+            try:
+                flags = getattr(w, "windowFlags", lambda: None)()
+                flags_s = hex(int(flags)) if flags is not None else "?"
+            except Exception:
+                flags_s = "?"
+            info_list.append(f"{cls}[{name}] vis={visible} size={size_s} pos={pos_s}")
+        logger.info("DiagTopLevels[%s]: %d widgets: %s", tag, len(info_list), "; ".join(info_list))
+
+        # Диагностика окон уровня QWindow (например, всплывающие тултипы/меню могут быть QWindow)
+        try:
+            from PyQt6.QtGui import QGuiApplication
+            wins = list(QGuiApplication.allWindows())
+        except Exception:
+            wins = []
+        win_list: list[str] = []
+        for win in wins:
+            try:
+                cls = type(win).__name__
+                title = win.title() if hasattr(win, "title") else ""
+                sz = win.size() if hasattr(win, "size") else None
+                size_s = f"{sz.width()}x{sz.height()}" if sz is not None else "?"
+                pos = win.position() if hasattr(win, "position") else None
+                pos_s = f"({pos.x()},{pos.y()})" if pos is not None else "?"
+                vis = win.isVisible() if hasattr(win, "isVisible") else False
+                flags = win.flags() if hasattr(win, "flags") else None
+                flags_s = hex(int(flags)) if flags is not None else "?"
+                win_list.append(f"{cls} title='{title}' vis={vis} size={size_s} pos={pos_s} flags={flags_s}")
+            except Exception:
+                continue
+        if win_list:
+            logger.info("DiagTopLevels[%s]: QWindows(%d): %s", tag, len(win_list), "; ".join(win_list))
 
     # === Слоты ===
     def _on_window_shown(self) -> None:

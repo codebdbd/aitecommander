@@ -181,6 +181,11 @@ class WindowUISetup:
     def setup_central_widget(self) -> None:
         """Настройка центрального виджета."""
         central = QFrame()
+        # Заполняем фон сразу, чтобы избежать белой вспышки до применения содержимого
+        try:
+            central.setAutoFillBackground(True)
+        except Exception:
+            pass
         central.setFrameShape(
             getattr(QFrame.Shape, app_config.ui.get_central_frame_shape())
         )
@@ -193,8 +198,10 @@ class WindowUISetup:
     def setup_top_panel(self) -> None:
         """Настройка верхней панели."""
         t_total_start = time.perf_counter()
+        # Определяем родителя для вспомогательных виджетов верхней панели
+        container_parent = getattr(self.main_layout, "parentWidget", lambda: None)() or self.window.centralWidget()
         # Верхний разделитель добавляем напрямую в основной layout
-        h_line_top = QWidget()
+        h_line_top = QWidget(container_parent)
         h_line_top.setProperty("class", "separator")
         self.main_layout.addWidget(h_line_top)
 
@@ -220,7 +227,7 @@ class WindowUISetup:
             pass
 
         # Лёгкий хост для top_bar (без фиксированной высоты) и добавление в основной layout
-        top_bar_host = QWidget()
+        top_bar_host = QWidget(container_parent)
         top_bar_host.setObjectName("topBarHost")
         top_bar_host.setLayout(top_bar)
         try:
@@ -228,11 +235,12 @@ class WindowUISetup:
             top_bar_host.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         except (RuntimeError, TypeError, AttributeError):
             logging.warning("TopPanel: failed to set top bar host size policy/height", exc_info=True)
-        # Скрываем top_bar_host до первого корректного пересчёта, чтобы исключить стартовый наезд
+        # Делаем top_bar_host видимым сразу, панели внутри остаются скрыты до пересчёта.
+        # Это устраняет белое окно на старте, но исключает наезд за счёт скрытых панелей и warmup-логики менеджера.
         try:
-            top_bar_host.setVisible(False)
+            top_bar_host.setVisible(True)
         except Exception:
-            logging.debug("TopPanel: failed to initially hide top_bar_host", exc_info=True)
+            logging.debug("TopPanel: failed to initially show top_bar_host", exc_info=True)
         self.main_layout.addWidget(top_bar_host)
 
         # Сохраняем ссылку на хост
@@ -435,7 +443,8 @@ class WindowUISetup:
     def setup_main_content(self) -> None:
         """Настройка основного содержимого."""
         # Горизонтальный разделитель
-        h_line_top = QWidget()
+        container_parent = getattr(self.main_layout, "parentWidget", lambda: None)() or self.window.centralWidget()
+        h_line_top = QWidget(container_parent)
         h_line_top.setProperty("class", "separator")
         self.main_layout.addWidget(h_line_top)
 
@@ -451,7 +460,7 @@ class WindowUISetup:
         self.main_layout.addLayout(mid)
 
         # Разделитель после основного содержимого
-        h_line_2 = QWidget()
+        h_line_2 = QWidget(container_parent)
         h_line_2.setProperty("class", "separator")
         self.main_layout.addWidget(h_line_2)
 
@@ -503,8 +512,13 @@ class WindowUISetup:
 
     def setup_right_panel(self, mid: QHBoxLayout) -> None:
         """Настройка правой панели."""
-        # Плитки категорий - создаем без зависимостей, инжектируем позже
-        self.window.tiles = CategoryTiles(parent=None)
+        # Контейнер для правой панели создаём сразу, чтобы быть родителем для обёрток
+        right_panel = QWidget()
+
+        # Плитки категорий — создаём с валидной иерархией родителей, чтобы исключить топ‑левел показ
+        self.window.tiles_scroll = QScrollArea(parent=right_panel)
+        self.window.tiles_scroll.setWidgetResizable(True)
+        self.window.tiles = CategoryTiles(parent=self.window.tiles_scroll)
 
         # ЦЕНТРАЛИЗОВАНО: Подключение к UIStateManager
         self.window.tiles.category_selected.connect(
@@ -513,11 +527,9 @@ class WindowUISetup:
             )
         )
 
-        self.window.tiles_scroll = QScrollArea()
-        self.window.tiles_scroll.setWidgetResizable(True)
         self.window.tiles_scroll.setWidget(self.window.tiles)
 
-        tiles_wrapper = QWidget()
+        tiles_wrapper = QWidget(parent=right_panel)
         tiles_layout = QVBoxLayout(tiles_wrapper)
         tiles_layout.setContentsMargins(*app_config.ui.get_layout_margins("tiles"))
         tiles_layout.setSpacing(app_config.ui.get_tiles_layout_spacing())
@@ -528,7 +540,7 @@ class WindowUISetup:
         self.window.table = LinksTableView(self.window)
 
         # Обертка для таблицы
-        table_wrapper = QWidget()
+        table_wrapper = QWidget(parent=right_panel)
         table_layout = QVBoxLayout(table_wrapper)
         table_layout.setContentsMargins(*app_config.ui.get_layout_margins("table"))
         table_layout.setSpacing(app_config.ui.get_table_layout_spacing())
@@ -543,8 +555,6 @@ class WindowUISetup:
         self.window.stack.addWidget(self.window.tiles_container)
         self.window.stack.addWidget(self.window.table_container)
 
-        # Контейнер для правой панели
-        right_panel = QWidget()
         right_panel.setLayout(self.window.stack)
 
         # Сплиттер
@@ -665,7 +675,8 @@ class WindowUISetup:
             except (RuntimeError, AttributeError):
                 logging.debug("BottomPanel: failed to set 'last' property on final button", exc_info=True)
 
-        bottom_bar_container = QWidget()
+        container_parent = getattr(self.main_layout, "parentWidget", lambda: None)() or self.window.centralWidget()
+        bottom_bar_container = QWidget(container_parent)
         bottom_bar_container.setObjectName("bottomBarContainer")
         bottom_bar_container.setLayout(bot)
         # Сохраняем виджет как атрибут окна для последующей настройки фокуса
@@ -682,7 +693,7 @@ class WindowUISetup:
         self.main_layout.addWidget(bottom_bar_container)
 
         # Разделитель под нижней панелью (аналог h_line_2)
-        h_line_bottom = QWidget()
+        h_line_bottom = QWidget(container_parent)
         h_line_bottom.setProperty("class", "separator")
         self.main_layout.addWidget(h_line_bottom)
 
