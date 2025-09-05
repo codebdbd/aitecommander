@@ -7,10 +7,20 @@ LinkDialog - диалог добавления/редактирования сс
 """
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, List, Optional, Protocol, Tuple, runtime_checkable
 
 from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import (
+    QWidget,
+    QComboBox,
+    QPushButton,
+    QButtonGroup,
+    QLineEdit,
+    QTextEdit,
+    QLabel,
+    QDialogButtonBox,
+    QCheckBox,
+)
 from PyQt6.QtGui import QColor
 
 from app.config_data import app_config
@@ -19,8 +29,6 @@ from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
 from app.utils.ui.icon.validation import validate_config_for_icons
 from app.views.effects.neon_effect import NeonEventFilter
-from .icon_utils import make_icon
-
 from ..base_dialog import BaseDialog
 from .link_dialog_handlers import LinkDialogHandlers
 from .link_dialog_ui import LinkDialogUI
@@ -65,6 +73,64 @@ class LinkDialog(BaseDialog):
     # чтобы не триггерить фоновые задачи на каждый символ. Вынесено из "магического"
     # значения для удобства настройки и тестирования.
     PATH_DEBOUNCE_MS: int = 300
+
+    # --- Приватные геттеры UI-виджетов для устранения дублирования ---
+    def _get_sphere_cb(self) -> QComboBox:
+        """Возвращает комбобокс сфер (`QComboBox`)."""
+        return self.ui.get_widget("sphere_cb")
+
+    def _get_section_cb(self) -> QComboBox:
+        """Возвращает комбобокс разделов (`QComboBox`)."""
+        return self.ui.get_widget("section_cb")
+
+    def _get_category_cb(self) -> QComboBox:
+        """Возвращает комбобокс категорий (`QComboBox`)."""
+        return self.ui.get_widget("category_cb")
+
+    def _get_icon_btn(self) -> QPushButton:
+        """Возвращает кнопку выбора иконки (`QPushButton`)."""
+        return self.ui.get_widget("icon_btn")
+
+    def _get_type_group(self) -> QButtonGroup:
+        """Возвращает группу переключателей типов ссылки (`QButtonGroup`)."""
+        return self.ui.get_widget("type_group")
+
+    def _get_profile_btn(self) -> QPushButton:
+        """Возвращает кнопку выбора профиля (`QPushButton`)."""
+        return self.ui.get_widget("profile_btn")
+
+    # Дополнительные геттеры для унификации доступа к UI
+    def _get_url_le(self) -> QLineEdit:
+        """Возвращает поле ввода URL (`QLineEdit`)."""
+        return self.ui.get_widget("url_le")
+
+    def _get_name_le(self) -> QLineEdit:
+        """Возвращает поле ввода названия (`QLineEdit`)."""
+        return self.ui.get_widget("name_le")
+
+    def _get_args_le(self) -> QLineEdit:
+        """Возвращает поле ввода аргументов (`QLineEdit`)."""
+        return self.ui.get_widget("args_le")
+
+    def _get_args_label(self) -> QLabel:
+        """Возвращает метку аргументов (`QLabel`)."""
+        return self.ui.get_widget("args_label")
+
+    def _get_browse_btn(self) -> QPushButton:
+        """Возвращает кнопку "Обзор" (`QPushButton`)."""
+        return self.ui.get_widget("browse_btn")
+
+    def _get_button_box(self) -> QDialogButtonBox:
+        """Возвращает блок кнопок диалога (`QDialogButtonBox`)."""
+        return self.ui.get_widget("button_box")
+
+    def _get_fav_chk(self) -> QCheckBox:
+        """Возвращает чекбокс избранного (`QCheckBox`)."""
+        return self.ui.get_widget("fav_chk")
+
+    def _get_notes_te(self) -> QTextEdit:
+        """Возвращает поле заметок (`QTextEdit`)."""
+        return self.ui.get_widget("notes_te")
 
     def __init__(
         self,
@@ -130,7 +196,7 @@ class LinkDialog(BaseDialog):
             self._neon_link_filter = NeonEventFilter(
                 color=QColor("#0194F0"), blur_radius=18
             )
-            for btn in self.ui.get_widget("type_group").buttons():
+            for btn in self._get_type_group().buttons():
                 btn.installEventFilter(self._neon_link_filter)
         except (AttributeError, RuntimeError) as e:
             # Не блокируем диалог при ошибке эффекта
@@ -180,7 +246,7 @@ class LinkDialog(BaseDialog):
         )
 
         # Установка типа ссылки
-        type_group = self.ui.get_widget("type_group")
+        type_group = self._get_type_group()
         for btn in type_group.buttons():
             if btn.property("link_type") == self.link_type:
                 btn.setChecked(True)
@@ -210,7 +276,7 @@ class LinkDialog(BaseDialog):
         # Загрузка мигрированных профилей
         if self.link and self.link.get("migrated_profiles"):
             self.selected_profiles = self.link["migrated_profiles"]
-            profile_btn = self.ui.get_widget("profile_btn")
+            profile_btn = self._get_profile_btn()
             profile_btn.setText(self._format_profile_text(self.selected_profiles))
 
         # Обновление состояния UI
@@ -218,12 +284,8 @@ class LinkDialog(BaseDialog):
 
     def _set_initial_icon(self) -> None:
         """Устанавливает начальную иконку."""
-        # Централизованный выбор иконки для ссылки
-        link_dict = {"type": self.link_type, "icon_path": self.icon_name}
-        resolved = resolve_icon_for_link(link_dict)
-        if resolved and Path(resolved).exists():
-            set_icon_to_button(self.ui.get_widget("icon_btn"), resolved)
-        else:
+        resolved, exists = self._resolve_and_apply_icon(self.link_type, self.icon_name)
+        if not exists:
             # Сообщаем один раз, что иконка не найдена
             self.show_warning(
                 "Иконка по умолчанию не найдена.",
@@ -231,6 +293,19 @@ class LinkDialog(BaseDialog):
                 informative_text="Кнопка будет отображаться без иконки. Укажите корректный путь к иконкам в настройках.",
                 details=f"Ожидался файл: {resolved}",
             )
+
+    def _resolve_and_apply_icon(self, link_type: str, icon_name: str) -> Tuple[Optional[str], bool]:
+        """Резолвит путь к иконке и применяет её к кнопке, если файл существует.
+
+        Возвращает кортеж `(resolved_path, exists)`, где `resolved_path` — строка
+        с путём или None, а `exists` — флаг существования файла.
+        """
+        link_dict = {"type": link_type, "icon_path": icon_name}
+        resolved = resolve_icon_for_link(link_dict)
+        exists = bool(resolved and Path(resolved).exists())
+        if exists:
+            set_icon_to_button(self._get_icon_btn(), resolved) 
+        return resolved, exists
 
     def set_link_type(self, link_type: str) -> None:
         """Программно выбрать тип ссылки и обновить UI.
@@ -253,9 +328,9 @@ class LinkDialog(BaseDialog):
         # 1) Загрузка сфер из initialization_data
         self._populate_spheres()
 
-        sphere_cb = self.ui.get_widget("sphere_cb")
-        section_cb = self.ui.get_widget("section_cb")
-        category_cb = self.ui.get_widget("category_cb")
+        sphere_cb = self._get_sphere_cb()
+        section_cb = self._get_section_cb()
+        category_cb = self._get_category_cb()
 
         # 2) Применение начального выбора (по ссылке/параметрам конструктора)
         cid = self.link.get("category_id") or self.initial_category
@@ -263,57 +338,45 @@ class LinkDialog(BaseDialog):
             hierarchy = self.initialization_data.get("category_hierarchy") or {}
 
             # Сначала выставляем сферу (если задана в иерархии)
-            sphere_idx = sphere_cb.findData(hierarchy.get("sphere_id"))
-            if sphere_idx >= 0:
-                sphere_cb.setCurrentIndex(sphere_idx)
+            self._set_index_by_data(sphere_cb, hierarchy.get("sphere_id"))
 
             # Обновляем разделы под текущую сферу
             self.handlers._update_sections()
 
             # Устанавливаем раздел, если задан, иначе оставляем текущий (или первый, если ещё не выбран)
             section_id = hierarchy.get("section_id")
-            if section_id is not None:
-                idx = section_cb.findData(section_id)
-                if idx >= 0:
-                    section_cb.setCurrentIndex(idx)
-            else:
-                if section_cb.count() > 0 and section_cb.currentIndex() < 0:
-                    section_cb.setCurrentIndex(0)
+            if not self._set_index_by_data(section_cb, section_id):
+                self._select_first_if_unset(section_cb)
 
             # Обновляем категории под текущий раздел
             self.handlers._update_categories()
 
             # Устанавливаем категорию, если задана, иначе оставляем текущую (или первую, если ещё не выбрана)
             category_id = hierarchy.get("category_id")
-            if category_id is not None:
-                idx = category_cb.findData(category_id)
-                if idx >= 0:
-                    category_cb.setCurrentIndex(idx)
-            else:
-                if category_cb.count() > 0 and category_cb.currentIndex() < 0:
-                    category_cb.setCurrentIndex(0)
+            if not self._set_index_by_data(category_cb, category_id):
+                self._select_first_if_unset(category_cb)
         else:
             # Значения по умолчанию: первая сфера/раздел/категория
             self._apply_default_hierarchy_selection()
             self.handlers._update_sections()
             if section_cb.count() > 0:
-                section_cb.setCurrentIndex(0)
+                self._select_first_if_unset(section_cb)
                 self.handlers._update_categories()
                 if category_cb.count() > 0:
-                    category_cb.setCurrentIndex(0)
+                    self._select_first_if_unset(category_cb)
 
     def _populate_spheres(self) -> None:
         """Заполняет список сфер из initialization_data (без иконок)."""
-        sphere_cb = self.ui.get_widget("sphere_cb")
+        sphere_cb = self._get_sphere_cb()
         sphere_cb.clear()
         for sp in self.initialization_data.get("spheres", []):
             sphere_cb.addItem(sp["name"], sp["id"])
 
     def _apply_initial_hierarchy_selection(self) -> None:
         """Применяет начальный выбор сферы/раздела/категории на основе initialization_data['category_hierarchy']."""
-        sphere_cb = self.ui.get_widget("sphere_cb")
-        section_cb = self.ui.get_widget("section_cb")
-        category_cb = self.ui.get_widget("category_cb")
+        sphere_cb = self._get_sphere_cb()
+        section_cb = self._get_section_cb()
+        category_cb = self._get_category_cb()
 
         hierarchy = self.initialization_data.get("category_hierarchy") or {}
         # Устанавливаем сферу
@@ -338,9 +401,42 @@ class LinkDialog(BaseDialog):
 
     def _apply_default_hierarchy_selection(self) -> None:
         """Устанавливает выбор по умолчанию: первая сфера, первый раздел, первая категория."""
-        sphere_cb = self.ui.get_widget("sphere_cb")
+        sphere_cb = self._get_sphere_cb()
         if sphere_cb.count() > 0:
             sphere_cb.setCurrentIndex(0)
+
+    def _set_index_by_data(self, combo: Any, data_id: Any) -> bool:
+        """Безопасная установка текущего индекса комбобокса по значению data.
+
+        Возвращает True, если индекс был успешно установлен. Возвращает False,
+        если data_id равен None, совпадение не найдено или в процессе возникло
+        исключение. Состояние комбобокса при этом не изменяется.
+        """
+        try:
+            if data_id is None:
+                return False
+            idx = combo.findData(data_id)
+            if idx >= 0:
+                combo.setCurrentIndex(idx)
+                return True
+        except Exception:
+            # В спорных случаях не меняем состояние
+            return False
+        return False
+
+    def _select_first_if_unset(self, combo: Any) -> bool:
+        """Выбирает первый элемент комбобокса, если текущий индекс не установлен.
+
+        Возвращает True в случае успешного выбора. Возвращает False, если
+        элементов нет, индекс уже установлен или произошло исключение.
+        """
+        try:
+            if combo.count() > 0 and combo.currentIndex() < 0:
+                combo.setCurrentIndex(0)
+                return True
+        except Exception:
+            return False
+        return False
 
     def get_ui_icons_dir(self) -> Path:
         """Получает директорию UI иконок."""

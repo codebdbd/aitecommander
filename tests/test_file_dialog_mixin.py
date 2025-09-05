@@ -1,5 +1,4 @@
 import types
-import builtins
 import pytest
 
 # Модуль под тестом

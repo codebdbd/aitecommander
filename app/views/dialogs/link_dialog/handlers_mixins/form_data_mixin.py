@@ -14,8 +14,8 @@ class FormDataMixin:
 
     def _collect_form_data(self) -> Dict[str, Any]:
         """Сбор данных из формы."""
-        collected_name = self.dialog.ui.get_widget("name_le").text().strip()
-        collected_args = self.dialog.ui.get_widget("args_le").text().strip()
+        collected_name = self.dialog._get_name_le().text().strip()
+        collected_args = self.dialog._get_args_le().text().strip()
         collected_link_id = self.dialog.link.get("id") if self.dialog.link else None
 
         logger.debug(f"_collect_form_data: collected name from UI='{collected_name}'")
@@ -26,13 +26,13 @@ class FormDataMixin:
 
         form_data = {
             "name": collected_name,
-            "url": self.dialog.ui.get_widget("url_le").text().strip(),
+            "url": self.dialog._get_url_le().text().strip(),
             "link_type": self.dialog.link_type,
-            "category_id": self.dialog.ui.get_widget("category_cb").currentData(),
+            "category_id": self.dialog._get_category_cb().currentData(),
             "args": collected_args,
-            "is_favorite": self.dialog.ui.get_widget("fav_chk").isChecked(),
+            "is_favorite": self.dialog._get_fav_chk().isChecked(),
             "icon_name": self.dialog.icon_name,
-            "notes": self.dialog.ui.get_widget("notes_te").toPlainText().strip(),
+            "notes": self.dialog._get_notes_te().toPlainText().strip(),
             "selected_profiles": self.dialog.selected_profiles,
             "link_id": collected_link_id,
             "last_used": self.dialog.link.get("last_used")

@@ -16,5 +16,5 @@ class IconsMixin:
             return
 
         self.dialog.icon_name = fname
-        btn = self.dialog.ui.get_widget("icon_btn")
+        btn = self.dialog._get_icon_btn()
         btn.setIcon(icon if icon else QIcon())

@@ -98,12 +98,12 @@ class ValidationMixin:
         """Устанавливает фокус на первое проблемное поле."""
         try:
             if "Адрес" in problems:
-                self.dialog.ui.get_widget("url_le").setFocus()
+                self.dialog._get_url_le().setFocus()
             elif "Название" in problems:
-                self.dialog.ui.get_widget("name_le").setFocus()
+                self.dialog._get_name_le().setFocus()
             elif "Категория" in problems:
-                self.dialog.ui.get_widget("category_cb").setFocus()
+                self.dialog._get_category_cb().setFocus()
             elif "Аргументы" in problems:
-                self.dialog.ui.get_widget("args_le").setFocus()
+                self.dialog._get_args_le().setFocus()
         except (AttributeError, RuntimeError) as e:
             logger.warning(f"Ошибка установки фокуса на проблемное поле: {e}")
