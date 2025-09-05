@@ -26,8 +26,7 @@ class BaseTopPanelWidget(BasePanelWidget):
         self._main_window = main_window
         self._default_icon_path: Optional[Path] = None
         
-        # Common size policy for all top panel widgets
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        # Size policy наследуется из BasePanelWidget: (Minimum, Fixed) для горизонтального сжатия
 
     def set_data(self, items: List[Dict[str, Any]]) -> None:
         """Sets panel data - to be implemented by subclasses."""

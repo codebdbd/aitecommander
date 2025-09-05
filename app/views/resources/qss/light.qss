@@ -135,10 +135,7 @@ QDialog QComboBox::down-arrow {
     margin-top: 1px;
 }
 
-/* Убираем скругление только у поля поиска */
-QLineEdit#mainSearch {
-    border-radius: 0;
-}
+/* Поле поиска (QLineEdit#mainSearch) наследует радиус из common.qss */
 
 /* Category Tiles Styles */
 /* Legacy selector kept for backward compatibility */

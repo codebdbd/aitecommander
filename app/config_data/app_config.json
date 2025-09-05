@@ -37,7 +37,8 @@
       "error_title": "Ошибка"
     },
     "max_favorites": 10,
-    "top_panel_container_height": 48,
+    "top_bar_height": 40,
+    "top_panel_container_height": 40,
     "stack_index_tiles": 0,
     "stack_index_table": 1,
     "table_selection_restore_delay": 100,
@@ -142,8 +143,8 @@
       },
       "spacing": {
         "top_bar": 8,
-        "top_bar_buttons": 8,
-        "top_bar_widgets_side": 8
+        "top_bar_buttons": 4,
+        "top_bar_widgets_side": 4
       }
     },
     "window": {

@@ -1,5 +1,4 @@
 import pytest
-from PyQt6.QtWidgets import QApplication
 
 from app.views.dialogs.link_dialog.link_dialog import LinkDialog
 

@@ -376,33 +376,6 @@ class LinkDialog(BaseDialog):
         for sp in self.initialization_data.get("spheres", []):
             sphere_cb.addItem(sp["name"], sp["id"])
 
-    def _apply_initial_hierarchy_selection(self) -> None:
-        """Применяет начальный выбор сферы/раздела/категории на основе initialization_data['category_hierarchy']."""
-        sphere_cb = self._get_sphere_cb()
-        section_cb = self._get_section_cb()
-        category_cb = self._get_category_cb()
-
-        hierarchy = self.initialization_data.get("category_hierarchy") or {}
-        # Устанавливаем сферу
-        sphere_idx = sphere_cb.findData(hierarchy.get("sphere_id"))
-        if sphere_idx >= 0:
-            sphere_cb.setCurrentIndex(sphere_idx)
-        # Обновление разделов произойдёт в _update_sections()
-
-        # Попытка установить раздел (после того, как секции будут заполнены миксином)
-        section_id = hierarchy.get("section_id")
-        if section_id is not None:
-            idx = section_cb.findData(section_id)
-            if idx >= 0:
-                section_cb.setCurrentIndex(idx)
-
-        # Попытка установить категорию (после заполнения миксином)
-        category_id = hierarchy.get("category_id")
-        if category_id is not None:
-            idx = category_cb.findData(category_id)
-            if idx >= 0:
-                category_cb.setCurrentIndex(idx)
-
     def _apply_default_hierarchy_selection(self) -> None:
         """Устанавливает выбор по умолчанию: первая сфера, первый раздел, первая категория."""
         sphere_cb = self._get_sphere_cb()
