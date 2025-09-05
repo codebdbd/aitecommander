@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 logger = logging.getLogger(__name__)
+from weakref import WeakSet
 
 from PyQt6 import QtCore
 from PyQt6.QtCore import QEvent, QObject, QTimer
@@ -41,6 +42,8 @@ class TopBarLayoutManager(QObject):
         self._warmup_adjusts_remaining: int = 2
         # Кэш контейнера топ-бара
         self._container_widget: QWidget | None = None
+        # Набор уже подписанных панелей для предотвращения повторной установки фильтров
+        self._watched_panels: WeakSet[QObject] = WeakSet()
         # Последние применённые количества не используются для гистерезиса в базовой версии
         # Троттлинг пересчетов (мс)
         try:
@@ -155,7 +158,16 @@ class TopBarLayoutManager(QObject):
             getattr(self.window, "recent_links_widget", None),
         ):
             if isinstance(w, QWidget):
-                w.installEventFilter(self)
+                try:
+                    # Избегаем повторной установки: проверяем, что виджет ещё не в наборе
+                    if w not in self._watched_panels:
+                        w.installEventFilter(self)
+                        self._watched_panels.add(w)
+                except RuntimeError:
+                    # Может быть удалён (sip удалил объект) — пропускаем
+                    continue
+                except Exception:
+                    logger.debug("TopBarLayoutManager: failed to install panel filter (dup prevented)", exc_info=True)
 
     def _request_adjust(self):
         """Запрос пересчёта с учётом троттлинга."""
@@ -188,7 +200,17 @@ class TopBarLayoutManager(QObject):
     def _get_container_widget(self) -> QWidget | None:
         """Ленивая выборка контейнера, где лежит топ-панель, с кэшем."""
         if self._container_widget and isinstance(self._container_widget, QWidget):
-            return self._container_widget
+            # Проверяем, что объект ещё жив и не удалён sip-обёрткой
+            try:
+                if not _sip_isdeleted(self._container_widget):
+                    return self._container_widget
+            except RuntimeError:
+                # Падение доступа к удалённому QObject — сбрасываем кэш
+                pass
+            except Exception:
+                # Любые неожиданные ошибки также приводят к сбросу кэша
+                logger.debug("TopBarLayoutManager: cached _container_widget invalid, resetting", exc_info=True)
+            self._container_widget = None
         container: QWidget | None = self._safe_get(self.window, "top_bar_host")
         if not container:
             container = self._safe_get(self.window, "content_container")
@@ -253,8 +275,8 @@ class TopBarLayoutManager(QObject):
                 panel_widget.setVisible(False)
                 try:
                     panel_widget.updateGeometry()
-                except Exception:
-                    pass
+                except (RuntimeError, AttributeError) as e:
+                    logger.debug("TopBarLayoutManager._set_visible_count: updateGeometry() failed while hiding panel: %s", e, exc_info=True)
             return 0
 
         count = max(0, min(count, len(buttons)))
@@ -268,8 +290,8 @@ class TopBarLayoutManager(QObject):
             # чтобы top-bar корректно пересчитывал ширину панели
             try:
                 panel_widget.updateGeometry()
-            except Exception:
-                pass
+            except (RuntimeError, AttributeError) as e:
+                logger.debug("TopBarLayoutManager._set_visible_count: updateGeometry() failed after visibility change: %s", e, exc_info=True)
 
         return count
 
@@ -310,7 +332,7 @@ class TopBarLayoutManager(QObject):
                 logger.exception("TopBarLayoutManager.adjust: unexpected error reading window min width; fallback to 280")
                 narrow_threshold = 280
             if width <= narrow_threshold:
-                self._apply_counts(width, 0, 0, 0, search)
+                self._apply_counts(width, 0, 0, 0)
                 # Также скрываем все вертикальные разделители и обнуляем их локальные отступы
                 try:
                     self._update_separators_visibility(
@@ -350,7 +372,7 @@ class TopBarLayoutManager(QObject):
 
             # На первых шагах после показа окна — не показываем панели, чтобы исключить стартовые артефакты
             if self._warmup_adjusts_remaining > 0:
-                self._apply_counts(width, 0, 0, 0, search)
+                self._apply_counts(width, 0, 0, 0)
                 self._warmup_adjusts_remaining -= 1
                 try:
                     # Запланировать ещё один пересчёт на следующий тик
@@ -406,8 +428,6 @@ class TopBarLayoutManager(QObject):
                 )
             except Exception:
                 logger.debug("TopBarLayoutManager.adjust: failed to update separators visibility", exc_info=True)
-
-            # Управление шириной поиска передано layout'у и единоразовой инициализации
 
             # Управление шириной поиска передано layout'у и единоразовой инициализации
 
@@ -497,7 +517,7 @@ class TopBarLayoutManager(QObject):
         lay = (
             bg.layout() if isinstance(bg, QWidget) and callable(getattr(bg, "layout", None)) else None
         )
-        spacing = lay.spacing() or 0 if lay else 0
+        spacing = lay.spacing() if lay else 0
         # Используем детерминированную ширину кнопки из конфигурации, чтобы не зависеть от sizeHint() на старте
         try:
             btn_w = int(getattr(app_config.ui, "get_top_panel_button_size", lambda: 32)())
@@ -693,7 +713,7 @@ class TopBarLayoutManager(QObject):
 
     # ----------------------------- Apply -----------------------------------
     def _apply_counts(
-        self, width: int, c_r: int, c_f: int, c_q: int, search: QLineEdit | None
+        self, width: int, c_r: int, c_f: int, c_q: int
     ) -> None:
         # Скрываем все кнопки у Recent/Fav/Quick (по 0 или заданное)
         recent = getattr(self.window, "recent_links_widget", None)

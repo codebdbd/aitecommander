@@ -36,7 +36,8 @@ def setup_status_bar(window) -> QStatusBar:
     window.links_count_label.setContentsMargins(6, 0, 6, 0)
 
     # Левая область: собственный контейнер с сообщением и путём, без перекрытия
-    left_container = QWidget()
+    # Создаём контейнер сразу с родителем статус-бара, чтобы исключить кратковременный top-level показ
+    left_container = QWidget(status)
     left_layout = QHBoxLayout(left_container)
     left_layout.setContentsMargins(0, 0, 0, 0)
     left_layout.setSpacing(0)
