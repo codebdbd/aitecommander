@@ -1,621 +1,512 @@
-# app/views/main_components/top_bar_layout_manager.py
-
 from __future__ import annotations
 
 import logging
-logger = logging.getLogger(__name__)
+from typing import Optional, List, Tuple
 from weakref import WeakSet
 
 from PyQt6 import QtCore
 from PyQt6.QtCore import QEvent, QObject, QTimer
-from PyQt6.QtWidgets import QLayout, QLineEdit, QToolButton, QWidget
+from PyQt6.QtWidgets import QLayout, QLineEdit, QToolButton, QWidget, QSizePolicy
 
 from app.config_data import app_config
 
 try:
-    # PyQt6 provides sip to detect deleted QObject wrappers
     from sip import isdeleted as _sip_isdeleted
 except ImportError:  # pragma: no cover
     def _sip_isdeleted(_obj) -> bool:
         return False
 
+logger = logging.getLogger(__name__)
 
 class TopBarLayoutManager(QObject):
     """Управляет иерархическим схлопыванием верхней панели при изменении размера.
 
     Порядок при сжатии:
       1) Поиск удерживает минимальную ширину (из конфига).
-      2) Скрывать Recent по одной кнопке до min_recent (по умолчанию 0) — полностью, прежде чем трогать Favorites.
-      3) Скрывать Favorites по одной кнопке до min_fav (по умолчанию 1).
-      4) Скрывать QuickAdd по одной кнопке до min_quick (по умолчанию 1).
-    При расширении — в обратном порядке восстанавливаем кнопки до лимитов.
+      2) Скрывать Recent по одной кнопке.
+      3) Скрывать Favorites по одной кнопке.
+      4) Скрывать QuickAdd по одной кнопке.
+    Минимальных квот на «оставить 1 кнопку» нет — любая панель может схлопнуться до 0.
+    При расширении — в обратном порядке восстанавливаем кнопки до максимумов.
     """
+
+    # Константы по умолчанию
+    DEFAULT_THROTTLE_MS = 32
+    DEFAULT_LOG_INFO = False
+    DEFAULT_MIN_SEARCH_WIDTH = 148
+    DEFAULT_MAX_RECENT = 10
+    DEFAULT_MAX_FAV = 10
+    DEFAULT_MAX_QUICK = 6
+    DEFAULT_MIN_RECENT = 0
+    DEFAULT_MIN_FAV = 0
+    DEFAULT_MIN_QUICK = 0
+    DEFAULT_NARROW_THRESHOLD = 380
+    DEFAULT_BUTTON_SIZE = 32
+    DEFAULT_SPACER_SIZE = 4
 
     def __init__(self, window):
         super().__init__(window)
-        self.window = window
-        # Для стабилизации пересчетов
-        self._last_applied: tuple[int, int, int, int] | None = (
-            None  # (width, recent, fav, quick)
-        )
-        # Тёплый старт: несколько первых пересчётов скрываем панели, пока геометрия стабилизируется
+        self.window: QObject = window
+        self._last_applied: Optional[Tuple[int, int, int, int]] = None  # (width, recent, fav, quick)
         self._warmup_adjusts_remaining: int = 2
-        # Кэш контейнера топ-бара
-        self._container_widget: QWidget | None = None
-        # Набор уже подписанных панелей для предотвращения повторной установки фильтров
+        self._container_widget: Optional[QWidget] = None
         self._watched_panels: WeakSet[QObject] = WeakSet()
-        # Последние применённые количества не используются для гистерезиса в базовой версии
-        # Троттлинг пересчетов (мс)
-        try:
-            self._throttle_interval_ms: int = int(
-                getattr(app_config, "get", lambda *_: 50)("ui.topbar.throttle_ms", 50)
-            )
-        except (AttributeError, TypeError, ValueError):
-            self._throttle_interval_ms = 50
-            logging.debug("TopBarLayoutManager: fallback to default throttle_ms=50")
+
+        # Настройки из конфига с fallback
+        self._throttle_interval_ms: int = self._get_cfg_int("ui.topbar.throttle_ms", self.DEFAULT_THROTTLE_MS)
+        self._log_info: bool = self._get_cfg_bool("ui.topbar.log_info", self.DEFAULT_LOG_INFO)
+        self._min_search_width: int = self._get_cfg_int("ui.topbar.min_search_width", self.DEFAULT_MIN_SEARCH_WIDTH)
+        self._max_recent: int = self.DEFAULT_MAX_RECENT
+        self._max_fav: int = self.DEFAULT_MAX_FAV
+        self._max_quick: int = self.DEFAULT_MAX_QUICK
+        # Минимальные квоты отключены: все панели могут схлопываться до 0
+        self._min_recent: int = 0
+        self._min_fav: int = 0
+        self._min_quick: int = 0
+        # Узкий режим: фиксированный порог 280, без переопределения конфигом
+        self._narrow_threshold: int = self.DEFAULT_NARROW_THRESHOLD
+        self._button_size: int = self._get_cfg_int("ui.top_panel_button_size", self.DEFAULT_BUTTON_SIZE)
+
         self._throttle_timer = QTimer(self)
         self._throttle_timer.setSingleShot(True)
         self._throttle_timer.timeout.connect(self._run_adjust)
-        # Переключатель уровня логирования видимости
-        try:
-            self._log_info: bool = bool(
-                getattr(app_config, "get", lambda *_: False)(
-                    "ui.topbar.log_info", False
-                )
-            )
-        except (AttributeError, TypeError, ValueError):
-            self._log_info = False
-            logging.debug("TopBarLayoutManager: fallback to default log_info=False")
 
-        # Межпанельный зазор не навязываем — используем spacing топ-бара как есть
+        # Подключение к контейнерам
+        self._install_event_filters()
 
-        # Настройки
-        try:
-            self._min_search_width = int(
-                getattr(app_config, "get_top_panel_search_min_width", lambda: 140)()
-            )
-        except (AttributeError, TypeError, ValueError):
-            self._min_search_width = 140
-            logging.debug("TopBarLayoutManager: fallback to default min_search_width=140")
-        # Лимиты по умолчанию
-        self._max_recent = 7
-        self._max_fav = 10
-        self._max_quick = 10
-
-        # Подключаемся к актуальным контейнерам (top_bar_host, content_container)
-        tb = self._safe_get(self.window, "top_bar_host")
-        if isinstance(tb, QWidget):
-            tb.installEventFilter(self)
-        cc = self._safe_get(self.window, "content_container")
-        if isinstance(cc, QWidget):
-            cc.installEventFilter(self)
-        # На всякий случай слушаем и окно (Resize)
-        try:
-            if isinstance(self.window, QObject) and not _sip_isdeleted(self.window):
-                self.window.installEventFilter(self)
-        except RuntimeError:
-            pass
-
-        # Инициализационный пересчет после показа окна (один раз)
+        # Инициализационный пересчет после показа окна
         if hasattr(self.window, "shown"):
             self.window.shown.connect(self.adjust)
 
-    # ---------------------------- Event Filter -----------------------------
-    def eventFilter(self, obj: QObject, event: QtCore.QEvent) -> bool:
-        # Минимизируем источники событий: только Resize окна и контейнера топ-панели
-        try:
-            if self.window is None or _sip_isdeleted(self.window):
-                return False
-        except RuntimeError:
-            return False
+    def _install_event_filters(self) -> None:
+        """Устанавливает фильтры событий на релевантные виджеты."""
+        for attr_name in ["top_bar_host", "content_container", "quick_add_widget", "fav_widget", "recent_links_widget"]:
+            widget = self._safe_get(self.window, attr_name)
+            if isinstance(widget, QWidget) and widget not in self._watched_panels:
+                widget.installEventFilter(self)
+                self._watched_panels.add(widget)
+        # Окно
+        if isinstance(self.window, QWidget) and not _sip_isdeleted(self.window):
+            self.window.installEventFilter(self)
 
-        watched = (
-            self._safe_get(self.window, "top_bar_host"),
-            self._safe_get(self.window, "content_container"),
-            self.window if isinstance(self.window, QObject) else None,
-            self._safe_get(self.window, "quick_add_widget"),
-            self._safe_get(self.window, "fav_widget"),
-            self._safe_get(self.window, "recent_links_widget"),
-        )
-        if obj in watched:
-            et = event.type()
-            if et == QEvent.Type.Resize:
-                # Максимально быстрый отклик: пересчёт в следующий тик (0 мс)
-                try:
-                    self._throttle_timer.start(0)
-                except (RuntimeError, TypeError, ValueError):
-                    try:
-                        self.adjust()
-                    except (RuntimeError, AttributeError):
-                        pass
-                    except Exception:
-                        logger.exception("TopBarLayoutManager.eventFilter: unexpected error during fallback adjust (resize)")
-                except Exception:
-                    logger.exception("TopBarLayoutManager.eventFilter: unexpected error starting throttle timer (resize)")
-            elif et in (QEvent.Type.LayoutRequest, QEvent.Type.Show, QEvent.Type.Hide):
-                # Изменение компоновки/видимости внутри панелей — пересчитать сразу
-                try:
-                    self._throttle_timer.start(0)
-                except (RuntimeError, TypeError, ValueError):
-                    try:
-                        self.adjust()
-                    except (RuntimeError, AttributeError):
-                        pass
-                    except Exception:
-                        logger.exception("TopBarLayoutManager.eventFilter: unexpected error during fallback adjust (layout/show/hide)")
-                except Exception:
-                    logger.exception("TopBarLayoutManager.eventFilter: unexpected error starting throttle timer (layout/show/hide)")
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        if event.type() in (QEvent.Type.Resize, QEvent.Type.LayoutRequest, QEvent.Type.Show, QEvent.Type.Hide):
+            self._throttle_timer.start(0)
         return super().eventFilter(obj, event)
 
-    def _ensure_panel_filters(self):
-        """Навешивает фильтры на панели, если они уже созданы."""
-        for w in (
-            getattr(self.window, "quick_add_widget", None),
-            getattr(self.window, "fav_widget", None),
-            getattr(self.window, "recent_links_widget", None),
-        ):
-            if isinstance(w, QWidget):
-                try:
-                    # Избегаем повторной установки: проверяем, что виджет ещё не в наборе
-                    if w not in self._watched_panels:
-                        w.installEventFilter(self)
-                        self._watched_panels.add(w)
-                except RuntimeError:
-                    # Может быть удалён (sip удалил объект) — пропускаем
-                    continue
-                except Exception:
-                    logger.debug("TopBarLayoutManager: failed to install panel filter (dup prevented)", exc_info=True)
-
-    def _request_adjust(self):
-        """Запрос пересчёта с учётом троттлинга."""
-        try:
-            self._throttle_timer.start(self._throttle_interval_ms)
-        except (RuntimeError, TypeError, ValueError):
-            # Фоллбэк — выполнить сразу
-            try:
-                self.adjust()
-            except (RuntimeError, AttributeError):
-                pass
-            except Exception:
-                logger.exception("TopBarLayoutManager._request_adjust: unexpected error during fallback adjust")
-        except Exception:
-            logger.exception("TopBarLayoutManager._request_adjust: unexpected error starting throttle timer")
-
-    def _run_adjust(self):
+    def _run_adjust(self) -> None:
         self.adjust()
 
-    # ------------------------------ Helpers --------------------------------
-    def _get_top_bar(self) -> QLayout | None:
-        host = self._safe_get(self.window, "top_bar_host")
-        if isinstance(host, QWidget) and callable(getattr(host, "layout", None)):
-            return host.layout()
-        cc = self._safe_get(self.window, "content_container")
-        if isinstance(cc, QWidget) and callable(getattr(cc, "layout", None)):
-            return cc.layout()
-        return None
-
-    def _get_container_widget(self) -> QWidget | None:
-        """Ленивая выборка контейнера, где лежит топ-панель, с кэшем."""
-        if self._container_widget and isinstance(self._container_widget, QWidget):
-            # Проверяем, что объект ещё жив и не удалён sip-обёрткой
-            try:
-                if not _sip_isdeleted(self._container_widget):
-                    return self._container_widget
-            except RuntimeError:
-                # Падение доступа к удалённому QObject — сбрасываем кэш
-                pass
-            except Exception:
-                # Любые неожиданные ошибки также приводят к сбросу кэша
-                logger.debug("TopBarLayoutManager: cached _container_widget invalid, resetting", exc_info=True)
-            self._container_widget = None
-        container: QWidget | None = self._safe_get(self.window, "top_bar_host")
-        if not container:
-            container = self._safe_get(self.window, "content_container")
-        self._container_widget = container
-        return container
-
-    # ------------------------------ Utils ----------------------------------
-    def _safe_get(self, obj: object | None, name: str):
-        """Безопасно получает атрибут QObject, не падая на удалённых объектах PyQt."""
-        if obj is None:
-            return None
-        try:
-            # Если это QObject и он удалён — не трогаем
-            if isinstance(obj, QObject) and _sip_isdeleted(obj):
-                return None
-        except RuntimeError:
+    def _safe_get(self, obj: Optional[object], name: str) -> Optional[object]:
+        if obj is None or (isinstance(obj, QObject) and _sip_isdeleted(obj)):
             return None
         try:
             return getattr(obj, name, None)
         except RuntimeError:
             return None
 
-    def _iter_buttons(
-        self, panel_widget: QWidget | None, name: str
-    ) -> list[QToolButton]:
+    def _iter_buttons(self, panel_widget: Optional[QWidget], name: str) -> List[QToolButton]:
         if not panel_widget:
             return []
-        try:
-            # Собираем кнопки в порядке расположения в layout
-            # Кнопки живут в bg_frame с собственным QHBoxLayout
-            bg = getattr(panel_widget, "bg_frame", None)
-            lay = (
-                bg.layout()
-                if isinstance(bg, QWidget) and callable(getattr(bg, "layout", None))
-                else None
-            )
-            ordered: list[QToolButton] = []
-            if lay:
-                for i in range(lay.count()):
-                    w = lay.itemAt(i).widget()
-                    if isinstance(w, QToolButton) and w.objectName() == name:
-                        ordered.append(w)
-            # На всякий случай добавим все найденные по findChildren
-            for b in panel_widget.findChildren(QToolButton, name):
-                if b not in ordered:
-                    ordered.append(b)
-            return ordered
-        except (AttributeError, RuntimeError):
-            return []
-        except Exception:
-            logger.exception("TopBarLayoutManager._iter_buttons: unexpected error while collecting buttons")
-            return []
+        bg = self._safe_get(panel_widget, "bg_frame")
+        lay = (bg.layout() if isinstance(bg, QWidget) and callable(getattr(bg, "layout", None)) else None)
+        ordered: List[QToolButton] = []
+        if lay:
+            for i in range(lay.count()):
+                w = lay.itemAt(i).widget()
+                if isinstance(w, QToolButton) and w.objectName() == name:
+                    ordered.append(w)
+        # Дополнить findChildren
+        for b in panel_widget.findChildren(QToolButton, name):
+            if b not in ordered:
+                ordered.append(b)
+        return ordered
 
-    def _set_visible_count(
-        self, panel_widget: QWidget | None, btn_object_name: str, count: int
-    ) -> int:
-        """Показывает первые count кнопок, остальные скрывает. Возвращает фактическое число видимых."""
+    def _set_visible_count(self, panel_widget: Optional[QWidget], btn_object_name: str, count: int) -> int:
         buttons = self._iter_buttons(panel_widget, btn_object_name)
         if not buttons:
-            # Скрываем сам виджет, чтобы не занимал место
             if panel_widget:
                 panel_widget.setVisible(False)
-                try:
-                    panel_widget.updateGeometry()
-                except (RuntimeError, AttributeError) as e:
-                    logger.debug("TopBarLayoutManager._set_visible_count: updateGeometry() failed while hiding panel: %s", e, exc_info=True)
+                panel_widget.updateGeometry()
             return 0
-
         count = max(0, min(count, len(buttons)))
         for i, btn in enumerate(buttons):
             btn.setVisible(i < count)
-
-        # Видимость панели только по факту наличия видимых кнопок
         if panel_widget:
             panel_widget.setVisible(count > 0)
-            # Форсируем пересчёт геометрии после изменения видимости элементов,
-            # чтобы top-bar корректно пересчитывал ширину панели
-            try:
-                panel_widget.updateGeometry()
-            except (RuntimeError, AttributeError) as e:
-                logger.debug("TopBarLayoutManager._set_visible_count: updateGeometry() failed after visibility change: %s", e, exc_info=True)
-
+            panel_widget.updateGeometry()
         return count
-    
-    # ------------------------------ Adjust ---------------------------------
-    def adjust(self):
-        """Пересчет видимости элементов верхней панели."""
+
+    def _get_top_bar(self) -> Optional[QLayout]:
+        for attr in ["top_bar_host", "content_container"]:
+            host = self._safe_get(self.window, attr)
+            if isinstance(host, QWidget):
+                lay = host.layout()
+                if lay:
+                    return lay
+        return None
+
+    def _get_container_widget(self) -> Optional[QWidget]:
+        if self._container_widget and not _sip_isdeleted(self._container_widget):
+            return self._container_widget
+        self._container_widget = self._safe_get(self.window, "top_bar_host") or self._safe_get(self.window, "content_container")
+        return self._container_widget
+
+    def adjust(self) -> None:
+        container = self._get_container_widget()
+        if not container or container.width() <= 0:
+            return
+        width = container.width()
+        # Для активации узкого режима учитываем фактическую ширину окна, если доступна
         try:
-            top_bar = self._get_top_bar()
-            if not top_bar:
-                return
-            # Берем ширину топ-панели, а не всего контейнера окна
-            container: QWidget | None = self._get_container_widget()
-            if not container:
-                return
-            width = container.width()
-            if width <= 0:
-                return
+            win_w = int(getattr(self.window, "width", lambda: width)())
+            effective_w = min(width, win_w) if win_w > 0 else width
+        except Exception:
+            effective_w = width
+        top_bar = self._get_top_bar()
+        if not top_bar:
+            return
 
-            # Панели
-            quick = getattr(self.window, "quick_add_widget", None)
-            fav = getattr(self.window, "fav_widget", None)
-            recent = getattr(self.window, "recent_links_widget", None)
-            search: QLineEdit | None = getattr(self.window, "search", None)
+        # Получить панели и поиск
+        quick = self._safe_get(self.window, "quick_add_widget")
+        fav = self._safe_get(self.window, "fav_widget")
+        recent = self._safe_get(self.window, "recent_links_widget")
+        search: Optional[QLineEdit] = self._safe_get(self.window, "search")
 
-            # Убедимся, что фильтры навешены на панели (при отложенном создании)
-            self._ensure_panel_filters()
+        self._install_event_filters()  # Убедиться в фильтрах
 
-            # Узкий режим: ширина окна/контейнера <= минимальной ширины окна — скрыть все панели, оставить только поиск
+        if effective_w <= self._narrow_threshold:
+            logger.debug(f"TopBar narrow mode: width={width} <= threshold={self._narrow_threshold}")
+            self._apply_counts(width, 0, 0, 0)
+            self._update_separators_visibility(top_bar, False, False, False, bool(search))
+            # Скрыть любые виджеты top-bar, кроме поля поиска
             try:
-                narrow_threshold = int(
-                    getattr(app_config, "get_window_min_width", lambda: 280)()
-                )
-            except (RuntimeError, TypeError, ValueError):
-                narrow_threshold = 280
-            except Exception:
-                logger.exception("TopBarLayoutManager.adjust: unexpected error reading window min width; fallback to 280")
-                narrow_threshold = 280
-            if width <= narrow_threshold:
-                self._apply_counts(width, 0, 0, 0)
-                # Также скрываем все вертикальные разделители и обнуляем их локальные отступы
+                count = top_bar.count()
+                for i in range(count):
+                    it = top_bar.itemAt(i)
+                    w = it.widget()
+                    if w is None:
+                        continue
+                    if isinstance(search, QLineEdit) and w is search:
+                        continue
+                    try:
+                        w.setVisible(False)
+                    except Exception:
+                        pass
+                # Обнулить все spacerItem, чтобы не было отступов слева/справа от поиска
                 try:
-                    self._update_separators_visibility(
-                        top_bar,
-                        recent_visible=False,
-                        fav_visible=False,
-                        quick_visible=False,
-                        search_exists=bool(search),
-                    )
-                except Exception:
-                    logger.debug("TopBarLayoutManager.adjust: failed to hide separators in narrow mode", exc_info=True)
-                return
-
-            # Получим списки кнопок
-            quick_btns = self._iter_buttons(quick, "quickButton")
-            fav_btns = self._iter_buttons(fav, "favoriteButton")
-            recent_btns = self._iter_buttons(recent, "recentButton")
-
-            # Верхние/минимальные пределы и расчет видимых количеств чистой функцией
-            cnt_recent, cnt_fav, cnt_quick = self._compute_visible_counts(
-                width,
-                top_bar,
-                search,
-                recent,
-                fav,
-                quick,
-                recent_btns,
-                fav_btns,
-                quick_btns,
-            )
-
-            # Если состояние (ширина + состав видимых) не меняется — выходим рано
-            # Важно учитывать ширину: даже при тех же counts требуется пересчёт maxWidth при изменении width
-            state = (width, cnt_recent, cnt_fav, cnt_quick)
-            if self._last_applied == state:
-                return
-
-            # На первых шагах после показа окна — не показываем панели, чтобы исключить стартовые артефакты
-            if self._warmup_adjusts_remaining > 0:
-                self._apply_counts(width, 0, 0, 0)
-                self._warmup_adjusts_remaining -= 1
-                try:
-                    # Запланировать ещё один пересчёт на следующий тик
-                    self._throttle_timer.start(0)
+                    for i in range(count):
+                        sp = top_bar.itemAt(i).spacerItem()
+                        if sp is not None:
+                            sp.changeSize(0, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
                 except Exception:
                     pass
-                return
-
-            # Установим видимые количества (без дополнительных ограничений ширины/политик)
-            recent_visible = self._set_visible_count(recent, "recentButton", cnt_recent)
-            fav_visible = self._set_visible_count(fav, "favoriteButton", cnt_fav)
-            quick_visible = self._set_visible_count(quick, "quickButton", cnt_quick)
-
-            # Жёстко ограничим ширину панелей под фактический видимый объём, чтобы исключить наезд
-            try:
-                # Минимальная ширина — 0, чтобы разрешить сжатие
-                for panel, btns, visible in (
-                    (recent, recent_btns, recent_visible),
-                    (fav,    fav_btns,    fav_visible),
-                    (quick,  quick_btns,  quick_visible),
-                ):
-                    if isinstance(panel, QWidget):
-                        try:
-                            panel.setMinimumWidth(0)
-                        except Exception:
-                            pass
-                        try:
-                            max_w = self._panel_width(panel, btns, visible) if visible > 0 else 0
-                        except Exception:
-                            max_w = 0
-                        try:
-                            panel.setMaximumWidth(max_w)
-                        except Exception:
-                            pass
+                # Отключить встроенные действия у поиска (иконки слева/справа, кнопка очистки)
+                if isinstance(search, QLineEdit):
+                    try:
+                        search.setClearButtonEnabled(False)
+                    except Exception:
+                        pass
+                    try:
+                        for act in search.actions():
+                            try:
+                                act.setVisible(False)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+                # Нулевые отступы у top_bar, чтобы поиск примыкал к краям
+                try:
+                    self._set_top_bar_margins(top_bar, 0, 0, 0, 0)
+                except Exception:
+                    pass
+                # Поиск занимает всю ширину
+                try:
+                    if isinstance(search, QLineEdit):
+                        search.setMinimumWidth(0)
+                        # Не ограничиваем maxWidth конкретным значением, чтобы тянулся на весь доступный размер
+                        search.setMaximumWidth(16777215)
+                        search.setSizePolicy(QSizePolicy.Policy.Expanding, search.sizePolicy().verticalPolicy())
+                except Exception:
+                    pass
+                # Пересчитать лейаут, чтобы исключить наложение
+                try:
+                    # Зафиксировать stretch-факторы: только поиск тянется
+                    self._enforce_stretches(top_bar, search)
+                    top_bar.invalidate()
+                    host = self._get_container_widget()
+                    if isinstance(host, QWidget):
+                        host.updateGeometry()
+                        host.update()
+                except Exception:
+                    pass
             except Exception:
-                logger.debug("TopBarLayoutManager.adjust: failed to apply hard width bounds to panels", exc_info=True)
+                logger.debug("TopBarLayoutManager: narrow-mode hide non-search widgets failed", exc_info=True)
+            return
 
-            self._last_applied = (width, recent_visible, fav_visible, quick_visible)
-            msg = f"[TopBar] visible: recent={recent_visible}, fav={fav_visible}, quick={quick_visible}; min_search={self._min_search_width}"
-            if self._log_info:
-                logging.info(msg)
-            else:
-                logging.debug(msg)
+        # Кэшировать списки кнопок
+        quick_btns = self._iter_buttons(quick, "quickButton")
+        fav_btns = self._iter_buttons(fav, "favoriteButton")
+        recent_btns = self._iter_buttons(recent, "recentButton")
 
-            # Управляем условной видимостью вертикальных разделителей и их локальных отступов (4px с каждой стороны)
+        # Рассчитать видимые количества
+        cnt_recent, cnt_fav, cnt_quick = self._compute_visible_counts(
+            width, top_bar, search, recent, fav, quick, recent_btns, fav_btns, quick_btns
+        )
+
+        # Если расчёт показал, что места нет даже для одной кнопки любой панели — принудительно оставляем только поиск
+        if cnt_recent == 0 and cnt_fav == 0 and cnt_quick == 0:
             try:
-                self._update_separators_visibility(
-                    top_bar,
-                    recent_visible > 0,
-                    fav_visible > 0,
-                    quick_visible > 0,
-                    search is not None,
-                )
+                self._apply_counts(width, 0, 0, 0)
+                self._update_separators_visibility(top_bar, False, False, False, bool(search))
+                count = top_bar.count()
+                for i in range(count):
+                    it = top_bar.itemAt(i)
+                    w = it.widget()
+                    if w is None:
+                        continue
+                    if isinstance(search, QLineEdit) and w is search:
+                        continue
+                    try:
+                        w.setVisible(False)
+                    except Exception:
+                        pass
+                # Обнулить все spacerItem, чтобы не было отступов
+                try:
+                    for i in range(count):
+                        sp = top_bar.itemAt(i).spacerItem()
+                        if sp is not None:
+                            sp.changeSize(0, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+                except Exception:
+                    pass
+                # Отключить встроенные действия у поиска
+                if isinstance(search, QLineEdit):
+                    try:
+                        search.setClearButtonEnabled(False)
+                    except Exception:
+                        pass
+                    try:
+                        for act in search.actions():
+                            try:
+                                act.setVisible(False)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+                # Нулевые отступы и перерасчёт
+                try:
+                    self._set_top_bar_margins(top_bar, 0, 0, 0, 0)
+                    # Зафиксировать stretch-факторы: только поиск тянется
+                    self._enforce_stretches(top_bar, search)
+                    top_bar.invalidate()
+                    host = self._get_container_widget()
+                    if isinstance(host, QWidget):
+                        host.updateGeometry()
+                        host.update()
+                except Exception:
+                    pass
             except Exception:
-                logger.debug("TopBarLayoutManager.adjust: failed to update separators visibility", exc_info=True)
+                logger.debug("TopBarLayoutManager: forced narrow-mode hide due to zero counts failed", exc_info=True)
+            return
 
-            # Управление шириной поиска передано layout'у и единоразовой инициализации
+        state = (width, cnt_recent, cnt_fav, cnt_quick)
+        if self._last_applied == state:
+            return
 
-        except (RuntimeError, AttributeError):
-            # Не роняем UI из-за ожидаемых ошибок расчета
-            pass
+        if self._warmup_adjusts_remaining > 0:
+            self._apply_counts(width, 0, 0, 0)
+            self._warmup_adjusts_remaining -= 1
+            self._throttle_timer.start(0)
+            return
+
+        # Применить
+        recent_visible = self._set_visible_count(recent, "recentButton", cnt_recent)
+        fav_visible = self._set_visible_count(fav, "favoriteButton", cnt_fav)
+        quick_visible = self._set_visible_count(quick, "quickButton", cnt_quick)
+
+        # Ограничить ширину панелей
+        self._apply_panel_width_bounds(recent, recent_btns, recent_visible)
+        self._apply_panel_width_bounds(fav, fav_btns, fav_visible)
+        self._apply_panel_width_bounds(quick, quick_btns, quick_visible)
+
+        self._last_applied = (width, recent_visible, fav_visible, quick_visible)
+        msg = f"[TopBar] visible: recent={recent_visible}, fav={fav_visible}, quick={quick_visible}; min_search={self._min_search_width}"
+        if self._log_info:
+            logger.info(msg)
+        else:
+            logger.debug(msg)
+
+        # В обычном режиме восстанавливаем отступы top_bar из конфига (лево/право)
+        try:
+            side = int(app_config.ui.get_top_bar_widgets_side_spacing())
         except Exception:
-            logger.exception("TopBarLayoutManager.adjust: unexpected error during adjust")
+            side = 8
+        self._set_top_bar_margins(top_bar, side, 0, side, 0)
+        # Гарантируем стабильные stretch-факторы в обычном режиме
+        self._enforce_stretches(top_bar, search)
+        self._update_separators_visibility(top_bar, recent_visible > 0, fav_visible > 0, quick_visible > 0, search is not None)
 
-    # -------------------------- Pure calculation ---------------------------
+    def _zero_all_spacers(self, top_bar: QLayout) -> None:
+        """Устанавливает ширину всех spacerItem в 0 для полного освобождения места (узкий режим)."""
+        try:
+            count = top_bar.count()
+            for i in range(count):
+                it = top_bar.itemAt(i)
+                sp = it.spacerItem()
+                if sp is not None:
+                    sp.changeSize(0, 0)
+        except Exception:
+            # Диагностические ошибки не критичны
+            pass
+
+    def _apply_panel_width_bounds(self, panel: Optional[QWidget], btns: List[QToolButton], visible: int) -> None:
+        if not panel:
+            return
+        panel.setMinimumWidth(0)
+        max_w = self._panel_width(panel, btns, visible) if visible > 0 else 0
+        panel.setMaximumWidth(max_w)
+
+    def _set_top_bar_margins(self, top_bar: QLayout, left: int, top: int, right: int, bottom: int) -> None:
+        """Безопасно выставляет отступы для top_bar (QLayout)."""
+        try:
+            m = top_bar.contentsMargins()
+            if m.left() == left and m.top() == top and m.right() == right and m.bottom() == bottom:
+                return
+        except Exception:
+            pass
+        try:
+            top_bar.setContentsMargins(left, top, right, bottom)
+        except Exception:
+            pass
+
+    def _enforce_stretches(self, top_bar: QLayout, search: Optional[QLineEdit]) -> None:
+        """Сбрасывает stretch=0 для всех элементов top_bar и ставит stretch=1 только для поиска."""
+        try:
+            count = top_bar.count()
+            search_index = -1
+            for i in range(count):
+                it = top_bar.itemAt(i)
+                w = it.widget()
+                if w is not None and isinstance(search, QLineEdit) and w is search:
+                    search_index = i
+                try:
+                    top_bar.setStretch(i, 0)
+                except Exception:
+                    pass
+            if search_index >= 0:
+                try:
+                    top_bar.setStretch(search_index, 1)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
     def _compute_visible_counts(
         self,
         width: int,
         top_bar: QLayout,
-        search: QLineEdit | None,
-        recent: QWidget | None,
-        fav: QWidget | None,
-        quick: QWidget | None,
-        recent_btns: list[QToolButton],
-        fav_btns: list[QToolButton],
-        quick_btns: list[QToolButton],
-    ) -> tuple[int, int, int]:
-        # 1) Верхние пределы и минимальные значения
+        search: Optional[QLineEdit],
+        recent: Optional[QWidget],
+        fav: Optional[QWidget],
+        quick: Optional[QWidget],
+        recent_btns: List[QToolButton],
+        fav_btns: List[QToolButton],
+        quick_btns: List[QToolButton],
+    ) -> Tuple[int, int, int]:
         max_recent = min(self._max_recent, len(recent_btns))
         max_fav = min(self._max_fav, len(fav_btns))
         max_quick = min(self._max_quick, len(quick_btns))
 
-        cfg_min_recent = self._get_cfg_int("ui.topbar.min_visible.recent", 0)
-        cfg_min_fav = self._get_cfg_int("ui.topbar.min_visible.fav", 1)
-        cfg_min_quick = self._get_cfg_int("ui.topbar.min_visible.quick", 1)
+        # Минимальные квоты отключены для единообразного поведения
+        min_recent = 0
+        min_fav = 0
+        min_quick = 0
 
-        # Применяем минимум только если панель непуста; иначе 0
-        min_recent = cfg_min_recent if max_recent > 0 else 0
-        min_fav = cfg_min_fav if max_fav > 0 else 0
-        min_quick = cfg_min_quick if max_quick > 0 else 0
-
-        # 2) Начальные количества (старт с максимумов)
-        cnt_recent = max_recent
-        cnt_fav = max_fav
-        cnt_quick = max_quick
-
-        # 3) Применение минимумов
+        cnt_recent, cnt_fav, cnt_quick = max_recent, max_fav, max_quick
         cnt_recent = max(min_recent, cnt_recent)
         cnt_fav = max(min_fav, cnt_fav)
         cnt_quick = max(min_quick, cnt_quick)
 
-        # 4) Ужатие до нужной ширины в пределах реального числа шагов
         max_steps = (cnt_recent - min_recent) + (cnt_fav - min_fav) + (cnt_quick - min_quick)
         steps = 0
-        while (
-            self._total_width_for(top_bar, search, recent, fav, quick, recent_btns, fav_btns, quick_btns, cnt_recent, cnt_fav, cnt_quick)
-            > width
-            and steps < max_steps
-        ):
+        while self._total_width_for(top_bar, search, recent, fav, quick, recent_btns, fav_btns, quick_btns, cnt_recent, cnt_fav, cnt_quick) > width and steps < max_steps:
             steps += 1
             if cnt_recent > min_recent:
                 cnt_recent -= 1
-                continue
-            if cnt_fav > min_fav:
+            elif cnt_fav > min_fav:
                 cnt_fav -= 1
-                continue
-            if cnt_quick > min_quick:
+            elif cnt_quick > min_quick:
                 cnt_quick -= 1
-                continue
-            break
+            else:
+                break
 
-        # Жёсткий фолбэк безопасности: если даже при минимальных количествах ширины не хватает,
-        # скрываем все панели (оставляем только поиск). Это исключает любой наезд.
-        try:
-            if self._total_width_for(
-                top_bar, search, recent, fav, quick,
-                recent_btns, fav_btns, quick_btns,
-                cnt_recent, cnt_fav, cnt_quick,
-            ) > width:
-                cnt_recent, cnt_fav, cnt_quick = 0, 0, 0
-        except Exception:
-            # На случай неожиданных ошибок расчёта — не меняем рассчитанные значения
-            pass
+        if self._total_width_for(top_bar, search, recent, fav, quick, recent_btns, fav_btns, quick_btns, cnt_recent, cnt_fav, cnt_quick) > width:
+            cnt_recent, cnt_fav, cnt_quick = 0, 0, 0
 
         return cnt_recent, cnt_fav, cnt_quick
 
-    def _panel_width(self, panel: QWidget | None, btns: list[QToolButton], count: int) -> int:
-        """Возвращает ширину панели для первых `count` кнопок с учётом spacing."""
+    def _panel_width(self, panel: Optional[QWidget], btns: List[QToolButton], count: int) -> int:
         if not panel or not btns or count <= 0:
             return 0
-        bg = getattr(panel, "bg_frame", None)
-        lay = (
-            bg.layout() if isinstance(bg, QWidget) and callable(getattr(bg, "layout", None)) else None
-        )
+        bg = self._safe_get(panel, "bg_frame")
+        lay = bg.layout() if bg else None
         spacing = lay.spacing() if lay else 0
-        # Используем детерминированную ширину кнопки из конфигурации, чтобы не зависеть от sizeHint() на старте
-        try:
-            btn_w = int(getattr(app_config.ui, "get_top_panel_button_size", lambda: 32)())
-        except Exception:
-            btn_w = 32
         total = 0
-        for i, _b in enumerate(btns[:count]):
-            w = btn_w
+        for i in range(count):
+            # Используем реальную ширину кнопки (sizeHint), с fallback к конфигу
+            try:
+                btn_w = max(self._button_size, int(btns[i].sizeHint().width()))
+            except Exception:
+                btn_w = self._button_size
             if i > 0:
-                w += spacing
-            total += w
-        # Учёт внутренних отступов layout'а панели (contentsMargins)
-        try:
-            if lay is not None and hasattr(lay, "contentsMargins"):
-                m = lay.contentsMargins()
-                total += (m.left() + m.right())
-        except Exception:
-            pass
-        # Учёт отступов самой панели (contentsMargins)
-        try:
-            if hasattr(panel, "contentsMargins"):
-                pm = panel.contentsMargins()
-                total += (pm.left() + pm.right())
-        except Exception:
-            pass
+                total += spacing
+            total += btn_w
+        if lay:
+            m = lay.contentsMargins()
+            total += m.left() + m.right()
+        pm = panel.contentsMargins()
+        total += pm.left() + pm.right()
         return total
 
     def _total_width_for(
         self,
         top_bar: QLayout,
-        search: QLineEdit | None,
-        recent: QWidget | None,
-        fav: QWidget | None,
-        quick: QWidget | None,
-        recent_btns: list[QToolButton],
-        fav_btns: list[QToolButton],
-        quick_btns: list[QToolButton],
+        search: Optional[QLineEdit],
+        recent: Optional[QWidget],
+        fav: Optional[QWidget],
+        quick: Optional[QWidget],
+        recent_btns: List[QToolButton],
+        fav_btns: List[QToolButton],
+        quick_btns: List[QToolButton],
         c_r: int,
         c_f: int,
         c_q: int,
     ) -> int:
-        """Считает суммарную ширину top_bar для заданных количеств видимых кнопок панелей."""
-        items: list[int] = []
+        items: List[int] = []
         for i in range(top_bar.count()):
             it = top_bar.itemAt(i)
-            if not it:
-                continue
             w = it.widget()
-            if w is not None:
-                if isinstance(w, QLineEdit) and (w is search):
+            if w:
+                if w is search:
                     items.append(self._min_search_width)
-                    continue
-                if w is recent:
-                    if c_r > 0:
-                        items.append(self._panel_width(recent, recent_btns, c_r))
-                    continue
-                if w is fav:
-                    if c_f > 0:
-                        items.append(self._panel_width(fav, fav_btns, c_f))
-                    continue
-                if w is quick:
-                    if c_q > 0:
-                        items.append(self._panel_width(quick, quick_btns, c_q))
-                    continue
-                if w.isVisible():
+                elif w is recent and c_r > 0:
+                    items.append(self._panel_width(recent, recent_btns, c_r))
+                elif w is fav and c_f > 0:
+                    items.append(self._panel_width(fav, fav_btns, c_f))
+                elif w is quick and c_q > 0:
+                    items.append(self._panel_width(quick, quick_btns, c_q))
+                elif w.isVisible():
                     items.append(w.sizeHint().width())
-                continue
-            # Учёт фиксированных отступов (QSpacerItem), добавленных через addSpacing
-            try:
+            else:
                 sp = it.spacerItem()
-                if sp is not None:
+                if sp:
                     items.append(max(0, sp.sizeHint().width()))
-            except Exception:
-                pass
-        if not items:
-            return 0
         total = sum(items)
-        # Глобальный spacing — 0 в нашей конфигурации топ-бара, но учитываем его на всякий случай
         spacing = top_bar.spacing() or 0
-        total += spacing * (len(items) - 1)
+        total += spacing * max(0, len(items) - 1)
         m = top_bar.contentsMargins()
         total += m.left() + m.right()
         return total
-
-    def _get_cfg_int(self, key: str, default: int) -> int:
-        """Безопасно получает целочисленное значение конфигурации с запасным значением."""
-        try:
-            return int(getattr(app_config, "get", lambda *_: default)(key, default))
-        except Exception:
-            return default
-
-    # ----------------------- Separators visibility -------------------------
-    def _is_vertical_separator(self, w: QWidget | None) -> bool:
-        try:
-            if not isinstance(w, QWidget):
-                return False
-            if w.objectName() == "vSeparator":
-                return True
-            # property("class") may return any type; coerce to str
-            cls = str(w.property("class")) if w.property("class") is not None else ""
-            return cls == "vertical_separator"
-        except Exception:
-            return False
 
     def _update_separators_visibility(
         self,
@@ -625,20 +516,14 @@ class TopBarLayoutManager(QObject):
         quick_visible: bool,
         search_exists: bool,
     ) -> None:
-        """Показывает разделители только между реально видимыми соседями.
-        Шаблон в layout: Panel, spacer(4), separator, spacer(4), Panel ...
-        Для каждого separator управляем его видимостью и шириной прилегающих spacer'ов (0 или 4).
-        """
-        # Определим функцию проверки: является ли виджет панелью и видна ли она логически
-        def logical_visible_panel(w: QWidget | None) -> bool:
-            if w is None:
+        def logical_visible_panel(w: Optional[QWidget]) -> bool:
+            if not w:
                 return False
-            # Сопоставляем по ссылкам из окна
-            if w is getattr(self.window, "recent_links_widget", None):
+            if w is self._safe_get(self.window, "recent_links_widget"):
                 return recent_visible and w.isVisible()
-            if w is getattr(self.window, "fav_widget", None):
+            if w is self._safe_get(self.window, "fav_widget"):
                 return fav_visible and w.isVisible()
-            if w is getattr(self.window, "quick_add_widget", None):
+            if w is self._safe_get(self.window, "quick_add_widget"):
                 return quick_visible and w.isVisible()
             return False
 
@@ -646,75 +531,61 @@ class TopBarLayoutManager(QObject):
         i = 0
         while i < count:
             it = top_bar.itemAt(i)
-            if not it:
-                i += 1
-                continue
             w = it.widget()
             if self._is_vertical_separator(w):
-                # Идентифицируем левые/правые соседи: ожидаем spacer(4) по обе стороны, но ищем панель/поиск шире
-                # Ищем ближайший виджет слева
                 left_widget = None
                 j = i - 1
-                while j >= 0 and left_widget is None:
+                while j >= 0 and not left_widget:
                     prev_it = top_bar.itemAt(j)
-                    if prev_it and prev_it.widget() is not None:
+                    if prev_it.widget():
                         left_widget = prev_it.widget()
-                        break
                     j -= 1
-                # Ищем ближайший виджет справа
                 right_widget = None
                 j = i + 1
-                while j < count and right_widget is None:
+                while j < count and not right_widget:
                     next_it = top_bar.itemAt(j)
-                    if next_it and next_it.widget() is not None:
+                    if next_it.widget():
                         right_widget = next_it.widget()
-                        break
                     j += 1
-
-                # Определяем требуемую видимость: показывать, если слева видимая панель и справа (видимая панель или поиск)
-                show_sep = False
-                if logical_visible_panel(left_widget) and (
+                show_sep = logical_visible_panel(left_widget) and (
                     logical_visible_panel(right_widget) or (search_exists and isinstance(right_widget, QLineEdit))
-                ):
-                    show_sep = True
-
-                # Применяем видимость к самому разделителю
-                try:
-                    w.setVisible(show_sep)
-                except Exception:
-                    pass
-
-                # Настроим прилегающие spacer'ы: ожидаем структуру spacer - sep - spacer
-                # ВАЖНО: ширину держим постоянной (4px), чтобы при скрытии разделителя не пропадал зазор
-                try:
-                    left_sp = top_bar.itemAt(i - 1).spacerItem() if i - 1 >= 0 else None
-                    if left_sp is not None:
-                        left_sp.changeSize(4, 0)
-                except Exception:
-                    pass
-                try:
-                    right_sp = top_bar.itemAt(i + 1).spacerItem() if i + 1 < count else None
-                    if right_sp is not None:
-                        right_sp.changeSize(4, 0)
-                except Exception:
-                    pass
+                )
+                w.setVisible(show_sep)
+                # Спейсеры фиксированы на 4px
+                left_sp = top_bar.itemAt(i - 1).spacerItem() if i - 1 >= 0 else None
+                if left_sp:
+                    left_sp.changeSize(self.DEFAULT_SPACER_SIZE, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+                right_sp = top_bar.itemAt(i + 1).spacerItem() if i + 1 < count else None
+                if right_sp:
+                    right_sp.changeSize(self.DEFAULT_SPACER_SIZE, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
             i += 1
-        try:
-            if hasattr(top_bar, "invalidate"):
-                top_bar.invalidate()
-        except Exception:
-            pass
+        top_bar.invalidate()
 
-    # ----------------------------- Apply -----------------------------------
-    def _apply_counts(
-        self, width: int, c_r: int, c_f: int, c_q: int
-    ) -> None:
-        # Скрываем все кнопки у Recent/Fav/Quick (по 0 или заданное)
-        recent = getattr(self.window, "recent_links_widget", None)
-        fav = getattr(self.window, "fav_widget", None)
-        quick = getattr(self.window, "quick_add_widget", None)
+    def _is_vertical_separator(self, w: Optional[QWidget]) -> bool:
+        if not w:
+            return False
+        if w.objectName() == "vSeparator":
+            return True
+        cls = str(w.property("class") or "")
+        return cls == "vertical_separator"
+
+    def _apply_counts(self, width: int, c_r: int, c_f: int, c_q: int) -> None:
+        recent = self._safe_get(self.window, "recent_links_widget")
+        fav = self._safe_get(self.window, "fav_widget")
+        quick = self._safe_get(self.window, "quick_add_widget")
         self._set_visible_count(recent, "recentButton", c_r)
         self._set_visible_count(fav, "favoriteButton", c_f)
         self._set_visible_count(quick, "quickButton", c_q)
-        # Не трогаем размеры поля поиска здесь — избегаем дергания min/max при каждом пересчёте
         self._last_applied = (width, c_r, c_f, c_q)
+
+    def _get_cfg_int(self, key: str, default: int) -> int:
+        try:
+            return int(app_config.get(key, default))
+        except (AttributeError, TypeError, ValueError):
+            return default
+
+    def _get_cfg_bool(self, key: str, default: bool) -> bool:
+        try:
+            return bool(app_config.get(key, default))
+        except (AttributeError, TypeError, ValueError):
+            return default

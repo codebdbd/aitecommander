@@ -48,6 +48,11 @@ class WindowInitializer:
         """Выполняет полную инициализацию главного окна пошагово."""
         metrics = get_metrics()
         metrics.reset()
+        # Фильтр сообщений Qt: подавить шумные предупреждения QPainter при сворачивании/разворачивании окна
+        try:
+            self._install_qt_message_filter()
+        except Exception:
+            logger.debug("QtMsgHandler: failed to install message filter", exc_info=True)
         # Диагностика фантомных окон: установить глобальный watcher один раз
         try:
             self._install_top_level_watcher()
@@ -131,39 +136,6 @@ class WindowInitializer:
         def _execute_next_init_step():
             """Выполняет следующий этап инициализации асинхронно."""
             try:
-                # Атомарно выполняем ВСЕ этапы до БД одним блоком без промежуточных перерисовок
-                if self._current_init_step == 0 and len(self._init_steps_before_db) > 0:
-                    try:
-                        from app.utils.ui.updates import suspend_updates as _suspend
-                    except Exception:
-                        _suspend = None  # type: ignore
-                    metrics = get_metrics()
-                    if _suspend is None:
-                        for step_name, step_func in self._init_steps_before_db:
-                            with metrics.time_span(f"heavy:{step_func.__name__}"):
-                                step_func()
-                            if step_func == self._init_status_bar:
-                                self._post_status_bar_init()
-                    else:
-                        with _suspend(self.window):
-                            for step_name, step_func in self._init_steps_before_db:
-                                with metrics.time_span(f"heavy:{step_func.__name__}"):
-                                    step_func()
-                                if step_func == self._init_status_bar:
-                                    self._post_status_bar_init()
-                    # Отмечаем, что все шаги до БД выполнены
-                    self._current_init_step = len(self._init_steps_before_db)
-                    # Переходим к ожиданию БД или к этапам после БД без промежуточных кадров
-                    if not self._db_ready:
-                        if not self._waiting_for_db:
-                            self._waiting_for_db = True
-                            self._update_status_message("Ожидание готовности базы данных...")
-                            self._setup_db_ready_listener()
-                        return
-                    else:
-                        self._execute_db_dependent_steps()
-                        return
-
                 # Проверяем, завершены ли этапы до БД
                 if self._current_init_step >= len(self._init_steps_before_db):
                     if not self._db_ready:
@@ -183,17 +155,9 @@ class WindowInitializer:
                 # Обновляем статус-бар если он уже создан
                 self._update_status_message(step_name)
                 
-                # Выполняем текущий этап при приостановленной перерисовке окна
+                # Выполняем текущий этап
                 with metrics.time_span(f"heavy:{step_func.__name__}"):
-                    try:
-                        from app.utils.ui.updates import suspend_updates as _suspend
-                    except Exception:
-                        _suspend = None  # type: ignore
-                    if _suspend is None:
-                        step_func()
-                    else:
-                        with _suspend(self.window):
-                            step_func()
+                    step_func()
                 
                 # Специальная обработка после создания статус-бара
                 if step_func == self._init_status_bar:
@@ -239,16 +203,7 @@ class WindowInitializer:
         self.ui_setup.setup_top_panel()
 
     def _init_main_content(self) -> None:
-        # Избегаем промежуточных перерисовок при создании большого количества виджетов
-        try:
-            from app.utils.ui.updates import suspend_updates
-        except Exception:
-            suspend_updates = None  # type: ignore
-        if suspend_updates is None:
-            self.ui_setup.setup_main_content()
-        else:
-            with suspend_updates(self.window):
-                self.ui_setup.setup_main_content()
+        self.ui_setup.setup_main_content()
 
     def _init_bottom_panel(self) -> None:
         self.ui_setup.setup_bottom_panel()
@@ -258,12 +213,6 @@ class WindowInitializer:
 
     def _init_controllers(self) -> None:
         # Контроллеры должны быть созданы до горячих клавиш
-        # Гарантируем наличие таблицы перед инициализацией контроллеров (ленивая инициализация)
-        try:
-            if hasattr(self.ui_setup, "ensure_table_created"):
-                self.ui_setup.ensure_table_created()
-        except Exception:
-            logger.exception("WindowInitializer: failed to ensure table before controllers init")
         self.controllers_setup.setup_controllers()
 
 
@@ -274,12 +223,6 @@ class WindowInitializer:
             try:
                 with suppress(AttributeError, ValueError, TypeError):
                     if fs:
-                        # При ленивой инициализации таблицы гарантируем её наличие перед применением шрифта
-                        try:
-                            if hasattr(self.ui_setup, "ensure_table_created"):
-                                self.ui_setup.ensure_table_created()
-                        except Exception:
-                            logger.debug("_apply_user_font_size: failed to ensure table before applying font", exc_info=True)
                         # Тип окна может не объявлять этот метод в протоколе — вызываем под hasattr
                         self.window.apply_font_size_to_content(int(fs))  # type: ignore[attr-defined]
             except Exception:
@@ -400,18 +343,10 @@ class WindowInitializer:
                 # Обновляем статус-бар
                 self._update_status_message(step_name)
                 
-                # Выполняем текущий этап при приостановленной перерисовке окна
+                # Выполняем текущий этап
                 metrics = get_metrics()
                 with metrics.time_span(f"heavy:{step_func.__name__}"):
-                    try:
-                        from app.utils.ui.updates import suspend_updates as _suspend
-                    except Exception:
-                        _suspend = None  # type: ignore
-                    if _suspend is None:
-                        step_func()
-                    else:
-                        with _suspend(self.window):
-                            step_func()
+                    step_func()
                 
                 # Специальная обработка после создания контроллеров
                 if step_func == self._init_controllers:
@@ -455,6 +390,49 @@ class WindowInitializer:
                 logger.debug("DiagTopLevels: failed to dump at finalize", exc_info=True)
         except Exception:
             logger.exception("WindowInitializer: ошибка при финализации инициализации")
+
+    # === Qt message handler ===
+    def _install_qt_message_filter(self) -> None:
+        """Устанавливает обработчик сообщений Qt для подавления шума QPainter::... в Release.
+
+        Сообщения вида "QPainter::... Painter not active" часто приходят от внутренних стилей при
+        анимации/сворачивании окна и не несут пользы для пользователя. Мы понижаем уровень до DEBUG
+        или подавляем их полностью, чтобы лог не засорялся.
+        """
+        try:
+            from PyQt6.QtCore import qInstallMessageHandler, QtMsgType
+        except Exception:
+            return
+
+        def _qt_msg_handler(msg_type, context, message):
+            try:
+                msg: str = str(message)
+            except Exception:
+                msg = ""
+            # Фильтруем шумные сообщения про QPainter
+            if msg.startswith("QPainter::") or "Painter not active" in msg:
+                # Понижаем до DEBUG в наш лог, чтобы иметь след при необходимости
+                try:
+                    logger.debug("[QtMsgSuppressed] %s", msg)
+                except Exception:
+                    pass
+                return
+            # Прочие сообщения пропускаем как WARNING/ERROR в зависимости от типа
+            try:
+                if msg_type in (QtMsgType.QtWarningMsg, QtMsgType.QtInfoMsg):
+                    logger.warning("[Qt] %s", msg)
+                elif msg_type in (QtMsgType.QtCriticalMsg, QtMsgType.QtFatalMsg):
+                    logger.error("[Qt] %s", msg)
+                else:
+                    logger.info("[Qt] %s", msg)
+            except Exception:
+                pass
+
+        # Установка глобального обработчика
+        try:
+            qInstallMessageHandler(_qt_msg_handler)
+        except Exception:
+            pass
 
     # === Диагностика: перехват QWidget.show()/setVisible ===
     def _diagnostics_enabled(self) -> bool:
@@ -569,12 +547,37 @@ class WindowInitializer:
                 super().__init__(parent)
                 self._resizes = 0
                 self._moves = 0
-                self._max_events = 10
+                # Раздельные лимиты для событий; небольшой объём чтобы не шуметь
+                try:
+                    from app.config_data import app_config as _cfg
+                    self._max_resizes = int(getattr(_cfg, "get", lambda *_: 5)("diag.resize_log.max_resizes", 5))
+                    self._max_moves = int(getattr(_cfg, "get", lambda *_: 5)("diag.resize_log.max_moves", 5))
+                except Exception:
+                    self._max_resizes = 5
+                    self._max_moves = 5
+                # Ссылка на окно для аккуратного снятия фильтра
+                self._owner = parent
+
+            def _maybe_uninstall(self, obj):
+                try:
+                    if self._resizes >= self._max_resizes and self._moves >= self._max_moves:
+                        try:
+                            obj.removeEventFilter(self)
+                        except Exception:
+                            pass
+                        try:
+                            if hasattr(self._owner, "_diag_resize_logger") and getattr(self._owner, "_diag_resize_logger", None) is self:
+                                setattr(self._owner, "_diag_resize_logger", None)  # type: ignore[attr-defined]
+                                setattr(self._owner, "_diag_resize_logger_installed", False)  # type: ignore[attr-defined]
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
 
             def eventFilter(self, obj, event):
                 et = event.type()
                 try:
-                    if et == QEvent.Type.Resize and self._resizes < self._max_events:
+                    if et == QEvent.Type.Resize and self._resizes < self._max_resizes:
                         self._resizes += 1
                         try:
                             sz = getattr(obj, "size", lambda: None)()
@@ -582,7 +585,8 @@ class WindowInitializer:
                         except Exception:
                             size_s = "?"
                         logger.info("DiagTopLevels: Resize #%s -> %s", self._resizes, size_s)
-                    elif et == QEvent.Type.Move and self._moves < self._max_events:
+                        self._maybe_uninstall(obj)
+                    elif et == QEvent.Type.Move and self._moves < self._max_moves:
                         self._moves += 1
                         try:
                             pos = getattr(obj, "pos", lambda: None)()
@@ -590,6 +594,7 @@ class WindowInitializer:
                         except Exception:
                             pos_s = "?"
                         logger.info("DiagTopLevels: Move #%s -> %s", self._moves, pos_s)
+                        self._maybe_uninstall(obj)
                 except Exception:
                     pass
                 return QObject.eventFilter(self, obj, event)
