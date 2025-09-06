@@ -1,0 +1,106 @@
+# app/views/main_components/bottom_panel_setup.py
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QVBoxLayout, QWidget
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont
+
+from app.config_data import app_config
+
+logger = logging.getLogger(__name__)
+
+
+class BottomPanelBuilder:
+    """Builds the bottom panel using existing WindowUISetup behavior (no changes)."""
+
+    def __init__(self, ui: Any) -> None:
+        # ui is WindowUISetup; typed as Any to avoid circular imports
+        self.ui = ui
+        self.window = ui.window
+        self.main_layout = ui.main_layout
+
+    def build(self) -> None:
+        bot = QHBoxLayout()
+        # Отступы панели берём из конфигурации (можно выставить в 0,0,0,0 для полного прилегания)
+        bot.setContentsMargins(*app_config.ui.get_layout_margins("bottom"))
+        # Расстояние между кнопками: берём из конфига, по умолчанию 0 — кнопки занимают всю ширину без зазоров
+        bot.setSpacing(app_config.ui.get_bottom_layout_spacing())
+
+        # Используем глобальный размер шрифта приложения для кнопок нижней панели
+        font10 = QFont()
+        try:
+            try:
+                font10.setPointSize(self.window.font().pointSize())
+            except (AttributeError, TypeError, RuntimeError, ValueError):
+                # Ожидаемые проблемы типов/доступности — спокойный фоллбэк
+                font10.setPointSize(10)
+        except Exception:
+            # Неожиданная ошибка — логируем и используем фоллбэк
+            logger.exception("BottomPanel: unexpected error determining button font size; fallback to 10")
+            font10.setPointSize(10)
+
+        # Кнопка переключения сфер (будет создана после инициализации контроллеров)
+        self.window.switch_sphere_button = None
+
+        # Дополнительные кнопки из конфигурации
+        bottom_actions = app_config.ui.get_bottom_actions()
+        bottom_btns = []
+        for text, fn_name in bottom_actions:
+            btn = QPushButton(text)
+            btn.setFont(font10)
+            btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            # Разрешаем горизонтальное сжатие ниже sizeHint
+            try:
+                btn.setMinimumWidth(0)
+                btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+            except (RuntimeError, TypeError):
+                logger.debug("BottomPanel: failed to apply size policy to bottom button '%s'", text, exc_info=True)
+            # Обработчик клика и добавление на панель
+            handler = getattr(self.window, fn_name, None)
+            if not callable(handler):
+                logger.warning("BottomPanel: click handler '%s' not found for button '%s' — skipping", fn_name, text)
+                continue
+            try:
+                btn.clicked.connect(handler)
+            except (TypeError, RuntimeError):
+                logger.warning(
+                    "BottomPanel: failed to connect handler '%s' for button '%s' — skipping",
+                    fn_name,
+                    text,
+                    exc_info=True,
+                )
+                continue
+            bot.addWidget(btn)
+            bottom_btns.append(btn)
+
+        # Помечаем последнюю кнопку, чтобы убрать у неё правую границу через QSS
+        if bottom_btns:
+            try:
+                bottom_btns[-1].setProperty("last", "1")
+            except (RuntimeError, AttributeError):
+                logger.debug("BottomPanel: failed to set 'last' property on final button", exc_info=True)
+
+        container_parent = getattr(self.main_layout, "parentWidget", lambda: None)() or self.window.centralWidget()
+        bottom_bar_container = QWidget(container_parent)
+        bottom_bar_container.setObjectName("bottomBarContainer")
+        bottom_bar_container.setLayout(bot)
+        # Сохраняем виджет как атрибут окна для последующей настройки фокуса
+        self.window.bottom_bar_container = bottom_bar_container
+        # Явная политика: по горизонтали расширяется/сжимается, по вертикали фиксированная
+        try:
+            bottom_bar_container.setSizePolicy(
+                QSizePolicy.Policy.Expanding,
+                QSizePolicy.Policy.Fixed,
+            )
+        except (RuntimeError, TypeError):
+            logger.debug("BottomPanel: failed to set size policy on bottom bar container", exc_info=True)
+
+        self.main_layout.addWidget(bottom_bar_container)
+
+        # Разделитель под нижней панелью (аналог h_line_2)
+        h_line_bottom = QWidget(container_parent)
+        h_line_bottom.setProperty("class", "separator")
+        self.main_layout.addWidget(h_line_bottom)

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from typing import Callable, Optional
+from app.interfaces import MainWindowLike
 
 from PyQt6.QtCore import QTimer
 
@@ -16,7 +17,7 @@ class DbReadyGate:
     Проверка выполняется периодически таймером (100 мс), пока окно заблокировано.
     """
 
-    def __init__(self, window, _logger: Optional[logging.Logger] = None) -> None:
+    def __init__(self, window: MainWindowLike, _logger: Optional[logging.Logger] = None) -> None:
         self._window = window
         self._logger = _logger or logger
         self._timer: Optional[QTimer] = None

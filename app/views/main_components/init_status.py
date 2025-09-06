@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from typing import Optional
+from app.interfaces import MainWindowLike
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,7 @@ class StatusUpdater:
         status.set_message("Загрузка...")
     """
 
-    def __init__(self, window, _logger: Optional[logging.Logger] = None) -> None:
+    def __init__(self, window: MainWindowLike, _logger: Optional[logging.Logger] = None) -> None:
         self._window = window
         self._logger = _logger or logger
 

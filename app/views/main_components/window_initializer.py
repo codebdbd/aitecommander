@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 logger = logging.getLogger(__name__)
 from contextlib import suppress
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple, TypeAlias
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication, QMessageBox
@@ -21,10 +21,33 @@ from .init_status import StatusUpdater
 from .init_db_gate import DbReadyGate
 
 
+# Type aliases
+Step: TypeAlias = tuple[str, Callable[[], None]]
+
+
 class WindowInitializer:
     """Инициализатор главного окна - извлекает всю логику создания UI из __init__."""
 
     # Конфигурации этапов вынесены в init_steps_config.py (импортируются выше)
+
+    # --- Class-level annotations for static clarity ---
+    window: MainWindowLike
+    db: Any
+    settings: SettingsLike
+    theme_ctrl: Any
+
+    ui_setup: WindowUISetup
+    controllers_setup: WindowControllersSetup
+    _metrics: Any
+    _status: StatusUpdater
+
+    _current_init_step: int
+    _current_db_step: int
+    _init_steps_before_db: list[Step]
+    _init_steps_after_db: list[Step]
+    _special_hooks_after: dict[Callable[[], None], Callable[[], None]]
+    _db_ready: bool
+    _waiting_for_db: bool
 
     def __init__(
         self,
@@ -54,6 +77,18 @@ class WindowInitializer:
         self._metrics = get_metrics()
         # Статус-апдейтер
         self._status = StatusUpdater(self.window, logger)
+
+        # --- Инициализация ранее динамических атрибутов ---
+        # Индексы прогресса этапов
+        self._current_init_step: int = 0
+        self._current_db_step: int = 0
+        # Наборы шагов и специальные хуки (заполняются при планировании)
+        self._init_steps_before_db: list[Step] = []
+        self._init_steps_after_db: list[Step] = []
+        self._special_hooks_after: dict[Callable[[], None], Callable[[], None]] = {}
+        # Состояния ожидания БД
+        self._db_ready: bool = False
+        self._waiting_for_db: bool = False
 
     def initialize_window(self) -> None:
         """Выполняет полную инициализацию главного окна пошагово."""

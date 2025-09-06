@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Optional
 import weakref
 
 from PyQt6.QtCore import pyqtSignal, QTimer
+from app.utils.ui.timings import SEARCH_RETRY_INTERVAL_MS, SEARCH_RETRY_ATTEMPTS
 from PyQt6.QtGui import QKeySequence, QUndoStack, QAction
 from PyQt6.QtWidgets import QMainWindow, QWidget
 
@@ -348,11 +349,11 @@ class MainWindow(QMainWindow):
         if la is None:
             # Отложенная переотправка: дадим системе инициализироваться
             if not hasattr(self, "_search_retry_attempts"):
-                self._search_retry_attempts = 20  # ~2 сек при шаге 100 мс
+                self._search_retry_attempts = SEARCH_RETRY_ATTEMPTS  # ~2 сек при шаге 100 мс
             if not getattr(self, "_search_retry_active", False):
                 self._search_retry_active = True
                 logger.debug("MainWindow.on_search buffered until links_actions is ready")
-                QTimer.singleShot(100, self._retry_forward_search)
+                QTimer.singleShot(SEARCH_RETRY_INTERVAL_MS, self._retry_forward_search)
             return
         try:
             la.on_search(text)
@@ -374,7 +375,7 @@ class MainWindow(QMainWindow):
                 logger.debug("Search retry limit reached before links_actions initialized")
                 return
             self._search_retry_attempts = attempts - 1
-            QTimer.singleShot(100, self._retry_forward_search)
+            QTimer.singleShot(SEARCH_RETRY_INTERVAL_MS, self._retry_forward_search)
         except Exception:
             # Негативные сценарии не должны ронять UI
             self._search_retry_active = False
