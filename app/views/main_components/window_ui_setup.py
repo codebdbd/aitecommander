@@ -294,7 +294,8 @@ class WindowUISetup:
     def _post_shown_adjust_and_show_host(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
         """В первый тик после shown: adjust и показать host атомарно."""
         try:
-            QTimer.singleShot(0, lambda: (mgr.adjust(), self.window.top_bar_host.setVisible(True)))
+            from functools import partial
+            QTimer.singleShot(0, partial(self._invoke_adjust_and_show_host, mgr))
         except Exception:
             logger.debug("TopPanel: failed in _post_shown_adjust_and_show_host", exc_info=True)
 
@@ -308,10 +309,29 @@ class WindowUISetup:
     def _fallback_schedule_adjusts(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
         """Фолбэк при отсутствии сигнала shown: два последовательных планирования."""
         try:
-            QTimer.singleShot(0, lambda: (mgr.adjust(), self.window.top_bar_host.setVisible(True)))
-            QTimer.singleShot(16, mgr.adjust)
+            from functools import partial
+            QTimer.singleShot(0, partial(self._invoke_adjust_and_show_host, mgr))
+            QTimer.singleShot(16, partial(self._invoke_adjust, mgr))
         except Exception:
             logger.debug("TopPanel: failed in _fallback_schedule_adjusts", exc_info=True)
+
+    def _invoke_adjust_and_show_host(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
+        """Выполняет пересчёт лэйаута и показывает host-виджет безопасно."""
+        try:
+            mgr.adjust()
+        except Exception:
+            logger.debug("TopPanel: adjust() failed in _invoke_adjust_and_show_host", exc_info=True)
+        try:
+            self.window.top_bar_host.setVisible(True)
+        except Exception:
+            logger.debug("TopPanel: setVisible(True) failed for top_bar_host", exc_info=True)
+
+    def _invoke_adjust(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
+        """Безопасно вызывает mgr.adjust()."""
+        try:
+            mgr.adjust()
+        except Exception:
+            logger.debug("TopPanel: adjust() failed in _invoke_adjust", exc_info=True)
 
     def _log_setup_top_panel_total(self, t_total_start: float) -> None:
         """Логирует итоговую длительность настройки верхней панели."""
@@ -351,7 +371,7 @@ class WindowUISetup:
                 # Жёстко ограничиваем стартовую ширину в 0, до момента первого пересчёта
                 widget.setMaximumWidth(0)
             except Exception:
-                logging.debug("TopPanel: failed to set initial invisible state on %s widget", log_label, exc_info=True)
+                logger.debug("TopPanel: failed to set initial invisible state on %s widget", log_label, exc_info=True)
             # Жестко фиксируем высоту панелей топ-бара, чтобы исключить изменение высоты
             # после показа окна при отложенных перерисовках/обновлениях данных и тем.
             try:
@@ -369,12 +389,12 @@ class WindowUISetup:
             try:
                 widget.setFixedHeight(fixed_h)
             except Exception:
-                logging.debug("TopPanel: failed to set fixed height on %s widget", log_label, exc_info=True)
+                logger.debug("TopPanel: failed to set fixed height on %s widget", log_label, exc_info=True)
             # Разрешаем горизонтальное сжатие ниже sizeHint, чтобы убирать мерцание при нехватке ширины
             try:
                 widget.setMinimumWidth(0)
             except Exception:
-                logging.debug("TopPanel: failed to set minimum width on %s widget", log_label, exc_info=True)
+                logger.debug("TopPanel: failed to set minimum width on %s widget", log_label, exc_info=True)
             setattr(self.window, attr_name, widget)
             top_bar.addWidget(widget)
             try:
@@ -406,7 +426,7 @@ class WindowUISetup:
                     top_bar.addWidget(self._create_vertical_separator())
                     top_bar.addSpacing(4)
                 except Exception:
-                    logging.debug("TopPanel: failed to insert vertical separator between panels", exc_info=True)
+                    logger.debug("TopPanel: failed to insert vertical separator between panels", exc_info=True)
 
         # Разделитель перед поиском
         try:
@@ -414,7 +434,7 @@ class WindowUISetup:
             top_bar.addWidget(self._create_vertical_separator())
             top_bar.addSpacing(4)
         except Exception:
-            logging.debug("TopPanel: failed to insert vertical separator before search", exc_info=True)
+            logger.debug("TopPanel: failed to insert vertical separator before search", exc_info=True)
 
         # Поиск (в конце, расширяется по ширине)
         self.setup_search_widget(top_bar)
@@ -457,7 +477,7 @@ class WindowUISetup:
             self.window.search.setFixedHeight(int(app_config.ui.get_top_panel_search_height()))
         except (TypeError, ValueError, RuntimeError):
             self.window.search.setFixedHeight(32)
-            logging.warning("SearchWidget: invalid search height in config; using 32")
+            logger.warning("SearchWidget: invalid search height in config; using 32")
         # Политика размеров и минимальная ширина — задаются один раз при инициализации
         # Разрешаем горизонтальное сжатие/растяжение
         self.window.search.setSizePolicy(
@@ -467,15 +487,23 @@ class WindowUISetup:
             min_search_w = int(getattr(app_config.ui, "get_top_panel_search_min_width", lambda: 140)())
         except (TypeError, ValueError):
             min_search_w = 140
-            logging.debug("SearchWidget: fallback to default min_search_width=140")
+            logger.debug("SearchWidget: fallback to default min_search_width=140")
         try:
             self.window.search.setMinimumWidth(min_search_w)
         except Exception:
-            logging.debug("SearchWidget: failed to set minimum width", exc_info=True)
+            logger.debug("SearchWidget: failed to set minimum width", exc_info=True)
         self.window.search.setObjectName("mainSearch")
 
         # Размер шрифта поля поиска берётся из глобального шрифта приложения (без локальной установки)
-        self.window.search.textChanged.connect(self.window.on_search)
+        # Безопасное подключение обработчика поиска: on_search может отсутствовать
+        handler = getattr(self.window, "on_search", None)
+        if callable(handler):
+            try:
+                self.window.search.textChanged.connect(handler)
+            except (TypeError, RuntimeError):
+                logger.warning("SearchWidget: failed to connect on_search handler", exc_info=True)
+        else:
+            logger.warning("SearchWidget: window.on_search handler not found; textChanged not connected")
         # Добавляем со stretch-фактором, чтобы строка поиска занимала всё оставшееся место
         top_bar.addWidget(self.window.search, 1)
         try:
@@ -636,14 +664,14 @@ class WindowUISetup:
             )
         except (TypeError, ValueError, RuntimeError):
             self.window.splitter.setHandleWidth(1)
-            logging.warning("RightPanel: invalid splitter handle width in config; using 1")
+            logger.warning("RightPanel: invalid splitter handle width in config; using 1")
         self.window.splitter.addWidget(self.window.left_panel)
         self.window.splitter.addWidget(right_panel)
         # Разрешаем сворачивание левой панели (после добавления виджетов, чтобы индекс 0 существовал)
         try:
             self.window.splitter.setCollapsible(0, True)
         except (RuntimeError, TypeError):
-            logging.debug("RightPanel: failed to set splitter collapsible(0, True)", exc_info=True)
+            logger.debug("RightPanel: failed to set splitter collapsible(0, True)", exc_info=True)
 
         stretch_factors = app_config.ui.get_splitter_stretch_factors()
         self.window.splitter.setStretchFactor(0, stretch_factors[0])
@@ -660,7 +688,7 @@ class WindowUISetup:
             min_w = int(app_config.ui.get_window_min_width())
         except (TypeError, ValueError):
             min_w = 280
-            logging.warning("RightPanel: invalid window_min_width in config; using 280")
+            logger.warning("RightPanel: invalid window_min_width in config; using 280")
         try:
             self.window._auto_hide_tree_filter = _AutoHideTreeFilter(
                 self.window, threshold_width=min_w, default_sizes=splitter_sizes
@@ -705,7 +733,7 @@ class WindowUISetup:
                 font10.setPointSize(10)
         except Exception:
             # Неожиданная ошибка — логируем и используем фоллбэк
-            logging.exception("BottomPanel: unexpected error determining button font size; fallback to 10")
+            logger.exception("BottomPanel: unexpected error determining button font size; fallback to 10")
             font10.setPointSize(10)
 
         # Кнопка переключения сфер (будет создана после инициализации контроллеров)
@@ -723,16 +751,16 @@ class WindowUISetup:
                 btn.setMinimumWidth(0)
                 btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
             except (RuntimeError, TypeError):
-                logging.debug("BottomPanel: failed to apply size policy to bottom button '%s'", text, exc_info=True)
+                logger.debug("BottomPanel: failed to apply size policy to bottom button '%s'", text, exc_info=True)
             # Обработчик клика и добавление на панель
             handler = getattr(self.window, fn_name, None)
             if not callable(handler):
-                logging.warning("BottomPanel: click handler '%s' not found for button '%s' — skipping", fn_name, text)
+                logger.warning("BottomPanel: click handler '%s' not found for button '%s' — skipping", fn_name, text)
                 continue
             try:
                 btn.clicked.connect(handler)
             except (TypeError, RuntimeError):
-                logging.warning("BottomPanel: failed to connect handler '%s' for button '%s' — skipping", fn_name, text, exc_info=True)
+                logger.warning("BottomPanel: failed to connect handler '%s' for button '%s' — skipping", fn_name, text, exc_info=True)
                 continue
             bot.addWidget(btn)
             bottom_btns.append(btn)
@@ -742,7 +770,7 @@ class WindowUISetup:
             try:
                 bottom_btns[-1].setProperty("last", "1")
             except (RuntimeError, AttributeError):
-                logging.debug("BottomPanel: failed to set 'last' property on final button", exc_info=True)
+                logger.debug("BottomPanel: failed to set 'last' property on final button", exc_info=True)
 
         container_parent = getattr(self.main_layout, "parentWidget", lambda: None)() or self.window.centralWidget()
         bottom_bar_container = QWidget(container_parent)
@@ -757,7 +785,7 @@ class WindowUISetup:
                 QSizePolicy.Policy.Fixed,
             )
         except (RuntimeError, TypeError):
-            logging.debug("BottomPanel: failed to set size policy on bottom bar container", exc_info=True)
+            logger.debug("BottomPanel: failed to set size policy on bottom bar container", exc_info=True)
 
         self.main_layout.addWidget(bottom_bar_container)
 
@@ -782,7 +810,7 @@ class WindowUISetup:
             self.window.setMinimumSize(min_w, min_h)
         except (TypeError, ValueError):
             # В случае некорректных значений не блокируем инициализацию
-            logging.warning("WindowProps: failed to set minimum size from config", exc_info=True)
+            logger.warning("WindowProps: failed to set minimum size from config", exc_info=True)
 
         # Настройка иконки
         # Путь к логотипу приложения может отличаться в dev и в сборке (PyInstaller)

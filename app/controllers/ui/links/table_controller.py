@@ -159,6 +159,18 @@ class LinksTableController(QObject):
         """Обновить таблицу результатами поиска централизованно."""
         try:
             self.table.populate(search_results, mode="search")
+            # Переключаем правую область на таблицу, чтобы результаты были видны
+            try:
+                stack = getattr(self.main, "stack", None)
+                table_container = getattr(self.main, "table_container", None)
+                if stack is not None and table_container is not None:
+                    # Найдём индекс контейнера таблицы и установим текущий вид
+                    for i in range(stack.count()):
+                        if stack.widget(i) is table_container:
+                            stack.setCurrentIndex(i)
+                            break
+            except Exception:
+                logger.debug("LinksTableController.on_search_results: failed to switch stack to table", exc_info=True)
         except Exception as e:
             logger.error("LinksTableController.on_search_results: failed: %s", e, exc_info=True)
 

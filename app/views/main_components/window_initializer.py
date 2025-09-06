@@ -270,8 +270,17 @@ class WindowInitializer:
         gate = DbReadyGate(self.window, logger)
         gate.ensure_ready_or_wait(
             on_ready=self._execute_db_dependent_steps,
-            on_waiting=lambda: setattr(self, "_waiting_for_db", True) or self._status.set_message("Ожидание готовности базы данных..."),
+            on_waiting=self._on_waiting_for_db,
         )
+
+    
+    def _on_waiting_for_db(self) -> None:
+        """Вызывается, когда БД ещё не готова: выставляет флаг ожидания и обновляет статус."""
+        try:
+            setattr(self, "_waiting_for_db", True)
+            self._status.set_message("Ожидание готовности базы данных...")
+        except Exception:
+            logger.exception("WindowInitializer: failed to update waiting-for-DB status")
 
     
     def _dump_top_levels(self, tag: str) -> None:
