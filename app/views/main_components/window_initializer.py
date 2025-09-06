@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-logger = logging.getLogger(__name__)
 from contextlib import suppress
 from typing import Any, Callable, Dict, List, Tuple, TypeAlias
 
@@ -20,6 +19,7 @@ from .init_scheduler import AsyncStepRunner
 from .init_status import StatusUpdater
 from .init_db_gate import DbReadyGate
 
+logger = logging.getLogger(__name__)
 
 # Type aliases
 Step: TypeAlias = tuple[str, Callable[[], None]]

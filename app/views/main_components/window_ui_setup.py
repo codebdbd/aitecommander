@@ -1,11 +1,12 @@
 # app/views/main_components/window_ui_setup.py
 
+from __future__ import annotations
+
 import logging
 import os
 import sys
 import time
 from functools import partial
-logger = logging.getLogger(__name__)
 from typing import Any, Optional
 
 from PyQt6.QtCore import QEvent, QObject, QSize, Qt, QTimer
@@ -37,6 +38,8 @@ from app.views.status_bar import setup_status_bar as init_status_bar
 from app.views.favorites_panel_widget import FavoritesPanelWidget
 from app.views.recent_panel_widget import RecentPanelWidget
 from app.views.quick_add_panel_widget import QuickAddPanelWidget
+
+logger = logging.getLogger(__name__)
 
 
 class _AutoHideTreeFilter(QObject):
