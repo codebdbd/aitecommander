@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 logger = logging.getLogger(__name__)
 from contextlib import suppress
-from typing import Any, Callable, Optional, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication, QMessageBox
@@ -133,7 +133,7 @@ class WindowInitializer:
         self._db_ready = False
         self._waiting_for_db = False
         runner = AsyncStepRunner(self._metrics, self._status.set_message)
-        on_error = lambda e: (self._metrics.flush_log(logger), self._handle_deferred_init_error(e))
+        on_error = self._on_init_error
         runner.run(
             steps=self._init_steps_before_db,
             index_getter=lambda: getattr(self, "_current_init_step", 0),
@@ -223,7 +223,7 @@ class WindowInitializer:
     def _execute_db_dependent_steps(self) -> None:
         self._current_db_step = 0
         runner = AsyncStepRunner(self._metrics, self._status.set_message)
-        on_error = lambda e: (self._metrics.flush_log(logger), self._handle_deferred_init_error(e))
+        on_error = self._on_init_error
         runner.run(
             steps=self._init_steps_after_db,
             index_getter=lambda: getattr(self, "_current_db_step", 0),
@@ -251,6 +251,18 @@ class WindowInitializer:
                 logger.debug("DiagTopLevels: failed to dump at finalize", exc_info=True)
         except Exception:
             logger.exception("WindowInitializer: ошибка при финализации инициализации")
+
+    def _on_init_error(self, exc: Exception) -> None:
+        """Единая обработка ошибок этапов инициализации.
+
+        Выполняет сброс и логирование метрик старта, затем делегирует стандартному
+        обработчику ошибок отложенной инициализации.
+        """
+        try:
+            self._metrics.flush_log(logger)
+        except Exception:
+            logger.exception("WindowInitializer: failed to flush startup metrics")
+        self._handle_deferred_init_error(exc)
 
     def _on_before_db_steps_completed(self) -> None:
         """Коллбек завершения этапов до БД. Либо ждёт готовности БД, либо продолжает к этапам после БД."""
