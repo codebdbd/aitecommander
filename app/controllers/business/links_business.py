@@ -89,14 +89,23 @@ class LinksBusinessLogic(QObject):
 
     def search_links(self, query: str):
         """Поиск ссылок по запросу."""
-        if not query.strip():
+        q = (query or "").strip()
+        # Пустой запрос теперь означает "показать все" в режиме поиска
+        if not q:
+            self.logger.debug("Searching links: empty query -> return ALL links (global)")
+            run_db(
+                lambda: self.db.links.get_all_links() or [],
+                description="search_links(all)",
+                on_finished=self._on_search_finished,
+                on_error=lambda e: self._on_worker_error(str(e)),
+            )
             return
 
-        self.logger.debug(f"Searching links for query: {query}")
+        self.logger.debug(f"Searching links for query: {q}")
 
         run_db(
-            lambda: self.db.links.search_links(query) or [],
-            description=f"search_links(query={query!r})",
+            lambda: self.db.links.search_links(q) or [],
+            description=f"search_links(query={q!r})",
             on_finished=self._on_search_finished,
             on_error=lambda e: self._on_worker_error(str(e)),
         )

@@ -6,7 +6,7 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, Optional
 import weakref
 
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import pyqtSignal, QTimer
 from PyQt6.QtGui import QKeySequence, QUndoStack, QAction
 from PyQt6.QtWidgets import QMainWindow, QWidget
 
@@ -342,7 +342,43 @@ class MainWindow(QMainWindow):
             self.left_panel.style().polish(self.left_panel)
 
     def on_search(self, text: str) -> None:
-        self.links_actions.on_search(text)
+        # Сохраняем последний ввод, чтобы при поздней инициализации не потерять запрос
+        self._last_search_text = text
+        la = getattr(self, "links_actions", None)
+        if la is None:
+            # Отложенная переотправка: дадим системе инициализироваться
+            if not hasattr(self, "_search_retry_attempts"):
+                self._search_retry_attempts = 20  # ~2 сек при шаге 100 мс
+            if not getattr(self, "_search_retry_active", False):
+                self._search_retry_active = True
+                logger.debug("MainWindow.on_search buffered until links_actions is ready")
+                QTimer.singleShot(100, self._retry_forward_search)
+            return
+        try:
+            la.on_search(text)
+        except Exception:
+            logger.exception("MainWindow.on_search failed to delegate to links_actions")
+
+    def _retry_forward_search(self) -> None:
+        try:
+            la = getattr(self, "links_actions", None)
+            if la is not None:
+                txt = getattr(self, "_last_search_text", "")
+                la.on_search(txt)
+                self._search_retry_active = False
+                return
+            # Ещё не готово — попробуем позже, ограниченное число попыток
+            attempts = getattr(self, "_search_retry_attempts", 0)
+            if attempts <= 0:
+                self._search_retry_active = False
+                logger.debug("Search retry limit reached before links_actions initialized")
+                return
+            self._search_retry_attempts = attempts - 1
+            QTimer.singleShot(100, self._retry_forward_search)
+        except Exception:
+            # Негативные сценарии не должны ронять UI
+            self._search_retry_active = False
+            logger.exception("Unexpected error in _retry_forward_search")
 
     def showEvent(self, event):
         """Эмитит сигнал shown при первом показе окна."""

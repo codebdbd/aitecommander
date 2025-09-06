@@ -63,6 +63,8 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 "favorites_counted": self._complete_toggle_fav,
                 "link_updated": self._on_link_updated,
                 "error_occurred": self._handle_error,
+                # Глобальный поиск: результаты поиска по всем ссылкам
+                "search_results_ready": self._update_search_results,
             }
             for sig_name, slot in required.items():
                 sig = getattr(biz, sig_name, None)
