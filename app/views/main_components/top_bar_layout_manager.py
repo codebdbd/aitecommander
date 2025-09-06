@@ -175,7 +175,7 @@ class TopBarLayoutManager(QObject):
         self._install_event_filters()  # Убедиться в фильтрах
 
         if effective_w <= self._narrow_threshold:
-            logger.debug(f"TopBar narrow mode: width={width} <= threshold={self._narrow_threshold}")
+            logger.debug("TopBar narrow mode: width=%s <= threshold=%s", width, self._narrow_threshold)
             self._apply_counts(width, 0, 0, 0)
             self._update_separators_visibility(top_bar, False, False, False, bool(search))
             # Скрыть любые виджеты top-bar, кроме поля поиска

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class TopBarBuilder:
-    """Builds the top bar using existing WindowUISetup helpers (no behavior change)."""
+    """Собирает верхнюю панель, используя хелперы WindowUISetup (без изменения поведения)."""
 
     def __init__(self, ui: Any) -> None:
         # ui is WindowUISetup; typed as Any to avoid circular imports
@@ -22,6 +22,17 @@ class TopBarBuilder:
         self.main_layout = ui.main_layout
 
     def build(self) -> None:
+        """Собирает и подключает верхнюю панель (top bar).
+
+        Обязанности:
+        - Вставить верхний разделитель в основной layout
+        - Создать и настроить layout верхней панели (отступы, spacing, выравнивание)
+        - Заполнить верхнюю панель виджетами через существующие хелперы (Quick/Favorites/Recent/Search)
+        - Создать хост‑виджет, добавить его в `self.main_layout`, установить `window.top_bar_host`
+        - Инициализировать `TopBarLayoutManager` и запланировать post‑shown корректировки
+
+        Примечание: метод полностью сохраняет текущее поведение (метрики, тайминги, правила видимости).
+        """
         t_total_start = __import__("time").perf_counter()
         # Determine parent for helper widgets
         container_parent = getattr(self.main_layout, "parentWidget", lambda: None)() or self.window.centralWidget()

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class BottomPanelBuilder:
-    """Builds the bottom panel using existing WindowUISetup behavior (no changes)."""
+    """Собирает нижнюю панель, используя существующее поведение WindowUISetup (без изменений)."""
 
     def __init__(self, ui: Any) -> None:
         # ui is WindowUISetup; typed as Any to avoid circular imports
@@ -23,11 +23,21 @@ class BottomPanelBuilder:
         self.main_layout = ui.main_layout
 
     def build(self) -> None:
-        bot = QHBoxLayout()
+        """Собирает и подключает нижнюю панель (полоса действий + разделитель).
+
+        Обязанности:
+        - Создать нижний layout с отступами/spacing из UIConfig
+        - Построить кнопки действий по `bottom_actions` и подключить обработчики кликов
+        - Создать контейнер `bottom_bar_container`, настроить политику размеров и добавить в основной layout
+        - Добавить виджет-разделитель под панелью
+
+        Примечание: сохраняет имеющееся поведение, включая политики фокуса и обработку ошибок.
+        """
+        bottom_layout = QHBoxLayout()
         # Отступы панели берём из конфигурации (можно выставить в 0,0,0,0 для полного прилегания)
-        bot.setContentsMargins(*app_config.ui.get_layout_margins("bottom"))
+        bottom_layout.setContentsMargins(*app_config.ui.get_layout_margins("bottom"))
         # Расстояние между кнопками: берём из конфига, по умолчанию 0 — кнопки занимают всю ширину без зазоров
-        bot.setSpacing(app_config.ui.get_bottom_layout_spacing())
+        bottom_layout.setSpacing(app_config.ui.get_bottom_layout_spacing())
 
         # Используем глобальный размер шрифта приложения для кнопок нижней панели
         font10 = QFont()
@@ -73,7 +83,7 @@ class BottomPanelBuilder:
                     exc_info=True,
                 )
                 continue
-            bot.addWidget(btn)
+            bottom_layout.addWidget(btn)
             bottom_btns.append(btn)
 
         # Помечаем последнюю кнопку, чтобы убрать у неё правую границу через QSS
@@ -86,7 +96,7 @@ class BottomPanelBuilder:
         container_parent = getattr(self.main_layout, "parentWidget", lambda: None)() or self.window.centralWidget()
         bottom_bar_container = QWidget(container_parent)
         bottom_bar_container.setObjectName("bottomBarContainer")
-        bottom_bar_container.setLayout(bot)
+        bottom_bar_container.setLayout(bottom_layout)
         # Сохраняем виджет как атрибут окна для последующей настройки фокуса
         self.window.bottom_bar_container = bottom_bar_container
         # Явная политика: по горизонтали расширяется/сжимается, по вертикали фиксированная

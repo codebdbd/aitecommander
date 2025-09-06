@@ -8,6 +8,7 @@ from PyQt6.QtCore import QEvent, QObject
 from PyQt6.QtWidgets import QApplication
 
 logger = logging.getLogger(__name__)
+
 class DiagnosticsInstaller:
     """Устанавливает диагностические фильтры и наблюдатели для UI.
 
