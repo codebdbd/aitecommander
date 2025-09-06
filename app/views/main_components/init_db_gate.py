@@ -39,7 +39,10 @@ class DbReadyGate:
             except Exception:
                 self._logger.debug("DbReadyGate: on_waiting callback raised", exc_info=True)
 
-        self._timer = QTimer()
+        # Таймер привязываем к окну, чтобы он уничтожился вместе с окном.
+        # Делаем его одноразовым и вручную перезапускаем до готовности БД.
+        self._timer = QTimer(self._window)
+        self._timer.setSingleShot(True)
         self._timer.timeout.connect(lambda: self._check_and_continue(on_ready))
         self._timer.start(100)
 
@@ -54,5 +57,27 @@ class DbReadyGate:
                 except Exception:
                     pass
                 on_ready()
+            else:
+                # Не готово — перезапускаем одноразовый таймер для следующей проверки
+                try:
+                    if self._timer is not None:
+                        self._timer.start(100)
+                except Exception:
+                    # В случае ошибки перестрахуемся: удалим таймер, чтобы не протекал
+                    try:
+                        if self._timer is not None:
+                            self._timer.stop()
+                            self._timer.deleteLater()
+                            self._timer = None
+                    except Exception:
+                        pass
         except Exception:
             self._logger.exception("DbReadyGate: error during readiness check")
+            # При ошибке проверки — безопасно остановим и удалим таймер
+            try:
+                if self._timer is not None:
+                    self._timer.stop()
+                    self._timer.deleteLater()
+                    self._timer = None
+            except Exception:
+                pass

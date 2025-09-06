@@ -5,11 +5,9 @@ import logging
 from typing import Callable, Optional
 
 from PyQt6.QtCore import QEvent, QObject
-from PyQt6.QtWidgets import QApplication, QWidget
+from PyQt6.QtWidgets import QApplication
 
 logger = logging.getLogger(__name__)
-
-
 class DiagnosticsInstaller:
     """Устанавливает диагностические фильтры и наблюдатели для UI.
 
@@ -22,10 +20,21 @@ class DiagnosticsInstaller:
         self._dump_top_levels = dump_top_levels_cb
 
     def install_all(self) -> None:
-        self._install_qt_message_filter()
-        self._install_top_level_watcher()
-        self._install_window_resize_logger()
-        self._install_widget_show_hooks()
+        try:
+            self._install_qt_message_filter()
+        except Exception:
+            logger.warning("DiagnosticsInstaller: _install_qt_message_filter failed", exc_info=True)
+
+        try:
+            self._install_top_level_watcher()
+        except Exception:
+            logger.warning("DiagnosticsInstaller: _install_top_level_watcher failed", exc_info=True)
+
+        try:
+            self._install_window_resize_logger()
+        except Exception:
+            logger.warning("DiagnosticsInstaller: _install_window_resize_logger failed", exc_info=True)
+
 
     # === Qt message handler ===
     def _install_qt_message_filter(self) -> None:
@@ -60,88 +69,7 @@ class DiagnosticsInstaller:
         except Exception as e:
             raise RuntimeError("qInstallMessageHandler failed") from e
 
-    # === Перехват QWidget.show()/setVisible ===
-    def _diagnostics_enabled(self) -> bool:
-        try:
-            import os
-            if os.environ.get("OSTEEN_DIAG_TOPLEVEL") == "1":
-                return True
-        except Exception:
-            pass
-        try:
-            return logger.isEnabledFor(logging.DEBUG)
-        except Exception:
-            return False
-
-    def _install_widget_show_hooks(self) -> None:
-        if not self._diagnostics_enabled():
-            return
-        if getattr(QApplication, "_diag_show_hooks_installed", False):
-            return
-
-        import traceback
-
-        def _log_widget(w: QWidget, method: str) -> None:
-            try:
-                parent_none = (w.parent() is None)
-            except Exception:
-                parent_none = True
-            try:
-                is_window = bool(w.isWindow())
-            except Exception:
-                is_window = False
-            try:
-                sz = w.size()
-                w_ = sz.width()
-                h_ = sz.height()
-            except Exception:
-                w_, h_ = -1, -1
-            if (parent_none or is_window):
-                try:
-                    name = w.objectName() or "<noname>"
-                except Exception:
-                    name = "<noname>"
-                try:
-                    title = w.windowTitle() or ""
-                except Exception:
-                    title = ""
-                try:
-                    flags = w.windowFlags()
-                    flags_s = hex(int(flags))
-                except Exception:
-                    flags_s = "?"
-                stack = "\n".join(traceback.format_stack(limit=25))
-                logger.info(
-                    "DiagTopLevels: QWidget.%s top-level show -> cls=%s name=%s title='%s' size=%sx%s flags=%s\n%s",
-                    method, type(w).__name__, name, title, w_, h_, flags_s, stack,
-                )
-
-        if not hasattr(QWidget, "_orig_show_diag"):
-            QWidget._orig_show_diag = QWidget.show  # type: ignore[attr-defined]
-
-            def _diag_show(self: QWidget, *args, **kwargs):
-                try:
-                    _log_widget(self, "show")
-                except Exception:
-                    pass
-                return QWidget._orig_show_diag(self, *args, **kwargs)  # type: ignore[attr-defined]
-
-            QWidget.show = _diag_show  # type: ignore[assignment]
-
-        if not hasattr(QWidget, "_orig_setVisible_diag"):
-            QWidget._orig_setVisible_diag = QWidget.setVisible  # type: ignore[attr-defined]
-
-            def _diag_setVisible(self: QWidget, vis: bool):
-                try:
-                    if bool(vis):
-                        _log_widget(self, "setVisible(True)")
-                except Exception:
-                    pass
-                return QWidget._orig_setVisible_diag(self, vis)  # type: ignore[attr-defined]
-
-            QWidget.setVisible = _diag_setVisible  # type: ignore[assignment]
-
-        QApplication._diag_show_hooks_installed = True  # type: ignore[attr-defined]
+    # (Удалено) Глобальные хуки QWidget.show/setVisible больше не используются.
 
     def _install_window_resize_logger(self) -> None:
         win = self._window

@@ -1,9 +1,10 @@
 # app/views/main_components/window_ui_setup.py
 
+import logging
 import os
 import sys
-import logging
 import time
+from functools import partial
 logger = logging.getLogger(__name__)
 from typing import Any, Optional
 
@@ -47,7 +48,7 @@ class _AutoHideTreeFilter(QObject):
     При расширении окна восстанавливает предыдущее состояние.
     """
 
-    def __init__(self, window, threshold_width: int, default_sizes: list[int]):
+    def __init__(self, window, threshold_width: int, default_sizes: list[int], logger_: logging.Logger = logger):
         super().__init__(window)
         self.window = window
         self.threshold = int(threshold_width)
@@ -57,6 +58,7 @@ class _AutoHideTreeFilter(QObject):
         self._is_collapsed = False
         self._saved_splitter_sizes = None
         self._prev_stack_index = None
+        self._logger = logger_
 
     def _apply(self):
         w = self.window.width()
@@ -72,20 +74,20 @@ class _AutoHideTreeFilter(QObject):
                         self._saved_splitter_sizes = splitter.sizes()
                 except (AttributeError, RuntimeError):
                     self._saved_splitter_sizes = None
-                    logging.debug("AutoHideTree: failed to read splitter sizes", exc_info=True)
+                    self._logger.debug("AutoHideTree: failed to read splitter sizes", exc_info=True)
                 try:
                     if stack is not None:
                         self._prev_stack_index = stack.currentIndex()
                 except (AttributeError, RuntimeError):
                     self._prev_stack_index = None
-                    logging.debug("AutoHideTree: failed to read current stack index", exc_info=True)
+                    self._logger.debug("AutoHideTree: failed to read current stack index", exc_info=True)
 
                 if splitter is not None:
                     try:
                         splitter.setCollapsible(0, True)
                         splitter.setSizes([0, max(1, w)])
                     except (RuntimeError, TypeError):
-                        logging.debug("AutoHideTree: failed to collapse left panel on narrow window", exc_info=True)
+                        self._logger.debug("AutoHideTree: failed to collapse left panel on narrow window", exc_info=True)
 
                 if stack is not None and table is not None:
                     try:
@@ -97,7 +99,7 @@ class _AutoHideTreeFilter(QObject):
                                 stack.setCurrentIndex(i)
                                 break
                     except (AttributeError, RuntimeError):
-                        logging.debug("AutoHideTree: failed to switch stack to table", exc_info=True)
+                        self._logger.debug("AutoHideTree: failed to switch stack to table", exc_info=True)
                 self._is_collapsed = True
 
             # Независимо от состояния — скрыть панели топ-бара на каждом вызове (на случай добавления новых)
@@ -107,7 +109,7 @@ class _AutoHideTreeFilter(QObject):
                     if panel is not None:
                         panel.setVisible(False)
                 except (AttributeError, RuntimeError):
-                    logging.debug("AutoHideTree: failed to hide top bar panel '%s'", attr, exc_info=True)
+                    self._logger.debug("AutoHideTree: failed to hide top bar panel '%s'", attr, exc_info=True)
 
         elif w > self.threshold and self._is_collapsed:
             # Восстановить размеры сплиттера
@@ -122,7 +124,7 @@ class _AutoHideTreeFilter(QObject):
                         sizes = [int(x) for x in self.default_sizes]
                         splitter.setSizes(sizes)
                 except (RuntimeError, TypeError, ValueError):
-                    logging.debug("AutoHideTree: failed to restore splitter sizes", exc_info=True)
+                    self._logger.debug("AutoHideTree: failed to restore splitter sizes", exc_info=True)
 
             # Показать панели топ-бара обратно
             for attr in ("quick_add_widget", "fav_widget", "recent_links_widget"):
@@ -131,7 +133,7 @@ class _AutoHideTreeFilter(QObject):
                     if panel is not None:
                         panel.setVisible(True)
                 except (AttributeError, RuntimeError):
-                    logging.debug("AutoHideTree: failed to re-show top bar panel '%s'", attr, exc_info=True)
+                    self._logger.debug("AutoHideTree: failed to re-show top bar panel '%s'", attr, exc_info=True)
 
             # Восстановить предыдущий вид правой области (если был сохранён)
             if stack is not None and self._prev_stack_index is not None:
@@ -139,7 +141,7 @@ class _AutoHideTreeFilter(QObject):
                     if 0 <= self._prev_stack_index < stack.count():
                         stack.setCurrentIndex(self._prev_stack_index)
                 except (RuntimeError, ValueError, TypeError, AttributeError):
-                    logging.debug("AutoHideTree: failed to restore previous stack index", exc_info=True)
+                    self._logger.debug("AutoHideTree: failed to restore previous stack index", exc_info=True)
 
             self._is_collapsed = False
 
@@ -200,10 +202,8 @@ class WindowUISetup:
         t_total_start = time.perf_counter()
         # Определяем родителя для вспомогательных виджетов верхней панели
         container_parent = getattr(self.main_layout, "parentWidget", lambda: None)() or self.window.centralWidget()
-        # Верхний разделитель добавляем напрямую в основной layout
-        h_line_top = QWidget(container_parent)
-        h_line_top.setProperty("class", "separator")
-        self.main_layout.addWidget(h_line_top)
+        # Верхний разделитель
+        self._add_top_separator(container_parent)
 
         # Создание top_bar: без разделителей, только spacing и внешние маргины по side
         top_bar = QHBoxLayout()
@@ -211,13 +211,34 @@ class WindowUISetup:
             side = int(app_config.ui.get_top_bar_widgets_side_spacing())
         except (TypeError, ValueError):
             side = 8
-            logging.warning("TopPanel: invalid side spacing in config; using default 8")
+            logger.warning("TopPanel: invalid side spacing in config; using default 8")
         top_bar.setContentsMargins(side, 0, side, 0)
         # Убираем любой межвиджетный spacing — вместо него будут вертикальные разделители с локальными отступами
         top_bar.setSpacing(0)
         top_bar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        # Собираем виджеты верхней панели
+        # Собираем виджеты верхней панели с метриками
+        self._build_top_bar_widgets_with_metrics(top_bar)
+
+        # Создаём и вставляем host для top_bar
+        top_bar_host = self._create_top_bar_host(container_parent, top_bar)
+        self.main_layout.addWidget(top_bar_host)
+        self.window.top_bar_host = top_bar_host
+
+        # Инициализация и планирование пост-обработчиков менеджера верхней панели
+        self._init_and_schedule_topbar_manager()
+
+        # Финальная метрика
+        self._log_setup_top_panel_total(t_total_start)
+
+    def _add_top_separator(self, container_parent: QWidget) -> None:
+        """Добавляет верхний горизонтальный разделитель в основной layout."""
+        h_line_top = QWidget(container_parent)
+        h_line_top.setProperty("class", "separator")
+        self.main_layout.addWidget(h_line_top)
+
+    def _build_top_bar_widgets_with_metrics(self, top_bar: QHBoxLayout) -> None:
+        """Строит виджеты верхней панели и логирует длительность."""
         t_widgets_start = time.perf_counter()
         self.setup_top_bar_widgets(top_bar)
         t_widgets_dur = (time.perf_counter() - t_widgets_start) * 1000.0
@@ -226,7 +247,8 @@ class WindowUISetup:
         except Exception:
             pass
 
-        # Лёгкий хост для top_bar (без фиксированной высоты) и добавление в основной layout
+    def _create_top_bar_host(self, container_parent: QWidget, top_bar: QHBoxLayout) -> QWidget:
+        """Создаёт хост-виджет для top_bar и применяет базовые параметры."""
         top_bar_host = QWidget(container_parent)
         top_bar_host.setObjectName("topBarHost")
         top_bar_host.setLayout(top_bar)
@@ -234,19 +256,16 @@ class WindowUISetup:
             top_bar_host.setFixedHeight(app_config.ui.get_top_bar_height())
             top_bar_host.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         except (RuntimeError, TypeError, AttributeError):
-            logging.warning("TopPanel: failed to set top bar host size policy/height", exc_info=True)
+            logger.warning("TopPanel: failed to set top bar host size policy/height", exc_info=True)
         # Изначально скрываем top_bar_host, чтобы исключить растягивание/дерганье отступов до первого adjust()
         try:
             top_bar_host.setVisible(False)
         except Exception:
-            logging.debug("TopPanel: failed to initially hide top_bar_host", exc_info=True)
-        self.main_layout.addWidget(top_bar_host)
+            logger.debug("TopPanel: failed to initially hide top_bar_host", exc_info=True)
+        return top_bar_host
 
-        # Сохраняем ссылку на хост
-        self.window.top_bar_host = top_bar_host
-
-
-        # Адаптивный менеджер верхней панели
+    def _init_and_schedule_topbar_manager(self) -> None:
+        """Создаёт TopBarLayoutManager и планирует post-shown обработчики."""
         try:
             t_mgr_start = time.perf_counter()
             self.window._topbar_manager = TopBarLayoutManager(self.window)
@@ -255,31 +274,52 @@ class WindowUISetup:
             # Не блокируем инициализацию UI при ошибке менеджера
             self.window._topbar_manager = None
             logger.exception("TopPanel: failed to initialize TopBarLayoutManager")
-        # Первичный пересчёт запускаем по shown, чтобы исключить стартовые артефакты до финальной геометрии
+            return
         try:
             mgr = getattr(self.window, "_topbar_manager", None)
-            if mgr:
-                try:
-                    if hasattr(self.window, "shown"):
-                        # type: ignore[attr-defined]
-                        # Пересчитать и показать атомарно: сначала adjust, затем показать хост
-                        self.window.shown.connect(lambda: QTimer.singleShot(0, lambda: (mgr.adjust(), self.window.top_bar_host.setVisible(True))))
-                        # Повторный проход через ~1 кадр для страховки
-                        self.window.shown.connect(lambda: QTimer.singleShot(16, mgr.adjust))
-                    else:
-                        # Фолбэк: если сигнала shown нет, пересчитать в следующий тик дважды
-                        QTimer.singleShot(0, lambda: (mgr.adjust(), self.window.top_bar_host.setVisible(True)))
-                        QTimer.singleShot(16, mgr.adjust)
-                except Exception:
-                    logging.debug("TopPanel: failed to schedule post-shown topbar adjusts", exc_info=True)
-        except (AttributeError, TypeError, RuntimeError):
-            logging.debug("TopPanel: failed to schedule initial topbar adjust", exc_info=True)
-        finally:
-            try:
-                t_total_dur = (time.perf_counter() - t_total_start) * 1000.0
-                logger.info("TopPanelMetrics: setup_top_panel total: %.1f ms", t_total_dur)
-            except Exception:
-                pass
+            if not mgr:
+                return
+            if hasattr(self.window, "shown"):
+                # type: ignore[attr-defined]
+                # Пересчитать и показать атомарно: сначала adjust, затем показать хост
+                self.window.shown.connect(partial(self._post_shown_adjust_and_show_host, mgr))
+                # Повторный проход через ~1 кадр для страховки
+                self.window.shown.connect(partial(self._post_shown_second_adjust, mgr))
+            else:
+                # Фолбэк: если сигнала shown нет, пересчитать в следующий тик дважды
+                self._fallback_schedule_adjusts(mgr)
+        except Exception:
+            logger.debug("TopPanel: failed to schedule post-shown topbar adjusts", exc_info=True)
+
+    def _post_shown_adjust_and_show_host(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
+        """В первый тик после shown: adjust и показать host атомарно."""
+        try:
+            QTimer.singleShot(0, lambda: (mgr.adjust(), self.window.top_bar_host.setVisible(True)))
+        except Exception:
+            logger.debug("TopPanel: failed in _post_shown_adjust_and_show_host", exc_info=True)
+
+    def _post_shown_second_adjust(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
+        """Во второй тик после shown: повторный adjust для устойчивости."""
+        try:
+            QTimer.singleShot(16, mgr.adjust)
+        except Exception:
+            logger.debug("TopPanel: failed in _post_shown_second_adjust", exc_info=True)
+
+    def _fallback_schedule_adjusts(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
+        """Фолбэк при отсутствии сигнала shown: два последовательных планирования."""
+        try:
+            QTimer.singleShot(0, lambda: (mgr.adjust(), self.window.top_bar_host.setVisible(True)))
+            QTimer.singleShot(16, mgr.adjust)
+        except Exception:
+            logger.debug("TopPanel: failed in _fallback_schedule_adjusts", exc_info=True)
+
+    def _log_setup_top_panel_total(self, t_total_start: float) -> None:
+        """Логирует итоговую длительность настройки верхней панели."""
+        try:
+            t_total_dur = (time.perf_counter() - t_total_start) * 1000.0
+            logger.info("TopPanelMetrics: setup_top_panel total: %.1f ms", t_total_dur)
+        except Exception:
+            pass
         
 
     def _create_top_panel_widget(
@@ -399,11 +439,11 @@ class WindowUISetup:
         try:
             sep.setFixedWidth(max(1, w))
         except Exception:
-            logging.debug("TopPanel: failed to set fixed width on vertical separator", exc_info=True)
+            logger.debug("TopPanel: failed to set fixed width on vertical separator", exc_info=True)
         try:
             sep.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
         except Exception:
-            logging.debug("TopPanel: failed to set size policy on vertical separator", exc_info=True)
+            logger.debug("TopPanel: failed to set size policy on vertical separator", exc_info=True)
         return sep
 
     def setup_search_widget(self, top_bar: QHBoxLayout) -> None:
