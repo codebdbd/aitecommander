@@ -199,37 +199,8 @@ class WindowUISetup:
 
     def setup_top_panel(self) -> None:
         """Настройка верхней панели."""
-        t_total_start = time.perf_counter()
-        # Определяем родителя для вспомогательных виджетов верхней панели
-        container_parent = getattr(self.main_layout, "parentWidget", lambda: None)() or self.window.centralWidget()
-        # Верхний разделитель
-        self._add_top_separator(container_parent)
-
-        # Создание top_bar: без разделителей, только spacing и внешние маргины по side
-        top_bar = QHBoxLayout()
-        try:
-            side = int(app_config.ui.get_top_bar_widgets_side_spacing())
-        except (TypeError, ValueError):
-            side = 8
-            logger.warning("TopPanel: invalid side spacing in config; using default 8")
-        top_bar.setContentsMargins(side, 0, side, 0)
-        # Убираем любой межвиджетный spacing — вместо него будут вертикальные разделители с локальными отступами
-        top_bar.setSpacing(0)
-        top_bar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-
-        # Собираем виджеты верхней панели с метриками
-        self._build_top_bar_widgets_with_metrics(top_bar)
-
-        # Создаём и вставляем host для top_bar
-        top_bar_host = self._create_top_bar_host(container_parent, top_bar)
-        self.main_layout.addWidget(top_bar_host)
-        self.window.top_bar_host = top_bar_host
-
-        # Инициализация и планирование пост-обработчиков менеджера верхней панели
-        self._init_and_schedule_topbar_manager()
-
-        # Финальная метрика
-        self._log_setup_top_panel_total(t_total_start)
+        from .top_bar_setup import TopBarBuilder
+        TopBarBuilder(self).build()
 
     def _add_top_separator(self, container_parent: QWidget) -> None:
         """Добавляет верхний горизонтальный разделитель в основной layout."""
@@ -484,10 +455,10 @@ class WindowUISetup:
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         try:
-            min_search_w = int(getattr(app_config.ui, "get_top_panel_search_min_width", lambda: 140)())
+            min_search_w = int(app_config.ui.get_top_panel_search_min_width())
         except (TypeError, ValueError):
             min_search_w = 140
-            logger.debug("SearchWidget: fallback to default min_search_width=140")
+            logger.warning("SearchWidget: invalid top_panel_search_min_width in config; using 140")
         try:
             self.window.search.setMinimumWidth(min_search_w)
         except Exception:
@@ -609,87 +580,17 @@ class WindowUISetup:
 
     def setup_right_panel(self, mid: QHBoxLayout) -> None:
         """Настройка правой панели."""
-        # Контейнер для правой панели создаём сразу, чтобы быть родителем для обёрток
-        right_panel = QWidget()
+        from .right_panel_setup import RightPanelBuilder
+        RightPanelBuilder(self).build(mid)
 
-        # Плитки категорий — создаём с валидной иерархией родителей, чтобы исключить топ‑левел показ
-        self.window.tiles_scroll = QScrollArea(parent=right_panel)
-        self.window.tiles_scroll.setWidgetResizable(True)
-        self.window.tiles = CategoryTiles(parent=self.window.tiles_scroll)
-
-        # ЦЕНТРАЛИЗОВАНО: Подключение к UIStateManager
-        self.window.tiles.category_selected.connect(
-            lambda cat_id: self.window.ui_state.load_category(
-                cat_id, source="CategoryTiles"
-            )
-        )
-
-        self.window.tiles_scroll.setWidget(self.window.tiles)
-
-        tiles_wrapper = QWidget(parent=right_panel)
-        tiles_layout = QVBoxLayout(tiles_wrapper)
-        tiles_layout.setContentsMargins(*app_config.ui.get_layout_margins("tiles"))
-        tiles_layout.setSpacing(app_config.ui.get_tiles_layout_spacing())
-        tiles_layout.addWidget(self.window.tiles_scroll)
-
-        # Создание таблицы (перенесено сюда из top-bar, чтобы разгрузить раннюю фазу инициализации)
-        # Размер шрифта для таблицы будет установлен централизованно через MainWindow.apply_font_size_to_content()
-        self.window.table = LinksTableView(self.window)
-
-        # Обертка для таблицы
-        table_wrapper = QWidget(parent=right_panel)
-        table_layout = QVBoxLayout(table_wrapper)
-        table_layout.setContentsMargins(*app_config.ui.get_layout_margins("table"))
-        table_layout.setSpacing(app_config.ui.get_table_layout_spacing())
-        table_layout.addWidget(self.window.table)
-
-        # Стек для переключения между плитками и таблицей
-        self.window.stack = QStackedLayout()
-
-        # Добавляем в стек обёртки, чтобы сохранить отступы и прокрутку
-        self.window.tiles_container = tiles_wrapper
-        self.window.table_container = table_wrapper
-        self.window.stack.addWidget(self.window.tiles_container)
-        self.window.stack.addWidget(self.window.table_container)
-
-        right_panel.setLayout(self.window.stack)
-
-        # Сплиттер
-        self.window.splitter = QSplitter(Qt.Orientation.Horizontal)
-        self.window.splitter.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        # Толщина ручки сплиттера из конфигурации
+    def _setup_auto_hide_tree_filter(self, splitter_sizes: list[int]) -> None:
+        """Инициализирует и запускает фильтр авто‑скрытия дерева для узких окон."""
         try:
-            self.window.splitter.setHandleWidth(
-                int(app_config.ui.get_splitter_handle_width())
-            )
-        except (TypeError, ValueError, RuntimeError):
-            self.window.splitter.setHandleWidth(1)
-            logger.warning("RightPanel: invalid splitter handle width in config; using 1")
-        self.window.splitter.addWidget(self.window.left_panel)
-        self.window.splitter.addWidget(right_panel)
-        # Разрешаем сворачивание левой панели (после добавления виджетов, чтобы индекс 0 существовал)
-        try:
-            self.window.splitter.setCollapsible(0, True)
-        except (RuntimeError, TypeError):
-            logger.debug("RightPanel: failed to set splitter collapsible(0, True)", exc_info=True)
-
-        stretch_factors = app_config.ui.get_splitter_stretch_factors()
-        self.window.splitter.setStretchFactor(0, stretch_factors[0])
-        self.window.splitter.setStretchFactor(1, stretch_factors[1])
-
-        mid.addWidget(self.window.splitter)
-
-        splitter_sizes = app_config.ui.get_splitter_sizes()
-        self.window.splitter.setSizes(splitter_sizes)
-        self.window._first_structure_load = True
-
-        # Установка фильтра авто-скрытия дерева при узком окне
-        try:
-            min_w = int(app_config.ui.get_window_min_width())
-        except (TypeError, ValueError):
-            min_w = 280
-            logger.warning("RightPanel: invalid window_min_width in config; using 280")
-        try:
+            try:
+                min_w = int(app_config.ui.get_window_min_width())
+            except (TypeError, ValueError):
+                min_w = 280
+                logger.warning("RightPanel: invalid window_min_width in config; using 280")
             self.window._auto_hide_tree_filter = _AutoHideTreeFilter(
                 self.window, threshold_width=min_w, default_sizes=splitter_sizes
             )
@@ -707,92 +608,10 @@ class WindowUISetup:
             # Не блокируем UI, если что-то пойдёт не так
             logger.exception("RightPanel: failed to initialize AutoHideTree filter")
 
-        # QStackedLayout ломает стандартную Tab-навигацию Qt
-        # Используем кастомную обработку через NavigationKeyHandler
-        # Никаких setTabOrder - только динамическое управление фокусом
-
-        # Установить нижней панели NoFocus policy чтобы исключить из Tab
-        if hasattr(self.window, "bottom_bar_container"):
-            self.window.bottom_bar_container.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-
     def setup_bottom_panel(self) -> None:
         """Настройка нижней панели."""
-        bot = QHBoxLayout()
-        # Отступы панели берём из конфигурации (можно выставить в 0,0,0,0 для полного прилегания)
-        bot.setContentsMargins(*app_config.ui.get_layout_margins("bottom"))
-        # Расстояние между кнопками: берём из конфига, по умолчанию 0 — кнопки занимают всю ширину без зазоров
-        bot.setSpacing(app_config.ui.get_bottom_layout_spacing())
-
-        # Используем глобальный размер шрифта приложения для кнопок нижней панели
-        font10 = QFont()
-        try:
-            try:
-                font10.setPointSize(self.window.font().pointSize())
-            except (AttributeError, TypeError, RuntimeError, ValueError):
-                # Ожидаемые проблемы типов/доступности — спокойный фоллбэк
-                font10.setPointSize(10)
-        except Exception:
-            # Неожиданная ошибка — логируем и используем фоллбэк
-            logger.exception("BottomPanel: unexpected error determining button font size; fallback to 10")
-            font10.setPointSize(10)
-
-        # Кнопка переключения сфер (будет создана после инициализации контроллеров)
-        self.window.switch_sphere_button = None
-
-        # Дополнительные кнопки из конфигурации
-        bottom_actions = app_config.ui.get_bottom_actions()
-        bottom_btns = []
-        for text, fn_name in bottom_actions:
-            btn = QPushButton(text)
-            btn.setFont(font10)
-            btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-            # Разрешаем горизонтальное сжатие ниже sizeHint
-            try:
-                btn.setMinimumWidth(0)
-                btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-            except (RuntimeError, TypeError):
-                logger.debug("BottomPanel: failed to apply size policy to bottom button '%s'", text, exc_info=True)
-            # Обработчик клика и добавление на панель
-            handler = getattr(self.window, fn_name, None)
-            if not callable(handler):
-                logger.warning("BottomPanel: click handler '%s' not found for button '%s' — skipping", fn_name, text)
-                continue
-            try:
-                btn.clicked.connect(handler)
-            except (TypeError, RuntimeError):
-                logger.warning("BottomPanel: failed to connect handler '%s' for button '%s' — skipping", fn_name, text, exc_info=True)
-                continue
-            bot.addWidget(btn)
-            bottom_btns.append(btn)
-
-        # Помечаем последнюю кнопку, чтобы убрать у неё правую границу через QSS
-        if bottom_btns:
-            try:
-                bottom_btns[-1].setProperty("last", "1")
-            except (RuntimeError, AttributeError):
-                logger.debug("BottomPanel: failed to set 'last' property on final button", exc_info=True)
-
-        container_parent = getattr(self.main_layout, "parentWidget", lambda: None)() or self.window.centralWidget()
-        bottom_bar_container = QWidget(container_parent)
-        bottom_bar_container.setObjectName("bottomBarContainer")
-        bottom_bar_container.setLayout(bot)
-        # Сохраняем виджет как атрибут окна для последующей настройки фокуса
-        self.window.bottom_bar_container = bottom_bar_container
-        # Явная политика: по горизонтали расширяется/сжимается, по вертикали фиксированная
-        try:
-            bottom_bar_container.setSizePolicy(
-                QSizePolicy.Policy.Expanding,
-                QSizePolicy.Policy.Fixed,
-            )
-        except (RuntimeError, TypeError):
-            logger.debug("BottomPanel: failed to set size policy on bottom bar container", exc_info=True)
-
-        self.main_layout.addWidget(bottom_bar_container)
-
-        # Разделитель под нижней панелью (аналог h_line_2)
-        h_line_bottom = QWidget(container_parent)
-        h_line_bottom.setProperty("class", "separator")
-        self.main_layout.addWidget(h_line_bottom)
+        from .bottom_panel_setup import BottomPanelBuilder
+        BottomPanelBuilder(self).build()
 
     def setup_status_bar(self) -> None:
         """Настройка статус-бара."""

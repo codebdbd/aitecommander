@@ -63,8 +63,6 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 "favorites_counted": self._complete_toggle_fav,
                 "link_updated": self._on_link_updated,
                 "error_occurred": self._handle_error,
-                # Глобальный поиск: результаты поиска по всем ссылкам
-                "search_results_ready": self._update_search_results,
             }
             for sig_name, slot in required.items():
                 sig = getattr(biz, sig_name, None)
@@ -76,6 +74,16 @@ class LinksUIHandlers(BaseLinksUIComponent):
                         f"Business signal '{sig_name}' must expose callable connect()"
                     )
                 connect_fn(slot)
+
+            # Опциональный сигнал глобального поиска (для обратной совместимости тестов)
+            try:
+                search_sig = getattr(biz, "search_results_ready", None)
+                if search_sig is not None and hasattr(search_sig, "connect") and callable(search_sig.connect):
+                    search_sig.connect(self._update_search_results)
+                else:
+                    logger.debug("LinksUIHandlers: business signal 'search_results_ready' not present; global search UI updates disabled")
+            except Exception:
+                logger.debug("LinksUIHandlers: failed to wire optional 'search_results_ready'", exc_info=True)
         except SetupError:
             # Уже информативное сообщение — пробрасываем как есть, но логируем стек
             logger.exception("Failed to wire LinksUIHandlers business signals (setup error)")

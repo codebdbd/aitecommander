@@ -467,6 +467,14 @@ class UIConfig(BaseConfig):
         """Получение расстояния между элементами в layout плиток."""
         return self.get("ui.layout.spacing.tiles", 0)
 
+    def get_right_layout_spacing(self) -> int:
+        """Расстояние между элементами в правом layout.
+
+        Строгий метод для релиза: наличие метода исключает использование рантайм‑фолбэков.
+        Ключ конфигурации: ui.right_layout_spacing. По умолчанию 0.
+        """
+        return self.get("ui.right_layout_spacing", 0)
+
     def get_bottom_layout_margins(self) -> tuple:
         """Получение отступов нижнего layout."""
         margins = self.get("ui.bottom_layout_margins", [5, 5, 5, 5])
