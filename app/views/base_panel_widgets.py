@@ -2,14 +2,18 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Callable, Dict, List, Optional
 
-from PyQt6.QtCore import pyqtSignal, QSize
+from PyQt6.QtCore import QSize, pyqtSignal
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
 
 from app.config_data import app_config
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.utils.ui.icon.icon_resolver import get_default_icon_path, resolve_icon_for_link, resolve_icon_path
+from app.utils.ui.icon.icon_resolver import (
+    get_default_icon_path,
+    resolve_icon_for_link,
+    resolve_icon_path,
+)
 from app.views.base_widgets import BasePanelWidget
 
 

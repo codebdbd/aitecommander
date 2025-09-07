@@ -8,16 +8,18 @@ from typing import Any, Callable, Dict, List, Tuple, TypeAlias
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication, QMessageBox
+
 from app.controllers.system.window_controllers_setup import WindowControllersSetup
 from app.interfaces import MainWindowLike, SettingsLike
-from app.utils.ui.updates import suspend_updates
 from app.utils.metrics.startup_metrics import get_metrics
-from .window_ui_setup import WindowUISetup
-from .init_steps_config import BEFORE_DB_STEP_CONFIG, AFTER_DB_STEP_CONFIG
+from app.utils.ui.updates import suspend_updates
+
+from .init_db_gate import DbReadyGate
 from .init_diagnostics import DiagnosticsInstaller
 from .init_scheduler import AsyncStepRunner
 from .init_status import StatusUpdater
-from .init_db_gate import DbReadyGate
+from .init_steps_config import AFTER_DB_STEP_CONFIG, BEFORE_DB_STEP_CONFIG
+from .window_ui_setup import WindowUISetup
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +106,7 @@ class WindowInitializer:
             DiagnosticsInstaller(self.window, self._dump_top_levels).install_all()
         except (RuntimeError, AttributeError, ImportError) as e:
             # Диагностика не критична для работы приложения — логируем предупреждение и продолжаем
-            logger.warning("Diagnostics: failed to install one or more handlers: %s", e)
+            logger.warning("Diagnostics: failed to install one or more handlers: %s", e, exc_info=True)
 
     def _run_light_steps(self) -> None:
         """Выполняет лёгкие синхронные шаги, подключает сигналы и показывает окно."""
@@ -242,11 +244,11 @@ class WindowInitializer:
                                 try:
                                     self._metrics.stop("async:structure_load")
                                 except Exception:
-                                    pass
+                                    logger.debug("WindowInitializer: failed to stop 'async:structure_load' metric", exc_info=False)
                                 try:
                                     sb.structure_loaded.disconnect(_on_structure_loaded_once)
                                 except Exception:
-                                    pass
+                                    logger.debug("WindowInitializer: failed to disconnect temporary structure_loaded slot", exc_info=False)
                             sb.structure_loaded.connect(_on_structure_loaded_once)
                     except Exception:
                         logger.debug("WindowInitializer: failed to wire metrics to structure_loaded", exc_info=False)

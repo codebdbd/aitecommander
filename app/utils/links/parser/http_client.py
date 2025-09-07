@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import time
-from typing import Dict, Optional
 import atexit
 import threading
+import time
+from typing import Dict, Optional
 
 import requests
 from requests.exceptions import RequestException

@@ -61,7 +61,7 @@ class StructureMenuBuilder:
             return
         typ, id_ = t
         if typ not in (StructureItemType.SECTION, StructureItemType.CATEGORY):
-            logger.warning(f"Unknown item type in context menu: {typ}")
+            logger.warning("Unknown item type in context menu: %s", typ)
             return
 
         if typ == StructureItemType.SECTION:
@@ -212,7 +212,7 @@ class StructureMenuBuilder:
             # Меняем подпись, если выделено больше одной категории
             selected_count = len(self._get_selected_category_nodes())
             if selected_count > 1:
-                action_text = "Удлаить выбранное"
+                action_text = "Удалить выбранное"
         except Exception:
             logger.exception("[CtxMenu] Не удалось вычислить количество выделенных категорий")
 

@@ -5,6 +5,7 @@ import logging
 from typing import Dict, List
 
 from PyQt6.QtCore import Qt
+
 from app.utils.ui.updates import suspend_updates
 
 
@@ -15,7 +16,8 @@ class PopulationManagerMixin:
         """Заполняет таблицу данными ссылок с инкрементальным обновлением."""
         if not isinstance(links, list):
             logging.warning(
-                f"[LinksTableView] Ожидался список ссылок, получен {type(links)}"
+                "[LinksTableView] Ожидался список ссылок, получен %s",
+                type(links),
             )
             return
 
@@ -26,6 +28,7 @@ class PopulationManagerMixin:
                 sel = self.selectionModel()
                 current_selection = [i.row() for i in sel.selectedRows()] if sel else []
             except Exception:
+                logging.getLogger(__name__).debug("populate: failed to capture selection", exc_info=True)
                 current_selection = []
             current_scroll_pos = self.verticalScrollBar().value()
 
@@ -37,6 +40,7 @@ class PopulationManagerMixin:
                     header.sortIndicatorOrder(),
                 )
             except Exception:
+                logging.getLogger(__name__).debug("populate: failed to read sort state; using defaults", exc_info=True)
                 sort_col, sort_order = -1, Qt.SortOrder.AscendingOrder
 
             # Если режим изменился, делаем полное обновление
@@ -55,7 +59,7 @@ class PopulationManagerMixin:
                     if hasattr(self, "blockSignals"):
                         self.blockSignals(True)
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).debug("_restore_ui_state: sortByColumn failed", exc_info=True)
                 try:
                     header = self.horizontalHeader()
                     if header is not None and hasattr(header, "blockSignals"):
@@ -120,7 +124,7 @@ class PopulationManagerMixin:
                     try:
                         removed_ok = bool(self._remove_row(row))
                     except Exception as e:
-                        logging.debug(f"[LinksTableView] _remove_row исключение: {e}")
+                        logging.debug("[LinksTableView] _remove_row исключение: %s", e, exc_info=True)
                         removed_ok = False
                     if not removed_ok:
                         logging.warning(
@@ -157,11 +161,13 @@ class PopulationManagerMixin:
                     if hasattr(self, "rebuild_cache_from_items"):
                         self.rebuild_cache_from_items()
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).debug("populate: rebuild_cache_from_items failed after incremental ops", exc_info=True)
 
             except Exception as e:
                 logging.error(
-                    f"[LinksTableView] Ошибка при инкрементальном обновлении: {e}"
+                    "[LinksTableView] Ошибка при инкрементальном обновлении: %s",
+                    e,
+                    exc_info=True,
                 )
                 # В случае ошибки делаем полное обновление
                 self._full_populate(links, mode)
@@ -172,12 +178,12 @@ class PopulationManagerMixin:
                     if header is not None and hasattr(header, "blockSignals"):
                         header.blockSignals(False)
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).debug("populate: failed to unblock header signals", exc_info=True)
                 try:
                     if hasattr(self, "blockSignals"):
                         self.blockSignals(False)
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).debug("populate: failed to unblock table signals", exc_info=True)
                 self._restore_ui_state(
                     current_selection, current_scroll_pos, sort_col, sort_order
                 )
@@ -187,7 +193,9 @@ class PopulationManagerMixin:
                         self.table_populated.emit()
                 except Exception as e:
                     logging.debug(
-                        f"[LinksTableView] Не удалось эмитить table_populated после populate: {e}"
+                        "[LinksTableView] Не удалось эмитить table_populated после populate: %s",
+                        e,
+                        exc_info=True,
                     )
 
     def _full_populate(self, links: List[Dict], mode: str):
@@ -204,7 +212,7 @@ class PopulationManagerMixin:
                 self.rebuild_cache_from_items()
 
         except Exception as e:
-            logging.error(f"[LinksTableView] Ошибка при полном обновлении таблицы: {e}")
+            logging.error("[LinksTableView] Ошибка при полном обновлении таблицы: %s", e, exc_info=True)
         finally:
             # Сообщаем подписчикам, что таблица полностью обновлена
             try:
@@ -212,7 +220,9 @@ class PopulationManagerMixin:
                     self.table_populated.emit()
             except Exception as e:
                 logging.debug(
-                    f"[LinksTableView] Не удалось эмитить table_populated после _full_populate: {e}"
+                    "[LinksTableView] Не удалось эмитить table_populated после _full_populate: %s",
+                    e,
+                    exc_info=True,
                 )
 
     def _restore_ui_state(
@@ -244,7 +254,9 @@ class PopulationManagerMixin:
                         self.rebuild_cache_from_items()
                 except Exception as e:
                     logging.warning(
-                        f"[LinksTableView] Не удалось перестроить кэш после сортировки: {e}"
+                        "[LinksTableView] Не удалось перестроить кэш после сортировки: %s",
+                        e,
+                        exc_info=True,
                     )
 
             # Убрано автоматическое восстановление выделения строк
@@ -256,4 +268,4 @@ class PopulationManagerMixin:
             self.viewport().update()
 
         except Exception as e:
-            logging.error(f"[LinksTableView] Ошибка восстановления UI состояния: {e}")
+            logging.error("[LinksTableView] Ошибка восстановления UI состояния: %s", e, exc_info=True)

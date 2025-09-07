@@ -2,6 +2,7 @@
 Миксин для выбора и установки пользовательской иконки в LinkDialogHandlers.
 """
 from PyQt6.QtGui import QIcon
+
 from app.utils.ui.icon.selection import choose_icon_and_copy
 
 

@@ -1,7 +1,7 @@
 # app/controllers/ui/category_tiles_controller.py
 
 import logging
-from typing import Optional, Protocol, List, Dict
+from typing import Dict, List, Optional, Protocol
 
 logger = logging.getLogger(__name__)
 

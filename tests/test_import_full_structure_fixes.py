@@ -8,8 +8,7 @@ import copy
 import threading
 import time
 import unittest
-from unittest.mock import patch, MagicMock, PropertyMock
-
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from app.models.db import Database
 

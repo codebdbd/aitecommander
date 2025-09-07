@@ -32,10 +32,12 @@ class ImportService:
 
             if logger and category_id:
                 logger.info(
-                    f"Создана категория для импорта {category_id}: {category_data.get('name', 'Без названия')}"
+                    "Создана категория для импорта %s: %s",
+                    category_id,
+                    category_data.get('name', 'Без названия'),
                 )
             return category_id
         except Exception as e:
             if logger:
-                logger.error(f"Ошибка создания категории для импорта: {e}")
+                logger.error("Ошибка создания категории для импорта: %s", e)
             return None

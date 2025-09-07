@@ -1,5 +1,6 @@
-import pytest
 from types import SimpleNamespace
+
+import pytest
 
 from app.controllers.ui.links.handlers import LinksUIHandlers, SetupError
 

@@ -79,7 +79,9 @@ def enable(widget: QWidget) -> None:
 
     handler = getattr(widget, _ATTR_HANDLER, None)
     if handler is None:
-        handler = (lambda pos, w=widget: _show_patched_menu(w, pos))
+        def _handler(pos, w=widget):
+            _show_patched_menu(w, pos)
+        handler = _handler
         setattr(widget, _ATTR_HANDLER, handler)
 
     # На всякий случай пробуем убрать возможную прежнюю связь с тем же handler,

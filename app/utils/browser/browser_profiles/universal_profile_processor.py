@@ -66,17 +66,27 @@ class UniversalProfileProcessor:
         """
         # Логируем сразу при входе в метод
         logger.debug(
-            f"ENTER process_profile_links: browser_key={browser_key}, selected_profiles_count={len(selected_profiles)}"
+            "ENTER process_profile_links: browser_key=%s, selected_profiles_count=%s",
+            browser_key,
+            len(selected_profiles),
         )
         # Логируем входные параметры для отладки
         logger.debug(
-            f"process_profile_links called with: name='{name}', url='{url}', link_type='{link_type}', "
-            f"browser_key='{browser_key}', selected_profiles_count={len(selected_profiles)}, "
-            f"existing_link={'present' if existing_link else 'None'}, user_args={'present' if user_args else 'None'}"
+            "process_profile_links called with: name='%s', url='%s', link_type='%s', browser_key='%s', selected_profiles_count=%s, existing_link=%s, user_args=%s",
+            name,
+            url,
+            link_type,
+            browser_key,
+            len(selected_profiles),
+            'present' if existing_link else 'None',
+            'present' if user_args else 'None',
         )
 
         logger.debug(
-            f"process_profile_links: name={name}, browser_key={browser_key}, selected_profiles count={len(selected_profiles)}"
+            "process_profile_links: name=%s, browser_key=%s, selected_profiles count=%s",
+            name,
+            browser_key,
+            len(selected_profiles),
         )
 
         if not selected_profiles:
@@ -85,13 +95,15 @@ class UniversalProfileProcessor:
 
         finder = self.profile_manager.finders.get(browser_key)
         if not finder:
-            logger.error(f"Неизвестный браузер: {browser_key}")
+            logger.error("Неизвестный браузер: %s", browser_key)
             return []
 
         logger.info(
-            f"Обработка {len(selected_profiles)} профилей {get_browser_display_name(finder, browser_key)}"
+            "Обработка %s профилей %s",
+            len(selected_profiles),
+            get_browser_display_name(finder, browser_key),
         )
-        logger.debug(f"Selected profiles: {selected_profiles}")
+        logger.debug("Selected profiles: %s", selected_profiles)
 
         # Извлекаем базовое имя
         base_name = extract_base_name_from_profile_name(name)
@@ -131,26 +143,28 @@ class UniversalProfileProcessor:
 
         for profile in selected_profiles:
             try:
-                logger.debug(f"Processing profile: {profile}")
+                logger.debug("Processing profile: %s", profile)
 
                 # Форматируем имя профиля
                 prof_name = self._format_profile_name(finder, profile)
-                logger.debug(f"Formatted profile name: {prof_name}")
+                logger.debug("Formatted profile name: %s", prof_name)
 
                 # Определяем аргументы: пользовательские или автогенерированные
                 if user_args is not None:
                     # Используем пользовательские аргументы
                     prof_args = user_args
-                    logger.debug(f"Using user-provided args: '{prof_args}'")
+                    logger.debug("Using user-provided args: '%s'", prof_args)
                 else:
                     # Генерируем аргументы через finder
                     prof_args = finder.get_profile_argument(profile)
-                    logger.debug(f"Using auto-generated args: '{prof_args}'")
+                    logger.debug("Using auto-generated args: '%s'", prof_args)
 
                 # Проверяем, что аргументы не пустые
                 if not prof_args:
                     logger.info(
-                        f"Пропускаем профиль '{prof_name}' — пустые аргументы (browser={browser_key})"
+                        "Пропускаем профиль '%s' — пустые аргументы (browser=%s)",
+                        prof_name,
+                        browser_key,
                     )
                     continue
 
@@ -168,8 +182,11 @@ class UniversalProfileProcessor:
                     )
 
                 logger.debug(
-                    f"Profile check: prof_args='{prof_args}', existing_args='{existing_args}', "
-                    f"is_edit={is_edit}, is_current={is_current}"
+                    "Profile check: prof_args='%s', existing_args='%s', is_edit=%s, is_current=%s",
+                    prof_args,
+                    existing_args,
+                    is_edit,
+                    is_current,
                 )
 
                 # Генерируем имя ссылки
@@ -178,7 +195,9 @@ class UniversalProfileProcessor:
                 )
 
                 logger.debug(
-                    f"Generated link_name='{link_name}' for profile '{prof_name}'"
+                    "Generated link_name='%s' for profile '%s'",
+                    link_name,
+                    prof_name,
                 )
 
                 # Проверяем на дубликаты
@@ -189,11 +208,17 @@ class UniversalProfileProcessor:
                     # Это профиль другого браузера при редактировании - пропускаем проверку дубликатов
                     skip_duplicate_check = True
                     logger.debug(
-                        f"Пропускаем проверку дубликатов для профиля другого браузера: {prof_name}"
+                        "Пропускаем проверку дубликатов для профиля другого браузера: %s",
+                        prof_name,
                     )
 
                 logger.debug(
-                    f"Проверка дубликатов для {link_name}: skip={skip_duplicate_check}, url={url}, type={link_type}, args={prof_args}"
+                    "Проверка дубликатов для %s: skip=%s, url=%s, type=%s, args=%s",
+                    link_name,
+                    skip_duplicate_check,
+                    url,
+                    link_type,
+                    prof_args,
                 )
                 if skip_duplicate_check:
                     duplicate_check_result = False
@@ -206,11 +231,14 @@ class UniversalProfileProcessor:
                         link_type,
                         prof_args,
                     ) in existing_keys
-                logger.debug(f"Результат проверки дубликатов: {duplicate_check_result}")
+                logger.debug("Результат проверки дубликатов: %s", duplicate_check_result)
 
                 if not skip_duplicate_check and duplicate_check_result:
                     logger.info(
-                        f"Пропускаем дубликат: name='{link_name}', args='{prof_args}' (browser={browser_key})"
+                        "Пропускаем дубликат: name='%s', args='%s' (browser=%s)",
+                        link_name,
+                        prof_args,
+                        browser_key,
                     )
                     continue
 
@@ -230,14 +258,16 @@ class UniversalProfileProcessor:
                 )
 
                 result_links.append(link_record)
-                logger.debug(f"Создана ссылка: {link_name} с аргументами {prof_args}")
+                logger.debug("Создана ссылка: %s с аргументами %s", link_name, prof_args)
 
             except Exception as e:
-                logger.error(f"Ошибка при обработке профиля {profile}: {e}")
+                logger.error("Ошибка при обработке профиля %s: %s", profile, e, exc_info=True)
                 continue
 
         logger.info(
-            f"Создано {len(result_links)} ссылок для {get_browser_display_name(finder, browser_key)}"
+            "Создано %s ссылок для %s",
+            len(result_links),
+            get_browser_display_name(finder, browser_key),
         )
         return result_links
 
@@ -264,28 +294,34 @@ class UniversalProfileProcessor:
     ) -> str:
         """Генерирует имя ссылки для профиля."""
         logger.debug(
-            f"_generate_link_name: base_name='{base_name}', profile_name='{profile_name}', "
-            f"is_single_profile={is_single_profile}, is_current_profile={is_current_profile}, "
-            f"original_name='{original_name}'"
+            "_generate_link_name: base_name='%s', profile_name='%s', is_single_profile=%s, is_current_profile=%s, original_name='%s'",
+            base_name,
+            profile_name,
+            is_single_profile,
+            is_current_profile,
+            original_name,
         )
 
         # При редактировании текущего профиля всегда сохраняем пользовательское имя
         if is_current_profile:
             logger.debug(
-                f"_generate_link_name: returning original_name='{original_name}' (current profile)"
+                "_generate_link_name: returning original_name='%s' (current profile)",
+                original_name,
             )
             return original_name
 
         # Для новых ссылок используем стандартную логику генерации имени
         if profile_name == "Chrome" or profile_name == "Firefox":
             logger.debug(
-                f"_generate_link_name: returning base_name='{base_name}' (default browser)"
+                "_generate_link_name: returning base_name='%s' (default browser)",
+                base_name,
             )
             return base_name
 
         generated_name = f"{base_name} ({profile_name})"
         logger.debug(
-            f"_generate_link_name: returning generated_name='{generated_name}' (new profile)"
+            "_generate_link_name: returning generated_name='%s' (new profile)",
+            generated_name,
         )
         return generated_name
 
@@ -299,31 +335,31 @@ class UniversalProfileProcessor:
         Returns:
             tuple: (browser_key, [profile_data]) или (None, [])
         """
-        logger.debug(f"parse_existing_profile: link={link}")
+        logger.debug("parse_existing_profile: link=%s", link)
 
         if not (link.get("id") and link.get("type") == "web" and link.get("args")):
             logger.debug("parse_existing_profile: missing required fields")
             return None, []
 
         args = link.get("args", "")
-        logger.debug(f"parse_existing_profile: args={args}")
+        logger.debug("parse_existing_profile: args=%s", args)
 
         # Определяем браузер по аргументам
         browser_key = self.profile_manager.detect_browser_from_args(args)
-        logger.debug(f"parse_existing_profile: detected browser_key={browser_key}")
+        logger.debug("parse_existing_profile: detected browser_key=%s", browser_key)
 
         if not browser_key:
-            logger.debug(f"Не удалось определить браузер по аргументам: {args}")
+            logger.debug("Не удалось определить браузер по аргументам: %s", args)
             return None, []
 
         finder = self.profile_manager.finders[browser_key]
-        logger.debug(f"parse_existing_profile: finder={finder}")
+        logger.debug("parse_existing_profile: finder=%s", finder)
 
         parsed_profile = finder.parse_profile_from_args(args)
-        logger.debug(f"parse_existing_profile: parsed_profile={parsed_profile}")
+        logger.debug("parse_existing_profile: parsed_profile=%s", parsed_profile)
 
         if parsed_profile:
-            logger.debug(f"Определен профиль {browser_key}: {parsed_profile}")
+            logger.debug("Определен профиль %s: %s", browser_key, parsed_profile)
             return browser_key, [parsed_profile]
 
         logger.debug("parse_existing_profile: could not parse profile")

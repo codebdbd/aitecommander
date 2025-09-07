@@ -5,15 +5,15 @@
 
 import logging
 
-from .link_dialog_signals import LinkDialogSignals
-from .handlers_mixins.icons_mixin import IconsMixin
-from .handlers_mixins.profiles_mixin import ProfilesMixin
 from .handlers_mixins.file_dialog_mixin import FileDialogMixin
-from .handlers_mixins.type_change_mixin import TypeChangeMixin
-from .handlers_mixins.hierarchy_mixin import HierarchyMixin
 from .handlers_mixins.form_data_mixin import FormDataMixin
-from .handlers_mixins.validation_mixin import ValidationMixin
+from .handlers_mixins.hierarchy_mixin import HierarchyMixin
+from .handlers_mixins.icons_mixin import IconsMixin
 from .handlers_mixins.link_processing_mixin import LinkProcessingMixin
+from .handlers_mixins.profiles_mixin import ProfilesMixin
+from .handlers_mixins.type_change_mixin import TypeChangeMixin
+from .handlers_mixins.validation_mixin import ValidationMixin
+from .link_dialog_signals import LinkDialogSignals
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class LinkDialogHandlers(
         try:
             url_widget.editingFinished.connect(self._trigger_link_processing)
         except (AttributeError, RuntimeError) as e:
-            logger.warning(f"Ошибка подключения сигнала editingFinished для url_widget: {e}")
+            logger.warning("Ошибка подключения сигнала editingFinished для url_widget: %s", e, exc_info=True)
 
         # Кнопки
         self.dialog._get_browse_btn().clicked.connect(self._on_browse)
@@ -103,7 +103,7 @@ class LinkDialogHandlers(
             if getattr(self.dialog, "_processing_timer", None):
                 self.dialog._processing_timer.stop()
         except (AttributeError, RuntimeError):
-            pass
+            logger.debug("cancel_processing: failed to stop processing timer", exc_info=True)
 
         # Отмена активного воркера
         if self._active_worker:
@@ -112,14 +112,14 @@ class LinkDialogHandlers(
                 try:
                     self._active_worker.signals.finished.disconnect()
                 except (AttributeError, RuntimeError):
-                    pass
+                    logger.debug("cancel_processing: failed to disconnect worker finished signal", exc_info=True)
                 try:
                     self._active_worker.signals.error.disconnect()
                 except (AttributeError, RuntimeError):
-                    pass
+                    logger.debug("cancel_processing: failed to disconnect worker error signal", exc_info=True)
                 self._active_worker.cancel()
             except (AttributeError, RuntimeError) as e:
-                logger.debug(f"cancel_processing: ошибка отмены воркера: {e}")
+                logger.debug("cancel_processing: ошибка отмены воркера: %s", e, exc_info=True)
             finally:
                 self._active_worker = None
 

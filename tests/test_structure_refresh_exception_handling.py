@@ -1,9 +1,13 @@
 import logging
-import pytest
 from types import SimpleNamespace
 
+import pytest
+
+from app.controllers.system.window_controllers_setup import (
+    SetupError,
+    _on_structure_changed_schedule_refresh,
+)
 from app.controllers.ui.top_panels_controller import TopPanelsController
-from app.controllers.system.window_controllers_setup import _on_structure_changed_schedule_refresh, SetupError
 
 
 class TimerStubBase:

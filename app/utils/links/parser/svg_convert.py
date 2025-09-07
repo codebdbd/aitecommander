@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QBuffer, QByteArray, QIODevice, QSize, QRectF
+from PyQt6.QtCore import QBuffer, QByteArray, QIODevice, QRectF, QSize
 from PyQt6.QtGui import QImage, QPainter
 from PyQt6.QtSvg import QSvgRenderer
+
 from .constants import TARGET_SIZE
 
 

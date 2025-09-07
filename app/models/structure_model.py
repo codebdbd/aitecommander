@@ -38,7 +38,7 @@ class StructureModel:
         try:
             return self.upsert_sphere(data)
         except Exception as e:
-            self.logger.error(f"Ошибка создания сферы: {e}")
+            self.logger.error("Ошибка создания сферы: %s", e, exc_info=True)
             return None
 
     def update_sphere(self, sphere_id: int, data: Dict[str, Any]) -> bool:
@@ -49,7 +49,7 @@ class StructureModel:
             self.upsert_sphere(payload)
             return True
         except Exception as e:
-            self.logger.error(f"Ошибка обновления сферы {sphere_id}: {e}")
+            self.logger.error("Ошибка обновления сферы %s: %s", sphere_id, e, exc_info=True)
             return False
 
     def get_sections(self, sphere_id: int) -> List[Dict[str, Any]]:
@@ -94,20 +94,24 @@ class StructureModel:
                     sphere_id, section_id = hierarchy_data[0], hierarchy_data[1]
                 else:
                     self.logger.warning(
-                        f"Некорректный формат иерархии для категории {category_id}: {type(hierarchy_data)}"
+                        "Некорректный формат иерархии для категории %s: %s",
+                        category_id,
+                        type(hierarchy_data),
                     )
                     return None
 
             # Базовая проверка типов/значений
             if sphere_id is None or section_id is None:
                 self.logger.warning(
-                    f"Отсутствуют ключи sphere_id/section_id в иерархии категории {category_id}: {hierarchy_data}"
+                    "Отсутствуют ключи sphere_id/section_id в иерархии категории %s: %s",
+                    category_id,
+                    hierarchy_data,
                 )
                 return None
 
             return {"sphere_id": sphere_id, "section_id": section_id}
         except Exception as e:
-            self.logger.error(f"Ошибка обработки иерархии категории {category_id}: {e}")
+            self.logger.error("Ошибка обработки иерархии категории %s: %s", category_id, e, exc_info=True)
             return None
 
     def upsert_section(self, data: Dict[str, Any]) -> int:
@@ -134,7 +138,7 @@ class StructureModel:
         try:
             return self.upsert_section(data)
         except Exception as e:
-            self.logger.error(f"Ошибка создания раздела: {e}")
+            self.logger.error("Ошибка создания раздела: %s", e, exc_info=True)
             return None
 
     def update_section(self, section_id: int, data: Dict[str, Any]) -> bool:
@@ -145,7 +149,7 @@ class StructureModel:
             self.upsert_section(payload)
             return True
         except Exception as e:
-            self.logger.error(f"Ошибка обновления раздела {section_id}: {e}")
+            self.logger.error("Ошибка обновления раздела %s: %s", section_id, e, exc_info=True)
             return False
 
     def update_category(self, category_id: int, data: Dict[str, Any]) -> bool:
@@ -156,7 +160,7 @@ class StructureModel:
             self.upsert_category(payload)
             return True
         except Exception as e:
-            self.logger.error(f"Ошибка обновления категории {category_id}: {e}")
+            self.logger.error("Ошибка обновления категории %s: %s", category_id, e, exc_info=True)
             return False
 
     def get_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
@@ -176,7 +180,7 @@ class StructureModel:
                 self.db.commit()
             return True
         except Exception as e:
-            self.logger.error(f"Ошибка удаления раздела {section_id}: {e}")
+            self.logger.error("Ошибка удаления раздела %s: %s", section_id, e, exc_info=True)
             return False
 
     def delete_category(self, category_id: int) -> bool:
@@ -188,7 +192,7 @@ class StructureModel:
                 self.db.commit()
             return True
         except Exception as e:
-            self.logger.error(f"Ошибка удаления категории {category_id}: {e}")
+            self.logger.error("Ошибка удаления категории %s: %s", category_id, e, exc_info=True)
             return False
 
     def get_first_category_id(self) -> Optional[int]:
@@ -197,7 +201,7 @@ class StructureModel:
             result = self.db.categories.get_first_category_id()
             return result if result else None
         except Exception as e:
-            self.logger.error(f"Ошибка получения первой категории: {e}")
+            self.logger.error("Ошибка получения первой категории: %s", e, exc_info=True)
             return None
 
     def get_categories_batch(self, section_ids: List[int]) -> List[Dict[str, Any]]:
@@ -211,7 +215,10 @@ class StructureModel:
             return categories_raw or []
         except Exception as e:
             self.logger.error(
-                f"Ошибка получения категорий для разделов {section_ids}: {e}"
+                "Ошибка получения категорий для разделов %s: %s",
+                section_ids,
+                e,
+                exc_info=True,
             )
             return []
 
@@ -248,7 +255,7 @@ class StructureModel:
                 self.db.commit()
             return cat_id
         except Exception as e:
-            self.logger.error(f"Ошибка создания категории: {e}")
+            self.logger.error("Ошибка создания категории: %s", e, exc_info=True)
             return None
 
     def create_categories_bulk(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -261,7 +268,7 @@ class StructureModel:
         try:
             return self.db.categories.insert_categories_bulk(items or []) or []
         except Exception as e:
-            self.logger.error(f"Ошибка пакетного создания категорий: {e}")
+            self.logger.error("Ошибка пакетного создания категорий: %s", e, exc_info=True)
             return []
 
     def create_link(self, link_data: Dict[str, Any]) -> Optional[int]:
@@ -275,7 +282,7 @@ class StructureModel:
             # Прямое создание через БД для избежания циклических зависимостей
             return self.db.links.upsert_link(link_data)
         except Exception as e:
-            self.logger.error(f"Ошибка создания ссылки: {e}")
+            self.logger.error("Ошибка создания ссылки: %s", e, exc_info=True)
             return None
 
     def get_links(self, category_id: int) -> List[Dict[str, Any]]:
@@ -285,7 +292,10 @@ class StructureModel:
             return links_raw or []
         except Exception as e:
             self.logger.error(
-                f"Ошибка получения ссылок для категории {category_id}: {e}"
+                "Ошибка получения ссылок для категории %s: %s",
+                category_id,
+                e,
+                exc_info=True,
             )
             return []
 
@@ -295,7 +305,10 @@ class StructureModel:
             return self.db.links.count_links_by_category(category_id)
         except Exception as e:
             self.logger.error(
-                f"Ошибка подсчета ссылок для категории {category_id}: {e}"
+                "Ошибка подсчета ссылок для категории %s: %s",
+                category_id,
+                e,
+                exc_info=True,
             )
             return 0
 
@@ -308,7 +321,10 @@ class StructureModel:
             return self.db.links.count_links_by_categories(category_ids or [])
         except Exception as e:
             self.logger.error(
-                f"Ошибка пакетного подсчёта ссылок для категорий {category_ids}: {e}"
+                "Ошибка пакетного подсчёта ссылок для категорий %s: %s",
+                category_ids,
+                e,
+                exc_info=True,
             )
             return {}
 
@@ -322,6 +338,10 @@ class StructureModel:
             )
         except Exception as e:
             self.logger.error(
-                f"Ошибка проверки дубликата категории '{category_name}' в разделе {section_id}: {e}"
+                "Ошибка проверки дубликата категории '%s' в разделе %s: %s",
+                category_name,
+                section_id,
+                e,
+                exc_info=True,
             )
             raise

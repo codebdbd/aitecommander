@@ -1,7 +1,7 @@
 import time
 
-from app.utils.links.parser.icon_candidates import parse_icon_size
 from app.utils.links.parser import icon_downloader as icon_dl
+from app.utils.links.parser.icon_candidates import parse_icon_size
 
 
 def test_parse_icon_size_multiple_and_any():

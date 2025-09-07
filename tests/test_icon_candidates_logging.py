@@ -1,5 +1,6 @@
-import types
 import logging
+import types
+
 from bs4 import BeautifulSoup
 
 from app.utils.links.parser import icon_candidates as ic
@@ -93,7 +94,8 @@ def test_logs_warning_when_manifest_fetch_fails_async(monkeypatch, caplog):
 
     monkeypatch.setattr(ic, "http_request", fake_http_request)
     # Force async path by providing on_manifest_icons
-    on_manifest_icons = lambda urls: None
+    def on_manifest_icons(urls):
+        return None
 
     # Make manifest executor run tasks synchronously
     monkeypatch.setattr(ic, "_get_manifest_executor", lambda: _DummySyncExecutor())
@@ -115,7 +117,8 @@ def test_logs_warning_when_manifest_json_parse_fails_async(monkeypatch, caplog):
         return DummyResp(True, "{bad json}")
 
     monkeypatch.setattr(ic, "http_request", fake_http_request)
-    on_manifest_icons = lambda urls: None
+    def on_manifest_icons(urls):
+        return None
     monkeypatch.setattr(ic, "_get_manifest_executor", lambda: _DummySyncExecutor())
 
     caplog.set_level(logging.WARNING)

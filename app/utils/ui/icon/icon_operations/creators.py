@@ -25,10 +25,10 @@ from app.utils.ui.qt.gui_exec import is_gui_thread, run_in_gui_thread_async
 
 from ..cache_manager import (
     get_icon,
-    set_icon,
     record_actual_miss,
     record_disk_load,
     record_not_found,
+    set_icon,
 )
 from ..path_service import (
     get_icon_path,

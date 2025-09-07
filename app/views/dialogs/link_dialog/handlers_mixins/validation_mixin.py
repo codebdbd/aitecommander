@@ -1,8 +1,8 @@
 """
 Миксин для валидации и обработки ошибок сохранения формы LinkDialog.
 """
-from typing import Any, Dict, List, Tuple
 import logging
+from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 

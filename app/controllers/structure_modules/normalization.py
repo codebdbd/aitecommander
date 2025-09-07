@@ -52,12 +52,12 @@ def normalize_row(row: Any, logger: logging.Logger = None) -> Dict[str, Any]:
         try:
             return row._asdict()
         except AttributeError as e:
-            active_logger.warning(f"Ошибка при вызове _asdict() для namedtuple: {e}")
+            active_logger.warning("Ошибка при вызове _asdict() для namedtuple: %s", e)
             # Fallback к ручному созданию словаря
             try:
                 return dict(zip(row._fields, row))
             except (AttributeError, TypeError) as fallback_e:
-                active_logger.error(f"Не удалось обработать namedtuple: {fallback_e}")
+                active_logger.error("Не удалось обработать namedtuple: %s", fallback_e)
                 return {}
 
     # sqlite3.Row или другие объекты с keys() и поддержкой итерации
@@ -69,12 +69,15 @@ def normalize_row(row: Any, logger: logging.Logger = None) -> Dict[str, Any]:
                 return dict(row)
             else:
                 active_logger.warning(
-                    f"Метод keys() объекта {type(row)} не возвращает итерируемый объект"
+                    "Метод keys() объекта %s не возвращает итерируемый объект",
+                    type(row),
                 )
                 return {}
         except (TypeError, ValueError, AttributeError) as e:
             active_logger.warning(
-                f"Ошибка при обращении к keys() объекта {type(row)}: {e}"
+                "Ошибка при обращении к keys() объекта %s: %s",
+                type(row),
+                e,
             )
 
     # Проверяем, является ли объект итерируемым парами ключ-значение
@@ -92,13 +95,15 @@ def normalize_row(row: Any, logger: logging.Logger = None) -> Dict[str, Any]:
             return {key: row[key] for key in row.keys()}
         except (KeyError, TypeError, AttributeError) as e:
             active_logger.warning(
-                f"Ошибка при ручном создании словаря из объекта {type(row)}: {e}"
+                "Ошибка при ручном создании словаря из объекта %s: %s",
+                type(row),
+                e,
             )
 
     # Если ничего не сработало
     active_logger.error(
-        f"Не удалось нормализовать объект типа {type(row).__name__}. "
-        "Поддерживаемые типы: dict, namedtuple, sqlite3.Row, объекты с методом keys()"
+        "Не удалось нормализовать объект типа %s. Поддерживаемые типы: dict, namedtuple, sqlite3.Row, объекты с методом keys()",
+        type(row).__name__,
     )
     return {}
 
@@ -128,7 +133,7 @@ def normalize_rows(rows: Any, logger: logging.Logger = None) -> List[Dict[str, A
             normalized = normalize_row(row, active_logger)
             result.append(normalized)
         except Exception as e:
-            active_logger.error(f"Ошибка при нормализации строки #{i}: {e}")
+            active_logger.error("Ошибка при нормализации строки #%s: %s", i, e)
             result.append({})  # Добавляем пустой словарь, чтобы сохранить индексы
 
     return result

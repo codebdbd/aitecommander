@@ -67,7 +67,7 @@ class LinkModel(DatabaseBase):
             )
             return [dict(row) for row in rows]
         except Exception as e:
-            logger.error(f"Ошибка получения ссылок для категории {category_id}: {e}")
+            logger.error("Ошибка получения ссылок для категории %s: %s", category_id, e, exc_info=True)
             raise
 
     def count_links_by_category(self, category_id: int) -> int:
@@ -80,7 +80,7 @@ class LinkModel(DatabaseBase):
             )
             return result[0] if result else 0
         except Exception as e:
-            logger.error(f"Ошибка подсчета ссылок для категории {category_id}: {e}")
+            logger.error("Ошибка подсчета ссылок для категории %s: %s", category_id, e, exc_info=True)
             return 0
 
     def count_links_by_categories(self, category_ids: List[int]) -> Dict[int, int]:
@@ -113,7 +113,7 @@ class LinkModel(DatabaseBase):
                     continue
             return result
         except Exception as e:
-            logger.error(f"Ошибка пакетного подсчета ссылок для категорий {category_ids}: {e}")
+            logger.error("Ошибка пакетного подсчета ссылок для категорий %s: %s", category_ids, e, exc_info=True)
             return {}
 
     def upsert_link(self, link: Dict[str, Any]) -> int:
@@ -232,8 +232,8 @@ class LinkModel(DatabaseBase):
                 )
                 if row:
                     return row[0] if isinstance(row, tuple) else row["id"]
-            except Exception:
-                pass
+            except Exception as ee:
+                logger.debug("upsert_link: failed to recover existing row after IntegrityError: %s", ee, exc_info=True)
             # Если не нашли — пробрасываем как DatabaseError, но без лишнего шума
             raise DatabaseError(f"UNIQUE constraint failed: {e}")
 
@@ -259,7 +259,7 @@ class LinkModel(DatabaseBase):
                 return dict(row)
             return None
         except Exception as e:
-            logger.error(f"Ошибка поиска ссылки по уникальным полям: {e}")
+            logger.error("Ошибка поиска ссылки по уникальным полям: %s", e, exc_info=True)
             return None
 
     def get_link_by_name_url_args(
@@ -280,7 +280,7 @@ class LinkModel(DatabaseBase):
                 return dict(row)
             return None
         except Exception as e:
-            logger.error(f"Ошибка поиска ссылки по (name,url,args): {e}")
+            logger.error("Ошибка поиска ссылки по (name,url,args): %s", e, exc_info=True)
             return None
 
     def get_all_links(self) -> List[Dict[str, Any]]:
@@ -294,7 +294,7 @@ class LinkModel(DatabaseBase):
             )
             return [dict(row) for row in rows]
         except Exception as e:
-            logger.error(f"Ошибка получения всех ссылок: {e}")
+            logger.error("Ошибка получения всех ссылок: %s", e, exc_info=True)
             raise
 
     def delete_link(self, link_id: int):
@@ -306,7 +306,7 @@ class LinkModel(DatabaseBase):
             
             logger.info(f"Удалена ссылка с ID {link_id}")
         except Exception as e:
-            logger.error(f"Ошибка удаления ссылки: {e}")
+            logger.error("Ошибка удаления ссылки: %s", e, exc_info=True)
             raise DatabaseError(f"Не удалось удалить ссылку: {e}")
 
     def update_link_last_used(self, link_id: int):
@@ -417,7 +417,7 @@ class LinkModel(DatabaseBase):
             )
             return [dict(row) for row in rows]
         except Exception as e:
-            logger.error(f"Ошибка получения недавних ссылок: {e}")
+            logger.error("Ошибка получения недавних ссылок: %s", e, exc_info=True)
             raise
 
     def get_favorite_links(self) -> List[Dict[str, Any]]:
@@ -430,7 +430,7 @@ class LinkModel(DatabaseBase):
             )
             return [dict(row) for row in rows]
         except Exception as e:
-            logger.error(f"Ошибка получения избранных ссылок: {e}")
+            logger.error("Ошибка получения избранных ссылок: %s", e, exc_info=True)
             raise
 
     def get_link_by_id(self, link_id: int) -> Optional[Dict[str, Any]]:
@@ -441,7 +441,7 @@ class LinkModel(DatabaseBase):
             )
             return dict(row) if row else None
         except Exception as e:
-            logger.error(f"Ошибка получения ссылки {link_id}: {e}")
+            logger.error("Ошибка получения ссылки %s: %s", link_id, e, exc_info=True)
             raise
 
     def update_link_order(self, link_ids: List[int]) -> bool:
@@ -454,7 +454,7 @@ class LinkModel(DatabaseBase):
                     )
             return True
         except Exception as e:
-            logger.error(f"Ошибка обновления порядка ссылок: {e}")
+            logger.error("Ошибка обновления порядка ссылок: %s", e, exc_info=True)
             return False
 
     def batch_update_links(self, links_data: List[Dict[str, Any]]) -> bool:
@@ -496,7 +496,7 @@ class LinkModel(DatabaseBase):
                     )
             return True
         except Exception as e:
-            logger.error(f"Ошибка пакетного обновления ссылок: {e}")
+            logger.error("Ошибка пакетного обновления ссылок: %s", e, exc_info=True)
             raise
 
     def get_next_position(self, category_id: int) -> int:
@@ -510,7 +510,7 @@ class LinkModel(DatabaseBase):
             return result[0] if result else 1
         except Exception as e:
             logger.error(
-                f"Ошибка получения следующей позиции для категории {category_id}: {e}"
+                "Ошибка получения следующей позиции для категории %s: %s", category_id, e, exc_info=True
             )
             return 1
 

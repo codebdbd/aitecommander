@@ -223,11 +223,11 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 cat_id = self._category_provider.get_current_category_id()
             self.link_operations.on_favorite_toggled(cat_id)
         except Exception as e:
-            logger.warning(f"Failed to emit signals after toggle favorite: {e}")
+            logger.warning("Failed to emit signals after toggle favorite: %s", e, exc_info=True)
 
     def _handle_error(self, error_msg: str):
         """Обработать ошибку."""
-        logger.error(f"LinksUIController error: {error_msg}")
+        logger.error("LinksUIController error: %s", error_msg)
         self._show_error(f"An error occurred: {error_msg}")
 
     def _on_link_updated(self, updated_link: Dict):
@@ -241,19 +241,19 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 updated_link.get("is_favorite", False),
             )
         except Exception:
-            pass
+            logger.debug("LinksUIHandlers._on_link_updated: failed to log diagnostics for updated link", exc_info=True)
 
         # Централизуем эмиссию сигналов в LinkOperationsController
         try:
             self.link_operations.on_link_updated(updated_link)
         except Exception as e:
-            logger.warning(f"Failed to emit signals after link update: {e}")
+            logger.warning("Failed to emit signals after link update: %s", e, exc_info=True)
 
     def _on_double_click(self, row: int, column: int):
         """Обработка двойного клика по строке."""
         link = self.controller.get_link_at(row)
         if not link:
-            logger.warning(f"No link found at row {row}")
+            logger.warning("No link found at row %s", row)
             return
 
         # Не открываем ссылку при двойном клике по колонке избранного (звезда)
@@ -291,7 +291,9 @@ class LinksUIHandlers(BaseLinksUIComponent):
 
             if link_name != visible_name:
                 logger.warning(
-                    f"MISMATCH! Link data does not match visible content! Expected: '{visible_name}', Received: '{link_name}'"
+                    "MISMATCH! Link data does not match visible content! Expected: '%s', Received: '%s'",
+                    visible_name,
+                    link_name,
                 )
 
             # Логируем переключение избранного с кратким контекстом
@@ -334,7 +336,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
             self.business.update_link_order(link_ids)
 
         except Exception as e:
-            logger.error(f"[Reorder] Error while handling links_reordered: {e}")
+            logger.error("[Reorder] Error while handling links_reordered: %s", e, exc_info=True)
         finally:
             self._handling_reorder = False
 

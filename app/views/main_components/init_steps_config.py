@@ -1,7 +1,7 @@
 # app/views/main_components/init_steps_config.py
 from __future__ import annotations
 
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 # Тип конфигурации шага: (label, method_name, optional_post_hook_name)
 StepConfig = Tuple[str, str, Optional[str]]

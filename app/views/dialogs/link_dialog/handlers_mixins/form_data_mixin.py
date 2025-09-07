@@ -1,8 +1,8 @@
 """
 Миксин для сбора данных формы LinkDialog.
 """
-from typing import Any, Dict
 import logging
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 

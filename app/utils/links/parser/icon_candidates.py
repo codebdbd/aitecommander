@@ -22,21 +22,21 @@ Testing/Utilities:
 
 from __future__ import annotations
 
-import json
-from collections.abc import Callable
-from dataclasses import dataclass
 import atexit
-import threading
-from concurrent.futures import ThreadPoolExecutor
-from urllib.parse import urljoin, urlparse
+import json
 import re
+import threading
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
-from .constants import FORMAT_RANK, TARGET_SIZE, logger
 from app.config_data import app_config
-from .http_client import http_request
 
+from .constants import FORMAT_RANK, TARGET_SIZE, logger
+from .http_client import http_request
 
 _MANIFEST_EXECUTOR = None
 _MANIFEST_EXECUTOR_GUARD = threading.Lock()
@@ -105,8 +105,10 @@ def _get_manifest_executor() -> ThreadPoolExecutor:
                         _MANIFEST_ATEXIT_HANDLER = None
 
                 # Capture the current executor instance to avoid referencing None after manual shutdown
-                handler = (lambda e=_MANIFEST_EXECUTOR: (e.shutdown(wait=False, cancel_futures=True) if e is not None else None))
-                _MANIFEST_ATEXIT_HANDLER = atexit.register(handler)
+                def _manifest_shutdown_handler(e: ThreadPoolExecutor | None = _MANIFEST_EXECUTOR) -> None:
+                    if e is not None:
+                        e.shutdown(wait=False, cancel_futures=True)
+                _MANIFEST_ATEXIT_HANDLER = atexit.register(_manifest_shutdown_handler)
             except Exception:
                 logger.debug("Failed to register atexit shutdown for manifest executor", exc_info=True)
     return _MANIFEST_EXECUTOR

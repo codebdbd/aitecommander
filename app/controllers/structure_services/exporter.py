@@ -62,7 +62,7 @@ class ExportService:
 
         except Exception as e:  # noqa: BLE001 – логируем и пробрасываем вверх совместимый ответ
             if logger:
-                logger.error(f"Ошибка экспорта данных структуры: {e}")
+                logger.error("Ошибка экспорта данных структуры: %s", e)
             return {
                 "spheres": [],
                 "sections": [],

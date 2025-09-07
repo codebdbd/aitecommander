@@ -10,29 +10,30 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Tuple, runtime_checkable
 
 from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import (
-    QWidget,
-    QComboBox,
-    QPushButton,
-    QButtonGroup,
-    QLineEdit,
-    QTextEdit,
-    QLabel,
-    QDialogButtonBox,
-    QCheckBox,
-)
 from PyQt6.QtGui import QColor
+from PyQt6.QtWidgets import (
+    QButtonGroup,
+    QCheckBox,
+    QComboBox,
+    QDialogButtonBox,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QTextEdit,
+    QWidget,
+)
 
 from app.config_data import app_config
+from app.models.link_type import LinkType
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
 from app.utils.ui.icon.validation import validate_config_for_icons
 from app.views.effects.neon_effect import NeonEventFilter
+
 from ..base_dialog import BaseDialog
 from .link_dialog_handlers import LinkDialogHandlers
 from .link_dialog_ui import LinkDialogUI
-from app.models.link_type import LinkType
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +202,7 @@ class LinkDialog(BaseDialog):
                 btn.installEventFilter(self._neon_link_filter)
         except (AttributeError, RuntimeError) as e:
             # Не блокируем диалог при ошибке эффекта
-            logger.warning(f"Ошибка установки neon эффекта на кнопки типов: {e}")
+            logger.warning("Ошибка установки neon эффекта на кнопки типов: %s", e, exc_info=True)
 
         # Обработчики событий
         self.handlers = LinkDialogHandlers(self)
@@ -242,8 +243,10 @@ class LinkDialog(BaseDialog):
     def _load_initial(self) -> None:
         """Загружает начальные данные в форму."""
         logger.debug(
-            f"Инициализация формы: link_type={self.link_type}, "
-            f"category_id={self.initial_category}, link_keys={list(self.link.keys())}"
+            "Инициализация формы: link_type=%s, category_id=%s, link_keys=%s",
+            self.link_type,
+            self.initial_category,
+            list(self.link.keys()),
         )
 
         # Установка типа ссылки
@@ -263,7 +266,7 @@ class LinkDialog(BaseDialog):
             "fav_chk": bool(self.link.get("is_favorite", False)),
         }
 
-        logger.debug(f"Исходные данные формы: {form_data}")
+        logger.debug("Исходные данные формы: %s", form_data)
 
         self.ui.set_form_data(form_data)
 
@@ -453,5 +456,5 @@ class LinkDialog(BaseDialog):
             if getattr(self, "_processing_timer", None):
                 self._processing_timer.deleteLater()
         except (AttributeError, RuntimeError) as e:
-            logger.debug(f"closeEvent: ошибка при deleteLater таймера: {e}")
+            logger.debug("closeEvent: ошибка при deleteLater таймера: %s", e, exc_info=True)
         super().closeEvent(event)

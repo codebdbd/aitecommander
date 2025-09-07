@@ -1,9 +1,13 @@
 import types
-import pytest
 from types import SimpleNamespace
 
+import pytest
+
 from app.controllers.system import window_controllers_setup as wcs
-from app.controllers.system.window_controllers_setup import setup_controllers, SetupError
+from app.controllers.system.window_controllers_setup import (
+    SetupError,
+    setup_controllers,
+)
 
 
 # Lightweight stubs to bypass heavy UI/Qt dependencies while exercising the DI path

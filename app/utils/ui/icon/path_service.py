@@ -12,8 +12,8 @@ from typing import Any, Optional, Tuple
 from app.config_data import app_config
 
 from .cache_manager import get_path, set_path
-from .negative_cache import negative_cache
 from .metrics import CacheMetrics
+from .negative_cache import negative_cache
 from .validation import (
     _validate_icon_name,
     is_valid_icon_file,

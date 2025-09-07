@@ -103,7 +103,7 @@ def process_item(
                 emit_signal=controller._emit_signal,
             )
         except Exception as e:
-            logger.error(f"Error in _upsert_and_emit: {e}")
+            logger.error("Error in _upsert_and_emit: %s", e)
             raise
 
     operation_name = "обновление" if is_update else "создание"

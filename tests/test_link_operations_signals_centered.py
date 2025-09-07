@@ -1,7 +1,9 @@
 import pytest
 from PyQt6.QtCore import QObject
 
-from app.controllers.ui.dialogs.link_operations_controller import LinkOperationsController
+from app.controllers.ui.dialogs.link_operations_controller import (
+    LinkOperationsController,
+)
 
 
 class DummyDb:

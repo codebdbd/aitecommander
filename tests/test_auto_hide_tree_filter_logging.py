@@ -1,9 +1,10 @@
 import logging
+
 import pytest
+from PyQt6.QtWidgets import QWidget
 
-from PyQt6.QtWidgets import QApplication, QWidget
-
-from app.views.main_components.window_ui_setup import _AutoHideTreeFilter, logger as module_logger
+from app.views.main_components.window_ui_setup import _AutoHideTreeFilter
+from app.views.main_components.window_ui_setup import logger as module_logger
 
 
 @pytest.mark.usefixtures("qapp")

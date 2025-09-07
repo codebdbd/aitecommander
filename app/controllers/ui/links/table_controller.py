@@ -1,8 +1,7 @@
 import logging
-from typing import Optional, Dict, Protocol, runtime_checkable
+from typing import Dict, Optional, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QObject
-
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +33,9 @@ class LinksTableController(QObject):
         """
         # В тестах main_window может быть SimpleNamespace — не передаём его как QObject-родителя
         try:
-            from PyQt6.QtCore import QObject as _QtQObject  # локальный импорт для безопасности
+            from PyQt6.QtCore import (
+                QObject as _QtQObject,  # локальный импорт для безопасности
+            )
             parent = main_window if isinstance(main_window, _QtQObject) else None
         except Exception:
             parent = None

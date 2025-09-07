@@ -21,7 +21,9 @@ class UtilityService:
         except Exception as e:
             if logger:
                 logger.error(
-                    f"Ошибка получения ссылок для категории {category_id}: {e}"
+                    "Ошибка получения ссылок для категории %s: %s",
+                    category_id,
+                    e,
                 )
             return []
 
@@ -44,7 +46,10 @@ class UtilityService:
         except Exception as e:
             if logger:
                 logger.error(
-                    f"Ошибка получения данных элемента {item_id} типа {item_type}: {e}"
+                    "Ошибка получения данных элемента %s типа %s: %s",
+                    item_id,
+                    item_type,
+                    e,
                 )
             return None
 
@@ -132,5 +137,5 @@ class UtilityService:
             return True
         except Exception as e:
             if logger:
-                logger.error(f"Ошибка обновления позиций в {table_name}: {e}")
+                logger.error("Ошибка обновления позиций в %s: %s", table_name, e)
             return False

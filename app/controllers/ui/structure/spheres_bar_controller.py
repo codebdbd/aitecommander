@@ -11,8 +11,8 @@ from app.config_data import app_config
 from app.utils.db.synchronization import signal_guard
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
-from app.views.effects.neon_effect import NeonEventFilter
 from app.utils.ui.updates import suspend_updates
+from app.views.effects.neon_effect import NeonEventFilter
 
 
 class SpheresBarController:

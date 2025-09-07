@@ -1,12 +1,11 @@
 # app/utils/system/undo/commands_links.py
 from __future__ import annotations
 
+import logging
 from typing import Dict, List, Optional
 
-import logging
-
-from app.services import LinksService
 from app.controllers.ui.undo.base import BaseCommand, log_command
+from app.services import LinksService
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +72,8 @@ class SaveLinkCmd(BaseCommand):
                             if links_business:
                                 try:
                                     links_business.load_links(cat_id)
-                                except Exception:
-                                    pass
+                                except Exception as exc:
+                                    logger.debug("SaveLinkCmd.redo: links_business.load_links(%s) failed: %s", cat_id, exc, exc_info=True)
             except Exception as exc:
                 logger.warning(
                     "SaveLinkCmd.redo: reload failed: %s",
@@ -117,8 +116,8 @@ class SaveLinkCmd(BaseCommand):
                         if links_business:
                             try:
                                 links_business.load_links(cat_id)
-                            except Exception:
-                                pass
+                            except Exception as exc:
+                                logger.debug("SaveLinkCmd.undo: links_business.load_links(%s) failed: %s", cat_id, exc, exc_info=True)
         except Exception as exc:
             logger.warning(
                 "SaveLinkCmd.undo: reload failed: %s",
@@ -174,9 +173,9 @@ class BatchDeleteLinksCmd(BaseCommand):
             for link in self.links:
                 try:
                     LinksService(self.db).create_or_update_link(link)
-                except Exception:
+                except Exception as exc:
                     # продолжаем попытки для остальных
-                    pass
+                    logger.debug("BatchDeleteLinksCmd.undo: per-link upsert failed for id=%s: %s", link.get("id"), exc, exc_info=True)
         # Обновление UI после восстановления (игнорируем подавление для Undo)
         try:
             cat_id = (self.links[0] if self.links else {}).get("category_id")

@@ -5,7 +5,7 @@ import logging
 from typing import Any
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy, QWidget
+from PyQt6.QtWidgets import QHBoxLayout
 
 from app.config_data import app_config
 

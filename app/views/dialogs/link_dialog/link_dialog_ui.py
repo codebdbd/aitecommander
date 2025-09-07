@@ -7,9 +7,8 @@
 import logging
 from typing import Any, Dict, List, Tuple
 
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtWidgets import (
-    QWidget,
     QButtonGroup,
     QCheckBox,
     QComboBox,
@@ -23,6 +22,7 @@ from PyQt6.QtWidgets import (
     QTextEdit,
     QToolButton,
     QVBoxLayout,
+    QWidget,
 )
 
 from app.config_data import app_config

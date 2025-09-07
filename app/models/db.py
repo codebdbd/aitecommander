@@ -110,7 +110,7 @@ class Database(DatabaseBase):
                 self.commit()
             logger.info("Схема базы данных инициализирована")
         except Exception as e:
-            logger.error(f"Ошибка инициализации схемы: {e}")
+            logger.error("Ошибка инициализации схемы: %s", e, exc_info=True)
             raise DatabaseError(f"Не удалось инициализировать схему базы данных: {e}")
 
     def _run_migrations(self):
@@ -195,11 +195,13 @@ class Database(DatabaseBase):
                             logger.info("Миграция link завершена успешно")
                         except Exception as inner:
                             self.rollback()
-                            logger.error(f"Ошибка миграции таблицы link: {inner}")
+                            logger.error("Ошибка миграции таблицы link: %s", inner, exc_info=True)
                             # не пробрасываем исключение, чтобы не падало приложение
             except Exception as mig_err:
                 logger.error(
-                    f"Ошибка при подготовке миграции уникальности link: {mig_err}"
+                    "Ошибка при подготовке миграции уникальности link: %s",
+                    mig_err,
+                    exc_info=True,
                 )
             # Миграция: добавить уникальные индексы с COLLATE NOCASE для case-insensitive уникальности
             try:
@@ -230,10 +232,12 @@ class Database(DatabaseBase):
             except sqlite3.OperationalError as e:
                 # Если в данных уже есть дубликаты, создание индекса упадёт — логируем и продолжаем
                 logger.warning(
-                    f"Не удалось создать NOCASE-индексы (возможны дубликаты по регистру): {e}"
+                    "Не удалось создать NOCASE-индексы (возможны дубликаты по регистру): %s",
+                    e,
+                    exc_info=True,
                 )
         except Exception as e:
-            logger.error(f"Ошибка выполнения миграций: {e}")
+            logger.error("Ошибка выполнения миграций: %s", e, exc_info=True)
             # Не прерываем работу приложения из-за ошибок миграции
 
     # Вспомогательные методы
@@ -260,7 +264,8 @@ class Database(DatabaseBase):
             if not ids:
                 # Нечего обновлять — выходим без ошибок
                 logger.debug(
-                    f"update_item_positions: пустой список ID для таблицы {table_name}"
+                    "update_item_positions: пустой список ID для таблицы %s",
+                    table_name,
                 )
                 return
 
@@ -298,10 +303,12 @@ class Database(DatabaseBase):
                             (i, item_id),
                         )
             logger.debug(
-                f"Обновлены позиции ({len(ids)} шт.) в таблице {table_name}"
+                "Обновлены позиции (%s шт.) в таблице %s",
+                len(ids),
+                table_name,
             )
         except Exception as e:
-            logger.error(f"Ошибка обновления позиций в таблице {table_name}: {e}")
+            logger.error("Ошибка обновления позиций в таблице %s: %s", table_name, e, exc_info=True)
             raise DatabaseError(f"Не удалось обновить позиции: {e}")
 
     # Методы импорта/экспорта
@@ -347,7 +354,7 @@ class Database(DatabaseBase):
             logger.info("Экспорт структуры выполнен успешно")
             return {"spheres": spheres_data}
         except Exception as e:
-            logger.error(f"Ошибка экспорта структуры: {e}")
+            logger.error("Ошибка экспорта структуры: %s", e, exc_info=True)
             raise DatabaseError(f"Не удалось экспортировать структуру: {e}")
 
     def get_full_structure(self) -> List[Dict]:
@@ -379,7 +386,7 @@ class Database(DatabaseBase):
 
             return spheres_data
         except Exception as e:
-            logger.error(f"Ошибка получения полной структуры: {e}")
+            logger.error("Ошибка получения полной структуры: %s", e, exc_info=True)
             raise DatabaseError(f"Не удалось получить полную структуру: {e}")
 
     def import_full_structure(self, data: List[Dict]):
@@ -425,10 +432,12 @@ class Database(DatabaseBase):
                     self.backup()
                 except Exception as backup_err:
                     logger.warning(
-                        f"Не удалось создать резервную копию после импорта: {backup_err}"
+                        "Не удалось создать резервную копию после импорта: %s",
+                        backup_err,
+                        exc_info=True,
                     )
         except Exception as e:
-            logger.error(f"Ошибка импорта структуры: {e}")
+            logger.error("Ошибка импорта структуры: %s", e, exc_info=True)
             raise DatabaseError(f"Не удалось импортировать структуру: {e}")
 
     def backup(self):
@@ -448,12 +457,15 @@ class Database(DatabaseBase):
                     old_file.unlink()
                 except Exception as del_err:
                     logger.warning(
-                        f"Не удалось удалить старую резервную копию {old_file}: {del_err}"
+                        "Не удалось удалить старую резервную копию %s: %s",
+                        old_file,
+                        del_err,
+                        exc_info=True,
                     )
                     break  # Не зависаем, если файл занят — выходим из цикла
-            logger.info(f"Создана резервная копия: {dst}")
+            logger.info("Создана резервная копия: %s", dst)
         except Exception as e:
-            logger.error(f"Ошибка создания резервной копии: {e}")
+            logger.error("Ошибка создания резервной копии: %s", e, exc_info=True)
             raise DatabaseError(f"Не удалось создать резервную копию: {e}")
 
     def _get_max_backups(self) -> int:
@@ -612,14 +624,16 @@ class Database(DatabaseBase):
                     logger.debug("WAL checkpoint выполнен перед закрытием")
                 except Exception as checkpoint_err:
                     logger.warning(
-                        f"Ошибка WAL checkpoint при закрытии: {checkpoint_err}"
+                        "Ошибка WAL checkpoint при закрытии: %s",
+                        checkpoint_err,
+                        exc_info=True,
                     )
 
                 self.thread_local.conn.close()
                 del self.thread_local.conn
                 logger.debug("Соединение с базой данных закрыто")
         except Exception as e:
-            logger.error(f"Ошибка закрытия соединения: {e}")
+            logger.error("Ошибка закрытия соединения: %s", e, exc_info=True)
 
     def detect_case_insensitive_duplicates(self) -> dict:
         """Ищет case-insensitive дубликаты имён.
@@ -919,16 +933,16 @@ def _upsert_category_tree(tree: dict, connection: sqlite3.Connection) -> None:
                 except Exception:
                     pass
 
-def _print_duplicates_human(dups: dict) -> None:
-    print("== Дубликаты (регистронезависимые) ==")
+def _log_duplicates_human(dups: dict) -> None:
+    logger.info("== Дубликаты (регистронезависимые) ==")
     for table in ("sphere", "section", "category"):
         groups = dups.get(table, []) or []
-        print(f"{table}: {len(groups)} групп(ы)")
+        logger.info("%s: %s групп(ы)", table, len(groups))
         for g in groups:
             scope = g.get("scope")
             lname = g.get("lname")
             ids = ",".join(str(i) for i in g.get("ids", []))
-            print(f"  - scope={scope}, lname='{lname}', ids=[{ids}]")
+            logger.info("  - scope=%s, lname='%s', ids=[%s]", scope, lname, ids)
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -986,9 +1000,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             if args.detect_duplicates:
                 dups = db.detect_case_insensitive_duplicates()
                 if args.json:
-                    print(json.dumps(dups, ensure_ascii=False, indent=2))
+                    logger.info(json.dumps(dups, ensure_ascii=False, indent=2))
                 else:
-                    _print_duplicates_human(dups)
+                    _log_duplicates_human(dups)
                 return 0
 
             if args.resolve_duplicates:
@@ -996,28 +1010,28 @@ def main(argv: Optional[List[str]] = None) -> int:
                 if args.create_indexes_after:
                     db.create_nocase_unique_indexes()
                 if args.json:
-                    print(json.dumps(report, ensure_ascii=False, indent=2))
+                    logger.info(json.dumps(report, ensure_ascii=False, indent=2))
                 else:
-                    print("== Итог resolve ==")
+                    logger.info("== Итог resolve ==")
                     for k, v in (report or {}).items():
-                        print(f"{k}: {v}")
+                        logger.info("%s: %s", k, v)
                 return 0
 
             if args.create_indexes:
                 db.create_nocase_unique_indexes()
-                print("NOCASE-индексы созданы (если отсутствовали)")
+                logger.info("NOCASE-индексы созданы (если отсутствовали)")
                 return 0
 
             if args.backup:
                 db.backup()
-                print("Резервная копия создана")
+                logger.info("Резервная копия создана")
                 return 0
 
             parser.print_help()
             return 0
     except Exception as e:
         logger.error(f"CLI ошибка: {e}")
-        print(f"Ошибка: {e}", file=sys.stderr)
+        logger.error("Ошибка: %s", e)
         return 1
 
 

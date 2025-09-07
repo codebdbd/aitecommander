@@ -30,5 +30,5 @@ class LoaderService:
             return sections
         except Exception as e:  # noqa: BLE001
             if logger:
-                logger.error(f"Ошибка загрузки структуры из БД: {e}")
+                logger.error("Ошибка загрузки структуры из БД: %s", e)
             return []

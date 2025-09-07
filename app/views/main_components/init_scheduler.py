@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 from typing import Callable, Dict, List, Optional, Tuple
+
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
+
 
 class AsyncStepRunner:
     """Универсальный исполнитель последовательности асинхронных шагов.
@@ -60,7 +62,9 @@ class AsyncStepRunner:
         try:
             self._set_status_message(step_name)
         except Exception:
-            pass
+            # Не мешаем выполнению шагов, но фиксируем сбой обновления статуса
+            import logging as _logging
+            _logging.getLogger(__name__).debug("AsyncStepRunner: failed to set status message: %s", step_name, exc_info=True)
 
         # Выполняем шаг под метриками
         try:
@@ -85,8 +89,9 @@ class AsyncStepRunner:
                         on_error(e)
                     finally:
                         return
-                # иначе подавляем, чтобы не ломать пайплайн
-                pass
+                # иначе подавляем, чтобы не ломать пайплайн, но логируем
+                import logging as _logging
+                _logging.getLogger(__name__).debug("AsyncStepRunner: special hook failed for %s", getattr(step_func, "__name__", str(step_func)), exc_info=True)
 
         # Инкремент индекса и продолжение
         index_setter(idx + 1)

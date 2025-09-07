@@ -1,7 +1,9 @@
 import logging
 from types import SimpleNamespace
 
-from app.controllers.system.window_controllers_setup import _connect_top_panels_signals_explicit
+from app.controllers.system.window_controllers_setup import (
+    _connect_top_panels_signals_explicit,
+)
 from app.controllers.ui.top_panels_controller import TopPanelsController
 
 

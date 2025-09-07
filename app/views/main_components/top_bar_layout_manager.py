@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional, List, Tuple
+from typing import List, Optional, Tuple
 from weakref import WeakSet
 
 from PyQt6.QtCore import QEvent, QObject, QTimer
-from PyQt6.QtWidgets import QLayout, QLineEdit, QToolButton, QWidget, QSizePolicy
+from PyQt6.QtWidgets import QLayout, QLineEdit, QSizePolicy, QToolButton, QWidget
 
 from app.config_data import app_config
 
@@ -191,7 +191,7 @@ class TopBarLayoutManager(QObject):
                     try:
                         w.setVisible(False)
                     except Exception:
-                        pass
+                        logger.debug("TopBarLM: failed to hide non-search widget in narrow mode", exc_info=True)
                 # Обнулить все spacerItem, чтобы не было отступов слева/справа от поиска
                 try:
                     for i in range(count):
@@ -199,26 +199,26 @@ class TopBarLayoutManager(QObject):
                         if sp is not None:
                             sp.changeSize(0, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
                 except Exception:
-                    pass
+                    logger.debug("TopBarLM: failed to zero spacers in narrow mode", exc_info=True)
                 # Отключить встроенные действия у поиска (иконки слева/справа, кнопка очистки)
                 if isinstance(search, QLineEdit):
                     try:
                         search.setClearButtonEnabled(False)
                     except Exception:
-                        pass
+                        logger.debug("TopBarLM: failed to disable clear button on search (narrow mode)", exc_info=True)
                     try:
                         for act in search.actions():
                             try:
                                 act.setVisible(False)
                             except Exception:
-                                pass
+                                logger.debug("TopBarLM: failed to hide search action in narrow mode", exc_info=True)
                     except Exception:
-                        pass
+                        logger.debug("TopBarLM: failed to iterate search actions in narrow mode", exc_info=True)
                 # Нулевые отступы у top_bar, чтобы поиск примыкал к краям
                 try:
                     self._set_top_bar_margins(top_bar, 0, 0, 0, 0)
                 except Exception:
-                    pass
+                    logger.debug("TopBarLM: failed to set zero margins on top_bar (narrow mode)", exc_info=True)
                 # Поиск занимает всю ширину
                 try:
                     if isinstance(search, QLineEdit):
@@ -227,7 +227,7 @@ class TopBarLayoutManager(QObject):
                         search.setMaximumWidth(16777215)
                         search.setSizePolicy(QSizePolicy.Policy.Expanding, search.sizePolicy().verticalPolicy())
                 except Exception:
-                    pass
+                    logger.debug("TopBarLM: failed to expand search to full width (narrow mode)", exc_info=True)
                 # Пересчитать лейаут, чтобы исключить наложение
                 try:
                     # Зафиксировать stretch-факторы: только поиск тянется
@@ -238,7 +238,7 @@ class TopBarLayoutManager(QObject):
                         host.updateGeometry()
                         host.update()
                 except Exception:
-                    pass
+                    logger.debug("TopBarLM: failed to enforce stretches/update host in narrow mode", exc_info=True)
             except Exception:
                 logger.debug("TopBarLayoutManager: narrow-mode hide non-search widgets failed", exc_info=True)
             return
@@ -303,7 +303,7 @@ class TopBarLayoutManager(QObject):
                         host.updateGeometry()
                         host.update()
                 except Exception:
-                    pass
+                    logger.debug("TopBarLM: failed to set zero margins/enforce stretches (zero-count mode)", exc_info=True)
             except Exception:
                 logger.debug("TopBarLayoutManager: forced narrow-mode hide due to zero counts failed", exc_info=True)
             return
@@ -329,11 +329,22 @@ class TopBarLayoutManager(QObject):
         self._apply_panel_width_bounds(quick, quick_btns, quick_visible)
 
         self._last_applied = (width, recent_visible, fav_visible, quick_visible)
-        msg = f"[TopBar] visible: recent={recent_visible}, fav={fav_visible}, quick={quick_visible}; min_search={self._min_search_width}"
         if self._log_info:
-            logger.info(msg)
+            logger.info(
+                "[TopBar] visible: recent=%s, fav=%s, quick=%s; min_search=%s",
+                recent_visible,
+                fav_visible,
+                quick_visible,
+                self._min_search_width,
+            )
         else:
-            logger.debug(msg)
+            logger.debug(
+                "[TopBar] visible: recent=%s, fav=%s, quick=%s; min_search=%s",
+                recent_visible,
+                fav_visible,
+                quick_visible,
+                self._min_search_width,
+            )
 
         # В обычном режиме восстанавливаем отступы top_bar из конфига (лево/право)
         try:
@@ -356,7 +367,7 @@ class TopBarLayoutManager(QObject):
                     sp.changeSize(0, 0)
         except Exception:
             # Диагностические ошибки не критичны
-            pass
+            logger.debug("TopBarLM: _zero_all_spacers failed", exc_info=True)
 
     def _apply_panel_width_bounds(self, panel: Optional[QWidget], btns: List[QToolButton], visible: int) -> None:
         if not panel:
@@ -372,11 +383,11 @@ class TopBarLayoutManager(QObject):
             if m.left() == left and m.top() == top and m.right() == right and m.bottom() == bottom:
                 return
         except Exception:
-            pass
+            logger.debug("TopBarLM: failed to read contentsMargins()", exc_info=True)
         try:
             top_bar.setContentsMargins(left, top, right, bottom)
         except Exception:
-            pass
+            logger.debug("TopBarLM: setContentsMargins failed", exc_info=True)
 
     def _enforce_stretches(self, top_bar: QLayout, search: Optional[QLineEdit]) -> None:
         """Сбрасывает stretch=0 для всех элементов top_bar и ставит stretch=1 только для поиска."""
@@ -391,14 +402,14 @@ class TopBarLayoutManager(QObject):
                 try:
                     top_bar.setStretch(i, 0)
                 except Exception:
-                    pass
+                    logger.debug("TopBarLM: setStretch(0) failed at index %s", i, exc_info=True)
             if search_index >= 0:
                 try:
                     top_bar.setStretch(search_index, 1)
                 except Exception:
-                    pass
+                    logger.debug("TopBarLM: setStretch(1) for search failed at index %s", search_index, exc_info=True)
         except Exception:
-            pass
+            logger.debug("TopBarLM: _enforce_stretches failed", exc_info=True)
 
     def _compute_visible_counts(
         self,

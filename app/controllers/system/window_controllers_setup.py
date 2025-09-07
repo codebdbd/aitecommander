@@ -1,6 +1,6 @@
 import logging
-from typing import Any, Dict
 from functools import partial
+from typing import Any, Dict
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QAction, QFont
@@ -11,16 +11,16 @@ from app.controllers.business.links_business import LinksBusinessLogic
 from app.controllers.system.app_shutdown_controller import AppShutdownController
 from app.controllers.system.keyboard_manager import KeyboardManager
 from app.controllers.ui.action_controller import ActionController
+from app.controllers.ui.category_tiles_controller import CategoryTilesController
 from app.controllers.ui.dialogs.database_controller import DatabaseController
 from app.controllers.ui.dialogs.link_operations_controller import (
     LinkOperationsController,
 )
 from app.controllers.ui.dialogs.system_dialog_controller import SystemDialogController
 from app.controllers.ui.links.controller import LinksUIController
-from app.controllers.ui.links.table_controller import LinksTableController
 from app.controllers.ui.links.links_actions import LinksActions
+from app.controllers.ui.links.table_controller import LinksTableController
 from app.controllers.ui.state.ui_state_manager import UIStateManager
-from app.controllers.ui.category_tiles_controller import CategoryTilesController
 from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
 from app.controllers.ui.structure.structure_ui_controller import StructureUIController
 from app.controllers.ui.top_panels_controller import TopPanelsController
@@ -109,14 +109,14 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
         try:
             window.category_tiles_controller.attach_tiles_widget(window.tiles)
         except (AttributeError, TypeError) as e:
-            logger.error(f"Failed to attach tiles widget to CategoryTilesController: {e}")
+            logger.error("Failed to attach tiles widget to CategoryTilesController: %s", e, exc_info=True)
             raise SetupError("CategoryTilesController attach_tiles_widget failed: incompatible or missing tiles widget") from e
         except Exception as e:
-            logger.error(f"Unexpected error during tiles widget attachment: {e}")
+            logger.error("Unexpected error during tiles widget attachment: %s", e, exc_info=True)
             raise SetupError("Unexpected error while attaching tiles widget") from e
         controllers["category_tiles_controller"] = window.category_tiles_controller
     except Exception as e:
-        logger.error(f"Failed to create CategoryTilesController: {e}")
+        logger.error("Failed to create CategoryTilesController: %s", e, exc_info=True)
         raise SetupError("CategoryTilesController creation failed") from e
 
     structure_ctrl = StructureUIController(window.tree, structure_business, window)
@@ -188,7 +188,7 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
         )
         controllers["links_actions"] = window.links_actions
     except (AttributeError, TypeError, ValueError) as e:
-        logger.error(f"Failed to create LinksActions: {e}")
+        logger.error("Failed to create LinksActions: %s", e, exc_info=True)
         raise SetupError("LinksActions creation failed") from e
 
     # ui_state и category_tiles_controller уже созданы выше
@@ -205,7 +205,7 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
         window.spheres_controller = SpheresBarController(window)
         controllers["spheres_controller"] = window.spheres_controller
     except (AttributeError, TypeError, ValueError) as e:
-        logger.error(f"Failed to create SpheresBarController: {e}")
+        logger.error("Failed to create SpheresBarController: %s", e, exc_info=True)
         raise SetupError("SpheresBarController creation failed") from e
 
     try:
@@ -230,9 +230,9 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
                 theme_ctrl.set_top_panels_controller(window.top_panels_controller)
         except Exception as e:
             # Не считаем критичным для продолжения работы UI, но логируем для диагностики
-            logger.warning(f"Failed to inject TopPanelsController into ThemeController: {e}")
+            logger.warning("Failed to inject TopPanelsController into ThemeController: %s", e, exc_info=True)
     except (AttributeError, TypeError) as e:
-        logger.error(f"Failed to create TopPanelsController: {e}")
+        logger.error("Failed to create TopPanelsController: %s", e, exc_info=True)
         raise SetupError("Failed to create TopPanelsController") from e
 
     # Подключение сигналов — явные зависимости и конкретные исключения

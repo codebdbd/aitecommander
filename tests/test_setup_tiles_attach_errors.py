@@ -1,7 +1,11 @@
-import pytest
 from types import SimpleNamespace
 
-from app.controllers.system.window_controllers_setup import setup_controllers, SetupError
+import pytest
+
+from app.controllers.system.window_controllers_setup import (
+    SetupError,
+    setup_controllers,
+)
 from app.controllers.ui.category_tiles_controller import CategoryTilesController
 
 

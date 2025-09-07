@@ -16,10 +16,10 @@
 """
 from __future__ import annotations
 
+import heapq
 import threading
 import time
-from typing import Optional, Any
-import heapq
+from typing import Any, Optional
 
 from app.config_data import app_config
 from app.utils.cache.base import BaseCache

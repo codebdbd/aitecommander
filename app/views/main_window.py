@@ -1,21 +1,20 @@
 from __future__ import annotations
 
 import logging
-logger = logging.getLogger(__name__)
+import weakref
 from contextlib import suppress
 from typing import TYPE_CHECKING, Optional
-import weakref
 
-from PyQt6.QtCore import pyqtSignal, QTimer
-from app.utils.ui.timings import SEARCH_RETRY_INTERVAL_MS, SEARCH_RETRY_ATTEMPTS
-from PyQt6.QtGui import QKeySequence, QUndoStack, QAction
+from PyQt6.QtCore import QTimer, pyqtSignal
+from PyQt6.QtGui import QAction, QKeySequence, QUndoStack
 from PyQt6.QtWidgets import QMainWindow, QWidget
 
+from app.utils.ui.timings import SEARCH_RETRY_ATTEMPTS, SEARCH_RETRY_INTERVAL_MS
 from app.views.link import LinksTableView
 
 if TYPE_CHECKING:
     # Узкоспециализированные типы только для статического анализа
-    from typing import Protocol, Any, Dict
+    from typing import Any, Dict, Protocol
 
     class StructureItem(Protocol):
         """Элемент структуры (дерева). Минимальный протокол для статпроверки.
@@ -38,9 +37,10 @@ if TYPE_CHECKING:
 
 from app.settings import AppSettings
 from app.utils.db.synchronization import signal_guard
-from app.views.status_bar import update_status_bar as _update_status_bar
 from app.utils.ui.updates import suspend_updates
+from app.views.status_bar import update_status_bar as _update_status_bar
 
+logger = logging.getLogger(__name__)
 
 class MainWindow(QMainWindow):
     shown: pyqtSignal = pyqtSignal()
@@ -151,7 +151,7 @@ class MainWindow(QMainWindow):
                 )
             )
         except Exception:
-            pass
+            logger.debug("MainWindow: failed to connect undo/redo triggered diagnostics", exc_info=True)
 
         try:
             # Локальные безопасные колбэки через weakref, чтобы избежать обращения к удалённому объекту
@@ -191,7 +191,7 @@ class MainWindow(QMainWindow):
             us.indexChanged.connect(_on_index_changed)
             us.cleanChanged.connect(_on_clean_changed)
         except Exception:
-            pass
+            logger.debug("MainWindow: failed to connect undo stack diagnostics (index/clean)", exc_info=True)
         try:
             us.canUndoChanged.connect(
                 lambda can: logging.getLogger(__name__).debug(
@@ -199,7 +199,7 @@ class MainWindow(QMainWindow):
                 )
             )
         except Exception:
-            pass
+            logger.debug("MainWindow: failed to connect canUndoChanged diagnostics", exc_info=True)
         try:
             us.canRedoChanged.connect(
                 lambda can: logging.getLogger(__name__).debug(
@@ -207,7 +207,7 @@ class MainWindow(QMainWindow):
                 )
             )
         except Exception:
-            pass
+            logger.debug("MainWindow: failed to connect canRedoChanged diagnostics", exc_info=True)
 
         return undo_action, redo_action
 

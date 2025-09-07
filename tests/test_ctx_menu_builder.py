@@ -1,7 +1,7 @@
 import pytest
 from PyQt6.QtCore import QPoint
-from PyQt6.QtWidgets import QMenu, QLineEdit
-from PyQt6.QtGui import QIcon, QAction
+from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtWidgets import QLineEdit, QMenu
 
 import app.utils.ui.menu_builders.ctx_menu as ctx_menu
 
