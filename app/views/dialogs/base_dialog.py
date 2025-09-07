@@ -1,4 +1,5 @@
 import logging
+
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtWidgets import (
     QComboBox,

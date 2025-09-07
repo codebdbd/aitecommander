@@ -1,9 +1,10 @@
 import types
 
-# Тесты для LinkDialog хелперов
-from app.views.dialogs.link_dialog.link_dialog import LinkDialog
 # Тесты для HierarchyMixin хелперов
 from app.views.dialogs.link_dialog.handlers_mixins.hierarchy_mixin import HierarchyMixin
+
+# Тесты для LinkDialog хелперов
+from app.views.dialogs.link_dialog.link_dialog import LinkDialog
 
 
 class ComboMock:

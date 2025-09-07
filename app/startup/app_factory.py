@@ -1,8 +1,9 @@
 """Модуль для создания и настройки QApplication."""
 
 import sys
-from PyQt6.QtWidgets import QApplication
+
 from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import QApplication
 
 
 def create_application() -> QApplication:

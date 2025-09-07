@@ -31,8 +31,8 @@ class ItemOperations:
         self.business.load_structure()
         if item_to_select:
             from app.controllers.ui.state.task_scheduler import (
-                schedule_selection_restore,
                 schedule_focus,
+                schedule_selection_restore,
             )
 
             item_type, item_id = item_to_select

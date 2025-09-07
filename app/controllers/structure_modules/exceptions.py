@@ -20,7 +20,7 @@ def handle_exceptions(default_return=None):
             except Exception as e:  # noqa: BLE001
                 logger: Optional[logging.Logger] = getattr(self, "logger", None)
                 if logger:
-                    logger.error(f"Ошибка в {func.__name__}: {e}", exc_info=True)
+                    logger.error("Ошибка в %s: %s", func.__name__, e, exc_info=True)
                 # Сообщение в UI, если метод доступен
                 emit_error = getattr(self, "_emit_error", None)
                 if callable(emit_error):

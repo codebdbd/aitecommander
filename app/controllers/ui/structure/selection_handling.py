@@ -4,9 +4,9 @@ import logging
 
 from PyQt6.QtCore import QModelIndex
 
+from app.controllers.ui.state.task_scheduler import schedule_focus
 from app.utils.db.synchronization import signal_guard
 from app.utils.ui.qt.roles import get_tree_tuple
-from app.controllers.ui.state.task_scheduler import schedule_focus
 
 # Используем строковые литералы "section" и "category"
 
@@ -44,6 +44,7 @@ class SelectionHandling:
             )
         except Exception:
             # На всякий случай не ломаем поток
+            logger.debug("SelectionHandling.begin_suppress_selection: failed to update counter", exc_info=True)
             self._suppress_counter = max(1, getattr(self, "_suppress_counter", 0))
 
     def end_suppress_selection(self) -> None:
@@ -54,6 +55,7 @@ class SelectionHandling:
                 "Selection handling resumed (level=%s)", self._suppress_counter
             )
         except Exception:
+            logger.debug("SelectionHandling.end_suppress_selection: failed to update counter", exc_info=True)
             self._suppress_counter = 0
 
     def is_suppressed(self) -> bool:
@@ -109,9 +111,9 @@ class SelectionHandling:
                         try:
                             self.tree.setFocus()
                         except Exception:
-                            pass
+                            logger.debug("SelectionHandling._select_first_item_if_needed: setFocus() failed", exc_info=True)
         except Exception:
-            pass
+            logger.debug("SelectionHandling._select_first_item_if_needed failed", exc_info=True)
 
     @signal_guard()
     def _on_current_changed(self, current: QModelIndex, _prev: QModelIndex) -> None:
@@ -133,11 +135,11 @@ class SelectionHandling:
             t = get_tree_tuple(current, 0)
             if t:
                 item_type, item_id = t
-                logger.debug(f"Selection changed to {item_type} #{item_id}")
+                logger.debug("Selection changed to %s #%s", item_type, item_id)
             else:
                 logger.debug("Selection changed to item without data")
         except Exception as e:
-            logger.warning(f"Could not get item data for logging: {e}")
+            logger.warning("Could not get item data for logging: %s", e, exc_info=True)
 
         self._handle_item_selection(current)
 
@@ -164,7 +166,7 @@ class SelectionHandling:
             if table and hasattr(table, "clearSelection"):
                 table.clearSelection()
         except Exception:
-            pass
+            logger.debug("SelectionHandling._handle_item_selection: clearSelection failed", exc_info=True)
         try:
             t = get_tree_tuple(index, 0)
             if not t:
@@ -173,45 +175,43 @@ class SelectionHandling:
 
             typ, id_ = t
             if typ not in ("section", "category") or not isinstance(id_, int):
-                logger.warning("Invalid item data types for selection")
+                logger.warning("Invalid item data types for selection: %s, %s", typ, id_)
                 return
 
             # Защита от повторной обработки того же элемента подряд
             if self._last_handled == (typ, id_):
-                logger.debug(f"Skip duplicate selection handling for {typ} #{id_}")
+                logger.debug("Skip duplicate selection handling for %s #%s", typ, id_)
                 return
-            logger.info(f"Handling selection: {typ} #{id_}")
+            logger.info("Handling selection: %s #%s", typ, id_)
 
             if typ == "section":
                 # Используем контроллер плиток категорий из конструктора (обязательная зависимость)
                 try:
                     self.tiles_controller.refresh(int(id_))
-                except Exception:
-                    logger.exception(
-                        "SelectionHandling._handle_item_selection: controller refresh failed"
-                    )
-                logger.debug(f"Section #{id_} selected - tiles refresh requested")
+                except Exception as e:
+                    logger.exception("SelectionHandling._handle_item_selection: controller refresh failed: %s", e)
+                logger.debug("Section #%s selected - tiles refresh requested", id_)
             elif typ == "category":
                 # Переход на UIState: не трогаем бизнес-логику здесь
                 ui_state = getattr(self.main, "ui_state", None)
                 if ui_state is not None and hasattr(ui_state, "load_category"):
                     try:
                         ui_state.load_category(id_, source="SelectionHandling._handle_item_selection")
-                        logger.debug(f"Category #{id_} selected - UI state will load links")
-                    except Exception:
-                        logger.exception("SelectionHandling._handle_item_selection: ui_state.load_category failed")
+                        logger.debug("Category #%s selected - UI state will load links", id_)
+                    except Exception as e:
+                        logger.exception("SelectionHandling._handle_item_selection: ui_state.load_category failed: %s", e)
                         return
                 else:
                     logger.error("UIStateManager not available in _handle_item_selection")
                     return
             else:
-                logger.warning(f"Unknown item type: {typ}")
+                logger.warning("Unknown item type: %s", typ)
 
             # Обновляем последний обработанный выбор только после успешной обработки
             self._last_handled = (typ, id_)
 
         except Exception as e:
-            logger.error(f"Error handling item selection: {e}", exc_info=True)
+            logger.error("Error handling item selection: %s", e, exc_info=True)
 
     def _restore_selection_after_load(self, item_type: str, item_id: int) -> None:
         model = self.tree.model()
@@ -239,12 +239,12 @@ class SelectionHandling:
             # Восстанавливаем фокус на дереве после выбора
             try:
                 schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
-            except Exception:
+            except Exception as e:
                 # На случай проблем с планировщиком — прямой вызов как запасной вариант
                 try:
                     self.tree.setFocus()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("SelectionHandling._set_focus_on_new_item_by_id: setFocus() failed: %s", e, exc_info=True)
             if item_type == "category":
                 # ЦЕНТРАЛИЗОВАНО: Для новой категории показываем таблицу ссылок
                 if hasattr(self.main, "ui_state") and self.main.ui_state:
@@ -269,6 +269,7 @@ class SelectionHandling:
             logger.debug(
                 "SelectionHandling._select_category_without_stack_switch: reload failed: %s",
                 e,
+                exc_info=True,
             )
 
     def _restore_category_selection(self, category_id: int) -> None:
@@ -287,8 +288,8 @@ class SelectionHandling:
             # И явное восстановление фокуса на дереве (после обновления модели/выделения)
             try:
                 schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
-            except Exception:
+            except Exception as e:
                 try:
                     self.tree.setFocus()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("SelectionHandling._restore_category_selection: setFocus() failed: %s", e, exc_info=True)

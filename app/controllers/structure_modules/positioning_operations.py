@@ -71,15 +71,17 @@ class PositioningOperations(BaseOperations):
         """
         # Начальное логирование
         self.logger.debug(
-            f"Запуск update_item_positions для таблицы '{table_name}' "
-            f"с {len(ids_in_order) if ids_in_order else 0} элементами"
+            "Запуск update_item_positions для таблицы '%s' с %s элементами",
+            table_name,
+            (len(ids_in_order) if ids_in_order else 0),
         )
 
         # Валидация входных данных с возвратом False для обратной совместимости
         validation_error = self._validate_positioning_params(table_name, ids_in_order)
         if validation_error:
             self.logger.warning(
-                f"Ошибка валидации при обновлении позиций: {validation_error}"
+                "Ошибка валидации при обновлении позиций: %s",
+                validation_error,
             )
             return False
 
@@ -87,7 +89,7 @@ class PositioningOperations(BaseOperations):
             start_time = time.time()
 
             # Дополнительное логирование для отладки
-            self.logger.debug(f"Порядок ID для обновления: {ids_in_order}")
+            self.logger.debug("Порядок ID для обновления: %s", ids_in_order)
 
             # Проверка существования записей (если метод доступен)
             if hasattr(self.structure_model, "validate_ids_exist"):
@@ -95,7 +97,9 @@ class PositioningOperations(BaseOperations):
                     table_name, ids_in_order
                 ):
                     self.logger.warning(
-                        f"Некоторые ID не найдены в таблице {table_name}: {ids_in_order}"
+                        "Некоторые ID не найдены в таблице %s: %s",
+                        table_name,
+                        ids_in_order,
                     )
                     # Продолжаем выполнение для обратной совместимости
 
@@ -109,14 +113,18 @@ class PositioningOperations(BaseOperations):
 
             # Детальное логирование результата
             self.logger.info(
-                f"Успешно обновлены позиции в таблице '{table_name}': "
-                f"{len(ids_in_order)} элементов за {duration:.3f}с"
+                "Успешно обновлены позиции в таблице '%s': %s элементов за %.3fс",
+                table_name,
+                len(ids_in_order),
+                duration,
             )
 
             if duration > self._slow_threshold:  # Предупреждение о медленном выполнении
                 self.logger.warning(
-                    f"Медленное обновление позиций в таблице '{table_name}': {duration:.3f}с "
-                    f"(порог {self._slow_threshold:.3f}с)"
+                    "Медленное обновление позиций в таблице '%s': %.3fс (порог %.3fс)",
+                    table_name,
+                    duration,
+                    self._slow_threshold,
                 )
 
             return True
@@ -131,11 +139,13 @@ class PositioningOperations(BaseOperations):
         # Логирование итогового результата
         if result:
             self.logger.debug(
-                f"update_item_positions завершен успешно для таблицы '{table_name}'"
+                "update_item_positions завершен успешно для таблицы '%s'",
+                table_name,
             )
         else:
             self.logger.error(
-                f"update_item_positions завершился с ошибкой для таблицы '{table_name}'"
+                "update_item_positions завершился с ошибкой для таблицы '%s'",
+                table_name,
             )
 
         return result if result is not None else False
@@ -204,7 +214,8 @@ class PositioningOperations(BaseOperations):
             return False
 
         self.logger.info(
-            f"Начинается пакетное обновление позиций для {len(updates)} таблиц"
+            "Начинается пакетное обновление позиций для %s таблиц",
+            len(updates),
         )
 
         success_count = 0
@@ -213,7 +224,8 @@ class PositioningOperations(BaseOperations):
         for i, update_data in enumerate(updates):
             if not isinstance(update_data, tuple) or len(update_data) != 2:
                 self.logger.error(
-                    f"Некорректный формат данных в позиции {i}: ожидается кортеж (table_name, ids)"
+                    "Некорректный формат данных в позиции %s: ожидается кортеж (table_name, ids)",
+                    i,
                 )
                 continue
 
@@ -223,11 +235,14 @@ class PositioningOperations(BaseOperations):
                 success_count += 1
             else:
                 self.logger.error(
-                    f"Ошибка при обновлении позиций для таблицы '{table_name}'"
+                    "Ошибка при обновлении позиций для таблицы '%s'",
+                    table_name,
                 )
 
         self.logger.info(
-            f"Пакетное обновление завершено: {success_count}/{total_count} таблиц обновлено успешно"
+            "Пакетное обновление завершено: %s/%s таблиц обновлено успешно",
+            success_count,
+            total_count,
         )
 
         return success_count == total_count

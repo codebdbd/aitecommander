@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 from PyQt6.QtCore import QTimer
 
-from app.controllers.ui.top_panels_controller import TopPanelsController, SetupError
+from app.controllers.ui.top_panels_controller import SetupError, TopPanelsController
 
 
 class FavWidgetMock:

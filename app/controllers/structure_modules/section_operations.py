@@ -366,11 +366,11 @@ class SectionOperations(BaseOperations):
 
     def _log_operation_start(self, operation_name: str) -> None:
         """Логирует начало операции."""
-        self.logger.debug(f"Начало операции: {operation_name}")
+        self.logger.debug("Начало операции: %s", operation_name)
 
     def _log_section_found(self, section_id: int) -> None:
         """Логирует успешное нахождение раздела."""
-        self.logger.debug(f"Найден раздел {section_id}")
+        self.logger.debug("Найден раздел %s", section_id)
 
     def _log_section_not_found(self, section_id: int) -> None:
         """Логирует ненахождение раздела."""
@@ -382,14 +382,16 @@ class SectionOperations(BaseOperations):
     ) -> None:
         """Логирует подготовку к удалению раздела."""
         self.logger.info(
-            f"Подготовка к удалению раздела {section_id}: "
-            f"{cats_count} категорий, {links_count} ссылок"
+            "Подготовка к удалению раздела %s: %s категорий, %s ссылок",
+            section_id,
+            cats_count,
+            links_count,
         )
 
     def _log_successful_deletion(self, section_id: int) -> None:
         """Логирует успешное удаление раздела."""
-        self.logger.info(f"Удален раздел {section_id}")
+        self.logger.info("Удален раздел %s", section_id)
 
     def _log_sections_loaded(self, count: int, sphere_id: int) -> None:
         """Логирует загрузку разделов."""
-        self.logger.debug(f"Загружено {count} разделов для сферы {sphere_id}")
+        self.logger.debug("Загружено %s разделов для сферы %s", count, sphere_id)

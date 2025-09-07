@@ -13,8 +13,9 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from app.utils.cache.base import BaseCache, CacheRecord
 from app.config_data import app_config
+from app.utils.cache.base import BaseCache, CacheRecord
+
 
 def get_cache_path() -> Path:
     """Возвращает путь к файлу кэша профилей браузеров.

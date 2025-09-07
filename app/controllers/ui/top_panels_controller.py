@@ -4,9 +4,15 @@ from __future__ import annotations
 
 import logging
 import os
-from PyQt6.QtCore import QTimer, QObject
-from app.interfaces import FavoritesPanelLike, FavoritesPanelWithClear, RecentsPanelLike, RecentsPanelWithLimit
 
+from PyQt6.QtCore import QObject, QTimer
+
+from app.interfaces import (
+    FavoritesPanelLike,
+    FavoritesPanelWithClear,
+    RecentsPanelLike,
+    RecentsPanelWithLimit,
+)
 
 logger = logging.getLogger(__name__)
 

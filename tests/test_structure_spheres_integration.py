@@ -3,7 +3,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.controllers.system.window_controllers_setup import _connect_structure_signals, SetupError
+from app.controllers.system.window_controllers_setup import (
+    SetupError,
+    _connect_structure_signals,
+)
 
 
 class SignalMock:

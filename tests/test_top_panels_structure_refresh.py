@@ -1,8 +1,8 @@
 import pytest
 
 from app.controllers.system.window_controllers_setup import (
-    _connect_structure_signals,
     SetupError,
+    _connect_structure_signals,
 )
 
 

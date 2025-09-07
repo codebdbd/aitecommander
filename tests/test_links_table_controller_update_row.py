@@ -1,4 +1,5 @@
 import types
+
 import pytest
 
 from app.controllers.ui.links.table_controller import LinksTableController

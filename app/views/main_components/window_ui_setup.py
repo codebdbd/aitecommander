@@ -9,18 +9,13 @@ import time
 from functools import partial
 from typing import Any, Optional
 
-from PyQt6.QtCore import QEvent, QObject, QSize, Qt, QTimer
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import QEvent, QObject, QSize, QTimer
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QFrame,
     QHBoxLayout,
     QLineEdit,
-    QPushButton,
-    QScrollArea,
     QSizePolicy,
-    QSplitter,
-    QStackedLayout,
     QVBoxLayout,
     QWidget,
 )
@@ -29,15 +24,13 @@ from app.config_data import app_config
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.controllers.ui.undo.stack import UndoManager
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.views.category_tiles import CategoryTiles
 from app.views.custom_widgets import StructureTreeView
-from app.views.link import LinksTableView
+from app.views.favorites_panel_widget import FavoritesPanelWidget
 from app.views.main_components.top_bar_layout_manager import TopBarLayoutManager
 from app.views.models.structure_tree_model import StructureTreeModel
-from app.views.status_bar import setup_status_bar as init_status_bar
-from app.views.favorites_panel_widget import FavoritesPanelWidget
-from app.views.recent_panel_widget import RecentPanelWidget
 from app.views.quick_add_panel_widget import QuickAddPanelWidget
+from app.views.recent_panel_widget import RecentPanelWidget
+from app.views.status_bar import setup_status_bar as init_status_bar
 
 logger = logging.getLogger(__name__)
 
@@ -190,7 +183,7 @@ class WindowUISetup:
         try:
             central.setAutoFillBackground(True)
         except Exception:
-            pass
+            logger.debug("WindowUISetup: setAutoFillBackground failed on central frame", exc_info=True)
         central.setFrameShape(
             getattr(QFrame.Shape, app_config.ui.get_central_frame_shape())
         )
@@ -219,7 +212,7 @@ class WindowUISetup:
         try:
             logger.info("TopPanelMetrics: setup_top_bar_widgets: %.1f ms", t_widgets_dur)
         except Exception:
-            pass
+            logger.debug("TopPanelMetrics: failed to log setup_top_bar_widgets duration", exc_info=True)
 
     def _create_top_bar_host(self, container_parent: QWidget, top_bar: QHBoxLayout) -> QWidget:
         """Создаёт хост-виджет для top_bar и применяет базовые параметры."""
@@ -241,9 +234,7 @@ class WindowUISetup:
     def _init_and_schedule_topbar_manager(self) -> None:
         """Создаёт TopBarLayoutManager и планирует post-shown обработчики."""
         try:
-            t_mgr_start = time.perf_counter()
             self.window._topbar_manager = TopBarLayoutManager(self.window)
-            t_mgr_ctor = (time.perf_counter() - t_mgr_start) * 1000.0
         except (RuntimeError, TypeError):
             # Не блокируем инициализацию UI при ошибке менеджера
             self.window._topbar_manager = None
@@ -313,7 +304,7 @@ class WindowUISetup:
             t_total_dur = (time.perf_counter() - t_total_start) * 1000.0
             logger.info("TopPanelMetrics: setup_top_panel total: %.1f ms", t_total_dur)
         except Exception:
-            pass
+            logger.debug("TopPanelMetrics: failed to log setup_top_panel total", exc_info=True)
         
 
     def _create_top_panel_widget(
@@ -375,7 +366,7 @@ class WindowUISetup:
                 dur = (time.perf_counter() - t_start) * 1000.0
                 logger.info("TopPanelMetrics: create_widget[%s]: %.1f ms", log_label, dur)
             except Exception:
-                pass
+                logger.debug("TopPanelMetrics: failed to log create_widget[%s] duration", log_label, exc_info=True)
         except Exception:
             setattr(self.window, attr_name, None)
             logger.exception("TopPanel: failed to create %s widget", log_label)
@@ -501,15 +492,15 @@ class WindowUISetup:
                 try:
                     top_bar.setStretch(i, 0)
                 except Exception:
-                    pass
+                    logger.debug("TopPanel: failed to setStretch(0) at index %s", i, exc_info=True)
             if search_index >= 0:
                 try:
                     top_bar.setStretch(search_index, 1)
                 except Exception:
-                    pass
+                    logger.debug("TopPanel: failed to setStretch(1) for search at index %s", search_index, exc_info=True)
         except Exception:
             # не критично
-            pass
+            logger.debug("TopPanel: _normalize_top_bar_stretches failed", exc_info=True)
 
     def setup_main_content(self) -> None:
         """Настройка основного содержимого."""

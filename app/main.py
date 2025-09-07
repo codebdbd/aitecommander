@@ -1,6 +1,6 @@
 import logging
-import sys
 import sqlite3
+import sys
 
 from PyQt6.QtCore import QTimer
 
@@ -10,9 +10,9 @@ from app.controllers.ui.theme_controller import ThemeController
 from app.models.db import Database
 from app.settings import AppSettings
 from app.startup.app_factory import create_application
-from app.startup.argument_parser import parse_arguments, determine_log_level
+from app.startup.argument_parser import determine_log_level, parse_arguments
 from app.startup.browser_profiles_loader import BrowserProfilesLoader
-from app.startup.logging_setup import setup_logging, log_system_info, log_shutdown
+from app.startup.logging_setup import log_shutdown, log_system_info, setup_logging
 
 
 class ApplicationInitializer:

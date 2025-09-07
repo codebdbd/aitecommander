@@ -1,10 +1,11 @@
 import sqlite3
+
 import pytest
 
-from app.models.sphere_model import SphereModel
-from app.models.section_model import SectionModel
 from app.models.category_model import CategoryModel
 from app.models.db_base import DatabaseError
+from app.models.section_model import SectionModel
+from app.models.sphere_model import SphereModel
 
 
 class _DummyMgr:

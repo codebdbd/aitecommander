@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from typing import Optional
+
 from app.interfaces import MainWindowLike
 
 logger = logging.getLogger(__name__)

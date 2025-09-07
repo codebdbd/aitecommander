@@ -24,8 +24,8 @@ from .chromium_base_finder import (
     VivaldiProfileFinder,
 )
 from .firefox_profile_finder import FirefoxProfileFinder
-from .profile_manager import BrowserProfileManager, get_profile_manager
 from .persistent_cache import PersistentProfileCache
+from .profile_manager import BrowserProfileManager, get_profile_manager
 from .universal_profile_processor import UniversalProfileProcessor
 
 __all__ = [

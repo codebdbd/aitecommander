@@ -17,6 +17,7 @@ from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.models.db import Database
 from app.services import StructureService
 from app.utils.db.api import run_db
+
 try:
     # Корректная точка доступа к метрикам старта
     from app.utils.metrics.startup_metrics import get_metrics  # type: ignore
@@ -148,19 +149,23 @@ class AsyncOperations:
             except TypeError as e:
                 # Обычно означает, что слот не был подключен
                 self.logger.debug(
-                    f"disconnect_signal_handlers: handler не подключен к сигналу '{name}'",
-                    exc_info=e,
+                    "disconnect_signal_handlers: handler не подключен к сигналу '%s'",
+                    name,
+                    exc_info=True,
                 )
             except RuntimeError as e:
                 # QObject удалён или недействителен
                 self.logger.debug(
-                    f"disconnect_signal_handlers: недействительный объект для сигнала '{name}'",
-                    exc_info=e,
+                    "disconnect_signal_handlers: недействительный объект для сигнала '%s'",
+                    name,
+                    exc_info=True,
                 )
             except Exception as e:
                 # Нежданные ошибки — предупредим, но продолжим отписку остальных
                 self.logger.warning(
-                    f"disconnect_signal_handlers: сбой отписки от сигнала '{name}': {e}",
+                    "disconnect_signal_handlers: сбой отписки от сигнала '%s': %s",
+                    name,
+                    e,
                     exc_info=True,
                 )
 
@@ -199,7 +204,7 @@ class AsyncOperations:
                     metrics.stop(name)
                 except Exception:
                     # Логируем только в debug, чтобы не засорять логи пользователя
-                    self.logger.debug(f"Metrics: failed to stop span {name}")
+                    self.logger.debug("Metrics: failed to stop span %s", name)
                 try:
                     stop_signal.disconnect(_on_stop)
                 except Exception:
@@ -209,7 +214,7 @@ class AsyncOperations:
             stop_signal.connect(_on_stop)
         except Exception:
             # Никогда не ломаем бизнес-логику из-за метрик
-            self.logger.debug(f"Metrics: failed to start span {name}")
+            self.logger.debug("Metrics: failed to start span %s", name)
 
     def load_spheres_async(self) -> None:
         """Асинхронная загрузка всех сфер через run_db."""
@@ -235,7 +240,7 @@ class AsyncOperations:
     def load_structure_async(self, current_sphere_id: int) -> None:
         """Асинхронная загрузка структуры для сферы через run_db."""
         if not isinstance(current_sphere_id, int) or current_sphere_id <= 0:
-            self.logger.error(f"Некорректный ID сферы: {current_sphere_id}")
+            self.logger.error("Некорректный ID сферы: %s", current_sphere_id)
             return
 
         desc = f"Загрузка структуры для сферы {current_sphere_id}..."
@@ -276,7 +281,7 @@ class AsyncOperations:
     def load_sections_async(self, sphere_id: int) -> None:
         """Асинхронная загрузка разделов для сферы через run_db."""
         if not isinstance(sphere_id, int) or sphere_id <= 0:
-            self.logger.error(f"Некорректный ID сферы: {sphere_id}")
+            self.logger.error("Некорректный ID сферы: %s", sphere_id)
             return
 
         self._worker_signals.operation_started.emit(
@@ -298,7 +303,7 @@ class AsyncOperations:
     def load_categories_async(self, section_id: int) -> None:
         """Асинхронная загрузка категорий для раздела через run_db."""
         if not isinstance(section_id, int) or section_id <= 0:
-            self.logger.error(f"Некорректный ID раздела: {section_id}")
+            self.logger.error("Некорректный ID раздела: %s", section_id)
             return
 
         self._worker_signals.operation_started.emit(
@@ -345,7 +350,7 @@ class AsyncOperations:
                 return
         except Exception as e:
             # Не блокируем создание при сбое проверки, только логируем
-            self.logger.warning(f"Не удалось выполнить предчек дубликатов раздела: {e}")
+            self.logger.warning("Не удалось выполнить предчек дубликатов раздела: %s", e)
         def _create():
             service = StructureService(self.db)
             item_id = service.create_section(dict(data))
@@ -412,7 +417,7 @@ class AsyncOperations:
     def update_section_async(self, section_id: int, data: Dict[str, Any]) -> None:
         """Асинхронное обновление раздела через run_db."""
         if not isinstance(section_id, int) or section_id <= 0:
-            self.logger.error(f"Некорректный ID раздела: {section_id}")
+            self.logger.error("Некорректный ID раздела: %s", section_id)
             return
         if not isinstance(data, dict):
             self.logger.error("Данные раздела должны быть словарём")
@@ -444,7 +449,7 @@ class AsyncOperations:
     def update_category_async(self, category_id: int, data: Dict[str, Any]) -> None:
         """Асинхронное обновление категории через run_db."""
         if not isinstance(category_id, int) or category_id <= 0:
-            self.logger.error(f"Некорректный ID категории: {category_id}")
+            self.logger.error("Некорректный ID категории: %s", category_id)
             return
         if not isinstance(data, dict):
             self.logger.error("Данные категории должны быть словарём")
@@ -476,7 +481,7 @@ class AsyncOperations:
     def delete_section_async(self, section_id: int) -> None:
         """Асинхронное удаление раздела через run_db."""
         if not isinstance(section_id, int) or section_id <= 0:
-            self.logger.error(f"Некорректный ID раздела: {section_id}")
+            self.logger.error("Некорректный ID раздела: %s", section_id)
             return
         self._worker_signals.operation_started.emit(
             f"Удаление section ID {section_id}..."
@@ -521,7 +526,7 @@ class AsyncOperations:
                 self._worker_signals.error.emit("Ошибка удаления", error_msg)
                 return None
 
-            self.logger.info(f"Starting async deletion of category {category_id}")
+            self.logger.info("Starting async deletion of category %s", category_id)
             self._worker_signals.operation_started.emit(
                 f"delete_category_{category_id}"
             )
@@ -556,14 +561,14 @@ class AsyncOperations:
 
         except Exception as e:
             error_msg = f"Failed to start deletion task: {str(e)}"
-            self.logger.error(error_msg, exc_info=True)
+            self.logger.error("%s", error_msg, exc_info=True)
             self._worker_signals.error.emit("Ошибка удаления", error_msg)
             return None
 
     def count_nested_objects_async(self, section_id: int) -> None:
         """Асинхронный подсчет вложенных объектов (категорий и ссылок) через run_db."""
         if not isinstance(section_id, int) or section_id <= 0:
-            self.logger.error(f"Некорректный ID раздела: {section_id}")
+            self.logger.error("Некорректный ID раздела: %s", section_id)
             return
 
         self._worker_signals.operation_started.emit(
@@ -612,12 +617,12 @@ class AsyncSignalHandlers:
     def on_spheres_loaded(self, spheres: List[Dict[str, Any]]) -> None:
         """Обработчик завершения загрузки сфер."""
         try:
-            self.logger.info(f"Загружено {len(spheres)} сфер")
+            self.logger.info("Загружено %s сфер", len(spheres))
             if hasattr(self.controller, "spheres_loaded"):
                 self.controller.spheres_loaded.emit(spheres)
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_spheres_loaded: {e}", exc_info=True
+                "Ошибка в обработчике on_spheres_loaded: %s", e, exc_info=True
             )
 
     def on_structure_loaded(
@@ -625,14 +630,12 @@ class AsyncSignalHandlers:
     ) -> None:
         """Обработчик завершения загрузки структуры."""
         try:
-            self.logger.debug(
-                f"Загружена структура для сферы {sphere_id}: {len(structure)} разделов"
-            )
+            self.logger.debug("Загружена структура для сферы %s: %s разделов", sphere_id, len(structure))
             if hasattr(self.controller, "structure_loaded"):
                 self.controller.structure_loaded.emit(structure)
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_structure_loaded: {e}", exc_info=True
+                "Ошибка в обработчике on_structure_loaded: %s", e, exc_info=True
             )
 
     def on_sections_loaded(
@@ -640,14 +643,12 @@ class AsyncSignalHandlers:
     ) -> None:
         """Обработчик завершения загрузки разделов."""
         try:
-            self.logger.info(
-                f"Загружено {len(sections)} разделов для сферы {sphere_id}"
-            )
+            self.logger.info("Загружено %s разделов для сферы %s", len(sections), sphere_id)
             if hasattr(self.controller, "sections_loaded"):
                 self.controller.sections_loaded.emit(sections, sphere_id)
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_sections_loaded: {e}", exc_info=True
+                "Ошибка в обработчике on_sections_loaded: %s", e, exc_info=True
             )
 
     def on_categories_loaded(
@@ -659,9 +660,7 @@ class AsyncSignalHandlers:
         а не `section_selected`, чтобы UI получил именно событие загрузки категорий.
         """
         try:
-            self.logger.info(
-                f"Загружено {len(categories)} категорий для раздела {section_id}"
-            )
+            self.logger.info("Загружено %s категорий для раздела %s", len(categories), section_id)
             if hasattr(self.controller, "categories_loaded"):
                 self.controller.categories_loaded.emit(categories, section_id)
             else:
@@ -671,7 +670,7 @@ class AsyncSignalHandlers:
                     self.controller.section_selected.emit(section_id)
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_categories_loaded: {e}", exc_info=True
+                "Ошибка в обработчике on_categories_loaded: %s", e, exc_info=True
             )
 
     # ===== CRUD =====
@@ -685,7 +684,7 @@ class AsyncSignalHandlers:
                 if isinstance(item_data, dict)
                 else "Unknown"
             )
-            self.logger.info(f"Создан {item_type} (parent_id={parent_id}): {name}")
+            self.logger.info("Создан %s (parent_id=%s): %s", item_type, parent_id, name)
             # Контроллер (StructureBusinessLogic) использует сигнал item_added
             if hasattr(self.controller, "item_added"):
                 self.controller.item_added.emit(item_type, parent_id, item_data)
@@ -709,11 +708,13 @@ class AsyncSignalHandlers:
                             self.controller._schedule_structure_reload(delay_ms=150)
             except Exception as e2:
                 self.logger.warning(
-                    f"Не удалось инициировать обновление UI после создания {item_type}: {e2}"
+                    "Не удалось инициировать обновление UI после создания %s: %s",
+                    item_type,
+                    e2,
                 )
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_item_created: {e}", exc_info=True
+                "Ошибка в обработчике on_item_created: %s", e, exc_info=True
             )
 
     def on_item_updated(
@@ -721,7 +722,7 @@ class AsyncSignalHandlers:
     ) -> None:
         """Обновлён элемент структуры."""
         try:
-            self.logger.info(f"Обновлён {item_type} id={item_id}")
+            self.logger.info("Обновлён %s id=%s", item_type, item_id)
             if hasattr(self.controller, "item_updated"):
                 self.controller.item_updated.emit(item_type, item_id, item_data)
             # Обновляем кэш и запускаем перезагрузку соответствующих данных
@@ -746,11 +747,13 @@ class AsyncSignalHandlers:
                             self.controller._schedule_structure_reload(delay_ms=150)
             except Exception as e2:
                 self.logger.warning(
-                    f"Не удалось инициировать обновление UI после обновления {item_type}: {e2}"
+                    "Не удалось инициировать обновление UI после обновления %s: %s",
+                    item_type,
+                    e2,
                 )
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_item_updated: {e}", exc_info=True
+                "Ошибка в обработчике on_item_updated: %s", e, exc_info=True
             )
 
     def on_item_deleted(
@@ -762,7 +765,7 @@ class AsyncSignalHandlers:
         используется только для логирования и не передается далее.
         """
         try:
-            self.logger.info(f"Удалён {item_type} id={item_id}")
+            self.logger.info("Удалён %s id=%s", item_type, item_id)
             if hasattr(self.controller, "item_deleted"):
                 self.controller.item_deleted.emit(item_type, item_id)
             # Обновление после удаления
@@ -791,16 +794,18 @@ class AsyncSignalHandlers:
                             self.controller._schedule_structure_reload(delay_ms=150)
             except Exception as e2:
                 self.logger.warning(
-                    f"Не удалось инициировать обновление UI после удаления {item_type}: {e2}"
+                    "Не удалось инициировать обновление UI после удаления %s: %s",
+                    item_type,
+                    e2,
                 )
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_item_deleted: {e}", exc_info=True
+                "Ошибка в обработчике on_item_deleted: %s", e, exc_info=True
             )
 
     def on_error(self, title: str, message: str) -> None:
         try:
-            self.logger.error(f"{title}: {message}")
+            self.logger.error("%s: %s", title, message)
             # Новый сигнал контроллера
             if hasattr(self.controller, "error_occurred"):
                 self.controller.error_occurred.emit(title, message)
@@ -808,7 +813,7 @@ class AsyncSignalHandlers:
             elif hasattr(self.controller, "error"):
                 self.controller.error.emit(title, message)
         except Exception as e:
-            self.logger.error(f"Ошибка в обработчике on_error: {e}", exc_info=True)
+            self.logger.error("Ошибка в обработчике on_error: %s", e, exc_info=True)
 
     def on_simple_error(self, message: str) -> None:
         try:
@@ -817,7 +822,7 @@ class AsyncSignalHandlers:
                 self.controller.simple_error.emit(message)
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_simple_error: {e}", exc_info=True
+                "Ошибка в обработчике on_simple_error: %s", e, exc_info=True
             )
 
     def on_operation_started(self, description: str) -> None:
@@ -831,7 +836,7 @@ class AsyncSignalHandlers:
                 self.controller.operation_started.emit(description)
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_operation_started: {e}", exc_info=True
+                "Ошибка в обработчике on_operation_started: %s", e, exc_info=True
             )
 
     def on_operation_finished(self, description: str) -> None:
@@ -845,7 +850,7 @@ class AsyncSignalHandlers:
                 self.controller.operation_finished.emit(description)
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_operation_finished: {e}", exc_info=True
+                "Ошибка в обработчике on_operation_finished: %s", e, exc_info=True
             )
 
     def on_loading_started(self) -> None:
@@ -855,17 +860,17 @@ class AsyncSignalHandlers:
                 self.controller.loading_started.emit()
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_loading_started: {e}", exc_info=True
+                "Ошибка в обработчике on_loading_started: %s", e, exc_info=True
             )
 
     # ===== Обновление UI =====
     def on_update_ui(self, category_id: int) -> None:
         try:
-            self.logger.debug(f"Обновление UI для категории {category_id}")
+            self.logger.debug("Обновление UI для категории %s", category_id)
             if hasattr(self.controller, "update_ui"):
                 self.controller.update_ui.emit(category_id)
         except Exception as e:
-            self.logger.error(f"Ошибка в обработчике on_update_ui: {e}", exc_info=True)
+            self.logger.error("Ошибка в обработчике on_update_ui: %s", e, exc_info=True)
 
     def on_update_favorites(self) -> None:
         try:
@@ -876,7 +881,7 @@ class AsyncSignalHandlers:
             self.top_panels.request_favorites_refresh()
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_update_favorites: {e}", exc_info=True
+                "Ошибка в обработчике on_update_favorites: %s", e, exc_info=True
             )
 
     def on_update_recent_links(self) -> None:
@@ -888,18 +893,18 @@ class AsyncSignalHandlers:
             self.top_panels.request_recents_refresh()
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_update_recent_links: {e}", exc_info=True
+                "Ошибка в обработчике on_update_recent_links: %s", e, exc_info=True
             )
 
     # ===== Поиск / Ссылки / Подсчёт =====
     def on_search_results(self, results: List[Dict[str, Any]]) -> None:
         try:
-            self.logger.info(f"Результаты поиска: {len(results)}")
+            self.logger.info("Результаты поиска: %s", len(results))
             if hasattr(self.controller, "search_results"):
                 self.controller.search_results.emit(results)
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_search_results: {e}", exc_info=True
+                "Ошибка в обработчике on_search_results: %s", e, exc_info=True
             )
 
     def on_links_loaded(
@@ -907,13 +912,16 @@ class AsyncSignalHandlers:
     ) -> None:
         try:
             self.logger.info(
-                f"Загружено ссылок: {len(links)} (category_id={category_id}, task_id={task_id})"
+                "Загружено ссылок: %s (category_id=%s, task_id=%s)",
+                len(links),
+                category_id,
+                task_id,
             )
             if hasattr(self.controller, "links_loaded"):
                 self.controller.links_loaded.emit(links, category_id, task_id)
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_links_loaded: {e}", exc_info=True
+                "Ошибка в обработчике on_links_loaded: %s", e, exc_info=True
             )
 
     def on_link_info_finished(self, info: Dict[str, Any]) -> None:
@@ -923,17 +931,17 @@ class AsyncSignalHandlers:
                 self.controller.link_info_finished.emit(info)
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_link_info_finished: {e}", exc_info=True
+                "Ошибка в обработчике on_link_info_finished: %s", e, exc_info=True
             )
 
     def on_count_finished(
         self, fav_count: int, links: List[Dict[str, Any]], link: object
     ) -> None:
         try:
-            self.logger.info(f"Подсчёт избранных завершён: {fav_count}")
+            self.logger.info("Подсчёт избранных завершён: %s", fav_count)
             if hasattr(self.controller, "count_finished"):
                 self.controller.count_finished.emit(fav_count, links, link)
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике on_count_finished: {e}", exc_info=True
+                "Ошибка в обработчике on_count_finished: %s", e, exc_info=True
             )

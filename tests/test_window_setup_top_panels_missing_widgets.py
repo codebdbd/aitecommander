@@ -1,6 +1,9 @@
 import pytest
 
-from app.controllers.system.window_controllers_setup import _connect_top_panels_signals_explicit, SetupError
+from app.controllers.system.window_controllers_setup import (
+    SetupError,
+    _connect_top_panels_signals_explicit,
+)
 
 
 class WindowStub:

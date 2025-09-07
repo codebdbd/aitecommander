@@ -149,11 +149,11 @@ class StructureLogger:
         self, operation: str, item_type: str, item_name: str, ru_name: str
     ) -> None:
         """Логирует операцию с элементом структуры."""
-        self.logger.info(f"{ru_name.capitalize()} {operation}: {item_name}")
+        self.logger.info("%s %s: %s", ru_name.capitalize(), operation, item_name)
 
     def log_error(self, operation: str, item_type: str, error: str) -> None:
         """Логирует ошибку операции."""
-        self.logger.error(f"Ошибка {operation} для {item_type}: {error}")
+        self.logger.error("Ошибка %s для %s: %s", operation, item_type, error)
 
 
 class StructureSignalEmitter:
@@ -178,7 +178,7 @@ class StructureSignalEmitter:
             self._emit_signal(signal_type, item_type, parent_or_id, data)
         except Exception as e:
             # Логируем, но не прерываем выполнение основной операции
-            logger.warning(f"Ошибка эмиссии сигнала: {e}")
+            logger.warning("Ошибка эмиссии сигнала: %s", e)
 
 
 class BaseOperations:

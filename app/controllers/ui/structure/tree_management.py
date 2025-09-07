@@ -1,11 +1,14 @@
 # app/controllers/structure/tree_management.py
 
-from PyQt6.QtCore import QModelIndex, Qt
 import logging
 
-from app.controllers.ui.state.task_scheduler import schedule_selection_restore, schedule_focus
-from app.utils.ui.qt.roles import get_tree_tuple
+from PyQt6.QtCore import QModelIndex, Qt
 
+from app.controllers.ui.state.task_scheduler import (
+    schedule_focus,
+    schedule_selection_restore,
+)
+from app.utils.ui.qt.roles import get_tree_tuple
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +136,7 @@ class TreeManagement:
             try:
                 schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
             except Exception:
-                pass
+                logger.debug("TreeManagement._on_item_added: schedule_focus failed", exc_info=True)
 
     def _on_item_updated(self, item_type: str, item_id: int, data: dict) -> None:
         # Инкрементальное обновление
@@ -344,8 +347,8 @@ class TreeManagement:
                         item_type, item_id
                     )
         except Exception:
-            # Безопасный fallback: ничего не делаем
-            pass
+            # Безопасный fallback: ничего не делаем, но фиксируем контекст
+            logger.debug("TreeManagement._sort_tree: snapshot update failed; fallback to no-op", exc_info=True)
 
     def on_structure_item_changed(
         self, item_type: str, item_id: int, data: dict

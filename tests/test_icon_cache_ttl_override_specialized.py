@@ -1,8 +1,9 @@
 import time
+
 import pytest
 
-from app.utils.ui.icon import cache_manager as ic
 from app.config_data import app_config
+from app.utils.ui.icon import cache_manager as ic
 
 
 def _sleep(s: float) -> None:

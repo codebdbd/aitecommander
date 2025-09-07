@@ -1,7 +1,7 @@
 # app/controllers/keyboard/keyboard_manager.py
 
-import time
 import logging
+import time
 from typing import Any, Optional, TypeVar
 
 from PyQt6.QtCore import QItemSelection, QItemSelectionModel, QObject, Qt, QTimer

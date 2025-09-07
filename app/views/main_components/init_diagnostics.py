@@ -40,7 +40,7 @@ class DiagnosticsInstaller:
     # === Qt message handler ===
     def _install_qt_message_filter(self) -> None:
         try:
-            from PyQt6.QtCore import qInstallMessageHandler, QtMsgType
+            from PyQt6.QtCore import QtMsgType, qInstallMessageHandler
         except Exception as e:
             raise RuntimeError("qInstallMessageHandler import failed") from e
 
@@ -53,7 +53,7 @@ class DiagnosticsInstaller:
                 try:
                     logger.debug("[QtMsgSuppressed] %s", msg)
                 except Exception:
-                    pass
+                    logger.debug("DiagnosticsInstaller: failed to log suppressed Qt message", exc_info=True)
                 return
             try:
                 if msg_type in (QtMsgType.QtWarningMsg, QtMsgType.QtInfoMsg):
@@ -63,7 +63,7 @@ class DiagnosticsInstaller:
                 else:
                     logger.info("[Qt] %s", msg)
             except Exception:
-                pass
+                logger.debug("DiagnosticsInstaller: failed to log Qt message", exc_info=True)
 
         try:
             qInstallMessageHandler(_qt_msg_handler)
@@ -99,15 +99,15 @@ class DiagnosticsInstaller:
                         try:
                             obj.removeEventFilter(self)
                         except Exception:
-                            pass
+                            logger.debug("DiagnosticsInstaller: removeEventFilter failed in _ResizeLogger", exc_info=True)
                         try:
                             if hasattr(self._owner, "_diag_resize_logger") and getattr(self._owner, "_diag_resize_logger", None) is self:
                                 setattr(self._owner, "_diag_resize_logger", None)  # type: ignore[attr-defined]
                                 setattr(self._owner, "_diag_resize_logger_installed", False)  # type: ignore[attr-defined]
                         except Exception:
-                            pass
+                            logger.debug("DiagnosticsInstaller: failed to reset _diag_resize_logger flags", exc_info=True)
                 except Exception:
-                    pass
+                    logger.debug("DiagnosticsInstaller: _maybe_uninstall failed", exc_info=True)
 
             def eventFilter(self, obj, event):
                 et = event.type()
@@ -131,7 +131,7 @@ class DiagnosticsInstaller:
                         logger.info("DiagTopLevels: Move #%s -> %s", self._moves, pos_s)
                         self._maybe_uninstall(obj)
                 except Exception:
-                    pass
+                    logger.debug("DiagnosticsInstaller: _ResizeLogger.eventFilter failed", exc_info=True)
                 return QObject.eventFilter(self, obj, event)
 
         rl = _ResizeLogger(win)
@@ -180,9 +180,9 @@ class DiagnosticsInstaller:
                                 try:
                                     self._dump_top_levels("watcher installed")
                                 except Exception:
-                                    pass
+                                    logger.debug("DiagnosticsInstaller: dump_top_levels callback failed", exc_info=True)
                 except Exception:
-                    pass
+                    logger.debug("DiagnosticsInstaller: _TopLevelWatcher.eventFilter failed", exc_info=True)
                 return QObject.eventFilter(self, obj, event)
 
         watcher = _TopLevelWatcher(app)

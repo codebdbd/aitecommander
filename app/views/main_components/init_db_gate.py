@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import logging
 from typing import Callable, Optional
-from app.interfaces import MainWindowLike
 
 from PyQt6.QtCore import QTimer
+
+from app.interfaces import MainWindowLike
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ class DbReadyGate:
                         self._timer.deleteLater()
                         self._timer = None
                 except Exception:
-                    pass
+                    self._logger.debug("DbReadyGate: failed to stop/delete timer on ready", exc_info=True)
                 on_ready()
             else:
                 # Не готово — перезапускаем одноразовый таймер для следующей проверки
@@ -65,13 +66,14 @@ class DbReadyGate:
                         self._timer.start(100)
                 except Exception:
                     # В случае ошибки перестрахуемся: удалим таймер, чтобы не протекал
+                    self._logger.debug("DbReadyGate: failed to restart timer; will attempt to dispose", exc_info=True)
                     try:
                         if self._timer is not None:
                             self._timer.stop()
                             self._timer.deleteLater()
                             self._timer = None
                     except Exception:
-                        pass
+                        self._logger.debug("DbReadyGate: failed to dispose timer after restart failure", exc_info=True)
         except Exception:
             self._logger.exception("DbReadyGate: error during readiness check")
             # При ошибке проверки — безопасно остановим и удалим таймер
@@ -81,4 +83,4 @@ class DbReadyGate:
                     self._timer.deleteLater()
                     self._timer = None
             except Exception:
-                pass
+                self._logger.debug("DbReadyGate: failed to dispose timer after error", exc_info=True)

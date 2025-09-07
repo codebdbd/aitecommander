@@ -1,5 +1,6 @@
 """Recent links panel widget for top bar."""
 
+import logging
 from typing import Any, Dict, List
 
 from PyQt6.QtWidgets import QToolButton
@@ -30,7 +31,7 @@ class RecentPanelWidget(BaseTopPanelWidget):
         try:
             self.setVisible(bool(items))
         except Exception:
-            pass
+            logging.getLogger(__name__).debug("RecentPanelWidget: setVisible failed", exc_info=True)
         
         # Sync top bar layout
         self._sync_topbar_layout()

@@ -41,7 +41,7 @@ class CacheManager:
             return
         # Используем единый кэш с дефолтным TTL
         self._cache.set("first_category_id", int(category_id))
-        self.logger.debug(f"Кэширован ID первой категории: {category_id}")
+        self.logger.debug("Кэширован ID первой категории: %s", category_id)
 
     def invalidate_first_category_cache(self) -> None:
         """Инвалидирует кэш первой категории при изменениях в категориях."""
@@ -58,7 +58,7 @@ class CacheManager:
     def set(self, key: str, value: Any, *, ttl: Optional[float] = None) -> None:
         """Сохраняет значение в кэш по ключу с опциональным TTL."""
         self._cache.set(key, value, ttl=ttl)
-        self.logger.debug(f"Кэш установлен: {key}")
+        self.logger.debug("Кэш установлен: %s", key)
 
     def invalidate(self, key: Optional[str] = None) -> None:
         """Инвалидирует кэш по ключу. Если key не указан — очищает весь кэш."""
@@ -67,7 +67,7 @@ class CacheManager:
             self.logger.debug("Очищен весь кэш")
             return
         self._cache.invalidate(key)
-        self.logger.debug(f"Инвалидирован кэш: {key}")
+        self.logger.debug("Инвалидирован кэш: %s", key)
 
     def clear_all(self) -> None:
         """Очищает весь кэш."""

@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 
 from app.views.dialogs.link_dialog.icon_utils import (
-    make_icon_result,
     IconErrorKind,
+    make_icon_result,
 )
 
 

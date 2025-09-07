@@ -72,7 +72,9 @@ class CategoryOperations(BaseOperations):
             links_count = self._count_category_links(category_id)
 
             self.logger.info(
-                f"Подготовка к удалению категории {category_id}: {links_count} ссылок"
+                "Подготовка к удалению категории %s: %s ссылок",
+                category_id,
+                links_count,
             )
 
             return True, category_data, links_count
@@ -113,9 +115,9 @@ class CategoryOperations(BaseOperations):
         def _get_category_operation():
             category_data = self._get_category_data_internal(category_id)
             if category_data:
-                self.logger.debug(f"Найдена категория {category_id}")
+                self.logger.debug("Найдена категория %s", category_id)
             else:
-                self.logger.warning(f"Категория {category_id} не найдена")
+                self.logger.warning("Категория %s не найдена", category_id)
             return category_data
 
         return self._exec_with_norm(
@@ -135,7 +137,9 @@ class CategoryOperations(BaseOperations):
             )
             result = categories_data if categories_data else []
             self.logger.debug(
-                f"Загружено {len(result)} категорий для раздела {section_id}"
+                "Загружено %s категорий для раздела %s",
+                len(result),
+                section_id,
             )
             return result
 
@@ -245,7 +249,7 @@ class CategoryOperations(BaseOperations):
         cached_id = self._cache_manager.get_first_category_id()
         if cached_id is not None:
             self.logger.debug(
-                f"Используется кэшированная первая категория: {cached_id}"
+                "Используется кэшированная первая категория: %s", cached_id
             )
             return cached_id
 
@@ -253,7 +257,7 @@ class CategoryOperations(BaseOperations):
             # Сервиса для этого метода пока нет — используем модель
             category_id = self.structure_model.get_first_category_id()
             if category_id:
-                self.logger.debug(f"Найдена первая категория с ID: {category_id}")
+                self.logger.debug("Найдена первая категория с ID: %s", category_id)
                 self._cache_manager.set_first_category_id(category_id)
                 return category_id
             else:
@@ -276,9 +280,9 @@ class CategoryOperations(BaseOperations):
                 else self.structure_model.get_category_hierarchy(category_id)
             )
             if hierarchy_data:
-                self.logger.debug(f"Найдена иерархия для категории {category_id}")
+                self.logger.debug("Найдена иерархия для категории %s", category_id)
             else:
-                self.logger.warning(f"Иерархия для категории {category_id} не найдена")
+                self.logger.warning("Иерархия для категории %s не найдена", category_id)
             return hierarchy_data
 
         return self._exec_with_norm(
@@ -327,7 +331,9 @@ class CategoryOperations(BaseOperations):
             return self.structure_model.count_links_by_category(category_id)
         except Exception as e:
             self.logger.error(
-                f"Ошибка подсчета ссылок для категории {category_id}: {e}"
+                "Ошибка подсчета ссылок для категории %s: %s",
+                category_id,
+                e,
             )
             return 0
 
@@ -346,7 +352,11 @@ class CategoryOperations(BaseOperations):
                 self._emit_signal(signal_type, item_type.value, item_id)
         except Exception as e:
             self.logger.error(
-                f"Ошибка отправки сигнала {signal_type} для {item_type.value} {item_id}: {e}"
+                "Ошибка отправки сигнала %s для %s %s: %s",
+                signal_type,
+                item_type.value,
+                item_id,
+                e,
             )
 
     def _validate_batch_categories(
@@ -381,7 +391,7 @@ class CategoryOperations(BaseOperations):
         def _create_import_operation():
             result_id = create_func(item_data)
             if not result_id:
-                self.logger.warning(f"Не удалось создать {item_type} для импорта")
+                self.logger.warning("Не удалось создать %s для импорта", item_type)
                 return None
 
             # Подготавливаем данные для сигнала
@@ -398,7 +408,9 @@ class CategoryOperations(BaseOperations):
             )
 
             self.logger.info(
-                f"Создан {item_type} для импорта: {signal_data.get('name', 'без имени')}"
+                "Создан %s для импорта: %s",
+                item_type,
+                signal_data.get('name', 'без имени'),
             )
             return result_id
 

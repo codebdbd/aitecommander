@@ -215,9 +215,9 @@ class ThreadSafeIconCache:
                     self._ttl_negative = app_config.get_negative_cache_ttl()
                 except Exception:  # noqa: BLE001
                     self._ttl_negative = None
-        except Exception:
+        except Exception as exc:
             # Никогда не мешаем основному пути исполнения из-за ошибок конфигурации
-            pass
+            logger.debug("IconCache: TTL refresh failed, using previous values: %s", exc, exc_info=True)
 
     # --- PATH API ---
 
@@ -231,8 +231,8 @@ class ThreadSafeIconCache:
             if entry is None:
                 try:
                     self.metrics.record_miss()
-                except Exception:  # noqa: BLE001
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("IconCache.metrics.record_miss failed: %s", exc, exc_info=True)
                 return None
 
             # Персональный TTL имеет приоритет над глобальным TTL для путей
@@ -249,8 +249,8 @@ class ThreadSafeIconCache:
             self._path_lru.access(key)
             try:
                 self.metrics.record_hit()
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("IconCache.metrics.record_hit failed: %s", exc, exc_info=True)
             return entry.path
 
     def set_path(self, icon_name: str, theme: str, path: Optional[str]) -> None:
@@ -346,8 +346,8 @@ class ThreadSafeIconCache:
                 if entry is None:
                     try:
                         self.metrics.record_miss()
-                    except Exception:  # noqa: BLE001
-                        pass
+                    except Exception as exc:  # noqa: BLE001
+                        logger.debug("IconCache.metrics.record_miss failed: %s", exc, exc_info=True)
                     return None
                 ttl = entry.ttl_override if entry.ttl_override is not None else self._ttl_icon
                 if not entry.is_valid(ttl):
@@ -361,8 +361,8 @@ class ThreadSafeIconCache:
                 self._path_lru.access(k)
                 try:
                     self.metrics.record_hit()
-                except Exception:  # noqa: BLE001
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("IconCache.metrics.record_hit failed: %s", exc, exc_info=True)
                 return entry.path
             else:  # qicon
                 self._sync_qicon_structs()
@@ -389,8 +389,8 @@ class ThreadSafeIconCache:
                 self._qicon_lru.access(k)
                 try:
                     self.metrics.record_hit()
-                except Exception:  # noqa: BLE001
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("IconCache.metrics.record_hit failed: %s", exc, exc_info=True)
                 return entry.icon
 
     def set(self, key: str, value: Optional[Union[str, QIcon]], *, ttl: Optional[float] = None) -> None:

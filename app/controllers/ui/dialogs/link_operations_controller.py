@@ -5,6 +5,7 @@ import logging
 from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QDialog
 
+from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 from app.controllers.ui.undo.commands_links import (
     BatchDeleteLinksCmd,
     BatchSaveLinksCmd,
@@ -13,7 +14,6 @@ from app.controllers.ui.undo.commands_links import (
 )
 from app.controllers.ui.undo.stack import UndoManager
 from app.views.dialogs.link_dialog.link_dialog import LinkDialog
-from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 
 # Константы для макросов отмены/повтора
 MACRO_DELETE_LINKS_TEXT = "Удаление {count} ссылок"

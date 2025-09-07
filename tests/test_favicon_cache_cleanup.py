@@ -1,7 +1,7 @@
 import os
+import shelve
 import time
 from contextlib import closing
-import shelve
 from pathlib import Path
 
 import pytest

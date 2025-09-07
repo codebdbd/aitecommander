@@ -1,4 +1,5 @@
 import types
+
 import pytest
 
 # Модуль под тестом

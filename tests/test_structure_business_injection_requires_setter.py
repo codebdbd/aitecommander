@@ -1,5 +1,6 @@
-import pytest
 from types import SimpleNamespace
+
+import pytest
 
 # Тест проверяет, что отсутствие set_top_panels_controller в StructureBusinessLogic
 # приводит к SetupError при вызове setup_controllers

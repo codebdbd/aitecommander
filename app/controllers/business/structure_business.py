@@ -113,7 +113,7 @@ class StructureBusinessLogic(QObject):
             self.item_deleted.connect(self._on_item_deleted)
             # Подключаем обработчик нового батч-сигнала
             self.items_batch_deleted.connect(self._on_items_batch_deleted)
-            self.logger.info(f"[BL] Handlers connected for business id={id(self)}")
+            self.logger.info("[BL] Handlers connected for business id=%s", id(self))
         except Exception:
             # Защита от ошибок подключения сигналов, не ломаем инициализацию
             self.logger.warning(
@@ -182,7 +182,7 @@ class StructureBusinessLogic(QObject):
             if old_sphere_id != sphere_id:
                 self.cache_manager.invalidate(f"sphere_{old_sphere_id}")
 
-            self.logger.info(f"Установлена текущая сфера: {sphere_id}")
+            self.logger.info("Установлена текущая сфера: %s", sphere_id)
             self.active_sphere_changed.emit(sphere_id)
 
         except Exception as e:
@@ -213,7 +213,7 @@ class StructureBusinessLogic(QObject):
         self.cache_manager.set(cache_key, structure_data)
 
         self.structure_loaded.emit(structure_data)
-        self.logger.debug(f"Загружена структура для сферы {self.current_sphere_id}")
+        self.logger.debug("Загружена структура для сферы %s", self.current_sphere_id)
 
     def _load_structure_from_db(self, sphere_id: int) -> List[Dict[str, Any]]:
         """Загружает структуру из базы данных (делегировано в сервис)."""
@@ -232,7 +232,7 @@ class StructureBusinessLogic(QObject):
         """Элемент добавлен: инвалидируем кэш и запускаем асинхронную перезагрузку."""
         try:
             self.logger.info(
-                f"[BL] item_added: type={item_type}, parent_id={parent_id}"
+                "[BL] item_added: type=%s, parent_id=%s", item_type, parent_id
             )
             # Для ссылок не требуется немедленная полная перезагрузка структуры
             if item_type == "link":
@@ -259,7 +259,7 @@ class StructureBusinessLogic(QObject):
             self._schedule_structure_reload(0)
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике _on_item_added: {e}", exc_info=True
+                "Ошибка в обработчике _on_item_added: %s", e, exc_info=True
             )
 
     def _on_item_updated(
@@ -267,7 +267,7 @@ class StructureBusinessLogic(QObject):
     ) -> None:
         """Элемент обновлён: инвалидируем кэш и запускаем асинхронную перезагрузку."""
         try:
-            self.logger.info(f"[BL] item_updated: type={item_type}, id={item_id}")
+            self.logger.info("[BL] item_updated: type=%s, id=%s", item_type, item_id)
             if item_type == "link":
                 category_id = (
                     item_data.get("category_id")
@@ -300,7 +300,7 @@ class StructureBusinessLogic(QObject):
             self._schedule_structure_reload(0)
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике _on_item_updated: {e}", exc_info=True
+                "Ошибка в обработчике _on_item_updated: %s", e, exc_info=True
             )
 
     # =============================================================================
@@ -331,17 +331,17 @@ class StructureBusinessLogic(QObject):
                 try:
                     if isinstance(sid, int) and sid > 0:
                         self.async_operations.load_categories_async(int(sid))
-                except Exception:
-                    continue
-        except Exception:
-            pass
+                except Exception as exc:
+                    self.logger.debug("end_batch: failed to schedule load_categories_async for %s: %s", sid, exc, exc_info=True)
+        except Exception as exc:
+            self.logger.debug("end_batch: failed to iterate touched sections: %s", exc, exc_info=True)
 
         # И одна коалесцированная перезагрузка структуры сферы
         try:
             self._invalidate_structure_cache()
             self._schedule_structure_reload(0)
-        except Exception:
-            pass
+        except Exception as exc:
+            self.logger.debug("end_batch: failed to schedule structure reload: %s", exc, exc_info=True)
 
     def _schedule_structure_reload(self, delay_ms: int = 200) -> None:
         """Планирует отложенную перезагрузку структуры (дебаунсирует частые события)."""
@@ -353,7 +353,7 @@ class StructureBusinessLogic(QObject):
                 self._structure_reload_timer.stop()
             self._structure_reload_timer.start(delay_ms)
         except Exception as e:
-            self.logger.warning(f"_schedule_structure_reload: failed to schedule: {e}")
+            self.logger.warning("_schedule_structure_reload: failed to schedule: %s", e, exc_info=True)
 
     def _perform_structure_reload(self) -> None:
         """Выполняет фактическую перезагрузку структуры текущей сферы."""
@@ -363,7 +363,7 @@ class StructureBusinessLogic(QObject):
             if isinstance(sphere_id, int) and sphere_id > 0:
                 self.async_operations.load_structure_async(sphere_id)
         except Exception as e:
-            self.logger.error(f"_perform_structure_reload: {e}")
+            self.logger.error("_perform_structure_reload: %s", e, exc_info=True)
 
     def _on_item_deleted(self, item_type: str, item_id: int) -> None:
         """Элемент удалён: инвалидируем кэш и запускаем асинхронную перезагрузку.
@@ -372,7 +372,7 @@ class StructureBusinessLogic(QObject):
         поэтому для надёжности перезагружаем всю структуру текущей сферы.
         """
         try:
-            self.logger.info(f"[BL] item_deleted: type={item_type}, id={item_id}")
+            self.logger.info("[BL] item_deleted: type=%s, id=%s", item_type, item_id)
             # Для ссылок используем отложенную перезагрузку структуры, чтобы
             # коалесцировать серию удалений в одну перезагрузку
             if item_type == "link":
@@ -383,7 +383,7 @@ class StructureBusinessLogic(QObject):
             self._schedule_structure_reload(0)
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике _on_item_deleted: {e}", exc_info=True
+                "Ошибка в обработчике _on_item_deleted: %s", e, exc_info=True
             )
 
     def _on_items_batch_deleted(self, item_type: str, ids: list) -> None:
@@ -394,7 +394,7 @@ class StructureBusinessLogic(QObject):
         """
         try:
             total = len(ids) if isinstance(ids, (list, tuple)) else 0
-            self.logger.info(f"[BL] items_batch_deleted: type={item_type}, count={total}")
+            self.logger.info("[BL] items_batch_deleted: type=%s, count=%s", item_type, total)
             # Для ссылок используем небольшую задержку, чтобы коалесцировать
             if item_type == "link":
                 self._schedule_structure_reload(200)
@@ -404,7 +404,7 @@ class StructureBusinessLogic(QObject):
             self._schedule_structure_reload(0)
         except Exception as e:
             self.logger.error(
-                f"Ошибка в обработчике _on_items_batch_deleted: {e}", exc_info=True
+                "Ошибка в обработчике _on_items_batch_deleted: %s", e, exc_info=True
             )
 
     @handle_exceptions()
@@ -412,13 +412,13 @@ class StructureBusinessLogic(QObject):
         """Выбирает раздел и загружает его категории."""
         categories = self.get_categories(section_id)
         self.section_selected.emit(section_id)
-        self.logger.debug(f"Выбран раздел {section_id} с {len(categories)} категориями")
+        self.logger.debug("Выбран раздел %s с %s категориями", section_id, len(categories))
 
     @handle_exceptions()
     def select_category(self, category_id: int) -> None:
         """Выбирает категорию."""
         self.category_selected.emit(category_id)
-        self.logger.debug(f"Выбрана категория {category_id}")
+        self.logger.debug("Выбрана категория %s", category_id)
 
     # =============================================================================
     # ОПЕРАЦИИ СО СФЕРАМИ (СОВМЕСТИМОСТЬ)
@@ -753,7 +753,7 @@ class StructureBusinessLogic(QObject):
             # Переход на реальную асинхронную загрузку через AsyncOperations
             self.async_operations.load_spheres_async()
         except Exception as e:
-            self.logger.error(f"load_spheres_async failed: {e}")
+            self.logger.error("load_spheres_async failed: %s", e)
 
     @handle_exceptions()
     def get_sphere_by_id(self, sphere_id: int) -> Optional[Dict[str, Any]]:
@@ -888,13 +888,13 @@ class StructureBusinessLogic(QObject):
     def _handle_error(self, title: str, error: Exception) -> None:
         """Обрабатывает ошибки с полным логированием."""
         error_msg = str(error)
-        self.logger.error(f"{title}: {error_msg}", exc_info=True)
+        self.logger.error("%s: %s", title, error_msg, exc_info=True)
         self._emit_error(title, error_msg)
 
     def _emit_error(self, title: str, message: str) -> None:
         """Отправляет сигнал об ошибке."""
         self.error_occurred.emit(title, message)
-        self.logger.error(f"{title}: {message}")
+        self.logger.error("%s: %s", title, message)
 
     # =============================================================================
     # ДОПОЛНИТЕЛЬНЫЕ СЛУЖЕБНЫЕ МЕТОДЫ

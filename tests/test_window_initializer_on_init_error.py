@@ -1,5 +1,3 @@
-import types
-
 import pytest
 
 from app.views.main_components.window_initializer import WindowInitializer, logger

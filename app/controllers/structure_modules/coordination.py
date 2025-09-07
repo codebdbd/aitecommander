@@ -91,8 +91,9 @@ class OperationCoordinator:
                     section["categories"] = []
 
             self.logger.debug(
-                f"Загружена структура для сферы {sphere_id}: "
-                f"{len(sections_data)} разделов"
+                "Загружена структура для сферы %s: %s разделов",
+                sphere_id,
+                len(sections_data),
             )
             return sections_data
 
@@ -161,7 +162,7 @@ class OperationCoordinator:
             if section_id is not None:
                 categories_by_section[section_id].append(cat)
             else:
-                self.logger.warning(f"Категория без section_id найдена: {cat}")
+                self.logger.warning("Категория без section_id найдена: %s", cat)
 
         return dict(categories_by_section)
 
@@ -202,10 +203,10 @@ class OperationCoordinator:
                 try:
                     error_callback("Ошибка", error_msg, True)
                 except Exception as callback_error:
-                    self.logger.error(f"Ошибка в callback: {callback_error}")
-                    self.logger.error(f"Исходная ошибка: {error_msg}", exc_info=True)
+                    self.logger.error("Ошибка в callback: %s", callback_error)
+                    self.logger.error("Исходная ошибка: %s", error_msg, exc_info=True)
             else:
-                self.logger.error(f"Ошибка: {error_msg}", exc_info=True)
+                self.logger.error("Ошибка: %s", error_msg, exc_info=True)
             return default_return
 
     def execute_with_validation(
@@ -267,7 +268,7 @@ class OperationCoordinator:
             if not vr.is_valid:
                 raise ValidationError("; ".join(vr.errors))
 
-            self.logger.debug(f"Валидация прошла успешно для {operation_name}")
+            self.logger.debug("Валидация прошла успешно для %s", operation_name)
             return operation_func()
         except ValidationError as e:
             error_msg = f"Ошибка валидации при {operation_name}: {e}"
@@ -275,10 +276,10 @@ class OperationCoordinator:
                 try:
                     error_callback("Ошибка валидации", error_msg, False)
                 except Exception as callback_error:
-                    self.logger.error(f"Ошибка в callback: {callback_error}")
-                    self.logger.error(f"Исходная ошибка валидации: {error_msg}")
+                    self.logger.error("Ошибка в callback: %s", callback_error)
+                    self.logger.error("Исходная ошибка валидации: %s", error_msg)
             else:
-                self.logger.error(error_msg)
+                self.logger.error("%s", error_msg)
             return None
         except Exception as e:
             error_msg = f"Неожиданная ошибка при {operation_name}: {e}"
@@ -286,8 +287,8 @@ class OperationCoordinator:
                 try:
                     error_callback("Ошибка", error_msg, True)
                 except Exception as callback_error:
-                    self.logger.error(f"Ошибка в callback: {callback_error}")
-                    self.logger.error(f"Исходная ошибка: {error_msg}", exc_info=True)
+                    self.logger.error("Ошибка в callback: %s", callback_error)
+                    self.logger.error("Исходная ошибка: %s", error_msg, exc_info=True)
             else:
-                self.logger.error(error_msg, exc_info=True)
+                self.logger.error("%s", error_msg, exc_info=True)
             return None

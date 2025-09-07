@@ -1,5 +1,6 @@
 """Favorites panel widget for top bar."""
 
+import logging
 from typing import Any, Dict, List
 
 from PyQt6.QtWidgets import QToolButton
@@ -28,7 +29,7 @@ class FavoritesPanelWidget(BaseTopPanelWidget):
         try:
             self.setVisible(bool(items))
         except Exception:
-            pass
+            logging.getLogger(__name__).debug("FavoritesPanelWidget: setVisible failed", exc_info=True)
         
         # Sync top bar layout
         self._sync_topbar_layout()

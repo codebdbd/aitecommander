@@ -1,7 +1,10 @@
 import logging
+
 import pytest
 
-from app.controllers.ui.dialogs.link_operations_controller import LinkOperationsController
+from app.controllers.ui.dialogs.link_operations_controller import (
+    LinkOperationsController,
+)
 
 
 @pytest.fixture()

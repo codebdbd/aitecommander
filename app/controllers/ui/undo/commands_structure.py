@@ -5,7 +5,6 @@ import logging
 from typing import Dict, Optional
 
 from app.controllers.ui.undo.base import BaseCommand, log_command
-
 from app.services.structure_service import StructureService
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 
@@ -37,7 +36,7 @@ class SaveSectionCmd(BaseCommand):
                     business.item_updated.emit("section", self.new_id, self.new_data)
                 # Полная перезагрузка больше не требуется — модель обновится через сигналы
         except Exception as exc:
-            logger.warning("SaveSectionCmd.redo: delete guard check failed: %s", exc)
+            logger.warning("SaveSectionCmd._emit_reload: failed to emit update signals: %s", exc, exc_info=True)
 
     @log_command
     def redo(self):
@@ -130,8 +129,8 @@ class DeleteSectionCmd(BaseCommand):
             if business:
                 business.item_deleted.emit("section", section_id)
                 # Инкрементальное обновление — без полной перезагрузки
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("DeleteSectionCmd.redo: item_deleted emit failed: %s", exc, exc_info=True)
 
     def undo(self):
         try:
@@ -152,8 +151,8 @@ class DeleteSectionCmd(BaseCommand):
                         business = getattr(self.main, "structure_business", None)
                         if business:
                             business.select_category(cat_id)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("DeleteSectionCmd.undo: select_category failed: %s", exc, exc_info=True)
             except Exception as exc:
                 logger.warning("DeleteSectionCmd.undo: categories handling failed: %s", exc)
             try:
@@ -169,8 +168,8 @@ class DeleteSectionCmd(BaseCommand):
                         "section", section_id, self._backup_tree["section"]
                     )
                     # Инкрементальное обновление — без полной перезагрузки
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("DeleteSectionCmd.undo: item_added emit failed: %s", exc, exc_info=True)
             # Полной перезагрузки структуры не требуется: выше отправлены необходимые сигналы
         except Exception as exc:
             # В случае сбоя восстановления — оставляем как есть, без исключений в UI
@@ -238,8 +237,8 @@ class SaveCategoryCmd(BaseCommand):
                     # Подставим name, если диалог его не вернул вовсе
                     if "name" not in self.new_data and "name" in self.old_data:
                         self.new_data["name"] = self.old_data["name"]
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("SaveCategoryCmd.redo: payload normalization failed: %s", exc, exc_info=True)
             self.structure_service.update_category(
                 self.new_data.get("id"), self.new_data
             )
@@ -327,8 +326,8 @@ class DeleteCategoryCmd(BaseCommand):
             if getattr(self.main, "_suppress_deletes", False):
                 logger.debug("[DeleteGuard] DeleteCategoryCmd.redo suppressed by _suppress_deletes flag")
                 return
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("DeleteCategoryCmd.redo: delete guard check failed: %s", exc, exc_info=True)
         category_id = self.category.get("id")
         if category_id is None:
             return
@@ -473,13 +472,9 @@ class DeleteCategoriesBatchCmd(BaseCommand):
         selection = None
         try:
             ids_dbg = [c.get("id") for c in self.categories if c.get("id") is not None]
-            logger.debug(
-                "[BatchRedo:start] cmd_id=%s items=%s",
-                hex(id(self)),
-                len(ids_dbg),
-            )
-        except Exception:
-            pass
+            logger.debug("[BatchRedo:start] cmd_id=%s items=%s", hex(id(self)), len(ids_dbg))
+        except Exception as exc:
+            logger.debug("DeleteCategoriesBatchCmd.redo: start logging failed: %s", exc, exc_info=True)
         try:
             struct = getattr(self.main, "structure", None)
             tree = getattr(struct, "tree", None)
@@ -487,8 +482,8 @@ class DeleteCategoriesBatchCmd(BaseCommand):
             if selection is not None:
                 try:
                     selection.begin_suppress_selection()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("DeleteCategoriesBatchCmd.redo: begin_suppress_selection failed: %s", exc, exc_info=True)
             if tree is not None:
                 tree.blockSignals(True)
         except Exception as exc:
@@ -504,14 +499,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                     section_id_for_focus = sid
             try:
                 self.structure_service.delete_categories_bulk(ids)
-                try:
-                    logger.debug(
-                        "[BatchRedo:deleted] cmd_id=%s bulk_ok ids=%s",
-                        hex(id(self)),
-                        len(ids),
-                    )
-                except Exception:
-                    pass
+                logger.debug("[BatchRedo:deleted] cmd_id=%s bulk_ok ids=%s", hex(id(self)), len(ids))
             except Exception:
                 # Если bulk не удался, пробуем поштучно как fallback
                 for cid in ids:
@@ -519,14 +507,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                         self.structure_service.delete_category(cid)
                     except Exception as exc2:
                         logger.warning("DeleteCategoriesBatchCmd.redo: delete_category failed for %s: %s", cid, exc2)
-                try:
-                    logger.debug(
-                        "[BatchRedo:deleted] cmd_id=%s fallback ids=%s",
-                        hex(id(self)),
-                        len(ids),
-                    )
-                except Exception:
-                    pass
+                logger.debug("[BatchRedo:deleted] cmd_id=%s fallback ids=%s", hex(id(self)), len(ids))
             # ВАЖНО: не эмитим per-item item_deleted, чтобы redo был пакетным, как undo
         finally:
             # 2) Одна финальная перезагрузка/фокус
@@ -534,13 +515,13 @@ class DeleteCategoriesBatchCmd(BaseCommand):
             try:
                 if tree is not None:
                     tree.blockSignals(False)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("DeleteCategoriesBatchCmd.redo: unblock tree signals failed: %s", exc, exc_info=True)
             try:
                 if selection is not None:
                     selection.end_suppress_selection()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("DeleteCategoriesBatchCmd.redo: end_suppress_selection failed: %s", exc, exc_info=True)
         # Убираем ранний вызов select_section: фокус устанавливается ниже, после очистки кэша
         try:
             if business:
@@ -558,27 +539,17 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                 try:
                     ids_payload = [c.get("id") for c in self.categories if c.get("id") is not None]
                     business.items_batch_deleted.emit("category", ids_payload)
-                    try:
-                        logger.debug(
-                            "[BatchRedo:signal] cmd_id=%s ids=%s section_focus=%s",
-                            hex(id(self)),
-                            len(ids_payload),
-                            section_id_for_focus,
-                        )
-                    except Exception:
-                        pass
+                    logger.debug(
+                        "[BatchRedo:signal] cmd_id=%s ids=%s section_focus=%s",
+                        hex(id(self)),
+                        len(ids_payload),
+                        section_id_for_focus,
+                    )
                 except Exception as exc:
                     logger.warning("DeleteCategoriesBatchCmd.redo: items_batch_deleted emit failed: %s", exc)
         except Exception as exc:
             logger.warning("DeleteCategoriesBatchCmd.redo: final updates failed: %s", exc)
-        try:
-            logger.debug(
-                "[BatchRedo:done] cmd_id=%s section_focus=%s",
-                hex(id(self)),
-                section_id_for_focus,
-            )
-        except Exception:
-            pass
+        logger.debug("[BatchRedo:done] cmd_id=%s section_focus=%s", hex(id(self)), section_id_for_focus)
 
     @log_command
     def undo(self):
@@ -592,13 +563,9 @@ class DeleteCategoriesBatchCmd(BaseCommand):
         selection = None
         try:
             restored_cnt = len([b for b in self._backups if b])
-            logger.debug(
-                "[BatchUndo:start] cmd_id=%s backups=%s",
-                hex(id(self)),
-                restored_cnt,
-            )
-        except Exception:
-            pass
+            logger.debug("[BatchUndo:start] cmd_id=%s backups=%s", hex(id(self)), restored_cnt)
+        except Exception as exc:
+            logger.debug("DeleteCategoriesBatchCmd.undo: start logging failed: %s", exc, exc_info=True)
         try:
             struct = getattr(self.main, "structure", None)
             tree = getattr(struct, "tree", None)
@@ -606,24 +573,18 @@ class DeleteCategoriesBatchCmd(BaseCommand):
             if selection is not None:
                 try:
                     selection.begin_suppress_selection()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("DeleteCategoriesBatchCmd.undo: begin_suppress_selection failed: %s", exc, exc_info=True)
             if tree is not None:
                 tree.blockSignals(True)
-        except Exception:
+        except Exception as exc:
             tree = None
+            logger.debug("DeleteCategoriesBatchCmd.undo: suppress selection failed: %s", exc, exc_info=True)
         try:
             # 1) Импорт всех деревьев в одной транзакции
             try:
                 self.structure_service.import_category_trees_bulk(self._backups)
-                try:
-                    logger.debug(
-                        "[BatchUndo:imported] cmd_id=%s backups=%s",
-                        hex(id(self)),
-                        len(self._backups),
-                    )
-                except Exception:
-                    pass
+                logger.debug("[BatchUndo:imported] cmd_id=%s backups=%s", hex(id(self)), len(self._backups))
             except Exception as exc:
                 # Если bulk не удался, частично ничего не делаем (UI продолжит жить)
                 logger.warning("DeleteCategoriesBatchCmd.undo: import bulk failed: %s", exc)
@@ -657,8 +618,8 @@ class DeleteCategoriesBatchCmd(BaseCommand):
             # Фокусируем раздел без полной перезагрузки дерева
             if section_id_for_focus is not None and business:
                 business.section_selected.emit(section_id_for_focus)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("DeleteCategoriesBatchCmd.undo: section_selected emit failed: %s", exc, exc_info=True)
 
         try:
             if business:
@@ -666,46 +627,40 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                 if section_id_for_focus is not None:
                     try:
                         business._invalidate_categories_cache(section_id_for_focus)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("DeleteCategoriesBatchCmd.undo: invalidate cache failed: %s", exc, exc_info=True)
                     business.section_selected.emit(section_id_for_focus)
                 # ВАЖНО: также выберем одну из восстановленных категорий, чтобы таблица ссылок обновилась сразу
                 try:
                     if category_id_for_focus is not None:
                         business.select_category(category_id_for_focus)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("DeleteCategoriesBatchCmd.undo: select_category failed: %s", exc, exc_info=True)
                 # Инкрементальное обновление — без полной перезагрузки
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("DeleteCategoriesBatchCmd.undo: final updates failed: %s", exc, exc_info=True)
 
-        # ВАЖНО: дерево должно получить событие полной перезагрузки,
-        # т.к. в bulk-Undo мы не эмитили item_added для каждой категории
+        # ВАЖНО: дерево должно получить событие полной перезагрузки
         try:
             if business:
                 try:
                     business._invalidate_structure_cache()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("DeleteCategoriesBatchCmd.undo: invalidate structure cache failed: %s", exc, exc_info=True)
                 # Немедленная перезагрузка структуры сферы -> придёт structure_loaded
                 business._schedule_structure_reload(0)
-                try:
-                    logger.debug(
-                        "[BatchUndo:reload] cmd_id=%s section_focus=%s category_focus=%s",
-                        hex(id(self)),
-                        section_id_for_focus,
-                        category_id_for_focus,
-                    )
-                except Exception:
-                    pass
-        except Exception:
-            pass
-        try:
-            logger.debug(
-                "[BatchUndo:done] cmd_id=%s section_focus=%s category_focus=%s",
-                hex(id(self)),
-                section_id_for_focus,
-                category_id_for_focus,
-            )
-        except Exception:
-            pass
+                logger.debug(
+                    "[BatchUndo:reload] cmd_id=%s section_focus=%s category_focus=%s",
+                    hex(id(self)),
+                    section_id_for_focus,
+                    category_id_for_focus,
+                )
+        except Exception as exc:
+            logger.debug("DeleteCategoriesBatchCmd.undo: schedule reload failed: %s", exc, exc_info=True)
+
+        logger.debug(
+            "[BatchUndo:done] cmd_id=%s section_focus=%s category_focus=%s",
+            hex(id(self)),
+            section_id_for_focus,
+            category_id_for_focus,
+        )

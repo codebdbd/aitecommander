@@ -1,12 +1,13 @@
-import pytest
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import pytest
+
 from app.controllers.system.window_controllers_setup import (
+    DatabaseEventHandler,
     SetupError,
     _connect_structure_signals,
     _resolve_structure_loader,
-    DatabaseEventHandler,
 )
 from app.controllers.ui.links.handlers import LinksUIHandlers
 

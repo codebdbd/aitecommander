@@ -2,7 +2,6 @@ import pytest
 
 from app.config_data.config_loader import AppConfig
 
-
 BROWSER_METHODS = [
     "get_chrome_profiles_dir",
     "get_firefox_profiles_dir",

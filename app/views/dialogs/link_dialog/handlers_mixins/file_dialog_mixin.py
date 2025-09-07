@@ -1,12 +1,14 @@
 """
 Миксин для обработки кнопки "Обзор" в LinkDialogHandlers.
 """
-import os
 import logging
+import os
+
 from PyQt6.QtWidgets import QFileDialog
+
 from app.config_data import app_config
-from app.utils.links.link_parser import parse_lnk
 from app.models.link_type import LinkType
+from app.utils.links.link_parser import parse_lnk
 
 logger = logging.getLogger(__name__)
 

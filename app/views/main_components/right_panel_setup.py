@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QScrollArea,
@@ -11,7 +12,6 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from PyQt6.QtCore import Qt
 
 from app.config_data import app_config
 from app.views.category_tiles import CategoryTiles
@@ -115,9 +115,10 @@ class RightPanelBuilder:
     # --- Internals ---
     def _create_splitter(self):
         # Импортируем здесь, чтобы избежать лишних зависимостей на уровне модуля
-        from PyQt6.QtWidgets import QSplitter
-        from app.config_data import app_config as _cfg
         from PyQt6.QtCore import Qt as _Qt
+        from PyQt6.QtWidgets import QSplitter
+
+        from app.config_data import app_config as _cfg
 
         splitter = QSplitter()
         try:

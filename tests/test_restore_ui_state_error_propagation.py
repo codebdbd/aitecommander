@@ -1,6 +1,7 @@
 import logging
-import pytest
 from types import SimpleNamespace
+
+import pytest
 
 from app.controllers.system.window_controllers_setup import DatabaseEventHandler
 

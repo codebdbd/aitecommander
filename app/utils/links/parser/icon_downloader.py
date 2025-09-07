@@ -17,15 +17,14 @@ import json
 import os
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
-from io import BytesIO
-from contextlib import contextmanager
-from typing import TYPE_CHECKING, Optional
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
+from io import BytesIO
+from typing import TYPE_CHECKING, Optional
 
 import requests
-from PIL import Image
-from PIL import UnidentifiedImageError
+from PIL import Image, UnidentifiedImageError
 
 from app.config_data import app_config
 from app.utils.ui.icon.path_service import icon_path_service
@@ -85,7 +84,7 @@ def read_icon_meta(domain: str) -> dict:
             with open(p, "r", encoding="utf-8") as f:
                 return json.load(f)
     except Exception as e:
-        logger.debug(f"Icon meta read failed for {domain}: {e}")
+        logger.debug("Icon meta read failed for %s: %s", domain, e, exc_info=True)
     return {}
 
 
@@ -95,7 +94,7 @@ def write_icon_meta(domain: str, meta: dict) -> None:
         with open(p, "w", encoding="utf-8") as f:
             json.dump(meta, f, ensure_ascii=False, indent=2)
     except Exception as e:
-        logger.debug(f"Icon meta write failed for {domain}: {e}")
+        logger.debug("Icon meta write failed for %s: %s", domain, e, exc_info=True)
 
 
 def build_conditional_headers(domain: str, meta: dict, force_refresh: bool) -> dict:
@@ -168,7 +167,7 @@ class IconDownloader:
     @staticmethod
     def maybe_convert_svg(icon_url: str, ct: str, ext: str, data: bytes) -> Optional[bytes]:
         if "image/svg" in ct or ext == "svg" or b"<svg" in data[:200].lower():
-            logger.debug(f"SVG detected {icon_url}")
+            logger.debug("SVG detected %s", icon_url)
             try:
                 target = int(getattr(app_config, "ICON_TARGET_SIZE", TARGET_SIZE) or TARGET_SIZE)
             except Exception:
@@ -207,12 +206,16 @@ class IconDownloader:
     def validate_image_geometry(img: Image.Image, icon_url: str) -> bool:
         width, height = img.size
         if width < MIN_GOOD_SIZE or height < MIN_GOOD_SIZE:
-            logger.info(f"[icon] skip reason=too_small size={width}x{height} url={icon_url}")
+            logger.info("[icon] skip reason=too_small size=%sx%s url=%s", width, height, icon_url)
             return False
         aspect_ratio = max(width, height) / max(1, min(width, height))
         if aspect_ratio > 2.0:
             logger.info(
-                f"[icon] skip reason=bad_aspect size={width}x{height} ratio={aspect_ratio:.2f} url={icon_url}"
+                "[icon] skip reason=bad_aspect size=%sx%s ratio=%.2f url=%s",
+                width,
+                height,
+                aspect_ratio,
+                icon_url,
             )
             return False
         return True
@@ -243,7 +246,7 @@ class IconDownloader:
                 }
                 write_icon_meta(domain, meta_update)
             except Exception as me:
-                logger.debug(f"Icon meta update failed for {domain}: {me}")
+                logger.debug("Icon meta update failed for %s: %s", domain, me, exc_info=True)
         return path
 
     # === Публичный метод ===
@@ -264,12 +267,12 @@ class IconDownloader:
                 allow_redirects=True,
             )
         except Exception as e:
-            logger.info(f"[icon] skip reason=request_failed url={icon_url} err={e}")
+            logger.info("[icon] skip reason=request_failed url=%s err=%s", icon_url, e, exc_info=True)
             return None
 
         # Обработка статусов до чтения тела
         if getattr(resp, "status_code", 0) == 304 and not force_refresh:
-            logger.info(f"[conditional] 304 Not Modified for {icon_url}")
+            logger.info("[conditional] 304 Not Modified for %s", icon_url)
             icon_filename = f"web_{domain.replace('.', '_')}.png"
             path = str(icon_path_service.get_user_icons_dir() / icon_filename)
             if os.path.exists(path):
@@ -279,15 +282,17 @@ class IconDownloader:
                 return path
             return None
         if getattr(resp, "status_code", 0) >= 400:
-            logger.info(
-                f"[icon] skip reason=bad_status status={resp.status_code} url={icon_url}"
-            )
+            logger.info("[icon] skip reason=bad_status status=%s url=%s", resp.status_code, icon_url)
             return None
 
         ct_dbg = resp.headers.get("Content-Type")
         cl_dbg = resp.headers.get("Content-Length")
         logger.debug(
-            f"Icon response {icon_url}: status={resp.status_code} ct={ct_dbg} len={cl_dbg}"
+            "Icon response %s: status=%s ct=%s len=%s",
+            icon_url,
+            resp.status_code,
+            ct_dbg,
+            cl_dbg,
         )
 
         ct_header = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
@@ -298,10 +303,12 @@ class IconDownloader:
             img_ext = url_lower.endswith((".png", ".ico", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg"))
             if img_ext:
                 logger.info(
-                    f"[icon] non_image_ct ct={ct_header}, but URL suggests image; skipping body {icon_url}"
+                    "[icon] non_image_ct ct=%s, but URL suggests image; skipping body %s",
+                    ct_header,
+                    icon_url,
                 )
             else:
-                logger.info(f"[icon] skip reason=non_image_head ct={ct_header} url={icon_url}")
+                logger.info("[icon] skip reason=non_image_head ct=%s url=%s", ct_header, icon_url)
             resp.close()
             return None
 
@@ -314,7 +321,10 @@ class IconDownloader:
                 cl_val = -1
             if cl_val > 0 and cl_val > max_size:
                 logger.info(
-                    f"[icon] skip reason=content_length_excess len={cl_val} limit={max_size} url={icon_url}"
+                    "[icon] skip reason=content_length_excess len=%s limit=%s url=%s",
+                    cl_val,
+                    max_size,
+                    icon_url,
                 )
                 resp.close()
                 return None
@@ -328,12 +338,14 @@ class IconDownloader:
                 body.extend(chunk)
                 if len(body) > max_size:
                     logger.info(
-                        f"[icon] skip reason=body_too_large size={len(body)} url={icon_url}"
+                        "[icon] skip reason=body_too_large size=%s url=%s",
+                        len(body),
+                        icon_url,
                     )
                     resp.close()
                     return None
         except Exception as e:
-            logger.info(f"[icon] skip reason=stream_error url={icon_url} err={e}")
+            logger.info("[icon] skip reason=stream_error url=%s err=%s", icon_url, e, exc_info=True)
             resp.close()
             return None
         finally:
@@ -343,12 +355,12 @@ class IconDownloader:
         ct = ct_header
 
         if self.is_non_image_data(ct, data):
-            logger.info(f"[icon] skip reason=non_image ct={ct} url={icon_url}")
+            logger.info("[icon] skip reason=non_image ct=%s url=%s", ct, icon_url)
             return None
 
         # Дополнительная страховка после стрим-лимита
         if len(data) > max_size:
-            logger.info(f"[icon] skip reason=body_too_large size={len(data)} url={icon_url}")
+            logger.info("[icon] skip reason=body_too_large size=%s url=%s", len(data), icon_url)
             return None
 
         data2 = self.maybe_convert_svg(icon_url, ct, ext, data)
@@ -379,14 +391,23 @@ class IconDownloader:
                     lm = resp.headers.get("Last-Modified")
                     w, h = img.size
                     logger.info(
-                        f"[icon] saved path={path} size={w}x{h} url={icon_url} status={resp.status_code} ct={ct_dbg} len={cl_dbg} etag={etag} lm={lm}"
+                        "[icon] saved path=%s size=%sx%s url=%s status=%s ct=%s len=%s etag=%s lm=%s",
+                        path,
+                        w,
+                        h,
+                        icon_url,
+                        resp.status_code,
+                        ct_dbg,
+                        cl_dbg,
+                        etag,
+                        lm,
                     )
                     return path
         except (UnidentifiedImageError, Image.DecompressionBombError) as e:
-            logger.warning(f"[icon] unsafe_or_invalid_image url={icon_url}: {e}")
+            logger.warning("[icon] unsafe_or_invalid_image url=%s: %s", icon_url, e, exc_info=True)
             return None
         except Exception as e:
-            logger.error(f"Save icon error {icon_url}: {e}")
+            logger.error("Save icon error %s: %s", icon_url, e, exc_info=True)
             return None
         finally:
             # MAX_IMAGE_PIXELS восстанавливается контекстным менеджером
@@ -413,7 +434,7 @@ def pick_icon_parallel(
 ) -> Optional[str]:
     # Сначала только локальные и fallback-кандидаты (без сторонних сервисов)
     candidates = find_favicon_candidates(soup, page_url, config, use_external=False)[:10]
-    logger.debug(f"Trying {len(candidates)} favicon candidates for {domain}")
+    logger.debug("Trying %s favicon candidates for %s", len(candidates), domain)
 
     max_elapsed = float(getattr(config, "ICON_PICK_MAX_SECONDS", 6.0))
     # Уважаем заданный тайм-аут без принудительного минимума 1s
@@ -424,13 +445,17 @@ def pick_icon_parallel(
             return None
         remaining = max(0.0, finish_by - time.monotonic())
         if remaining <= 0:
-            logger.info(f"[limit] Icon pick exceeded max_elapsed_seconds for {domain}")
+            logger.info("[limit] Icon pick exceeded max_elapsed_seconds for %s", domain)
             return None
 
         max_workers_cfg = int(getattr(config, "ICON_MAX_WORKERS", 6) or 6)
         max_workers = max(1, min(len(icon_urls), max_workers_cfg))
         logger.debug(
-            f"Parallel fetch (workers={max_workers}, size={len(icon_urls)}, fallback={is_fallback}) for {domain}"
+            "Parallel fetch (workers=%s, size=%s, fallback=%s) for %s",
+            max_workers,
+            len(icon_urls),
+            is_fallback,
+            domain,
         )
         executor = ThreadPoolExecutor(max_workers=max_workers)
         try:
@@ -450,7 +475,7 @@ def pick_icon_parallel(
                         try:
                             saved = fut.result()
                         except Exception as e:
-                            logger.debug(f"Parallel fetch error: {e}")
+                            logger.debug("Parallel fetch error: %s", e, exc_info=True)
                             continue
                         if saved:
                             for f in futures:
@@ -461,7 +486,7 @@ def pick_icon_parallel(
                     # Короткий сон, чтобы не крутить CPU
                     time.sleep(0.01)
         except Exception as e:
-            logger.debug(f"Parallel wait error: {e}")
+            logger.debug("Parallel wait error: %s", e, exc_info=True)
             return None
         finally:
             try:
@@ -473,18 +498,16 @@ def pick_icon_parallel(
     tried_urls = set(candidates)
     saved_path = _try_candidates_parallel(candidates, is_fallback=False)
     if saved_path:
-        logger.info(
-            f"Successfully saved good-sized icon {saved_path} for domain {domain}"
-        )
+        logger.info("Successfully saved good-sized icon %s for domain %s", saved_path, domain)
         return saved_path
     logger.debug(
-        f"No icons ≥{MIN_GOOD_SIZE}px found, trying fallback mode for {domain}"
+        "No icons ≥%spx found, trying fallback mode for %s",
+        MIN_GOOD_SIZE,
+        domain,
     )
     saved_path = _try_candidates_parallel(candidates, is_fallback=True)
     if saved_path:
-        logger.info(
-            f"Successfully saved fallback icon {saved_path} for domain {domain}"
-        )
+        logger.info("Successfully saved fallback icon %s for domain %s", saved_path, domain)
         return saved_path
     # После неудачи локальных попыток — подключаем внешние источники при разрешении в конфиге
     if bool(getattr(config, "ICON_USE_EXTERNAL", False)):
@@ -492,17 +515,18 @@ def pick_icon_parallel(
         ext_only = [u for u in ext_all if u not in tried_urls]
         if ext_only:
             logger.debug(
-                f"Trying {len(ext_only)} external favicon candidates for {domain}"
+                "Trying %s external favicon candidates for %s",
+                len(ext_only),
+                domain,
             )
             saved_path = _try_candidates_parallel(ext_only, is_fallback=True)
             if saved_path:
-                logger.info(
-                    f"Successfully saved external fallback icon {saved_path} for domain {domain}"
-                )
+                logger.info("Successfully saved external fallback icon %s for domain %s", saved_path, domain)
                 return saved_path
 
     logger.warning(
-        f"No valid favicon found for domain {domain} after trying all candidates"
+        "No valid favicon found for domain %s after trying all candidates",
+        domain,
     )
     return None
 

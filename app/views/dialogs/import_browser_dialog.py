@@ -14,9 +14,9 @@ from typing import Dict, Optional
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialogButtonBox,
+    QFormLayout,
     QLabel,
     QVBoxLayout,
-    QFormLayout,
 )
 
 from .base_dialog import BaseDialog
@@ -87,7 +87,7 @@ class ImportBrowserDialog(BaseDialog):
         try:
             self.sphere_cb.clear()
             spheres = self.structure_business_logic.get_spheres()
-            logger.debug(f"Найдено сфер: {len(spheres)}")
+            logger.debug("Найдено сфер: %s", len(spheres))
             if not spheres:
                 # Нет сфер — блокируем оба комбобокса
                 self._show_no_data_message("Не найдено ни одной сферы")
@@ -97,8 +97,8 @@ class ImportBrowserDialog(BaseDialog):
             if self.sphere_cb.count() > 0:
                 self.sphere_cb.setCurrentIndex(0)
         except Exception as e:
-            logger.error(f"Ошибка при загрузке сфер: {e}")
-            self._show_error_message(f"Ошибка при загрузке данных: {str(e)}")
+            logger.error("Ошибка при загрузке сфер: %s", e, exc_info=True)
+            self._show_error_message(str(e))
 
     def _update_sections(self) -> None:
         """Обновляет список разделов для выбранной сферы."""
@@ -117,8 +117,8 @@ class ImportBrowserDialog(BaseDialog):
             if self.section_cb.count() > 0:
                 self.section_cb.setCurrentIndex(0)
         except Exception as e:
-            logger.error(f"Ошибка при загрузке разделов: {e}")
-            self._show_error_message(f"Ошибка при загрузке данных: {str(e)}")
+            logger.error("Ошибка при загрузке разделов: %s", e, exc_info=True)
+            self._show_error_message(str(e))
 
     def _show_no_data_message(self, message: str) -> None:
         """Показывает сообщение об отсутствии данных (нет сфер)."""
@@ -126,7 +126,7 @@ class ImportBrowserDialog(BaseDialog):
         self.sphere_cb.setEnabled(False)
         self.section_cb.addItem("Нет данных")
         self.section_cb.setEnabled(False)
-        logger.warning(message)
+        logger.warning("%s", message)
 
     def _show_no_sections_message(self, message: str) -> None:
         """Показывает сообщение об отсутствии разделов в выбранной сфере."""
@@ -151,9 +151,7 @@ class ImportBrowserDialog(BaseDialog):
         if section_id:
             sphere_name = self.sphere_cb.currentText()
             section_name = self.section_cb.currentText()
-            logger.debug(
-                f"Выбран раздел: {sphere_name} / {section_name}"
-            )
+            logger.debug("Выбран раздел: %s / %s", sphere_name, section_name)
 
     def get_selected_section_id(self) -> Optional[int]:
         """Возвращает ID выбранного раздела."""
@@ -198,12 +196,14 @@ class ImportBrowserDialog(BaseDialog):
 
             self.selected_section_id = section_id
             logger.info(
-                f"Подтвержден импорт в раздел: {section_info['sphere_name']} / {section_info['section_name']}"
+                "Подтвержден импорт в раздел: %s / %s",
+                section_info['sphere_name'],
+                section_info['section_name'],
             )
             super().accept()
 
         except Exception as e:
-            logger.error(f"Ошибка при подтверждении выбора раздела: {e}")
+            logger.error("Ошибка при подтверждении выбора раздела: %s", e, exc_info=True)
             self.show_error(
                 "Не удалось подтвердить выбор раздела.",
                 "Ошибка при подтверждении",

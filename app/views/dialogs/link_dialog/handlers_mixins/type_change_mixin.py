@@ -3,10 +3,12 @@
 """
 import logging
 from pathlib import Path
+
 from PyQt6.QtGui import QIcon
+
+from app.models.link_type import LinkType
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
-from app.models.link_type import LinkType
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
 import logging
-import pytest
 
+import pytest
 from PyQt6.QtCore import QObject
 
 from app.views.main_components.init_diagnostics import DiagnosticsInstaller

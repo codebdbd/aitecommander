@@ -1,4 +1,5 @@
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
+
 from PyQt6.QtCore import Qt
 
 from app.views.link.data_management import DataManagementMixin

@@ -1,19 +1,19 @@
 """
 Миксин для асинхронной обработки пути/ссылки в LinkDialogHandlers.
 """
-from typing import Any, Dict
 import logging
 from pathlib import Path
+from typing import Any, Dict
 
 from PyQt6.QtGui import QIcon
 
 from app.config_data import app_config
+from app.models.link_type import LinkType
 from app.utils.db.api import run_db
 from app.utils.links.link_parser import parse_local_link
 from app.utils.links.parser.fetcher import fetch_web_link_info
-from app.utils.ui.icon.ui_helpers import set_icon_to_button
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
-from app.models.link_type import LinkType
+from app.utils.ui.icon.ui_helpers import set_icon_to_button
 
 logger = logging.getLogger(__name__)
 

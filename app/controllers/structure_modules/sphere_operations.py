@@ -15,7 +15,7 @@ class SphereOperations(BaseOperations):
 
         def _load_spheres():
             result = self.structure_model.get_spheres() or []
-            self.logger.debug(f"Загружено {len(result)} сфер")
+            self.logger.debug("Загружено %s сфер", len(result))
             return result
 
         return self._exec_with_norm(
@@ -26,16 +26,16 @@ class SphereOperations(BaseOperations):
         """Получает данные сферы по ID с гарантированной нормализацией."""
         # Валидация входных данных
         if not isinstance(sphere_id, int) or sphere_id <= 0:
-            self.logger.warning(f"Некорректный ID сферы: {sphere_id}")
+            self.logger.warning("Некорректный ID сферы: %s", sphere_id)
             return None
 
         def _get_sphere():
             sphere_data = self.structure_model.get_sphere_by_id(sphere_id)
             if sphere_data:
-                self.logger.debug(f"Найдена сфера {sphere_id}")
+                self.logger.debug("Найдена сфера %s", sphere_id)
                 return sphere_data
             else:
-                self.logger.warning(f"Сфера {sphere_id} не найдена")
+                self.logger.warning("Сфера %s не найдена", sphere_id)
                 return None
 
         return self._exec_with_norm(
@@ -65,7 +65,7 @@ class SphereOperations(BaseOperations):
 
             if current_sphere_id is None:
                 first_sphere_id = spheres[0]["id"]
-                self.logger.debug(f"Возвращена первая сфера: {first_sphere_id}")
+                self.logger.debug("Возвращена первая сфера: %s", first_sphere_id)
                 return first_sphere_id
 
             sphere_ids = []
@@ -79,17 +79,17 @@ class SphereOperations(BaseOperations):
 
             if not current_found:
                 self.logger.warning(
-                    f"Текущая сфера с ID {current_sphere_id} не найдена в списке."
+                    "Текущая сфера с ID %s не найдена в списке.", current_sphere_id
                 )
                 fallback_sphere_id = sphere_ids[0]
-                self.logger.debug(f"Возвращена fallback сфера: {fallback_sphere_id}")
+                self.logger.debug("Возвращена fallback сфера: %s", fallback_sphere_id)
                 return fallback_sphere_id
 
             current_index = sphere_ids.index(current_sphere_id)
             next_index = (current_index + 1) % len(sphere_ids)
             next_sphere_id = sphere_ids[next_index]
 
-            self.logger.info(f"Следующая сфера для переключения: {next_sphere_id}")
+            self.logger.info("Следующая сфера для переключения: %s", next_sphere_id)
             return next_sphere_id
 
         return self._exec_with_norm(
@@ -113,19 +113,21 @@ class SphereOperations(BaseOperations):
 
         # Валидация входных данных
         if not isinstance(current_sphere_id, int) or current_sphere_id <= 0:
-            self.logger.warning(f"Некорректный ID сферы: {current_sphere_id}")
+            self.logger.warning("Некорректный ID сферы: %s", current_sphere_id)
             return None
 
         def _get_target_section():
             sections_data = self.structure_model.get_sections(current_sphere_id)
             if not sections_data:
-                self.logger.debug(f"Разделы в сфере {current_sphere_id} не найдены")
+                self.logger.debug("Разделы в сфере %s не найдены", current_sphere_id)
                 return None
 
             # Данные из StructureModel уже dict; берём первый раздел
             section_id = sections_data[0]["id"]
             self.logger.debug(
-                f"Найден целевой раздел {section_id} в сфере {current_sphere_id}"
+                "Найден целевой раздел %s в сфере %s",
+                section_id,
+                current_sphere_id,
             )
             return section_id
 

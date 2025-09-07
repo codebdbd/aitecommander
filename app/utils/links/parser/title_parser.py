@@ -377,22 +377,19 @@ def _get_best_title(candidates: list[tuple[str, str]]) -> str:
 
             total_score = quality_score + source_bonus
             scored.append((title.strip(), total_score, source))
-            try:
-                logger.debug(
-                    f"[title] candidate source={source} score={total_score} raw='{title[:120]}'"
-                )
-            except Exception:
-                pass
+            logger.debug(
+                "[title] candidate source=%s score=%s raw='%s'",
+                source,
+                total_score,
+                title[:120],
+            )
 
     if not scored:
         return ""
 
     # Return best scored title
     best = max(scored, key=lambda x: x[1])
-    try:
-        logger.debug(f"[title] best source={best[2]} score={best[1]} title='{best[0]}'")
-    except Exception:
-        pass
+    logger.debug("[title] best source=%s score=%s title='%s'", best[2], best[1], best[0])
     return best[0]
 
 
@@ -586,12 +583,13 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
         ua = None
     timeout_override = getattr(config, "HTML_FETCH_TIMEOUT", None)
     retries_override = getattr(config, "HTML_FETCH_RETRIES", 2)
-    try:
-        logger.info(
-            f"[title] start url={url} ua={ua} timeout={timeout_override} retries={retries_override}"
-        )
-    except Exception:
-        pass
+    logger.info(
+        "[title] start url=%s ua=%s timeout=%s retries=%s",
+        url,
+        ua,
+        timeout_override,
+        retries_override,
+    )
 
     # HEAD preflight: выяснить content-type/length, не тратя трафик (диагностика и эвристики)
     try:
@@ -612,10 +610,7 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
                     f"[title] non-html content-type url={url} type='{ctype}'"
                 )
     except Exception as he:
-        try:
-            logger.debug(f"[title] HEAD failed url={url} err={he}")
-        except Exception:
-            pass
+        logger.debug("[title] HEAD failed url=%s err=%s", url, he, exc_info=True)
 
     resp = http_request(
         url, config, timeout_override=timeout_override, retries=retries_override
@@ -629,7 +624,7 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
             try:
                 js_suspected = _looks_js_heavy(s, txt)
                 if js_suspected:
-                    logger.warning(f"[title] js-heavy suspected url={url}")
+                    logger.warning("[title] js-heavy suspected url=%s", url)
             except Exception:
                 js_suspected = False
             title = _extract_title(s, url)
@@ -642,7 +637,7 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
                 need_render = js_suspected or not title or len(title) < 3
                 if need_render:
                     try:
-                        logger.info(f"[title] try playwright render url={url}")
+                        logger.info("[title] try playwright render url=%s", url)
                         title2 = _try_playwright_title(url, config)
                         if (
                             title2
@@ -651,25 +646,21 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
                         ):
                             title = title2
                             logger.info(
-                                f"[title] playwright extracted url={url} title='{title2}'"
+                                "[title] playwright extracted url=%s title='%s'",
+                                url,
+                                title2,
                             )
                     except Exception as re:
-                        try:
-                            logger.warning(
-                                f"[title] playwright render failed url={url} err={re}"
-                            )
-                        except Exception:
-                            pass
-            try:
-                logger.info(f"[title] done url={url} extracted='{title}'")
-            except Exception:
-                pass
+                        logger.warning(
+                            "[title] playwright render failed url=%s err=%s",
+                            url,
+                            re,
+                            exc_info=True,
+                        )
+            logger.info("[title] done url=%s extracted='%s'", url, title)
             return title
         except Exception as e:
-            try:
-                logger.error(f"[title] parse error url={url} err={e}")
-            except Exception:
-                pass
+            logger.error("[title] parse error url=%s err=%s", url, e, exc_info=True)
 
     # Optional Selenium fallback for JS-heavy pages (unchanged behavior)
     try:
@@ -683,7 +674,7 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
                 from selenium import webdriver  # type: ignore
                 from selenium.webdriver.chrome.options import Options  # type: ignore
             except Exception as ie:
-                logger.warning(f"[title] selenium import failed: {ie}")
+                logger.warning("[title] selenium import failed: %s", ie, exc_info=True)
                 raise
 
             options = Options()
@@ -705,7 +696,7 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
             try:
                 driver.set_page_load_timeout(pl_to)
             except Exception:
-                pass
+                logger.debug("[title] could not set selenium page load timeout", exc_info=True)
             try:
                 driver.get(url)
                 page = driver.page_source or ""
@@ -719,16 +710,13 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
                     s2 = _make_soup(page)
                     title2 = _extract_title(s2, url)
                     logger.info(
-                        f"[title] selenium extracted url={url} title='{title2}'"
+                        "[title] selenium extracted url=%s title='%s'", url, title2
                     )
                     return title2 or host
                 except Exception as pe:
-                    logger.error(f"[title] selenium parse error url={url} err={pe}")
+                    logger.error("[title] selenium parse error url=%s err=%s", url, pe, exc_info=True)
         except Exception as se:
-            try:
-                logger.warning(f"[title] selenium fallback failed url={url} err={se}")
-            except Exception:
-                pass
+            logger.warning("[title] selenium fallback failed url=%s err=%s", url, se, exc_info=True)
 
     return base_domain(urlparse(url).netloc)
 

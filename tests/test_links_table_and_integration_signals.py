@@ -1,7 +1,9 @@
 import types
 
+from app.controllers.ui.dialogs.link_operations_controller import (
+    LinkOperationsController,
+)
 from app.controllers.ui.links.table_controller import LinksTableController
-from app.controllers.ui.dialogs.link_operations_controller import LinkOperationsController
 from app.controllers.ui.top_panels_controller import TopPanelsController
 
 

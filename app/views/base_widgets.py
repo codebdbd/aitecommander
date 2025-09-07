@@ -2,9 +2,9 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Callable, Iterable
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
-from PyQt6.QtCore import QSize, Qt, QEvent, pyqtSignal, QModelIndex
+from PyQt6.QtCore import QEvent, QModelIndex, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QDrag, QDropEvent, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -19,7 +19,6 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data import app_config
-from app.utils.ui.dnd.pixmap import create_text_pixmap, create_default_pixmap
 from app.utils.ui.dnd.link import (
     extract_source_rows_from_mime as dnd_extract_source_rows,
 )
@@ -33,6 +32,7 @@ from app.utils.ui.dnd.link import (
     move_rows_visually as dnd_move_rows_visually,
 )
 from app.utils.ui.dnd.mime import MimeDataParser, get_link_mime
+from app.utils.ui.dnd.pixmap import create_default_pixmap, create_text_pixmap
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import (
     get_default_icon_path,

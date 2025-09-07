@@ -10,7 +10,7 @@ import logging
 from enum import Enum
 from typing import Any, Callable, Dict, Optional
 
-from PyQt6.QtCore import QObject, QRunnable, QThreadPool, QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import QObject, QRunnable, QThread, QThreadPool, QTimer, pyqtSignal
 
 logger = logging.getLogger(__name__)
 

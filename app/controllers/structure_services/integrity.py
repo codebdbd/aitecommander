@@ -56,7 +56,7 @@ class IntegrityService:
             return stats
         except Exception as e:  # noqa: BLE001
             if logger:
-                logger.error(f"Ошибка получения статистики: {e}")
+                logger.error("Ошибка получения статистики: %s", e)
             return {
                 "spheres_count": 0,
                 "sections_count": 0,
@@ -108,7 +108,7 @@ class IntegrityService:
             return integrity_report
         except Exception as e:  # noqa: BLE001
             if logger:
-                logger.error(f"Ошибка проверки целостности структуры: {e}")
+                logger.error("Ошибка проверки целостности структуры: %s", e)
             return {
                 "is_valid": False,
                 "errors": [f"Ошибка проверки: {str(e)}"],

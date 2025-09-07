@@ -2,6 +2,7 @@
 Миксин для обновления иерархии (разделы и категории) в LinkDialogHandlers.
 """
 from typing import Any
+
 from ..icon_utils import make_icon
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Dict, List, Optional
+
 from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 
 

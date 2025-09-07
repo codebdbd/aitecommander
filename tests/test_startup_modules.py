@@ -5,10 +5,14 @@ import sys
 import unittest
 from unittest.mock import Mock, patch
 
-from app.startup.argument_parser import parse_arguments, determine_log_level, AppArguments
-from app.startup.logging_setup import setup_logging, log_system_info, log_shutdown
-from app.startup.app_factory import create_application
 from app.controllers.system.db_init import DatabaseInitializer
+from app.startup.app_factory import create_application
+from app.startup.argument_parser import (
+    AppArguments,
+    determine_log_level,
+    parse_arguments,
+)
+from app.startup.logging_setup import log_shutdown, log_system_info, setup_logging
 
 
 class TestArgumentParser(unittest.TestCase):

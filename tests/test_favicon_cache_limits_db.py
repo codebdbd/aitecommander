@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from app.utils.links.parser.favicon_cache import favicon_cache
 from app.config_data import app_config
+from app.utils.links.parser.favicon_cache import favicon_cache
 
 
 @pytest.fixture()
