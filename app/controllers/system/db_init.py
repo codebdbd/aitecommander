@@ -130,24 +130,38 @@ class DatabaseInitializer:
                 hasattr(self.main_window, "message_label") and 
                 self.main_window.message_label):
                 self.main_window.message_label.setText(message)
-        except Exception:
-            pass
+        except Exception as e:
+            logging.warning(
+                "[DatabaseInitializer] Не удалось обновить статус-сообщение '%s': %s",
+                message,
+                e,
+                exc_info=True,
+            )
     
     def _update_statusbar(self) -> None:
         """Обновляет статус-бар."""
         try:
             if self.main_window and hasattr(self.main_window, "update_statusbar"):
                 self.main_window.update_statusbar()
-        except Exception:
-            pass
+        except Exception as e:
+            logging.warning(
+                "[DatabaseInitializer] Не удалось обновить статус-бар: %s",
+                e,
+                exc_info=True,
+            )
     
     def _set_ui_enabled(self, enabled: bool) -> None:
         """Включает/отключает UI."""
         try:
             if self.main_window:
                 self.main_window.setEnabled(enabled)
-        except Exception:
-            pass
+        except Exception as e:
+            logging.warning(
+                "[DatabaseInitializer] Не удалось %sключить UI: %s",
+                "в" if enabled else "от",
+                e,
+                exc_info=True,
+            )
     
     def _show_critical_error(self, title: str, message: str) -> None:
         """Показывает критическую ошибку."""
@@ -160,8 +174,13 @@ class DatabaseInitializer:
                 title,
                 message,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logging.error(
+                "[DatabaseInitializer] Не удалось показать критический диалог '%s': %s",
+                title,
+                e,
+                exc_info=True,
+            )
     
     def _quit_application(self) -> None:
         """Завершает приложение."""
@@ -169,5 +188,9 @@ class DatabaseInitializer:
             app_inst = QApplication.instance()
             if app_inst is not None:
                 app_inst.quit()
-        except Exception:
-            pass
+        except Exception as e:
+            logging.error(
+                "[DatabaseInitializer] Не удалось завершить приложение: %s",
+                e,
+                exc_info=True,
+            )

@@ -17,6 +17,20 @@ class StructureModel:
         self.db = db
         self.logger = logger or globals().get("logger") or logging.getLogger(__name__)
 
+    def _commit_if_in_tx(self) -> None:
+        """Фиксирует транзакцию, если она активна на соединении.
+
+        Вынос дублируемой логики в единое место снижает риск расхождений поведения.
+        В случае ошибки логируем и не пробрасываем дальше, чтобы не маскировать
+        исходную операцию уровня модели.
+        """
+        try:
+            conn = self.db.connection
+            if getattr(conn, "in_transaction", False):
+                self.db.commit()
+        except Exception as e:
+            self.logger.error("Ошибка фиксации транзакции: %s", e, exc_info=True)
+
     def get_spheres(self) -> List[Dict[str, Any]]:
         """Возвращает список всех сфер."""
         return self.db.spheres.get_spheres() or []
@@ -28,9 +42,7 @@ class StructureModel:
     def upsert_sphere(self, data: Dict[str, Any]) -> int:
         """Вставляет или обновляет сферу. Возвращает ID записи."""
         sid = self.db.spheres.upsert_sphere(data)
-        conn = self.db.connection
-        if getattr(conn, "in_transaction", False):
-            self.db.commit()
+        self._commit_if_in_tx()
         return sid
 
     def create_sphere(self, data: Dict[str, Any]) -> Optional[int]:
@@ -117,17 +129,13 @@ class StructureModel:
     def upsert_section(self, data: Dict[str, Any]) -> int:
         """Вставляет или обновляет раздел. Возвращает ID записи."""
         sid = self.db.sections.upsert_section(data)
-        conn = self.db.connection
-        if getattr(conn, "in_transaction", False):
-            self.db.commit()
+        self._commit_if_in_tx()
         return sid
 
     def upsert_category(self, data: Dict[str, Any]) -> int:
         """Вставляет или обновляет категорию. Возвращает ID записи."""
         cid = self.db.categories.upsert_category(data)
-        conn = self.db.connection
-        if getattr(conn, "in_transaction", False):
-            self.db.commit()
+        self._commit_if_in_tx()
         return cid
 
     # ---------------------------------------------------------------------
@@ -175,9 +183,7 @@ class StructureModel:
         """Удаляет раздел по его ID."""
         try:
             self.db.sections.delete_section(section_id)
-            conn = self.db.connection
-            if getattr(conn, "in_transaction", False):
-                self.db.commit()
+            self._commit_if_in_tx()
             return True
         except Exception as e:
             self.logger.error("Ошибка удаления раздела %s: %s", section_id, e, exc_info=True)
@@ -187,9 +193,7 @@ class StructureModel:
         """Удаляет категорию по её ID."""
         try:
             self.db.categories.delete_category(category_id)
-            conn = self.db.connection
-            if getattr(conn, "in_transaction", False):
-                self.db.commit()
+            self._commit_if_in_tx()
             return True
         except Exception as e:
             self.logger.error("Ошибка удаления категории %s: %s", category_id, e, exc_info=True)
@@ -250,9 +254,7 @@ class StructureModel:
         try:
             cat_id = self.db.categories.insert_category(category_data)
             # Явная фиксация, если категория создаётся вне внешней транзакции
-            conn = self.db.connection
-            if getattr(conn, "in_transaction", False):
-                self.db.commit()
+            self._commit_if_in_tx()
             return cat_id
         except Exception as e:
             self.logger.error("Ошибка создания категории: %s", e, exc_info=True)

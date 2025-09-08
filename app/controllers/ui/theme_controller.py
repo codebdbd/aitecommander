@@ -37,6 +37,13 @@ class ThemeController:
             self._max_cache_size = int(getattr(app_config, "qss_cache_size", 10))
         except Exception:
             self._max_cache_size = 10
+        # Нормализация: не допускаем отрицательных значений, чтобы избежать некорректной очистки кэша
+        if self._max_cache_size < 0:
+            logger.warning(
+                "ThemeController: отрицательный размер кэша (%s) нормализован до 0",
+                self._max_cache_size,
+            )
+            self._max_cache_size = 0
         # Блокировка для потокобезопасности работы с кэшем
         self._cache_lock = RLock()
         # Инъекция зависимостей для тестируемости
@@ -109,8 +116,18 @@ class ThemeController:
         """Управляет размером кэша по политике LRU: удаляет самые старые записи."""
         with self._cache_lock:
             removed = 0
+            # Быстрый путь: нулевой/отрицательный размер кэша означает «без кэширования»
+            if self._max_cache_size <= 0:
+                if self._qss_cache:
+                    removed = len(self._qss_cache)
+                    self._qss_cache.clear()
+                if removed:
+                    logger.debug("Кэш тем отключён, очищено %d записей", removed)
+                return
+
             while len(self._qss_cache) > self._max_cache_size:
-                key, _ = self._qss_cache.popitem(last=False)  # удаляем LRU
+                # Удаляем самый старый элемент (LRU)
+                key, _ = self._qss_cache.popitem(last=False)
                 removed += 1
             if removed:
                 logger.debug("Кэш тем уменьшен по LRU, удалено %d записей", removed)
