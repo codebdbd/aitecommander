@@ -78,7 +78,7 @@ class LinksUIController(QObject):
             if hasattr(self.table, "table_populated"):
                 self.table.table_populated.connect(self.rebuild_row_index)
         except Exception as e:
-            logger.debug(f"Failed to connect table_populated: {e}")
+            logger.debug("Failed to connect table_populated: %s", e)
 
         # ЦЕНТРАЛИЗОВАНО: начальная загрузка категории
         self._reload_current_category()
@@ -111,7 +111,7 @@ class LinksUIController(QObject):
         try:
             return self.table.get_link_at(row)
         except Exception as e:
-            logger.error(f"Ошибка при вызове table.get_link_at: {e}")
+            logger.error("Ошибка при вызове table.get_link_at: %s", e)
             return None
 
     def get_row_count(self) -> int:
@@ -120,7 +120,7 @@ class LinksUIController(QObject):
             model = self.table.model()
             return model.rowCount() if model is not None else 0
         except (AttributeError, RuntimeError) as e:
-            logger.error(f"Ошибка при получении количества строк: {e}")
+            logger.error("Ошибка при получении количества строк: %s", e)
             return 0
 
     def has_selection(self) -> bool:
@@ -129,7 +129,7 @@ class LinksUIController(QObject):
             sel = self.table.selectionModel()
             return bool(sel and sel.hasSelection())
         except (AttributeError, RuntimeError) as e:
-            logger.error(f"Ошибка при проверке выделения: {e}")
+            logger.error("Ошибка при проверке выделения: %s", e)
             return False
 
     def current_row(self) -> int:
@@ -138,7 +138,7 @@ class LinksUIController(QObject):
             idx = self.table.currentIndex()
             return idx.row() if idx and idx.isValid() else -1
         except (AttributeError, RuntimeError) as e:
-            logger.error(f"Ошибка при получении текущей строки: {e}")
+            logger.error("Ошибка при получении текущей строки: %s", e)
             return -1
 
     def select_row(self, row: int) -> None:
@@ -155,7 +155,7 @@ class LinksUIController(QObject):
             if index and index.isValid():
                 self.table.setCurrentIndex(index)
         except (AttributeError, RuntimeError) as e:
-            logger.error(f"Ошибка при установке текущей ячейки: {e}")
+            logger.error("Ошибка при установке текущей ячейки: %s", e)
 
     def scroll_to_row(self, row: int) -> None:
         """Прокрутить таблицу к строке."""
@@ -167,7 +167,7 @@ class LinksUIController(QObject):
             if index and index.isValid():
                 self.table.scrollTo(index)
         except (AttributeError, RuntimeError) as e:
-            logger.error(f"Ошибка при прокрутке к строке: {e}")
+            logger.error("Ошибка при прокрутке к строке: %s", e)
 
 
     def get_selected_rows(self) -> List[int]:
@@ -200,7 +200,7 @@ class LinksUIController(QObject):
 
     def open_link(self, link: Dict):
         """Открыть ссылку."""
-        logger.info(f"open_link called with link: {link}")
+        logger.info("open_link called with link: %s", link)
         self.link_ops._open_link(link)
 
     def toggle_favorite(self, link: Dict = None):
@@ -248,10 +248,10 @@ class LinksUIController(QObject):
                     pass
             else:
                 logger.debug(
-                    f"focus_on_link: link_id {link_id} not found in current table"
+                    "focus_on_link: link_id %s not found in current table", link_id
                 )
         except Exception as e:
-            logger.error(f"Failed to focus on link {link_id}: {e}")
+            logger.error("Failed to focus on link %s: %s", link_id, e)
 
     def rebuild_row_index(self) -> None:
         """Переcтроить индекс link_id -> row по текущему содержимому таблицы."""
@@ -263,7 +263,7 @@ class LinksUIController(QObject):
                 if link and "id" in link:
                     self._row_by_link_id[link["id"]] = row
         except Exception as e:
-            logger.debug(f"rebuild_row_index failed: {e}")
+            logger.debug("rebuild_row_index failed: %s", e)
 
     def _reload_current_category(self) -> None:
         """Централизованная перезагрузка текущей категории через LinksTableController."""
@@ -273,6 +273,6 @@ class LinksUIController(QObject):
         try:
             self.table_controller.reload(category_id)
         except Exception as e:
-            logger.error(f"Failed to reload category (id={category_id}): {e}")
+            logger.error("Failed to reload category (id=%s): %s", category_id, e)
 
 
