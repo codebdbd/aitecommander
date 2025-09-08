@@ -387,6 +387,7 @@ class WindowInitializer:
         if win_list:
             logger.info("DiagTopLevels[%s]: QWindows(%d): %s", tag, len(win_list), "; ".join(win_list))
 
+
     # === Слоты ===
     def _on_window_shown(self) -> None:
         """Обновляем статус после показа окна.
@@ -412,3 +413,4 @@ class WindowInitializer:
             app = QApplication.instance()
             if app is not None:
                 app.quit()
+
