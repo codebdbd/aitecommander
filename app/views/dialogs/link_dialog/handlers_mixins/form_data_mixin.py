@@ -18,10 +18,11 @@ class FormDataMixin:
         collected_args = self.dialog._get_args_le().text().strip()
         collected_link_id = self.dialog.link.get("id") if self.dialog.link else None
 
-        logger.debug(f"_collect_form_data: collected name from UI='{collected_name}'")
-        logger.debug(f"_collect_form_data: dialog.link={self.dialog.link}")
+        logger.debug("_collect_form_data: collected name from UI='%s'", collected_name)
+        logger.debug("_collect_form_data: dialog.link=%s", self.dialog.link)
         logger.debug(
-            f"_collect_form_data: dialog.selected_profiles count={len(self.dialog.selected_profiles) if self.dialog.selected_profiles else 0}"
+            "_collect_form_data: dialog.selected_profiles count=%s",
+            len(self.dialog.selected_profiles) if self.dialog.selected_profiles else 0,
         )
 
         form_data = {
@@ -44,17 +45,22 @@ class FormDataMixin:
         # Добавляем выбранные профили, если есть
         if hasattr(self.dialog, "selected_profiles"):
             logger.debug(
-                f"_collect_form_data: selected_profiles count={len(self.dialog.selected_profiles) if self.dialog.selected_profiles else 0}"
+                "_collect_form_data: selected_profiles count=%s",
+                len(self.dialog.selected_profiles) if self.dialog.selected_profiles else 0,
             )
             if self.dialog.selected_profiles:
                 for i, profile in enumerate(self.dialog.selected_profiles):
                     logger.debug(
-                        f"_collect_form_data: profile {i}: name={profile.get('name')}, browser_key={profile.get('browser_key')}"
+                        "_collect_form_data: profile %s: name=%s, browser_key=%s",
+                        i,
+                        profile.get('name'),
+                        profile.get('browser_key'),
                     )
         else:
             logger.debug("_collect_form_data: no selected_profiles attribute")
 
         logger.debug(
-            f"_collect_form_data: returning form_data with link_type={form_data.get('link_type')}"
+            "_collect_form_data: returning form_data with link_type=%s",
+            form_data.get('link_type'),
         )
         return form_data

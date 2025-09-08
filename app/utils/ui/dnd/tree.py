@@ -129,7 +129,9 @@ class DragDropHandler(TreeHandlerBase):
                     )
                 except Exception as e:
                     logger.warning(
-                        f"Не удалось отправить dragFeedback для категории {target_id}: {e}"
+                        "Не удалось отправить dragFeedback для категории %s: %s",
+                        target_id,
+                        e,
                     )
 
     # --- Helpers extracted from internal DnD flow ---
@@ -351,7 +353,7 @@ class DragDropHandler(TreeHandlerBase):
             except Exception:
                 pass
         if moved_count > 1:
-            logger.info(f"Перенесено категорий: {moved_count} в раздел {section_id}")
+            logger.info("Перенесено категорий: %s в раздел %s", moved_count, section_id)
 
     def _handle_link_drop_index(self, mime, target_index: QModelIndex) -> None:
         """Перенос ссылок на категорию (QTreeView)."""

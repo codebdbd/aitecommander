@@ -269,7 +269,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
         """Обработка клика по ячейке."""
         link = self.controller.get_link_at(row)
         if not link:
-            logger.warning(f"No link found at row {row}")
+            logger.warning("No link found at row %s", row)
             return
 
         if column == self.COLUMNS["favorite"]:

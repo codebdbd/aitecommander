@@ -121,7 +121,7 @@ class TaskScheduler(QObject):
             try:
                 self._schedule_sig.emit(operation, task_type, delay, operation_id, replace_existing)
             except Exception as e:
-                logger.error(f"Не удалось запланировать операцию через сигнал {operation_id}: {e}")
+                logger.error("Не удалось запланировать операцию через сигнал %s: %s", operation_id, e)
             return operation_id
 
         # Иначе — тот же поток, можно планировать напрямую
@@ -142,10 +142,10 @@ class TaskScheduler(QObject):
         # Проверяем, есть ли уже операция с таким ID
         if operation_id in self._pending_operations[task_type]:
             if not replace_existing:
-                logger.debug(f"Операция {operation_id} уже запланирована, пропускаем")
+                logger.debug("Операция %s уже запланирована, пропускаем", operation_id)
                 return
             else:
-                logger.debug(f"Заменяем существующую операцию {operation_id}")
+                logger.debug("Заменяем существующую операцию %s", operation_id)
 
         # Добавляем операцию в очередь
         self._pending_operations[task_type][operation_id] = operation
@@ -158,7 +158,7 @@ class TaskScheduler(QObject):
         batch_timer.start(delay)
 
         logger.debug(
-            f"Запланирована операция {operation_id} типа {task_type.value} с задержкой {delay}ms"
+            "Запланирована операция %s типа %s с задержкой %sms", operation_id, task_type.value, delay
         )
 
     def _execute_batched_operations(self, task_type: TaskType):
@@ -167,7 +167,7 @@ class TaskScheduler(QObject):
         if not operations:
             return
 
-        logger.debug(f"Выполняем {len(operations)} операций типа {task_type.value}")
+        logger.debug("Выполняем %s операций типа %s", len(operations), task_type.value)
 
         # Специальная обработка для focus operations - выполняем только последнюю
         if task_type == TaskType.FOCUS_MANAGEMENT:
@@ -177,19 +177,19 @@ class TaskScheduler(QObject):
                 last_operation = operations[last_operation_id]
                 try:
                     last_operation()
-                    logger.debug(f"Выполнена focus операция: {last_operation_id}")
+                    logger.debug("Выполнена focus операция: %s", last_operation_id)
                 except Exception as e:
                     logger.error(
-                        f"Ошибка выполнения focus операции {last_operation_id}: {e}"
+                        "Ошибка выполнения focus операции %s: %s", last_operation_id, e
                     )
         else:
             # Для остальных типов выполняем все операции
             for operation_id, operation in operations.items():
                 try:
                     operation()
-                    logger.debug(f"Выполнена операция: {operation_id}")
+                    logger.debug("Выполнена операция: %s", operation_id)
                 except Exception as e:
-                    logger.error(f"Ошибка выполнения операции {operation_id}: {e}")
+                    logger.error("Ошибка выполнения операции %s: %s", operation_id, e)
 
         # Очищаем выполненные операции
         operations.clear()
@@ -213,10 +213,10 @@ class TaskScheduler(QObject):
         for tt in search_types:
             if operation_id in self._pending_operations[tt]:
                 del self._pending_operations[tt][operation_id]
-                logger.debug(f"Отменена операция {operation_id} типа {tt.value}")
+                logger.debug("Отменена операция %s типа %s", operation_id, tt.value)
                 return True
 
-        logger.debug(f"Операция {operation_id} не найдена для отмены")
+        logger.debug("Операция %s не найдена для отмены", operation_id)
         return False
 
     def submit_task(self, task: QRunnable) -> None:

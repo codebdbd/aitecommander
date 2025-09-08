@@ -75,11 +75,11 @@ class RestoreDbDialog(BaseDialog):
         try:
             # Создаем директорию если не существует
             self.backup_dir.mkdir(parents=True, exist_ok=True)
-            logger.debug(f"Поиск резервных копий в: {self.backup_dir}")
+            logger.debug("Поиск резервных копий в: %s", self.backup_dir)
 
             # Ищем файлы резервных копий
             backups = sorted(self.backup_dir.glob("links_*.db"), reverse=True)
-            logger.debug(f"Найдено резервных копий: {len(backups)}")
+            logger.debug("Найдено резервных копий: %s", len(backups))
 
             # Проверяем наличие файла links.db.bak
             single_backup_path = self.paths.get_db_backup_path()
@@ -104,7 +104,7 @@ class RestoreDbDialog(BaseDialog):
                         self._update_ok_state()
 
         except Exception as e:
-            logger.error(f"Ошибка при поиске резервных копий: {e}")
+            logger.error("Ошибка при поиске резервных копий: %s", e)
             self._show_error_message(f"Ошибка при поиске резервных копий: {str(e)}")
 
     def _show_no_backups_message(self) -> None:
@@ -118,7 +118,7 @@ class RestoreDbDialog(BaseDialog):
         try:
             # Проверяем размер файла
             if backup_path.stat().st_size == 0:
-                logger.warning(f"Пустой файл резервной копии: {backup_path.name}")
+                logger.warning("Пустой файл резервной копии: %s", backup_path.name)
                 return
 
             # Получаем дату и время создания файла
@@ -142,10 +142,10 @@ class RestoreDbDialog(BaseDialog):
                 font.setBold(True)
                 item.setFont(font)
 
-            logger.debug(f"Добавлена одиночная резервная копия: {backup_path.name}")
+            logger.debug("Добавлена одиночная резервная копия: %s", backup_path.name)
 
         except Exception as e:
-            logger.warning(f"Ошибка при обработке файла {backup_path.name}: {e}")
+            logger.warning("Ошибка при обработке файла %s: %s", backup_path.name, e)
 
     def _populate_backup_list(self, backups: list) -> None:
         """Заполняет список найденными резервными копиями."""
@@ -153,7 +153,7 @@ class RestoreDbDialog(BaseDialog):
             try:
                 # Проверяем размер файла
                 if backup.stat().st_size == 0:
-                    logger.warning(f"Пустой файл резервной копии: {backup.name}")
+                    logger.warning("Пустой файл резервной копии: %s", backup.name)
                     continue
 
                 # Форматируем отображение
@@ -166,10 +166,10 @@ class RestoreDbDialog(BaseDialog):
                     label = f"{backup.name} ({size_mb:.1f} МБ)"
 
                 self.list_widget.addItem(label)
-                logger.debug(f"Добавлена резервная копия: {backup.name}")
+                logger.debug("Добавлена резервная копия: %s", backup.name)
 
             except Exception as e:
-                logger.warning(f"Ошибка при обработке файла {backup.name}: {e}")
+                logger.warning("Ошибка при обработке файла %s: %s", backup.name, e)
                 continue
 
         if self.list_widget.count() > 0:
@@ -205,11 +205,11 @@ class RestoreDbDialog(BaseDialog):
                 except ValueError:
                     continue
 
-            logger.debug(f"Не удалось распарсить дату из имени файла: {filename}")
+            logger.debug("Не удалось распарсить дату из имени файла: %s", filename)
             return None
 
         except Exception as e:
-            logger.debug(f"Ошибка при парсинге даты из {filename}: {e}")
+            logger.debug("Ошибка при парсинге даты из %s: %s", filename, e)
             return None
 
     def get_selected_backup(self) -> Optional[Path]:
@@ -238,33 +238,33 @@ class RestoreDbDialog(BaseDialog):
                 # Если выбрана первая строка (одиночная резервная копия)
                 if row == 0:
                     logger.info(
-                        f"Выбрана одиночная резервная копия: {single_backup_path.name}"
+                        "Выбрана одиночная резервная копия: %s", single_backup_path.name
                     )
                     return single_backup_path
                 else:
                     # Смещаем индекс для автоматических резервных копий
                     adjusted_row = row - 1
                     if adjusted_row >= len(valid_backups):
-                        logger.warning(f"Неверный индекс резервной копии: {row}")
+                        logger.warning("Неверный индекс резервной копии: %s", row)
                         return None
 
                     selected = valid_backups[adjusted_row]
                     logger.info(
-                        f"Выбрана автоматическая резервная копия: {selected.name}"
+                        "Выбрана автоматическая резервная копия: %s", selected.name
                     )
                     return selected
             else:
                 # Если нет одиночной резервной копии, работаем как раньше
                 if row >= len(valid_backups):
-                    logger.warning(f"Неверный индекс резервной копии: {row}")
+                    logger.warning("Неверный индекс резервной копии: %s", row)
                     return None
 
                 selected = valid_backups[row]
-                logger.info(f"Выбрана резервная копия: {selected.name}")
+                logger.info("Выбрана резервная копия: %s", selected.name)
                 return selected
 
         except Exception as e:
-            logger.error(f"Ошибка при получении выбранной резервной копии: {e}")
+            logger.error("Ошибка при получении выбранной резервной копии: %s", e)
             return None
 
     def _update_ok_state(self) -> None:

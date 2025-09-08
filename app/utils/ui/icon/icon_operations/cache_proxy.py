@@ -107,12 +107,12 @@ class IconCache:
         result = {}
         for name, icon in zip(icon_names, icons):
             if isinstance(icon, Exception):
-                logger.warning(f"Failed to preload icon {name}: {icon}")
+                logger.warning("Failed to preload icon %s: %s", name, icon)
                 result[name] = QIcon()  # Пустая иконка при ошибке
             else:
                 result[name] = icon
 
-        logger.info(f"Preloaded {len(result)} icons for theme {theme}")
+        logger.info("Preloaded %s icons for theme %s", len(result), theme)
         return result
 
 

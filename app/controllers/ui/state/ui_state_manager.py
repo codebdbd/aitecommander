@@ -41,16 +41,16 @@ class UIStateManager:
         """
         # Простая защита от параллельных вызовов без сложной магии
         if self._loading:
-            logger.info(f"load_category пропущен: уже идет загрузка (source={source})")
+            logger.info("load_category пропущен: уже идет загрузка (source=%s)", source)
             return True
 
         try:
             self._loading = True
-            logger.debug(f"Loading category {category_id} from {source}")
+            logger.debug("Loading category %s from %s", category_id, source)
 
             # 1. Валидация входных данных
             if not isinstance(category_id, int) or category_id <= 0:
-                logger.warning(f"Invalid category_id: {category_id} from {source}")
+                logger.warning("Invalid category_id: %s from %s", category_id, source)
                 return False
 
             # 2. Если уже загружена эта категория и мы уже в TABLE, можно спокойно пропустить
@@ -69,7 +69,9 @@ class UIStateManager:
             )
             if already_loaded and current_idx == table_idx:
                 logger.debug(
-                    f"load_category пропущен: категория {category_id} уже активна и TABLE вид установлен (source={source})"
+                    "load_category пропущен: категория %s уже активна и TABLE вид установлен (source=%s)",
+                    category_id,
+                    source,
                 )
                 return True
 
@@ -84,7 +86,8 @@ class UIStateManager:
                 self.main.links.business.load_links(category_id)
             else:
                 logger.error(
-                    f"No links business logic available for category {category_id}"
+                    "No links business logic available for category %s",
+                    category_id,
                 )
                 return False
 
@@ -92,11 +95,11 @@ class UIStateManager:
             self._switch_to_table_view()
             self._clear_tiles_selection()
 
-            logger.debug(f"Successfully loaded category {category_id} from {source}")
+            logger.debug("Successfully loaded category %s from %s", category_id, source)
             return True
 
         except Exception as e:
-            logger.exception(f"Error loading category {category_id} from {source}: {e}")
+            logger.exception("Error loading category %s from %s: %s", category_id, source, e)
             self._handle_load_error()
             return False
         finally:
@@ -112,7 +115,9 @@ class UIStateManager:
             )
             if count is not None and (table_index < 0 or table_index >= count):
                 logger.warning(
-                    f"Table index {table_index} out of range (count={count}). Forcing index=0."
+                    "Table index %s out of range (count=%s). Forcing index=0.",
+                    table_index,
+                    count,
                 )
                 table_index = 0
             try:
@@ -121,23 +126,28 @@ class UIStateManager:
                 current = None
             if current != table_index:
                 logger.info(
-                    f"[UI] Switch to TABLE view: index={table_index}, stack_count={count}"
+                    "[UI] Switch to TABLE view: index=%s, stack_count=%s",
+                    table_index,
+                    count,
                 )
                 self.main.stack.setCurrentIndex(table_index)
             else:
                 logger.debug(
-                    f"[UI] Already in TABLE view (index={table_index}) - skip switch"
+                    "[UI] Already in TABLE view (index=%s) - skip switch",
+                    table_index,
                 )
             try:
                 cur = self.main.stack.currentIndex()
                 # Информируем только при реальном переключении, иначе DEBUG
                 if current != table_index:
                     logger.info(
-                        f"[UI] Stack currentIndex after switch_to_table_view: {cur}"
+                        "[UI] Stack currentIndex after switch_to_table_view: %s",
+                        cur,
                     )
                 else:
                     logger.debug(
-                        f"[UI] Stack currentIndex after switch_to_table_view (unchanged): {cur}"
+                        "[UI] Stack currentIndex after switch_to_table_view (unchanged): %s",
+                        cur,
                     )
             except Exception:
                 pass
@@ -166,7 +176,9 @@ class UIStateManager:
                 )
                 if count is not None and (tiles_index < 0 or tiles_index >= count):
                     logger.warning(
-                        f"Tiles index {tiles_index} out of range (count={count}). Forcing index=0."
+                        "Tiles index %s out of range (count=%s). Forcing index=0.",
+                        tiles_index,
+                        count,
                     )
                     tiles_index = 0
                 try:
@@ -175,28 +187,34 @@ class UIStateManager:
                     current = None
                 if current != tiles_index:
                     logger.info(
-                        f"[UI] Switch to TILES view: index={tiles_index}, stack_count={count}, categories={len(categories_data)}"
+                        "[UI] Switch to TILES view: index=%s, stack_count=%s, categories=%s",
+                        tiles_index,
+                        count,
+                        len(categories_data),
                     )
                     self.main.stack.setCurrentIndex(tiles_index)
                 else:
                     logger.debug(
-                        f"[UI] Already in TILES view (index={tiles_index}) - skip switch"
+                        "[UI] Already in TILES view (index=%s) - skip switch",
+                        tiles_index,
                     )
                 try:
                     cur = self.main.stack.currentIndex()
                     if current != tiles_index:
                         logger.info(
-                            f"[UI] Stack currentIndex after switch_to_category_tiles: {cur}"
+                            "[UI] Stack currentIndex after switch_to_category_tiles: %s",
+                            cur,
                         )
                     else:
                         logger.debug(
-                            f"[UI] Stack currentIndex after switch_to_category_tiles (unchanged): {cur}"
+                            "[UI] Stack currentIndex after switch_to_category_tiles (unchanged): %s",
+                            cur,
                         )
                 except Exception:
                     pass
 
         except Exception as e:
-            logger.exception(f"Ошибка при переключении на плитки категорий: {e}")
+            logger.exception("Ошибка при переключении на плитки категорий: %s", e)
 
     def update_category_without_stack_switch(self, category_id: int) -> bool:
         """Обновить текущую категорию без переключения стека.
@@ -207,11 +225,11 @@ class UIStateManager:
             bool: True если обновление успешно
         """
         try:
-            logger.debug(f"Updating category {category_id} without stack switch")
+            logger.debug("Updating category %s without stack switch", category_id)
 
             # 1. Валидация входных данных
             if not isinstance(category_id, int) or category_id <= 0:
-                logger.warning(f"Invalid category_id: {category_id}")
+                logger.warning("Invalid category_id: %s", category_id)
                 return False
 
             # 2. Обновляем current_category_id
@@ -224,14 +242,14 @@ class UIStateManager:
                 self.main.links.business.load_links(category_id)
             else:
                 logger.error(
-                    f"No links business logic available for category {category_id}"
+                    "No links business logic available for category %s", category_id
                 )
                 return False
 
             return True
 
         except Exception as e:
-            logger.exception(f"Error updating category {category_id}: {e}")
+            logger.exception("Error updating category %s: %s", category_id, e)
             return False
 
     def _clear_tiles_selection(self) -> None:

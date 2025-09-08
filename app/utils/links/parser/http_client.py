@@ -40,7 +40,7 @@ def get_cloudscraper():
                     }
                 )
             except Exception as e:  # pragma: no cover - creation failure
-                logger.warning(f"cloudscraper init failed: {e}")
+                logger.warning("cloudscraper init failed: %s", e)
                 return None
             try:
                 atexit.register(lambda: shutdown_cloudscraper(wait=False))
@@ -95,7 +95,7 @@ def http_request(
     while attempt <= max(0, int(retries)):
         if attempt > 0:
             time.sleep(0.5 * (2**attempt))
-            logger.debug(f"[retry {attempt}] {method} {url}")
+            logger.debug("[retry %s] %s %s", attempt, method, url)
         try:
             if http_get and method == "GET":
                 resp = http_get(url, headers=headers, timeout=timeout)
@@ -108,7 +108,7 @@ def http_request(
             scraper = get_cloudscraper()
             if scraper is not None:
                 try:
-                    logger.debug(f"[cloudscraper] {method} {url}")
+                    logger.debug("[cloudscraper] %s %s", method, url)
                     resp = scraper.request(
                         method, url, headers=headers, timeout=timeout
                     )
@@ -117,9 +117,9 @@ def http_request(
                     resp.raise_for_status()
                     return resp
                 except Exception as e:
-                    logger.warning(f"Cloudscraper failed for {url}: {e}")
+                    logger.warning("Cloudscraper failed for %s: %s", url, e)
                     last_err = e
-            logger.debug(f"[session] {method} {url}")
+            logger.debug("[session] %s %s", method, url)
             resp = session.request(method, url, headers=headers, timeout=timeout)
             if allow_non_2xx:
                 return resp
@@ -148,7 +148,7 @@ def http_request(
                     scraper = get_cloudscraper()
                     if scraper is None:
                         raise RequestException("cloudscraper unavailable")
-                    logger.debug(f"[fallback->cloudscraper] {method} {url}")
+                    logger.debug("[fallback->cloudscraper] %s %s", method, url)
                     resp = scraper.request(
                         method, url, headers=headers, timeout=timeout
                     )
@@ -157,7 +157,7 @@ def http_request(
                     resp.raise_for_status()
                     return resp
                 except Exception as ce:
-                    logger.warning(f"Cloudscraper fallback failed for {url}: {ce}")
+                    logger.warning("Cloudscraper fallback failed for %s: %s", url, ce)
                 finally:
                     cf_fallback_attempted = True
             if (
@@ -171,7 +171,7 @@ def http_request(
         except Exception as e:
             last_err = e
             break
-    logger.warning(f"Requests failed for {url}: {last_err}")
+    logger.warning("Requests failed for %s: %s", url, last_err)
     return None
 
 

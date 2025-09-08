@@ -33,7 +33,7 @@ class TypeChangeMixin:
             try:
                 self._active_worker.cancel()
             except (AttributeError, RuntimeError) as e:
-                logger.debug(f"Ошибка отмены активного воркера: {e}")
+                logger.debug("Ошибка отмены активного воркера: %s", e)
             self._active_worker = None
 
         # Установка иконки по умолчанию через централизованный резолвер
@@ -42,7 +42,7 @@ class TypeChangeMixin:
                 {"type": lt.value, "icon_path": ""}
             )
         except (AttributeError, KeyError, ValueError) as e:
-            logger.warning(f"Ошибка резолвинга иконки для типа {link_type}: {e}")
+            logger.warning("Ошибка резолвинга иконки для типа %s: %s", link_type, e)
             resolved_icon_path = ""
         self.dialog.icon_name = (
             Path(resolved_icon_path).name if resolved_icon_path else ""
@@ -111,7 +111,7 @@ class TypeChangeMixin:
                     codes.add(str(item))
         except (TypeError, ValueError, AttributeError) as e:
             # В спорных случаях просто выходим тихо, не меняя состояние
-            logging.debug(f"set_link_type: ошибка нормализации link_types: {e}")
+            logging.debug("set_link_type: ошибка нормализации link_types: %s", e)
             return
 
         # Поддерживаем внешние вызовы как строками, так и Enum

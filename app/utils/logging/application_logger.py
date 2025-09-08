@@ -49,7 +49,7 @@ class ApplicationLogger:
         env_path = os.getenv("LOGGING_CONFIG_PATH")
         if env_path and Path(env_path).exists():
             logging.info(
-                f"Используется конфигурация из переменной окружения: {env_path}"
+                "Используется конфигурация из переменной окружения: %s", env_path
             )
             return Path(env_path)
 
@@ -57,14 +57,14 @@ class ApplicationLogger:
         app_dir = self._get_app_directory()
         portable_path = app_dir / "config_data" / "logging_config.json"
         if portable_path.exists():
-            logging.info(f"Используется портативная конфигурация: {portable_path}")
+            logging.info("Используется портативная конфигурация: %s", portable_path)
             return portable_path
 
         # Приоритет 3: Стандартное место в проекте (разработка)
         # .../app/config_data/logging_config.json
         dev_path = Path(__file__).parents[2] / "config_data" / "logging_config.json"
         if dev_path.exists():
-            logging.info(f"Используется конфигурация разработки: {dev_path}")
+            logging.info("Используется конфигурация разработки: %s", dev_path)
             return dev_path
 
         # Если ничего не найдено
@@ -132,19 +132,21 @@ class ApplicationLogger:
 
                 # Настраиваем логирование через dictConfig
                 logging.config.dictConfig(log_config)
-                logging.info(f"Логирование настроено из файла: {config_path}")
+                logging.info("Логирование настроено из файла: %s", config_path)
             else:
                 # Используем встроенную конфигурацию
                 log_config = self._get_embedded_config()
                 logging.config.dictConfig(log_config)
                 logging.info(
-                    f"Логирование настроено через встроенную конфигурацию. Файл: {self.log_file_path}"
+                    "Логирование настроено через встроенную конфигурацию. Файл: %s",
+                    self.log_file_path,
                 )
 
         except (FileNotFoundError, PermissionError, json.JSONDecodeError) as e:
             # Если возникла ошибка при загрузке конфигурации, используем встроенную
             logging.warning(
-                f"Ошибка при загрузке конфигурации логирования: {e}. Используется встроенная конфигурация."
+                "Ошибка при загрузке конфигурации логирования: %s. Используется встроенная конфигурация.",
+                e,
             )
             try:
                 log_config = self._get_embedded_config()
@@ -163,12 +165,14 @@ class ApplicationLogger:
                     ],
                 )
                 logging.error(
-                    f"Критическая ошибка настройки логирования: {fallback_error}. Используется базовая конфигурация."
+                    "Критическая ошибка настройки логирования: %s. Используется базовая конфигурация.",
+                    fallback_error,
                 )
         except Exception as e:
             # Общий обработчик для непредвиденных ошибок
             logging.error(
-                f"Неожиданная ошибка при настройке логирования: {e}. Используется базовая конфигурация."
+                "Неожиданная ошибка при настройке логирования: %s. Используется базовая конфигурация.",
+                e,
             )
             logging.basicConfig(
                 level=self.log_level,

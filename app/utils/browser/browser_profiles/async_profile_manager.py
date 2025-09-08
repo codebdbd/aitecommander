@@ -49,7 +49,7 @@ class SingleBrowserProfileWorker(QRunnable):
     def run(self):
         """Выполняет загрузку профилей в фоновом потоке."""
         try:
-            logger.debug(f"Загрузка профилей {self.browser_key} в фоновом потоке")
+            logger.debug("Загрузка профилей %s в фоновом потоке", self.browser_key)
             start_time = time.time()
 
             if self.use_cache:
@@ -64,7 +64,11 @@ class SingleBrowserProfileWorker(QRunnable):
 
             load_time = time.time() - start_time
             logger.debug(
-                f"Загружены профили {self.browser_key}: {len(profiles)} за {load_time:.3f}s (use_cache={self.use_cache})"
+                "Загружены профили %s: %s за %.3fs (use_cache=%s)",
+                self.browser_key,
+                len(profiles),
+                load_time,
+                self.use_cache,
             )
 
             # Отправляем результат
@@ -72,7 +76,7 @@ class SingleBrowserProfileWorker(QRunnable):
 
         except Exception as e:
             error_msg = f"Ошибка загрузки профилей {self.browser_key}: {e}"
-            logger.error(error_msg)
+            logger.error("Ошибка загрузки профилей %s: %s", self.browser_key, e)
             self.signals.browser_load_error.emit(self.browser_key, error_msg)
 
 
@@ -117,19 +121,24 @@ class AllBrowsersProfileWorker(QRunnable):
                     if profiles:
                         all_profiles[browser_key] = profiles
                         logger.debug(
-                            f"Добавлены профили {browser_key}: {len(profiles)}"
+                            "Добавлены профили %s: %s",
+                            browser_key,
+                            len(profiles),
                         )
                     else:
-                        logger.debug(f"Не найдено профилей для {browser_key}")
+                        logger.debug("Не найдено профилей для %s", browser_key)
 
                 except Exception as e:
-                    logger.error(f"Ошибка при загрузке профилей {browser_key}: {e}")
+                    logger.error("Ошибка при загрузке профилей %s: %s", browser_key, e)
                     continue
 
             load_time = time.time() - start_time
             total_profiles = sum(len(profiles) for profiles in all_profiles.values())
             logger.info(
-                f"Загружены профили всех браузеров: {total_profiles} профилей из {len(all_profiles)} браузеров за {load_time:.3f}s"
+                "Загружены профили всех браузеров: %s профилей из %s браузеров за %.3fs",
+                total_profiles,
+                len(all_profiles),
+                load_time,
             )
 
             # Отправляем результат
@@ -137,7 +146,7 @@ class AllBrowsersProfileWorker(QRunnable):
 
         except Exception as e:
             error_msg = f"Ошибка загрузки всех профилей: {e}"
-            logger.error(error_msg)
+            logger.error("Ошибка загрузки всех профилей: %s", e)
             self.signals.all_profiles_error.emit(error_msg)
 
 
@@ -159,7 +168,9 @@ class AvailableBrowsersWorker(QRunnable):
 
             load_time = time.time() - start_time
             logger.info(
-                f"Найдено {len(available)} доступных браузеров за {load_time:.3f}s"
+                "Найдено %s доступных браузеров за %.3fs",
+                len(available),
+                load_time,
             )
 
             # Отправляем результат
@@ -167,7 +178,7 @@ class AvailableBrowsersWorker(QRunnable):
 
         except Exception as e:
             error_msg = f"Ошибка поиска доступных браузеров: {e}"
-            logger.error(error_msg)
+            logger.error("Ошибка поиска доступных браузеров: %s", e)
             self.signals.available_browsers_error.emit(error_msg)
 
 
@@ -206,7 +217,8 @@ class AsyncBrowserProfileManager(QObject):
         }
 
         logger.info(
-            f"Инициализирован асинхронный менеджер профилей (кеш: {self._cache_timeout}s)"
+            "Инициализирован асинхронный менеджер профилей (кеш: %ss)",
+            self._cache_timeout,
         )
 
     def load_browser_profiles_async(
@@ -223,7 +235,7 @@ class AsyncBrowserProfileManager(QObject):
             True если задача запущена, False если браузер не поддерживается
         """
         if browser_key not in self._sync_manager.finders:
-            logger.warning(f"Браузер {browser_key} не поддерживается")
+            logger.warning("Браузер %s не поддерживается", browser_key)
             return False
 
         # Создаем и запускаем воркер
@@ -238,7 +250,7 @@ class AsyncBrowserProfileManager(QObject):
         self._stats["total_requests"] += 1
         self._stats["background_loads"] += 1
 
-        logger.debug(f"Запущена асинхронная загрузка профилей {browser_key}")
+        logger.debug("Запущена асинхронная загрузка профилей %s", browser_key)
         return True
 
     def load_all_profiles_async(self, use_cache: bool = True) -> bool:
@@ -299,7 +311,9 @@ class AsyncBrowserProfileManager(QObject):
         if profiles is not None:
             self._stats["cache_hits"] += 1
             logger.debug(
-                f"Возвращены профили {browser_key} из кеша: {len(profiles)}"
+                "Возвращены профили %s из кеша: %s",
+                browser_key,
+                len(profiles),
             )
         return profiles
 
@@ -323,12 +337,12 @@ class AsyncBrowserProfileManager(QObject):
     # Слоты для обработки результатов воркеров
     def _on_browser_profiles_loaded(self, browser_key: str, profiles: List[Dict]):
         """Обработка загруженных профилей браузера."""
-        logger.debug(f"Получены профили {browser_key}: {len(profiles)}")
+        logger.debug("Получены профили %s: %s", browser_key, len(profiles))
         self.browser_profiles_ready.emit(browser_key, profiles)
 
     def _on_browser_load_error(self, browser_key: str, error_message: str):
         """Обработка ошибки загрузки профилей браузера."""
-        logger.error(f"Ошибка загрузки профилей {browser_key}: {error_message}")
+        logger.error("Ошибка загрузки профилей %s: %s", browser_key, error_message)
         self._stats["errors"] += 1
         self.loading_error.emit(f"browser_{browser_key}", error_message)
 
@@ -336,29 +350,31 @@ class AsyncBrowserProfileManager(QObject):
         """Обработка загруженных профилей всех браузеров."""
         total_profiles = sum(len(profiles) for profiles in all_profiles.values())
         logger.info(
-            f"Получены профили всех браузеров: {total_profiles} профилей из {len(all_profiles)} браузеров"
+            "Получены профили всех браузеров: %s профилей из %s браузеров",
+            total_profiles,
+            len(all_profiles),
         )
         self.all_profiles_ready.emit(all_profiles)
 
     def _on_all_profiles_progress(self, current_browser: str, current: int, total: int):
         """Обработка прогресса загрузки всех профилей."""
-        logger.debug(f"Прогресс загрузки: {current_browser} ({current}/{total})")
+        logger.debug("Прогресс загрузки: %s (%s/%s)", current_browser, current, total)
         self.loading_progress.emit(f"Загрузка {current_browser}", current, total)
 
     def _on_all_profiles_error(self, error_message: str):
         """Обработка ошибки загрузки всех профилей."""
-        logger.error(f"Ошибка загрузки всех профилей: {error_message}")
+        logger.error("Ошибка загрузки всех профилей: %s", error_message)
         self._stats["errors"] += 1
         self.loading_error.emit("all_profiles", error_message)
 
     def _on_available_browsers_loaded(self, available_browsers: List[Dict]):
         """Обработка найденных доступных браузеров."""
-        logger.info(f"Найдены доступные браузеры: {len(available_browsers)}")
+        logger.info("Найдены доступные браузеры: %s", len(available_browsers))
         self.available_browsers_ready.emit(available_browsers)
 
     def _on_available_browsers_error(self, error_message: str):
         """Обработка ошибки поиска доступных браузеров."""
-        logger.error(f"Ошибка поиска доступных браузеров: {error_message}")
+        logger.error("Ошибка поиска доступных браузеров: %s", error_message)
         self._stats["errors"] += 1
         self.loading_error.emit("available_browsers", error_message)
 

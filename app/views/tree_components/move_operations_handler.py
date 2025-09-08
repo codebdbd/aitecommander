@@ -87,7 +87,9 @@ class MoveOperationsHandler(TreeHandlerBase):
                 MoveCategoryCommand(category_id, target_id, main_win)
             )
             logger.info(
-                f"Выполнена команда перемещения категории {category_id} в {target_id}"
+                "Выполнена команда перемещения категории %s в %s",
+                category_id,
+                target_id,
             )
         else:
             self._show_warning(
@@ -108,7 +110,9 @@ class MoveOperationsHandler(TreeHandlerBase):
                 MoveLinksCommand(link_ids, new_category_id, main_win)
             )
             logger.info(
-                f"Выполнена команда перемещения ссылок {link_ids} в категорию {new_category_id}"
+                "Выполнена команда перемещения ссылок %s в категорию %s",
+                link_ids,
+                new_category_id,
             )
         else:
             logger.warning("Undo stack не найден для перемещения ссылок")
@@ -124,7 +128,10 @@ class MoveOperationsHandler(TreeHandlerBase):
                 MoveCategoriesCommand(category_ids, new_section_id, base_row, main_win)
             )
             logger.info(
-                f"Выполнена пакетная команда перемещения категорий {category_ids} в раздел {new_section_id} с base_row={base_row}"
+                "Выполнена пакетная команда перемещения категорий %s в раздел %s с base_row=%s",
+                category_ids,
+                new_section_id,
+                base_row,
             )
         else:
             self._show_warning(
@@ -171,7 +178,10 @@ class MoveOperationsHandler(TreeHandlerBase):
             # Выполняем батч-перенос одной транзакцией через бизнес-логику
             moved_ids = sb.move_categories_batch(category_ids, int(target_section_id), int(base_row))
             logger.info(
-                f"Батч-перенос категорий завершён: перенесено {len(moved_ids)} из {len(category_ids)} в раздел {target_section_id}"
+                "Батч-перенос категорий завершён: перенесено %s из %s в раздел %s",
+                len(moved_ids),
+                len(category_ids),
+                target_section_id,
             )
 
             # Финальное точечное обновление UI: только целевой раздел
@@ -180,7 +190,7 @@ class MoveOperationsHandler(TreeHandlerBase):
             except Exception:
                 pass
         except Exception as e:
-            logger.error(f"Ошибка батч-переноса категорий: {e}")
+            logger.error("Ошибка батч-переноса категорий: %s", e)
             self._on_db_error(e)
         finally:
             if tree is not None:
@@ -239,7 +249,7 @@ class MoveOperationsHandler(TreeHandlerBase):
             main_win.undo_stack.push(
                 MoveCategoryCommand(source_id, new_section_id, main_win)
             )
-            logger.info(f"Перемещена категория {source_id} в раздел {new_section_id}")
+            logger.info("Перемещена категория %s в раздел %s", source_id, new_section_id)
         else:
             self._show_warning(
                 "История действий недоступна. Перемещение между разделами отменено.",
@@ -361,7 +371,7 @@ class MoveOperationsHandler(TreeHandlerBase):
 
     def _on_db_error(self, error) -> None:
         """Обработчик ошибок базы данных."""
-        logger.error(f"Database operation failed in MoveOperationsHandler: {error}")
+        logger.error("Database operation failed in MoveOperationsHandler: %s", error)
         self._show_error(
             "Не удалось обновить позиции элементов.",
             "Ошибка базы данных при перемещении",

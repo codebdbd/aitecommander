@@ -106,4 +106,4 @@ class ValidationMixin:
             elif "Аргументы" in problems:
                 self.dialog._get_args_le().setFocus()
         except (AttributeError, RuntimeError) as e:
-            logger.warning(f"Ошибка установки фокуса на проблемное поле: {e}")
+            logger.warning("Ошибка установки фокуса на проблемное поле: %s", e)

@@ -59,7 +59,7 @@ def _validate_exe_path(exe_path: str) -> bool:
     # Мягкий лимит размера (100 МБ) как защита от случайно огромных файлов
     try:
         if os.path.getsize(exe_path) > 100 * 1024 * 1024:
-            logging.warning(f"EXE file too large: {exe_path}")
+            logging.warning("EXE file too large: %s", exe_path)
             return False
     except OSError:
         return False
@@ -73,7 +73,7 @@ def com_context():
         pythoncom.CoInitialize()
         yield
     except pythoncom.com_error as e:
-        logging.error(f"COM initialization failed: {e}")
+        logging.error("COM initialization failed: %s", e)
         raise
     finally:
         try:
@@ -124,18 +124,18 @@ def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
         try:
             os.makedirs(save_dir, exist_ok=True)
         except OSError as e:
-            logging.error(f"Cannot create icons directory {save_dir}: {e}")
+            logging.error("Cannot create icons directory %s: %s", save_dir, e)
             return None
     base_name = Path(exe_path).stem
     save_path = os.path.join(save_dir, f"program_{base_name}.ico")
     if is_cached_icon_valid(save_path, exe_path):
-        logging.debug(f"Using cached EXE icon: {save_path}")
+        logging.debug("Using cached EXE icon: %s", save_path)
         return save_path
     try:
         with gdi_context() as resources:
             large, small = win32gui.ExtractIconEx(exe_path, 0)
             if not large:
-                logging.debug(f"No icon found in {exe_path}")
+                logging.debug("No icon found in %s", exe_path)
                 return None
             resources["icons"] = large + small
             hicon = large[0]
@@ -158,14 +158,14 @@ def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
                 1,
             )
             img.save(save_path, format="ICO")
-            logging.debug(f"Extracted EXE icon saved: {save_path}")
+            logging.debug("Extracted EXE icon saved: %s", save_path)
             return save_path
     except win32ui.error as e:
-        logging.error(f"Win32 error extracting icon from {exe_path}: {e}")
+        logging.error("Win32 error extracting icon from %s: %s", exe_path, e)
     except OSError as e:
-        logging.error(f"File error extracting icon from {exe_path}: {e}")
+        logging.error("File error extracting icon from %s: %s", exe_path, e)
     except Exception as e:
-        logging.error(f"Unexpected error extracting icon from {exe_path}: {e}")
+        logging.error("Unexpected error extracting icon from %s: %s", exe_path, e)
     return None
 
 
@@ -194,14 +194,14 @@ def _parse_lnk(lnk_path: str) -> Dict[str, str]:
                 "icon_path": icon_path or "",
                 "icon_index": str(icon_index) if icon_index else "0",
             }
-            logging.debug(f"Parsed .lnk: {result}")
+            logging.debug("Parsed .lnk: %s", result)
             return result
     except pythoncom.com_error as e:
-        logging.error(f"COM error parsing .lnk file {lnk_path}: {e}")
+        logging.error("COM error parsing .lnk file %s: %s", lnk_path, e)
     except OSError as e:
-        logging.error(f"File error parsing .lnк file {lnk_path}: {e}")
+        logging.error("File error parsing .lnк file %s: %s", lnk_path, e)
     except Exception as e:
-        logging.error(f"Unexpected error parsing .lnк file {lnk_path}: {e}")
+        logging.error("Unexpected error parsing .lnк file %s: %s", lnk_path, e)
     return {}
 
 def parse_lnk(lnk_path: str) -> Dict[str, str]:
@@ -230,7 +230,7 @@ def _get_name_for_link_type(link_type: str, path: str, lnk_info: Dict[str, str])
         else:
             return Path(path).stem
     except Exception as e:
-        logging.error(f"Error getting name for {link_type}, path {path}: {e}")
+        logging.error("Error getting name for %s, path %s: %s", link_type, path, e)
         return "Unknown"
 
 
@@ -241,7 +241,7 @@ def _handle_folder_icon(config) -> str:
         if resolved and os.path.exists(resolved):
             return resolved
     except Exception as e:
-        logging.debug(f"folder icon resolve failed, fallback: {e}")
+        logging.debug("folder icon resolve failed, fallback: %s", e)
     return _get_default_icon("folder", config)
 
 
@@ -256,7 +256,7 @@ def _handle_chromeapp_icon(lnk_info: Dict[str, str], icons_dir: str) -> Optional
     app_id = app_id_match.group(1)
     icon_dst = os.path.join(icons_dir, f"chromeapp_{app_id}.png")
     if is_valid_icon_file(icon_dst):
-        logging.debug(f"Using cached chromeapp icon: {icon_dst}")
+        logging.debug("Using cached chromeapp icon: %s", icon_dst)
         return icon_dst
     icon_src = lnk_info.get("icon_path")
     if icon_src and os.path.exists(icon_src):
@@ -264,10 +264,10 @@ def _handle_chromeapp_icon(lnk_info: Dict[str, str], icons_dir: str) -> Optional
             os.makedirs(os.path.dirname(icon_dst), exist_ok=True)
             shutil.copyfile(icon_src, icon_dst)
             if is_valid_icon_file(icon_dst):
-                logging.debug(f"Copied chromeapp icon: {icon_dst}")
+                logging.debug("Copied chromeapp icon: %s", icon_dst)
                 return icon_dst
         except OSError as e:
-            logging.error(f"Failed to copy chromeapp icon: {e}")
+            logging.error("Failed to copy chromeapp icon: %s", e)
     return None
 
 
@@ -298,10 +298,10 @@ def _handle_file_icon(path: str, icons_dir: str) -> Optional[str]:
         if not q_icon.isNull():
             pixmap = q_icon.pixmap(256, 256)
             if pixmap.save(icon_path, "PNG"):
-                logging.debug(f"Extracted file icon: {icon_path}")
+                logging.debug("Extracted file icon: %s", icon_path)
                 return icon_path
     except Exception as e:
-        logging.error(f"Failed to extract file icon for {path}: {e}")
+        logging.error("Failed to extract file icon for %s: %s", path, e)
     return None
 
 
@@ -320,10 +320,10 @@ def _get_icon_for_link_type(
         elif link_type == "file":
             icon = _handle_file_icon(path, icons_dir)
     except Exception as e:
-        logging.error(f"Error getting icon for {link_type}, path {path}: {e}")
+        logging.error("Error getting icon for %s, path %s: %s", link_type, path, e)
     if not is_valid_icon_file(icon):
         icon = _get_default_icon(link_type, config)
-        logging.debug(f"Fallback to default icon: {icon}")
+        logging.debug("Fallback to default icon: %s", icon)
     return icon or ""
 
 
@@ -332,10 +332,10 @@ def parse_local_link(
 ) -> Dict[str, str]:
     """Парсит локальную ссылку и возвращает информацию о ней, включая имя и иконку."""
     if not validate_link_type(link_type):
-        logging.error(f"Invalid link_type: {link_type!r}")
+        logging.error("Invalid link_type: %r", link_type)
         return {"name": "Error", "icon": ""}
     if not validate_path(path):
-        logging.error(f"Invalid path: {path!r}")
+        logging.error("Invalid path: %r", path)
         return {"name": "Error", "icon": ""}
     if not validate_config_for_icons(config):
         logging.error("Config.LINK_ICONS_DIR не найден")
@@ -347,5 +347,5 @@ def parse_local_link(
     name = _get_name_for_link_type(link_type, path, lnk_info)
     icon = _get_icon_for_link_type(link_type, path, lnk_info, config, icons_dir)
     result = {"name": name, "icon": icon}
-    logging.debug(f"parse_local_link result: {result}")
+    logging.debug("parse_local_link result: %s", result)
     return result

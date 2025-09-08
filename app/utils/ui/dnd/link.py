@@ -41,18 +41,18 @@ class DragDropHandlerMixin:
             for row in rows:
                 # Проверка границ
                 if not (0 <= row < total):
-                    logging.warning(f"[DRAG] Некорректный индекс строки: {row}")
+                    logging.warning("[DRAG] Некорректный индекс строки: %s", row)
                     continue
 
                 link_data = self.get_link_at(row)
                 if link_data and "id" in link_data:
                     ids.append(link_data["id"])
                 else:
-                    logging.warning(f"[DRAG] Отсутствует ID в строке {row}")
+                    logging.warning("[DRAG] Отсутствует ID в строке %s", row)
 
             return ids
         except Exception as e:
-            logging.error(f"[DRAG] Ошибка извлечения ID из элементов: {e}")
+            logging.error("[DRAG] Ошибка извлечения ID из элементов: %s", e)
             return []
 
     def _rebuild_current_links(self):
@@ -71,7 +71,7 @@ class DragDropHandlerMixin:
                 if link_data:
                     self._current_links[row] = link_data
         except Exception as e:
-            logging.error(f"[DRAG] Ошибка перестроения кэша ссылок: {e}")
+            logging.error("[DRAG] Ошибка перестроения кэша ссылок: %s", e)
             self._current_links.clear()  # В случае ошибки кэш должен быть пустым
 
     def _move_row_visually(self, source_row: int, target_row: int):
@@ -87,7 +87,10 @@ class DragDropHandlerMixin:
             model.move_rows([source_row], target_row)
         except Exception as e:
             logging.error(
-                f"[LinksTableView] Ошибка визуального перемещения строки {source_row} -> {target_row}: {e}"
+                "[LinksTableView] Ошибка визуального перемещения строки %s -> %s: %s",
+                source_row,
+                target_row,
+                e,
             )
         finally:
             # Кэш перестраивается в любом случае, чтобы отразить фактическое состояние модели
@@ -105,7 +108,7 @@ class DragDropHandlerMixin:
                     ids_in_order.append(link_data["id"])
             return ids_in_order
         except Exception as e:
-            logging.error(f"[DRAG] Ошибка получения текущего порядка ссылок: {e}")
+            logging.error("[DRAG] Ошибка получения текущего порядка ссылок: %s", e)
             return []
 
 
@@ -148,7 +151,7 @@ def extract_source_rows_from_mime(table, event, mime_type: str) -> List[int]:
                 source_rows.append(row)
         return sorted(source_rows)
     except Exception as e:
-        logging.warning(f"[DROP] Ошибка извлечения строк из MIME: {e}")
+        logging.warning("[DROP] Ошибка извлечения строк из MIME: %s", e)
         return get_selected_rows(table)
 
 
@@ -165,7 +168,10 @@ def move_row_visually(table, source_row: int, target_row: int) -> None:
         model.move_rows([source_row], target_row)
     except Exception as e:
         logging.error(
-            f"[DnD] Ошибка визуального перемещения строки {source_row}->{target_row}: {e}"
+            "[DnD] Ошибка визуального перемещения строки %s->%s: %s",
+            source_row,
+            target_row,
+            e,
         )
     finally:
         # Если у таблицы есть метод для перестройки кэша, используем его.
@@ -174,8 +180,8 @@ def move_row_visually(table, source_row: int, target_row: int) -> None:
             table._rebuild_current_links()
         else:
             logging.warning(
-                f"[DnD] Объект {type(table).__name__} не имеет метода _rebuild_current_links. "
-                f"Кэш может быть неактуален."
+                "[DnD] Объект %s не имеет метода _rebuild_current_links. Кэш может быть неактуален.",
+                type(table).__name__,
             )
 
 
@@ -204,5 +210,5 @@ def get_current_order(table) -> List[int]:
                 ids.append(link_data["id"])
         return ids
     except Exception as e:
-        logging.error(f"[DnD] Ошибка получения порядка IDs: {e}")
+        logging.error("[DnD] Ошибка получения порядка IDs: %s", e)
         return []

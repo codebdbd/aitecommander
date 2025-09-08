@@ -86,7 +86,7 @@ class MoveLinksCommand(BaseCommand):
             # Используем транзакционную пакетную операцию
             links_business.batch_update_links(states)
         except Exception as e:
-            logger.error(f"Ошибка при пакетном обновлении ссылок: {e}")
+            logger.error("Ошибка при пакетном обновлении ссылок: %s", e)
             raise
 
     def _refresh_ui(self, old_category=None, new_category=None):
@@ -123,11 +123,14 @@ class MoveLinksCommand(BaseCommand):
             try:
                 self.main.structure_business.select_category(new_category)
                 logger.info(
-                    f"Переключен фокус на целевую категорию {new_category} после перемещения ссылок"
+                    "Переключен фокус на целевую категорию %s после перемещения ссылок",
+                    new_category,
                 )
             except Exception as e:
                 logger.warning(
-                    f"Не удалось переключить фокус на категорию {new_category}: {e}"
+                    "Не удалось переключить фокус на категорию %s: %s",
+                    new_category,
+                    e,
                 )
 
     def redo(self):
@@ -207,7 +210,9 @@ class MoveCategoryCommand(BaseCommand):
             ):
                 # Молча игнорируем дубликаты - не показываем ошибку пользователю
                 logger.debug(
-                    f"Duplicate category '{self.cat_name}' found in target section {self.new_section_id}, ignoring move"
+                    "Duplicate category '%s' found in target section %s, ignoring move",
+                    self.cat_name,
+                    self.new_section_id,
                 )
                 self.setObsolete(True)
                 return
@@ -215,7 +220,7 @@ class MoveCategoryCommand(BaseCommand):
             self._set_section(self.new_section_id)
             self._refresh_structure_ui()
         except Exception as e:
-            logger.error(f"Ошибка при перемещении категории: {e}")
+            logger.error("Ошибка при перемещении категории: %s", e)
             raise
 
     def undo(self):
@@ -223,7 +228,7 @@ class MoveCategoryCommand(BaseCommand):
             self._set_section(self.old_section_id)
             self._refresh_structure_ui()
         except Exception as e:
-            logger.error(f"Ошибка при отмене перемещения категории: {e}")
+            logger.error("Ошибка при отмене перемещения категории: %s", e)
             raise
 
     def _refresh_structure_ui(self):
@@ -234,11 +239,13 @@ class MoveCategoryCommand(BaseCommand):
             try:
                 self.main.structure_business.select_category(self.category_id)
                 logger.info(
-                    f"Переключен фокус на перемещенную категорию {self.category_id}"
+                    "Переключен фокус на перемещенную категорию %s", self.category_id
                 )
             except Exception as e:
                 logger.warning(
-                    f"Не удалось переключить фокус на категорию {self.category_id}: {e}"
+                    "Не удалось переключить фокус на категорию %s: %s",
+                    self.category_id,
+                    e,
                 )
 
 
@@ -269,7 +276,7 @@ class MoveCategoriesCommand(BaseCommand):
         for cid in self.category_ids:
             data = sb.get_category_data(cid)
             if not data:
-                logger.debug(f"Категория {cid} не найдена, пропуск")
+                logger.debug("Категория %s не найдена, пропуск", cid)
                 continue
             old_states.append({
                 "id": data["id"],
@@ -291,7 +298,10 @@ class MoveCategoriesCommand(BaseCommand):
             try:
                 if sb.has_duplicate_category(self.new_section_id, name, cid):
                     logger.debug(
-                        f"Duplicate category '{name}' in target section {self.new_section_id}, skipping id={cid}"
+                        "Duplicate category '%s' in target section %s, skipping id=%s",
+                        name,
+                        self.new_section_id,
+                        cid,
                     )
                     continue
             except Exception:
@@ -378,7 +388,9 @@ class MoveCategoriesCommand(BaseCommand):
                         }
                         sb.update_category(cid, payload)
                     except Exception as e:
-                        logger.error(f"Ошибка обновления категории {st.get('id')}: {e}")
+                        logger.error(
+                            "Ошибка обновления категории %s: %s", st.get('id'), e
+                        )
         finally:
             # Возвращаем обычную обработку сигналов
             try:
@@ -443,7 +455,8 @@ class MoveCategoriesCommand(BaseCommand):
         # Информативный лог
         try:
             logger.info(
-                f"Переключен фокус на раздел {focus_section_id} после пакетного перемещения категорий"
+                "Переключен фокус на раздел %s после пакетного перемещения категорий",
+                focus_section_id,
             )
         except Exception:
             pass

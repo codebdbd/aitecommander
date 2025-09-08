@@ -54,7 +54,7 @@ class BaseLinksUIComponent:
                 # Fallback: только бизнес-логика без прямого UI
                 self.business.load_links(category_id)
         except Exception as e:
-            logger.error(f"Error updating category {category_id}: {e}")
+            logger.error("Error updating category %s: %s", category_id, e)
             raise DatabaseError(f"Failed to update category: {str(e)}")
 
     def _show_warning(self, message: str, title: str = None) -> None:

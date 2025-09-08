@@ -29,7 +29,7 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
         profiles_ini = os.path.join(self.profiles_dir, "profiles.ini")
 
         if not os.path.exists(profiles_ini):
-            logger.debug(f"Файл profiles.ini не найден: {profiles_ini}")
+            logger.debug("Файл profiles.ini не найден: %s", profiles_ini)
             return profiles
 
         try:
@@ -62,12 +62,12 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
                             }
                         )
                         logger.debug(
-                            f"Найден профиль Firefox: {name} ({email or 'без email'})"
+                            "Найден профиль Firefox: %s (%s)", name, (email or "без email")
                         )
         except Exception as e:
-            logger.error(f"Ошибка при чтении профилей Firefox: {e}")
+            logger.error("Ошибка при чтении профилей Firefox: %s", e)
 
-        logger.info(f"Найдено {len(profiles)} профилей Firefox")
+        logger.info("Найдено %s профилей Firefox", len(profiles))
         return profiles
 
     def _extract_email_from_prefs(self, profile_path: str) -> Optional[str]:
@@ -95,7 +95,7 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
                         if "@" in email and "." in email:
                             return email
         except Exception as e:
-            logger.debug(f"Не удалось извлечь email из {prefs_file}: {e}")
+            logger.debug("Не удалось извлечь email из %s: %s", prefs_file, e)
 
         return None
 
@@ -113,7 +113,7 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
 
     def parse_profile_from_args(self, args: str) -> Optional[Dict]:
         """Парсит профиль Firefox из аргументов командной строки."""
-        logger.debug(f"parse_profile_from_args: args={args}")
+        logger.debug("parse_profile_from_args: args=%s", args)
 
         if not args or "-P " not in args:
             logger.debug("parse_profile_from_args: no -P in args")
@@ -125,7 +125,7 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
             if match:
                 profile_name = match.group(1)
                 logger.debug(
-                    f"parse_profile_from_args: found profile_name={profile_name}"
+                    "parse_profile_from_args: found profile_name=%s", profile_name
                 )
                 result = {
                     "name": profile_name,
@@ -134,10 +134,10 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
                     "directory": profile_name,
                     "path": None,  # Путь определяется динамически из profiles.ini
                 }
-                logger.debug(f"parse_profile_from_args: returning result={result}")
+                logger.debug("parse_profile_from_args: returning result=%s", result)
                 return result
         except Exception as e:
-            logger.debug(f"Ошибка парсинга аргументов Firefox: {e}")
+            logger.debug("Ошибка парсинга аргументов Firefox: %s", e)
 
         logger.debug("parse_profile_from_args: could not parse profile")
         return None

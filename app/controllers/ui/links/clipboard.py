@@ -66,7 +66,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
             self._insert_links(new_links)
 
         except Exception as e:
-            logger.error(f"Ошибка при вставке ссылок: {e}", exc_info=True)
+            logger.error("Ошибка при вставке ссылок: %s", e, exc_info=True)
             self._show_error(f"Не удалось вставить ссылки: {str(e)}")
 
     def delete_links(self, links: List[Dict]):
@@ -93,12 +93,12 @@ class LinksUIClipboard(BaseLinksUIComponent):
             try:
                 self._update_category_safe(category_id)
             except DatabaseError as e:
-                logger.error(f"Failed to update category after deletion: {e}")
+                logger.error("Failed to update category after deletion: %s", e)
         # Централизованная эмиссия сигналов через LinkOperationsController
         try:
             self.link_operations.on_links_deleted(links)
         except Exception as e:
-            logger.debug(f"Failed to emit signals after delete_links: {e}")
+            logger.debug("Failed to emit signals after delete_links: %s", e)
 
     def get_selected_links(self) -> List[Dict]:
         """Получить выбранные ссылки."""
@@ -185,7 +185,9 @@ class LinksUIClipboard(BaseLinksUIComponent):
 
         if filtered_count:
             logger.info(
-                f"[Paste] Отфильтровано дубликатов: {filtered_count} из {len(links)} по ключу (url,type,args,name)"
+                "[Paste] Отфильтровано дубликатов: %s из %s по ключу (url,type,args,name)",
+                filtered_count,
+                len(links),
             )
         return new_links
 

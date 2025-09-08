@@ -163,7 +163,7 @@ def parse_icon_size(sizes_attr: str) -> int:
                 if int_h > max_size:
                     max_size = int_h
             except ValueError:
-                logger.debug(f"Invalid WxH pair in sizes attribute: {w}x{h}", exc_info=True)
+                logger.debug("Invalid WxH pair in sizes attribute: %sx%s", w, h, exc_info=True)
                 continue
         if max_size:
             return max_size
@@ -174,7 +174,7 @@ def parse_icon_size(sizes_attr: str) -> int:
             return int(m.group(1))
         except ValueError:
             logger.debug("Failed to parse integer from sizes attribute", exc_info=True)
-    logger.debug(f"Invalid sizes attribute: {sizes_attr}")
+    logger.debug("Invalid sizes attribute: %s", sizes_attr)
     return 0
 
 
@@ -596,15 +596,25 @@ def find_favicon_candidates(
 
     _sort_candidates(candidates)
 
-    logger.debug(f"Found {len(candidates)} icon candidates (before og:image):")
+    logger.debug("Found %s icon candidates (before og:image):", len(candidates))
     for cand in candidates[:5]:
         logger.debug(
-            f"  {cand.kind} {cand.size}px {cand.format} p{cand.base_priority}/f{cand.format_rank}: {cand.url}"
+            "  %s %spx %s p%s/f%s: %s",
+            cand.kind,
+            cand.size,
+            cand.format,
+            cand.base_priority,
+            cand.format_rank,
+            cand.url,
         )
     if candidates:
         best = candidates[0]
         logger.info(
-            f"Best candidate: {best.kind} {best.size}px {best.format} from {best.url}"
+            "Best candidate: %s %spx %s from %s",
+            best.kind,
+            best.size,
+            best.format,
+            best.url,
         )
 
     og_urls = _append_og_image(soup, base_url, candidates)

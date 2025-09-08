@@ -298,7 +298,7 @@ class BaseDragDropTableWidget(QTableView):
             item_ids = self._extract_item_ids_from_items(items)
             return MimeDataParser.create_mime_data(item_ids, self.MIME_TYPE)
         except Exception as e:
-            logging.warning(f"Не удалось создать MIME данные: {e}")
+            logging.warning("Не удалось создать MIME данные: %s", e)
             return None
 
     def _extract_item_ids_from_items(self, items: Iterable[QModelIndex]) -> List[int]:
@@ -425,7 +425,7 @@ class BaseDragDropTableWidget(QTableView):
             return
 
         source_rows, target_row = self._get_drop_positions(event)
-        logging.info(f"[DROP] dropEvent: source_rows={source_rows}, target_row={target_row}")
+        logging.info("[DROP] dropEvent: source_rows=%s, target_row=%s", source_rows, target_row)
         if not self._is_valid_internal_drop(source_rows, target_row):
             logging.info("[DROP] dropEvent: invalid internal drop, ignoring")
             event.ignore()
@@ -443,13 +443,13 @@ class BaseDragDropTableWidget(QTableView):
 
             ids_in_order = self._get_current_order()
             if ids_in_order:
-                logging.info(f"[DROP] dropEvent: items_reordered -> {len(ids_in_order)} ids")
+                logging.info("[DROP] dropEvent: items_reordered -> %s ids", len(ids_in_order))
                 self.items_reordered.emit(ids_in_order)
             else:
                 logging.warning("[DROP] Не удалось собрать ID после перемещения")
 
         except Exception as e:
-            logging.error(f"[DROP] Ошибка при перемещении строки: {e}")
+            logging.error("[DROP] Ошибка при перемещении строки: %s", e)
             event.ignore()
         finally:
             if not moved and self._sorting_disabled_for_drag:
@@ -511,10 +511,10 @@ class BaseDragDropTableWidget(QTableView):
         """
         if self._is_internal_drop(event):
             source_rows = self._extract_source_rows_from_mime(event)
-            logging.debug(f"[DROP] extracted rows from MIME: {len(source_rows)}")
+            logging.debug("[DROP] extracted rows from MIME: %s", len(source_rows))
         else:
             source_rows = self._get_selected_rows()
-            logging.debug(f"[DROP] selected rows: {len(source_rows)}")
+            logging.debug("[DROP] selected rows: %s", len(source_rows))
 
         if not source_rows:
             return [], -1
@@ -537,7 +537,7 @@ class BaseDragDropTableWidget(QTableView):
                 target_row = self.model().rowCount()
             except Exception:
                 target_row = -1
-            logging.debug(f"[DROP] target_row (viewport append): {target_row}")
+            logging.debug("[DROP] target_row (viewport append): %s", target_row)
             return source_rows, target_row
 
         target_row = target_index.row()
@@ -555,7 +555,7 @@ class BaseDragDropTableWidget(QTableView):
             if first <= target_row <= last + 1:
                 target_row = last + 1 if pos == QAbstractItemView.DropIndicatorPosition.BelowItem else first
 
-        logging.debug(f"[DROP] target_row: {target_row}")
+        logging.debug("[DROP] target_row: %s", target_row)
         return source_rows, target_row
 
     def _is_valid_internal_drop(self, source_rows: list, target_row: int) -> bool:
@@ -595,7 +595,7 @@ class BaseDragDropTableWidget(QTableView):
             else:
                 rows = self._get_selected_rows()
 
-            logging.debug(f"[PIXMAP] rows for drag pixmap: {len(rows)}")
+            logging.debug("[PIXMAP] rows for drag pixmap: %s", len(rows))
 
             if not rows:
                 return None
@@ -608,7 +608,7 @@ class BaseDragDropTableWidget(QTableView):
                 return self._create_multi_row_pixmap(row_count)
 
         except Exception as e:
-            logging.warning(f"Не удалось создать drag pixmap: {e}")
+            logging.warning("Не удалось создать drag pixmap: %s", e)
             return None
 
     def _create_single_row_pixmap(self, row: int) -> Optional[QPixmap]:
@@ -639,7 +639,7 @@ class BaseDragDropTableWidget(QTableView):
             return self._create_text_pixmap(text, single_row=True)
 
         except Exception as e:
-            logging.warning(f"Ошибка создания single row pixmap: {e}")
+            logging.warning("Ошибка создания single row pixmap: %s", e)
             return self._create_default_pixmap()
 
     def _create_multi_row_pixmap(self, count: int) -> QPixmap:

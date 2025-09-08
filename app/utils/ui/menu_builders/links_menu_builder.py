@@ -42,7 +42,7 @@ class LinksMenuBuilder:
 
     def _add_link_item_actions(self, menu: QMenu, link: Dict) -> None:
         """Добавляет действия для выбранной ссылки."""
-        logging.debug(f"LinksMenuBuilder._add_link_item_actions: link={link}")
+        logging.debug("LinksMenuBuilder._add_link_item_actions: link=%s", link)
         # Открыть ссылку
         menu.addAction(
             self.actions.create(

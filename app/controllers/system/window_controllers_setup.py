@@ -317,7 +317,7 @@ def _deferred_setup(window: Any, controllers: Dict[str, Any]) -> None:
             topbar_manager=(window._topbar_manager if hasattr(window, "_topbar_manager") else None),
         )
     except (AttributeError, TypeError, SetupError) as e:
-        logger.error(f"Failed during deferred dependency injection: {e}")
+        logger.error("Failed during deferred dependency injection: %s", e)
         raise
 
 
@@ -592,7 +592,7 @@ def _connect_structure_signals(
             spheres_controller.update_active_sphere_button
         )
     except (AttributeError, TypeError) as e:
-        logger.error(f"Failed to connect sphere button update: {e}")
+        logger.error("Failed to connect sphere button update: %s", e)
     structure_business.active_sphere_changed.connect(
         window._update_left_panel_style
     )
@@ -620,7 +620,7 @@ def _connect_structure_signals(
                 except TypeError as e:
                     raise SetupError("Invalid structure business loader signature") from e
                 except Exception as e:
-                    logger.error(f"Unexpected error triggering structure reload: {e}")
+                    logger.error("Unexpected error triggering structure reload: %s", e)
                     raise SetupError("Failed to trigger structure reload") from e
 
             handler = _on_active_sphere_changed
@@ -692,7 +692,7 @@ def _connect_database_signals(window: Any) -> None:
             partial(MessageHandler.show_error_message, window)
         )
     except (AttributeError, TypeError) as e:
-        logger.warning(f"Failed to connect database signals: {e}")
+        logger.warning("Failed to connect database signals: %s", e)
     window._database_signals_connected = True
 
 
@@ -716,7 +716,7 @@ def _connect_ui_signals(window: Any) -> None:
             try:
                 sel_model.currentChanged.connect(_update_statusbar_tree)
             except (AttributeError, TypeError) as e:
-                logger.warning(f"Failed to connect tree selection signals: {e}")
+                logger.warning("Failed to connect tree selection signals: %s", e)
 
     if hasattr(window, "table") and window.table:
         try:
@@ -732,7 +732,7 @@ def _connect_ui_signals(window: Any) -> None:
             try:
                 selection_model.selectionChanged.connect(_update_statusbar_table)
             except (AttributeError, TypeError) as e:
-                logger.warning(f"Failed to connect table selection signals: {e}")
+                logger.warning("Failed to connect table selection signals: %s", e)
     window._ui_signals_connected = True
 
 
@@ -932,7 +932,7 @@ class WindowControllersSetup:
             setup_controllers(self.window, controllers, self.db)
             logger.info("Controllers setup completed")
         except Exception as e:
-            logger.error(f"Failed to setup controllers: {e}")
+            logger.error("Failed to setup controllers: %s", e)
             raise SetupError(
                 "Critical component ControllersSetup failed to initialize"
             ) from e
@@ -949,9 +949,9 @@ class WindowControllersSetup:
                     step(self.window, controllers, top_panels_controller=self.window.top_panels_controller)
                 else:
                     step(self.window, controllers)
-                logger.info(f"{name} completed")
+                logger.info("%s completed", name)
             except (AttributeError, TypeError, ValueError, SetupError) as e:
-                logger.error(f"{name} failed: {e}")
+                logger.error("%s failed: %s", name, e)
                 # Не скрываем проблемы конфигурации шагов — завершаем настройку ошибкой
                 raise SetupError(f"{name} failed during window setup") from e
 
@@ -965,7 +965,7 @@ class WindowControllersSetup:
                 self.window.spheres_controller = sc
             sc.init()
         except (AttributeError, TypeError, ValueError) as e:
-            logger.error(f"Failed to initialize spheres: {e}")
+            logger.error("Failed to initialize spheres: %s", e)
             raise SetupError("Spheres initialization failed") from e
 
 __all__ = ["WindowControllersSetup"]

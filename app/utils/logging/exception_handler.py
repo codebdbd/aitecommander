@@ -43,10 +43,10 @@ class ExceptionHandler:
                 error_details = "".join(
                     traceback.format_exception(exc_type, exc_value, exc_traceback)
                 )
-                logger.error(error_text)
-                logger.error(error_info)
+                logger.error("%s", error_text)
+                logger.error("%s", error_info)
                 logger.error("Подробности:")
-                logger.error(error_details)
+                logger.error("%s", error_details)
                 return
 
             error_text = f"Произошла критическая ошибка: {exc_type.__name__}"
@@ -64,5 +64,5 @@ class ExceptionHandler:
             )
         except Exception as e:
             # Если даже диалог не удается показать
-            logger.critical(f"Критическая ошибка: {exc_type.__name__}: {exc_value}")
-            logger.critical(f"Ошибка показа диалога: {e}", exc_info=True)
+            logger.critical("Критическая ошибка: %s: %s", exc_type.__name__, exc_value)
+            logger.critical("Ошибка показа диалога: %s", e, exc_info=True)

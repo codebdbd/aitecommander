@@ -134,7 +134,10 @@ class AppShutdownController:
 
             handlers = handlers_by_priority[priority]
             logging.debug(
-                f"Executing shutdown priority {priority.name} with {len(handlers)} handlers (remaining ~{remaining} ms)"
+                "Executing shutdown priority %s with %s handlers (remaining ~%s ms)",
+                priority.name,
+                len(handlers),
+                remaining,
             )
 
             try:
@@ -148,7 +151,7 @@ class AppShutdownController:
                     self._execute_handlers_sequential(handlers, remaining_ms=remaining)
             except Exception as exc:
                 logging.error(
-                    f"Error in priority {priority.name}: {exc}", exc_info=True
+                    "Error in priority %s: %s", priority.name, exc, exc_info=True
                 )
                 if priority == ShutdownPriority.CRITICAL:
                     raise
@@ -261,7 +264,7 @@ class AppShutdownController:
     ):
         """Выполнение одного handler с обработкой ошибок и таймаутов."""
         try:
-            logging.debug(f"Executing shutdown handler: {handler.name}")
+            logging.debug("Executing shutdown handler: %s", handler.name)
 
             # Выполняем handler с таймаутом
             eff_timeout = (
@@ -272,24 +275,21 @@ class AppShutdownController:
             with self._timeout_context(eff_timeout, handler.name):
                 handler.handler()
 
-            logging.debug(f"Handler {handler.name} completed successfully")
+            logging.debug("Handler %s completed successfully", handler.name)
 
         except ShutdownTimeoutError as exc:
-            error_msg = f"Handler '{handler.name}' timed out: {exc}"
             if handler.critical:
-                logging.critical(error_msg, exc_info=True)
+                logging.critical("Handler '%s' timed out: %s", handler.name, exc, exc_info=True)
                 raise
             else:
-                logging.error(error_msg, exc_info=True)
+                logging.error("Handler '%s' timed out: %s", handler.name, exc, exc_info=True)
 
         except Exception as exc:
-            error_msg = f"Handler '{handler.name}' failed: {exc}"
-
             if handler.critical:
-                logging.critical(error_msg, exc_info=True)
+                logging.critical("Handler '%s' failed: %s", handler.name, exc, exc_info=True)
                 raise  # Прерываем shutdown для критичных операций
             else:
-                logging.error(error_msg, exc_info=True)
+                logging.error("Handler '%s' failed: %s", handler.name, exc, exc_info=True)
                 # Продолжаем для некритичных операций
 
     def _register_default_handlers(self):
@@ -348,7 +348,7 @@ class AppShutdownController:
         shutdown_handler = ShutdownHandler(name, handler, priority, timeout, critical)
         self.shutdown_handlers.append(shutdown_handler)
         logging.debug(
-            f"Registered shutdown handler: {name} (priority: {priority.name})"
+            "Registered shutdown handler: %s (priority: %s)", name, priority.name
         )
 
     def remove_shutdown_handler(self, name: str) -> bool:
@@ -357,7 +357,7 @@ class AppShutdownController:
         self.shutdown_handlers = [h for h in self.shutdown_handlers if h.name != name]
         removed = len(self.shutdown_handlers) < initial_count
         if removed:
-            logging.debug(f"Removed shutdown handler: {name}")
+            logging.debug("Removed shutdown handler: %s", name)
         return removed
 
     def get_shutdown_handlers(self) -> List[Dict[str, Any]]:
@@ -385,28 +385,28 @@ class AppShutdownController:
         for attr_name, display_name in controllers_to_shutdown:
             try:
                 if not hasattr(self.window, attr_name):
-                    logging.debug(f"{display_name} not found on window object")
+                    logging.debug("%s not found on window object", display_name)
                     continue
 
                 controller = getattr(self.window, attr_name)
                 if controller is None:
-                    logging.debug(f"{display_name} is None")
+                    logging.debug("%s is None", display_name)
                     continue
 
                 if not hasattr(controller, "shutdown"):
-                    logging.debug(f"{display_name} has no shutdown method")
+                    logging.debug("%s has no shutdown method", display_name)
                     continue
 
-                logging.debug(f"Shutting down {display_name}")
+                logging.debug("Shutting down %s", display_name)
                 shutdown_method = getattr(controller, "shutdown")
                 if callable(shutdown_method):
                     shutdown_method()
                 else:
-                    logging.warning(f"{display_name}.shutdown is not callable")
+                    logging.warning("%s.shutdown is not callable", display_name)
 
             except Exception as exc:
                 logging.error(
-                    f"Error shutting down {display_name}: {exc}", exc_info=True
+                    "Error shutting down %s: %s", display_name, exc, exc_info=True
                 )
 
     def _wait_for_thread_pools(self):
@@ -418,7 +418,8 @@ class AppShutdownController:
             pool = QThreadPool.globalInstance()
             if pool and pool.activeThreadCount() > 0:
                 logging.debug(
-                    f"Waiting for {pool.activeThreadCount()} global threads to finish"
+                    "Waiting for %s global threads to finish",
+                    pool.activeThreadCount(),
                 )
                 if not pool.waitForDone(timeout):
                     logging.warning(
@@ -428,9 +429,9 @@ class AppShutdownController:
                     try:
                         pool.clear()
                     except Exception as clear_exc:
-                        logging.error(f"Error clearing global thread pool: {clear_exc}")
+                        logging.error("Error clearing global thread pool: %s", clear_exc)
         except Exception as exc:
-            logging.error(f"Error waiting for global thread pool: {exc}", exc_info=True)
+            logging.error("Error waiting for global thread pool: %s", exc, exc_info=True)
 
         # Локальный thread pool окна
         try:
@@ -438,7 +439,8 @@ class AppShutdownController:
                 local_pool = getattr(self.window, "thread_pool")
                 if local_pool and local_pool.activeThreadCount() > 0:
                     logging.debug(
-                        f"Waiting for {local_pool.activeThreadCount()} local threads to finish"
+                        "Waiting for %s local threads to finish",
+                        local_pool.activeThreadCount(),
                     )
                     if not local_pool.waitForDone(timeout):
                         logging.warning(
@@ -448,10 +450,11 @@ class AppShutdownController:
                             local_pool.clear()
                         except Exception as clear_exc:
                             logging.error(
-                                f"Error clearing local thread pool: {clear_exc}"
+                                "Error clearing local thread pool: %s",
+                                clear_exc,
                             )
         except Exception as exc:
-            logging.error(f"Error waiting for local thread pool: {exc}", exc_info=True)
+            logging.error("Error waiting for local thread pool: %s", exc, exc_info=True)
 
     def _backup_database(self):
         """Создание бэкапа БД - улучшенная версия оригинала."""
@@ -480,7 +483,7 @@ class AppShutdownController:
 
         except Exception as exc:
             # Для бэкапа ошибка не критична, но логируем
-            logging.error(f"Database backup failed: {exc}", exc_info=True)
+            logging.error("Database backup failed: %s", exc, exc_info=True)
 
 
 # ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
@@ -506,5 +509,5 @@ def emergency_shutdown():
         else:
             sys.exit(1)
     except Exception as exc:
-        logging.critical(f"Error during emergency shutdown: {exc}")
+        logging.critical("Error during emergency shutdown: %s", exc)
         sys.exit(1)

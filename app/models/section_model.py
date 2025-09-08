@@ -36,7 +36,7 @@ class SectionModel(DatabaseBase):
             "INSERT INTO section (name, sphere_id, icon_path, position) VALUES (?, ?, ?, ?)",
             (data["name"], data["sphere_id"], data.get("icon_path", ""), position),
         )
-        logger.info(f"Добавлен новый раздел: {data['name']}")
+        logger.info("Добавлен новый раздел: %s", data['name'])
         return cursor.lastrowid
 
     def update_section(self, section_id: int, data: Dict[str, Any]):
@@ -49,7 +49,7 @@ class SectionModel(DatabaseBase):
         self._execute_with_error_handling(
             "DELETE FROM section WHERE id=?", (section_id,)
         )
-        logger.info(f"Удален раздел с ID {section_id}")
+        logger.info("Удален раздел с ID %s", section_id)
 
     def upsert_section(self, section_data: Dict[str, Any]) -> int:
         """Вставляет или обновляет раздел. Если раздела с таким id нет, вставляет новый с этим id."""

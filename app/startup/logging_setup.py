@@ -39,23 +39,27 @@ def log_system_info() -> None:
     from PyQt6.QtGui import QGuiApplication
 
     try:
-        logging.info(f"Операционная система: {platform.platform()}")
-        logging.info(f"Версия Python: {sys.version}")
-        logging.info(f"Архитектура Python: {platform.architecture()}")
-        logging.info(f"Версия PyQt6: {QT_VERSION_STR}")
-        logging.info(f"Путь запуска: {sys.argv[0]}")
-        logging.info(f"Рабочая директория: {os.getcwd()}")
-        logging.info(f"PID процесса: {os.getpid()}")
-        logging.info(f"Количество аргументов командной строки: {len(sys.argv)}")
+        logging.info("Операционная система: %s", platform.platform())
+        logging.info("Версия Python: %s", sys.version)
+        logging.info("Архитектура Python: %s", platform.architecture())
+        logging.info("Версия PyQt6: %s", QT_VERSION_STR)
+        logging.info("Путь запуска: %s", sys.argv[0])
+        logging.info("Рабочая директория: %s", os.getcwd())
+        logging.info("PID процесса: %s", os.getpid())
+        logging.info("Количество аргументов командной строки: %s", len(sys.argv))
         
         screens = QGuiApplication.screens()
         for i, screen in enumerate(screens):
             geometry = screen.geometry()
             logging.info(
-                f"Дисплей {i}: {geometry.width()}x{geometry.height()} @ {screen.devicePixelRatio()}x"
+                "Дисплей %s: %sx%s @ %sx",
+                i,
+                geometry.width(),
+                geometry.height(),
+                screen.devicePixelRatio(),
             )
     except Exception as e:
-        logging.warning(f"Не удалось получить системную информацию: {e}")
+        logging.warning("Не удалось получить системную информацию: %s", e)
 
 
 def log_shutdown() -> None:

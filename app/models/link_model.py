@@ -145,9 +145,11 @@ class LinkModel(DatabaseBase):
         data["is_favorite"] = int(data.get("is_favorite", 0) or 0)
 
         logger.debug(
-            f"Upsert ссылки: {data.get('name', 'Без названия')}, browser_key={data.get('browser_key')}"
+            "Upsert ссылки: %s, browser_key=%s",
+            data.get('name', 'Без названия'),
+            data.get('browser_key'),
         )
-        logger.debug(f"Upsert ссылки: полные данные={data}")
+        logger.debug("Upsert ссылки: полные данные=%s", data)
 
         try:
             if data["id"]:
@@ -179,7 +181,9 @@ class LinkModel(DatabaseBase):
                     
 
                 logger.debug(
-                    f"Обновлена ссылка с ID {data['id']}, browser_key={data.get('browser_key')}"
+                    "Обновлена ссылка с ID %s, browser_key=%s",
+                    data['id'],
+                    data.get('browser_key'),
                 )
                 return data["id"]
             else:
@@ -211,10 +215,14 @@ class LinkModel(DatabaseBase):
                 
                 new_id = cursor.lastrowid
                 logger.info(
-                    f"Добавлена новая ссылка: {data.get('name', 'Без названия')}, browser_key={data.get('browser_key')}"
+                    "Добавлена новая ссылка: %s, browser_key=%s",
+                    data.get('name', 'Без названия'),
+                    data.get('browser_key'),
                 )
                 logger.debug(
-                    f"Добавлена новая ссылка с ID {new_id}, полные данные={data}"
+                    "Добавлена новая ссылка с ID %s, полные данные=%s",
+                    new_id,
+                    data,
                 )
                 return new_id
         except sqlite3.IntegrityError as e:
@@ -304,7 +312,7 @@ class LinkModel(DatabaseBase):
                 "DELETE FROM link WHERE id= ?", (link_id,)
             )
             
-            logger.info(f"Удалена ссылка с ID {link_id}")
+            logger.info("Удалена ссылка с ID %s", link_id)
         except Exception as e:
             logger.error("Ошибка удаления ссылки: %s", e, exc_info=True)
             raise DatabaseError(f"Не удалось удалить ссылку: {e}")
@@ -333,7 +341,7 @@ class LinkModel(DatabaseBase):
             
             logger.info("Очищены все избранные ссылки")
         except Exception as e:
-            logger.error(f"Ошибка очистки избранного: {e}")
+            logger.error("Ошибка очистки избранного: %s", e)
             raise DatabaseError(f"Не удалось очистить избранное: {e}")
 
     def search_links(self, query: str):
@@ -359,7 +367,7 @@ class LinkModel(DatabaseBase):
             )
             return [dict(row) for row in rows]
         except Exception as e:
-            logger.error(f"Ошибка поиска ссылок: {e}")
+            logger.error("Ошибка поиска ссылок: %s", e)
             raise
 
     def get_links_by_args_pattern(self, pattern: str) -> List[Dict[str, Any]]:
@@ -375,7 +383,7 @@ class LinkModel(DatabaseBase):
             )
             return [dict(row) for row in rows] if rows else []
         except Exception as e:
-            logger.error(f"Ошибка выборки ссылок по шаблону args: {e}")
+            logger.error("Ошибка выборки ссылок по шаблону args: %s", e)
             raise
 
     def update_link_notes(self, link_id: int, new_notes: str) -> None:
@@ -387,7 +395,7 @@ class LinkModel(DatabaseBase):
             )
             
         except Exception as e:
-            logger.error(f"Ошибка обновления заметок для ссылки {link_id}: {e}")
+            logger.error("Ошибка обновления заметок для ссылки %s: %s", link_id, e)
             raise
 
     def get_links_args_nonempty(self) -> List[Dict[str, Any]]:
@@ -399,7 +407,7 @@ class LinkModel(DatabaseBase):
             )
             return [dict(row) for row in rows] if rows else []
         except Exception as e:
-            logger.error(f"Ошибка получения непустых args: {e}")
+            logger.error("Ошибка получения непустых args: %s", e)
             raise
 
     # === Высокоуровневые методы для удобства использования ===
@@ -492,7 +500,9 @@ class LinkModel(DatabaseBase):
                 # Опционально: если затронуто меньше, чем передано, можно залогировать
                 if affected < len(params):
                     logger.debug(
-                        f"batch_update_links: обновлено строк {affected} из {len(params)}"
+                        "batch_update_links: обновлено строк %s из %s",
+                        affected,
+                        len(params),
                     )
             return True
         except Exception as e:
@@ -535,7 +545,7 @@ class LinkModel(DatabaseBase):
             # Если что-то пошло не так с уникальностью — пробрасываем как DatabaseError
             raise DatabaseError(f"UNIQUE constraint failed during batch_upsert_links: {e}")
         except Exception as e:
-            logger.error(f"Ошибка пакетного сохранения ссылок: {e}")
+            logger.error("Ошибка пакетного сохранения ссылок: %s", e)
             raise
 
     # === Выделенные шаги для пакетного апсерта (без транзакции) ===
@@ -862,5 +872,5 @@ class LinkModel(DatabaseBase):
                     deleted = 0
             return deleted
         except Exception as e:
-            logger.error(f"Ошибка пакетного удаления ссылок: {e}")
+            logger.error("Ошибка пакетного удаления ссылок: %s", e)
             raise DatabaseError(f"Не удалось выполнить пакетное удаление: {e}")

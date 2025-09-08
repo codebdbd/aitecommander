@@ -64,7 +64,7 @@ def _init_browser(config) -> bool:
         return True
     except Exception as e:
         try:
-            logger.warning(f"Playwright init failed: {e}")
+            logger.warning("Playwright init failed: %s", e)
         except Exception:
             pass
         try:
@@ -103,7 +103,7 @@ def render_html(url: str, config) -> Optional[str]:
         return html
     except Exception as e:
         try:
-            logger.warning(f"[render] Playwright render failed url={url}: {e}")
+            logger.warning("[render] Playwright render failed url=%s: %s", url, e)
         except Exception:
             pass
         try:

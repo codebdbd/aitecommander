@@ -42,7 +42,7 @@ class DialogManager:
             message: Текст сообщения об ошибке
             title: Заголовок диалога (по умолчанию "Ошибка")
         """
-        logger.debug(f"Showing error dialog: {title} - {message}")
+        logger.debug("Showing error dialog: %s - %s", title, message)
         msg_box = QMessageBox(parent)
         msg_box.setIcon(QMessageBox.Icon.Critical)
         msg_box.setWindowTitle(title)
@@ -69,7 +69,7 @@ class DialogManager:
             message: Текст предупреждения
             title: Заголовок диалога (по умолчанию "Предупреждение")
         """
-        logger.debug(f"Showing warning dialog: {title} - {message}")
+        logger.debug("Showing warning dialog: %s - %s", title, message)
         msg_box = QMessageBox(parent)
         msg_box.setIcon(QMessageBox.Icon.Warning)
         msg_box.setWindowTitle(title)
@@ -100,7 +100,7 @@ class DialogManager:
             details: Текст для секции подробностей (если включено в конфиге)
             silent: Если True, окно показывается без иконки (и системного звука)
         """
-        logger.debug(f"Showing info dialog: {title} - {message}")
+        logger.debug("Showing info dialog: %s - %s", title, message)
         msg_box = QMessageBox(parent)
         # Для тихого сообщения не используем иконку, чтобы избежать системного звука
         msg_box.setIcon(
@@ -133,7 +133,7 @@ class DialogManager:
         Returns:
             bool: True если пользователь нажал "Да", False если "Нет"
         """
-        logger.debug(f"Showing confirmation dialog: {title} - {message}")
+        logger.debug("Showing confirmation dialog: %s - %s", title, message)
 
         # Создаем кастомный QMessageBox с ограниченной шириной
         msg_box = QMessageBox(parent)
@@ -162,7 +162,7 @@ class DialogManager:
 
         reply = msg_box.exec()
         result = reply == QMessageBox.StandardButton.Yes
-        logger.debug(f"Confirmation result: {result}")
+        logger.debug("Confirmation result: %s", result)
         return result
 
     @staticmethod
@@ -187,7 +187,7 @@ class DialogManager:
         Returns:
             QMessageBox.StandardButton: Нажатая пользователем кнопка
         """
-        logger.debug(f"Showing custom dialog: {title} - {message}")
+        logger.debug("Showing custom dialog: %s - %s", title, message)
         msg_box = QMessageBox(parent)
         msg_box.setIcon(icon)
         msg_box.setWindowTitle(title)
@@ -196,7 +196,7 @@ class DialogManager:
         msg_box.setDefaultButton(default_button)
 
         result = msg_box.exec()
-        logger.debug(f"Custom dialog result: {result}")
+        logger.debug("Custom dialog result: %s", result)
         return QMessageBox.StandardButton(result)
 
 
