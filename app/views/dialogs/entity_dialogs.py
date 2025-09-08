@@ -1,6 +1,6 @@
+import logging
 from pathlib import Path
 from typing import Optional
-import logging
 
 from PyQt6.QtCore import QRunnable, QSize, Qt, QThreadPool, pyqtSignal, pyqtSlot
 from PyQt6.QtWidgets import (

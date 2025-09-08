@@ -146,14 +146,14 @@ class AsyncOperations:
         def _disc(signal, handler, name: str) -> None:
             try:
                 signal.disconnect(handler)
-            except TypeError as e:
+            except TypeError:
                 # Обычно означает, что слот не был подключен
                 self.logger.debug(
                     "disconnect_signal_handlers: handler не подключен к сигналу '%s'",
                     name,
                     exc_info=True,
                 )
-            except RuntimeError as e:
+            except RuntimeError:
                 # QObject удалён или недействителен
                 self.logger.debug(
                     "disconnect_signal_handlers: недействительный объект для сигнала '%s'",

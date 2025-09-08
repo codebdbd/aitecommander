@@ -103,4 +103,5 @@ def test_insert_categories_bulk_empty_input_returns_empty_and_no_selects(db_in_m
     # Никаких SELECT по именам не должно быть
     name_select_calls = [q for (q, p, fm) in calls if isinstance(q, str) and ("LOWER(name)" in q or " FROM category " in q)]
     # В пустом случае _execute_with_error_handling вообще не должен вызываться
+    assert len(name_select_calls) == 0
     assert len(calls) == 0

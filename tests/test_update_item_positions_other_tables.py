@@ -1,7 +1,6 @@
 import pytest
 
 from app.models.db import Database
-from app.models.db_base import ValidationError
 
 
 @pytest.fixture()
