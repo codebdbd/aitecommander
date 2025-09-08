@@ -1,7 +1,7 @@
 import pytest
 
-from app.settings import AppSettings
 from app.config_data import app_config
+from app.settings import AppSettings
 
 
 @pytest.fixture()

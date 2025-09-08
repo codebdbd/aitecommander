@@ -75,8 +75,8 @@ def test_export_full_structure_bulk_builds_correct_hierarchy_and_order(db_in_mem
                 assert "links" in cat
                 links = cat["links"]
                 assert len(links) == 4
-                assert [l["position"] for l in links] == [0, 1, 2, 3]
-                assert all(l["category_id"] == cat["id"] for l in links)
+                assert [link["position"] for link in links] == [0, 1, 2, 3]
+                assert all(link["category_id"] == cat["id"] for link in links)
 
 
 def test_export_full_structure_empty(db_in_memory: Database):

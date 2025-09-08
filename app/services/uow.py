@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from app.models.db import Database
-from typing import Optional
 
 
 class UnitOfWork:

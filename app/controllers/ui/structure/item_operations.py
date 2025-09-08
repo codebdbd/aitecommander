@@ -46,8 +46,8 @@ class ItemOperations:
             # И дополнительно восстановим фокус на дереве
             try:
                 schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("[ItemOperations.load] schedule_focus failed: %s", e)
 
     def switch_sphere(self, sphere_id: int) -> None:
         """Переключает сферу и перезагружает структуру.
@@ -59,13 +59,13 @@ class ItemOperations:
         # Мгновенно очищаем дерево, чтобы UI отразил смену сферы до прихода данных
         try:
             tree = getattr(self.controller, "tree", None)
-            if tree:
+            if tree and hasattr(tree, "model"):
                 # QTreeView: очищаем модель снимком
-                model = getattr(tree, "model", lambda: None)()
+                model = tree.model()
                 if model and hasattr(model, "set_snapshot"):
                     model.set_snapshot([])
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.debug("[ItemOperations.switch_sphere] clear snapshot failed: %s", e)
         # Дальнейшая загрузка инициируется обработчиком business.on_active_sphere_changed,
         # который вызовет load_structure_async(). Здесь ничего дополнительно не делаем.
         return
@@ -145,21 +145,21 @@ class ItemOperations:
     def edit_selected_item(self) -> None:
         # QTreeView: используем текущий индекс
         try:
-            cur = getattr(self.tree, "currentIndex", lambda: None)()
+            cur = self.tree.currentIndex() if hasattr(self.tree, "currentIndex") else None
             if cur and cur.isValid():
                 self.edit_item(cur)
                 return
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.debug("[ItemOperations.edit_selected_item] currentIndex failed: %s", e)
 
     def delete_item(self, item) -> None:
         # Глобальная защита от удалений на время чувствительных операций (например, вставки)
         try:
-            if getattr(self.main, "_suppress_deletes", False):
+            if hasattr(self.main, "_suppress_deletes") and getattr(self.main, "_suppress_deletes"):
                 logger.debug("[DeleteGuard] delete_item suppressed by _suppress_deletes flag")
                 return
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("[ItemOperations.delete_item] suppress flag check failed: %s", e)
         if not item:
             return
         t = get_tree_tuple(item, 0)
@@ -174,18 +174,19 @@ class ItemOperations:
     def delete_selected_item(self) -> None:
         # Глобальная защита от удалений на время чувствительных операций (например, вставки)
         try:
-            if getattr(self.main, "_suppress_deletes", False):
+            if hasattr(self.main, "_suppress_deletes") and getattr(self.main, "_suppress_deletes"):
                 logger.debug("[DeleteGuard] delete_selected_item suppressed by _suppress_deletes flag")
                 return
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("[ItemOperations.delete_selected_item] suppress flag check failed: %s", e)
         try:
             # QTreeView: множественное выделение через selectionModel
             if hasattr(self.tree, "selectionModel") and hasattr(self.tree, "model"):
                 sel_model = self.tree.selectionModel()
                 rows = sel_model.selectedRows(0) if sel_model else []
                 selected = rows or []
-        except Exception:
+        except (AttributeError, RuntimeError) as e:
+            logger.debug("[ItemOperations.delete_selected_item] selectionModel failed: %s", e)
             selected = []
 
         if selected and len(selected) > 1:
@@ -244,12 +245,12 @@ class ItemOperations:
 
         # Fallback: одиночное удаление по текущему элементу/индексу
         try:
-            cur = getattr(self.tree, "currentIndex", lambda: None)()
+            cur = self.tree.currentIndex() if hasattr(self.tree, "currentIndex") else None
             if cur and cur.isValid():
                 self.delete_item(cur)
                 return
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            logger.debug("[ItemOperations.delete_selected_item] currentIndex fallback failed: %s", e)
 
     def _edit_section(self, section_id: int) -> None:
         try:
@@ -412,7 +413,7 @@ class ItemOperations:
     def _get_selected_section_id(self) -> int:
         # Ветка для QTreeView
         try:
-            cur = getattr(self.tree, "currentIndex", lambda: None)()
+            cur = self.tree.currentIndex() if hasattr(self.tree, "currentIndex") else None
             if cur and cur.isValid():
                 t = get_tree_tuple(cur, 0)
                 if not t:
@@ -427,15 +428,17 @@ class ItemOperations:
                         if pt and pt[0] == "section":
                             return pt[1]
                 return None
-        except Exception:
+        except (AttributeError, RuntimeError) as e:
+            logger.debug("[ItemOperations._get_selected_section_id] failed: %s", e)
             return None
 
     def _has_any_items_in_tree(self) -> bool:
         """Возвращает True, если в дереве (QTreeView) есть хотя бы один элемент."""
         try:
-            model = getattr(self.tree, "model", lambda: None)()
-            if model is not None:
-                return (model.rowCount() or 0) > 0
-        except Exception:
-            pass
+            if hasattr(self.tree, "model"):
+                model = self.tree.model()
+                if model is not None and hasattr(model, "rowCount"):
+                    return (model.rowCount() or 0) > 0
+        except (AttributeError, RuntimeError) as e:
+            logger.debug("[ItemOperations._has_any_items_in_tree] model access failed: %s", e)
         return False

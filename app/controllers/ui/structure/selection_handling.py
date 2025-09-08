@@ -239,7 +239,7 @@ class SelectionHandling:
             # Восстанавливаем фокус на дереве после выбора
             try:
                 schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
-            except Exception as e:
+            except Exception:
                 # На случай проблем с планировщиком — прямой вызов как запасной вариант
                 try:
                     self.tree.setFocus()
@@ -288,7 +288,7 @@ class SelectionHandling:
             # И явное восстановление фокуса на дереве (после обновления модели/выделения)
             try:
                 schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
-            except Exception as e:
+            except Exception:
                 try:
                     self.tree.setFocus()
                 except Exception as e:
