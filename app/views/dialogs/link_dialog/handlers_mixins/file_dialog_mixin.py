@@ -105,7 +105,7 @@ class FileDialogMixin:
                     lnk_info = parse_lnk(normalized_path)
                 except (FileNotFoundError, PermissionError, OSError, ValueError, RuntimeError) as e:
                     # Логируем проблему разбора ярлыка, но не прерываем сценарий выбора файла
-                    logger.warning(f"parse_lnk: не удалось разобрать ярлык '{normalized_path}': {e}")
+                    logger.warning("parse_lnk: не удалось разобрать ярлык '%s': %s", normalized_path, e)
                     lnk_info = None
                 if lnk_info and lnk_info.get("path"):
                     # Используем реальный путь к .exe вместо ярлыка

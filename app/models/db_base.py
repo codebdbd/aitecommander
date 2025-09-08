@@ -42,7 +42,7 @@ class DatabaseBase:
             with db_lock:
                 self.connection.commit()
         except sqlite3.Error as e:
-            logger.error(f"Ошибка commit: {e}")
+            logger.error("Ошибка commit: %s", e)
             raise DatabaseError(f"Ошибка commit: {e}")
 
     def rollback(self) -> None:
@@ -51,7 +51,7 @@ class DatabaseBase:
             with db_lock:
                 self.connection.rollback()
         except sqlite3.Error as e:
-            logger.error(f"Ошибка rollback: {e}")
+            logger.error("Ошибка rollback: %s", e)
             raise DatabaseError(f"Ошибка rollback: {e}")
 
     @contextmanager
@@ -110,7 +110,7 @@ class DatabaseBase:
             max_pos = None if row is None else row["max_pos"] if isinstance(row, dict) else row[0]
             return (max_pos + 1) if max_pos is not None else 0
         except Exception as e:
-            logger.error(f"Ошибка получения позиции для таблицы {table_name}: {e}")
+            logger.error("Ошибка получения позиции для таблицы %s: %s", table_name, e)
             # Пробрасываем как DatabaseError, чтобы не скрывать проблемы с БД и порядком элементов
             raise DatabaseError(f"Не удалось вычислить позицию для {table_name}: {e}")
 
@@ -127,7 +127,7 @@ class DatabaseBase:
                 return cursor.fetchall()
             return cursor
         except sqlite3.Error as e:
-            logger.error(f"Ошибка выполнения SQL запроса: {query}, ошибка: {e}")
+            logger.error("Ошибка выполнения SQL запроса: %s, ошибка: %s", query, e)
             raise DatabaseError(f"Ошибка базы данных: {e}")
 
     def _execute_many_with_error_handling(
@@ -146,7 +146,10 @@ class DatabaseBase:
             return cursor
         except sqlite3.Error as e:
             logger.error(
-                f"Ошибка выполнения SQL executemany: {query}, кол-во пакетов={len(seq_of_params)}, ошибка: {e}"
+                "Ошибка выполнения SQL executemany: %s, кол-во пакетов=%s, ошибка: %s",
+                query,
+                len(seq_of_params),
+                e,
             )
             raise DatabaseError(f"Ошибка базы данных (executemany): {e}")
 
@@ -175,7 +178,7 @@ class DatabaseBase:
         try:
             with db_lock:
                 self.connection.execute(query, tuple(params))
-            logger.debug(f"Обновлен {table_name} с ID {entity_id}")
+            logger.debug("Обновлен %s с ID %s", table_name, entity_id)
         except Exception as e:
-            logger.error(f"Ошибка обновления {table_name}: {e}")
+            logger.error("Ошибка обновления %s: %s", table_name, e)
             raise DatabaseError(f"Не удалось обновить {table_name}: {e}")

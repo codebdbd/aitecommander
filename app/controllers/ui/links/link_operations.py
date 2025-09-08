@@ -71,26 +71,26 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             try:
                 # Бизнес-слой сам эмитит link_updated внутри save_link()
                 self.business.save_link(link_copy)
-                logger.debug(f"Note saved for link: {link_copy.get('name')}")
+                logger.debug("Note saved for link: %s", link_copy.get('name'))
             except DatabaseError as e:
-                logger.error(f"Database error saving note: {e}")
+                logger.error("Database error saving note: %s", e)
                 self._show_error(f"{self.get_message('database_error')}: {str(e)}")
             except Exception as e:
-                logger.error(f"Unexpected error saving note: {e}")
+                logger.error("Unexpected error saving note: %s", e)
                 self._show_error(f"{self.get_message('error_saving')}: {str(e)}")
 
     def _open_link(self, link: Dict):
         """Открыть ссылку используя LinkOpener."""
-        logger.debug(f"Opening link: type={link.get('type')}, url={link.get('url')}")
+        logger.debug("Opening link: type=%s, url=%s", link.get('type'), link.get('url'))
 
         success = False
         try:
             # Создаем LinkInfo из словаря
-            logger.debug(f"_open_link: link dict={link}")
+            logger.debug("_open_link: link dict=%s", link)
             link_info = LinkInfo.from_dict(link)
-            logger.info(f"_open_link: link_info={link_info}")
+            logger.info("_open_link: link_info=%s", link_info)
             logger.debug(
-                f"_open_link: link_info created with browser_key={link_info.browser_key}"
+                "_open_link: link_info created with browser_key=%s", link_info.browser_key
             )
 
             # Используем LinkOpener для открытия
@@ -99,7 +99,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
 
             success = True
         except LinkValidationError as e:
-            logger.error(f"Link validation error: {e}")
+            logger.error("Link validation error: %s", e)
             self._show_error(f"{self.get_message('validation_error')}: {str(e)}")
         except ValueError as e:
             # Дружелюбная обработка небезопасных URL без всплывающих ошибок
@@ -112,7 +112,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
                     "Эта ссылка не может быть открыта по соображениям безопасности.",
                 )
                 details = msg  # чтобы был доступен текст причины при включённых деталях
-                logger.warning(f"Blocked unsafe URL: {msg}")
+                logger.warning("Blocked unsafe URL: %s", msg)
                 DialogManager.show_info(
                     parent=self.main,
                     title=self.get_message("warning_title", "Предупреждение"),
@@ -127,12 +127,12 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             else:
                 # Прочие ValueError — как ошибка
                 logger.error(
-                    f"Error opening link {link.get('url', link)}: {e}", exc_info=True
+                    "Error opening link %s: %s", link.get('url', link), e, exc_info=True
                 )
                 self._show_error(f"Не удалось открыть ссылку: {str(e)}")
         except Exception as e:
             logger.error(
-                f"Error opening link {link.get('url', link)}: {e}", exc_info=True
+                "Error opening link %s: %s", link.get('url', link), e, exc_info=True
             )
             self._show_error(f"Не удалось открыть ссылку: {str(e)}")
 
@@ -148,7 +148,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             try:
                 self.link_operations.on_link_opened(link_data)
             except Exception as e:
-                logger.debug(f"Failed to emit signals after opening link: {e}")
+                logger.debug("Failed to emit signals after opening link: %s", e)
 
     def _toggle_fav(self, link: Dict = None):
         """Переключить статус избранного."""

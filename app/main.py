@@ -32,7 +32,7 @@ class ApplicationInitializer:
                 self.database.close()
         except (sqlite3.Error, AttributeError) as e:
             # Предсказуемые ошибки соединения/атрибутов логируем
-            logging.error(f"Ошибка при закрытии соединения с базой данных: {e}")
+            logging.error("Ошибка при закрытии соединения с базой данных: %s", e)
         # Любые другие неожиданные исключения не подавляем
         
         # Корректно дожидаемся завершения фоновых задач БД (run_db)
@@ -62,7 +62,7 @@ class ApplicationInitializer:
                 self.settings = AppSettings()
             return True
         except Exception as e:
-            logging.error(f"Ошибка загрузки настроек: {e}", exc_info=True)
+            logging.error("Ошибка загрузки настроек: %s", e, exc_info=True)
             return False
 
     def initialize_database(self) -> bool:
@@ -71,7 +71,7 @@ class ApplicationInitializer:
             self.database = Database()
             return True
         except Exception as e:
-            logging.error(f"Ошибка подключения к базе данных: {e}", exc_info=True)
+            logging.error("Ошибка подключения к базе данных: %s", e, exc_info=True)
             return False
 
     def initialize_theme_controller(self) -> bool:
@@ -83,7 +83,7 @@ class ApplicationInitializer:
             )
             return True
         except Exception as e:
-            logging.error(f"Ошибка создания контроллера темы: {e}", exc_info=True)
+            logging.error("Ошибка создания контроллера темы: %s", e, exc_info=True)
             return False
 
     def initialize_main_window(self) -> bool:
@@ -99,7 +99,7 @@ class ApplicationInitializer:
                 self.theme_controller.main_window = self.main_window
             return True
         except Exception as e:
-            logging.error(f"Ошибка создания главного окна: {e}", exc_info=True)
+            logging.error("Ошибка создания главного окна: %s", e, exc_info=True)
             return False
 
     def apply_initial_theme(self) -> bool:
@@ -109,7 +109,7 @@ class ApplicationInitializer:
             self.theme_controller.apply(theme_name)
             return True
         except Exception as e:
-            logging.error(f"Ошибка применения темы: {e}", exc_info=True)
+            logging.error("Ошибка применения темы: %s", e, exc_info=True)
             return False
 
     def initialize_all(self) -> bool:
@@ -124,7 +124,7 @@ class ApplicationInitializer:
         ]
         for step_name, step_func in initialization_steps:
             if not step_func():
-                logging.critical(f"Критическая ошибка при инициализации {step_name}")
+                logging.critical("Критическая ошибка при инициализации %s", step_name)
                 return False
         return True
 
@@ -164,7 +164,7 @@ def main():
         exit_code = app.exec()
         return exit_code
     except Exception as e:
-        logging.critical(f"Критическая ошибка в main(): {e}", exc_info=True)
+        logging.critical("Критическая ошибка в main(): %s", e, exc_info=True)
         return 1
     finally:
         if initializer:

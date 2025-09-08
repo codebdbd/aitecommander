@@ -21,14 +21,14 @@ def get_cache_path(config=None) -> str:
 def read_cache(url: str, config) -> Optional[Dict[str, Any]]:
     item = favicon_cache.get(url)
     if item is not None:
-        logger.debug(f"[cache] HIT {url}")
+        logger.debug("[cache] HIT %s", url)
     return item
 
 
 def write_cache(url: str, data: Dict[str, Any], config):
     # ttl может быть задан в data["ttl"], FaviconCache учтёт его
     favicon_cache.set(url, data, ttl=data.get("ttl"))
-    logger.debug(f"[cache] SAVE {url}")
+    logger.debug("[cache] SAVE %s", url)
 
 
 __all__ = ["get_cache_path", "read_cache", "write_cache"]

@@ -38,7 +38,7 @@ class MimeDataParser:
                     return ids
             return []
         except Exception as exc:
-            logging.warning(f"Failed to extract IDs from MIME ({mime_type}): {exc}")
+            logging.warning("Failed to extract IDs from MIME (%s): %s", mime_type, exc)
             return []
 
     @staticmethod
@@ -52,7 +52,7 @@ class MimeDataParser:
             md.setData(mime_type, QByteArray(payload))
             return md
         except Exception as exc:
-            logging.error(f"Failed to create MIME data ({mime_type}): {exc}")
+            logging.error("Failed to create MIME data (%s): %s", mime_type, exc)
             return md
 
 

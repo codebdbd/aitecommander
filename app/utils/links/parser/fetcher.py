@@ -90,7 +90,11 @@ def fetch_web_link_info(
     html_timeout = getattr(config, "HTML_FETCH_TIMEOUT", None)
     try:
         logger.debug(
-            f"[fetch] start url={url} force={force_refresh} defer_icon={defer_icon} html_timeout={html_timeout}"
+            "[fetch] start url=%s force=%s defer_icon=%s html_timeout=%s",
+            url,
+            force_refresh,
+            defer_icon,
+            html_timeout,
         )
     except Exception:
         pass
@@ -129,17 +133,17 @@ def fetch_web_link_info(
             except Exception:
                 soup = BeautifulSoup(txt, "html.parser")
         except Exception as e:
-            logger.debug(f"bs4 parse failed for {url}: {e}")
+            logger.debug("bs4 parse failed for %s: %s", url, e)
     else:
         try:
-            logger.debug(f"[fetch] http_request returned None for {url}")
+            logger.debug("[fetch] http_request returned None for %s", url)
         except Exception:
             pass
 
     # 3) Title
     title = get_title(url, config, soup)
     try:
-        logger.debug(f"[fetch] title='{title}' for {url}")
+        logger.debug("[fetch] title='%s' for %s", title, url)
     except Exception:
         pass
 
@@ -179,7 +183,7 @@ def fetch_web_link_info(
                 html_soup, url, host, config, force_refresh=force_refresh
             )
         except Exception as ex:
-            logger.debug(f"pick_icon (async) failed for {url}: {ex}")
+            logger.debug("pick_icon (async) failed for %s: %s", url, ex)
         if not resolved:
             return
         # Update cache with resolved icon
@@ -193,7 +197,7 @@ def fetch_web_link_info(
             }
             write_cache(url, current, config)
         except Exception as ex:
-            logger.debug(f"cache write (async) failed for {url}: {ex}")
+            logger.debug("cache write (async) failed for %s: %s", url, ex)
         # Callback to UI on main thread via TaskScheduler
         if on_icon_ready:
             try:
@@ -206,11 +210,11 @@ def fetch_web_link_info(
                     operation_id=f"icon_ready:{url}",
                 )
             except Exception as ex:
-                logger.debug(f"on_icon_ready scheduling failed for {url}: {ex}")
+                logger.debug("on_icon_ready scheduling failed for %s: %s", url, ex)
 
     if not defer_icon:
         try:
-            logger.debug(f"[fetch] picking icon sync for host={host}")
+            logger.debug("[fetch] picking icon sync for host=%s", host)
             soup_for_icon = soup or BeautifulSoup("", BS_PARSER)
             # Если иконка для домена уже есть — используем её и не скачиваем заново
             if existing_icon_path:
@@ -220,7 +224,7 @@ def fetch_web_link_info(
                     soup_for_icon, url, host, config, force_refresh=force_refresh
                 )
         except Exception as e:
-            logger.debug(f"pick_icon failed for {url}: {e}")
+            logger.debug("pick_icon failed for %s: %s", url, e)
 
     # 5) Defaults and result
     # Если подбор не дал результата, но иконка уже сохранена ранее для домена — используем её
@@ -239,7 +243,9 @@ def fetch_web_link_info(
     }
     try:
         logger.debug(
-            f"[fetch] icon={'custom' if icon_path else 'default'} for host={host}"
+            "[fetch] icon=%s for host=%s",
+            "custom" if icon_path else "default",
+            host,
         )
     except Exception:
         pass
@@ -248,7 +254,7 @@ def fetch_web_link_info(
     try:
         write_cache(url, result, config)
     except Exception as e:
-        logger.debug(f"cache write failed for {url}: {e}")
+        logger.debug("cache write failed for %s: %s", url, e)
 
     # 7) If deferred, resolve icon via TaskScheduler thread pool and notify UI safely
     if defer_icon and (icon_path is None):

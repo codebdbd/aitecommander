@@ -96,7 +96,7 @@ class EnhancedLock:
         start_time = time.time()
         thread_id = threading.get_ident()
 
-        logger.debug(f"[LOCK] Попытка захвата {self.name} потоком {thread_id}")
+        logger.debug("[LOCK] Попытка захвата %s потоком %s", self.name, thread_id)
 
         # Пытаемся захватить блокировку
         acquired = self._lock.acquire(timeout=timeout or -1)
@@ -104,7 +104,7 @@ class EnhancedLock:
         if not acquired:
             wait_time = time.time() - start_time
             logger.warning(
-                f"[LOCK] Таймаут захвата {self.name} потоком {thread_id} ({wait_time:.3f}s)"
+                "[LOCK] Таймаут захвата %s потоком %s (%.3fs)", self.name, thread_id, wait_time
             )
             raise LockTimeout(
                 f"Не удалось захватить блокировку {self.name} за {timeout}s"
@@ -119,7 +119,7 @@ class EnhancedLock:
         self._stats.is_held = True
 
         logger.debug(
-            f"[LOCK] Захвачена {self.name} потоком {thread_id} (ожидание: {wait_time:.3f}s)"
+            "[LOCK] Захвачена %s потоком %s (ожидание: %.3fs)", self.name, thread_id, wait_time
         )
         return True
 
@@ -131,11 +131,11 @@ class EnhancedLock:
 
             if hold_time > 1.0:  # Предупреждение о длительном удержании
                 logger.warning(
-                    f"[LOCK] Длительное удержание {self.name}: {hold_time:.3f}s"
+                    "[LOCK] Длительное удержание %s: %.3fs", self.name, hold_time
                 )
 
         thread_id = threading.get_ident()
-        logger.debug(f"[LOCK] Освобождена {self.name} потоком {thread_id}")
+        logger.debug("[LOCK] Освобождена %s потоком %s", self.name, thread_id)
 
         self._acquisition_time = None
         self._holder_thread = None
@@ -235,8 +235,9 @@ class LockManager:
             # это может привести к deadlock
             if any(new_type_index < idx for idx in current_type_indices):
                 logger.warning(
-                    f"[LOCK] Потенциальный deadlock: попытка захвата {new_lock_type.value} "
-                    f"после {[t.value for t in current_lock_types]}"
+                    "[LOCK] Потенциальный deadlock: попытка захвата %s после %s",
+                    new_lock_type.value,
+                    [t.value for t in current_lock_types],
                 )
         except ValueError:
             # Если тип не в списке упорядоченных, пропускаем проверку
@@ -285,7 +286,9 @@ class SignalGuard:
             current_count = self._call_counts.get(slot_name, 0)
             if current_count >= self._max_recursive_calls:
                 logger.warning(
-                    f"[SignalGuard] Превышен лимит рекурсивных вызовов для {slot_name}: {current_count}"
+                    "[SignalGuard] Превышен лимит рекурсивных вызовов для %s: %s",
+                    slot_name,
+                    current_count,
                 )
                 return False
 
@@ -296,7 +299,7 @@ class SignalGuard:
             active_slots = self._active_calls[thread_id]
             if slot_name in active_slots:
                 logger.warning(
-                    f"[SignalGuard] Предотвращена рекурсия для слота: {slot_name}"
+                    "[SignalGuard] Предотвращена рекурсия для слота: %s", slot_name
                 )
                 return False
 
@@ -306,7 +309,7 @@ class SignalGuard:
 
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug(
-                    f"[SignalGuard] Вход в слот: {slot_name} (поток: {thread_id})"
+                    "[SignalGuard] Вход в слот: %s (поток: %s)", slot_name, thread_id
                 )
 
             return True
@@ -332,7 +335,7 @@ class SignalGuard:
 
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug(
-                    f"[SignalGuard] Выход из слота: {slot_name} (поток: {thread_id})"
+                    "[SignalGuard] Выход из слота: %s (поток: %s)", slot_name, thread_id
                 )
 
     def get_active_slots(self) -> Dict[int, Set[str]]:
@@ -404,38 +407,26 @@ def get_lock_manager() -> LockManager:
 
 def log_lock_stats() -> None:
     """Выводит статистику использования блокировок в лог."""
-    stats = _lock_manager.get_all_lock_stats()
-    if not stats:
-        logger.info("[LOCKS] Нет статистики блокировок")
-        return
-
-    logger.info("[LOCKS] Статистика использования блокировок:")
-    for name, stat in stats.items():
-        logger.info(
-            f"  {name}: захватов={stat.acquisition_count}, "
-            f"ожидание={stat.total_wait_time:.3f}s, "
-            f"макс.удержание={stat.max_hold_time:.3f}s"
-        )
 
 
 @contextmanager
 def debug_lock(lock, operation_name: str):
     """Контекстный менеджер с логированием блокировок для отладки."""
     thread_id = threading.get_ident()
-    logger.debug(f"[DEBUG_LOCK] Захват {operation_name} потоком {thread_id}")
+    logger.debug("[DEBUG_LOCK] Захват %s потоком %s", operation_name, thread_id)
     start_time = time.time()
 
     with lock:
         acquire_time = time.time() - start_time
         logger.debug(
-            f"[DEBUG_LOCK] Захвачена {operation_name} потоком {thread_id} ({acquire_time:.3f}s)"
+            "[DEBUG_LOCK] Захвачена %s потоком %s (%.3fs)", operation_name, thread_id, acquire_time
         )
         try:
             yield
         finally:
             hold_time = time.time() - start_time - acquire_time
             logger.debug(
-                f"[DEBUG_LOCK] Освобождена {operation_name} потоком {thread_id} (удержание: {hold_time:.3f}s)"
+                "[DEBUG_LOCK] Освобождена %s потоком %s (удержание: %.3fs)", operation_name, thread_id, hold_time
             )
 
 
@@ -533,7 +524,7 @@ def log_signal_guard_stats():
     if active_slots:
         logger.info("[SignalGuard] Активные слоты по потокам:")
         for thread_id, slots in active_slots.items():
-            logger.info(f"  Поток {thread_id}: {', '.join(slots)}")
+            logger.info("  Поток %s: %s", thread_id, ", ".join(slots))
     else:
         logger.info("[SignalGuard] Нет активных слотов")
 

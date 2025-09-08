@@ -594,10 +594,11 @@ class Database(DatabaseBase):
                 self.backup()
             except Exception as backup_err:
                 logger.warning(
-                    f"Не удалось создать резервную копию после bulk-импорта: {backup_err}"
+                    "Не удалось создать резервную копию после bulk-импорта: %s",
+                    backup_err,
                 )
         except Exception as e:
-            logger.error(f"Ошибка bulk-импорта деревьев категорий: {e}")
+            logger.error("Ошибка bulk-импорта деревьев категорий: %s", e)
             raise DatabaseError(f"Не удалось импортировать деревья категорий: {e}")
 
     def is_connected(self) -> bool:
@@ -1030,7 +1031,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             parser.print_help()
             return 0
     except Exception as e:
-        logger.error(f"CLI ошибка: {e}")
+        logger.error("CLI ошибка: %s", e)
         logger.error("Ошибка: %s", e)
         return 1
 

@@ -95,7 +95,9 @@ class CategoryModel(DatabaseBase):
         if cursor is not None:
             # Категория с таким именем уже существует в этом разделе
             logger.warning(
-                f"Категория '{data['name']}' уже существует в разделе {data['section_id']}"
+                "Категория '%s' уже существует в разделе %s",
+                data['name'],
+                data['section_id'],
             )
             return None
 
@@ -104,7 +106,7 @@ class CategoryModel(DatabaseBase):
             "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
             (data["name"], data["section_id"], data.get("icon_path", ""), position),
         )
-        logger.info(f"Добавлена новая категория: {data['name']}")
+        logger.info("Добавлена новая категория: %s", data['name'])
         return cursor.lastrowid
 
     def insert_categories_bulk(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -251,7 +253,7 @@ class CategoryModel(DatabaseBase):
             self._execute_with_error_handling(
                 "DELETE FROM category WHERE id=?", (category_id,)
             )
-        logger.info(f"Удалена категория с ID {category_id} и все её ссылки")
+        logger.info("Удалена категория с ID %s и все её ссылки", category_id)
 
     def delete_categories_bulk(self, category_ids: List[int]) -> int:
         """Пакетное удаление нескольких категорий (и их ссылок) в одной транзакции.
@@ -310,7 +312,9 @@ class CategoryModel(DatabaseBase):
                 logger.warning("Не удалось переиндексировать позиции категорий после удаления")
 
         logger.info(
-            f"Пакетно удалены категории (шт={deleted_categories}), ids={unique_ids}"
+            "Пакетно удалены категории (шт=%s), ids=%s",
+            deleted_categories,
+            unique_ids,
         )
         return deleted_categories
 

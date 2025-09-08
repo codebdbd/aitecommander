@@ -604,10 +604,10 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
         if head_resp is not None:
             ctype = head_resp.headers.get("Content-Type", "")
             clen = head_resp.headers.get("Content-Length", "")
-            logger.debug(f"[title] HEAD url={url} type='{ctype}' len={clen}")
+            logger.debug("[title] HEAD url=%s type='%s' len=%s", url, ctype, clen)
             if ctype and "text/html" not in ctype.lower():
                 logger.warning(
-                    f"[title] non-html content-type url={url} type='{ctype}'"
+                    "[title] non-html content-type url=%s type='%s'", url, ctype
                 )
     except Exception as he:
         logger.debug("[title] HEAD failed url=%s err=%s", url, he, exc_info=True)
@@ -669,7 +669,7 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
         use_selenium = False
     if use_selenium:
         try:
-            logger.info(f"[title] selenium fallback enabled url={url}")
+            logger.info("[title] selenium fallback enabled url=%s", url)
             try:
                 from selenium import webdriver  # type: ignore
                 from selenium.webdriver.chrome.options import Options  # type: ignore

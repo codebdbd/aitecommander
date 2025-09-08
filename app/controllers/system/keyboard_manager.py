@@ -77,7 +77,9 @@ class BaseKeyHandler:
                 result = method(*args, **kwargs)
                 return result if result is not None else default
         except (AttributeError, TypeError) as e:
-            logger.debug(f"_safe_call failed for {obj!r}.{method_name}(*args, **kwargs): {e}")
+            logger.debug(
+                "_safe_call failed for %r.%s(*args, **kwargs): %s", obj, method_name, e
+            )
         return default
 
 

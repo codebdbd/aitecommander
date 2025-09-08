@@ -211,15 +211,20 @@ class LinkDialogController:
         try:
             summary = {bk: len(ps) for bk, ps in profiles_by_browser.items()}
             logger.info(
-                f"_prepare_profile_links: сгруппировано профилей по браузерам: {summary}"
+                "_prepare_profile_links: сгруппировано профилей по браузерам: %s",
+                summary,
             )
         except Exception:
-            logger.debug(f"Profiles by browser: {profiles_by_browser}")
+            logger.debug("Profiles by browser: %s", profiles_by_browser)
         for browser_key, profiles in profiles_by_browser.items():
-            logger.debug(f"Browser {browser_key}: {len(profiles)} profiles")
+            logger.debug("Browser %s: %s profiles", browser_key, len(profiles))
             for i, profile in enumerate(profiles):
                 logger.debug(
-                    f"  Profile {i}: {profile.get('name', 'Unknown')} - args: {profile.get('args', 'None')} - directory: {profile.get('directory', 'None')}"
+                    "  Profile %s: %s - args: %s - directory: %s",
+                    i,
+                    profile.get('name', 'Unknown'),
+                    profile.get('args', 'None'),
+                    profile.get('directory', 'None'),
                 )
 
         if not profiles_by_browser:
@@ -269,11 +274,14 @@ class LinkDialogController:
             )
             result_links.extend(browser_links)
             logger.info(
-                f"_prepare_profile_links: для браузера {browser_key} создано ссылок: {len(browser_links)}"
+                "_prepare_profile_links: для браузера %s создано ссылок: %s",
+                browser_key,
+                len(browser_links),
             )
 
         logger.info(
-            f"_prepare_profile_links: всего создано ссылок: {len(result_links)}"
+            "_prepare_profile_links: всего создано ссылок: %s",
+            len(result_links),
         )
         return result_links
 
@@ -348,11 +356,15 @@ class LinkDialogController:
     def get_result_data(self) -> List[Dict[str, Any]]:
         """Возвращает результирующие данные после сохранения."""
         logger.debug(
-            f"get_result_data: returning {len(self.result_data) if self.result_data else 0} links"
+            "get_result_data: returning %s links",
+            len(self.result_data) if self.result_data else 0,
         )
         if self.result_data:
             for i, link in enumerate(self.result_data):
                 logger.debug(
-                    f"get_result_data: link {i}: name={link.get('name')}, browser_key={link.get('browser_key')}"
+                    "get_result_data: link %s: name=%s, browser_key=%s",
+                    i,
+                    link.get('name'),
+                    link.get('browser_key'),
                 )
         return self.result_data

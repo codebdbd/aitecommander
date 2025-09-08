@@ -52,8 +52,8 @@ class BrowserBookmarksImporter:
                     used_encoding = "utf-8(replace)"
             except Exception as e:
                 raise last_err or e
-        logger.debug(f"DEBUG: using encoding = {used_encoding}")
-        logger.debug(f"DEBUG: file head = {text[:500]}")
+        logger.debug("DEBUG: using encoding = %s", used_encoding)
+        logger.debug("DEBUG: file head = %s", text[:500])
         soup = BeautifulSoup(text, "html.parser")
         categories = defaultdict(list)
         icons_dir = app_config.paths.get_link_icons_dir()
@@ -74,7 +74,7 @@ class BrowserBookmarksImporter:
             return icon_fname
 
         root_dl = soup.find("dl")
-        logger.debug(f"DEBUG: soup.find('dl') = {root_dl}")
+        logger.debug("DEBUG: soup.find('dl') = %s", root_dl)
 
         def process_node(node, current_cat):
             for child in node.find_all(recursive=False):
@@ -99,7 +99,7 @@ class BrowserBookmarksImporter:
         if root_dl:
             process_node(root_dl, "Без категории")
             total_links = sum(len(links) for links in categories.values())
-            logger.debug(f"DEBUG: Всего найдено ссылок: {total_links}")
+            logger.debug("DEBUG: Всего найдено ссылок: %s", total_links)
         return dict(categories)
 
     # === Business слой ===
@@ -132,10 +132,12 @@ class BrowserBookmarksImporter:
             try:
                 created = structure_business_logic.create_categories_bulk(bulk_items) or []
                 logger.debug(
-                    f"DEBUG: Пакетно создано/подтверждено категорий: {len(created)} для раздела {section_id}"
+                    "DEBUG: Пакетно создано/подтверждено категорий: %s для раздела %s",
+                    len(created),
+                    section_id,
                 )
             except Exception as e:
-                logger.error(f"ERROR: Пакетное создание категорий завершилось ошибкой: {e}")
+                logger.error("ERROR: Пакетное создание категорий завершилось ошибкой: %s", e)
 
         # 4) Актуальная карта name->id
         categories_after = structure_business_logic.get_categories(section_id) or []
@@ -144,7 +146,7 @@ class BrowserBookmarksImporter:
         # 5) Вставка ссылок без дублей
         added = 0
         for cat_name, links in categories.items():
-            logger.debug(f"DEBUG: Обработка категории '{cat_name}', ссылок: {len(links)}")
+            logger.debug("DEBUG: Обработка категории '%s', ссылок: %s", cat_name, len(links))
             category_id = name_to_id.get(cat_name)
             if not category_id:
                 logger.error(
@@ -162,7 +164,9 @@ class BrowserBookmarksImporter:
                     existing_links = []
             except Exception as e:
                 logger.warning(
-                    f"Не удалось получить существующие ссылки для категории {category_id}: {e}"
+                    "Не удалось получить существующие ссылки для категории %s: %s",
+                    category_id,
+                    e,
                 )
                 existing_links = []
 
@@ -177,11 +181,18 @@ class BrowserBookmarksImporter:
                 url = link.get("url", "")
                 name = link.get("name", "")
                 logger.debug(
-                    f"DEBUG: Проверка дубликата: name='{name}', url='{url}', category_id={category_id}"
+                    "DEBUG: Проверка дубликата: name='%s', url='%s', category_id=%s",
+                    name,
+                    url,
+                    category_id,
                 )
                 if (name.strip(), url.strip()) in existing_name_url:
                     logger.debug(
-                        f"DEBUG: Пропущен дубликат '{name}' ({url}) в категории '{cat_name}' (id={category_id})"
+                        "DEBUG: Пропущен дубликат '%s' (%s) в категории '%s' (id=%s)",
+                        name,
+                        url,
+                        cat_name,
+                        category_id,
                     )
                     continue
 
@@ -208,16 +219,24 @@ class BrowserBookmarksImporter:
                         )
                     if link_id:
                         logger.debug(
-                            f"DEBUG: Добавлена ссылка '{link.get('name', '')}' в категорию '{cat_name}' (id={category_id})"
+                            "DEBUG: Добавлена ссылка '%s' в категорию '%s' (id=%s)",
+                            link.get('name', ''),
+                            cat_name,
+                            category_id,
                         )
                         added += 1
                     else:
                         logger.error(
-                            f"ERROR: Не удалось добавить ссылку '{link.get('name', '')}' в категорию '{cat_name}'"
+                            "ERROR: Не удалось добавить ссылку '%s' в категорию '%s'",
+                            link.get('name', ''),
+                            cat_name,
                         )
                 except Exception as e:
                     logger.error(
-                        f"ERROR: Не удалось добавить ссылку '{link.get('name', '')}' в категорию '{cat_name}': {e}"
+                        "ERROR: Не удалось добавить ссылку '%s' в категорию '%s': %s",
+                        link.get('name', ''),
+                        cat_name,
+                        e,
                     )
 
         return True, f"Добавлено ссылок: {added}", added

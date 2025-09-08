@@ -404,7 +404,7 @@ class FileSearchDialog(BaseDialog):
     def _open_file_in_explorer(self, file_path):
         """Открыть файл в проводнике с выделением"""
         try:
-            logger.info(f"Открываю в проводнике: {file_path}")
+            logger.info("Открываю в проводнике: %s", file_path)
 
             # Нормализуем путь
             file_path = os.path.normpath(file_path)
@@ -592,7 +592,9 @@ class FileSearchDialog(BaseDialog):
             self.model.add_result(filename, folder_path, size_kb, mtime, has_content)
         except OSError as e:
             logger.warning(
-                f"Ошибка при получении информации о файле {file_path}: {e}",
+                "Ошибка при получении информации о файле %s: %s",
+                file_path,
+                e,
                 exc_info=True,
             )
         # Обновим кнопки в процессе (когда появляются строки)

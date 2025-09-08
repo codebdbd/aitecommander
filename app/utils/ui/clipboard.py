@@ -69,7 +69,7 @@ def copy_link_to_clipboard(link_or_links: LinkData) -> bool:
         clipboard.setText(json.dumps(sanitized, ensure_ascii=False))
         return True
     except Exception as e:
-        logging.error(f"Failed to copy link(s) to clipboard: {e}", exc_info=True)
+        logging.error("Failed to copy link(s) to clipboard: %s", e, exc_info=True)
         try:
             clipboard.clear()
         except Exception:
@@ -109,5 +109,5 @@ def get_link_from_clipboard() -> Optional[LinkData]:
     except json.JSONDecodeError:
         return None
     except Exception as e:
-        logging.error(f"Failed to read link from clipboard: {e}", exc_info=True)
+        logging.error("Failed to read link from clipboard: %s", e, exc_info=True)
         return None

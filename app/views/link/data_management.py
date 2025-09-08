@@ -20,7 +20,9 @@ class DataManagementMixin:
             # Проверяем, что размер кэша соответствует количеству строк
             if cache_size != row_count:
                 logging.warning(
-                    f"[LinksTableView] Несоответствие размера кэша: {cache_size} != {row_count}"
+                    "[LinksTableView] Несоответствие размера кэша: %s != %s",
+                    cache_size,
+                    row_count,
                 )
                 return False
 
@@ -28,13 +30,14 @@ class DataManagementMixin:
             for row in self._current_links.keys():
                 if not (0 <= row < row_count):
                     logging.warning(
-                        f"[LinksTableView] Недопустимый индекс в кэше: {row}"
+                        "[LinksTableView] Недопустимый индекс в кэше: %s",
+                        row,
                     )
                     return False
 
             return True
         except Exception as e:
-            logging.error(f"[LinksTableView] Ошибка проверки целостности кэша: {e}")
+            logging.error("[LinksTableView] Ошибка проверки целостности кэша: %s", e)
             return False
 
     def _links_equal(self, link1: Dict, link2: Dict, mode: str) -> bool:
@@ -91,7 +94,8 @@ class DataManagementMixin:
                     self._current_links[row] = link_data
         except Exception as e:
             logging.error(
-                f"[LinksTableView] Ошибка перестроения кэша из элементов: {e}"
+                "[LinksTableView] Ошибка перестроения кэша из элементов: %s",
+                e,
             )
 
     def _create_link_id_to_data_map(self, links: List[Dict]) -> Dict[str, Dict]:
@@ -111,7 +115,9 @@ class DataManagementMixin:
             return data if isinstance(data, dict) else None
         except Exception as e:
             logging.error(
-                f"[LinksTableView] Ошибка получения данных ссылки в строке {row}: {e}"
+                "[LinksTableView] Ошибка получения данных ссылки в строке %s: %s",
+                row,
+                e,
             )
             return None
 
@@ -127,7 +133,7 @@ class DataManagementMixin:
                     return row
             return None
         except Exception as e:
-            logging.error(f"[LinksTableView] Ошибка поиска строки по ID {link_id}: {e}")
+            logging.error("[LinksTableView] Ошибка поиска строки по ID %s: %s", link_id, e)
             return None
 
     def focus_on_link_id(self, link_id: int) -> bool:
@@ -142,16 +148,20 @@ class DataManagementMixin:
                 self.setCurrentIndex(idx)
                 self.scrollTo(idx)
                 logging.info(
-                    f"[LinksTableView] Успешно установлен фокус на ссылку ID {link_id} в строке {row}"
+                    "[LinksTableView] Успешно установлен фокус на ссылку ID %s в строке %s",
+                    link_id,
+                    row,
                 )
                 return True
             else:
                 logging.warning(
-                    f"[LinksTableView] Ссылка с ID {link_id} не найдена в таблице"
+                    "[LinksTableView] Ссылка с ID %s не найдена в таблице", link_id
                 )
                 return False
         except Exception as e:
             logging.error(
-                f"[LinksTableView] Ошибка установки фокуса на ссылку ID {link_id}: {e}"
+                "[LinksTableView] Ошибка установки фокуса на ссылку ID %s: %s",
+                link_id,
+                e,
             )
             return False

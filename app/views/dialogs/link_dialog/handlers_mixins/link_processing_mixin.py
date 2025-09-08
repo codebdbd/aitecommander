@@ -50,7 +50,7 @@ class LinkProcessingMixin:
                 self._active_worker.cancel()
             except (AttributeError, RuntimeError) as e:
                 # Логируем ошибку отмены воркера, но продолжаем выполнение
-                logger.debug(f"Ошибка при отмене воркера: {e}")
+                logger.debug("Ошибка при отмене воркера: %s", e)
 
         lt = LinkType.from_value(self.dialog.link_type)
         args_val = self.dialog._get_args_le().text().strip()
@@ -117,7 +117,7 @@ class LinkProcessingMixin:
                     }
                 )
             except (AttributeError, KeyError, ValueError) as e:
-                logger.warning(f"Ошибка резолвинга иконки для ссылки: {e}")
+                logger.warning("Ошибка резолвинга иконки для ссылки: %s", e)
                 resolved_icon_path = ""
             if resolved_icon_path and Path(resolved_icon_path).exists():
                 set_icon_to_button(

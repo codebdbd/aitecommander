@@ -193,7 +193,7 @@ class SecurityValidator:
         try:
             parsed = shlex.split(args)
         except ValueError:
-            logger.warning(f"Failed to parse arguments: {args}")
+            logger.warning("Failed to parse arguments: %s", args)
             return []
 
         validated = []
@@ -203,7 +203,7 @@ class SecurityValidator:
         for arg in parsed:
             # Проверяем формат аргумента
             if not cls.CHROME_ARG_PATTERN.match(arg):
-                logger.warning(f"Invalid argument format: {arg}")
+                logger.warning("Invalid argument format: %s", arg)
                 continue
 
             # Извлекаем имя аргумента
@@ -217,7 +217,7 @@ class SecurityValidator:
                 elif arg_name == "--new-window":
                     has_new_window = True
             else:
-                logger.warning(f"Argument not in whitelist: {arg_name}")
+                logger.warning("Argument not in whitelist: %s", arg_name)
 
         # Если есть --incognito но нет --new-window, добавляем --new-window для принудительного создания нового окна
         if has_incognito and not has_new_window:
@@ -236,7 +236,7 @@ class SecurityValidator:
         try:
             return shlex.split(args)
         except ValueError:
-            logger.warning(f"Failed to parse arguments: {args}")
+            logger.warning("Failed to parse arguments: %s", args)
             return []
 
 
@@ -330,10 +330,10 @@ class WebLinkHandler(LinkHandler):
             # Используем shell=False для безопасности
             subprocess.Popen(command, shell=False)
             self.logger.info(
-                f"Successfully opened URL {link_info.path} with {browser_key}"
+                "Successfully opened URL %s with %s", link_info.path, browser_key
             )
         except Exception as e:
-            self.logger.error(f"Failed to open URL with {browser_key}: {e}")
+            self.logger.error("Failed to open URL with %s: %s", browser_key, e)
             # Fallback на системный браузер
             webbrowser.open(link_info.path)
 
@@ -369,9 +369,9 @@ class FileLinkHandler(LinkHandler):
             else:
                 subprocess.Popen(["xdg-open", link_info.path])
 
-            self.logger.info(f"Successfully opened: {link_info.path}")
+            self.logger.info("Successfully opened: %s", link_info.path)
         except OSError as e:
-            self.logger.error(f"Failed to open {link_info.path}: {e}")
+            self.logger.error("Failed to open %s: %s", link_info.path, e)
             raise
 
 
@@ -463,16 +463,18 @@ class ProgramLinkHandler(LinkHandler):
                     arg_list = shlex.split(link_info.args)
                 except ValueError:
                     self.logger.warning(
-                        f"Failed to parse program arguments: {link_info.args}"
+                        "Failed to parse program arguments: %s", link_info.args
                     )
                     arg_list = []
 
             subprocess.Popen([link_info.path] + arg_list)
             self.logger.info(
-                f"Successfully launched program: {link_info.path} with args: {arg_list}"
+                "Successfully launched program: %s with args: %s",
+                link_info.path,
+                arg_list,
             )
         except (OSError, subprocess.SubprocessError) as e:
-            self.logger.error(f"Failed to launch program {link_info.path}: {e}")
+            self.logger.error("Failed to launch program %s: %s", link_info.path, e)
             raise
 
 
@@ -486,9 +488,9 @@ class ChromeAppLinkHandler(LinkHandler):
         """Открывает Chrome приложение"""
         try:
             webbrowser.open(link_info.path)
-            self.logger.info(f"Successfully opened Chrome app: {link_info.path}")
+            self.logger.info("Successfully opened Chrome app: %s", link_info.path)
         except Exception as e:
-            self.logger.error(f"Failed to open Chrome app {link_info.path}: {e}")
+            self.logger.error("Failed to open Chrome app %s: %s", link_info.path, e)
             raise
 
 
@@ -567,7 +569,7 @@ class LinkOpener:
             raise ValueError(f"Некорректный тип ссылки: {link_info.link_type}")
 
         self.logger.debug(
-            f"Opening link: {link_info.link_type.value} - {link_info.path}"
+            "Opening link: %s - %s", link_info.link_type.value, link_info.path
         )
 
         # Поиск подходящего обработчика
@@ -578,7 +580,7 @@ class LinkOpener:
                     return
                 except Exception as e:
                     self.logger.error(
-                        f"Handler {handler.__class__.__name__} failed: {e}"
+                        "Handler %s failed: %s", handler.__class__.__name__, e
                     )
                     raise
 

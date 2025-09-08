@@ -75,7 +75,7 @@ class BrowserProfileManager:
         self.cache = PersistentProfileCache(default_ttl=self._get_cache_timeout())
 
         logger.info(
-            f"Инициализирован менеджер профилей для {len(self.finders)} браузеров"
+            "Инициализирован менеджер профилей для %s браузеров", len(self.finders)
         )
 
         # Персистентный кэш сам загружает данные с диска при инициализации
@@ -96,13 +96,13 @@ class BrowserProfileManager:
         all_profiles = {}
 
         for browser_key, finder in self.finders.items():
-            logger.debug(f"get_all_profiles: processing browser_key={browser_key}")
+            logger.debug("get_all_profiles: processing browser_key=%s", browser_key)
             try:
                 profiles = self._get_cached_profiles(browser_key)
                 if profiles:
                     all_profiles[browser_key] = profiles
             except Exception as e:
-                logger.error(f"Ошибка при поиске профилей {browser_key}: {e}")
+                logger.error("Ошибка при поиске профилей %s: %s", browser_key, e)
 
         return all_profiles
 
@@ -118,7 +118,7 @@ class BrowserProfileManager:
         Сначала пробует вернуть из кэша (без проверки свежести), если отсутствует —
         выполняет загрузку через finder и обновляет кэш.
         """
-        logger.debug(f"_get_cached_profiles: browser_key={browser_key}")
+        logger.debug("_get_cached_profiles: browser_key=%s", browser_key)
 
         # Пытаемся получить из кэша
         cached = self.cache.get(browser_key)
@@ -133,7 +133,7 @@ class BrowserProfileManager:
                 self.cache.set(browser_key, profiles)
                 return profiles
             except Exception as e:
-                logger.error(f"Ошибка при получении профилей {browser_key}: {e}")
+                logger.error("Ошибка при получении профилей %s: %s", browser_key, e)
 
         return []
 
@@ -157,33 +157,38 @@ class BrowserProfileManager:
                         }
                     )
             except Exception as e:
-                logger.debug(f"Браузер {browser_key} недоступен: {e}")
+                logger.debug("Браузер %s недоступен: %s", browser_key, e)
 
         return available
 
     def detect_browser_from_args(self, args: str) -> Optional[str]:
         """Определяет браузер по аргументам командной строки."""
-        logger.debug(f"detect_browser_from_args: args={args}")
+        logger.debug("detect_browser_from_args: args=%s", args)
 
         if not args:
             logger.debug("detect_browser_from_args: no args provided")
             return None
 
         for browser_key, finder in self.finders.items():
-            logger.debug(f"detect_browser_from_args: trying browser_key={browser_key}")
+            logger.debug("detect_browser_from_args: trying browser_key=%s", browser_key)
             try:
                 profile_data = finder.parse_profile_from_args(args)
                 logger.debug(
-                    f"detect_browser_from_args: profile_data for {browser_key}={profile_data}"
+                    "detect_browser_from_args: profile_data for %s=%s",
+                    browser_key,
+                    profile_data,
                 )
                 if profile_data:
                     logger.debug(
-                        f"detect_browser_from_args: detected browser_key={browser_key}"
+                        "detect_browser_from_args: detected browser_key=%s",
+                        browser_key,
                     )
                     return browser_key
             except Exception as e:
                 logger.debug(
-                    f"Ошибка определения браузера {browser_key} из аргументов: {e}"
+                    "Ошибка определения браузера %s из аргументов: %s",
+                    browser_key,
+                    e,
                 )
                 continue
 

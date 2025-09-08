@@ -24,7 +24,7 @@ class MainMenuBuilder:
 
     def build(self) -> QMenuBar:
         """Создаёт и возвращает готовое главное меню."""
-        logger.debug(f"Создание главного меню для темы: {self.theme}")
+        logger.debug("Создание главного меню для темы: %s", self.theme)
 
         menubar = QMenuBar(self.main_window)
 

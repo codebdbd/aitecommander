@@ -50,11 +50,13 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
 
         if not os.path.exists(self.profiles_dir):
             logger.debug(
-                f"Папка профилей {self.browser_name} не найдена: {self.profiles_dir}"
+                "Папка профилей %s не найдена: %s",
+                self.browser_name,
+                self.profiles_dir,
             )
             return profiles
 
-        logger.debug(f"find_profiles: profiles_dir={self.profiles_dir}")
+        logger.debug("find_profiles: profiles_dir=%s", self.profiles_dir)
 
         try:
             for entry in os.listdir(self.profiles_dir):
@@ -74,12 +76,12 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
                             }
                         )
                         logger.debug(
-                            f"Найден профиль {self.browser_name}: {email} ({entry})"
+                            "Найден профиль %s: %s (%s)", self.browser_name, email, entry
                         )
         except Exception as e:
-            logger.error(f"Ошибка при поиске профилей {self.browser_name}: {e}")
+            logger.error("Ошибка при поиске профилей %s: %s", self.browser_name, e)
 
-        logger.info(f"Найдено {len(profiles)} профилей {self.browser_name}")
+        logger.info("Найдено %s профилей %s", len(profiles), self.browser_name)
         return profiles
 
     def _extract_email_from_preferences(self, profile_path: str) -> Optional[str]:
@@ -121,7 +123,7 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
 
             return email
         except Exception as e:
-            logger.debug(f"Не удалось извлечь email из {pref_path}: {e}")
+            logger.debug("Не удалось извлечь email из %s: %s", pref_path, e)
             return None
 
     def get_browser_name(self) -> str:
@@ -138,7 +140,7 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
 
     def parse_profile_from_args(self, args: str) -> Optional[Dict]:
         """Парсит профиль из аргументов командной строки."""
-        logger.debug(f"parse_profile_from_args: args={args}")
+        logger.debug("parse_profile_from_args: args=%s", args)
 
         if not args or "--profile-directory" not in args:
             logger.debug("parse_profile_from_args: no --profile-directory in args")
@@ -150,7 +152,7 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
             match = re.search(r'--profile-directory="([^"]+)"', args)
             if match:
                 directory = match.group(1)
-                logger.debug(f"parse_profile_from_args: found directory={directory}")
+                logger.debug("parse_profile_from_args: found directory=%s", directory)
                 result = {
                     "directory": directory,
                     "name": directory,
@@ -160,10 +162,10 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
                     if self.profiles_dir
                     else None,
                 }
-                logger.debug(f"parse_profile_from_args: returning result={result}")
+                logger.debug("parse_profile_from_args: returning result=%s", result)
                 return result
         except Exception as e:
-            logger.debug(f"Ошибка парсинга аргументов {self.browser_name}: {e}")
+            logger.debug("Ошибка парсинга аргументов %s: %s", self.browser_name, e)
 
         logger.debug("parse_profile_from_args: could not parse profile")
         return None
