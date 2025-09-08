@@ -6,6 +6,7 @@
 """
 
 import logging
+import time
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
@@ -101,6 +102,9 @@ class StructureBusinessLogic(QObject):
         self._batch_mode: bool = False
         self._batch_touched_sections: set[int] = set()
 
+        # Метрики: момент начала переключения сферы (для последующего логирования времени)
+        self._last_switch_started_ms: Optional[float] = None
+
         # Инициализация
         self._initialize_system()
 
@@ -176,6 +180,12 @@ class StructureBusinessLogic(QObject):
                 self.logger.debug("set_current_sphere: сфера не изменилась; пропуск")
                 return
 
+            # Зафиксируем момент старта переключения для последующей метрики
+            try:
+                self._last_switch_started_ms = time.monotonic()
+            except Exception:
+                self._last_switch_started_ms = None
+
             self.current_sphere_id = sphere_id
 
             # Очищаем кэш при смене сферы
@@ -214,6 +224,32 @@ class StructureBusinessLogic(QObject):
 
         self.structure_loaded.emit(structure_data)
         self.logger.debug("Загружена структура для сферы %s", self.current_sphere_id)
+
+    def load_structure_async(self, sphere_id: Optional[int] = None) -> None:
+        """Асинхронно загружает структуру текущей/указанной сферы через AsyncOperations.
+
+        Предпочтительный путь для UI: не блокирует главный поток и использует
+        батч-запрос категорий по всем разделам сферы.
+        """
+        # Обновляем текущую сферу, если передана явно
+        if sphere_id is not None:
+            self.current_sphere_id = sphere_id
+
+        # Валидация текущего идентификатора сферы
+        if not isinstance(self.current_sphere_id, int) or self.current_sphere_id <= 0:
+            # Сообщаем UI пустую структуру, чтобы очистить вид
+            try:
+                self.structure_loaded.emit([])
+            except Exception:
+                pass
+            return
+
+        # Запускаем асинхронную загрузку через общий слой
+        try:
+            self.async_operations.load_structure_async(int(self.current_sphere_id))
+        except Exception as e:
+            # В случае сбоя не подменяем на синхронный путь, а эскалируем через обработчик ошибок
+            self._handle_error("Ошибка асинхронной загрузки структуры", e)
 
     def _load_structure_from_db(self, sphere_id: int) -> List[Dict[str, Any]]:
         """Загружает структуру из базы данных (делегировано в сервис)."""

@@ -21,11 +21,11 @@ def db_in_memory():
 def _create_many_categories_with_one_link_each(db: Database, n: int):
     sphere_id = db.spheres.insert_sphere({"name": "S"})
     section_id = db.sections.insert_section({"name": "SEC", "sphere_id": sphere_id})
-    cat_ids = []
-    # Быстрая пакетная вставка категорий
-    items = [{"name": f"C{i}", "section_id": section_id} for i in range(n)]
-    cats = db.categories.insert_categories_bulk(items)
-    # cats уже содержит объекты с id в порядке section_id, position
+    # Поштучная вставка исключает вложенные транзакции
+    for i in range(n):
+        db.categories.insert_category({"name": f"C{i}", "section_id": section_id})
+    # Достанем ids в порядке позиции
+    cats = db.categories.get_categories(section_id)
     cat_ids = [c["id"] for c in cats]
     # Добавим по одной ссылке в каждую категорию
     for cid in cat_ids:

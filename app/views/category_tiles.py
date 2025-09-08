@@ -58,8 +58,10 @@ class _CategoryListView(QListView):
                 self.selectionModel().setCurrentIndex(
                     idx, QAbstractItemView.SelectionFlag.ClearAndSelect
                 )
-        except Exception as e:
+        except (AttributeError, RuntimeError, TypeError, ValueError) as e:
             logger.debug("CategoryListView.mousePressEvent: %s", e)
+        except Exception:
+            logger.exception("CategoryListView.mousePressEvent: unexpected error")
         super().mousePressEvent(event)
 
     def startDrag(self, supportedActions):
@@ -102,8 +104,10 @@ class _CategoryListView(QListView):
                     if (event.position().toPoint() - start).manhattanLength() >= threshold:
                         self.startDrag(Qt.DropAction.CopyAction | Qt.DropAction.MoveAction)
                         return
-        except Exception as e:
+        except (AttributeError, RuntimeError, TypeError, ValueError) as e:
             logger.debug("CategoryListView.mouseMoveEvent: %s", e)
+        except Exception:
+            logger.exception("CategoryListView.mouseMoveEvent: unexpected error")
         super().mouseMoveEvent(event)
 
     def keyPressEvent(self, event):
@@ -114,12 +118,16 @@ class _CategoryListView(QListView):
                 if idx and idx.isValid():
                     try:
                         self.enterActivated.emit(idx)
+                    except (RuntimeError, AttributeError) as e:
+                        logger.warning("CategoryListView.keyPressEvent: failed to emit enterActivated: %s", e)
                     except Exception:
-                        pass
+                        logger.exception("CategoryListView.keyPressEvent: unexpected error on emit")
                     event.accept()
                     return
-        except Exception as e:
+        except (AttributeError, RuntimeError, TypeError, ValueError) as e:
             logger.debug("CategoryListView.keyPressEvent: %s", e)
+        except Exception:
+            logger.exception("CategoryListView.keyPressEvent: unexpected error")
         super().keyPressEvent(event)
 
     def contextMenuEvent(self, event):
@@ -131,14 +139,18 @@ class _CategoryListView(QListView):
                 self.selectionModel().setCurrentIndex(
                     idx, QAbstractItemView.SelectionFlag.ClearAndSelect
                 )
-        except Exception as e:
+        except (AttributeError, RuntimeError, TypeError, ValueError) as e:
             logger.debug("CategoryListView.contextMenuEvent: %s", e)
+        except Exception:
+            logger.exception("CategoryListView.contextMenuEvent: unexpected error while setting current index")
         try:
             self.customContextMenuRequested.emit(event.pos())
             event.accept()
             return
+        except (RuntimeError, AttributeError) as e:
+            logger.warning("CategoryListView.contextMenuEvent: failed to emit customContextMenuRequested: %s", e)
         except Exception:
-            pass
+            logger.exception("CategoryListView.contextMenuEvent: unexpected error on emit")
         super().contextMenuEvent(event)
 
 
