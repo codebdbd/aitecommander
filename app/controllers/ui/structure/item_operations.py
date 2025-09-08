@@ -52,8 +52,8 @@ class ItemOperations:
     def switch_sphere(self, sphere_id: int) -> None:
         """Переключает сферу и перезагружает структуру.
 
-        Предпочитаем асинхронную загрузку, но если её нет, делаем синхронную,
-        чтобы дерево обязательно обновилось.
+        Лучшие практики: только асинхронная загрузка через обработчик
+        business.active_sphere_changed, без дублей и синхронных фолбэков.
         """
         self.business.set_current_sphere(sphere_id)
         # Мгновенно очищаем дерево, чтобы UI отразил смену сферы до прихода данных
@@ -66,44 +66,9 @@ class ItemOperations:
                     model.set_snapshot([])
         except Exception:
             pass
-        # Предпочтительно используем реальный асинхронный слой воркеров
-        try:
-            current_id = getattr(self.business, "current_sphere_id", None)
-            if isinstance(current_id, int):
-                # Централизуем перезагрузку структуры через бизнес-логику, чтобы не обходить дебаунс
-                schedule_reload = getattr(
-                    self.business, "_schedule_structure_reload", None
-                )
-                if callable(schedule_reload):
-                    schedule_reload(delay_ms=150)
-                # Отложенная проверка: если дерево так и не заполнилось, грузим синхронно
-                try:
-                    from app.controllers.ui.state.task_scheduler import (
-                        schedule_selection_restore,
-                    )
-
-                    schedule_selection_restore(
-                        lambda: (
-                            self.business.load_structure()
-                            if not self._has_any_items_in_tree()
-                            else None
-                        ),
-                        f"ensure_tree_{current_id}",
-                    )
-                except Exception:
-                    pass
-                return
-        except Exception:
-            # Не прерываем — пойдём по фолбэкам ниже
-            pass
-
-        # Фолбэк: совместимый псевдо-асинхронный вызов
-        load_async = getattr(self.business, "load_structure_async", None)
-        if callable(load_async):
-            load_async()
-        else:
-            # Синхронная загрузка (UI может подтормаживать, но обновится)
-            self.business.load_structure()
+        # Дальнейшая загрузка инициируется обработчиком business.on_active_sphere_changed,
+        # который вызовет load_structure_async(). Здесь ничего дополнительно не делаем.
+        return
 
     def add_new_section(self) -> None:
         try:

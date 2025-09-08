@@ -631,6 +631,30 @@ class AsyncSignalHandlers:
         """Обработчик завершения загрузки структуры."""
         try:
             self.logger.debug("Загружена структура для сферы %s: %s разделов", sphere_id, len(structure))
+            # Перф-метрика: время от начала переключения сферы до готовности структуры
+            try:
+                start = getattr(self.controller, "_last_switch_started_ms", None)
+                if isinstance(start, (int, float)) and start > 0:
+                    import time as _time
+
+                    elapsed_ms = int((_time.monotonic() - float(start)) * 1000)
+                    self.logger.info("[Perf] Переключение сферы %s: структура загружена за %d мс", sphere_id, elapsed_ms)
+                    # Сбрасываем маркер, чтобы не мешал последующим измерениям
+                    try:
+                        setattr(self.controller, "_last_switch_started_ms", None)
+                    except Exception:
+                        pass
+            except Exception:
+                # Никогда не ломаем UI из-за метрик
+                pass
+            # Кэшируем результат в бизнес-логике, если доступен cache_manager
+            try:
+                cache = getattr(self.controller, "cache_manager", None)
+                if cache and hasattr(cache, "set"):
+                    cache.set(f"structure_{int(sphere_id)}", structure or [])
+            except Exception:
+                # Кэш — вспомогательная оптимизация; ошибки кэширования не критичны
+                pass
             if hasattr(self.controller, "structure_loaded"):
                 self.controller.structure_loaded.emit(structure)
         except Exception as e:
