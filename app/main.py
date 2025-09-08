@@ -61,8 +61,13 @@ class ApplicationInitializer:
             if self.settings is None:
                 self.settings = AppSettings()
             return True
-        except Exception as e:
+        except (ValueError, OSError, RuntimeError) as e:
+            # Ожидаемые ошибки конфигурации окружения/настроек
             logging.error("Ошибка загрузки настроек: %s", e, exc_info=True)
+            return False
+        except Exception as e:
+            # Неожиданная ошибка — выделяем уровнем CRITICAL для быстрой диагностики
+            logging.critical("Неожиданная ошибка при инициализации настроек: %s", e, exc_info=True)
             return False
 
     def initialize_database(self) -> bool:
@@ -70,8 +75,11 @@ class ApplicationInitializer:
         try:
             self.database = Database()
             return True
-        except Exception as e:
+        except (sqlite3.Error, OSError, RuntimeError) as e:
             logging.error("Ошибка подключения к базе данных: %s", e, exc_info=True)
+            return False
+        except Exception as e:
+            logging.critical("Неожиданная ошибка при инициализации базы данных: %s", e, exc_info=True)
             return False
 
     def initialize_theme_controller(self) -> bool:
@@ -82,8 +90,11 @@ class ApplicationInitializer:
                 top_panels_controller=None,
             )
             return True
-        except Exception as e:
+        except (ValueError, TypeError, RuntimeError) as e:
             logging.error("Ошибка создания контроллера темы: %s", e, exc_info=True)
+            return False
+        except Exception as e:
+            logging.critical("Неожиданная ошибка при создании контроллера темы: %s", e, exc_info=True)
             return False
 
     def initialize_main_window(self) -> bool:
@@ -98,8 +109,11 @@ class ApplicationInitializer:
             else:
                 self.theme_controller.main_window = self.main_window
             return True
-        except Exception as e:
+        except (RuntimeError, TypeError, ValueError) as e:
             logging.error("Ошибка создания главного окна: %s", e, exc_info=True)
+            return False
+        except Exception as e:
+            logging.critical("Неожиданная ошибка при создании главного окна: %s", e, exc_info=True)
             return False
 
     def apply_initial_theme(self) -> bool:
@@ -108,8 +122,11 @@ class ApplicationInitializer:
             theme_name = self.settings.get_theme()
             self.theme_controller.apply(theme_name)
             return True
-        except Exception as e:
+        except (ValueError, RuntimeError, TypeError) as e:
             logging.error("Ошибка применения темы: %s", e, exc_info=True)
+            return False
+        except Exception as e:
+            logging.critical("Неожиданная ошибка при применении темы: %s", e, exc_info=True)
             return False
 
     def initialize_all(self) -> bool:
