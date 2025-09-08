@@ -6,6 +6,7 @@ import logging
 import sqlite3
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -280,33 +281,74 @@ class Database(DatabaseBase):
             if len(set(ids)) != len(ids):
                 raise ValidationError("Список ID содержит дубликаты")
 
-            # Проверка существования записей
-            placeholders = ",".join(["?"] * len(ids))
+            # Проверка существования и обновление выполняются под ЕДИНЫМ db_lock
             with db_lock:
-                existing_rows = self.connection.execute(
-                    f"SELECT id FROM {table_name} WHERE id IN ({placeholders})",
-                    tuple(ids),
-                ).fetchall()
-            existing_ids = {row[0] for row in existing_rows}
-            missing = [i for i in ids if i not in existing_ids]
-            if missing:
-                raise ValidationError(
-                    f"Не найдены записи с ID: {missing} в таблице {table_name}"
-                )
+                _t0 = time.perf_counter()
+                # --- Проверка существования записей (чанками, чтобы не превысить лимит параметров SQLite ~999)
+                existing_ids = set()
+                SELECT_CHUNK = 900
+                for s in range(0, len(ids), SELECT_CHUNK):
+                    part = ids[s : s + SELECT_CHUNK]
+                    placeholders = ",".join(["?"] * len(part))
+                    rows = self.connection.execute(
+                        f"SELECT id FROM {table_name} WHERE id IN ({placeholders})",
+                        tuple(part),
+                    ).fetchall()
+                    existing_ids.update(row[0] for row in rows)
+                missing = [i for i in ids if i not in existing_ids]
+                if missing:
+                    raise ValidationError(
+                        f"Не найдены записи с ID: {missing} в таблице {table_name}"
+                    )
 
-            # Обновление под глобальной блокировкой БД для предотвращения гонок
-            with db_lock:
+                # --- Пакетное обновление позиций ---
+                # Формируем пары (id, position) согласно порядку в ids
+                id_pos_pairs = [(item_id, i) for i, item_id in enumerate(ids)]
+                # Ограничение SQLite по количеству параметров по умолчанию ~999 — по 2 параметра на запись
+                CHUNK_SIZE = 400
                 with self.connection:
-                    for i, item_id in enumerate(ids):
-                        self.connection.execute(
-                            f"UPDATE {table_name} SET position = ? WHERE id = ?",
-                            (i, item_id),
+                    batches = 0
+                    for start in range(0, len(id_pos_pairs), CHUNK_SIZE):
+                        chunk = id_pos_pairs[start : start + CHUNK_SIZE]
+                        # Подготавливаем VALUES плейсхолдеры и параметры (id, position)
+                        values_sql = ",".join(["(?,?)"] * len(chunk))
+                        params = []
+                        for _id, pos in chunk:
+                            params.extend([_id, pos])
+
+                        sql = (
+                            f"""
+                            WITH newpos(id, position) AS (
+                                VALUES {values_sql}
+                            )
+                            UPDATE {table_name}
+                            SET position = (
+                                SELECT newpos.position FROM newpos WHERE newpos.id = {table_name}.id
+                            )
+                            WHERE id IN (SELECT id FROM newpos)
+                            """
                         )
+                        self.connection.execute(sql, tuple(params))
+                        batches += 1
+                _t1 = time.perf_counter()
+                logger.debug(
+                    "update_item_positions: table=%s, count=%d, batches=%d, chunk=%d, duration_ms=%.2f",
+                    table_name,
+                    len(ids),
+                    batches,
+                    CHUNK_SIZE,
+                    ("%.2f" % ((
+                        (_t1 - _t0) * 1000.0
+                    ))),
+                )
             logger.debug(
                 "Обновлены позиции (%s шт.) в таблице %s",
                 len(ids),
                 table_name,
             )
+        except ValidationError:
+            # Ошибки валидации входных данных пробрасываем как есть
+            raise
         except Exception as e:
             logger.error("Ошибка обновления позиций в таблице %s: %s", table_name, e, exc_info=True)
             raise DatabaseError(f"Не удалось обновить позиции: {e}")
@@ -315,43 +357,83 @@ class Database(DatabaseBase):
     def export_full_structure(self) -> Dict[str, List]:
         """Экспортирует всю структуру данных из БД в виде словаря."""
         try:
-            spheres_data = []
-            spheres = self.connection.execute(
-                "SELECT * FROM sphere ORDER BY position"
-            ).fetchall()
-
-            for sphere_row in spheres:
-                sphere = dict(sphere_row)
-                sections_data = []
-                sections = self.connection.execute(
-                    "SELECT * FROM section WHERE sphere_id=? ORDER BY position",
-                    (sphere["id"],),
+            # Загружаем все таблицы одной выборкой каждую под единой блокировкой
+            t0 = time.perf_counter()
+            with db_lock:
+                spheres = self.connection.execute(
+                    "SELECT * FROM sphere ORDER BY position"
                 ).fetchall()
+                sections = self.connection.execute(
+                    "SELECT * FROM section ORDER BY position"
+                ).fetchall()
+                categories = self.connection.execute(
+                    "SELECT * FROM category ORDER BY position"
+                ).fetchall()
+                links = self.connection.execute(
+                    "SELECT * FROM link ORDER BY position"
+                ).fetchall()
+            t1 = time.perf_counter()
 
-                for section_row in sections:
-                    section = dict(section_row)
-                    categories_data = []
-                    categories = self.connection.execute(
-                        "SELECT * FROM category WHERE section_id=? ORDER BY position",
-                        (section["id"],),
-                    ).fetchall()
+            # Подготовка индексов для сборки структуры
+            spheres_by_id = {}
+            sections_by_id = {}
+            categories_by_id = {}
 
-                    for category_row in categories:
-                        category = dict(category_row)
-                        links = self.connection.execute(
-                            "SELECT * FROM link WHERE category_id=? ORDER BY position",
-                            (category["id"],),
-                        ).fetchall()
-                        category["links"] = [dict(link) for link in links]
-                        categories_data.append(category)
+            sections_by_sphere = {}
+            categories_by_section = {}
 
-                    section["categories"] = categories_data
-                    sections_data.append(section)
+            # Преобразуем строки в dict и инициализируем контейнеры
+            for s in spheres:
+                sd = dict(s)
+                sd["sections"] = []
+                spheres_by_id[sd["id"]] = sd
 
-                sphere["sections"] = sections_data
-                spheres_data.append(sphere)
+            for sec in sections:
+                sc = dict(sec)
+                sc["categories"] = []
+                sections_by_id[sc["id"]] = sc
+                sections_by_sphere.setdefault(sc["sphere_id"], []).append(sc)
 
-            logger.info("Экспорт структуры выполнен успешно")
+            for cat in categories:
+                cd = dict(cat)
+                cd["links"] = []
+                categories_by_id[cd["id"]] = cd
+                categories_by_section.setdefault(cd["section_id"], []).append(cd)
+
+            # Линки просто добавляем к категориям
+            for ln in links:
+                ld = dict(ln)
+                cat_id = ld.get("category_id")
+                cat_obj = categories_by_id.get(cat_id)
+                if cat_obj is not None:
+                    cat_obj["links"].append(ld)
+
+            # Собираем иерархию, сохраняя порядок по position (он уже в ORDER BY)
+            spheres_data: List[Dict] = []
+            for s in spheres:
+                s_obj = spheres_by_id[s["id"]]
+                # Добавляем секции в порядке их выборки (position)
+                for sc in sections_by_sphere.get(s_obj["id"], []):
+                    # Добавляем категории в порядке их выборки (position)
+                    sc["categories"] = categories_by_section.get(sc["id"], [])
+                    s_obj["sections"].append(sc)
+                spheres_data.append(s_obj)
+
+            t2 = time.perf_counter()
+            total_ms = (t2 - t0) * 1000.0
+            db_ms = (t1 - t0) * 1000.0
+            build_ms = (t2 - t1) * 1000.0
+            logger.debug(
+                "export_full_structure: spheres=%d, sections=%d, categories=%d, links=%d, db_ms=%.2f, build_ms=%.2f, total_ms=%.2f",
+                len(spheres), len(sections), len(categories), len(links), db_ms, build_ms, total_ms,
+            )
+            if total_ms > 50.0:
+                logger.info(
+                    "export_full_structure: завершено, total_ms=%.2f (>50ms), db_ms=%.2f, build_ms=%.2f",
+                    total_ms, db_ms, build_ms,
+                )
+            else:
+                logger.info("Экспорт структуры выполнен успешно (bulk-загрузка)")
             return {"spheres": spheres_data}
         except Exception as e:
             logger.error("Ошибка экспорта структуры: %s", e, exc_info=True)

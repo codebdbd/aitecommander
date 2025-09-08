@@ -163,16 +163,34 @@ class CategoryModel(DatabaseBase):
                     max_pos = max_pos_map.get(section_id)
                     start_pos = (max_pos + 1) if (max_pos is not None) else 0
                     pos = start_pos
-                    # Список уже существующих имён в разделе (в нижнем регистре)
-                    try:
-                        existing_rows = self._execute_with_error_handling(
-                            "SELECT LOWER(name) AS name FROM category WHERE section_id = ?",
-                            (section_id,),
-                            fetch_method="all",
-                        )
-                        existing_names = {str(r["name"]).strip().lower() for r in (existing_rows or [])}
-                    except Exception:
-                        existing_names = set()
+                
+                # Единая предзагрузка существующих имён для всех затронутых разделов одним запросом
+                existing_names_by_section: Dict[int, set] = {}
+                if section_ids:
+                    placeholders = ",".join(["?"] * len(section_ids))
+                    query_names = (
+                        f"SELECT section_id, LOWER(name) AS lname FROM category "
+                        f"WHERE section_id IN ({placeholders})"
+                    )
+                    rows = self._execute_with_error_handling(
+                        query_names, tuple(section_ids), fetch_method="all"
+                    )
+                    for r in (rows or []):
+                        sid = int(r["section_id"]) if r["section_id"] is not None else None
+                        if sid is None:
+                            continue
+                        nm = str(r["lname"]).strip().lower()
+                        if not nm:
+                            continue
+                        existing_names_by_section.setdefault(sid, set()).add(nm)
+
+                # Повторно обойдём сгруппированные элементы для формирования батча, используя предзагруженные имена
+                for section_id, group in by_section.items():
+                    # Стартовая позиция: (MAX(position) + 1) или 0, если записей нет
+                    max_pos = max_pos_map.get(section_id)
+                    start_pos = (max_pos + 1) if (max_pos is not None) else 0
+                    pos = start_pos
+                    existing_names = existing_names_by_section.get(section_id, set())
 
                     # Дубликаты внутри пакета для этой секции
                     seen_in_batch = set()
@@ -270,38 +288,46 @@ class CategoryModel(DatabaseBase):
         if not unique_ids:
             return 0
 
-        placeholders = ",".join(["?"] * len(unique_ids))
-        # Собираем затронутые разделы до удаления, чтобы потом переиндексировать позиции
+        # Чанкирование для соблюдения лимита параметров SQLite (~999)
+        CHUNK = 900
+
+        # 0) Собираем затронутые разделы чанками
         affected_sections: List[int] = []
         try:
-            rows = self._execute_with_error_handling(
-                f"SELECT DISTINCT section_id FROM category WHERE id IN ({placeholders})",
-                tuple(unique_ids),
-                fetch_method="all",
-            )
-            affected_sections = [int(r["section_id"]) for r in (rows or [])]
+            for i in range(0, len(unique_ids), CHUNK):
+                chunk = unique_ids[i : i + CHUNK]
+                placeholders = ",".join(["?"] * len(chunk))
+                rows = self._execute_with_error_handling(
+                    f"SELECT DISTINCT section_id FROM category WHERE id IN ({placeholders})",
+                    tuple(chunk),
+                    fetch_method="all",
+                )
+                affected_sections.extend(int(r["section_id"]) for r in (rows or []))
         except Exception:
             affected_sections = []
 
         deleted_categories = 0
         with self.transaction():
-            # 1) Удаляем все ссылки, принадлежащие этим категориям
-            self._execute_with_error_handling(
-                f"DELETE FROM link WHERE category_id IN ({placeholders})",
-                tuple(unique_ids),
-            )
-            # 2) Удаляем сами категории и считаем, сколько реально удалили
-            cursor = self._execute_with_error_handling(
-                f"DELETE FROM category WHERE id IN ({placeholders})",
-                tuple(unique_ids),
-            )
-            try:
-                deleted_categories = int(getattr(cursor, "rowcount", 0) or 0)
-            except Exception:
-                deleted_categories = 0
+            # 1) Удаляем ссылки и категории чанками, чтобы не превысить лимит параметров
+            for i in range(0, len(unique_ids), CHUNK):
+                chunk = unique_ids[i : i + CHUNK]
+                placeholders = ",".join(["?"] * len(chunk))
+                # Удаляем ссылки для категорий чанка
+                self._execute_with_error_handling(
+                    f"DELETE FROM link WHERE category_id IN ({placeholders})",
+                    tuple(chunk),
+                )
+                # Удаляем сами категории
+                cursor = self._execute_with_error_handling(
+                    f"DELETE FROM category WHERE id IN ({placeholders})",
+                    tuple(chunk),
+                )
+                try:
+                    deleted_categories += int(getattr(cursor, "rowcount", 0) or 0)
+                except Exception:
+                    pass
 
-            # 3) Переиндексация позиций в затронутых разделах, чтобы убрать "дыры"
-            # Выполняем внутри той же транзакции
+            # 2) Переиндексация позиций в затронутых разделах, чтобы убрать "дыры"
             try:
                 # Дедупликация и фильтр валидных id
                 uniq_sections = list(dict.fromkeys([s for s in affected_sections if isinstance(s, int) and s > 0]))

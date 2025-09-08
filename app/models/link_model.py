@@ -36,6 +36,21 @@ class LinkModel(DatabaseBase):
         [id, category_id, name, url, type, notes, is_favorite, last_used, icon_path, args, browser_key, position].
         """
         try:
+            # Белый список допустимых колонок для выборки (защита от SQL-инъекций и опечаток)
+            ALLOWED_LINK_COLUMNS = {
+                "id",
+                "category_id",
+                "name",
+                "url",
+                "type",
+                "notes",
+                "is_favorite",
+                "last_used",
+                "icon_path",
+                "args",
+                "browser_key",
+                "position",
+            }
             if all_fields:
                 select_clause = "SELECT *"
             else:
@@ -54,8 +69,21 @@ class LinkModel(DatabaseBase):
                     "browser_key",
                     "position",
                 ]
-                use_fields = fields or default_fields
-                # Простейшая защита от пустого списка — фолбэк на *
+                # Фильтрация пользовательских полей по белому списку
+                use_fields_raw = list(fields or default_fields)
+                use_fields = [f for f in use_fields_raw if isinstance(f, str) and f in ALLOWED_LINK_COLUMNS]
+                # Логируем игнорируемые поля
+                ignored = [f for f in use_fields_raw if not (isinstance(f, str) and f in ALLOWED_LINK_COLUMNS)]
+                if ignored:
+                    logger.warning(
+                        "get_links: проигнорированы недопустимые поля %s; допустимые=%s",
+                        ignored,
+                        sorted(ALLOWED_LINK_COLUMNS),
+                    )
+                # Откат к дефолтному набору при пустом списке после фильтрации
+                if not use_fields:
+                    use_fields = list(default_fields)
+                # Простой фолбэк на * только если по какой-то причине и дефолт пуст
                 select_clause = (
                     f"SELECT {', '.join(use_fields)}" if use_fields else "SELECT *"
                 )
@@ -96,21 +124,25 @@ class LinkModel(DatabaseBase):
             ids = [int(cid) for cid in category_ids if isinstance(cid, int) and cid > 0]
             if not ids:
                 return {}
-            placeholders = ",".join(["?"] * len(ids))
-            rows = self._execute_with_error_handling(
-                f"SELECT category_id, COUNT(*) AS cnt FROM link WHERE category_id IN ({placeholders}) GROUP BY category_id",
-                tuple(ids),
-                fetch_method="all",
-            )
+
+            # Чанкирование для лимита параметров SQLite (~999)
+            CHUNK = 900
             result: Dict[int, int] = {}
-            for r in rows or []:
-                # r может быть tuple или Row/Mapping
-                try:
-                    cat_id = int(r[0] if isinstance(r, tuple) else r["category_id"])  # type: ignore[index]
-                    cnt = int(r[1] if isinstance(r, tuple) else r["cnt"])  # type: ignore[index]
-                    result[cat_id] = cnt
-                except Exception:
-                    continue
+            for i in range(0, len(ids), CHUNK):
+                chunk = ids[i : i + CHUNK]
+                placeholders = ",".join(["?"] * len(chunk))
+                rows = self._execute_with_error_handling(
+                    f"SELECT category_id, COUNT(*) AS cnt FROM link WHERE category_id IN ({placeholders}) GROUP BY category_id",
+                    tuple(chunk),
+                    fetch_method="all",
+                )
+                for r in rows or []:
+                    try:
+                        cat_id = int(r[0] if isinstance(r, tuple) else r["category_id"])  # type: ignore[index]
+                        cnt = int(r[1] if isinstance(r, tuple) else r["cnt"])  # type: ignore[index]
+                        result[cat_id] = result.get(cat_id, 0) + cnt
+                    except Exception:
+                        continue
             return result
         except Exception as e:
             logger.error("Ошибка пакетного подсчета ссылок для категорий %s: %s", category_ids, e, exc_info=True)
