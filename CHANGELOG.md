@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Removed
+- Deleted unused module `app/utils/system/os_ops.py` (functions `open_file`, `reveal_in_folder`) as it was not referenced anywhere in app or tests.
+- Deleted `app/utils/ui/menu_builders/ctx_menu.py` and its test `tests/test_ctx_menu_builder.py` due to UX issues (duplicate standard context menus) and lack of integration needs.
+- Deleted obsolete benchmark script `scripts/bench_export_full_structure.py` (bulk vs N+1 export); benchmark completed and no longer needed.
+
 ### Changed
 - Simplified structure operations architecture by removing validation and operation strategies.
   - Removed `ValidationStrategy`, `DefaultValidationStrategy`, `StructureOperationStrategy`, `DefaultOperationStrategy`.
