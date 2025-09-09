@@ -23,6 +23,7 @@ from app.controllers.business import StructureBusinessLogic
 from app.controllers.ui.theme_controller import ThemeController
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
+from app.views.dialogs.link_dialog.icon_utils import make_icon
 
 from .base_dialog import BaseDialog
 
@@ -341,7 +342,13 @@ class CategoryDialog(BaseEntityDialog):
         try:
             sections = self.structure_business.get_sections(sphere_id)
             for section in sections:
-                self.section_cb.addItem(section["name"], section["id"])
+                # Используем тот же паттерн, что и в LinkDialog: добавляем иконку, если доступна
+                icon_path = section.get("icon_path", "") if isinstance(section, dict) else ""
+                icon = make_icon(icon_path)
+                if icon:
+                    self.section_cb.addItem(icon, section["name"], section["id"])
+                else:
+                    self.section_cb.addItem(section["name"], section["id"])
         except Exception as e:
             self.show_error(
                 "Не удалось загрузить список разделов.",

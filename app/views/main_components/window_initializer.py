@@ -320,6 +320,15 @@ class WindowInitializer:
             self._dump_top_levels("after final window.show")
             QTimer.singleShot(10, lambda: self._dump_top_levels("+10ms after final show"))
             QTimer.singleShot(100, lambda: self._dump_top_levels("+100ms after final show"))
+            # Диагностика шрифта шапки таблицы после полной сборки UI
+            try:
+                tc = getattr(self, "theme_ctrl", None)
+                if tc and hasattr(tc, "_log_tables_header_font"):
+                    # вызвать сразу и повторно через 50 мс на случай отложенного создания таблицы
+                    QTimer.singleShot(0, lambda: tc._log_tables_header_font(self.window))
+                    QTimer.singleShot(50, lambda: tc._log_tables_header_font(self.window))
+            except Exception:
+                logger.debug("WindowInitializer: header font diagnostics scheduling failed", exc_info=True)
         except Exception:
             logger.debug("DiagTopLevels: failed post-show dumps (final)", exc_info=False)
 

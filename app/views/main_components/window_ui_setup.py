@@ -226,7 +226,20 @@ class WindowUISetup:
 
         self.main_layout = QVBoxLayout(central)
         self.main_layout.setContentsMargins(*app_config.ui.get_main_layout_margins())
+        # Возвращаем spacing из конфигурации
         self.main_layout.setSpacing(app_config.ui.get_main_layout_spacing())
+        # Убираем зазор между QMenuBar и верхним разделителем: верхний margin = 0
+        try:
+            l, t, r, b = self.main_layout.getContentsMargins()
+        except Exception:
+            l, t, r, b = (0, 0, 0, 0)
+        try:
+            self.main_layout.setContentsMargins(l, 0, r, b)
+        except Exception:
+            logger.debug(
+                "WindowUISetup: failed to force top margin=0 for main_layout",
+                exc_info=True,
+            )
 
     def setup_top_panel(self) -> None:
         """Настройка верхней панели."""
@@ -651,6 +664,8 @@ class WindowUISetup:
 
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(*app_config.ui.get_layout_margins("left"))
+        # Убираем зазор между деревом и панелью сфер
+        left_layout.setSpacing(0)
 
         # Дерево структуры: используем QTreeView + QAbstractItemModel
         self.window.tree = StructureTreeView()

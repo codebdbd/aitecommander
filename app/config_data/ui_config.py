@@ -598,6 +598,46 @@ class UIConfig(BaseConfig):
         """Получение толщины (ширины) вертикальных разделителей."""
         return self.get("ui.separator_width", 1)
 
+    # === Отладочные и производительные параметры ===
+
+    def get_debug_links_inline_update(self) -> bool:
+        """Включить расширенные DEBUG-логи для цепочки обновления таблицы ссылок.
+
+        Ключ: ui.debug_links_inline_update. По умолчанию False.
+        """
+        # Временно включаем по умолчанию для диагностики; задайте False в конфиге, чтобы отключить
+        return bool(self.get("ui.debug_links_inline_update", True))
+
+    def get_preload_categories_limit(self) -> int:
+        """Лимит разделов для отложенного прелоада категорий после загрузки структуры.
+
+        Ключ: ui.preload_categories_limit. По умолчанию 3.
+        """
+        try:
+            return max(0, int(self.get("ui.preload_categories_limit", 3)))
+        except Exception:
+            return 3
+
+    def get_preload_delay_step_ms(self) -> int:
+        """Шаг задержки между заданиями прелоада категорий, мс.
+
+        Ключ: ui.preload_delay_step_ms. По умолчанию 10 мс.
+        """
+        try:
+            return max(0, int(self.get("ui.preload_delay_step_ms", 10)))
+        except Exception:
+            return 10
+
+    def get_drop_stale_structure_snapshots(self) -> bool:
+        """Отбрасывать ли устаревшие снапшоты структуры (если сфера не совпадает).
+
+        Ключ: ui.drop_stale_structure_snapshots. По умолчанию False.
+        """
+        try:
+            return bool(self.get("ui.drop_stale_structure_snapshots", False))
+        except Exception:
+            return False
+
     # === Отладочные переключатели ===
 
     def get_debug_show_tile_font_sample(self) -> bool:

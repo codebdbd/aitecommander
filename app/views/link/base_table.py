@@ -3,8 +3,9 @@
 
 import logging
 
-from PyQt6.QtCore import QModelIndex, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QColor
+from PyQt6.QtCore import QModelIndex, QSize, Qt, pyqtSignal, pyqtProperty
+from PyQt6.QtGui import QColor, QPalette
+from PyQt6.QtWidgets import QStyleOptionViewItem
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
@@ -32,25 +33,128 @@ HOVER_COLOR = "#444444"
 logger = logging.getLogger(__name__)
 
 
-class HoverHighlightDelegate(QStyledItemDelegate):
+class TableDelegate(QStyledItemDelegate):
+    """Единый делегат: подсветка строки по hover и элидирование по символам в колонке 'Название'."""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.hovered_row = -1
         self.hover_color = QColor(HOVER_COLOR)
+        # Настройки размеров шрифтов из единого реестра ui.fonts.*
+        def _get_px(key: str) -> int | None:
+            try:
+                v = app_config.ui.get(f"ui.fonts.{key}")
+                return int(v) if v is not None else None
+            except Exception:
+                return None
+        # Единицы для шрифтов: 'px' или 'pt'
+        try:
+            self._font_units = str(app_config.ui.get("ui.fonts.units", "px")).strip().lower()
+        except Exception:
+            self._font_units = "px"
+        if self._font_units not in ("px", "pt"):
+            self._font_units = "px"
+
+        # Индивидуальные размеры для колонок (обратная совместимость)
+        self.col_opened_px = _get_px("table_opened_col_px")  # колонка "Открывалась" (index=2)
+        self.col_notes_px = _get_px("table_notes_col_px")    # колонка "Заметки" (index=3)
+
+        # Новый способ: массив размеров для всех колонок
+        self.col_sizes: dict[int, int] = {}
+        try:
+            arr = app_config.ui.get("ui.fonts.table_cols_px")  # ожидается список чисел или None
+        except Exception:
+            arr = None
+        if isinstance(arr, (list, tuple)):
+            for i, v in enumerate(arr):
+                try:
+                    if v is None:
+                        continue
+                    iv = int(v)
+                    if iv > 0:
+                        self.col_sizes[i] = iv
+                except Exception:
+                    continue
 
     def paint(self, painter, option, index):
-        # Оптимизация: проверяем только если строка под курсором и ячейка не выбрана
+        # Подсветка всей строки при hover (если не выбрана)
         is_hovered_row = self.hovered_row == index.row()
         is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
-
         if is_hovered_row and not is_selected:
             painter.save()
-            # Подсветка фона строки
             painter.fillRect(option.rect, self.hover_color)
             painter.restore()
 
-        # Рисуем стандартное содержимое
-        super().paint(painter, option, index)
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+
+        # Применяем единые размеры шрифтов для конкретных колонок, если заданы в конфиге
+        try:
+            col = index.column()
+            # Приоритет: общий массив table_cols_px, затем старые ключи для 2/3
+            val = self.col_sizes.get(col)
+            if val is None:
+                if col == 2:
+                    val = self.col_opened_px
+                elif col == 3:
+                    val = self.col_notes_px
+            if val and int(val) > 0:
+                f = opt.font
+                if self._font_units == "pt":
+                    f.setPointSize(int(val))
+                else:
+                    f.setPixelSize(int(val))
+                opt.font = f
+        except Exception:
+            pass
+
+        # Цвет текста для колонки "Открывалась" (index=2) — из qproperty LinksTableView.openedColColor
+        try:
+            if index.column() == 2:
+                view = self.parent() if hasattr(self, 'parent') else None
+                color = None
+                if view is not None and hasattr(view, 'openedColColor'):
+                    color = view.openedColColor
+                if isinstance(color, QColor) and color.isValid():
+                    pal = QPalette(opt.palette)
+                    pal.setColor(QPalette.ColorRole.Text, color)
+                    pal.setColor(QPalette.ColorRole.WindowText, color)
+                    opt.palette = pal
+        except Exception:
+            pass
+
+        # Цвет текста для колонки "Заметки" (index=3) — из qproperty LinksTableView.notesColColor
+        try:
+            if index.column() == 3:
+                view = self.parent() if hasattr(self, 'parent') else None
+                color = None
+                if view is not None and hasattr(view, 'notesColColor'):
+                    color = view.notesColColor
+                if isinstance(color, QColor) and color.isValid():
+                    pal = QPalette(opt.palette)
+                    pal.setColor(QPalette.ColorRole.Text, color)
+                    pal.setColor(QPalette.ColorRole.WindowText, color)
+                    opt.palette = pal
+        except Exception:
+            pass
+
+        # Для колонки 'Название' (index 1) — жёсткое однострочное элидирование по символам
+        if index.column() == 1:
+            opt.textElideMode = Qt.TextElideMode.ElideRight
+            try:
+                available_w = max(0, opt.rect.width() - 4)
+            except Exception:
+                available_w = opt.rect.width()
+            opt.text = opt.fontMetrics.elidedText(
+                opt.text, Qt.TextElideMode.ElideRight, available_w
+            )
+            opt.displayAlignment = (
+                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
+            )
+
+        super().paint(painter, opt, index)
+
+        # Границы верхнего левого угла (ячейка над строкой 1 и перед колонкой 0)
+        # рендерятся через QSS (QTableView QTableCornerButton::section) в dark.qss
 
 
 class LinksTableView(
@@ -60,8 +164,46 @@ class LinksTableView(
     RowOperationsMixin,
     PopulationManagerMixin,
     DragDropHandlerMixin,
-):
+    ):
     """Основной класс таблицы ссылок с модульной архитектурой."""
+
+    # qproperty для задания цвета колонки "Открывалась" из темы (QSS: qproperty-openedColColor)
+    def _get_opened_col_color(self) -> QColor:
+        try:
+            return getattr(self, "_opened_col_color", QColor())
+        except Exception:
+            return QColor()
+
+    def _set_opened_col_color(self, value) -> None:
+        try:
+            if isinstance(value, QColor):
+                self._opened_col_color = value
+            else:
+                self._opened_col_color = QColor(str(value))
+            self.viewport().update()
+        except Exception:
+            pass
+
+    openedColColor = pyqtProperty(QColor, fget=_get_opened_col_color, fset=_set_opened_col_color)
+
+    # qproperty для задания цвета колонки "Заметки" из темы (QSS: qproperty-notesColColor)
+    def _get_notes_col_color(self) -> QColor:
+        try:
+            return getattr(self, "_notes_col_color", QColor())
+        except Exception:
+            return QColor()
+
+    def _set_notes_col_color(self, value) -> None:
+        try:
+            if isinstance(value, QColor):
+                self._notes_col_color = value
+            else:
+                self._notes_col_color = QColor(str(value))
+            self.viewport().update()
+        except Exception:
+            pass
+
+    notesColColor = pyqtProperty(QColor, fget=_get_notes_col_color, fset=_set_notes_col_color)
 
     # Сигнал оповещения о завершении массового обновления/заполнения таблицы
     table_populated: pyqtSignal = pyqtSignal()
@@ -93,6 +235,11 @@ class LinksTableView(
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Имя объекта для точечного применения QSS (в т.ч. размера шрифта шапки)
+        try:
+            self.setObjectName("linksTable")
+        except Exception:
+            pass
         self._current_links = {}  # Кэш текущих данных: {row: link_data}
         self._current_mode = "normal"  # Текущий режим отображения
         self._setup_table()
@@ -106,8 +253,18 @@ class LinksTableView(
             self.sortByColumn(1, Qt.SortOrder.AscendingOrder)
         except Exception:
             logger.debug("LinksTableView: initial sortByColumn failed", exc_info=True)
-        self.delegate = HoverHighlightDelegate(self)
+        self.delegate = TableDelegate(self)
         self.setItemDelegate(self.delegate)
+        # Глобально: не переносим слова, элидируем справа
+        try:
+            self.setWordWrap(False)
+        except Exception:
+            pass
+        try:
+            self.setTextElideMode(Qt.TextElideMode.ElideRight)
+        except Exception:
+            pass
+        # Используем единый делегат для всех колонок, чтобы подсветка hover применялась ко всей строке
         self.setMouseTracking(True)
         # QTableView: используем сигнал entered(QModelIndex) вместо cellEntered
         try:
@@ -165,7 +322,23 @@ class LinksTableView(
             logger.debug(
                 "LinksTableView: failed to set column widths for 1/2", exc_info=True
             )
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        # Режим изменения ширины колонки 2 ("Открывалась") — из конфига
+        try:
+            col2_mode = str(app_config.ui.get("ui.links_table_col2_mode", "fixed")).lower()
+        except Exception:
+            col2_mode = "fixed"
+        try:
+            if col2_mode in ("fixed", "f"):
+                header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+            elif col2_mode in ("interactive", "i"):
+                header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
+            elif col2_mode in ("contents", "content", "auto", "resizeToContents".lower()):
+                header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+            else:
+                header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        except Exception:
+            # Фолбэк — Fixed
+            header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
 
     def _on_index_entered(self, index: QModelIndex):

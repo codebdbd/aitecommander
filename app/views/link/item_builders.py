@@ -54,9 +54,12 @@ class ItemBuildersMixin:
     ) -> Tuple[str, str]:
         """Возвращает (display, tooltip) для заметок."""
         text = str(notes or "")
+        # Визуальный индикатор заметки перед текстом (иконка-эмодзи)
+        has_text = bool(text)
+        prefix = "📝 " if has_text else ""
         if truncate and len(text) > MAX_NOTES_LENGTH:
-            return text[:MAX_NOTES_LENGTH] + "...", text
-        return text, (text or "")
+            return prefix + text[:MAX_NOTES_LENGTH] + "...", text
+        return prefix + text, (text or "")
 
     def _path_display_and_tooltip(self, link: Dict) -> Tuple[str, str]:
         """Возвращает (display, tooltip) для пути/URL."""

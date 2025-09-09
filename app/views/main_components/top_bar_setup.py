@@ -40,8 +40,7 @@ class TopBarBuilder:
             or self.window.centralWidget()
         )
 
-        # Top separator
-        self.ui._add_top_separator(container_parent)
+        # Убираем верхний разделитель перед top bar: визуальную линию нарисует QMenuBar border-bottom
 
         # Create top_bar layout
         top_bar = QHBoxLayout()

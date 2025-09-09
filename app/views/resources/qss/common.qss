@@ -116,8 +116,10 @@ QMenu::separator {
     padding: 0 8px;
 }
 
+/* Use platform default submenu arrow; disable missing resource reference */
 QMenu::right-arrow {
-    image: url(:/icons/right-arrow.svg);
+    /* image: url(:/icons/right-arrow.svg); */
+    image: none;
     width: 10px;
     height: 10px;
     margin-right: 4px;
@@ -396,6 +398,25 @@ QHeaderView::section {
 
 QHeaderView::section:last {
     border-right: none;
+}
+
+/* Не даём системе делать жирным при активном/нажатом состоянии и сохраняем размер */
+QHeaderView::section:pressed,
+QHeaderView::section:hover,
+QHeaderView::section:checked {
+    /* поведение границ/фона задаётся темой; шрифт управляется на QHeaderView */
+}
+
+/* Правильное место для шрифта заголовка — сам QHeaderView */
+QHeaderView {
+    font-size: 11px;
+    font-weight: normal;
+}
+/* Повышенная специфичность для таблиц и деревьев */
+QTableView QHeaderView,
+QTreeView QHeaderView {
+    font-size: 11px;
+    font-weight: normal;
 }
 
 /* Лейбл пути в статус-баре */

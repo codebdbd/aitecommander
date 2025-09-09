@@ -270,6 +270,62 @@ class CategoryOperations(BaseOperations):
             default_return=None,
         )
 
+    def get_first_category_id_for_sphere(self, sphere_id: int) -> Optional[int]:
+        """Получить ID первой категории в рамках конкретной сферы (per-sphere cache).
+
+        - Не ломает совместимость: это дополнительный метод.
+        - Сначала пытается взять из per-sphere кэша в `CacheManager`.
+        - При промахе вычисляет через StructureModel/Service и записывает кэш.
+        """
+        # 1) Кэш per-sphere
+        try:
+            cached = self._cache_manager.get_first_category_id_for_sphere(sphere_id)
+        except Exception:
+            cached = None
+        if cached is not None:
+            self.logger.debug(
+                "Используется per-sphere кэш первой категории для сферы %s: %s",
+                sphere_id,
+                cached,
+            )
+            return cached
+
+        # 2) Вычисление: берём первую категорию в первой секции сферы, где есть категории
+        def _compute_first_for_sphere() -> Optional[int]:
+            try:
+                get_sections = (
+                    self._structure_service.get_sections
+                    if self._structure_service
+                    else self.structure_model.get_sections
+                )
+                get_categories = (
+                    self._structure_service.get_categories
+                    if self._structure_service
+                    else self.structure_model.get_categories
+                )
+                sections = get_sections(int(sphere_id)) or []
+                for section in sections:
+                    sid = section.get("id") if isinstance(section, dict) else None
+                    if sid is None:
+                        continue
+                    cats = get_categories(int(sid)) or []
+                    if cats:
+                        first_id = cats[0].get("id") if isinstance(cats[0], dict) else None
+                        return int(first_id) if first_id is not None else None
+                return None
+            except Exception as e:
+                self.logger.error(
+                    "Ошибка вычисления первой категории для сферы %s: %s", sphere_id, e
+                )
+                return None
+
+        result = _compute_first_for_sphere()
+        try:
+            self._cache_manager.set_first_category_id_for_sphere(sphere_id, result)
+        except Exception:
+            pass
+        return result
+
     def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, Any]]:
         """Получает иерархию (sphere_id, section_id) для категории с гарантированной нормализацией."""
 

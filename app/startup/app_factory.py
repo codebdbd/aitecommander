@@ -18,7 +18,7 @@ def create_application() -> QApplication:
     app.setApplicationVersion("1.0.0")
     app.setOrganizationName("MyCompany")
 
-    # Централизовано: фиксируем базовый размер шрифта приложения на 10 pt (DPI‑дружественно)
-    app.setFont(QFont(app.font().family(), 10))
+    # Не задаём глобальный размер шрифта здесь. Все размеры управляются через ui.fonts.*
+    # и применяются в ThemeController._build_config_overrides_qss().
 
     return app

@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 class SectionModel(DatabaseBase):
     """Модель для работы с разделами"""
 
-    def get_sections(self, sphere_id: int):
+    def get_sections(self, sphere_id: int) -> list[dict[str, Any]]:
         """Возвращает список разделов для указанной сферы в формате dict."""
         rows = self._execute_with_error_handling(
             "SELECT id, name, sphere_id, position, icon_path FROM section "
@@ -20,7 +20,7 @@ class SectionModel(DatabaseBase):
         )
         return [dict(row) for row in rows] if rows else []
 
-    def get_section_by_id(self, section_id: int):
+    def get_section_by_id(self, section_id: int) -> dict[str, Any] | None:
         """Возвращает раздел по его ID в формате dict."""
         row = self._execute_with_error_handling(
             "SELECT * FROM section WHERE id=?", (section_id,), fetch_method="one"
@@ -66,7 +66,7 @@ class SectionModel(DatabaseBase):
             )
             if cursor.rowcount == 0:
                 # Записи не было, делаем вставку с нужным id
-                self.connection.execute(
+                self._execute_with_error_handling(
                     "INSERT INTO section (id, name, sphere_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
                     (
                         section_data["id"],

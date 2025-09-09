@@ -55,17 +55,21 @@ class ItemOperations:
         Лучшие практики: только асинхронная загрузка через обработчик
         business.active_sphere_changed, без дублей и синхронных фолбэков.
         """
-        self.business.set_current_sphere(sphere_id)
-        # Мгновенно очищаем дерево, чтобы UI отразил смену сферы до прихода данных
+        # Не делаем ничего, если сфера не меняется (например, двойной клик по той же сфере)
         try:
-            tree = getattr(self.controller, "tree", None)
-            if tree and hasattr(tree, "model"):
-                # QTreeView: очищаем модель снимком
-                model = tree.model()
-                if model and hasattr(model, "set_snapshot"):
-                    model.set_snapshot([])
-        except (AttributeError, RuntimeError) as e:
-            logger.debug("[ItemOperations.switch_sphere] clear snapshot failed: %s", e)
+            current = getattr(self.business, "current_sphere_id", None)
+            if isinstance(current, int) and current == int(sphere_id):
+                logger.debug(
+                    "switch_sphere: same sphere %s selected again; skip clearing and reload",
+                    sphere_id,
+                )
+                return
+        except Exception:
+            pass
+
+        self.business.set_current_sphere(sphere_id)
+        # Не очищаем модель сразу: ждём structure_loaded, чтобы избежать пустого дерева
+        # и артефактов при двукратных кликах/быстром переключении.
         # Дальнейшая загрузка инициируется обработчиком business.on_active_sphere_changed,
         # который вызовет load_structure_async(). Здесь ничего дополнительно не делаем.
         return

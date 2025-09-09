@@ -1,4 +1,12 @@
 # Changelog
+#### Models and DB layer
+- SQL result access unified to use aliased column names and key-based reads instead of positional indices (`row[0]`).
+  - `app/models/link_model.py`: aggregates use `AS cnt`, position helpers use `AS next_pos`; counts and positions read via keys.
+  - `app/models/db_base.py`: `_get_next_position()` always uses `AS max_pos` and key-based access.
+  - `app/models/db.py`: PRAGMA rows and ID collections read via keys (`dict(row)["id"]`).
+- Type hints added for `SphereModel.get_spheres()`/`get_sphere_by_id()` and `SectionModel.get_sections()`/`get_section_by_id()`.
+- `SectionModel.upsert_section()` now consistently uses `_execute_with_error_handling()` for logging and error handling.
+
 
 All notable changes to this project will be documented in this file.
 
@@ -62,3 +70,9 @@ All notable changes to this project will be documented in this file.
 ### Notes
 - Signals and logging are unchanged.
 - Upsert errors now surface as `StructureOperationError` with operation type "upsert" and item type name.
+
+### Hardening/Perf: caching and first-category
+- Unified per-sphere cache key for first category: `first_category_id:{sphere_id}` used across utilities and business invalidation.
+- CacheManager now uses a default TTL of 600 seconds when not provided explicitly; prevents stale values sticking indefinitely.
+- Added lightweight cache warm-up after structure load in `StructureBusinessLogic` (slot `_on_structure_loaded_warm_cache`), which lazily computes and stores `first_category_id:{sphere_id}` without blocking UI.
+- Added DEBUG diagnostics in `UtilityService.get_target_section_id()` to trace cache HIT/MISS/SET for first-category keys.

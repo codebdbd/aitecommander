@@ -46,6 +46,44 @@ class StructureUIController(QObject):
 
         self._setup_tree()
         self._connect_business_signals()
+        self._connect_model_icon_reload_signals()
+
+    def _connect_model_icon_reload_signals(self) -> None:
+        """Подключаемся к сигналам модели, чтобы перезаполнить иконки после стабилизации дерева.
+
+        Коалесцируем множественные события в один вызов через QTimer.singleShot(0, ...).
+        Это гарантирует, что иконки выставляются только после того, как модель завершила
+        reset/insert/layout операции.
+        """
+        try:
+            model = self.tree.model()
+        except Exception:
+            model = None
+        if not model:
+            return
+
+        self._icons_reload_pending = False
+
+        def _schedule_reload():
+            if getattr(self, "_icons_reload_pending", False):
+                return
+            self._icons_reload_pending = True
+            from PyQt6.QtCore import QTimer
+
+            def _do_reload():
+                try:
+                    self.icon_handler.reload_icons()
+                finally:
+                    self._icons_reload_pending = False
+
+            QTimer.singleShot(0, _do_reload)
+
+        # Подписываемся ТОЛЬКО на modelReset, чтобы выполнять один проход
+        # после полной сборки снапшота и не дергать перерисовку на каждом rowsInserted/layoutChanged
+        try:
+            model.modelReset.connect(_schedule_reload)
+        except Exception:
+            pass
 
     def _setup_tree(self) -> None:
         self.tree.setHeaderHidden(True)

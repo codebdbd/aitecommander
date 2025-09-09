@@ -14,6 +14,9 @@ class CacheManager:
     """Менеджер кэша для оптимизации запросов к структуре.
 
     Добавлены TTL и LRU-лимиты для универсального хранилища.
+    Поддерживаются два совместимых режима кэширования "первой категории":
+      1) Глобальный ключ (legacy): "first_category_id"
+      2) Пер-сфера ключ:        "first_category_id:{sphere_id}"
     """
 
     def __init__(
@@ -26,7 +29,9 @@ class CacheManager:
         # Поддерживаем обратную совместимость: если логгер не передан, используем модульный
         self.logger = logger or globals().get("logger") or logging.getLogger(__name__)
         # Универсальное хранилище кэша по ключам с TTL/LRU
-        self._cache = InMemoryCache(default_ttl=ttl, max_size=max_size)
+        # Best practice: используем дефолтный TTL, если не задан явно
+        default_ttl = 600.0 if ttl is None else ttl  # 10 минут по умолчанию
+        self._cache = InMemoryCache(default_ttl=default_ttl, max_size=max_size)
 
     def get_first_category_id(self) -> Optional[int]:
         """Получает кэшированный ID первой категории."""
@@ -47,6 +52,41 @@ class CacheManager:
         """Инвалидирует кэш первой категории при изменениях в категориях."""
         self._cache.invalidate("first_category_id")
         self.logger.debug("Инвалидирован кэш первой категории")
+
+    # === Пер-сфера кэш для первой категории ===
+    @staticmethod
+    def _first_category_key_for_sphere(sphere_id: int) -> str:
+        try:
+            sid = int(sphere_id)
+        except Exception:
+            sid = sphere_id  # best-effort
+        return f"first_category_id:{sid}"
+
+    def get_first_category_id_for_sphere(self, sphere_id: int) -> Optional[int]:
+        """Возвращает кэшированный ID первой категории для конкретной сферы."""
+        key = self._first_category_key_for_sphere(sphere_id)
+        return self._cache.get(key)
+
+    def set_first_category_id_for_sphere(
+        self, sphere_id: int, category_id: Optional[int]
+    ) -> None:
+        """Сохраняет/сбрасывает кэш ID первой категории для конкретной сферы."""
+        key = self._first_category_key_for_sphere(sphere_id)
+        if category_id is None:
+            self._cache.invalidate(key)
+            self.logger.debug("Сброшен кэш первой категории для сферы %s", sphere_id)
+            return
+        self._cache.set(key, int(category_id))
+        self.logger.debug(
+            "Кэширован ID первой категории для сферы %s: %s", sphere_id, category_id
+        )
+
+    def invalidate_first_category_cache_for_sphere(self, sphere_id: int) -> None:
+        key = self._first_category_key_for_sphere(sphere_id)
+        self._cache.invalidate(key)
+        self.logger.debug(
+            "Инвалидирован кэш первой категории для сферы %s", sphere_id
+        )
 
     # =============================
     # Универсальные операции кэширования

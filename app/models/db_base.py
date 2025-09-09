@@ -130,13 +130,7 @@ class DatabaseBase:
                     fetch_method="one",
                 )
 
-            max_pos = (
-                None
-                if row is None
-                else row["max_pos"]
-                if isinstance(row, dict)
-                else row[0]
-            )
+            max_pos = None if row is None else dict(row).get("max_pos")
             return (max_pos + 1) if max_pos is not None else 0
         except Exception as e:
             logger.error("Ошибка получения позиции для таблицы %s: %s", table_name, e)

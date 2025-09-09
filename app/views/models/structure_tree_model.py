@@ -55,6 +55,8 @@ class StructureTreeModel(QAbstractItemModel):
         self._category_by_id: Dict[int, TreeNode] = {}
         # Для будущего: можно хранить persistent index'ы, если потребуется
 
+    
+
     # --- Базовая иерархия ---
     def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:  # noqa: N802 (Qt API)
         return 1
@@ -223,7 +225,7 @@ class StructureTreeModel(QAbstractItemModel):
                 id=int(s.get("id")) if s.get("id") is not None else None,
                 name=str(s.get("name", "")),
                 parent=self._root,
-                icon=s.get("icon"),
+                icon=(s.get("icon") if isinstance(s.get("icon"), QIcon) else None),
                 payload=s,
             )
             self._root.children.insert(row + i, sec_node)
@@ -250,7 +252,7 @@ class StructureTreeModel(QAbstractItemModel):
                 id=int(c.get("id")) if c.get("id") is not None else None,
                 name=str(c.get("name", "")),
                 parent=sec_node,
-                icon=c.get("icon"),
+                icon=(c.get("icon") if isinstance(c.get("icon"), QIcon) else None),
                 payload=c,
             )
             sec_node.children.insert(row + i, cat_node)
@@ -398,7 +400,7 @@ class StructureTreeModel(QAbstractItemModel):
                     id=int(c.get("id")) if c.get("id") is not None else None,
                     name=str(c.get("name", "")),
                     parent=sec_node,
-                    icon=c.get("icon"),
+                    icon=(c.get("icon") if isinstance(c.get("icon"), QIcon) else None),
                     payload=c,
                 )
                 sec_node.children.append(cat_node)
