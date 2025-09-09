@@ -38,7 +38,9 @@ def test_update_item_positions_section(db_in_memory: Database):
     # Сфера и 6 разделов
     sphere_id = db_in_memory.spheres.insert_sphere({"name": "S"})
     section_ids = [
-        db_in_memory.sections.insert_section({"name": f"SEC{i}", "sphere_id": sphere_id})
+        db_in_memory.sections.insert_section(
+            {"name": f"SEC{i}", "sphere_id": sphere_id}
+        )
         for i in range(6)
     ]
     db_in_memory.connection.commit()
@@ -67,17 +69,23 @@ essential_link_fields = {
 def test_update_item_positions_link(db_in_memory: Database):
     # Категория с 50 ссылками
     sphere_id = db_in_memory.spheres.insert_sphere({"name": "S"})
-    section_id = db_in_memory.sections.insert_section({"name": "SEC", "sphere_id": sphere_id})
-    category_id = db_in_memory.categories.insert_category({"name": "CAT", "section_id": section_id})
+    section_id = db_in_memory.sections.insert_section(
+        {"name": "SEC", "sphere_id": sphere_id}
+    )
+    category_id = db_in_memory.categories.insert_category(
+        {"name": "CAT", "section_id": section_id}
+    )
 
     link_ids = []
     for i in range(50):
-        lid = db_in_memory.links.upsert_link({
-            "category_id": category_id,
-            "name": f"L{i}",
-            "url": f"https://example.com/{i}",
-            **essential_link_fields,
-        })
+        lid = db_in_memory.links.upsert_link(
+            {
+                "category_id": category_id,
+                "name": f"L{i}",
+                "url": f"https://example.com/{i}",
+                **essential_link_fields,
+            }
+        )
         link_ids.append(lid)
     db_in_memory.connection.commit()
 

@@ -40,7 +40,9 @@ from .http_client import http_request
 
 _MANIFEST_EXECUTOR = None
 _MANIFEST_EXECUTOR_GUARD = threading.Lock()
-_MANIFEST_ATEXIT_HANDLER = None  # stores the registered atexit handler to support unregister
+_MANIFEST_ATEXIT_HANDLER = (
+    None  # stores the registered atexit handler to support unregister
+)
 
 
 @dataclass(slots=True)
@@ -52,6 +54,7 @@ class IconCandidate:
     base_priority: int
     media_priority: int
     kind: str
+
 
 # Markers that make og:image likely unsuitable for favicon usage
 OG_IMAGE_BANNED_MARKERS = [
@@ -88,11 +91,18 @@ def _get_manifest_executor() -> ThreadPoolExecutor:
     with _MANIFEST_EXECUTOR_GUARD:
         if _MANIFEST_EXECUTOR is None:
             try:
-                max_workers = int(getattr(app_config, "ICON_MANIFEST_MAX_WORKERS", 4) or 4)
+                max_workers = int(
+                    getattr(app_config, "ICON_MANIFEST_MAX_WORKERS", 4) or 4
+                )
             except (TypeError, ValueError):
-                logger.debug("Failed to read ICON_MANIFEST_MAX_WORKERS from app_config; using default 4", exc_info=True)
+                logger.debug(
+                    "Failed to read ICON_MANIFEST_MAX_WORKERS from app_config; using default 4",
+                    exc_info=True,
+                )
                 max_workers = 4
-            _MANIFEST_EXECUTOR = ThreadPoolExecutor(max_workers=max(1, max_workers), thread_name_prefix="manifest")
+            _MANIFEST_EXECUTOR = ThreadPoolExecutor(
+                max_workers=max(1, max_workers), thread_name_prefix="manifest"
+            )
             try:
                 # Remove previously registered handler if any (in case of recreation)
                 global _MANIFEST_ATEXIT_HANDLER
@@ -100,17 +110,26 @@ def _get_manifest_executor() -> ThreadPoolExecutor:
                     try:
                         atexit.unregister(_MANIFEST_ATEXIT_HANDLER)
                     except Exception:
-                        logger.debug("Failed to unregister previous atexit handler for manifest executor", exc_info=True)
+                        logger.debug(
+                            "Failed to unregister previous atexit handler for manifest executor",
+                            exc_info=True,
+                        )
                     finally:
                         _MANIFEST_ATEXIT_HANDLER = None
 
                 # Capture the current executor instance to avoid referencing None after manual shutdown
-                def _manifest_shutdown_handler(e: ThreadPoolExecutor | None = _MANIFEST_EXECUTOR) -> None:
+                def _manifest_shutdown_handler(
+                    e: ThreadPoolExecutor | None = _MANIFEST_EXECUTOR,
+                ) -> None:
                     if e is not None:
                         e.shutdown(wait=False, cancel_futures=True)
+
                 _MANIFEST_ATEXIT_HANDLER = atexit.register(_manifest_shutdown_handler)
             except Exception:
-                logger.debug("Failed to register atexit shutdown for manifest executor", exc_info=True)
+                logger.debug(
+                    "Failed to register atexit shutdown for manifest executor",
+                    exc_info=True,
+                )
     return _MANIFEST_EXECUTOR
 
 
@@ -135,10 +154,15 @@ def shutdown_manifest_executor(wait: bool = False, cancel_futures: bool = True) 
                 try:
                     atexit.unregister(_MANIFEST_ATEXIT_HANDLER)
                 except Exception:
-                    logger.debug("Failed to unregister atexit handler during shutdown", exc_info=True)
+                    logger.debug(
+                        "Failed to unregister atexit handler during shutdown",
+                        exc_info=True,
+                    )
                 finally:
                     _MANIFEST_ATEXIT_HANDLER = None
     return True
+
+
 def parse_icon_size(sizes_attr: str) -> int:
     """Parse sizes attribute and return the maximum declared size.
 
@@ -163,7 +187,9 @@ def parse_icon_size(sizes_attr: str) -> int:
                 if int_h > max_size:
                     max_size = int_h
             except ValueError:
-                logger.debug("Invalid WxH pair in sizes attribute: %sx%s", w, h, exc_info=True)
+                logger.debug(
+                    "Invalid WxH pair in sizes attribute: %sx%s", w, h, exc_info=True
+                )
                 continue
         if max_size:
             return max_size
@@ -207,7 +233,9 @@ def _detect_format(href: str, type_attr: str | None) -> str:
     return "unknown"
 
 
-def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[IconCandidate], list[str], bool]:
+def _collect_link_icons(
+    soup: BeautifulSoup, base_url: str
+) -> tuple[list[IconCandidate], list[str], bool]:
     """Собирает кандидатов из <link> и ссылки на манифесты.
 
     Аргументы:
@@ -259,7 +287,9 @@ def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[IconCa
             }
 
             has_manifest = "manifest" in tokens
-            has_apple = ("apple-touch-icon" in tokens) or ("apple-touch-icon-precomposed" in tokens)
+            has_apple = ("apple-touch-icon" in tokens) or (
+                "apple-touch-icon-precomposed" in tokens
+            )
             # Keep one pass for suffix check (covers e.g. mask-icon, any *icon tokens)
             has_icon = ("icon" in tokens) or any(t.endswith("icon") for t in tokens)
             has_mask = "mask-icon" in tokens
@@ -291,7 +321,13 @@ def _collect_link_icons(soup: BeautifulSoup, base_url: str) -> tuple[list[IconCa
         return candidates, manifest_urls, False
 
 
-def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manifest_icons: Callable[[list[str]], None] | None, candidates: list[IconCandidate]):
+def _handle_manifests(
+    manifest_urls: list[str],
+    base_url: str,
+    config,
+    on_manifest_icons: Callable[[list[str]], None] | None,
+    candidates: list[IconCandidate],
+):
     """Обрабатывает манифесты: асинхронно вызывает колбэк или синхронно дополняет кандидатов.
 
     Аргументы:
@@ -315,6 +351,7 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
         manifest_urls = list(manifest_urls)
 
     if on_manifest_icons is not None:
+
         def _fetch_all_manifests_and_emit():
             all_urls: list[str] = []
 
@@ -333,7 +370,11 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
                                 i_url = urljoin(m_url, src)
                                 urls.append(i_url)
                         except json.JSONDecodeError:
-                            logger.warning("Failed to parse manifest JSON from %s", m_url, exc_info=True)
+                            logger.warning(
+                                "Failed to parse manifest JSON from %s",
+                                m_url,
+                                exc_info=True,
+                            )
                 except Exception:
                     logger.warning("Failed to fetch manifest %s", m_url, exc_info=True)
                 return urls
@@ -344,7 +385,9 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
             try:
                 # Reuse the global manifest executor for per-URL fetches.
                 executor = _get_manifest_executor()
-                futures = [executor.submit(_fetch_one, m_url) for m_url in manifest_urls]
+                futures = [
+                    executor.submit(_fetch_one, m_url) for m_url in manifest_urls
+                ]
                 # Collect results sequentially to support dummy futures used in tests
                 for fut in futures:
                     try:
@@ -352,7 +395,9 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
                         if urls:
                             all_urls.extend(urls)
                     except Exception:
-                        logger.warning("Manifest fetch task raised an exception", exc_info=True)
+                        logger.warning(
+                            "Manifest fetch task raised an exception", exc_info=True
+                        )
             except Exception:
                 logger.warning("Manifest executor failure", exc_info=True)
 
@@ -372,12 +417,18 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
                 try:
                     on_manifest_icons(all_urls)
                 except Exception:
-                    logger.warning("on_manifest_icons callback raised an exception", exc_info=True)
+                    logger.warning(
+                        "on_manifest_icons callback raised an exception", exc_info=True
+                    )
 
         # Run the coordinator in a separate thread, not via the executor,
         # so that only per-URL fetches are submitted to the global pool.
         # In tests, threading.Thread can be monkeypatched to run synchronously.
-        threading.Thread(target=_fetch_all_manifests_and_emit, name="manifest-coordinator", daemon=True).start()
+        threading.Thread(
+            target=_fetch_all_manifests_and_emit,
+            name="manifest-coordinator",
+            daemon=True,
+        ).start()
         return
 
     # sync path: enrich candidates
@@ -403,7 +454,9 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
                                         url=i_url,
                                         size=parse_icon_size(sz),
                                         format=fmt,
-                                        format_rank=FORMAT_RANK.get(fmt, FORMAT_RANK["unknown"]),
+                                        format_rank=FORMAT_RANK.get(
+                                            fmt, FORMAT_RANK["unknown"]
+                                        ),
                                         base_priority=1,
                                         media_priority=0,
                                         kind="manifest",
@@ -415,14 +468,20 @@ def _handle_manifests(manifest_urls: list[str], base_url: str, config, on_manife
                                     url=i_url,
                                     size=0,
                                     format=fmt,
-                                    format_rank=FORMAT_RANK.get(fmt, FORMAT_RANK["unknown"]),
+                                    format_rank=FORMAT_RANK.get(
+                                        fmt, FORMAT_RANK["unknown"]
+                                    ),
                                     base_priority=1,
                                     media_priority=0,
                                     kind="manifest",
                                 )
                             )
                 except json.JSONDecodeError:
-                    logger.warning("Failed to parse manifest JSON from %s (sync)", m_url, exc_info=True)
+                    logger.warning(
+                        "Failed to parse manifest JSON from %s (sync)",
+                        m_url,
+                        exc_info=True,
+                    )
         except Exception:
             logger.warning("Failed to fetch manifest %s (sync)", m_url, exc_info=True)
 
@@ -470,7 +529,9 @@ def _add_fallback_paths(base_url: str, candidates: list[IconCandidate]):
             )
 
 
-def _add_external_services(base_url: str, use_external: bool, candidates: list[IconCandidate]):
+def _add_external_services(
+    base_url: str, use_external: bool, candidates: list[IconCandidate]
+):
     """Добавляет внешние fallback-сервисы (Google, DuckDuckGo), если разрешено.
 
     Аргументы:
@@ -508,7 +569,9 @@ def _add_external_services(base_url: str, use_external: bool, candidates: list[I
     )
 
 
-def _append_og_image(soup: BeautifulSoup, base_url: str, candidates: list[IconCandidate]) -> list[str]:
+def _append_og_image(
+    soup: BeautifulSoup, base_url: str, candidates: list[IconCandidate]
+) -> list[str]:
     """Возвращает URL из og:image, если нет первичных link-иконок и URL похож на иконку.
 
     Фильтрует по запрещённым маркерам (OG_IMAGE_BANNED_MARKERS) и ключевым словам
@@ -523,6 +586,7 @@ def _append_og_image(soup: BeautifulSoup, base_url: str, candidates: list[IconCa
             strict = bool(getattr(app_config, "ICONS_OG_IMAGE_STRICT", True))
         except Exception:
             strict = True
+
         def _maybe_add_og(prop_name: str):
             meta = soup.find("meta", property=prop_name)
             if meta and meta.get("content"):
@@ -541,6 +605,7 @@ def _append_og_image(soup: BeautifulSoup, base_url: str, candidates: list[IconCa
 
 def _sort_candidates(candidates: list[IconCandidate]):
     """Сортирует кандидатов по приоритетам: base_priority, format_rank, size, media_priority."""
+
     def sort_key(c: IconCandidate):
         size = getattr(c, "size", 0)
         return (

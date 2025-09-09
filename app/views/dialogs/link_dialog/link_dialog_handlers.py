@@ -59,7 +59,11 @@ class LinkDialogHandlers(
         try:
             url_widget.editingFinished.connect(self._trigger_link_processing)
         except (AttributeError, RuntimeError) as e:
-            logger.warning("Ошибка подключения сигнала editingFinished для url_widget: %s", e, exc_info=True)
+            logger.warning(
+                "Ошибка подключения сигнала editingFinished для url_widget: %s",
+                e,
+                exc_info=True,
+            )
 
         # Кнопки
         self.dialog._get_browse_btn().clicked.connect(self._on_browse)
@@ -67,9 +71,7 @@ class LinkDialogHandlers(
         self.dialog._get_icon_btn().clicked.connect(self._on_choose_icon)
 
         # Иерархия
-        self.dialog._get_sphere_cb().currentIndexChanged.connect(
-            self._update_sections
-        )
+        self.dialog._get_sphere_cb().currentIndexChanged.connect(self._update_sections)
         self.dialog._get_section_cb().currentIndexChanged.connect(
             self._update_categories
         )
@@ -78,18 +80,16 @@ class LinkDialogHandlers(
         self.dialog._get_button_box().accepted.connect(self._on_accept)
         self.dialog._get_button_box().rejected.connect(self.dialog.reject)
 
-  
     def _on_accept(self) -> None:
         """Обработчик подтверждения диалога (orchestration логика)."""
         form_data = self._build_form_data()
         result = self._validate_and_save_data(form_data)
-        
+
         if result["is_valid"]:
             self.dialog.accept()
         else:
             self._handle_validation_errors(form_data, result)
 
-    
     def cancel_processing(self) -> None:
         """Безопасно отменяет все фоновые задачи и таймеры обработки.
 
@@ -103,7 +103,9 @@ class LinkDialogHandlers(
             if getattr(self.dialog, "_processing_timer", None):
                 self.dialog._processing_timer.stop()
         except (AttributeError, RuntimeError):
-            logger.debug("cancel_processing: failed to stop processing timer", exc_info=True)
+            logger.debug(
+                "cancel_processing: failed to stop processing timer", exc_info=True
+            )
 
         # Отмена активного воркера
         if self._active_worker:
@@ -112,14 +114,22 @@ class LinkDialogHandlers(
                 try:
                     self._active_worker.signals.finished.disconnect()
                 except (AttributeError, RuntimeError):
-                    logger.debug("cancel_processing: failed to disconnect worker finished signal", exc_info=True)
+                    logger.debug(
+                        "cancel_processing: failed to disconnect worker finished signal",
+                        exc_info=True,
+                    )
                 try:
                     self._active_worker.signals.error.disconnect()
                 except (AttributeError, RuntimeError):
-                    logger.debug("cancel_processing: failed to disconnect worker error signal", exc_info=True)
+                    logger.debug(
+                        "cancel_processing: failed to disconnect worker error signal",
+                        exc_info=True,
+                    )
                 self._active_worker.cancel()
             except (AttributeError, RuntimeError) as e:
-                logger.debug("cancel_processing: ошибка отмены воркера: %s", e, exc_info=True)
+                logger.debug(
+                    "cancel_processing: ошибка отмены воркера: %s", e, exc_info=True
+                )
             finally:
                 self._active_worker = None
 

@@ -5,6 +5,7 @@ LinkDialog - диалог добавления/редактирования сс
 - DialogControllerProtocol: предоставляет иерархические данные и валидацию/сохранение.
 - LinkDataControllerProtocol: отвечает только за валидацию/сохранение данных формы.
 """
+
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Tuple, runtime_checkable
@@ -47,8 +48,7 @@ class LinkDataControllerProtocol(Protocol):
     и необязательным списком `errors`.
     """
 
-    def validate_and_save(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
-        ...
+    def validate_and_save(self, form_data: Dict[str, Any]) -> Dict[str, Any]: ...
 
 
 @runtime_checkable
@@ -60,11 +60,9 @@ class DialogControllerProtocol(LinkDataControllerProtocol, Protocol):
     опционально `icon_path`.
     """
 
-    def get_sections_for_sphere(self, sphere_id: int) -> List[Dict[str, Any]]:
-        ...
+    def get_sections_for_sphere(self, sphere_id: int) -> List[Dict[str, Any]]: ...
 
-    def get_categories_for_section(self, section_id: int) -> List[Dict[str, Any]]:
-        ...
+    def get_categories_for_section(self, section_id: int) -> List[Dict[str, Any]]: ...
 
 
 class LinkDialog(BaseDialog):
@@ -202,7 +200,9 @@ class LinkDialog(BaseDialog):
                 btn.installEventFilter(self._neon_link_filter)
         except (AttributeError, RuntimeError) as e:
             # Не блокируем диалог при ошибке эффекта
-            logger.warning("Ошибка установки neon эффекта на кнопки типов: %s", e, exc_info=True)
+            logger.warning(
+                "Ошибка установки neon эффекта на кнопки типов: %s", e, exc_info=True
+            )
 
         # Обработчики событий
         self.handlers = LinkDialogHandlers(self)
@@ -210,7 +210,7 @@ class LinkDialog(BaseDialog):
 
         # Инициализация воркеров и таймеров
         self._init_workers_and_timers()
-        
+
     def _init_workers_and_timers(self) -> None:
         """Инициализирует воркеры и таймеры для обработки ссылок."""
         self._processing_timer = QTimer(self)
@@ -301,7 +301,9 @@ class LinkDialog(BaseDialog):
                 details=f"Ожидался файл: {resolved}",
             )
 
-    def _resolve_and_apply_icon(self, link_type: str, icon_name: str) -> Tuple[Optional[str], bool]:
+    def _resolve_and_apply_icon(
+        self, link_type: str, icon_name: str
+    ) -> Tuple[Optional[str], bool]:
         """Резолвит путь к иконке и применяет её к кнопке, если файл существует.
 
         Возвращает кортеж `(resolved_path, exists)`, где `resolved_path` — строка
@@ -311,7 +313,7 @@ class LinkDialog(BaseDialog):
         resolved = resolve_icon_for_link(link_dict)
         exists = bool(resolved and Path(resolved).exists())
         if exists:
-            set_icon_to_button(self._get_icon_btn(), resolved) 
+            set_icon_to_button(self._get_icon_btn(), resolved)
         return resolved, exists
 
     def set_link_type(self, link_type: str) -> None:
@@ -456,5 +458,7 @@ class LinkDialog(BaseDialog):
             if getattr(self, "_processing_timer", None):
                 self._processing_timer.deleteLater()
         except (AttributeError, RuntimeError) as e:
-            logger.debug("closeEvent: ошибка при deleteLater таймера: %s", e, exc_info=True)
+            logger.debug(
+                "closeEvent: ошибка при deleteLater таймера: %s", e, exc_info=True
+            )
         super().closeEvent(event)

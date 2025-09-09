@@ -22,7 +22,6 @@ class LinksService:
     def get_links(self, category_id: int) -> List[Dict[str, Any]]:
         return self.repo.get_links(category_id)
 
-
     def get_all_links(self) -> List[Dict[str, Any]]:
         return self.repo.get_all_links()
 
@@ -98,7 +97,9 @@ class LinksService:
         # к вложенной транзакции (SQLite: "cannot start a transaction within a transaction").
         return self.repo.batch_update_links(links_data)
 
-    def batch_create_or_update_links(self, links_data: List[Dict[str, Any]]) -> List[int]:
+    def batch_create_or_update_links(
+        self, links_data: List[Dict[str, Any]]
+    ) -> List[int]:
         """Пакетное создание/обновление ссылок с возвратом созданных ID.
 
         Оборачивает repo.batch_upsert_links в UnitOfWork для атомарности операции.

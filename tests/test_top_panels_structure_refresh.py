@@ -34,7 +34,9 @@ class DummyTopPanelsController:
     def request_refresh(self):
         # Если вдруг будет вызван fallback — тест должен упасть
         self.requested += 1
-        raise AssertionError("request_refresh must not be called by structure change handler")
+        raise AssertionError(
+            "request_refresh must not be called by structure change handler"
+        )
 
 
 class DummySpheresController:

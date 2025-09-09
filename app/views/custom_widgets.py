@@ -17,6 +17,8 @@ from app.views.tree_components.move_operations_handler import MoveOperationsHand
 
 COLUMN_DATA = 0  # Индекс колонки с данными в таблицах
 
+logger = logging.getLogger(__name__)
+
 
 class NoFocusRectDelegate(QStyledItemDelegate):
     """Делегат для убирания рамки фокуса с элементов."""
@@ -35,7 +37,11 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
         try:
             self._item_height = int(item_height) if item_height is not None else None
         except (TypeError, ValueError) as e:
-            logging.warning("HighQualityTreeDelegate.__init__: invalid item_height=%r: %s", item_height, e)
+            logger.warning(
+                "HighQualityTreeDelegate.__init__: invalid item_height=%r: %s",
+                item_height,
+                e,
+            )
             self._item_height = None
         # Кэш подготовленных пиксмапов: ключ = (icon_cache_key, width, height, dpr)
         # Это значительно снижает количество перерасчётов и аллокаций в paint()
@@ -46,7 +52,10 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
         try:
             self._pixmap_cache.clear()
         except AttributeError as e:
-            logging.warning("HighQualityTreeDelegate.clear_cache: cache attribute missing, recreating: %s", e)
+            logger.warning(
+                "HighQualityTreeDelegate.clear_cache: cache attribute missing, recreating: %s",
+                e,
+            )
             self._pixmap_cache = {}
 
     def set_item_height(self, item_height: int | None):
@@ -54,7 +63,11 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
         try:
             self._item_height = int(item_height) if item_height is not None else None
         except (TypeError, ValueError) as e:
-            logging.warning("HighQualityTreeDelegate.set_item_height: invalid item_height=%r: %s", item_height, e)
+            logger.warning(
+                "HighQualityTreeDelegate.set_item_height: invalid item_height=%r: %s",
+                item_height,
+                e,
+            )
             self._item_height = None
         self.clear_cache()
 
@@ -67,8 +80,9 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
         if isinstance(icon, QIcon) and not icon.isNull():
             # Если по какой-то причине QPainter не активен, не пытаемся рисовать
             if hasattr(painter, "isActive") and not painter.isActive():
-                logging.error(
-                    "HighQualityTreeDelegate.paint: painter is not active; index=%r", index
+                logger.error(
+                    "HighQualityTreeDelegate.paint: painter is not active; index=%r",
+                    index,
                 )
                 return
             # Вычисляем размер иконки
@@ -80,20 +94,37 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
             device_pixel_ratio = 1.0
             # Предпочитаем DPR от виджета/экрана, чтобы не обращаться к painter.device()
             try:
-                if option.widget is not None and hasattr(option.widget, "devicePixelRatioF"):
+                if option.widget is not None and hasattr(
+                    option.widget, "devicePixelRatioF"
+                ):
                     device_pixel_ratio = float(option.widget.devicePixelRatioF())
-                elif hasattr(painter, "device") and painter.device() is not None and hasattr(painter.device(), "devicePixelRatio"):
+                elif (
+                    hasattr(painter, "device")
+                    and painter.device() is not None
+                    and hasattr(painter.device(), "devicePixelRatio")
+                ):
                     device_pixel_ratio = float(painter.device().devicePixelRatio())
             except Exception as e:
-                logging.warning("HighQualityTreeDelegate.paint: failed to get devicePixelRatio, fallback to 1.0: %s", e)
+                logger.warning(
+                    "HighQualityTreeDelegate.paint: failed to get devicePixelRatio, fallback to 1.0: %s",
+                    e,
+                )
 
             # Ключ кэша: используем cacheKey() QIcon, размеры и DPR
             try:
                 icon_key = icon.cacheKey()  # int
             except AttributeError as e:
-                logging.warning("HighQualityTreeDelegate.paint: icon has no cacheKey(), using id(): %s", e)
+                logger.warning(
+                    "HighQualityTreeDelegate.paint: icon has no cacheKey(), using id(): %s",
+                    e,
+                )
                 icon_key = id(icon)
-            cache_key = (icon_key, icon_size.width(), icon_size.height(), float(device_pixel_ratio))
+            cache_key = (
+                icon_key,
+                icon_size.width(),
+                icon_size.height(),
+                float(device_pixel_ratio),
+            )
 
             cached_icon = self._pixmap_cache.get(cache_key)
             if cached_icon is None:
@@ -153,7 +184,10 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
         try:
             row_h = int(app_config.ui.get_row_height())
         except (AttributeError, TypeError, ValueError) as e:
-            logging.warning("HighQualityTreeDelegate.sizeHint: using fallback height due to config error: %s", e)
+            logger.warning(
+                "HighQualityTreeDelegate.sizeHint: using fallback height due to config error: %s",
+                e,
+            )
             row_h = self._item_height if self._item_height else base.height()
         return QSize(base.width(), row_h)
 
@@ -183,7 +217,9 @@ class StructureTreeView(QTreeView):
         """
         try:
             # Ничего не делаем, если размер не менялся
-            if hasattr(self, "_current_font_size") and self._current_font_size == int(font_size):
+            if hasattr(self, "_current_font_size") and self._current_font_size == int(
+                font_size
+            ):
                 return
             self._current_font_size = int(font_size)
         except Exception:
@@ -198,7 +234,11 @@ class StructureTreeView(QTreeView):
             # Обновляем отображение
             self.viewport().update()
         except Exception as e:
-            logging.warning("StructureTreeView.update_font_size: failed to apply font size %r: %s", font_size, e)
+            logger.warning(
+                "StructureTreeView.update_font_size: failed to apply font size %r: %s",
+                font_size,
+                e,
+            )
 
     def _setup_tree_view(self):
         """Настройка параметров QTreeView под текущие UX-требования."""
@@ -212,7 +252,10 @@ class StructureTreeView(QTreeView):
         try:
             item_h = int(app_config.ui.get_row_height())
         except (AttributeError, TypeError, ValueError) as e:
-            logging.warning("StructureTreeView._setup_tree_view: invalid row_height in config, fallback to None: %s", e)
+            logger.warning(
+                "StructureTreeView._setup_tree_view: invalid row_height in config, fallback to None: %s",
+                e,
+            )
             item_h = None
         self.setItemDelegate(HighQualityTreeDelegate(item_height=item_h))
 
@@ -220,7 +263,10 @@ class StructureTreeView(QTreeView):
         try:
             self.setUniformRowHeights(True)
         except AttributeError as e:
-            logging.warning("StructureTreeView._setup_tree_view: setUniformRowHeights not available: %s", e)
+            logger.warning(
+                "StructureTreeView._setup_tree_view: setUniformRowHeights not available: %s",
+                e,
+            )
 
         # Hover-поведение как в прежней версии
         self.setMouseTracking(True)
@@ -230,32 +276,50 @@ class StructureTreeView(QTreeView):
         try:
             self.itemsMoved.emit(payload)
         except (RuntimeError, TypeError, AttributeError) as e:
-            logging.error("StructureTreeView.emit_items_moved: emit failed: payload=%r, error=%s", payload, e)
+            logger.error(
+                "StructureTreeView.emit_items_moved: emit failed: payload=%r, error=%s",
+                payload,
+                e,
+            )
             # Без жестких зависимостей: даем обратную связь через dragFeedback
             try:
                 self.dragFeedback.emit(
                     {"type": "emit_error", "signal": "itemsMoved", "error": str(e)}
                 )
             except (RuntimeError, TypeError, AttributeError) as e2:
-                logging.error("StructureTreeView.emit_items_moved: dragFeedback emit failed: %s", e2)
+                logger.error(
+                    "StructureTreeView.emit_items_moved: dragFeedback emit failed: %s",
+                    e2,
+                )
 
     def emit_invalid_drop(self, reason: str):
         try:
             self.invalidDrop.emit(reason)
         except (RuntimeError, TypeError, AttributeError) as e:
-            logging.error("StructureTreeView.emit_invalid_drop: emit failed: reason=%r, error=%s", reason, e)
+            logger.error(
+                "StructureTreeView.emit_invalid_drop: emit failed: reason=%r, error=%s",
+                reason,
+                e,
+            )
             try:
                 self.dragFeedback.emit(
                     {"type": "emit_error", "signal": "invalidDrop", "error": reason}
                 )
             except (RuntimeError, TypeError, AttributeError) as e2:
-                logging.error("StructureTreeView.emit_invalid_drop: dragFeedback emit failed: %s", e2)
+                logger.error(
+                    "StructureTreeView.emit_invalid_drop: dragFeedback emit failed: %s",
+                    e2,
+                )
 
     def emit_drag_feedback(self, info):
         try:
             self.dragFeedback.emit(info)
         except (RuntimeError, TypeError, AttributeError) as e:
-            logging.error("StructureTreeView.emit_drag_feedback: emit failed: info=%r, error=%s", info, e)
+            logger.error(
+                "StructureTreeView.emit_drag_feedback: emit failed: info=%r, error=%s",
+                info,
+                e,
+            )
 
     # --- DnD события: сначала собственный обработчик, затем (при необходимости) стандартная обработка ---
     # Подход сочетает кастомную логику (DragDropHandler) и базовое поведение Qt.

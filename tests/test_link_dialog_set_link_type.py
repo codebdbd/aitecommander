@@ -46,12 +46,15 @@ class FakeDialog:
         ([("web", "Веб")], "program", False),
     ],
 )
-def test_set_link_type_valid_and_invalid(monkeypatch, available_types, requested, should_call):
+def test_set_link_type_valid_and_invalid(
+    monkeypatch, available_types, requested, should_call
+):
     buttons = [FakeButton("web"), FakeButton("file"), FakeButton("program")]
     dialog = FakeDialog(available_types, buttons)
     handlers = LinkDialogHandlers(dialog)
 
     called = {"flag": False, "arg": None}
+
     def fake_on_type_changed(arg):
         called["flag"] = True
         called["arg"] = arg
@@ -79,7 +82,9 @@ def test_set_link_type_missing_link_types(monkeypatch):
     handlers = LinkDialogHandlers(dialog)
 
     called = {"flag": False}
-    monkeypatch.setattr(handlers, "on_type_changed", lambda *_: called.update(flag=True))
+    monkeypatch.setattr(
+        handlers, "on_type_changed", lambda *_: called.update(flag=True)
+    )
 
     # не должен упасть и не должен вызвать _on_type_changed
     handlers.set_link_type("web")

@@ -311,7 +311,7 @@ class UIConfig(BaseConfig):
         return self.get("ui.thread_pool_shutdown_timeout", 2000)
 
     # === Диалоги ===
- 
+
     def get_dialogs_enable_details(self) -> bool:
         """Включать ли секцию подробностей в стандартных диалогах (QMessageBox)."""
         return self.get("ui.dialogs.enable_details", False)

@@ -14,6 +14,7 @@ class ControllerStub:
 class LinkOperationsStub:
     def on_link_updated(self, *_):
         pass
+
     def on_favorite_toggled(self, *_):
         pass
 
@@ -26,21 +27,26 @@ class UIStateStub:
 class TableMissingSetPolicy:
     # Нет setContextMenuPolicy
     def __init__(self):
-        self.customContextMenuRequested = type("Sig", (), {"connect": lambda *args, **kwargs: None})()
+        self.customContextMenuRequested = type(
+            "Sig", (), {"connect": lambda *args, **kwargs: None}
+        )()
 
 
 class TableMissingContextSignal:
     def setContextMenuPolicy(self, *_):
         pass
+
     # Нет customContextMenuRequested
 
 
 class TableBadContextSignal:
     def setContextMenuPolicy(self, *_):
         pass
+
     # customContextMenuRequested есть, но без connect()
     class Dummy:
         pass
+
     customContextMenuRequested = Dummy()
 
 
@@ -48,7 +54,9 @@ def make_handlers(table):
     ctrl = ControllerStub(table)
     ops = LinkOperationsStub()
     ui_state = UIStateStub()
-    return LinksUIHandlers(ctrl, link_operations=ops, links_table_controller=object(), ui_state=ui_state)
+    return LinksUIHandlers(
+        ctrl, link_operations=ops, links_table_controller=object(), ui_state=ui_state
+    )
 
 
 def test_missing_set_context_menu_policy_raises_setup_error():

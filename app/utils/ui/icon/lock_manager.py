@@ -72,9 +72,12 @@ def acquire_multiple_locks(*levels: LockLevel):
     # Удаляем дубликаты и сортируем по значению Enum
     unique_sorted: List[LockLevel] = sorted(set(levels), key=int)
     names = [
-        ICON_LOCK_NAMES["GLOBAL"] if lvl == LockLevel.GLOBAL
-        else ICON_LOCK_NAMES["CACHE"] if lvl == LockLevel.CACHE
-        else ICON_LOCK_NAMES["METRICS"] if lvl == LockLevel.METRICS
+        ICON_LOCK_NAMES["GLOBAL"]
+        if lvl == LockLevel.GLOBAL
+        else ICON_LOCK_NAMES["CACHE"]
+        if lvl == LockLevel.CACHE
+        else ICON_LOCK_NAMES["METRICS"]
+        if lvl == LockLevel.METRICS
         else ICON_LOCK_NAMES["LRU"]
         for lvl in unique_sorted
     ]

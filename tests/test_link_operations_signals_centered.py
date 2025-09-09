@@ -18,6 +18,7 @@ class DummyUndo:
 
             def __exit__(self, exc_type, exc, tb):
                 return False
+
         return _Ctx()
 
     def push(self, _cmd):
@@ -31,14 +32,18 @@ class DummyMain(QObject):
 
 @pytest.fixture()
 def ctrl(qtbot):
-    return LinkOperationsController(db=DummyDb(), undo_stack=DummyUndo(), main_window=DummyMain())
+    return LinkOperationsController(
+        db=DummyDb(), undo_stack=DummyUndo(), main_window=DummyMain()
+    )
 
 
 def test_on_link_opened_emits_recents_and_links_changed_once(ctrl, qtbot):
     recents_count = {"n": 0}
     links_changed = {"args": []}
 
-    ctrl.recents_changed.connect(lambda: recents_count.__setitem__("n", recents_count["n"] + 1))
+    ctrl.recents_changed.connect(
+        lambda: recents_count.__setitem__("n", recents_count["n"] + 1)
+    )
     ctrl.links_changed.connect(lambda cat_id: links_changed["args"].append(cat_id))
 
     ctrl.on_link_opened({"category_id": 5})
@@ -51,7 +56,9 @@ def test_on_favorite_toggled_emits_favorites_and_links_changed_once(ctrl, qtbot)
     fav_count = {"n": 0}
     links_changed = {"args": []}
 
-    ctrl.favorites_changed.connect(lambda: fav_count.__setitem__("n", fav_count["n"] + 1))
+    ctrl.favorites_changed.connect(
+        lambda: fav_count.__setitem__("n", fav_count["n"] + 1)
+    )
     ctrl.links_changed.connect(lambda cat_id: links_changed["args"].append(cat_id))
 
     ctrl.on_favorite_toggled(7)
@@ -69,7 +76,9 @@ def test_on_link_updated_emits_recents_and_links_changed_once(ctrl, qtbot):
     recents_count = {"n": 0}
     links_changed = {"args": []}
 
-    ctrl.recents_changed.connect(lambda: recents_count.__setitem__("n", recents_count["n"] + 1))
+    ctrl.recents_changed.connect(
+        lambda: recents_count.__setitem__("n", recents_count["n"] + 1)
+    )
     ctrl.links_changed.connect(lambda cat_id: links_changed["args"].append(cat_id))
 
     ctrl.on_link_updated({"category_id": 3})
@@ -83,7 +92,9 @@ def test_on_links_deleted_emits_all(ctrl, qtbot):
     links_changed = {"args": []}
     deleted_payloads = []
 
-    ctrl.recents_changed.connect(lambda: recents_count.__setitem__("n", recents_count["n"] + 1))
+    ctrl.recents_changed.connect(
+        lambda: recents_count.__setitem__("n", recents_count["n"] + 1)
+    )
     ctrl.links_changed.connect(lambda cat_id: links_changed["args"].append(cat_id))
     ctrl.link_deleted.connect(lambda payload: deleted_payloads.append(payload))
 

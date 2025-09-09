@@ -29,22 +29,26 @@ def _create_many_categories_with_one_link_each(db: Database, n: int):
     cat_ids = [c["id"] for c in cats]
     # Добавим по одной ссылке в каждую категорию
     for cid in cat_ids:
-        db.links.upsert_link({
-            "category_id": cid,
-            "name": f"L{cid}",
-            "url": f"https://ex/{cid}",
-            "type": "web",
-            "notes": "",
-            "is_favorite": 0,
-            "icon_path": "default.ico",
-            "args": "",
-            "browser_key": None,
-        })
+        db.links.upsert_link(
+            {
+                "category_id": cid,
+                "name": f"L{cid}",
+                "url": f"https://ex/{cid}",
+                "type": "web",
+                "notes": "",
+                "is_favorite": 0,
+                "icon_path": "default.ico",
+                "args": "",
+                "browser_key": None,
+            }
+        )
     db.connection.commit()
     return cat_ids
 
 
-def test_count_links_by_categories_handles_more_than_sqlite_params_limit(db_in_memory: Database):
+def test_count_links_by_categories_handles_more_than_sqlite_params_limit(
+    db_in_memory: Database,
+):
     # Создаём 1100 категорий (больше стандартного лимита 999 параметров)
     cat_ids = _create_many_categories_with_one_link_each(db_in_memory, 1100)
 

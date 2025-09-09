@@ -16,7 +16,9 @@ class FailingSphereModel(SphereModel):
     def __init__(self):
         super().__init__(_DummyMgr())
 
-    def _execute_with_error_handling(self, query: str, params: tuple = (), fetch_method: str = None):  # type: ignore[override]
+    def _execute_with_error_handling(
+        self, query: str, params: tuple = (), fetch_method: str = None
+    ):  # type: ignore[override]
         # Любой SQL вызов в этом тестовом классе падает как будто от драйвера
         raise sqlite3.Error("simulated failure for sphere")
 
@@ -31,7 +33,9 @@ class FailingSectionModel(SectionModel):
     def __init__(self):
         super().__init__(_DummyMgr())
 
-    def _execute_with_error_handling(self, query: str, params: tuple = (), fetch_method: str = None):  # type: ignore[override]
+    def _execute_with_error_handling(
+        self, query: str, params: tuple = (), fetch_method: str = None
+    ):  # type: ignore[override]
         raise sqlite3.Error("simulated failure for section")
 
 
@@ -45,7 +49,9 @@ class FailingCategoryModel(CategoryModel):
     def __init__(self):
         super().__init__(_DummyMgr())
 
-    def _execute_with_error_handling(self, query: str, params: tuple = (), fetch_method: str = None):  # type: ignore[override]
+    def _execute_with_error_handling(
+        self, query: str, params: tuple = (), fetch_method: str = None
+    ):  # type: ignore[override]
         # Разрешаем первичную проверку на дубликаты имени категории вернуться как "не найдено",
         # чтобы код дошёл до вычисления позиции, где и должна произойти ошибка.
         if "SELECT id FROM category" in query:

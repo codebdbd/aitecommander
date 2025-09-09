@@ -99,7 +99,9 @@ class UIStateManager:
             return True
 
         except Exception as e:
-            logger.exception("Error loading category %s from %s: %s", category_id, source, e)
+            logger.exception(
+                "Error loading category %s from %s: %s", category_id, source, e
+            )
             self._handle_load_error()
             return False
         finally:
@@ -212,6 +214,17 @@ class UIStateManager:
                         )
                 except Exception:
                     pass
+
+                # 3. После переключения на плитки обновляем статус-бар,
+                #    чтобы отразить количество категорий вместо количества ссылок
+                try:
+                    if hasattr(self.main, "update_statusbar"):
+                        self.main.update_statusbar()
+                except Exception:
+                    logger.debug(
+                        "Failed to update status bar after switching to tiles",
+                        exc_info=True,
+                    )
 
         except Exception as e:
             logger.exception("Ошибка при переключении на плитки категорий: %s", e)

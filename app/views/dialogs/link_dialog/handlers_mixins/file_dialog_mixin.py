@@ -1,6 +1,7 @@
 """
 Миксин для обработки кнопки "Обзор" в LinkDialogHandlers.
 """
+
 import logging
 import os
 
@@ -16,9 +17,7 @@ logger = logging.getLogger(__name__)
 PROGRAM_FILES = "Программы (*.exe *.bat *.com *.msi *.lnk)"
 SCRIPT_FILES = "Скрипты (*.py *.ps1 *.vbs *.js *.cmd)"
 LNK_FILES = "Ярлыки (*.lnk)"
-DOC_FILES = (
-    "Документы (*.txt *.pdf *.doc *.docx *.xls *.xlsx *.csv *.jpg *.png *.jpeg *.bmp *.gif);;Все файлы (*)"
-)
+DOC_FILES = "Документы (*.txt *.pdf *.doc *.docx *.xls *.xlsx *.csv *.jpg *.png *.jpeg *.bmp *.gif);;Все файлы (*)"
 
 # Конфигурации диалога по типам ссылок
 BROWSE_CONFIG = {
@@ -103,9 +102,19 @@ class FileDialogMixin:
             if lt == LinkType.PROGRAM and normalized_path.lower().endswith(".lnk"):
                 try:
                     lnk_info = parse_lnk(normalized_path)
-                except (FileNotFoundError, PermissionError, OSError, ValueError, RuntimeError) as e:
+                except (
+                    FileNotFoundError,
+                    PermissionError,
+                    OSError,
+                    ValueError,
+                    RuntimeError,
+                ) as e:
                     # Логируем проблему разбора ярлыка, но не прерываем сценарий выбора файла
-                    logger.warning("parse_lnk: не удалось разобрать ярлык '%s': %s", normalized_path, e)
+                    logger.warning(
+                        "parse_lnk: не удалось разобрать ярлык '%s': %s",
+                        normalized_path,
+                        e,
+                    )
                     lnk_info = None
                 if lnk_info and lnk_info.get("path"):
                     # Используем реальный путь к .exe вместо ярлыка
@@ -124,9 +133,9 @@ class FileDialogMixin:
             name_widget = self.dialog.ui.get_widget("name_le")
             if not name_widget.text().strip():
                 name = os.path.basename(normalized_path)
-                if lt in (LinkType.PROGRAM, LinkType.CHROMEAPP) or name.lower().endswith(
-                    ".lnk"
-                ):
+                if lt in (
+                    LinkType.PROGRAM,
+                    LinkType.CHROMEAPP,
+                ) or name.lower().endswith(".lnk"):
                     name = os.path.splitext(name)[0]
                 name_widget.setText(name)
-

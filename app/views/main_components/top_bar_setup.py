@@ -35,7 +35,10 @@ class TopBarBuilder:
         """
         t_total_start = __import__("time").perf_counter()
         # Determine parent for helper widgets
-        container_parent = getattr(self.main_layout, "parentWidget", lambda: None)() or self.window.centralWidget()
+        container_parent = (
+            getattr(self.main_layout, "parentWidget", lambda: None)()
+            or self.window.centralWidget()
+        )
 
         # Top separator
         self.ui._add_top_separator(container_parent)

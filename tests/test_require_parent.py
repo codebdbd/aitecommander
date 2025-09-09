@@ -24,7 +24,9 @@ class FakeController:
         # Успех, если до сюда дошли (валидация уже пройдена)
         return True
 
-    def _emit_signal(self, *args, **kwargs) -> None:  # pragma: no cover - не используется
+    def _emit_signal(
+        self, *args, **kwargs
+    ) -> None:  # pragma: no cover - не используется
         pass
 
     def _execute_with_validation(

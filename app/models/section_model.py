@@ -36,7 +36,7 @@ class SectionModel(DatabaseBase):
             "INSERT INTO section (name, sphere_id, icon_path, position) VALUES (?, ?, ?, ?)",
             (data["name"], data["sphere_id"], data.get("icon_path", ""), position),
         )
-        logger.info("Добавлен новый раздел: %s", data['name'])
+        logger.info("Добавлен новый раздел: %s", data["name"])
         return cursor.lastrowid
 
     def update_section(self, section_id: int, data: Dict[str, Any]):

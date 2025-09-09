@@ -65,7 +65,9 @@ class TableWidgetMock:
 
 class StructureBusinessMock:
     def __init__(self, categories_by_section: dict[int, list[dict]] | None = None):
-        self.categories_by_section = categories_by_section or {1: [{"id": 10}, {"id": 11}]}
+        self.categories_by_section = categories_by_section or {
+            1: [{"id": 10}, {"id": 11}]
+        }
         self.get_calls: list[int] = []
 
     def get_categories(self, section_id: int):
@@ -87,18 +89,27 @@ def main_window_stub():
     return SimpleNamespace(current_category_id=None, undo_stack=SimpleNamespace())
 
 
-def test_top_panels_receive_signals_from_link_ops(monkeypatch, caplog, main_window_stub):
+def test_top_panels_receive_signals_from_link_ops(
+    monkeypatch, caplog, main_window_stub
+):
     caplog.set_level(logging.DEBUG)
 
     fav = FavWidgetMock()
     recent = RecentLinksWidgetMock()
     links_business = LinksBusinessMock()
 
-    top_ctrl = TopPanelsController(main_window_stub, fav_widget=fav, recent_links_widget=recent, links_business=links_business)
+    top_ctrl = TopPanelsController(
+        main_window_stub,
+        fav_widget=fav,
+        recent_links_widget=recent,
+        links_business=links_business,
+    )
 
     # LinkOperationsController требует db и undo_stack, но для сигналов они не используются в этом тесте
     dummy_db = SimpleNamespace()
-    link_ops = LinkOperationsController(dummy_db, undo_stack=SimpleNamespace(), main_window=main_window_stub)
+    link_ops = LinkOperationsController(
+        dummy_db, undo_stack=SimpleNamespace(), main_window=main_window_stub
+    )
 
     # Подключаем сигналы к запросам обновления топ-панелей
     link_ops.favorites_changed.connect(top_ctrl.request_favorites_refresh)
@@ -131,7 +142,9 @@ def test_links_table_reloads_on_link_ops_signals(caplog, main_window_stub):
     )
 
     dummy_db = SimpleNamespace()
-    link_ops = LinkOperationsController(dummy_db, undo_stack=SimpleNamespace(), main_window=main_window_stub)
+    link_ops = LinkOperationsController(
+        dummy_db, undo_stack=SimpleNamespace(), main_window=main_window_stub
+    )
 
     # Подключаем сигналы к таблице
     link_ops.links_changed.connect(links_table_ctrl.on_links_changed)
@@ -150,9 +163,13 @@ def test_category_tiles_refresh_reacts_to_structure_changes(caplog):
     caplog.set_level(logging.DEBUG)
 
     ui_state = UIStateMock()
-    structure_business = StructureBusinessMock(categories_by_section={2: [{"id": 100}], 3: []})
+    structure_business = StructureBusinessMock(
+        categories_by_section={2: [{"id": 100}], 3: []}
+    )
 
-    tiles_ctrl = CategoryTilesController(ui_state=ui_state, structure_business=structure_business)
+    tiles_ctrl = CategoryTilesController(
+        ui_state=ui_state, structure_business=structure_business
+    )
 
     tiles_ctrl.refresh(2)
     tiles_ctrl.refresh(3)
@@ -175,12 +192,14 @@ def test_links_ui_controller_uses_table_controller_reload(monkeypatch, caplog):
     class LinksTableControllerMock:
         def __init__(self):
             self.reload_calls: list[int] = []
+
         def reload(self, category_id):
             self.reload_calls.append(category_id)
 
     class _Signal:
         def __init__(self):
             self._subs = []
+
         def connect(self, cb):
             if not callable(cb):
                 raise TypeError("slot must be callable")
@@ -197,8 +216,10 @@ def test_links_ui_controller_uses_table_controller_reload(monkeypatch, caplog):
             self.links_reordered = _Signal()
             # Новые обязательные элементы интерфейса таблицы
             self.customContextMenuRequested = _Signal()
+
         def setContextMenuPolicy(self, *_args, **_kwargs):
             pass
+
         def selectionModel(self):
             return _SelModel()
 

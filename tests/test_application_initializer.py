@@ -11,7 +11,9 @@ class TestApplicationInitializer(unittest.TestCase):
     @patch("app.main.ThemeController")
     @patch("app.main.Database")
     @patch("app.main.AppSettings")
-    def test_initialize_all_success(self, mock_settings_cls, mock_db_cls, mock_theme_cls, mock_create_window):
+    def test_initialize_all_success(
+        self, mock_settings_cls, mock_db_cls, mock_theme_cls, mock_create_window
+    ):
         from app.main import ApplicationInitializer
 
         # Настройка моков
@@ -36,7 +38,9 @@ class TestApplicationInitializer(unittest.TestCase):
         # Проверяем, что каждый шаг был выполнен
         mock_settings_cls.assert_called_once()
         mock_db_cls.assert_called_once()
-        mock_theme_cls.assert_called_once_with(mock_settings, top_panels_controller=None)
+        mock_theme_cls.assert_called_once_with(
+            mock_settings, top_panels_controller=None
+        )
         mock_theme.apply.assert_called_once_with("Dark")
         mock_create_window.assert_called_once()
         # Установлена ссылка на окно в контроллер темы
@@ -60,7 +64,9 @@ class TestApplicationInitializer(unittest.TestCase):
     @patch("app.main.AppSettings")
     @patch("app.main.Database")
     @patch("app.main.ThemeController", side_effect=Exception("Theme error"))
-    def test_initialize_all_fail_theme_controller(self, _mock_theme_cls, _mock_db_cls, _mock_settings_cls):
+    def test_initialize_all_fail_theme_controller(
+        self, _mock_theme_cls, _mock_db_cls, _mock_settings_cls
+    ):
         from app.main import ApplicationInitializer
 
         init = ApplicationInitializer(settings=None)
@@ -70,7 +76,9 @@ class TestApplicationInitializer(unittest.TestCase):
     @patch("app.main.ThemeController")
     @patch("app.main.Database")
     @patch("app.main.AppSettings")
-    def test_initialize_all_fail_main_window(self, _mock_settings_cls, _mock_db_cls, _mock_theme_cls, _mock_create_window):
+    def test_initialize_all_fail_main_window(
+        self, _mock_settings_cls, _mock_db_cls, _mock_theme_cls, _mock_create_window
+    ):
         from app.main import ApplicationInitializer
 
         init = ApplicationInitializer(settings=None)

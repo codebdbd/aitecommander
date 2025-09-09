@@ -18,7 +18,9 @@ def test_setup_raises_on_incompatible_tiles_widget(monkeypatch):
     def fake_attach(self, tiles_widget):  # noqa: ARG001
         raise TypeError("tiles widget is incompatible")
 
-    monkeypatch.setattr(CategoryTilesController, "attach_tiles_widget", fake_attach, raising=True)
+    monkeypatch.setattr(
+        CategoryTilesController, "attach_tiles_widget", fake_attach, raising=True
+    )
 
     window = SimpleNamespace(tiles=object())
 
@@ -43,7 +45,9 @@ def test_setup_raises_on_unexpected_error_during_tiles_attachment(monkeypatch):
     def fake_attach(self, tiles_widget):  # noqa: ARG001
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(CategoryTilesController, "attach_tiles_widget", fake_attach, raising=True)
+    monkeypatch.setattr(
+        CategoryTilesController, "attach_tiles_widget", fake_attach, raising=True
+    )
 
     window = SimpleNamespace(tiles=object())
 

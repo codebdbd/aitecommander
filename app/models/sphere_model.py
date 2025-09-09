@@ -41,7 +41,7 @@ class SphereModel(DatabaseBase):
             "INSERT INTO sphere (name, icon_path, position) VALUES (?, ?, ?)",
             (data["name"], data.get("icon_path", ""), position),
         )
-        logger.info("Добавлена новая сфера: %s", data['name'])
+        logger.info("Добавлена новая сфера: %s", data["name"])
         return cursor.lastrowid
 
     def update_sphere(self, sphere_id: int, data: Dict[str, Any]):
@@ -113,4 +113,6 @@ class SphereModel(DatabaseBase):
                 logger.info("Начальные данные для сфер уже существуют")
         except Exception as e:
             logger.error("Ошибка инициализации начальных данных сфер: %s", e)
-            raise DatabaseError(f"Не удалось инициализировать начальные данные сфер: {e}")
+            raise DatabaseError(
+                f"Не удалось инициализировать начальные данные сфер: {e}"
+            )

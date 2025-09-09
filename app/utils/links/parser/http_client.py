@@ -62,6 +62,7 @@ def shutdown_cloudscraper(wait: bool = False):
     except Exception:
         pass
 
+
 # Global session with browser-like headers
 session = requests.Session()
 session.headers.update(
@@ -139,11 +140,7 @@ def http_request(
                     for tok in ["forbidden", "blocked", "cloudflare"]
                 )
             )
-            if (
-                not cf_fallback_attempted
-                and method == "GET"
-                and should_try_cf
-            ):
+            if not cf_fallback_attempted and method == "GET" and should_try_cf:
                 try:
                     scraper = get_cloudscraper()
                     if scraper is None:

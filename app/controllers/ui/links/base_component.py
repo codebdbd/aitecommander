@@ -20,10 +20,14 @@ class BaseLinksUIComponent:
         self.main = controller.main
         # Обязательная зависимость: link_operations должен быть передан явно
         if link_operations is None:
-            raise ValueError("BaseLinksUIComponent requires explicit 'link_operations' dependency")
+            raise ValueError(
+                "BaseLinksUIComponent requires explicit 'link_operations' dependency"
+            )
         self.link_operations = link_operations
         # Явная зависимость для links_table_controller; fallback — взять из контроллера, если есть
-        self.links_table_controller = links_table_controller or getattr(controller, "table_controller", None)
+        self.links_table_controller = links_table_controller or getattr(
+            controller, "table_controller", None
+        )
 
         # Кешируем конфигурацию для производительности
         self._config = app_config.ui

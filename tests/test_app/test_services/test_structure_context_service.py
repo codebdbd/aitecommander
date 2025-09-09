@@ -15,7 +15,7 @@ def mock_db():
 @pytest.fixture
 def mock_qapplication():
     """Fixture for mocking QApplication and its clipboard."""
-    with patch('PyQt6.QtWidgets.QApplication.instance') as mock_instance:
+    with patch("PyQt6.QtWidgets.QApplication.instance") as mock_instance:
         mock_app = MagicMock()
         mock_clipboard = MagicMock()
         mock_app.clipboard.return_value = mock_clipboard
@@ -36,8 +36,8 @@ def test_clipboard_get_json_invalid_json(service, mock_qapplication, caplog):
     """Test _clipboard_get_json returns None and logs a warning for invalid JSON."""
     _, mock_clipboard, mock_mime_data = mock_qapplication
     mock_mime_data.hasText.return_value = True
-    mock_mime_data.text.return_value = 'невалидный json'
-    mock_clipboard.text.return_value = 'невалидный json'
+    mock_mime_data.text.return_value = "невалидный json"
+    mock_clipboard.text.return_value = "невалидный json"
 
     with caplog.at_level(logging.WARNING):
         result = service._clipboard_get_json()
@@ -59,15 +59,17 @@ def test_clipboard_get_json_no_qapplication(service, mock_qapplication, caplog):
     assert not caplog.text  # Ошибки не должно быть, код обрабатывает это штатно
 
 
-@patch('app.services.structure_context_service.StructureService')
-def test_copy_category_tree_value_error(MockStructureService, mock_db, mock_qapplication, caplog):
+@patch("app.services.structure_context_service.StructureService")
+def test_copy_category_tree_value_error(
+    MockStructureService, mock_db, mock_qapplication, caplog
+):
     """Test copy_category_tree_to_clipboard handles ValueError on cat_id."""
     mock_ss_instance = MockStructureService.return_value
     mock_ss_instance.export_category_tree.side_effect = ValueError("Invalid ID")
     service = StructureContextService(mock_db)
 
     with caplog.at_level(logging.ERROR):
-        service.copy_category_tree_to_clipboard('invalid_id')
+        service.copy_category_tree_to_clipboard("invalid_id")
 
     assert "copy_category_tree_to_clipboard failed" in caplog.text
     assert "ValueError" in caplog.records[0].exc_text

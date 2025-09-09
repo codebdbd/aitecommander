@@ -51,7 +51,9 @@ class RightPanelBuilder:
 
         # Подключение к UIStateManager
         self.window.tiles.category_selected.connect(
-            lambda cat_id: self.window.ui_state.load_category(cat_id, source="CategoryTiles")
+            lambda cat_id: self.window.ui_state.load_category(
+                cat_id, source="CategoryTiles"
+            )
         )
 
         self.window.tiles_scroll.setWidget(self.window.tiles)
@@ -94,7 +96,9 @@ class RightPanelBuilder:
         try:
             self.window.splitter.setCollapsible(0, True)
         except (RuntimeError, TypeError):
-            logger.debug("RightPanel: failed to set splitter collapsible(0, True)", exc_info=True)
+            logger.debug(
+                "RightPanel: failed to set splitter collapsible(0, True)", exc_info=True
+            )
 
         stretch_factors = app_config.ui.get_splitter_stretch_factors()
         self.window.splitter.setStretchFactor(0, stretch_factors[0])
@@ -128,13 +132,19 @@ class RightPanelBuilder:
         try:
             splitter.setHandleWidth(max(1, handle_w))
         except Exception:
-            logger.debug("RightPanel: failed to set splitter handle width", exc_info=True)
+            logger.debug(
+                "RightPanel: failed to set splitter handle width", exc_info=True
+            )
         try:
             splitter.setOrientation(_Qt.Orientation.Horizontal)
         except Exception:
-            logger.debug("RightPanel: failed to set splitter orientation", exc_info=True)
+            logger.debug(
+                "RightPanel: failed to set splitter orientation", exc_info=True
+            )
         try:
             splitter.setChildrenCollapsible(True)
         except Exception:
-            logger.debug("RightPanel: failed to set children collapsible", exc_info=True)
+            logger.debug(
+                "RightPanel: failed to set children collapsible", exc_info=True
+            )
         return splitter

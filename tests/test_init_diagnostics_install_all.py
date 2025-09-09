@@ -40,24 +40,35 @@ class DummyInstaller(DiagnosticsInstaller):
 @pytest.mark.parametrize(
     "failing_step, expected_called",
     [
-        ("_install_qt_message_filter", [
+        (
             "_install_qt_message_filter",
+            [
+                "_install_qt_message_filter",
+                "_install_top_level_watcher",
+                "_install_window_resize_logger",
+            ],
+        ),
+        (
             "_install_top_level_watcher",
+            [
+                "_install_qt_message_filter",
+                "_install_top_level_watcher",
+                "_install_window_resize_logger",
+            ],
+        ),
+        (
             "_install_window_resize_logger",
-        ]),
-        ("_install_top_level_watcher", [
-            "_install_qt_message_filter",
-            "_install_top_level_watcher",
-            "_install_window_resize_logger",
-        ]),
-        ("_install_window_resize_logger", [
-            "_install_qt_message_filter",
-            "_install_top_level_watcher",
-            "_install_window_resize_logger",
-        ]),
+            [
+                "_install_qt_message_filter",
+                "_install_top_level_watcher",
+                "_install_window_resize_logger",
+            ],
+        ),
     ],
 )
-def test_install_all_isolates_errors_and_continues(caplog, failing_step, expected_called):
+def test_install_all_isolates_errors_and_continues(
+    caplog, failing_step, expected_called
+):
     caplog.set_level(logging.WARNING)
     inst = DummyInstaller(DummyWindow(), fail_steps={failing_step})
 

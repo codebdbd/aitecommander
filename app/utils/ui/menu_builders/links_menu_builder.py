@@ -42,7 +42,7 @@ class LinksMenuBuilder:
 
     def _add_link_item_actions(self, menu: QMenu, link: Dict) -> None:
         """Добавляет действия для выбранной ссылки."""
-        logging.debug("LinksMenuBuilder._add_link_item_actions: link=%s", link)
+        logger.debug("LinksMenuBuilder._add_link_item_actions: link=%s", link)
         # Открыть ссылку
         menu.addAction(
             self.actions.create(
@@ -234,7 +234,9 @@ class LinksMenuBuilder:
                 data = json.loads(text)
             except json.JSONDecodeError:
                 # В буфере не JSON нашего формата — это штатная ситуация
-                logger.debug("[LinksMenu] Clipboard does not contain valid JSON for links")
+                logger.debug(
+                    "[LinksMenu] Clipboard does not contain valid JSON for links"
+                )
                 return False
 
             if isinstance(data, dict) and "name" in data:

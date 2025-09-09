@@ -101,7 +101,10 @@ class ClipboardKeyHandler(BaseKeyHandler):
                 if tree and hasattr(tree, "clearSelection"):
                     tree.clearSelection()
             except Exception as e:
-                logger.debug("ClipboardKeyHandler.handle_select_all: failed to clear tree selection", exc_info=e)
+                logger.debug(
+                    "ClipboardKeyHandler.handle_select_all: failed to clear tree selection",
+                    exc_info=e,
+                )
             self._safe_call(table, "selectAll")
 
     def _handle_tree_select_all(self) -> None:
@@ -118,10 +121,15 @@ class ClipboardKeyHandler(BaseKeyHandler):
             if table and hasattr(table, "clearSelection"):
                 self._safe_call(table, "clearSelection")
         except Exception as e:
-            logger.debug("ClipboardKeyHandler._handle_tree_select_all: failed to clear table selection", exc_info=e)
+            logger.debug(
+                "ClipboardKeyHandler._handle_tree_select_all: failed to clear table selection",
+                exc_info=e,
+            )
         # QTreeView: используем модель и selectionModel
         try:
-            if hasattr(tree, "currentIndex") and callable(getattr(tree, "currentIndex")):
+            if hasattr(tree, "currentIndex") and callable(
+                getattr(tree, "currentIndex")
+            ):
                 idx = tree.currentIndex()
                 if not (idx and idx.isValid()):
                     return
@@ -154,10 +162,15 @@ class ClipboardKeyHandler(BaseKeyHandler):
                         )
                         return
                 except Exception as e:
-                    logger.debug("ClipboardKeyHandler._handle_tree_select_all: selection application failed", exc_info=e)
+                    logger.debug(
+                        "ClipboardKeyHandler._handle_tree_select_all: selection application failed",
+                        exc_info=e,
+                    )
         except Exception as e:
-            logger.debug("ClipboardKeyHandler._handle_tree_select_all: unexpected error", exc_info=e)
-
+            logger.debug(
+                "ClipboardKeyHandler._handle_tree_select_all: unexpected error",
+                exc_info=e,
+            )
 
     def handle_copy(self) -> None:
         la = self._safe_getattr(self.main_window, "links_actions")
@@ -226,13 +239,19 @@ class EditingKeyHandler(BaseKeyHandler):
             idx = table.currentIndex() if hasattr(table, "currentIndex") else None
             current_row = idx.row() if idx and idx.isValid() else -1
         except Exception as e:
-            logger.debug("EditingKeyHandler._handle_table_enter: failed to read current index", exc_info=e)
+            logger.debug(
+                "EditingKeyHandler._handle_table_enter: failed to read current index",
+                exc_info=e,
+            )
             current_row = -1
         try:
             model = table.model() if hasattr(table, "model") else None
             row_count = model.rowCount() if model else 0
         except Exception as e:
-            logger.debug("EditingKeyHandler._handle_table_enter: failed to read row count", exc_info=e)
+            logger.debug(
+                "EditingKeyHandler._handle_table_enter: failed to read row count",
+                exc_info=e,
+            )
             row_count = 0
 
         if 0 <= current_row < row_count:
@@ -434,7 +453,10 @@ class KeyboardManager(QObject):
                 shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
             except Exception as e:
                 # На случай несовместимости — оставим контекст по умолчанию
-                logger.debug("KeyboardManager._setup_shortcuts: setContext not supported", exc_info=e)
+                logger.debug(
+                    "KeyboardManager._setup_shortcuts: setContext not supported",
+                    exc_info=e,
+                )
             shortcut.activated.connect(handler)
             self.shortcuts.append(shortcut)
 

@@ -17,6 +17,9 @@ from PyQt6.QtCore import Qt
 
 from app.utils.ui.qt.roles import get_selected_rows as get_selected_rows_util
 
+# Модульный логгер
+logger = logging.getLogger(__name__)
+
 
 class DragDropHandlerMixin:
     """Миксин для обработки Drag & Drop в таблице ссылок (QTableView)."""
@@ -36,23 +39,27 @@ class DragDropHandlerMixin:
             ids = []
 
             model = getattr(self, "model", lambda: None)()
-            total = model.rowCount() if model is not None else getattr(self, "rowCount", lambda: 0)()
+            total = (
+                model.rowCount()
+                if model is not None
+                else getattr(self, "rowCount", lambda: 0)()
+            )
 
             for row in rows:
                 # Проверка границ
                 if not (0 <= row < total):
-                    logging.warning("[DRAG] Некорректный индекс строки: %s", row)
+                    logger.warning("[DRAG] Некорректный индекс строки: %s", row)
                     continue
 
                 link_data = self.get_link_at(row)
                 if link_data and "id" in link_data:
                     ids.append(link_data["id"])
                 else:
-                    logging.warning("[DRAG] Отсутствует ID в строке %s", row)
+                    logger.warning("[DRAG] Отсутствует ID в строке %s", row)
 
             return ids
         except Exception as e:
-            logging.error("[DRAG] Ошибка извлечения ID из элементов: %s", e)
+            logger.error("[DRAG] Ошибка извлечения ID из элементов: %s", e)
             return []
 
     def _rebuild_current_links(self):
@@ -71,14 +78,14 @@ class DragDropHandlerMixin:
                 if link_data:
                     self._current_links[row] = link_data
         except Exception as e:
-            logging.error("[DRAG] Ошибка перестроения кэша ссылок: %s", e)
+            logger.error("[DRAG] Ошибка перестроения кэша ссылок: %s", e)
             self._current_links.clear()  # В случае ошибки кэш должен быть пустым
 
     def _move_row_visually(self, source_row: int, target_row: int):
         """Перемещает строку через модель и перестраивает кэш.
 
         Использует `finally`, чтобы гарантировать перестроение кэша.
-        """        
+        """
         try:
             model = getattr(self, "model", lambda: None)()
             if model is None:
@@ -86,7 +93,7 @@ class DragDropHandlerMixin:
             # Вызываем `move_rows` из модели, который должен вызвать begin/endMoveRows
             model.move_rows([source_row], target_row)
         except Exception as e:
-            logging.error(
+            logger.error(
                 "[LinksTableView] Ошибка визуального перемещения строки %s -> %s: %s",
                 source_row,
                 target_row,
@@ -108,7 +115,7 @@ class DragDropHandlerMixin:
                     ids_in_order.append(link_data["id"])
             return ids_in_order
         except Exception as e:
-            logging.error("[DRAG] Ошибка получения текущего порядка ссылок: %s", e)
+            logger.error("[DRAG] Ошибка получения текущего порядка ссылок: %s", e)
             return []
 
 
@@ -151,7 +158,7 @@ def extract_source_rows_from_mime(table, event, mime_type: str) -> List[int]:
                 source_rows.append(row)
         return sorted(source_rows)
     except Exception as e:
-        logging.warning("[DROP] Ошибка извлечения строк из MIME: %s", e)
+        logger.warning("[DROP] Ошибка извлечения строк из MIME: %s", e)
         return get_selected_rows(table)
 
 
@@ -167,7 +174,7 @@ def move_row_visually(table, source_row: int, target_row: int) -> None:
             return
         model.move_rows([source_row], target_row)
     except Exception as e:
-        logging.error(
+        logger.error(
             "[DnD] Ошибка визуального перемещения строки %s->%s: %s",
             source_row,
             target_row,
@@ -176,10 +183,12 @@ def move_row_visually(table, source_row: int, target_row: int) -> None:
     finally:
         # Если у таблицы есть метод для перестройки кэша, используем его.
         # Это основной сценарий при использовании DragDropHandlerMixin.
-        if hasattr(table, '_rebuild_current_links') and callable(getattr(table, '_rebuild_current_links')):
+        if hasattr(table, "_rebuild_current_links") and callable(
+            getattr(table, "_rebuild_current_links")
+        ):
             table._rebuild_current_links()
         else:
-            logging.warning(
+            logger.warning(
                 "[DnD] Объект %s не имеет метода _rebuild_current_links. Кэш может быть неактуален.",
                 type(table).__name__,
             )
@@ -210,5 +219,5 @@ def get_current_order(table) -> List[int]:
                 ids.append(link_data["id"])
         return ids
     except Exception as e:
-        logging.error("[DnD] Ошибка получения порядка IDs: %s", e)
+        logger.error("[DnD] Ошибка получения порядка IDs: %s", e)
         return []

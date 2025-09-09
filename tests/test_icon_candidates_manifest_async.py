@@ -55,12 +55,13 @@ def test_manifest_async_merges_urls_and_excludes_from_main_result(monkeypatch):
     m2_json = {
         "icons": [
             {"src": "/icons/common.png", "sizes": "64x64", "type": "image/png"},
-            {"src": "/icons/b-48.png", "sizes": "48x48", "type": "image/png"}
+            {"src": "/icons/b-48.png", "sizes": "48x48", "type": "image/png"},
         ]
     }
 
     def fake_http_request(url, *args, **kwargs):
         import json
+
         if url == m1_url:
             return DummyResp(True, json.dumps(m1_json))
         if url == m2_url:

@@ -4,6 +4,7 @@
 Класс `LinkDialogUI` инкапсулирует построение виджетов и хранит ссылки
 на ключевые элементы через словарь `widgets`.
 """
+
 import logging
 from typing import Any, Dict, List, Tuple
 
@@ -74,7 +75,9 @@ class LinkDialogUI:
         except (AttributeError, RuntimeError) as e:
             logger.warning("Ошибка установки фокуса на url_le: %s", e)
 
-    def _build_type_section(self, container: QVBoxLayout, link_types: List[Tuple[str, str]]) -> None:
+    def _build_type_section(
+        self, container: QVBoxLayout, link_types: List[Tuple[str, str]]
+    ) -> None:
         """Создаёт секцию выбора типа ссылки и добавляет её в контейнер."""
         container.addWidget(QLabel("Тип ссылки:"))
         self.type_group = QButtonGroup(self.parent)

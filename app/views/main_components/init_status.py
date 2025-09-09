@@ -17,7 +17,9 @@ class StatusUpdater:
         status.set_message("Загрузка...")
     """
 
-    def __init__(self, window: MainWindowLike, _logger: Optional[logging.Logger] = None) -> None:
+    def __init__(
+        self, window: MainWindowLike, _logger: Optional[logging.Logger] = None
+    ) -> None:
         self._window = window
         self._logger = _logger or logger
 
@@ -27,4 +29,6 @@ class StatusUpdater:
                 self._window.message_label.setText(message)
         except (AttributeError, RuntimeError) as e:
             # Нештатная ситуация для ранней фазы — логируем на DEBUG, чтобы не шуметь в релизе
-            self._logger.debug("StatusUpdater: failed to update status '%s': %s", message, e)
+            self._logger.debug(
+                "StatusUpdater: failed to update status '%s': %s", message, e
+            )

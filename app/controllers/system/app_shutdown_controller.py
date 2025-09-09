@@ -15,6 +15,9 @@ from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
 
+# Модульный логгер
+logger = logging.getLogger(__name__)
+
 
 class ShutdownPriority(Enum):
     """Приоритеты выполнения операций shutdown."""
@@ -76,7 +79,7 @@ class AppShutdownController:
         """Основной метод - полностью совместим с оригинальным интерфейсом."""
         with self._shutdown_lock:
             if self.shutdown_in_progress:
-                logging.warning(
+                logger.warning(
                     "Shutdown already in progress, ignoring duplicate request"
                 )
                 return
@@ -85,12 +88,12 @@ class AppShutdownController:
             self._shutdown_started_ts = time.monotonic()
 
         try:
-            logging.info("Starting application shutdown sequence")
+            logger.info("Starting application shutdown sequence")
             self._execute_shutdown_sequence()
-            logging.info("Application shutdown completed successfully")
+            logger.info("Application shutdown completed successfully")
 
         except Exception as exc:
-            logging.error("Critical error during shutdown: %s", exc, exc_info=True)
+            logger.error("Critical error during shutdown: %s", exc, exc_info=True)
         finally:
             # Безопасный вызов родительского closeEvent (обратная совместимость)
             self._safe_close_event(event)
@@ -108,7 +111,7 @@ class AppShutdownController:
             event.accept()
 
         except Exception as exc:
-            logging.error("Error in base closeEvent: %s", exc, exc_info=True)
+            logger.error("Error in base closeEvent: %s", exc, exc_info=True)
             # В любом случае принимаем событие, чтобы приложение могло закрыться
             try:
                 event.accept()
@@ -126,14 +129,14 @@ class AppShutdownController:
             # Проверка общего дедлайна перед уровнем приоритета
             remaining = self._remaining_time_ms()
             if remaining is not None and remaining <= 0:
-                logging.error(
+                logger.error(
                     "Global shutdown deadline exceeded before priority %s",
                     priority.name,
                 )
                 break
 
             handlers = handlers_by_priority[priority]
-            logging.debug(
+            logger.debug(
                 "Executing shutdown priority %s with %s handlers (remaining ~%s ms)",
                 priority.name,
                 len(handlers),
@@ -150,7 +153,7 @@ class AppShutdownController:
                 else:
                     self._execute_handlers_sequential(handlers, remaining_ms=remaining)
             except Exception as exc:
-                logging.error(
+                logger.error(
                     "Error in priority %s: %s", priority.name, exc, exc_info=True
                 )
                 if priority == ShutdownPriority.CRITICAL:
@@ -174,7 +177,7 @@ class AppShutdownController:
         for handler in handlers:
             rem = self._remaining_time_ms() if remaining_ms is None else remaining_ms
             if rem is not None and rem <= 0:
-                logging.error(
+                logger.error(
                     "Global shutdown deadline exceeded during sequential handlers"
                 )
                 break
@@ -223,13 +226,13 @@ class AppShutdownController:
                     except Exception as exc:
                         error_msg = f"Parallel handler {handler.name} failed: {exc}"
                         if handler.critical:
-                            logging.critical(error_msg, exc_info=True)
+                            logger.critical(error_msg, exc_info=True)
                             raise
                         else:
-                            logging.error(error_msg, exc_info=True)
+                            logger.error(error_msg, exc_info=True)
 
             except FutureTimeoutError:
-                logging.error("Timeout waiting for parallel handlers completion")
+                logger.error("Timeout waiting for parallel handlers completion")
                 for future in future_to_handler:
                     if not future.done():
                         future.cancel()
@@ -264,7 +267,7 @@ class AppShutdownController:
     ):
         """Выполнение одного handler с обработкой ошибок и таймаутов."""
         try:
-            logging.debug("Executing shutdown handler: %s", handler.name)
+            logger.debug("Executing shutdown handler: %s", handler.name)
 
             # Выполняем handler с таймаутом
             eff_timeout = (
@@ -275,21 +278,29 @@ class AppShutdownController:
             with self._timeout_context(eff_timeout, handler.name):
                 handler.handler()
 
-            logging.debug("Handler %s completed successfully", handler.name)
+            logger.debug("Handler %s completed successfully", handler.name)
 
         except ShutdownTimeoutError as exc:
             if handler.critical:
-                logging.critical("Handler '%s' timed out: %s", handler.name, exc, exc_info=True)
+                logger.critical(
+                    "Handler '%s' timed out: %s", handler.name, exc, exc_info=True
+                )
                 raise
             else:
-                logging.error("Handler '%s' timed out: %s", handler.name, exc, exc_info=True)
+                logger.error(
+                    "Handler '%s' timed out: %s", handler.name, exc, exc_info=True
+                )
 
         except Exception as exc:
             if handler.critical:
-                logging.critical("Handler '%s' failed: %s", handler.name, exc, exc_info=True)
+                logger.critical(
+                    "Handler '%s' failed: %s", handler.name, exc, exc_info=True
+                )
                 raise  # Прерываем shutdown для критичных операций
             else:
-                logging.error("Handler '%s' failed: %s", handler.name, exc, exc_info=True)
+                logger.error(
+                    "Handler '%s' failed: %s", handler.name, exc, exc_info=True
+                )
                 # Продолжаем для некритичных операций
 
     def _register_default_handlers(self):
@@ -306,7 +317,9 @@ class AppShutdownController:
         # 2) Ожидание пулов потоков (строгий, критичный)
         # Согласуем таймаут обработчика с конфигом ui.thread_pool_shutdown_timeout, добавив буфер
         tp_timeout = app_config.ui.get_thread_pool_shutdown_timeout()
-        handler_timeout = max(tp_timeout + 1000, 3000)  # небольшой буфер во избежание ложных таймаутов
+        handler_timeout = max(
+            tp_timeout + 1000, 3000
+        )  # небольшой буфер во избежание ложных таймаутов
         self.add_shutdown_handler(
             "thread_pools_wait",
             self._wait_for_thread_pools,
@@ -347,7 +360,7 @@ class AppShutdownController:
 
         shutdown_handler = ShutdownHandler(name, handler, priority, timeout, critical)
         self.shutdown_handlers.append(shutdown_handler)
-        logging.debug(
+        logger.debug(
             "Registered shutdown handler: %s (priority: %s)", name, priority.name
         )
 
@@ -357,7 +370,7 @@ class AppShutdownController:
         self.shutdown_handlers = [h for h in self.shutdown_handlers if h.name != name]
         removed = len(self.shutdown_handlers) < initial_count
         if removed:
-            logging.debug("Removed shutdown handler: %s", name)
+            logger.debug("Removed shutdown handler: %s", name)
         return removed
 
     def get_shutdown_handlers(self) -> List[Dict[str, Any]]:
@@ -385,27 +398,27 @@ class AppShutdownController:
         for attr_name, display_name in controllers_to_shutdown:
             try:
                 if not hasattr(self.window, attr_name):
-                    logging.debug("%s not found on window object", display_name)
+                    logger.debug("%s not found on window object", display_name)
                     continue
 
                 controller = getattr(self.window, attr_name)
                 if controller is None:
-                    logging.debug("%s is None", display_name)
+                    logger.debug("%s is None", display_name)
                     continue
 
                 if not hasattr(controller, "shutdown"):
-                    logging.debug("%s has no shutdown method", display_name)
+                    logger.debug("%s has no shutdown method", display_name)
                     continue
 
-                logging.debug("Shutting down %s", display_name)
+                logger.debug("Shutting down %s", display_name)
                 shutdown_method = getattr(controller, "shutdown")
                 if callable(shutdown_method):
                     shutdown_method()
                 else:
-                    logging.warning("%s.shutdown is not callable", display_name)
+                    logger.warning("%s.shutdown is not callable", display_name)
 
             except Exception as exc:
-                logging.error(
+                logger.error(
                     "Error shutting down %s: %s", display_name, exc, exc_info=True
                 )
 
@@ -417,73 +430,73 @@ class AppShutdownController:
         try:
             pool = QThreadPool.globalInstance()
             if pool and pool.activeThreadCount() > 0:
-                logging.debug(
+                logger.debug(
                     "Waiting for %s global threads to finish",
                     pool.activeThreadCount(),
                 )
                 if not pool.waitForDone(timeout):
-                    logging.warning(
+                    logger.warning(
                         "Global thread pool did not finish within timeout, forcing cleanup"
                     )
                     # Пытаемся форсированно завершить
                     try:
                         pool.clear()
                     except Exception as clear_exc:
-                        logging.error("Error clearing global thread pool: %s", clear_exc)
+                        logger.error("Error clearing global thread pool: %s", clear_exc)
         except Exception as exc:
-            logging.error("Error waiting for global thread pool: %s", exc, exc_info=True)
+            logger.error("Error waiting for global thread pool: %s", exc, exc_info=True)
 
         # Локальный thread pool окна
         try:
             if hasattr(self.window, "thread_pool"):
                 local_pool = getattr(self.window, "thread_pool")
                 if local_pool and local_pool.activeThreadCount() > 0:
-                    logging.debug(
+                    logger.debug(
                         "Waiting for %s local threads to finish",
                         local_pool.activeThreadCount(),
                     )
                     if not local_pool.waitForDone(timeout):
-                        logging.warning(
+                        logger.warning(
                             "Local thread pool did not finish within timeout, forcing cleanup"
                         )
                         try:
                             local_pool.clear()
                         except Exception as clear_exc:
-                            logging.error(
+                            logger.error(
                                 "Error clearing local thread pool: %s",
                                 clear_exc,
                             )
         except Exception as exc:
-            logging.error("Error waiting for local thread pool: %s", exc, exc_info=True)
+            logger.error("Error waiting for local thread pool: %s", exc, exc_info=True)
 
     def _backup_database(self):
         """Создание бэкапа БД - улучшенная версия оригинала."""
         try:
             if not hasattr(self.window, "db"):
-                logging.debug("No 'db' attribute found on window, skipping backup")
+                logger.debug("No 'db' attribute found on window, skipping backup")
                 return
 
             db = getattr(self.window, "db")
             if db is None:
-                logging.debug("Database instance is None, skipping backup")
+                logger.debug("Database instance is None, skipping backup")
                 return
 
             if not hasattr(db, "backup"):
-                logging.debug("Database has no backup method")
+                logger.debug("Database has no backup method")
                 return
 
             backup_method = getattr(db, "backup")
             if not callable(backup_method):
-                logging.debug("Database backup attribute is not callable")
+                logger.debug("Database backup attribute is not callable")
                 return
 
-            logging.info("Creating database backup...")
+            logger.info("Creating database backup...")
             backup_method()
-            logging.info("Database backup completed successfully")
+            logger.info("Database backup completed successfully")
 
         except Exception as exc:
             # Для бэкапа ошибка не критична, но логируем
-            logging.error("Database backup failed: %s", exc, exc_info=True)
+            logger.error("Database backup failed: %s", exc, exc_info=True)
 
 
 # ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
@@ -501,7 +514,7 @@ def create_shutdown_controller(main_window) -> AppShutdownController:
 
 def emergency_shutdown():
     """Экстренное завершение приложения в случае критических ошибок."""
-    logging.critical("Emergency shutdown initiated")
+    logger.critical("Emergency shutdown initiated")
     try:
         app = QApplication.instance()
         if app:
@@ -509,5 +522,5 @@ def emergency_shutdown():
         else:
             sys.exit(1)
     except Exception as exc:
-        logging.critical("Error during emergency shutdown: %s", exc)
+        logger.critical("Error during emergency shutdown: %s", exc)
         sys.exit(1)

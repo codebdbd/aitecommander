@@ -49,6 +49,7 @@ def test_restore_ui_state_logs_and_raises_on_business_load_error_when_no_table(c
         DatabaseEventHandler._restore_ui_state(window)
 
     assert any(
-        "_restore_ui_state: unexpected error during business load_links" in rec.getMessage()
+        "_restore_ui_state: unexpected error during business load_links"
+        in rec.getMessage()
         for rec in caplog.records
     )

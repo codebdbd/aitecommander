@@ -36,7 +36,9 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 "LinksUIHandlers requires 'ui_state' or 'category_provider' dependency"
             )
         # Обязательный контракт: требуется метод get_current_category_id()
-        if not hasattr(provider, "get_current_category_id") or not callable(provider.get_current_category_id):
+        if not hasattr(provider, "get_current_category_id") or not callable(
+            provider.get_current_category_id
+        ):
             raise TypeError(
                 "'ui_state'/'category_provider' must provide callable get_current_category_id()"
             )
@@ -78,15 +80,26 @@ class LinksUIHandlers(BaseLinksUIComponent):
             # Опциональный сигнал глобального поиска (для обратной совместимости тестов)
             try:
                 search_sig = getattr(biz, "search_results_ready", None)
-                if search_sig is not None and hasattr(search_sig, "connect") and callable(search_sig.connect):
+                if (
+                    search_sig is not None
+                    and hasattr(search_sig, "connect")
+                    and callable(search_sig.connect)
+                ):
                     search_sig.connect(self._update_search_results)
                 else:
-                    logger.debug("LinksUIHandlers: business signal 'search_results_ready' not present; global search UI updates disabled")
+                    logger.debug(
+                        "LinksUIHandlers: business signal 'search_results_ready' not present; global search UI updates disabled"
+                    )
             except Exception:
-                logger.debug("LinksUIHandlers: failed to wire optional 'search_results_ready'", exc_info=True)
+                logger.debug(
+                    "LinksUIHandlers: failed to wire optional 'search_results_ready'",
+                    exc_info=True,
+                )
         except SetupError:
             # Уже информативное сообщение — пробрасываем как есть, но логируем стек
-            logger.exception("Failed to wire LinksUIHandlers business signals (setup error)")
+            logger.exception(
+                "Failed to wire LinksUIHandlers business signals (setup error)"
+            )
             raise
         except Exception:
             # Любые иные ошибки считаем ошибкой настройки, чтобы не маскировать дефекты DI
@@ -99,31 +112,49 @@ class LinksUIHandlers(BaseLinksUIComponent):
         if getattr(self, "_table_signals_connected", False):
             return
         # Обязательные сигналы/методы таблицы для контекстного меню — строгая проверка интерфейса
-        if not hasattr(self.table, "setContextMenuPolicy") or not callable(self.table.setContextMenuPolicy):
+        if not hasattr(self.table, "setContextMenuPolicy") or not callable(
+            self.table.setContextMenuPolicy
+        ):
             raise SetupError("links table must provide callable setContextMenuPolicy()")
         if not hasattr(self.table, "customContextMenuRequested"):
-            raise SetupError("links table must expose signal customContextMenuRequested with connect()")
+            raise SetupError(
+                "links table must expose signal customContextMenuRequested with connect()"
+            )
         context_sig = self.table.customContextMenuRequested
         if not hasattr(context_sig, "connect") or not callable(context_sig.connect):
-            raise SetupError("links table must expose signal customContextMenuRequested with connect()")
+            raise SetupError(
+                "links table must expose signal customContextMenuRequested with connect()"
+            )
         connect_fn = context_sig.connect
 
         # Подключение обязательных обработчиков контекстного меню
         try:
             self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         except (AttributeError, TypeError) as e:
-            logger.error("Failed to set context menu policy on links table: %s", e, exc_info=True)
+            logger.error(
+                "Failed to set context menu policy on links table: %s", e, exc_info=True
+            )
             raise SetupError("Failed to set context menu policy on links table") from e
         except Exception:
-            logger.exception("Unexpected error while setting context menu policy on links table")
+            logger.exception(
+                "Unexpected error while setting context menu policy on links table"
+            )
             raise
         try:
             connect_fn(self._on_context_menu)
         except (AttributeError, TypeError) as e:
-            logger.error("Failed to connect customContextMenuRequested for links table: %s", e, exc_info=True)
-            raise SetupError("Failed to connect customContextMenuRequested for links table") from e
+            logger.error(
+                "Failed to connect customContextMenuRequested for links table: %s",
+                e,
+                exc_info=True,
+            )
+            raise SetupError(
+                "Failed to connect customContextMenuRequested for links table"
+            ) from e
         except Exception:
-            logger.exception("Unexpected error while connecting customContextMenuRequested for links table")
+            logger.exception(
+                "Unexpected error while connecting customContextMenuRequested for links table"
+            )
             raise
 
         # QTableView: используем index-based сигналы и адаптируем к существующим обработчикам
@@ -223,7 +254,9 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 cat_id = self._category_provider.get_current_category_id()
             self.link_operations.on_favorite_toggled(cat_id)
         except Exception as e:
-            logger.warning("Failed to emit signals after toggle favorite: %s", e, exc_info=True)
+            logger.warning(
+                "Failed to emit signals after toggle favorite: %s", e, exc_info=True
+            )
 
     def _handle_error(self, error_msg: str):
         """Обработать ошибку."""
@@ -241,13 +274,18 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 updated_link.get("is_favorite", False),
             )
         except Exception:
-            logger.debug("LinksUIHandlers._on_link_updated: failed to log diagnostics for updated link", exc_info=True)
+            logger.debug(
+                "LinksUIHandlers._on_link_updated: failed to log diagnostics for updated link",
+                exc_info=True,
+            )
 
         # Централизуем эмиссию сигналов в LinkOperationsController
         try:
             self.link_operations.on_link_updated(updated_link)
         except Exception as e:
-            logger.warning("Failed to emit signals after link update: %s", e, exc_info=True)
+            logger.warning(
+                "Failed to emit signals after link update: %s", e, exc_info=True
+            )
 
     def _on_double_click(self, row: int, column: int):
         """Обработка двойного клика по строке."""
@@ -279,7 +317,9 @@ class LinksUIHandlers(BaseLinksUIComponent):
             try:
                 model = self.table.model()
                 idx = (
-                    model.index(row, self.COLUMNS["name"]) if model is not None else None
+                    model.index(row, self.COLUMNS["name"])
+                    if model is not None
+                    else None
                 )
                 if idx and idx.isValid():
                     val = model.data(idx, Qt.ItemDataRole.DisplayRole)
@@ -336,7 +376,9 @@ class LinksUIHandlers(BaseLinksUIComponent):
             self.business.update_link_order(link_ids)
 
         except Exception as e:
-            logger.error("[Reorder] Error while handling links_reordered: %s", e, exc_info=True)
+            logger.error(
+                "[Reorder] Error while handling links_reordered: %s", e, exc_info=True
+            )
         finally:
             self._handling_reorder = False
 
@@ -352,4 +394,6 @@ class LinksUIHandlers(BaseLinksUIComponent):
             else:
                 logger.warning("structure_tree lacks clearSelection(); skipping")
         except Exception:
-            logger.exception("Failed to clear selection on structure_tree from table selection change")
+            logger.exception(
+                "Failed to clear selection on structure_tree from table selection change"
+            )

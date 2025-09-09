@@ -47,7 +47,11 @@ class DragDropHandler(TreeHandlerBase):
         # Путь для QTreeView (модель/индексы)
         src_index = self.tree_widget.currentIndex()
         if is_internal_move:
-            if src_index and src_index.isValid() and self._is_valid_drop_index(src_index, event):
+            if (
+                src_index
+                and src_index.isValid()
+                and self._is_valid_drop_index(src_index, event)
+            ):
                 event.accept()
             else:
                 event.ignore()
@@ -107,7 +111,11 @@ class DragDropHandler(TreeHandlerBase):
                 event.ignore()
         else:
             event.ignore()
-        if valid_drop and mime.hasFormat(app_config.get_link_mime_type()) and target_type == "category":
+        if (
+            valid_drop
+            and mime.hasFormat(app_config.get_link_mime_type())
+            and target_type == "category"
+        ):
             self._focus_target_category_index(target_index)
 
     def _focus_target_category_index(self, target_index: QModelIndex):
@@ -179,7 +187,10 @@ class DragDropHandler(TreeHandlerBase):
 
         model = self.tree_widget.model()
 
-        if target_type == "section" and drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
+        if (
+            target_type == "section"
+            and drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem
+        ):
             new_section_index = target_index
             new_section_tuple = get_tree_tuple(new_section_index, 0)
             new_section_id = new_section_tuple[1] if new_section_tuple else None
@@ -222,7 +233,9 @@ class DragDropHandler(TreeHandlerBase):
 
         return int(new_section_id), int(base_row)
 
-    def move_categories(self, category_ids: list[int], section_id: int, base_row: int) -> int:
+    def move_categories(
+        self, category_ids: list[int], section_id: int, base_row: int
+    ) -> int:
         """Перемещает список категорий в указанный раздел и позицию.
 
         Пытается использовать атомарную команду для нескольких элементов.
@@ -235,7 +248,9 @@ class DragDropHandler(TreeHandlerBase):
         model = self.tree_widget.model()
 
         # Атомарная команда для множественного переноса
-        if len(category_ids) > 1 and hasattr(self.tree_widget, "move_operations_handler"):
+        if len(category_ids) > 1 and hasattr(
+            self.tree_widget, "move_operations_handler"
+        ):
             try:
                 self.tree_widget.move_operations_handler.execute_move_categories_command(
                     [int(i) for i in category_ids], int(section_id), int(base_row)
@@ -253,7 +268,9 @@ class DragDropHandler(TreeHandlerBase):
                 continue
             target_row = int(base_row + insert_offset)
             try:
-                ok = hasattr(model, "move_category") and model.move_category(int(cid), int(section_id), target_row)
+                ok = hasattr(model, "move_category") and model.move_category(
+                    int(cid), int(section_id), target_row
+                )
             except Exception:
                 ok = False
             if ok:
@@ -338,7 +355,9 @@ class DragDropHandler(TreeHandlerBase):
                 continue
             # Выполняем перенос через обработчик операций (бизнес-логика)
             try:
-                self.tree_widget.move_operations_handler.execute_move_category_command(category_id, section_id)
+                self.tree_widget.move_operations_handler.execute_move_category_command(
+                    category_id, section_id
+                )
                 moved_count += 1
             except Exception:
                 continue
@@ -367,7 +386,9 @@ class DragDropHandler(TreeHandlerBase):
         if not isinstance(new_category_id, int):
             return
         try:
-            self.tree_widget.move_operations_handler.execute_move_links_command(link_ids, new_category_id)
+            self.tree_widget.move_operations_handler.execute_move_links_command(
+                link_ids, new_category_id
+            )
         except Exception:
             pass
         try:
@@ -389,7 +410,9 @@ class DragDropHandler(TreeHandlerBase):
         return ids
 
     # Индексная версия проверки валидности DnD (QTreeView)
-    def _is_valid_drop_index(self, source_index: QModelIndex, event: QDropEvent) -> bool:
+    def _is_valid_drop_index(
+        self, source_index: QModelIndex, event: QDropEvent
+    ) -> bool:
         stuple = get_tree_tuple(source_index, 0)
         if not stuple:
             return False

@@ -8,6 +8,8 @@ from PyQt6.QtWidgets import QApplication
 
 LinkData = Union[Dict[str, Any], List[Dict[str, Any]]]
 
+logger = logging.getLogger(__name__)
+
 
 def _to_jsonable(value: Any) -> Any:
     """Преобразует значение к JSON-совместимому виду или возвращает None для пропуска.
@@ -58,7 +60,7 @@ def copy_link_to_clipboard(link_or_links: LinkData) -> bool:
     """
     app = QApplication.instance()
     if app is None:
-        logging.error(
+        logger.error(
             "QApplication is not initialized; clipboard operations are unavailable"
         )
         return False
@@ -69,7 +71,7 @@ def copy_link_to_clipboard(link_or_links: LinkData) -> bool:
         clipboard.setText(json.dumps(sanitized, ensure_ascii=False))
         return True
     except Exception as e:
-        logging.error("Failed to copy link(s) to clipboard: %s", e, exc_info=True)
+        logger.error("Failed to copy link(s) to clipboard: %s", e, exc_info=True)
         try:
             clipboard.clear()
         except Exception:
@@ -87,7 +89,7 @@ def get_link_from_clipboard() -> Optional[LinkData]:
     """
     app = QApplication.instance()
     if app is None:
-        logging.error(
+        logger.error(
             "QApplication is not initialized; clipboard operations are unavailable"
         )
         return None
@@ -109,5 +111,5 @@ def get_link_from_clipboard() -> Optional[LinkData]:
     except json.JSONDecodeError:
         return None
     except Exception as e:
-        logging.error("Failed to read link from clipboard: %s", e, exc_info=True)
+        logger.error("Failed to read link from clipboard: %s", e, exc_info=True)
         return None

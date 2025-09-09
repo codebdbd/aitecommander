@@ -9,7 +9,10 @@ def test_browser_profile_manager_cache_timeout_reflects_config(monkeypatch):
         return {"cache_timeout": 777}
 
     monkeypatch.setattr(
-        app_config, "get_browser_profile_settings", fake_get_browser_profile_settings, raising=True
+        app_config,
+        "get_browser_profile_settings",
+        fake_get_browser_profile_settings,
+        raising=True,
     )
 
     # Сбрасываем синглтон, чтобы менеджер пересоздался с новой конфигурацией

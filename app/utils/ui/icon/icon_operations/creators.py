@@ -105,7 +105,9 @@ def _create_svg_icon(svg_path: str) -> QIcon:
 
         render_w = max(1, int(round(base_size * dpr)))
         render_h = max(1, int(round(base_size * dpr)))
-        image = QImage(QSize(render_w, render_h), QImage.Format.Format_ARGB32_Premultiplied)
+        image = QImage(
+            QSize(render_w, render_h), QImage.Format.Format_ARGB32_Premultiplied
+        )
         image.fill(Qt.GlobalColor.transparent)
 
         painter = QPainter()

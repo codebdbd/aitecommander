@@ -58,7 +58,9 @@ def _make_dialog(init_data):
         ("program", False, True, True),
     ],
 )
-def test_set_link_type_smoke_updates_visibility_and_clears_fields(qapp, target, expect_profile, expect_browse, expect_args):
+def test_set_link_type_smoke_updates_visibility_and_clears_fields(
+    qapp, target, expect_profile, expect_browse, expect_args
+):
     init_data = {
         "spheres": [
             {"id": 1, "name": "S1"},

@@ -142,10 +142,12 @@ class BrowserProfileDialog(QDialog):
         # Фильтрация по строке поиска
         query = (self.search_line.text() or "").strip().lower()
         if query:
+
             def _match(p: Dict) -> bool:
                 name = str(p.get("email") or p.get("name") or "").lower()
                 path = str(p.get("path") or "").lower()
                 return query in name or query in path
+
             profiles = [p for p in profiles if _match(p)]
         finder = self.manager.finders.get(browser_key)
         if finder:
@@ -171,7 +173,10 @@ class BrowserProfileDialog(QDialog):
             try:
                 cb.stateChanged.connect(self._update_save_enabled)
             except Exception:
-                logger.debug("BrowserProfileDialog: failed to connect stateChanged for checkbox", exc_info=True)
+                logger.debug(
+                    "BrowserProfileDialog: failed to connect stateChanged for checkbox",
+                    exc_info=True,
+                )
             self.profile_layout.addWidget(cb)
             self.profile_checkboxes.append(cb)
         # Добавляем stretch, чтобы чекбоксы не растягивались по вертикали
@@ -194,14 +199,22 @@ class BrowserProfileDialog(QDialog):
                         try:
                             cache.set(key, profiles)
                         except Exception:
-                            logger.debug("BrowserProfileDialog: persistent cache set failed for %s", key, exc_info=True)
+                            logger.debug(
+                                "BrowserProfileDialog: persistent cache set failed for %s",
+                                key,
+                                exc_info=True,
+                            )
                     # Обновить кэш синхронного менеджера (единый кэш)
                     mgr = _pm.get_profile_manager()
                     for key, profiles in (all_profiles or {}).items():
                         try:
                             mgr.cache.set(key, profiles)
                         except Exception:
-                            logger.debug("BrowserProfileDialog: runtime cache set failed for %s", key, exc_info=True)
+                            logger.debug(
+                                "BrowserProfileDialog: runtime cache set failed for %s",
+                                key,
+                                exc_info=True,
+                            )
                     # Обновить списки в диалоге
                     self._populate_browsers()
                     self._populate_profiles()
@@ -212,28 +225,35 @@ class BrowserProfileDialog(QDialog):
                         async_mgr.loading_progress.disconnect(_on_progress)
                         async_mgr.loading_error.disconnect(_on_error)
                     except Exception:
-                        logger.debug("BrowserProfileDialog: failed to disconnect async signals", exc_info=True)
+                        logger.debug(
+                            "BrowserProfileDialog: failed to disconnect async signals",
+                            exc_info=True,
+                        )
                     self._set_controls_enabled(True)
                     self.status_label.setText("")
 
             # Подписка и запуск загрузки без использования оперативного кэша воркера
             async_mgr.all_profiles_ready.connect(_on_ready)
+
             def _on_progress(operation: str, current: int, total: int):
                 # operation вида "Загрузка chrome" из менеджера
                 try:
                     self.status_label.setText(f"{operation} ({current}/{total})…")
                 except Exception:
-                    logger.debug("BrowserProfileDialog: failed to update status label on progress", exc_info=True)
+                    logger.debug(
+                        "BrowserProfileDialog: failed to update status label on progress",
+                        exc_info=True,
+                    )
 
             def _on_error(operation: str, message: str):
-                logging.warning("Ошибка во время %s: %s", operation, message)
+                logger.warning("Ошибка во время %s: %s", operation, message)
                 self.status_label.setText("Ошибка загрузки профилей")
 
             async_mgr.loading_progress.connect(_on_progress)
             async_mgr.loading_error.connect(_on_error)
             async_mgr.load_all_profiles_async(use_cache=False)
         except Exception as e:
-            logging.warning("Не удалось запустить обновление профилей: %s", e)
+            logger.warning("Не удалось запустить обновление профилей: %s", e)
             self._set_controls_enabled(True)
             self.status_label.setText("Ошибка запуска загрузки")
 
@@ -253,8 +273,8 @@ class BrowserProfileDialog(QDialog):
             logger.debug(
                 "get_selected_profiles: profile %s: name=%s, browser_key=%s",
                 i,
-                profile.get('name'),
-                profile.get('browser_key'),
+                profile.get("name"),
+                profile.get("browser_key"),
             )
 
         return selected
@@ -278,4 +298,7 @@ class BrowserProfileDialog(QDialog):
             if hasattr(self, "_ok_button") and self._ok_button is not None:
                 self._ok_button.setEnabled(any_checked)
         except Exception:
-            logger.debug("BrowserProfileDialog: failed to update save enabled state", exc_info=True)
+            logger.debug(
+                "BrowserProfileDialog: failed to update save enabled state",
+                exc_info=True,
+            )

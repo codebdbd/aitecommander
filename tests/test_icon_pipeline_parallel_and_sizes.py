@@ -48,7 +48,9 @@ def test_pick_icon_parallel_timeout_quick_return(monkeypatch):
     candidates = [f"https://example.com/icon{i}.png" for i in range(8)]
 
     # Monkeypatch find_favicon_candidates to return our candidates only one time
-    monkeypatch.setattr(icon_dl, "find_favicon_candidates", lambda *args, **kwargs: candidates)
+    monkeypatch.setattr(
+        icon_dl, "find_favicon_candidates", lambda *args, **kwargs: candidates
+    )
 
     # Monkeypatch save_icon to be slow and return None (simulate slow network)
     def slow_save_icon(*args, **kwargs):
@@ -58,7 +60,9 @@ def test_pick_icon_parallel_timeout_quick_return(monkeypatch):
     monkeypatch.setattr(icon_dl, "save_icon", slow_save_icon)
 
     start = time.monotonic()
-    res = icon_dl.pick_icon_parallel(soup=None, page_url="https://example.com", domain="example.com", config=Cfg())
+    res = icon_dl.pick_icon_parallel(
+        soup=None, page_url="https://example.com", domain="example.com", config=Cfg()
+    )
     elapsed = time.monotonic() - start
 
     assert res is None

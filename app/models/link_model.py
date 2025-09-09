@@ -71,9 +71,17 @@ class LinkModel(DatabaseBase):
                 ]
                 # Фильтрация пользовательских полей по белому списку
                 use_fields_raw = list(fields or default_fields)
-                use_fields = [f for f in use_fields_raw if isinstance(f, str) and f in ALLOWED_LINK_COLUMNS]
+                use_fields = [
+                    f
+                    for f in use_fields_raw
+                    if isinstance(f, str) and f in ALLOWED_LINK_COLUMNS
+                ]
                 # Логируем игнорируемые поля
-                ignored = [f for f in use_fields_raw if not (isinstance(f, str) and f in ALLOWED_LINK_COLUMNS)]
+                ignored = [
+                    f
+                    for f in use_fields_raw
+                    if not (isinstance(f, str) and f in ALLOWED_LINK_COLUMNS)
+                ]
                 if ignored:
                     logger.warning(
                         "get_links: проигнорированы недопустимые поля %s; допустимые=%s",
@@ -95,7 +103,12 @@ class LinkModel(DatabaseBase):
             )
             return [dict(row) for row in rows]
         except Exception as e:
-            logger.error("Ошибка получения ссылок для категории %s: %s", category_id, e, exc_info=True)
+            logger.error(
+                "Ошибка получения ссылок для категории %s: %s",
+                category_id,
+                e,
+                exc_info=True,
+            )
             raise
 
     def count_links_by_category(self, category_id: int) -> int:
@@ -108,7 +121,12 @@ class LinkModel(DatabaseBase):
             )
             return result[0] if result else 0
         except Exception as e:
-            logger.error("Ошибка подсчета ссылок для категории %s: %s", category_id, e, exc_info=True)
+            logger.error(
+                "Ошибка подсчета ссылок для категории %s: %s",
+                category_id,
+                e,
+                exc_info=True,
+            )
             return 0
 
     def count_links_by_categories(self, category_ids: List[int]) -> Dict[int, int]:
@@ -145,7 +163,12 @@ class LinkModel(DatabaseBase):
                         continue
             return result
         except Exception as e:
-            logger.error("Ошибка пакетного подсчета ссылок для категорий %s: %s", category_ids, e, exc_info=True)
+            logger.error(
+                "Ошибка пакетного подсчета ссылок для категорий %s: %s",
+                category_ids,
+                e,
+                exc_info=True,
+            )
             return {}
 
     def upsert_link(self, link: Dict[str, Any]) -> int:
@@ -178,8 +201,8 @@ class LinkModel(DatabaseBase):
 
         logger.debug(
             "Upsert ссылки: %s, browser_key=%s",
-            data.get('name', 'Без названия'),
-            data.get('browser_key'),
+            data.get("name", "Без названия"),
+            data.get("browser_key"),
         )
         logger.debug("Upsert ссылки: полные данные=%s", data)
 
@@ -198,7 +221,6 @@ class LinkModel(DatabaseBase):
                     f"UPDATE link SET {update_placeholders} WHERE id=?",
                     tuple(update_values + [data["id"]]),
                 )
-                
 
                 # Если запись не была обновлена, вставляем новую с указанным ID
                 if cursor.rowcount == 0:
@@ -210,12 +232,11 @@ class LinkModel(DatabaseBase):
                         f"INSERT INTO link ({', '.join(insert_fields)}) VALUES ({insert_placeholders})",
                         tuple(insert_values),
                     )
-                    
 
                 logger.debug(
                     "Обновлена ссылка с ID %s, browser_key=%s",
-                    data['id'],
-                    data.get('browser_key'),
+                    data["id"],
+                    data.get("browser_key"),
                 )
                 return data["id"]
             else:
@@ -244,12 +265,12 @@ class LinkModel(DatabaseBase):
                     f"INSERT INTO link ({', '.join(columns)}) VALUES ({placeholders})",
                     tuple(values),
                 )
-                
+
                 new_id = cursor.lastrowid
                 logger.info(
                     "Добавлена новая ссылка: %s, browser_key=%s",
-                    data.get('name', 'Без названия'),
-                    data.get('browser_key'),
+                    data.get("name", "Без названия"),
+                    data.get("browser_key"),
                 )
                 logger.debug(
                     "Добавлена новая ссылка с ID %s, полные данные=%s",
@@ -273,7 +294,11 @@ class LinkModel(DatabaseBase):
                 if row:
                     return row[0] if isinstance(row, tuple) else row["id"]
             except Exception as ee:
-                logger.debug("upsert_link: failed to recover existing row after IntegrityError: %s", ee, exc_info=True)
+                logger.debug(
+                    "upsert_link: failed to recover existing row after IntegrityError: %s",
+                    ee,
+                    exc_info=True,
+                )
             # Если не нашли — пробрасываем как DatabaseError, но без лишнего шума
             raise DatabaseError(f"UNIQUE constraint failed: {e}")
 
@@ -299,7 +324,9 @@ class LinkModel(DatabaseBase):
                 return dict(row)
             return None
         except Exception as e:
-            logger.error("Ошибка поиска ссылки по уникальным полям: %s", e, exc_info=True)
+            logger.error(
+                "Ошибка поиска ссылки по уникальным полям: %s", e, exc_info=True
+            )
             return None
 
     def get_link_by_name_url_args(
@@ -320,7 +347,9 @@ class LinkModel(DatabaseBase):
                 return dict(row)
             return None
         except Exception as e:
-            logger.error("Ошибка поиска ссылки по (name,url,args): %s", e, exc_info=True)
+            logger.error(
+                "Ошибка поиска ссылки по (name,url,args): %s", e, exc_info=True
+            )
             return None
 
     def get_all_links(self) -> List[Dict[str, Any]]:
@@ -343,7 +372,7 @@ class LinkModel(DatabaseBase):
             self._execute_with_error_handling(
                 "DELETE FROM link WHERE id= ?", (link_id,)
             )
-            
+
             logger.info("Удалена ссылка с ID %s", link_id)
         except Exception as e:
             logger.error("Ошибка удаления ссылки: %s", e, exc_info=True)
@@ -355,7 +384,6 @@ class LinkModel(DatabaseBase):
         self._execute_with_error_handling(
             "UPDATE link SET last_used = ? WHERE id = ?", (now, link_id)
         )
-        
 
     def count_favorites(self) -> int:
         """Возвращает количество избранных ссылок."""
@@ -370,7 +398,7 @@ class LinkModel(DatabaseBase):
             self._execute_with_error_handling(
                 "UPDATE link SET is_favorite=0 WHERE is_favorite=1"
             )
-            
+
             logger.info("Очищены все избранные ссылки")
         except Exception as e:
             logger.error("Ошибка очистки избранного: %s", e)
@@ -425,7 +453,7 @@ class LinkModel(DatabaseBase):
                 "UPDATE link SET notes = ? WHERE id = ?",
                 (new_notes, link_id),
             )
-            
+
         except Exception as e:
             logger.error("Ошибка обновления заметок для ссылки %s: %s", link_id, e)
             raise
@@ -552,7 +580,10 @@ class LinkModel(DatabaseBase):
             return result[0] if result else 1
         except Exception as e:
             logger.error(
-                "Ошибка получения следующей позиции для категории %s: %s", category_id, e, exc_info=True
+                "Ошибка получения следующей позиции для категории %s: %s",
+                category_id,
+                e,
+                exc_info=True,
             )
             return 1
 
@@ -575,7 +606,9 @@ class LinkModel(DatabaseBase):
             return created_ids
         except sqlite3.IntegrityError as e:
             # Если что-то пошло не так с уникальностью — пробрасываем как DatabaseError
-            raise DatabaseError(f"UNIQUE constraint failed during batch_upsert_links: {e}")
+            raise DatabaseError(
+                f"UNIQUE constraint failed during batch_upsert_links: {e}"
+            )
         except Exception as e:
             logger.error("Ошибка пакетного сохранения ссылок: %s", e)
             raise
@@ -611,7 +644,9 @@ class LinkModel(DatabaseBase):
             by_cat.setdefault(int(data["category_id"]), []).append(raw)
         return by_cat
 
-    def _fetch_existing_maps(self, category_id: int) -> Tuple[
+    def _fetch_existing_maps(
+        self, category_id: int
+    ) -> Tuple[
         Dict[Tuple[str, str, str], Dict[str, Any]],
         Dict[int, Dict[str, Any]],
         int,
@@ -637,7 +672,9 @@ class LinkModel(DatabaseBase):
                 "args": rargs or "",
                 "position": rpos if rpos is not None else -1,
             }
-            existing_by_key[(rname or "", rurl or "", rargs or "")] = existing_by_id[int(rid)]
+            existing_by_key[(rname or "", rurl or "", rargs or "")] = existing_by_id[
+                int(rid)
+            ]
             if rpos is not None:
                 try:
                     if int(rpos) > max_pos:
@@ -646,7 +683,9 @@ class LinkModel(DatabaseBase):
                     pass
         return existing_by_key, existing_by_id, max_pos
 
-    def _assign_positions_for_items(self, items: List[Dict[str, Any]], start_pos: int) -> None:
+    def _assign_positions_for_items(
+        self, items: List[Dict[str, Any]], start_pos: int
+    ) -> None:
         """Назначает позицию тем элементам, у кого она не задана."""
         next_pos = start_pos
         for item in items:
@@ -655,7 +694,9 @@ class LinkModel(DatabaseBase):
                 next_pos += 1
 
     def _build_update_params(
-        self, items: List[Dict[str, Any]], existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]]
+        self,
+        items: List[Dict[str, Any]],
+        existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]],
     ) -> Tuple[List[Tuple[Any, ...]], List[Dict[str, Any]]]:
         """Формирует параметры для UPDATE и список вставок без id."""
         updates: List[Tuple[Any, ...]] = []
@@ -676,7 +717,9 @@ class LinkModel(DatabaseBase):
                         item.get("icon_path"),
                         item.get("args"),
                         item.get("browser_key"),
-                        item.get("position", 0) if item.get("position") is not None else 0,
+                        item.get("position", 0)
+                        if item.get("position") is not None
+                        else 0,
                         int(iid),
                     )
                 )
@@ -696,7 +739,9 @@ class LinkModel(DatabaseBase):
                             item.get("icon_path"),
                             item.get("args"),
                             item.get("browser_key"),
-                            item.get("position", 0) if item.get("position") is not None else 0,
+                            item.get("position", 0)
+                            if item.get("position") is not None
+                            else 0,
                             ex["id"],
                         )
                     )
@@ -732,7 +777,10 @@ class LinkModel(DatabaseBase):
                 tuple(update_ids),
                 fetch_method="all",
             )
-            existed_ids = {int(r[0] if isinstance(r, tuple) else r["id"]) for r in (existed_rows or [])}
+            existed_ids = {
+                int(r[0] if isinstance(r, tuple) else r["id"])
+                for r in (existed_rows or [])
+            }
             missing_ids = [iid for iid in update_ids if iid not in existed_ids]
 
             if missing_ids:
@@ -759,13 +807,20 @@ class LinkModel(DatabaseBase):
                     )
         return inserts_with_id
 
-    def _insert_records_with_id(self, inserts_with_id: List[Dict[str, Any]], all_fields: List[str], created_ids: List[int]) -> None:
+    def _insert_records_with_id(
+        self,
+        inserts_with_id: List[Dict[str, Any]],
+        all_fields: List[str],
+        created_ids: List[int],
+    ) -> None:
         """Вставляет записи с фиксированным id (executemany) и добавляет их в created_ids."""
         if not inserts_with_id:
             return
         insert_fields = all_fields
         placeholders = ", ".join(["?"] * len(insert_fields))
-        params_with_id = [tuple(rec.get(f) for f in insert_fields) for rec in inserts_with_id]
+        params_with_id = [
+            tuple(rec.get(f) for f in insert_fields) for rec in inserts_with_id
+        ]
         try:
             self.connection.executemany(
                 f"INSERT INTO link ({', '.join(insert_fields)}) VALUES ({placeholders})",
@@ -807,10 +862,17 @@ class LinkModel(DatabaseBase):
                     new_id = 0
                 if new_id:
                     rec["id"] = new_id
-                    key_simple = (rec.get("name", ""), rec.get("url", ""), rec.get("args", ""))
+                    key_simple = (
+                        rec.get("name", ""),
+                        rec.get("url", ""),
+                        rec.get("args", ""),
+                    )
                     if key_simple not in existing_by_key:
                         created_ids.append(new_id)
-                        existing_by_key[key_simple] = {"id": new_id, "position": rec.get("position", 0)}
+                        existing_by_key[key_simple] = {
+                            "id": new_id,
+                            "position": rec.get("position", 0),
+                        }
             except sqlite3.IntegrityError:
                 row = self._execute_with_error_handling(
                     "SELECT id FROM link WHERE category_id=? AND name=? AND url=? AND args=?",
@@ -858,7 +920,9 @@ class LinkModel(DatabaseBase):
 
         # 2..6) Для каждой категории отрабатываем шаги отдельно
         for category_id, items in by_cat.items():
-            existing_by_key, _existing_by_id, max_pos = self._fetch_existing_maps(category_id)
+            existing_by_key, _existing_by_id, max_pos = self._fetch_existing_maps(
+                category_id
+            )
 
             # 3) Назначаем позиции, если не заданы
             self._assign_positions_for_items(items, max_pos + 1)
@@ -873,7 +937,9 @@ class LinkModel(DatabaseBase):
             self._insert_records_with_id(inserts_with_id, all_fields, created_ids)
 
             # 6b) Поштучные INSERT без id (согласованный хотфикс)
-            self._insert_records_no_id(inserts_no_id, all_fields, existing_by_key, created_ids)
+            self._insert_records_no_id(
+                inserts_no_id, all_fields, existing_by_key, created_ids
+            )
 
         return created_ids
 

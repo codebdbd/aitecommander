@@ -135,7 +135,9 @@ class LinkDialogController:
         # иначе — одна запись
         is_edit = form_data.get("link_id") is not None
         if is_edit:
-            if form_data.get("link_type") == "web" and form_data.get("selected_profiles"):
+            if form_data.get("link_type") == "web" and form_data.get(
+                "selected_profiles"
+            ):
                 links_data.extend(self._prepare_profile_links(form_data))
             else:
                 links_data.append(self._prepare_regular_link(form_data))
@@ -143,7 +145,9 @@ class LinkDialogController:
             # Режим создания: сохраняем текущее поведение —
             #   web + выбранные профили -> несколько записей;
             #   иначе -> одна запись
-            if form_data.get("link_type") == "web" and form_data.get("selected_profiles"):
+            if form_data.get("link_type") == "web" and form_data.get(
+                "selected_profiles"
+            ):
                 links_data.extend(self._prepare_profile_links(form_data))
             else:
                 links_data.append(self._prepare_regular_link(form_data))
@@ -222,9 +226,9 @@ class LinkDialogController:
                 logger.debug(
                     "  Profile %s: %s - args: %s - directory: %s",
                     i,
-                    profile.get('name', 'Unknown'),
-                    profile.get('args', 'None'),
-                    profile.get('directory', 'None'),
+                    profile.get("name", "Unknown"),
+                    profile.get("args", "None"),
+                    profile.get("directory", "None"),
                 )
 
         if not profiles_by_browser:
@@ -364,7 +368,7 @@ class LinkDialogController:
                 logger.debug(
                     "get_result_data: link %s: name=%s, browser_key=%s",
                     i,
-                    link.get('name'),
-                    link.get('browser_key'),
+                    link.get("name"),
+                    link.get("browser_key"),
                 )
         return self.result_data

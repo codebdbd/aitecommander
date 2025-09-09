@@ -7,6 +7,7 @@ from typing import NamedTuple
 
 class AppArguments(NamedTuple):
     """Структура для хранения аргументов приложения."""
+
     debug: bool
     log_level: str | None
 
@@ -14,7 +15,7 @@ class AppArguments(NamedTuple):
 def parse_arguments() -> AppArguments:
     """
     Парсит аргументы командной строки.
-    
+
     Returns:
         AppArguments: Структура с распарсенными аргументами
     """
@@ -26,20 +27,17 @@ def parse_arguments() -> AppArguments:
         help="Уровень логирования (перекрывает --debug)",
     )
     args = parser.parse_args()
-    
-    return AppArguments(
-        debug=args.debug,
-        log_level=args.log_level
-    )
+
+    return AppArguments(debug=args.debug, log_level=args.log_level)
 
 
 def determine_log_level(args: AppArguments) -> int:
     """
     Определяет уровень логирования на основе аргументов.
-    
+
     Args:
         args: Аргументы приложения
-        
+
     Returns:
         int: Уровень логирования
     """

@@ -79,7 +79,9 @@ class LinksUIClipboard(BaseLinksUIComponent):
         if len(links) > 1:
             # Пакетная команда: одна транзакция и один внеш. reload
             with self.main.undo_stack.macro(f"Удаление {len(links)} ссылок"):
-                command = BatchDeleteLinksCmd(links_to_delete=links, main_window=self.main)
+                command = BatchDeleteLinksCmd(
+                    links_to_delete=links, main_window=self.main
+                )
                 command._suppress_ui = True
                 self.main.undo_stack.push(command)
         else:
@@ -162,7 +164,9 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 link_dict.get("url", ""),
                 link_dict.get("type", ""),
                 link_dict.get("args", ""),
-                link_dict.get("name", ""),  # Учитываем name, как в UNIQUE(category_id,name,url,args)
+                link_dict.get(
+                    "name", ""
+                ),  # Учитываем name, как в UNIQUE(category_id,name,url,args)
             )
             existing_keys.add(key)
 

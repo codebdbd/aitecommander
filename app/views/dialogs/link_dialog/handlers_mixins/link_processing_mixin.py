@@ -1,6 +1,7 @@
 """
 Миксин для асинхронной обработки пути/ссылки в LinkDialogHandlers.
 """
+
 import logging
 from pathlib import Path
 from typing import Any, Dict
@@ -72,7 +73,9 @@ class LinkProcessingMixin:
                     app_config,
                     force_refresh=False,
                     defer_icon=True,
-                    on_icon_ready=lambda icon_path: _emit_if_current({"title": "", "icon": icon_path}),
+                    on_icon_ready=lambda icon_path: _emit_if_current(
+                        {"title": "", "icon": icon_path}
+                    ),
                 )
                 return {"title": info.get("title"), "icon": info.get("icon")}
             # Локальные пути
@@ -120,13 +123,15 @@ class LinkProcessingMixin:
                 logger.warning("Ошибка резолвинга иконки для ссылки: %s", e)
                 resolved_icon_path = ""
             if resolved_icon_path and Path(resolved_icon_path).exists():
-                set_icon_to_button(
-                    self.dialog._get_icon_btn(), resolved_icon_path
-                )
+                set_icon_to_button(self.dialog._get_icon_btn(), resolved_icon_path)
             else:
                 self.dialog._get_icon_btn().setIcon(QIcon())
 
-        if LinkType.from_value(self.dialog.link_type) in (LinkType.PROGRAM, LinkType.SCRIPT, LinkType.CHROMEAPP):
+        if LinkType.from_value(self.dialog.link_type) in (
+            LinkType.PROGRAM,
+            LinkType.SCRIPT,
+            LinkType.CHROMEAPP,
+        ):
             args = info.get("args", "")
             if not self.dialog._get_args_le().text().strip():
                 self.dialog.ui.set_widget_value("args_le", args)
@@ -176,6 +181,4 @@ class LinkProcessingMixin:
             )
         except (AttributeError, RuntimeError) as e:
             # Даже если уведомить пользователя не получилось, зафиксируем это в логах
-            logger.warning(
-                "Не удалось показать окно ошибки пользователю: %s", e
-            )
+            logger.warning("Не удалось показать окно ошибки пользователю: %s", e)

@@ -50,7 +50,9 @@ def test_unified_path_metrics_expired_counts_as_miss(monkeypatch: pytest.MonkeyP
     assert s["hits"] == 1 and s["misses"] == 1
 
 
-def test_unified_qicon_metrics_hit_and_miss_and_expired(monkeypatch: pytest.MonkeyPatch):
+def test_unified_qicon_metrics_hit_and_miss_and_expired(
+    monkeypatch: pytest.MonkeyPatch,
+):
     from PyQt6.QtGui import QIcon
 
     # initial miss

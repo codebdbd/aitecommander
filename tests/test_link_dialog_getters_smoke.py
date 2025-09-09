@@ -12,7 +12,9 @@ import pytest
         ("_get_icon_btn", "icon_btn"),
     ],
 )
-def test_link_dialog_getters_call_ui_get_widget_with_expected_key(method_name, widget_key):
+def test_link_dialog_getters_call_ui_get_widget_with_expected_key(
+    method_name, widget_key
+):
     # Создаём "голый" экземпляр без вызова __init__, чтобы избежать побочных эффектов UI
     from app.views.dialogs.link_dialog.link_dialog import LinkDialog
 

@@ -20,33 +20,53 @@ def db_in_memory():
             pass
 
 
-def _create_full_tree(db: Database, spheres: int = 2, sections_per_sphere: int = 2, categories_per_section: int = 3, links_per_category: int = 4):
+def _create_full_tree(
+    db: Database,
+    spheres: int = 2,
+    sections_per_sphere: int = 2,
+    categories_per_section: int = 3,
+    links_per_category: int = 4,
+):
     sphere_ids = []
     for si in range(spheres):
         sid = db.spheres.insert_sphere({"name": f"S{si}"})
         sphere_ids.append(sid)
         for seci in range(sections_per_sphere):
-            secid = db.sections.insert_section({"name": f"SEC{si}-{seci}", "sphere_id": sid})
+            secid = db.sections.insert_section(
+                {"name": f"SEC{si}-{seci}", "sphere_id": sid}
+            )
             for ci in range(categories_per_section):
-                catid = db.categories.insert_category({"name": f"CAT{si}-{seci}-{ci}", "section_id": secid})
+                catid = db.categories.insert_category(
+                    {"name": f"CAT{si}-{seci}-{ci}", "section_id": secid}
+                )
                 for li in range(links_per_category):
-                    db.links.upsert_link({
-                        "category_id": catid,
-                        "name": f"L{si}-{seci}-{ci}-{li}",
-                        "url": f"https://ex/{si}/{seci}/{ci}/{li}",
-                        "type": "web",
-                        "notes": "",
-                        "is_favorite": 0,
-                        "icon_path": "default.ico",
-                        "args": "",
-                        "browser_key": None,
-                    })
+                    db.links.upsert_link(
+                        {
+                            "category_id": catid,
+                            "name": f"L{si}-{seci}-{ci}-{li}",
+                            "url": f"https://ex/{si}/{seci}/{ci}/{li}",
+                            "type": "web",
+                            "notes": "",
+                            "is_favorite": 0,
+                            "icon_path": "default.ico",
+                            "args": "",
+                            "browser_key": None,
+                        }
+                    )
     db.connection.commit()
     return sphere_ids
 
 
-def test_export_full_structure_bulk_builds_correct_hierarchy_and_order(db_in_memory: Database):
-    _create_full_tree(db_in_memory, spheres=2, sections_per_sphere=2, categories_per_section=3, links_per_category=4)
+def test_export_full_structure_bulk_builds_correct_hierarchy_and_order(
+    db_in_memory: Database,
+):
+    _create_full_tree(
+        db_in_memory,
+        spheres=2,
+        sections_per_sphere=2,
+        categories_per_section=3,
+        links_per_category=4,
+    )
 
     exported = db_in_memory.export_full_structure()
     assert isinstance(exported, dict)

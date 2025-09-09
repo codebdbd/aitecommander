@@ -27,7 +27,9 @@ def test_manifest_deduplicated_requests(monkeypatch):
         calls["count"] += 1
         calls["urls"].append(url)
         # Return minimal valid manifest
-        return types.SimpleNamespace(ok=True, text=json.dumps({"icons": [{"src": "/icon.png"}]}))
+        return types.SimpleNamespace(
+            ok=True, text=json.dumps({"icons": [{"src": "/icon.png"}]})
+        )
 
     monkeypatch.setattr(ic, "http_request", fake_http_request)
 

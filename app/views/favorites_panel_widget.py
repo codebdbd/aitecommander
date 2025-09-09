@@ -12,11 +12,10 @@ from app.views.base_panel_widgets import BaseTopPanelWidget
 class FavoritesPanelWidget(BaseTopPanelWidget):
     """Dedicated widget for favorites panel functionality."""
 
-
     def __init__(self, main_window=None):
         super().__init__(main_window)
         self._default_icon_path = get_default_icon_path()
-        
+
         # Set object names for styling
         self.setObjectName("favoritesPanel")
         self.bg_frame.setObjectName("favoritesPanelBg")
@@ -24,13 +23,15 @@ class FavoritesPanelWidget(BaseTopPanelWidget):
     def set_data(self, items: List[Dict[str, Any]]) -> None:
         """Sets favorites data and populates the panel."""
         self._populate_panel(items, self._create_favorite_button)
-        
+
         # Set visibility based on whether we have items
         try:
             self.setVisible(bool(items))
         except Exception:
-            logging.getLogger(__name__).debug("FavoritesPanelWidget: setVisible failed", exc_info=True)
-        
+            logging.getLogger(__name__).debug(
+                "FavoritesPanelWidget: setVisible failed", exc_info=True
+            )
+
         # Sync top bar layout
         self._sync_topbar_layout()
 

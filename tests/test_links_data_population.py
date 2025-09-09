@@ -80,7 +80,9 @@ class DummyScrollBar:
 
 
 class DummyHeader:
-    def __init__(self, sort_col: int = -1, sort_order: Qt.SortOrder = Qt.SortOrder.AscendingOrder):
+    def __init__(
+        self, sort_col: int = -1, sort_order: Qt.SortOrder = Qt.SortOrder.AscendingOrder
+    ):
         self._sort_col = sort_col
         self._sort_order = sort_order
         self._blocked = False
@@ -145,10 +147,12 @@ def _cache_to_list(cache: Dict[int, Dict]) -> List[Dict]:
 
 
 def test_validate_cache_integrity_correct_and_incorrect():
-    model = DummyModel([
-        {"id": 1, "name": "A"},
-        {"id": 2, "name": "B"},
-    ])
+    model = DummyModel(
+        [
+            {"id": 1, "name": "A"},
+            {"id": 2, "name": "B"},
+        ]
+    )
     view = DummyView(model)
 
     # Корректный кэш после перестроения
@@ -167,8 +171,22 @@ def test_validate_cache_integrity_correct_and_incorrect():
 def test_populate_incremental_add_update_remove_cache_matches_model():
     # Исходные данные: 2 ссылки
     initial = [
-        {"id": 1, "name": "A", "is_favorite": False, "notes": "", "icon_path": "", "args": {}},
-        {"id": 2, "name": "B", "is_favorite": False, "notes": "", "icon_path": "", "args": {}},
+        {
+            "id": 1,
+            "name": "A",
+            "is_favorite": False,
+            "notes": "",
+            "icon_path": "",
+            "args": {},
+        },
+        {
+            "id": 2,
+            "name": "B",
+            "is_favorite": False,
+            "notes": "",
+            "icon_path": "",
+            "args": {},
+        },
     ]
     model = DummyModel(initial)
     view = DummyView(model)
@@ -182,8 +200,22 @@ def test_populate_incremental_add_update_remove_cache_matches_model():
 
     # Изменения: 1) id=2 -> обновить имя; 2) id=3 -> добавить; 3) id=1 -> удалить
     updated = [
-        {"id": 2, "name": "B2", "is_favorite": False, "notes": "", "icon_path": "", "args": {}},
-        {"id": 3, "name": "C", "is_favorite": False, "notes": "", "icon_path": "", "args": {}},
+        {
+            "id": 2,
+            "name": "B2",
+            "is_favorite": False,
+            "notes": "",
+            "icon_path": "",
+            "args": {},
+        },
+        {
+            "id": 3,
+            "name": "C",
+            "is_favorite": False,
+            "notes": "",
+            "icon_path": "",
+            "args": {},
+        },
     ]
 
     # Инкрементальное обновление

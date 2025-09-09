@@ -85,4 +85,6 @@ def test_structure_timer_stops_when_request_refresh_fails(monkeypatch):
     # внутри которого произойдёт ошибка и в finally таймер должен быть остановлен
     ctrl.schedule_structure_refresh()
 
-    assert not ctrl._structure_refresh_timer.isActive(), "structure refresh timer must be stopped after failure"
+    assert not ctrl._structure_refresh_timer.isActive(), (
+        "structure refresh timer must be stopped after failure"
+    )

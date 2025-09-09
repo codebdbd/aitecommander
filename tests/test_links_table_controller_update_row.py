@@ -12,6 +12,7 @@ class DummyCategoryProvider:
 
 class FakeTableMissingMethod:
     """Не реализует update_link_by_id — должен привести к явной ошибке при создании контроллера."""
+
     def populate(self, links, mode: str = "default"):
         pass
 

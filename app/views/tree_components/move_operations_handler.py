@@ -153,8 +153,12 @@ class MoveOperationsHandler(TreeHandlerBase):
             return
 
         main_win = self.tree_widget.window()
-        if not (hasattr(main_win, "structure_business") and main_win.structure_business):
-            logger.warning("Бизнес-логика структуры недоступна для батч-переноса категорий")
+        if not (
+            hasattr(main_win, "structure_business") and main_win.structure_business
+        ):
+            logger.warning(
+                "Бизнес-логика структуры недоступна для батч-переноса категорий"
+            )
             return
 
         sb = main_win.structure_business
@@ -176,7 +180,9 @@ class MoveOperationsHandler(TreeHandlerBase):
                     pass
 
             # Выполняем батч-перенос одной транзакцией через бизнес-логику
-            moved_ids = sb.move_categories_batch(category_ids, int(target_section_id), int(base_row))
+            moved_ids = sb.move_categories_batch(
+                category_ids, int(target_section_id), int(base_row)
+            )
             logger.info(
                 "Батч-перенос категорий завершён: перенесено %s из %s в раздел %s",
                 len(moved_ids),
@@ -249,7 +255,9 @@ class MoveOperationsHandler(TreeHandlerBase):
             main_win.undo_stack.push(
                 MoveCategoryCommand(source_id, new_section_id, main_win)
             )
-            logger.info("Перемещена категория %s в раздел %s", source_id, new_section_id)
+            logger.info(
+                "Перемещена категория %s в раздел %s", source_id, new_section_id
+            )
         else:
             self._show_warning(
                 "История действий недоступна. Перемещение между разделами отменено.",
@@ -320,8 +328,15 @@ class MoveOperationsHandler(TreeHandlerBase):
                 try:
                     hierarchy = None
                     main_window = self.tree_widget.window()
-                    if hasattr(main_window, "structure_business") and main_window.structure_business:
-                        hierarchy = main_window.structure_business.get_category_hierarchy(source_id)
+                    if (
+                        hasattr(main_window, "structure_business")
+                        and main_window.structure_business
+                    ):
+                        hierarchy = (
+                            main_window.structure_business.get_category_hierarchy(
+                                source_id
+                            )
+                        )
                 except Exception:
                     hierarchy = None
                 section_id = None
@@ -332,13 +347,21 @@ class MoveOperationsHandler(TreeHandlerBase):
                     cur = getattr(self.tree_widget, "currentIndex", lambda: None)()
                     if cur and cur.isValid():
                         parent_idx = cur.parent()
-                        pt = get_tree_tuple(parent_idx, 0) if parent_idx and parent_idx.isValid() else None
+                        pt = (
+                            get_tree_tuple(parent_idx, 0)
+                            if parent_idx and parent_idx.isValid()
+                            else None
+                        )
                         if pt and pt[0] == "section" and isinstance(pt[1], int):
                             section_id = pt[1]
                 if not isinstance(section_id, int):
                     return {}
                 # Идём по детям индекса раздела
-                sec_idx = model.index_for("section", int(section_id)) if hasattr(model, "index_for") else None
+                sec_idx = (
+                    model.index_for("section", int(section_id))
+                    if hasattr(model, "index_for")
+                    else None
+                )
                 if not (sec_idx and sec_idx.isValid()):
                     return {}
                 ids_in_order: list[int] = []
@@ -387,10 +410,7 @@ class MoveOperationsHandler(TreeHandlerBase):
         main_win = self.tree_widget.window()
 
         # После перемещения, если текущая сфера не соответствует целевой — переключаем
-        if (
-            hasattr(main_win, "structure_business")
-            and main_win.structure_business
-        ):
+        if hasattr(main_win, "structure_business") and main_win.structure_business:
             try:
                 sc = getattr(main_win, "spheres_controller", None)
                 if sc and hasattr(sc, "switch_sphere"):

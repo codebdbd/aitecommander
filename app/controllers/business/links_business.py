@@ -50,7 +50,9 @@ class LinksBusinessLogic(QObject):
             self.scheduler.get_thread_pool().waitForDone(timeout)
             self.logger.debug("LinksBusinessLogic shutdown completed")
         except Exception as e:
-            self.logger.error("Error during LinksBusinessLogic shutdown: %s", e, exc_info=True)
+            self.logger.error(
+                "Error during LinksBusinessLogic shutdown: %s", e, exc_info=True
+            )
 
     def load_links(self, category_id: int):
         """Загрузить ссылки для категории."""
@@ -60,7 +62,9 @@ class LinksBusinessLogic(QObject):
         with tasks_lock:
             self.pending_tasks.add(task_id)
 
-        self.logger.debug("Loading links for category %s, task_id=%s", category_id, task_id)
+        self.logger.debug(
+            "Loading links for category %s, task_id=%s", category_id, task_id
+        )
 
         def _fetch():
             rows = self.db.links.get_links(category_id)
@@ -69,7 +73,9 @@ class LinksBusinessLogic(QObject):
         run_db(
             _fetch,
             description=f"load_links(category_id={category_id})",
-            on_finished=lambda links: self._on_links_loaded(links, category_id, task_id),
+            on_finished=lambda links: self._on_links_loaded(
+                links, category_id, task_id
+            ),
             on_error=lambda e: self._on_worker_error(str(e)),
         )
 
@@ -78,7 +84,12 @@ class LinksBusinessLogic(QObject):
         try:
             return self.links.get_links(category_id)
         except Exception as e:
-            self.logger.error("Ошибка получения ссылок для категории %s: %s", category_id, e, exc_info=True)
+            self.logger.error(
+                "Ошибка получения ссылок для категории %s: %s",
+                category_id,
+                e,
+                exc_info=True,
+            )
             if not handle_db_error(e, self):
                 raise
             return []
@@ -88,7 +99,9 @@ class LinksBusinessLogic(QObject):
         q = (query or "").strip()
         # Пустой запрос теперь означает "показать все" в режиме поиска
         if not q:
-            self.logger.debug("Searching links: empty query -> return ALL links (global)")
+            self.logger.debug(
+                "Searching links: empty query -> return ALL links (global)"
+            )
             run_db(
                 lambda: self.db.links.get_all_links() or [],
                 description="search_links(all)",
@@ -123,6 +136,7 @@ class LinksBusinessLogic(QObject):
 
     def count_favorites(self, link: Optional[Dict] = None):
         """Подсчитать количество избранных ссылок."""
+
         def _count():
             return self.db.links.count_favorites()
 
@@ -136,8 +150,6 @@ class LinksBusinessLogic(QObject):
             on_error=lambda e: self._on_worker_error(str(e)),
         )
 
-    
-
     def delete_link(self, link_id: int):
         """Удалить ссылку."""
         if not self._validate_link_id(link_id):
@@ -147,7 +159,9 @@ class LinksBusinessLogic(QObject):
             self.links.delete_link(link_id)
             self.logger.info("Link deleted: %s", link_id)
         except Exception as e:
-            self.logger.error("Ошибка удаления ссылки %s: %s", link_id, e, exc_info=True)
+            self.logger.error(
+                "Ошибка удаления ссылки %s: %s", link_id, e, exc_info=True
+            )
             if not handle_db_error(e, self):
                 raise
 
@@ -158,6 +172,7 @@ class LinksBusinessLogic(QObject):
             raise ValueError("Invalid link data provided: not a dict")
         # Ленивая загрузка валидатора, чтобы избежать циклических импортов при старте
         from app.utils.validators.link_validators import validate_link_form_data
+
         name = link_data.get("name")
         url = link_data.get("url")
         link_type = link_data.get("type")
@@ -175,7 +190,7 @@ class LinksBusinessLogic(QObject):
             if result and not link_data.get("id"):
                 link_data["id"] = result
 
-            self.logger.info("Link saved: %s", link_data.get('id', '[new]'))
+            self.logger.info("Link saved: %s", link_data.get("id", "[new]"))
 
             # Уведомляем UI о том, что ссылка сохранена/обновлена
             try:
@@ -186,7 +201,12 @@ class LinksBusinessLogic(QObject):
 
             return result
         except Exception as e:
-            self.logger.error("Ошибка сохранения ссылки %s: %s", link_data.get('id', '[new]'), e, exc_info=True)
+            self.logger.error(
+                "Ошибка сохранения ссылки %s: %s",
+                link_data.get("id", "[new]"),
+                e,
+                exc_info=True,
+            )
             if not handle_db_error(e, self):
                 raise
 
@@ -199,7 +219,12 @@ class LinksBusinessLogic(QObject):
             self.links.update_last_used(link_id)
             self.logger.debug("Link last_used updated: %s", link_id)
         except Exception as e:
-            self.logger.error("Ошибка обновления времени использования ссылки %s: %s", link_id, e, exc_info=True)
+            self.logger.error(
+                "Ошибка обновления времени использования ссылки %s: %s",
+                link_id,
+                e,
+                exc_info=True,
+            )
             if not handle_db_error(e, self):
                 # Не прерываем выполнение для этой операции
                 pass
@@ -207,21 +232,29 @@ class LinksBusinessLogic(QObject):
     def toggle_favorite(self, link: Dict):
         """Переключить статус избранного для ссылки."""
         # Для переключения избранного достаточно валидного словаря и корректного id
-        if not isinstance(link, dict) or not isinstance(link.get("id"), int) or link["id"] <= 0:
+        if (
+            not isinstance(link, dict)
+            or not isinstance(link.get("id"), int)
+            or link["id"] <= 0
+        ):
             raise ValueError("Invalid link data for toggle_favorite")
 
         old_status = link.get("is_favorite", False)
         new_status = not old_status
         link_id = link.get("id")
 
-        self.logger.debug("Toggle favorite for link %s: %s -> %s", link_id, old_status, new_status)
+        self.logger.debug(
+            "Toggle favorite for link %s: %s -> %s", link_id, old_status, new_status
+        )
 
         link_data = link.copy()
         link_data["is_favorite"] = new_status
 
         try:
             result = self.save_link(link_data)
-            self.logger.info("Favorite status updated successfully, result ID: %s", result)
+            self.logger.info(
+                "Favorite status updated successfully, result ID: %s", result
+            )
 
             # Сигнал link_updated уже эмитится внутри save_link; не дублируем
 
@@ -276,7 +309,9 @@ class LinksBusinessLogic(QObject):
         try:
             return self.links.get_link_by_id(link_id)
         except Exception as e:
-            self.logger.error("Ошибка получения ссылки %s: %s", link_id, e, exc_info=True)
+            self.logger.error(
+                "Ошибка получения ссылки %s: %s", link_id, e, exc_info=True
+            )
             if not handle_db_error(e, self):
                 raise
             return None
@@ -284,13 +319,17 @@ class LinksBusinessLogic(QObject):
     def get_next_position(self, category_id: int) -> int:
         """Получает следующую позицию для новой ссылки в категории."""
         if not isinstance(category_id, int) or category_id <= 0:
-            self.logger.warning("Invalid category_id for get_next_position: %s", category_id)
+            self.logger.warning(
+                "Invalid category_id for get_next_position: %s", category_id
+            )
             return 0
 
         try:
             return self.links.get_next_position(category_id)
         except Exception as e:
-            self.logger.error("Ошибка получения следующей позиции: %s", e, exc_info=True)
+            self.logger.error(
+                "Ошибка получения следующей позиции: %s", e, exc_info=True
+            )
             if not handle_db_error(e, self):
                 raise
             return 0
@@ -311,7 +350,9 @@ class LinksBusinessLogic(QObject):
         try:
             return self.links.batch_update(links_data)
         except Exception as e:
-            self.logger.error("Ошибка пакетного обновления ссылок: %s", e, exc_info=True)
+            self.logger.error(
+                "Ошибка пакетного обновления ссылок: %s", e, exc_info=True
+            )
             if not handle_db_error(e, self):
                 raise
             return False
@@ -334,6 +375,7 @@ class LinksBusinessLogic(QObject):
             return None
         # Ленивая загрузка валидатора, чтобы избежать циклических импортов при старте
         from app.utils.validators.link_validators import validate_link_form_data
+
         name = link_data.get("name")
         url = link_data.get("url")
         link_type = link_data.get("type")
@@ -350,13 +392,17 @@ class LinksBusinessLogic(QObject):
             # Используем сервисный слой (UnitOfWork внутри LinksService)
             result_id = self.links.create_or_update_link(link_data)
             if result_id:
-                self.logger.debug("Создана ссылка для импорта: %s", link_data.get('name', 'без имени'))
+                self.logger.debug(
+                    "Создана ссылка для импорта: %s", link_data.get("name", "без имени")
+                )
                 return result_id
             else:
                 self.logger.warning("Не удалось создать ссылку для импорта")
                 return None
         except Exception as e:
-            self.logger.error("Ошибка создания ссылки для импорта: %s", e, exc_info=True)
+            self.logger.error(
+                "Ошибка создания ссылки для импорта: %s", e, exc_info=True
+            )
             if not handle_db_error(e, self):
                 raise
             return None
@@ -369,8 +415,6 @@ class LinksBusinessLogic(QObject):
             self.logger.warning("Invalid link_id: %s", link_id)
             return False
         return True
-
-    
 
     def _get_all_links_safe(self) -> List[Dict]:
         """Безопасное получение всех ссылок для внутреннего использования."""

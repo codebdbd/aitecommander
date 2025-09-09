@@ -52,6 +52,7 @@ class DummyHandlers(HierarchyMixin):
 
 # ---------------- LinkDialog helpers -----------------
 
+
 def test_set_index_by_data_found():
     dlg = DummyLinkDialog.make()
     combo = ComboMock(items=[("A", 1), ("B", 2), ("C", 3)], current_index=-1)
@@ -119,6 +120,7 @@ def test_resolve_and_apply_icon_when_exists(monkeypatch):
 
     monkeypatch.setattr(ld, "resolve_icon_for_link", fake_resolve)
     from pathlib import Path as _Path
+
     monkeypatch.setattr(_Path, "exists", fake_exists, raising=True)
     monkeypatch.setattr(ld, "set_icon_to_button", fake_set_icon)
 
@@ -151,6 +153,7 @@ def test_resolve_and_apply_icon_when_missing(monkeypatch):
 
     monkeypatch.setattr(ld, "resolve_icon_for_link", fake_resolve)
     from pathlib import Path as _Path
+
     monkeypatch.setattr(_Path, "exists", fake_exists, raising=True)
     monkeypatch.setattr(ld, "set_icon_to_button", fake_set_icon)
 
@@ -172,17 +175,23 @@ def test_set_initial_icon_warning_branch(monkeypatch):
     dlg.icon_name = "missing.png"
 
     # Возвращаем фиксированные значения: путь и exists=False
-    monkeypatch.setattr(dlg, "_resolve_and_apply_icon", lambda lt, iname: ("C:/icons/missing.png", False))
+    monkeypatch.setattr(
+        dlg,
+        "_resolve_and_apply_icon",
+        lambda lt, iname: ("C:/icons/missing.png", False),
+    )
 
     calls = {"warn": []}
 
     def fake_show_warning(msg, title, *, informative_text=None, details=None):
-        calls["warn"].append({
-            "msg": msg,
-            "title": title,
-            "informative_text": informative_text,
-            "details": details,
-        })
+        calls["warn"].append(
+            {
+                "msg": msg,
+                "title": title,
+                "informative_text": informative_text,
+                "details": details,
+            }
+        )
 
     monkeypatch.setattr(dlg, "show_warning", fake_show_warning)
 
@@ -195,10 +204,13 @@ def test_set_initial_icon_warning_branch(monkeypatch):
     assert "Иконка по умолчанию не найдена." in w["msg"]
     assert "Проблема с иконкой" in w["title"]
     assert "Кнопка будет отображаться без иконки" in (w["informative_text"] or "")
-    assert (w["details"] or "").endswith("C:/icons/missing.png") or "missing.png" in (w["details"] or "")
+    assert (w["details"] or "").endswith("C:/icons/missing.png") or "missing.png" in (
+        w["details"] or ""
+    )
 
 
 # ---------------- HierarchyMixin helpers -----------------
+
 
 def test_extract_icon_path_from_dict():
     h = DummyHandlers()

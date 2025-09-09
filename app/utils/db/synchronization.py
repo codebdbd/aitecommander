@@ -104,7 +104,10 @@ class EnhancedLock:
         if not acquired:
             wait_time = time.time() - start_time
             logger.warning(
-                "[LOCK] Таймаут захвата %s потоком %s (%.3fs)", self.name, thread_id, wait_time
+                "[LOCK] Таймаут захвата %s потоком %s (%.3fs)",
+                self.name,
+                thread_id,
+                wait_time,
             )
             raise LockTimeout(
                 f"Не удалось захватить блокировку {self.name} за {timeout}s"
@@ -119,7 +122,10 @@ class EnhancedLock:
         self._stats.is_held = True
 
         logger.debug(
-            "[LOCK] Захвачена %s потоком %s (ожидание: %.3fs)", self.name, thread_id, wait_time
+            "[LOCK] Захвачена %s потоком %s (ожидание: %.3fs)",
+            self.name,
+            thread_id,
+            wait_time,
         )
         return True
 
@@ -419,14 +425,20 @@ def debug_lock(lock, operation_name: str):
     with lock:
         acquire_time = time.time() - start_time
         logger.debug(
-            "[DEBUG_LOCK] Захвачена %s потоком %s (%.3fs)", operation_name, thread_id, acquire_time
+            "[DEBUG_LOCK] Захвачена %s потоком %s (%.3fs)",
+            operation_name,
+            thread_id,
+            acquire_time,
         )
         try:
             yield
         finally:
             hold_time = time.time() - start_time - acquire_time
             logger.debug(
-                "[DEBUG_LOCK] Освобождена %s потоком %s (удержание: %.3fs)", operation_name, thread_id, hold_time
+                "[DEBUG_LOCK] Освобождена %s потоком %s (удержание: %.3fs)",
+                operation_name,
+                thread_id,
+                hold_time,
             )
 
 

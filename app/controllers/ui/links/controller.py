@@ -169,7 +169,6 @@ class LinksUIController(QObject):
         except (AttributeError, RuntimeError) as e:
             logger.error("Ошибка при прокрутке к строке: %s", e)
 
-
     def get_selected_rows(self) -> List[int]:
         """Получить номера выделенных строк через общую утилиту."""
         return get_selected_rows_util(self.table)
@@ -182,10 +181,12 @@ class LinksUIController(QObject):
         """Слот для actionRequested(action_data) из панельных виджетов."""
         if not isinstance(action_data, dict):
             return
-        
+
         action_type = action_data.get("type")
         if action_type == "quick_add":
-            self.quick_add_link(action_data.get("link_type"), action_data.get("category_id"))
+            self.quick_add_link(
+                action_data.get("link_type"), action_data.get("category_id")
+            )
         elif action_type == "open_link":
             # Handle link opening if needed
             pass
@@ -274,5 +275,3 @@ class LinksUIController(QObject):
             self.table_controller.reload(category_id)
         except Exception as e:
             logger.error("Failed to reload category (id=%s): %s", category_id, e)
-
-

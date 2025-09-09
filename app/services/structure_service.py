@@ -100,7 +100,9 @@ class StructureService:
         """
         return self.db.categories.delete_categories_bulk(category_ids or [])
 
-    def create_categories_bulk(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def create_categories_bulk(
+        self, items: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """Пакетное создание категорий (единая транзакция).
 
         ВАЖНО: insert_categories_bulk в CategoryModel/Repository уже управляет
@@ -120,7 +122,9 @@ class StructureService:
         """
         # Делегируем в CategoryModel через Database
         return self.db.categories.move_categories_to_section_bulk(
-            category_ids or [], int(target_section_id), int(base_row) if isinstance(base_row, int) else 0
+            category_ids or [],
+            int(target_section_id),
+            int(base_row) if isinstance(base_row, int) else 0,
         )
 
     # --- Импорт/экспорт ---

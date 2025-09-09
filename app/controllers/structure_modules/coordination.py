@@ -235,6 +235,7 @@ class OperationCoordinator:
         try:
             # Делегируем валидацию в ValidationService с необходимыми коллбеками
             if item_type == StructureItemType.SECTION:
+
                 def _get_sections(sphere_id: int):
                     try:
                         return self.structure_model.get_sections(sphere_id)
@@ -247,11 +248,17 @@ class OperationCoordinator:
                     get_sections=_get_sections,
                 )
             elif item_type == StructureItemType.CATEGORY:
-                def _has_duplicate(section_id: int, name: str, exclude_id: Optional[int]) -> bool:
+
+                def _has_duplicate(
+                    section_id: int, name: str, exclude_id: Optional[int]
+                ) -> bool:
                     try:
                         cats = self.structure_model.get_categories(section_id)
                         for c in cats or []:
-                            if c.get("name", "").lower() == (name or "").lower() and c.get("id") != exclude_id:
+                            if (
+                                c.get("name", "").lower() == (name or "").lower()
+                                and c.get("id") != exclude_id
+                            ):
                                 return True
                         return False
                     except Exception:

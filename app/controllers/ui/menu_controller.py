@@ -108,7 +108,10 @@ class MenuController:
                 if callable(status_bar):
                     sb = status_bar()
                     if sb is not None and hasattr(sb, "showMessage"):
-                        sb.showMessage("Не удалось обновить старое меню, пытаемся пересобрать...", 3000)
+                        sb.showMessage(
+                            "Не удалось обновить старое меню, пытаемся пересобрать...",
+                            3000,
+                        )
             except Exception:
                 # Не препятствуем дальнейшей пересборке меню
                 logger.debug("MenuController: подсказка в статус-бар не отображена")

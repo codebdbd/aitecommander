@@ -1,6 +1,7 @@
 """
 Утилиты для работы с иконками в диалоге ссылок.
 """
+
 import logging
 from dataclasses import dataclass
 from enum import Enum
@@ -32,14 +33,18 @@ class IconResult:
     message: str = ""
 
 
-def make_icon_result(icon_path_str: str, *, raise_on_critical: bool = False) -> IconResult:
+def make_icon_result(
+    icon_path_str: str, *, raise_on_critical: bool = False
+) -> IconResult:
     """Пытается создать QIcon и возвращает типизированный результат.
 
     Критические ситуации (ошибки доступа/ОС) могут поднимать исключения,
     если указан параметр raise_on_critical=True.
     """
     if not icon_path_str:
-        return IconResult(False, None, None, IconErrorKind.INVALID_PATH, None, "Пустой путь к иконке")
+        return IconResult(
+            False, None, None, IconErrorKind.INVALID_PATH, None, "Пустой путь к иконке"
+        )
 
     candidates: list[Path]
     try:
@@ -49,7 +54,14 @@ def make_icon_result(icon_path_str: str, *, raise_on_critical: bool = False) -> 
         # Неверный формат пути
         if raise_on_critical:
             raise
-        return IconResult(False, None, None, IconErrorKind.INVALID_PATH, e, f"Некорректный путь: {icon_path_str}")
+        return IconResult(
+            False,
+            None,
+            None,
+            IconErrorKind.INVALID_PATH,
+            e,
+            f"Некорректный путь: {icon_path_str}",
+        )
 
     # Добавляем относительные варианты
     try:
@@ -57,13 +69,27 @@ def make_icon_result(icon_path_str: str, *, raise_on_critical: bool = False) -> 
     except (OSError, PermissionError) as e:
         if raise_on_critical:
             raise
-        return IconResult(False, None, None, IconErrorKind.OS_ERROR, e, "Ошибка доступа к пользовательской папке иконок")
+        return IconResult(
+            False,
+            None,
+            None,
+            IconErrorKind.OS_ERROR,
+            e,
+            "Ошибка доступа к пользовательской папке иконок",
+        )
     try:
         candidates.append(icon_path_service.get_ui_icons_dir() / icon_path_str)
     except (OSError, PermissionError) as e:
         if raise_on_critical:
             raise
-        return IconResult(False, None, None, IconErrorKind.OS_ERROR, e, "Ошибка доступа к UI-папке иконок")
+        return IconResult(
+            False,
+            None,
+            None,
+            IconErrorKind.OS_ERROR,
+            e,
+            "Ошибка доступа к UI-папке иконок",
+        )
 
     # Поиск первого существующего кандидата
     try:
@@ -75,18 +101,46 @@ def make_icon_result(icon_path_str: str, *, raise_on_critical: bool = False) -> 
             except PermissionError as e:
                 if raise_on_critical:
                     raise
-                return IconResult(False, None, c, IconErrorKind.PERMISSION_DENIED, e, f"Нет доступа к файлу: {c}")
+                return IconResult(
+                    False,
+                    None,
+                    c,
+                    IconErrorKind.PERMISSION_DENIED,
+                    e,
+                    f"Нет доступа к файлу: {c}",
+                )
             except OSError as e:
                 if raise_on_critical:
                     raise
-                return IconResult(False, None, c, IconErrorKind.OS_ERROR, e, f"Ошибка ОС при проверке файла: {c}")
+                return IconResult(
+                    False,
+                    None,
+                    c,
+                    IconErrorKind.OS_ERROR,
+                    e,
+                    f"Ошибка ОС при проверке файла: {c}",
+                )
     except Exception as e:
         if raise_on_critical:
             raise
-        return IconResult(False, None, None, IconErrorKind.UNEXPECTED_ERROR, e, f"Неожиданная ошибка: {e}")
+        return IconResult(
+            False,
+            None,
+            None,
+            IconErrorKind.UNEXPECTED_ERROR,
+            e,
+            f"Неожиданная ошибка: {e}",
+        )
 
     # Ничего не найдено
-    return IconResult(False, None, None, IconErrorKind.NOT_FOUND, None, f"Иконка не найдена: {icon_path_str}")
+    return IconResult(
+        False,
+        None,
+        None,
+        IconErrorKind.NOT_FOUND,
+        None,
+        f"Иконка не найдена: {icon_path_str}",
+    )
 
 
 def make_icon(icon_path_str: str) -> Optional[QIcon]:
@@ -109,10 +163,18 @@ def make_icon(icon_path_str: str) -> Optional[QIcon]:
     elif result.error_kind == IconErrorKind.PERMISSION_DENIED:
         logger.warning("Нет доступа к иконке '%s': %s", icon_path_str, result.message)
     elif result.error_kind == IconErrorKind.OS_ERROR:
-        logger.warning("Ошибка ОС при доступе к иконке '%s': %s", icon_path_str, result.message)
+        logger.warning(
+            "Ошибка ОС при доступе к иконке '%s': %s", icon_path_str, result.message
+        )
     elif result.error_kind == IconErrorKind.INVALID_PATH:
-        logger.warning("Некорректный путь к иконке '%s': %s", icon_path_str, result.message)
+        logger.warning(
+            "Некорректный путь к иконке '%s': %s", icon_path_str, result.message
+        )
     elif result.error_kind == IconErrorKind.UNEXPECTED_ERROR:
-        logger.exception("Неожиданная ошибка при создании иконки '%s': %s", icon_path_str, result.message)
+        logger.exception(
+            "Неожиданная ошибка при создании иконки '%s': %s",
+            icon_path_str,
+            result.message,
+        )
 
     return None

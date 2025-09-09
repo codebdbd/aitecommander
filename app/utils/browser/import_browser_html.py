@@ -130,14 +130,18 @@ class BrowserBookmarksImporter:
         ]
         if bulk_items:
             try:
-                created = structure_business_logic.create_categories_bulk(bulk_items) or []
+                created = (
+                    structure_business_logic.create_categories_bulk(bulk_items) or []
+                )
                 logger.debug(
                     "DEBUG: Пакетно создано/подтверждено категорий: %s для раздела %s",
                     len(created),
                     section_id,
                 )
             except Exception as e:
-                logger.error("ERROR: Пакетное создание категорий завершилось ошибкой: %s", e)
+                logger.error(
+                    "ERROR: Пакетное создание категорий завершилось ошибкой: %s", e
+                )
 
         # 4) Актуальная карта name->id
         categories_after = structure_business_logic.get_categories(section_id) or []
@@ -146,7 +150,9 @@ class BrowserBookmarksImporter:
         # 5) Вставка ссылок без дублей
         added = 0
         for cat_name, links in categories.items():
-            logger.debug("DEBUG: Обработка категории '%s', ссылок: %s", cat_name, len(links))
+            logger.debug(
+                "DEBUG: Обработка категории '%s', ссылок: %s", cat_name, len(links)
+            )
             category_id = name_to_id.get(cat_name)
             if not category_id:
                 logger.error(
@@ -159,7 +165,9 @@ class BrowserBookmarksImporter:
                 if links_business_logic:
                     existing_links = links_business_logic.get_links(category_id)
                 elif hasattr(structure_business_logic, "links_business"):
-                    existing_links = structure_business_logic.links_business.get_links(category_id)
+                    existing_links = structure_business_logic.links_business.get_links(
+                        category_id
+                    )
                 else:
                     existing_links = []
             except Exception as e:
@@ -172,7 +180,12 @@ class BrowserBookmarksImporter:
 
             for el in existing_links:
                 try:
-                    existing_name_url.add((str(el.get("name", "")).strip(), str(el.get("url", "")).strip()))
+                    existing_name_url.add(
+                        (
+                            str(el.get("name", "")).strip(),
+                            str(el.get("url", "")).strip(),
+                        )
+                    )
                 except Exception:
                     pass
 
@@ -213,14 +226,16 @@ class BrowserBookmarksImporter:
                         link_id = links_business_logic.create_link_for_import(link_data)
                     else:
                         link_id = (
-                            structure_business_logic.links_business.create_link_for_import(link_data)
+                            structure_business_logic.links_business.create_link_for_import(
+                                link_data
+                            )
                             if hasattr(structure_business_logic, "links_business")
                             else None
                         )
                     if link_id:
                         logger.debug(
                             "DEBUG: Добавлена ссылка '%s' в категорию '%s' (id=%s)",
-                            link.get('name', ''),
+                            link.get("name", ""),
                             cat_name,
                             category_id,
                         )
@@ -228,18 +243,15 @@ class BrowserBookmarksImporter:
                     else:
                         logger.error(
                             "ERROR: Не удалось добавить ссылку '%s' в категорию '%s'",
-                            link.get('name', ''),
+                            link.get("name", ""),
                             cat_name,
                         )
                 except Exception as e:
                     logger.error(
                         "ERROR: Не удалось добавить ссылку '%s' в категорию '%s': %s",
-                        link.get('name', ''),
+                        link.get("name", ""),
                         cat_name,
                         e,
                     )
 
         return True, f"Добавлено ссылок: {added}", added
-
-
- 

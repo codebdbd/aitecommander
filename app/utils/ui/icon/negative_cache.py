@@ -14,6 +14,7 @@
 
 Ключ формируется на верхнем уровне (например, f"{theme}:{icon_name.lower()}").
 """
+
 from __future__ import annotations
 
 import heapq
@@ -84,6 +85,7 @@ def get_ttl(strikes: int) -> float:
     ttl = base * (2 ** max(0, strikes - 1))
     return min(ttl, max_t)
 
+
 class NegativeCache(BaseCache):
     """Расширяемый негативный кэш, совместимый с BaseCache.
 
@@ -95,10 +97,10 @@ class NegativeCache(BaseCache):
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._ts: dict[str, float] = {}      # ключ -> timestamp последней отметки
-        self._strikes: dict[str, int] = {}   # ключ -> количество накопленных промахов
+        self._ts: dict[str, float] = {}  # ключ -> timestamp последней отметки
+        self._strikes: dict[str, int] = {}  # ключ -> количество накопленных промахов
         # Генерации для предотвращения эффекта "висячих" элементов в кучах
-        self._gen: dict[str, int] = {}       # ключ -> текущая версия записи
+        self._gen: dict[str, int] = {}  # ключ -> текущая версия записи
         # Куча по сроку истечения: (expire_ts, key, gen)
         self._expire_heap: list[tuple[float, str, int]] = []
         # Куча по времени отметки (для вытеснения самых старых при переполнении): (ts, key, gen)

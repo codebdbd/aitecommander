@@ -24,6 +24,7 @@ try:
 
     metrics = get_metrics()
 except Exception:  # надёжный фолбэк: метрики отключены, логика не ломается
+
     class _NoOpMetrics:
         def start(self, _name: str) -> None:
             pass
@@ -143,6 +144,7 @@ class AsyncOperations:
 
         Безопасно игнорирует уже отсоединённые связи.
         """
+
         def _disc(signal, handler, name: str) -> None:
             try:
                 signal.disconnect(handler)
@@ -169,23 +171,73 @@ class AsyncOperations:
                     exc_info=True,
                 )
 
-        _disc(self._worker_signals.spheres_loaded, handlers.on_spheres_loaded, "spheres_loaded")
-        _disc(self._worker_signals.structure_loaded, handlers.on_structure_loaded, "structure_loaded")
-        _disc(self._worker_signals.sections_loaded, handlers.on_sections_loaded, "sections_loaded")
-        _disc(self._worker_signals.categories_loaded, handlers.on_categories_loaded, "categories_loaded")
-        _disc(self._worker_signals.search_results, handlers.on_search_results, "search_results")
-        _disc(self._worker_signals.links_loaded, handlers.on_links_loaded, "links_loaded")
-        _disc(self._worker_signals.link_info_finished, handlers.on_link_info_finished, "link_info_finished")
-        _disc(self._worker_signals.count_finished, handlers.on_count_finished, "count_finished")
-        _disc(self._worker_signals.item_created, handlers.on_item_created, "item_created")
-        _disc(self._worker_signals.item_updated, handlers.on_item_updated, "item_updated")
-        _disc(self._worker_signals.item_deleted, handlers.on_item_deleted, "item_deleted")
-        _disc(self._worker_signals.operation_started, handlers.on_operation_started, "operation_started")
-        _disc(self._worker_signals.operation_finished, handlers.on_operation_finished, "operation_finished")
-        _disc(self._worker_signals.loading_started, handlers.on_loading_started, "loading_started")
+        _disc(
+            self._worker_signals.spheres_loaded,
+            handlers.on_spheres_loaded,
+            "spheres_loaded",
+        )
+        _disc(
+            self._worker_signals.structure_loaded,
+            handlers.on_structure_loaded,
+            "structure_loaded",
+        )
+        _disc(
+            self._worker_signals.sections_loaded,
+            handlers.on_sections_loaded,
+            "sections_loaded",
+        )
+        _disc(
+            self._worker_signals.categories_loaded,
+            handlers.on_categories_loaded,
+            "categories_loaded",
+        )
+        _disc(
+            self._worker_signals.search_results,
+            handlers.on_search_results,
+            "search_results",
+        )
+        _disc(
+            self._worker_signals.links_loaded, handlers.on_links_loaded, "links_loaded"
+        )
+        _disc(
+            self._worker_signals.link_info_finished,
+            handlers.on_link_info_finished,
+            "link_info_finished",
+        )
+        _disc(
+            self._worker_signals.count_finished,
+            handlers.on_count_finished,
+            "count_finished",
+        )
+        _disc(
+            self._worker_signals.item_created, handlers.on_item_created, "item_created"
+        )
+        _disc(
+            self._worker_signals.item_updated, handlers.on_item_updated, "item_updated"
+        )
+        _disc(
+            self._worker_signals.item_deleted, handlers.on_item_deleted, "item_deleted"
+        )
+        _disc(
+            self._worker_signals.operation_started,
+            handlers.on_operation_started,
+            "operation_started",
+        )
+        _disc(
+            self._worker_signals.operation_finished,
+            handlers.on_operation_finished,
+            "operation_finished",
+        )
+        _disc(
+            self._worker_signals.loading_started,
+            handlers.on_loading_started,
+            "loading_started",
+        )
         _disc(self._worker_signals.update_ui, handlers.on_update_ui, "update_ui")
         _disc(self._worker_signals.error, handlers.on_error, "error")
-        _disc(self._worker_signals.simple_error, handlers.on_simple_error, "simple_error")
+        _disc(
+            self._worker_signals.simple_error, handlers.on_simple_error, "simple_error"
+        )
 
     # ===== Метрики асинхронных операций =====
     def _start_async_metric(self, name: str, stop_signal: pyqtSignal) -> None:
@@ -219,7 +271,9 @@ class AsyncOperations:
     def load_spheres_async(self) -> None:
         """Асинхронная загрузка всех сфер через run_db."""
         # Метрика асинхронной загрузки сфер: старт здесь, стоп по сигналу spheres_loaded
-        self._start_async_metric("async:spheres_load", self._worker_signals.spheres_loaded)
+        self._start_async_metric(
+            "async:spheres_load", self._worker_signals.spheres_loaded
+        )
         self._worker_signals.operation_started.emit("Загрузка сфер...")
 
         def _fetch():
@@ -245,7 +299,9 @@ class AsyncOperations:
 
         desc = f"Загрузка структуры для сферы {current_sphere_id}..."
         # Метрика асинхронной загрузки структуры: старт здесь, стоп по сигналу structure_loaded
-        self._start_async_metric("async:structure_load", self._worker_signals.structure_loaded)
+        self._start_async_metric(
+            "async:structure_load", self._worker_signals.structure_loaded
+        )
         self._worker_signals.operation_started.emit(desc)
 
         def _fetch():
@@ -350,7 +406,10 @@ class AsyncOperations:
                 return
         except Exception as e:
             # Не блокируем создание при сбое проверки, только логируем
-            self.logger.warning("Не удалось выполнить предчек дубликатов раздела: %s", e)
+            self.logger.warning(
+                "Не удалось выполнить предчек дубликатов раздела: %s", e
+            )
+
         def _create():
             service = StructureService(self.db)
             item_id = service.create_section(dict(data))
@@ -390,6 +449,7 @@ class AsyncOperations:
                 "ID раздела обязателен и должен быть > 0 для создания категории"
             )
             return
+
         def _create():
             service = StructureService(self.db)
             item_id = service.create_category(dict(data))
@@ -630,7 +690,11 @@ class AsyncSignalHandlers:
     ) -> None:
         """Обработчик завершения загрузки структуры."""
         try:
-            self.logger.debug("Загружена структура для сферы %s: %s разделов", sphere_id, len(structure))
+            self.logger.debug(
+                "Загружена структура для сферы %s: %s разделов",
+                sphere_id,
+                len(structure),
+            )
             # Перф-метрика: время от начала переключения сферы до готовности структуры
             try:
                 start = getattr(self.controller, "_last_switch_started_ms", None)
@@ -638,7 +702,11 @@ class AsyncSignalHandlers:
                     import time as _time
 
                     elapsed_ms = int((_time.monotonic() - float(start)) * 1000)
-                    self.logger.info("[Perf] Переключение сферы %s: структура загружена за %d мс", sphere_id, elapsed_ms)
+                    self.logger.info(
+                        "[Perf] Переключение сферы %s: структура загружена за %d мс",
+                        sphere_id,
+                        elapsed_ms,
+                    )
                     # Сбрасываем маркер, чтобы не мешал последующим измерениям
                     try:
                         setattr(self.controller, "_last_switch_started_ms", None)
@@ -667,7 +735,9 @@ class AsyncSignalHandlers:
     ) -> None:
         """Обработчик завершения загрузки разделов."""
         try:
-            self.logger.info("Загружено %s разделов для сферы %s", len(sections), sphere_id)
+            self.logger.info(
+                "Загружено %s разделов для сферы %s", len(sections), sphere_id
+            )
             if hasattr(self.controller, "sections_loaded"):
                 self.controller.sections_loaded.emit(sections, sphere_id)
         except Exception as e:
@@ -684,7 +754,9 @@ class AsyncSignalHandlers:
         а не `section_selected`, чтобы UI получил именно событие загрузки категорий.
         """
         try:
-            self.logger.info("Загружено %s категорий для раздела %s", len(categories), section_id)
+            self.logger.info(
+                "Загружено %s категорий для раздела %s", len(categories), section_id
+            )
             if hasattr(self.controller, "categories_loaded"):
                 self.controller.categories_loaded.emit(categories, section_id)
             else:
@@ -900,7 +972,9 @@ class AsyncSignalHandlers:
         try:
             self.logger.debug("Обновление избранного (через TopPanelsController)")
             if not self.top_panels:
-                self.logger.warning("top_panels не инжектирован; пропускаем обновление избранного")
+                self.logger.warning(
+                    "top_panels не инжектирован; пропускаем обновление избранного"
+                )
                 return
             self.top_panels.request_favorites_refresh()
         except Exception as e:
@@ -912,7 +986,9 @@ class AsyncSignalHandlers:
         try:
             self.logger.debug("Обновление недавних ссылок (через TopPanelsController)")
             if not self.top_panels:
-                self.logger.warning("top_panels не инжектирован; пропускаем обновление недавних ссылок")
+                self.logger.warning(
+                    "top_panels не инжектирован; пропускаем обновление недавних ссылок"
+                )
                 return
             self.top_panels.request_recents_refresh()
         except Exception as e:

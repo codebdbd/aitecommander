@@ -4,6 +4,7 @@
 - Персистентность в JSON-файле: один общий файл для всех браузеров
 Совместим с прежним форматом `profile_cache.py`.
 """
+
 from __future__ import annotations
 
 import json
@@ -65,7 +66,9 @@ class PersistentProfileCache(BaseCache):
                 if not isinstance(key, str):
                     continue
                 # При старте считаем загруженные данные свежими
-                self._store[key] = CacheRecord(value=profiles, ts=now, ttl=self._default_ttl)
+                self._store[key] = CacheRecord(
+                    value=profiles, ts=now, ttl=self._default_ttl
+                )
         except Exception:
             # Тихо игнорируем проблемы загрузки, как и раньше
             pass

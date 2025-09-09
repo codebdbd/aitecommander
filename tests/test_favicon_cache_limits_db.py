@@ -36,7 +36,9 @@ def _db_items_count(db_path: Path) -> int:
         return sum(1 for k in db.keys() if not str(k).startswith("__"))
 
 
-def test_max_size_enforced_on_set(temp_icons_dir: Path, monkeypatch: pytest.MonkeyPatch):
+def test_max_size_enforced_on_set(
+    temp_icons_dir: Path, monkeypatch: pytest.MonkeyPatch
+):
     # Установим маленький лимит
     monkeypatch.setattr(app_config, "favicon_cache_max_size", 3, raising=False)
     # Вставим 10 ключей с возрастающими timestamp — должны остаться 3 самых новых
@@ -52,7 +54,9 @@ def test_max_size_enforced_on_set(temp_icons_dir: Path, monkeypatch: pytest.Monk
         assert favicon_cache.get(f"url-{i}") is not None
 
 
-def test_cleanup_removes_expired_entries(temp_icons_dir: Path, monkeypatch: pytest.MonkeyPatch):
+def test_cleanup_removes_expired_entries(
+    temp_icons_dir: Path, monkeypatch: pytest.MonkeyPatch
+):
     # Сделаем лимит больше, чтобы проверить именно очистку по TTL
     monkeypatch.setattr(app_config, "favicon_cache_max_size", 100, raising=False)
     old_ts = time.time() - (5 * 3600)

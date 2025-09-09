@@ -83,9 +83,17 @@ class DatabaseTask(QRunnable, Generic[T]):
                 sig = inspect.signature(self.func)
                 params = list(sig.parameters.values())
                 pos_params = [
-                    p for p in params if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+                    p
+                    for p in params
+                    if p.kind
+                    in (
+                        inspect.Parameter.POSITIONAL_ONLY,
+                        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    )
                 ]
-                has_var_pos = any(p.kind == inspect.Parameter.VAR_POSITIONAL for p in params)
+                has_var_pos = any(
+                    p.kind == inspect.Parameter.VAR_POSITIONAL for p in params
+                )
 
                 if has_var_pos or len(pos_params) == 1:
                     result = self.func(self.report_progress)  # type: ignore[misc]

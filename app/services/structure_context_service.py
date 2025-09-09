@@ -1,6 +1,7 @@
 """Сервис бизнес-логики контекстного меню структуры.
 Инкапсулирует операции копирования/вставки категорий через буфер обмена и работу с БД.
 """
+
 from __future__ import annotations
 
 import json
@@ -44,9 +45,7 @@ class StructureContextService:
             md = app.clipboard().mimeData()
             return bool(md and md.hasText() and md.text())
         except RuntimeError as e:
-            logger.error(
-                "clipboard_has_text failed: %s: %s", type(e).__name__, e
-            )
+            logger.error("clipboard_has_text failed: %s: %s", type(e).__name__, e)
             return False
 
     def _clipboard_get_json(self) -> Optional[dict | list]:
@@ -60,7 +59,9 @@ class StructureContextService:
             return json.loads(txt) if txt else None
         except (json.JSONDecodeError, RuntimeError, TypeError) as e:
             logger.warning(
-                "Failed to get and parse JSON from clipboard: %s: %s", type(e).__name__, e
+                "Failed to get and parse JSON from clipboard: %s: %s",
+                type(e).__name__,
+                e,
             )
             return None
 
@@ -73,9 +74,13 @@ class StructureContextService:
                 return True
             if data.get("type") == "category" and data.get("id"):
                 return True
-            if data.get("type") == "category_tree" and isinstance(data.get("tree"), dict):
+            if data.get("type") == "category_tree" and isinstance(
+                data.get("tree"), dict
+            ):
                 return True
-            if data.get("type") == "category_trees" and isinstance(data.get("trees"), list):
+            if data.get("type") == "category_trees" and isinstance(
+                data.get("trees"), list
+            ):
                 return True
         elif isinstance(data, list):
             return any(
@@ -127,19 +132,29 @@ class StructureContextService:
         if isinstance(payload, dict):
             if {"category", "links"}.issubset(set(payload.keys())):
                 return [payload]
-            if payload.get("type") == "category_tree" and isinstance(payload.get("tree"), dict):
+            if payload.get("type") == "category_tree" and isinstance(
+                payload.get("tree"), dict
+            ):
                 return [payload.get("tree")]  # type: ignore[return-value]
             if payload.get("type") == "category" and payload.get("id"):
                 return [self._ss.export_category_tree(int(payload["id"]))]
-            if payload.get("type") == "category_trees" and isinstance(payload.get("trees"), list):
+            if payload.get("type") == "category_trees" and isinstance(
+                payload.get("trees"), list
+            ):
                 out: list[dict] = []
                 for t in payload.get("trees", []):
-                    if isinstance(t, dict) and {"category", "links"}.issubset(set(t.keys())):
+                    if isinstance(t, dict) and {"category", "links"}.issubset(
+                        set(t.keys())
+                    ):
                         out.append(t)
                 return out
             return []
         if isinstance(payload, list):
-            return [t for t in payload if isinstance(t, dict) and {"category", "links"}.issubset(set(t.keys()))]
+            return [
+                t
+                for t in payload
+                if isinstance(t, dict) and {"category", "links"}.issubset(set(t.keys()))
+            ]
         return []
 
     def paste_from_clipboard_to_section(self, section_id: int) -> list[dict]:
@@ -171,7 +186,9 @@ class StructureContextService:
 
             # 2) Генерация ссылок лениво и сбор созданных категорий
             created_categories: list[dict] = []
-            links_iter = self._iter_links_for_created_categories(trees, index_by_name, created_categories)
+            links_iter = self._iter_links_for_created_categories(
+                trees, index_by_name, created_categories
+            )
             # Собираем ссылки в список единожды для батчевой вставки
             all_links = list(links_iter)
             if all_links:
@@ -185,17 +202,22 @@ class StructureContextService:
             return []
 
     # --- Internal helpers ---
-    def _prepare_categories_for_section(self, trees: Iterable[dict], section_id: int) -> list[dict]:
+    def _prepare_categories_for_section(
+        self, trees: Iterable[dict], section_id: int
+    ) -> list[dict]:
         """Готовит данные категорий для вставки в указанный раздел.
 
         Возвращает список словарей для batch-создания. Исключает поля id/section_id из исходных данных.
         """
+
         def gen():
             sid = int(section_id)
             for tree in trees:
                 src_cat = dict((tree or {}).get("category", {}))
                 # исключаем служебные поля
-                new_cat = {k: v for k, v in src_cat.items() if k not in {"id", "section_id"}}
+                new_cat = {
+                    k: v for k, v in src_cat.items() if k not in {"id", "section_id"}
+                }
                 new_cat["section_id"] = sid
                 yield new_cat
 

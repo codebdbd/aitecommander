@@ -23,9 +23,7 @@ class SelectionService:
             return sections
         except Exception as e:  # noqa: BLE001
             if logger:
-                logger.error(
-                    "Ошибка получения разделов для сферы %s: %s", sphere_id, e
-                )
+                logger.error("Ошибка получения разделов для сферы %s: %s", sphere_id, e)
             return []
 
     def get_categories(

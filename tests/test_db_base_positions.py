@@ -13,9 +13,12 @@ class FailingExecModel(DatabaseBase):
         # переопределяем _execute_with_error_handling и не обращаемся к connection
         class _DummyMgr:
             connection = None
+
         super().__init__(_DummyMgr())
 
-    def _execute_with_error_handling(self, query: str, params: tuple = (), fetch_method: str = None):  # type: ignore[override]
+    def _execute_with_error_handling(
+        self, query: str, params: tuple = (), fetch_method: str = None
+    ):  # type: ignore[override]
         # Эмулируем ошибку драйвера SQLite
         raise sqlite3.Error("simulated failure")
 

@@ -76,7 +76,9 @@ class MainMenuBuilder:
                 if hasattr(self.main_window, "show_link_dialog_for_category"):
                     self.main_window.show_link_dialog_for_category(cat_id)
             except Exception:
-                logger.exception("[MainMenu] Ошибка при добавлении ссылки из меню Действия")
+                logger.exception(
+                    "[MainMenu] Ошибка при добавлении ссылки из меню Действия"
+                )
 
         actions_menu.addAction(
             self.actions.create(
@@ -147,7 +149,9 @@ class MainMenuBuilder:
         )
         data_menu.addAction(
             self.actions.create(
-                "Восстановить базу", self._restore_database, icon=self._get_icon("dbrestore")
+                "Восстановить базу",
+                self._restore_database,
+                icon=self._get_icon("dbrestore"),
             )
         )
         data_menu.addAction(
@@ -191,7 +195,6 @@ class MainMenuBuilder:
                 icon=self._get_icon("search"),
             )
         )
-
 
     def _create_themes_menu(self, menubar: QMenuBar):
         """Создаёт меню 'Темы'."""

@@ -1,6 +1,7 @@
 """
 Миксин для смены типа ссылки и обновления UI в LinkDialogHandlers.
 """
+
 import logging
 from pathlib import Path
 
@@ -48,9 +49,7 @@ class TypeChangeMixin:
             Path(resolved_icon_path).name if resolved_icon_path else ""
         )
         if resolved_icon_path and Path(resolved_icon_path).exists():
-            set_icon_to_button(
-                self.dialog._get_icon_btn(), resolved_icon_path
-            )
+            set_icon_to_button(self.dialog._get_icon_btn(), resolved_icon_path)
         else:
             self.dialog._get_icon_btn().setIcon(QIcon())
 
@@ -69,7 +68,8 @@ class TypeChangeMixin:
 
         # Кнопка 'Обзор' для определенных типов
         browse_btn.setVisible(
-            lt in (
+            lt
+            in (
                 LinkType.FILE,
                 LinkType.FOLDER,
                 LinkType.PROGRAM,
@@ -79,7 +79,12 @@ class TypeChangeMixin:
         )
 
         # Аргументы только для типов, где они предусмотрены
-        args_supported_types = (LinkType.PROGRAM, LinkType.SCRIPT, LinkType.CHROMEAPP, LinkType.WEB)
+        args_supported_types = (
+            LinkType.PROGRAM,
+            LinkType.SCRIPT,
+            LinkType.CHROMEAPP,
+            LinkType.WEB,
+        )
         show_args = lt in args_supported_types
         args_le.setVisible(show_args)
         args_label.setVisible(show_args)

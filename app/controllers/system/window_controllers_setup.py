@@ -44,37 +44,46 @@ def _resolve_structure_loader(structure_business: StructureBusinessLogic):
     # Проверяем наличие методов загрузки до попытки их использования
     has_async = hasattr(structure_business, "load_structure_async")
     has_sync = hasattr(structure_business, "load_structure")
-    
+
     if not has_async and not has_sync:
         raise SetupError(
             "StructureBusinessLogic must provide load_structure_async() or load_structure()"
         )
-    
+
     try:
         # Приоритет async методу, если доступен
         if has_async:
             loader = structure_business.load_structure_async  # type: ignore[attr-defined]
             if not callable(loader):
-                raise SetupError("StructureBusinessLogic.load_structure_async must be callable")
+                raise SetupError(
+                    "StructureBusinessLogic.load_structure_async must be callable"
+                )
             return loader
-        
+
         if has_sync:
             loader = structure_business.load_structure  # type: ignore[attr-defined]
             if not callable(loader):
-                raise SetupError("StructureBusinessLogic.load_structure must be callable")
+                raise SetupError(
+                    "StructureBusinessLogic.load_structure must be callable"
+                )
             return loader
-            
+
     except SetupError:
         # SetupError уже содержит информативное сообщение - пробрасываем как есть
         raise
     except Exception as e:
         logger.exception("Unexpected error while resolving structure loader")
-        raise SetupError("Failed to resolve structure loader due to unexpected error") from e
-    
+        raise SetupError(
+            "Failed to resolve structure loader due to unexpected error"
+        ) from e
+
     # Этот код никогда не должен выполниться из-за проверок выше
     raise SetupError("Internal error: structure loader resolution failed")
 
-def _on_structure_changed_schedule_refresh(top_ctrl: TopPanelsController, *_args: Any) -> None:
+
+def _on_structure_changed_schedule_refresh(
+    top_ctrl: TopPanelsController, *_args: Any
+) -> None:
     """Поставить отложенное обновление топ-панелей при структурном событии.
 
     Используем внутренний таймер структуры TopPanelsController.schedule_structure_refresh().
@@ -89,6 +98,7 @@ def _on_structure_changed_schedule_refresh(top_ctrl: TopPanelsController, *_args
         logger.exception("Unexpected error when scheduling top panels refresh")
         # Не скрываем тип исключения: пробрасываем как есть
         raise
+
 
 def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None:
     """Создать и настроить основные контроллеры."""
@@ -105,14 +115,24 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
         )
         # Требуем наличие корректного tiles-виджета и жёстко валидируем ошибки подключения
         if not hasattr(window, "tiles") or not window.tiles:
-            raise SetupError("Tiles widget is required for CategoryTilesController setup")
+            raise SetupError(
+                "Tiles widget is required for CategoryTilesController setup"
+            )
         try:
             window.category_tiles_controller.attach_tiles_widget(window.tiles)
         except (AttributeError, TypeError) as e:
-            logger.error("Failed to attach tiles widget to CategoryTilesController: %s", e, exc_info=True)
-            raise SetupError("CategoryTilesController attach_tiles_widget failed: incompatible or missing tiles widget") from e
+            logger.error(
+                "Failed to attach tiles widget to CategoryTilesController: %s",
+                e,
+                exc_info=True,
+            )
+            raise SetupError(
+                "CategoryTilesController attach_tiles_widget failed: incompatible or missing tiles widget"
+            ) from e
         except Exception as e:
-            logger.error("Unexpected error during tiles widget attachment: %s", e, exc_info=True)
+            logger.error(
+                "Unexpected error during tiles widget attachment: %s", e, exc_info=True
+            )
             raise SetupError("Unexpected error while attaching tiles widget") from e
         controllers["category_tiles_controller"] = window.category_tiles_controller
     except Exception as e:
@@ -129,7 +149,9 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
         if not hasattr(rec_sig, "connect"):
             raise AttributeError("recents_changed must have connect")
     except Exception as e:
-        raise SetupError("LinkOperationsController must expose recents_changed signal") from e
+        raise SetupError(
+            "LinkOperationsController must expose recents_changed signal"
+        ) from e
     # Инициализируем LinksBusiness только после успешной настройки tiles,
     # чтобы ошибки tiles не маскировались требованием DummyDB.links в тестах
     links_business = LinksBusinessLogic(db)
@@ -221,7 +243,9 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
         controllers["top_panels_controller"] = window.top_panels_controller
         # Внедряем контроллер верхних панелей в бизнес-логику явным сеттером (обязательно)
         if not hasattr(structure_business, "set_top_panels_controller"):
-            raise SetupError("StructureBusinessLogic must implement set_top_panels_controller")
+            raise SetupError(
+                "StructureBusinessLogic must implement set_top_panels_controller"
+            )
         structure_business.set_top_panels_controller(window.top_panels_controller)
         # Также внедряем TopPanelsController в ThemeController, если доступен
         try:
@@ -230,7 +254,11 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
                 theme_ctrl.set_top_panels_controller(window.top_panels_controller)
         except Exception as e:
             # Не считаем критичным для продолжения работы UI, но логируем для диагностики
-            logger.warning("Failed to inject TopPanelsController into ThemeController: %s", e, exc_info=True)
+            logger.warning(
+                "Failed to inject TopPanelsController into ThemeController: %s",
+                e,
+                exc_info=True,
+            )
     except (AttributeError, TypeError) as e:
         logger.error("Failed to create TopPanelsController: %s", e, exc_info=True)
         raise SetupError("Failed to create TopPanelsController") from e
@@ -251,21 +279,27 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
         link_ops_ref.link_saved.connect(table_ref.on_link_saved)
         link_ops_ref.link_deleted.connect(table_ref.on_link_deleted)
     except (AttributeError, TypeError) as e:
-        raise SetupError(f"Failed to connect LinkOperations -> LinksTableController: {e}") from e
+        raise SetupError(
+            f"Failed to connect LinkOperations -> LinksTableController: {e}"
+        ) from e
 
     try:
         link_ops_ref.favorites_changed.connect(top_panels_ref.request_favorites_refresh)
         # Прямое подключение без getattr
         link_ops_ref.recents_changed.connect(top_panels_ref.request_recents_refresh)
     except (AttributeError, TypeError) as e:
-        raise SetupError(f"Failed to connect LinkOperations -> TopPanelsController: {e}") from e
+        raise SetupError(
+            f"Failed to connect LinkOperations -> TopPanelsController: {e}"
+        ) from e
 
     # Подключаем бизнес-сигналы загрузки к контроллеру таблицы
     try:
         links_business.links_loaded.connect(table_ref.on_links_loaded)
         links_business.search_results_ready.connect(table_ref.on_search_results)
     except (AttributeError, TypeError) as e:
-        raise SetupError(f"Failed to connect LinksBusiness -> LinksTableController: {e}") from e
+        raise SetupError(
+            f"Failed to connect LinksBusiness -> LinksTableController: {e}"
+        ) from e
 
 
 def setup_ui_elements(window: Any, controllers: Dict[str, Any]) -> None:
@@ -312,9 +346,17 @@ def _deferred_setup(window: Any, controllers: Dict[str, Any]) -> None:
             fav_widget=window.fav_widget,
             recent_links_widget=window.recent_links_widget,
             links=controllers.get("links"),
-            quick_add_widget=(window.quick_add_widget if hasattr(window, "quick_add_widget") else None),
-            auto_hide_tree_filter=(window._auto_hide_tree_filter if hasattr(window, "_auto_hide_tree_filter") else None),
-            topbar_manager=(window._topbar_manager if hasattr(window, "_topbar_manager") else None),
+            quick_add_widget=(
+                window.quick_add_widget if hasattr(window, "quick_add_widget") else None
+            ),
+            auto_hide_tree_filter=(
+                window._auto_hide_tree_filter
+                if hasattr(window, "_auto_hide_tree_filter")
+                else None
+            ),
+            topbar_manager=(
+                window._topbar_manager if hasattr(window, "_topbar_manager") else None
+            ),
         )
     except (AttributeError, TypeError, SetupError) as e:
         logger.error("Failed during deferred dependency injection: %s", e)
@@ -392,9 +434,7 @@ def _setup_quick_add_widget(window: Any, controllers: Dict[str, Any]) -> None:
 
     from app.views.quick_add_panel_widget import QuickAddPanelWidget
 
-    window.quick_add_widget = QuickAddPanelWidget(
-        window, category_provider=window
-    )
+    window.quick_add_widget = QuickAddPanelWidget(window, category_provider=window)
 
     _connect_quick_add_signal(
         quick_add_widget=window.quick_add_widget,
@@ -461,7 +501,9 @@ def _connect_top_panels_signals_explicit(
         if action_signal and handler:
             action_signal.connect(handler)
         else:
-            logger.debug("Favorites action signal or handler not available; skipping action wiring")
+            logger.debug(
+                "Favorites action signal or handler not available; skipping action wiring"
+            )
     except (AttributeError, TypeError) as e:
         logger.debug("Failed to connect favorites action (non-critical): %s", e)
 
@@ -478,7 +520,9 @@ def _connect_top_panels_signals_explicit(
                     refresh_sig = cand
                     break
         if not refresh_sig:
-            raise AttributeError("Favorites widget must expose refresh_requested/refreshRequested")
+            raise AttributeError(
+                "Favorites widget must expose refresh_requested/refreshRequested"
+            )
         refresh_sig.connect(top_panels_controller.request_favorites_refresh)
 
         # clear — опционален (не все панели поддерживают), если есть — подключаем
@@ -513,7 +557,9 @@ def _connect_top_panels_signals_explicit(
         if action_signal and handler:
             action_signal.connect(handler)
         else:
-            logger.debug("Recent action signal or handler not available; skipping action wiring")
+            logger.debug(
+                "Recent action signal or handler not available; skipping action wiring"
+            )
     except (AttributeError, TypeError) as e:
         logger.debug("Failed to connect recent action (non-critical): %s", e)
 
@@ -529,7 +575,9 @@ def _connect_top_panels_signals_explicit(
                     refresh_sig = cand
                     break
         if not refresh_sig:
-            raise AttributeError("Recent links widget must expose refresh_requested/refreshRequested")
+            raise AttributeError(
+                "Recent links widget must expose refresh_requested/refreshRequested"
+            )
         # Подключаем напрямую метод контроллера; сигнатуры совместимы
         refresh_sig.connect(top_panels_controller.request_recents_refresh)
     except (AttributeError, TypeError) as e:
@@ -537,7 +585,9 @@ def _connect_top_panels_signals_explicit(
 
     # Доп. настройки интерфейса — валидируем callables, без getattr от window
     if auto_hide_tree_filter is not None:
-        if not hasattr(auto_hide_tree_filter, "_apply") or not callable(auto_hide_tree_filter._apply):
+        if not hasattr(auto_hide_tree_filter, "_apply") or not callable(
+            auto_hide_tree_filter._apply
+        ):
             raise SetupError("_auto_hide_tree_filter must provide callable _apply()")
         # Первоначальное применение авто-скрытия теперь планируется в window_ui_setup.py
         # после показа окна (через сигнал shown или QTimer.singleShot). Здесь не дублируем,
@@ -548,17 +598,21 @@ def _connect_top_panels_signals_explicit(
         QTimer.singleShot(0, topbar_manager.adjust)
 
 
- 
-
-
-def setup_signal_connections(window: Any, controllers: Dict[str, Any], *, top_panels_controller: TopPanelsController) -> None:
+def setup_signal_connections(
+    window: Any,
+    controllers: Dict[str, Any],
+    *,
+    top_panels_controller: TopPanelsController,
+) -> None:
     """Подключить сигналы контроллеров и UI.
 
     Требует явной передачи top_panels_controller для ранней валидации DI.
     """
     # Ранняя валидация явной зависимости
     if not top_panels_controller:
-        raise SetupError("TopPanelsController must be provided to setup_signal_connections")
+        raise SetupError(
+            "TopPanelsController must be provided to setup_signal_connections"
+        )
 
     _connect_structure_signals(
         window,
@@ -585,7 +639,10 @@ def _connect_structure_signals(
     spheres_controller: SpheresBarController,
 ) -> None:
     """Подключить сигналы структуры."""
-    if hasattr(window, "_structure_signals_connected") and window._structure_signals_connected:
+    if (
+        hasattr(window, "_structure_signals_connected")
+        and window._structure_signals_connected
+    ):
         return
     try:
         structure_business.active_sphere_changed.connect(
@@ -593,9 +650,7 @@ def _connect_structure_signals(
         )
     except (AttributeError, TypeError) as e:
         logger.error("Failed to connect sphere button update: %s", e)
-    structure_business.active_sphere_changed.connect(
-        window._update_left_panel_style
-    )
+    structure_business.active_sphere_changed.connect(window._update_left_panel_style)
     # Явный контроллер верхних панелей
     top_ctrl = top_panels_controller
 
@@ -605,12 +660,19 @@ def _connect_structure_signals(
         if hasattr(structure_business, "on_active_sphere_changed"):
             handler = structure_business.on_active_sphere_changed
             if not callable(handler):
-                raise SetupError("StructureBusinessLogic.on_active_sphere_changed must be callable")
+                raise SetupError(
+                    "StructureBusinessLogic.on_active_sphere_changed must be callable"
+                )
         else:
             # Проверяем наличие методов загрузки до создания обработчика
-            if not (hasattr(structure_business, "load_structure_async") or hasattr(structure_business, "load_structure")):
-                raise SetupError("StructureBusinessLogic must provide on_active_sphere_changed, load_structure_async, or load_structure")
-            
+            if not (
+                hasattr(structure_business, "load_structure_async")
+                or hasattr(structure_business, "load_structure")
+            ):
+                raise SetupError(
+                    "StructureBusinessLogic must provide on_active_sphere_changed, load_structure_async, or load_structure"
+                )
+
             # Разрешаем целевой загрузчик один раз при подключении, чтобы ошибка конфигурации проявилась сразу
             loader = _resolve_structure_loader(structure_business)
 
@@ -618,7 +680,9 @@ def _connect_structure_signals(
                 try:
                     loader()
                 except TypeError as e:
-                    raise SetupError("Invalid structure business loader signature") from e
+                    raise SetupError(
+                        "Invalid structure business loader signature"
+                    ) from e
                 except Exception as e:
                     logger.error("Unexpected error triggering structure reload: %s", e)
                     raise SetupError("Failed to trigger structure reload") from e
@@ -633,7 +697,9 @@ def _connect_structure_signals(
 
     # Планировщик единого обновления верхних панелей при каскадных структурных событиях
     if not top_ctrl:
-        raise SetupError("TopPanelsController is required to schedule structure-driven refreshes")
+        raise SetupError(
+            "TopPanelsController is required to schedule structure-driven refreshes"
+        )
     try:
         # Подключаем только действительно влияющие на панели события
         structure_business.active_sphere_changed.connect(
@@ -643,30 +709,45 @@ def _connect_structure_signals(
             partial(_on_structure_changed_schedule_refresh, top_ctrl)
         )
     except (AttributeError, TypeError) as e:
-        raise SetupError(f"Failed to connect structure signals to TopPanelsController: {e}") from e
+        raise SetupError(
+            f"Failed to connect structure signals to TopPanelsController: {e}"
+        ) from e
     except Exception as e:
         # Любые прочие ошибки подключения считаем ошибкой настройки
-        raise SetupError("Unexpected error while wiring structure signals to TopPanelsController") from e
+        raise SetupError(
+            "Unexpected error while wiring structure signals to TopPanelsController"
+        ) from e
     structure.item_changed.connect(window.on_structure_item_changed)
     structure.item_added.connect(window.on_structure_item_added)
 
-    
     window._structure_signals_connected = True
 
     # После подключения сигналов сразу выставим визуальное состояние активной кнопки,
     # если текущая сфера уже известна (исправляет отсутствие фокуса/чека на старте)
-    curr_id = structure_business.current_sphere_id if hasattr(structure_business, "current_sphere_id") else None
+    curr_id = (
+        structure_business.current_sphere_id
+        if hasattr(structure_business, "current_sphere_id")
+        else None
+    )
     if isinstance(curr_id, int) and curr_id > 0:
-        if hasattr(spheres_controller, "update_active_sphere_button") and callable(spheres_controller.update_active_sphere_button):
+        if hasattr(spheres_controller, "update_active_sphere_button") and callable(
+            spheres_controller.update_active_sphere_button
+        ):
             try:
                 spheres_controller.update_active_sphere_button(int(curr_id))
             except (TypeError, ValueError):
-                logger.debug("Failed to update active sphere button with current_sphere_id", exc_info=False)
+                logger.debug(
+                    "Failed to update active sphere button with current_sphere_id",
+                    exc_info=False,
+                )
 
 
 def _connect_database_signals(window: Any) -> None:
     """Подключить сигналы базы данных."""
-    if hasattr(window, "_database_signals_connected") and window._database_signals_connected:
+    if (
+        hasattr(window, "_database_signals_connected")
+        and window._database_signals_connected
+    ):
         return
     db_controller = window.database_controller
 
@@ -708,31 +789,54 @@ def _connect_ui_signals(window: Any) -> None:
         except (AttributeError, TypeError):
             sel_model = None
         if sel_model:
+
             def _update_statusbar_tree(*_):
                 try:
                     window.update_statusbar()
                 except Exception:
-                    logger.debug("update_statusbar failed during tree selection change", exc_info=False)
+                    logger.debug(
+                        "update_statusbar failed during tree selection change",
+                        exc_info=False,
+                    )
+
             try:
                 sel_model.currentChanged.connect(_update_statusbar_tree)
+                sel_model.selectionChanged.connect(_update_statusbar_tree)
             except (AttributeError, TypeError) as e:
                 logger.warning("Failed to connect tree selection signals: %s", e)
 
+    # Таблица ссылок: обновляем статус-бар при изменении выделения и после массового заполнения
     if hasattr(window, "table") and window.table:
+        table = window.table
         try:
-            selection_model = window.table.selectionModel()
+            selection_model = table.selectionModel()
         except (AttributeError, TypeError):
             selection_model = None
         if selection_model:
+
             def _update_statusbar_table(*_):
                 try:
                     window.update_statusbar()
                 except Exception:
-                    logger.debug("update_statusbar failed during table selection change", exc_info=False)
+                    logger.debug(
+                        "update_statusbar failed during table selection change",
+                        exc_info=False,
+                    )
+
             try:
                 selection_model.selectionChanged.connect(_update_statusbar_table)
             except (AttributeError, TypeError) as e:
                 logger.warning("Failed to connect table selection signals: %s", e)
+
+        # Ключевое: счётчик должен обновляться ПОСЛЕ заполнения таблицы,
+        # чтобы избежать гонки при смене категории (links_loaded приходит асинхронно).
+        try:
+            if hasattr(table, "table_populated") and hasattr(
+                table.table_populated, "connect"
+            ):
+                table.table_populated.connect(window.update_statusbar)
+        except (AttributeError, TypeError) as e:
+            logger.debug("Failed to connect table_populated to update_statusbar: %s", e)
     window._ui_signals_connected = True
 
 
@@ -750,7 +854,9 @@ class DatabaseEventHandler:
         window.db = new_db
         # Явно передаем links_actions как зависимость
         links_actions = getattr(window, "links_actions", None)
-        DatabaseEventHandler._update_controllers_with_new_db(window, new_db, links_actions=links_actions)
+        DatabaseEventHandler._update_controllers_with_new_db(
+            window, new_db, links_actions=links_actions
+        )
         DatabaseEventHandler._restore_ui_state(window)
         window.update_statusbar()
 
@@ -760,7 +866,9 @@ class DatabaseEventHandler:
         window.db = new_db
         # Явно передаем links_actions как зависимость
         links_actions = getattr(window, "links_actions", None)
-        DatabaseEventHandler._update_controllers_with_new_db(window, new_db, links_actions=links_actions)
+        DatabaseEventHandler._update_controllers_with_new_db(
+            window, new_db, links_actions=links_actions
+        )
         DatabaseEventHandler._restore_ui_state(window)
         window.update_statusbar()
 
@@ -778,7 +886,9 @@ class DatabaseEventHandler:
         if not top_panels_controller:
             raise SetupError("TopPanelsController is required to clear favorites")
         if not links_table_controller:
-            raise SetupError("LinksTableController is required to reload table after favorites clear")
+            raise SetupError(
+                "LinksTableController is required to reload table after favorites clear"
+            )
 
         # Действия через контроллеры
         top_panels_controller.clear_favorites()
@@ -789,9 +899,11 @@ class DatabaseEventHandler:
             links_table_controller.reload(category_id)
 
     @staticmethod
-    def _update_controllers_with_new_db(window: Any, new_db: Any, *, links_actions: Any = None):
+    def _update_controllers_with_new_db(
+        window: Any, new_db: Any, *, links_actions: Any = None
+    ):
         """Обновить все контроллеры новой БД.
-        
+
         Args:
             window: Главное окно приложения
             new_db: Новая база данных
@@ -807,16 +919,18 @@ class DatabaseEventHandler:
         # Явная проверка обязательной зависимости links_actions
         if links_actions is None:
             raise SetupError("links_actions is required when switching database")
-        
+
         # Критичная зависимость: links_actions.links должен существовать
         if not hasattr(links_actions, "links") or links_actions.links is None:
             raise SetupError("links_actions.links is required when switching database")
-        
+
         links = links_actions.links
         # И должен поддерживать необходимые атрибуты
         if not hasattr(links, "db") or not hasattr(links, "links"):
-            raise SetupError("links_actions.links must have 'db' and 'links' attributes")
-        
+            raise SetupError(
+                "links_actions.links must have 'db' and 'links' attributes"
+            )
+
         try:
             links.db = new_db
             links.links = new_db.links
@@ -830,28 +944,52 @@ class DatabaseEventHandler:
             # Критичные проверки интерфейса
             if not hasattr(sb, "spheres_loaded"):
                 logger.error("structure_business.spheres_loaded signal is required")
-                raise SetupError("structure_business must expose 'spheres_loaded' signal")
+                raise SetupError(
+                    "structure_business must expose 'spheres_loaded' signal"
+                )
             signal = sb.spheres_loaded
             if not hasattr(signal, "connect") or not hasattr(signal, "disconnect"):
-                logger.error("structure_business.spheres_loaded must support connect/disconnect")
-                raise SetupError("structure_business.spheres_loaded must support connect/disconnect")
-            if not hasattr(sb, "get_current_sphere_id") or not hasattr(sb, "set_current_sphere"):
-                logger.error("structure_business must implement get_current_sphere_id/set_current_sphere")
-                raise SetupError("structure_business must implement get_current_sphere_id and set_current_sphere")
+                logger.error(
+                    "structure_business.spheres_loaded must support connect/disconnect"
+                )
+                raise SetupError(
+                    "structure_business.spheres_loaded must support connect/disconnect"
+                )
+            if not hasattr(sb, "get_current_sphere_id") or not hasattr(
+                sb, "set_current_sphere"
+            ):
+                logger.error(
+                    "structure_business must implement get_current_sphere_id/set_current_sphere"
+                )
+                raise SetupError(
+                    "structure_business must implement get_current_sphere_id and set_current_sphere"
+                )
             try:
+
                 def _set_first_sphere_once(spheres_list):
                     try:
-                        has_get = hasattr(sb, "get_current_sphere_id") and callable(sb.get_current_sphere_id)
-                        if spheres_list and has_get and sb.get_current_sphere_id() is None:
+                        has_get = hasattr(sb, "get_current_sphere_id") and callable(
+                            sb.get_current_sphere_id
+                        )
+                        if (
+                            spheres_list
+                            and has_get
+                            and sb.get_current_sphere_id() is None
+                        ):
                             first_sphere_id = spheres_list[0].get("id", 1)
                             sb.set_current_sphere(first_sphere_id)
                     finally:
                         try:
                             sb.spheres_loaded.disconnect(_set_first_sphere_once)
                         except Exception:
-                            logger.exception("Failed to disconnect _set_first_sphere_once from spheres_loaded")
+                            logger.exception(
+                                "Failed to disconnect _set_first_sphere_once from spheres_loaded"
+                            )
+
                 sb.spheres_loaded.connect(_set_first_sphere_once)
-                if hasattr(sb, "load_spheres_async") and callable(sb.load_spheres_async):
+                if hasattr(sb, "load_spheres_async") and callable(
+                    sb.load_spheres_async
+                ):
                     sb.load_spheres_async()
             except Exception:
                 logger.exception("Failed to update structure_business with new DB")
@@ -862,7 +1000,10 @@ class DatabaseEventHandler:
         """Восстановить состояние UI после смены БД."""
         category_id = window.get_current_category_id()
         if category_id:
-            if hasattr(window, "links_table_controller") and window.links_table_controller:
+            if (
+                hasattr(window, "links_table_controller")
+                and window.links_table_controller
+            ):
                 try:
                     window.links_table_controller.reload(category_id)
                 except (AttributeError, TypeError) as e:
@@ -872,7 +1013,9 @@ class DatabaseEventHandler:
                     )
                 except Exception:
                     # Неожиданная ошибка — не скрываем
-                    logger.exception("_restore_ui_state: unexpected error during table reload")
+                    logger.exception(
+                        "_restore_ui_state: unexpected error during table reload"
+                    )
                     raise
             else:
                 if hasattr(window, "links_business") and window.links_business:
@@ -884,7 +1027,9 @@ class DatabaseEventHandler:
                             e,
                         )
                     except Exception:
-                        logger.exception("_restore_ui_state: unexpected error during business load_links")
+                        logger.exception(
+                            "_restore_ui_state: unexpected error during business load_links"
+                        )
                         raise
 
 
@@ -946,7 +1091,11 @@ class WindowControllersSetup:
             try:
                 if step is setup_signal_connections:
                     # Явно передаем TopPanelsController для ранней валидации DI
-                    step(self.window, controllers, top_panels_controller=self.window.top_panels_controller)
+                    step(
+                        self.window,
+                        controllers,
+                        top_panels_controller=self.window.top_panels_controller,
+                    )
                 else:
                     step(self.window, controllers)
                 logger.info("%s completed", name)
@@ -967,5 +1116,6 @@ class WindowControllersSetup:
         except (AttributeError, TypeError, ValueError) as e:
             logger.error("Failed to initialize spheres: %s", e)
             raise SetupError("Spheres initialization failed") from e
+
 
 __all__ = ["WindowControllersSetup"]

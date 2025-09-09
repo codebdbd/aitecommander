@@ -22,7 +22,9 @@ class DummyView(RowOperationsMixin):
 
 
 class DummyModel:
-    def __init__(self, row_count=0, remove_returns=True, remove_raises: Exception | None = None):
+    def __init__(
+        self, row_count=0, remove_returns=True, remove_raises: Exception | None = None
+    ):
         self._row_count = row_count
         self._remove_returns = remove_returns
         self._remove_raises = remove_raises
@@ -61,8 +63,10 @@ def test_remove_row_missing_remove_method_returns_false(monkeypatch):
     class NoRemoveModel:
         def __init__(self, row_count=3):
             self._row_count = row_count
+
         def rowCount(self):
             return self._row_count
+
         # remove_row отсутствует
 
     model = NoRemoveModel(row_count=3)

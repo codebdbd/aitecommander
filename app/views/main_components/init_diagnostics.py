@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import QApplication
 
 logger = logging.getLogger(__name__)
 
+
 class DiagnosticsInstaller:
     """Устанавливает диагностические фильтры и наблюдатели для UI.
 
@@ -16,7 +17,11 @@ class DiagnosticsInstaller:
         DiagnosticsInstaller(window, dump_top_levels_cb).install_all()
     """
 
-    def __init__(self, window: QObject, dump_top_levels_cb: Optional[Callable[[str], None]] = None) -> None:
+    def __init__(
+        self,
+        window: QObject,
+        dump_top_levels_cb: Optional[Callable[[str], None]] = None,
+    ) -> None:
         self._window = window
         self._dump_top_levels = dump_top_levels_cb
 
@@ -24,18 +29,24 @@ class DiagnosticsInstaller:
         try:
             self._install_qt_message_filter()
         except Exception:
-            logger.warning("DiagnosticsInstaller: _install_qt_message_filter failed", exc_info=True)
+            logger.warning(
+                "DiagnosticsInstaller: _install_qt_message_filter failed", exc_info=True
+            )
 
         try:
             self._install_top_level_watcher()
         except Exception:
-            logger.warning("DiagnosticsInstaller: _install_top_level_watcher failed", exc_info=True)
+            logger.warning(
+                "DiagnosticsInstaller: _install_top_level_watcher failed", exc_info=True
+            )
 
         try:
             self._install_window_resize_logger()
         except Exception:
-            logger.warning("DiagnosticsInstaller: _install_window_resize_logger failed", exc_info=True)
-
+            logger.warning(
+                "DiagnosticsInstaller: _install_window_resize_logger failed",
+                exc_info=True,
+            )
 
     # === Qt message handler ===
     def _install_qt_message_filter(self) -> None:
@@ -53,7 +64,10 @@ class DiagnosticsInstaller:
                 try:
                     logger.debug("[QtMsgSuppressed] %s", msg)
                 except Exception:
-                    logger.debug("DiagnosticsInstaller: failed to log suppressed Qt message", exc_info=True)
+                    logger.debug(
+                        "DiagnosticsInstaller: failed to log suppressed Qt message",
+                        exc_info=True,
+                    )
                 return
             try:
                 if msg_type in (QtMsgType.QtWarningMsg, QtMsgType.QtInfoMsg):
@@ -63,7 +77,9 @@ class DiagnosticsInstaller:
                 else:
                     logger.info("[Qt] %s", msg)
             except Exception:
-                logger.debug("DiagnosticsInstaller: failed to log Qt message", exc_info=True)
+                logger.debug(
+                    "DiagnosticsInstaller: failed to log Qt message", exc_info=True
+                )
 
         try:
             qInstallMessageHandler(_qt_msg_handler)
@@ -86,8 +102,17 @@ class DiagnosticsInstaller:
                 self._moves = 0
                 try:
                     from app.config_data import app_config as _cfg
-                    self._max_resizes = int(getattr(_cfg, "get", lambda *_: 5)("diag.resize_log.max_resizes", 5))
-                    self._max_moves = int(getattr(_cfg, "get", lambda *_: 5)("diag.resize_log.max_moves", 5))
+
+                    self._max_resizes = int(
+                        getattr(_cfg, "get", lambda *_: 5)(
+                            "diag.resize_log.max_resizes", 5
+                        )
+                    )
+                    self._max_moves = int(
+                        getattr(_cfg, "get", lambda *_: 5)(
+                            "diag.resize_log.max_moves", 5
+                        )
+                    )
                 except Exception:
                     self._max_resizes = 5
                     self._max_moves = 5
@@ -95,19 +120,36 @@ class DiagnosticsInstaller:
 
             def _maybe_uninstall(self, obj):
                 try:
-                    if self._resizes >= self._max_resizes and self._moves >= self._max_moves:
+                    if (
+                        self._resizes >= self._max_resizes
+                        and self._moves >= self._max_moves
+                    ):
                         try:
                             obj.removeEventFilter(self)
                         except Exception:
-                            logger.debug("DiagnosticsInstaller: removeEventFilter failed in _ResizeLogger", exc_info=True)
+                            logger.debug(
+                                "DiagnosticsInstaller: removeEventFilter failed in _ResizeLogger",
+                                exc_info=True,
+                            )
                         try:
-                            if hasattr(self._owner, "_diag_resize_logger") and getattr(self._owner, "_diag_resize_logger", None) is self:
+                            if (
+                                hasattr(self._owner, "_diag_resize_logger")
+                                and getattr(self._owner, "_diag_resize_logger", None)
+                                is self
+                            ):
                                 setattr(self._owner, "_diag_resize_logger", None)  # type: ignore[attr-defined]
-                                setattr(self._owner, "_diag_resize_logger_installed", False)  # type: ignore[attr-defined]
+                                setattr(
+                                    self._owner, "_diag_resize_logger_installed", False
+                                )  # type: ignore[attr-defined]
                         except Exception:
-                            logger.debug("DiagnosticsInstaller: failed to reset _diag_resize_logger flags", exc_info=True)
+                            logger.debug(
+                                "DiagnosticsInstaller: failed to reset _diag_resize_logger flags",
+                                exc_info=True,
+                            )
                 except Exception:
-                    logger.debug("DiagnosticsInstaller: _maybe_uninstall failed", exc_info=True)
+                    logger.debug(
+                        "DiagnosticsInstaller: _maybe_uninstall failed", exc_info=True
+                    )
 
             def eventFilter(self, obj, event):
                 et = event.type()
@@ -116,10 +158,14 @@ class DiagnosticsInstaller:
                         self._resizes += 1
                         try:
                             sz = getattr(obj, "size", lambda: None)()
-                            size_s = f"{sz.width()}x{sz.height()}" if sz is not None else "?"
+                            size_s = (
+                                f"{sz.width()}x{sz.height()}" if sz is not None else "?"
+                            )
                         except Exception:
                             size_s = "?"
-                        logger.info("DiagTopLevels: Resize #%s -> %s", self._resizes, size_s)
+                        logger.info(
+                            "DiagTopLevels: Resize #%s -> %s", self._resizes, size_s
+                        )
                         self._maybe_uninstall(obj)
                     elif et == QEvent.Type.Move and self._moves < self._max_moves:
                         self._moves += 1
@@ -131,7 +177,10 @@ class DiagnosticsInstaller:
                         logger.info("DiagTopLevels: Move #%s -> %s", self._moves, pos_s)
                         self._maybe_uninstall(obj)
                 except Exception:
-                    logger.debug("DiagnosticsInstaller: _ResizeLogger.eventFilter failed", exc_info=True)
+                    logger.debug(
+                        "DiagnosticsInstaller: _ResizeLogger.eventFilter failed",
+                        exc_info=True,
+                    )
                 return QObject.eventFilter(self, obj, event)
 
         rl = _ResizeLogger(win)
@@ -150,14 +199,20 @@ class DiagnosticsInstaller:
             def eventFilter(self, obj, event):
                 try:
                     et = event.type()
-                    if et in (QEvent.Type.Show, QEvent.Type.ShowToParent, QEvent.Type.WindowActivate):
+                    if et in (
+                        QEvent.Type.Show,
+                        QEvent.Type.ShowToParent,
+                        QEvent.Type.WindowActivate,
+                    ):
                         try:
                             is_window = bool(getattr(obj, "isWindow", lambda: False)())
                         except Exception:
                             is_window = False
                         parent_none = getattr(obj, "parent", lambda: None)() is None
                         if is_window or parent_none:
-                            name = getattr(obj, "objectName", lambda: "")() or "<noname>"
+                            name = (
+                                getattr(obj, "objectName", lambda: "")() or "<noname>"
+                            )
                             cls = type(obj).__name__
                             try:
                                 sz = getattr(obj, "size", lambda: None)()
@@ -168,24 +223,38 @@ class DiagnosticsInstaller:
                                 w_, h_, size_s = -1, -1, "?"
                             try:
                                 pos = getattr(obj, "pos", lambda: None)()
-                                pos_s = f"({pos.x()},{pos.y()})" if pos is not None else "?"
+                                pos_s = (
+                                    f"({pos.x()},{pos.y()})" if pos is not None else "?"
+                                )
                             except Exception:
                                 pos_s = "?"
                             logger.info(
                                 "DiagTopLevels: %s event for %s name=%s isWindow=%s parentNone=%s size=%s pos=%s",
-                                et.name if hasattr(et, "name") else str(int(et)), cls, name, is_window, parent_none, size_s, pos_s,
+                                et.name if hasattr(et, "name") else str(int(et)),
+                                cls,
+                                name,
+                                is_window,
+                                parent_none,
+                                size_s,
+                                pos_s,
                             )
 
                             if self._dump_top_levels:
                                 try:
                                     self._dump_top_levels("watcher installed")
                                 except Exception:
-                                    logger.debug("DiagnosticsInstaller: dump_top_levels callback failed", exc_info=True)
+                                    logger.debug(
+                                        "DiagnosticsInstaller: dump_top_levels callback failed",
+                                        exc_info=True,
+                                    )
                 except Exception:
-                    logger.debug("DiagnosticsInstaller: _TopLevelWatcher.eventFilter failed", exc_info=True)
+                    logger.debug(
+                        "DiagnosticsInstaller: _TopLevelWatcher.eventFilter failed",
+                        exc_info=True,
+                    )
                 return QObject.eventFilter(self, obj, event)
 
         watcher = _TopLevelWatcher(app)
         app.installEventFilter(watcher)
         app._diag_top_levels_watcher = watcher  # type: ignore[attr-defined]
-        app._diag_top_levels_installed = True   # type: ignore[attr-defined]
+        app._diag_top_levels_installed = True  # type: ignore[attr-defined]

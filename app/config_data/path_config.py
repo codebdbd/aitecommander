@@ -117,16 +117,46 @@ class PathConfig(BaseConfig):
     # Универсальный справочник параметров профилей браузеров
     # key: имя браузера, value: (ENV_VAR, относительный путь от ENV, ключ конфига)
     __BROWSER_PARAMS = {
-        "chrome": ("LOCALAPPDATA", Path("Google") / "Chrome" / "User Data", "paths.chrome_profiles_dir"),
-        "firefox": ("APPDATA", Path("Mozilla") / "Firefox", "paths.firefox_profiles_dir"),
-        "edge": ("LOCALAPPDATA", Path("Microsoft") / "Edge" / "User Data", "paths.edge_profiles_dir"),
-        "brave": ("LOCALAPPDATA", Path("BraveSoftware") / "Brave-Browser" / "User Data", "paths.brave_profiles_dir"),
-        "vivaldi": ("LOCALAPPDATA", Path("Vivaldi") / "User Data", "paths.vivaldi_profiles_dir"),
-        "opera": ("APPDATA", Path("Opera Software") / "Opera Stable", "paths.opera_profiles_dir"),
-        "yandex": ("LOCALAPPDATA", Path("Yandex") / "YandexBrowser" / "User Data", "paths.yandex_profiles_dir"),
+        "chrome": (
+            "LOCALAPPDATA",
+            Path("Google") / "Chrome" / "User Data",
+            "paths.chrome_profiles_dir",
+        ),
+        "firefox": (
+            "APPDATA",
+            Path("Mozilla") / "Firefox",
+            "paths.firefox_profiles_dir",
+        ),
+        "edge": (
+            "LOCALAPPDATA",
+            Path("Microsoft") / "Edge" / "User Data",
+            "paths.edge_profiles_dir",
+        ),
+        "brave": (
+            "LOCALAPPDATA",
+            Path("BraveSoftware") / "Brave-Browser" / "User Data",
+            "paths.brave_profiles_dir",
+        ),
+        "vivaldi": (
+            "LOCALAPPDATA",
+            Path("Vivaldi") / "User Data",
+            "paths.vivaldi_profiles_dir",
+        ),
+        "opera": (
+            "APPDATA",
+            Path("Opera Software") / "Opera Stable",
+            "paths.opera_profiles_dir",
+        ),
+        "yandex": (
+            "LOCALAPPDATA",
+            Path("Yandex") / "YandexBrowser" / "User Data",
+            "paths.yandex_profiles_dir",
+        ),
     }
 
-    def __get_browser_dir(self, env_var: str, vendor_path: Path, config_key: str) -> Optional[Path]:
+    def __get_browser_dir(
+        self, env_var: str, vendor_path: Path, config_key: str
+    ) -> Optional[Path]:
         """Универсальный резолвер директории профилей браузера.
 
         Порядок: ENV[env_var] -> ENV/vendor_path если существует -> конфиг по ключу config_key

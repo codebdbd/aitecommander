@@ -33,10 +33,12 @@ def test_missing_recent_links_widget_raises_setup_error():
     class W(WindowStub):
         def __init__(self):
             super().__init__()
+
             # добавим fav_widget c нужными сигналами-стабами
             class _Sig:
                 def connect(self, *_):
                     pass
+
             self.fav_widget = type(
                 "FavW",
                 (),
@@ -46,6 +48,7 @@ def test_missing_recent_links_widget_raises_setup_error():
                     "clear_requested": _Sig(),
                 },
             )()
+
     w = W()
     with pytest.raises(SetupError):
         _connect_top_panels_signals_explicit(

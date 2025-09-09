@@ -15,7 +15,9 @@ def _isolate_db(tmp_path, monkeypatch):
     # Redirect user icons dir to a temporary location
     icons_dir = tmp_path / "icons"
     icons_dir.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr(icon_path_service, "get_user_icons_dir", lambda: icons_dir, raising=True)
+    monkeypatch.setattr(
+        icon_path_service, "get_user_icons_dir", lambda: icons_dir, raising=True
+    )
     # Ensure clean state before/after
     favicon_cache.invalidate(None)
     yield

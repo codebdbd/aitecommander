@@ -72,7 +72,9 @@ def controller():
     fav = FavWidgetMock()
     recent = RecentWidgetMock(limit=7)
     lb = LinksBusinessMock()
-    ctrl = TopPanelsController(DummyMain(), fav_widget=fav, recent_links_widget=recent, links_business=lb)
+    ctrl = TopPanelsController(
+        DummyMain(), fav_widget=fav, recent_links_widget=recent, links_business=lb
+    )
     return ctrl, fav, recent, lb
 
 
@@ -123,7 +125,12 @@ def test_refresh_recent_raises_if_widget_contract_broken(caplog):
     fav = FavWidgetMock()
     lb = LinksBusinessMock()
     with pytest.raises(TypeError):
-        TopPanelsController(DummyMain(), fav_widget=fav, recent_links_widget=BadRecent(), links_business=lb)
+        TopPanelsController(
+            DummyMain(),
+            fav_widget=fav,
+            recent_links_widget=BadRecent(),
+            links_business=lb,
+        )
 
 
 def test_refresh_favorites_raises_if_widget_contract_broken():
@@ -134,4 +141,9 @@ def test_refresh_favorites_raises_if_widget_contract_broken():
     recent = RecentWidgetMock()
     lb = LinksBusinessMock()
     with pytest.raises(TypeError):
-        TopPanelsController(DummyMain(), fav_widget=BadFav(), recent_links_widget=recent, links_business=lb)
+        TopPanelsController(
+            DummyMain(),
+            fav_widget=BadFav(),
+            recent_links_widget=recent,
+            links_business=lb,
+        )

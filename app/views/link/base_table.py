@@ -113,7 +113,9 @@ class LinksTableView(
         try:
             self.entered.connect(self._on_index_entered)
         except Exception:
-            logger.debug("LinksTableView: failed to connect entered signal", exc_info=True)
+            logger.debug(
+                "LinksTableView: failed to connect entered signal", exc_info=True
+            )
         self.leaveEvent = self._on_leave_event
 
         # Сортировка по клику в заголовке: если была отключена после DnD — включим и выполним один сорт
@@ -122,7 +124,9 @@ class LinksTableView(
         try:
             self.model().layoutChanged.connect(self._rebuild_cache_on_layout)
         except Exception:
-            logger.debug("LinksTableView: failed to connect layoutChanged", exc_info=True)
+            logger.debug(
+                "LinksTableView: failed to connect layoutChanged", exc_info=True
+            )
 
         # Подключаем сигнал базового класса к нашему сигналу для совместимости
         self.items_reordered.connect(self.links_reordered.emit)
@@ -151,12 +155,16 @@ class LinksTableView(
         try:
             header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         except Exception:
-            logger.debug("LinksTableView: failed to set resize mode for column 0", exc_info=True)
+            logger.debug(
+                "LinksTableView: failed to set resize mode for column 0", exc_info=True
+            )
         try:
             self.setColumnWidth(1, col_widths[1])
             self.setColumnWidth(2, col_widths[2])
         except Exception:
-            logger.debug("LinksTableView: failed to set column widths for 1/2", exc_info=True)
+            logger.debug(
+                "LinksTableView: failed to set column widths for 1/2", exc_info=True
+            )
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
 
@@ -194,16 +202,23 @@ class LinksTableView(
             try:
                 header.setSortIndicatorShown(True)
             except Exception:
-                logger.debug("LinksTableView: failed to setSortIndicatorShown(True)", exc_info=True)
+                logger.debug(
+                    "LinksTableView: failed to setSortIndicatorShown(True)",
+                    exc_info=True,
+                )
             # Выполняем один сорт по колонке (Ascending); дальше Qt сам будет
             try:
                 self.sortByColumn(logical_index, Qt.SortOrder.AscendingOrder)
             except Exception:
-                logger.debug("LinksTableView: sortByColumn on header click failed", exc_info=True)
+                logger.debug(
+                    "LinksTableView: sortByColumn on header click failed", exc_info=True
+                )
 
     def _rebuild_cache_on_layout(self):
         """Перестраиваем кэш после изменения layout модели (сортировка/перемещения)."""
         try:
             self.rebuild_cache_from_items()
         except Exception as e:
-            logger.debug("[SORT] Ошибка перестроения кэша по layoutChanged: %s", e, exc_info=True)
+            logger.debug(
+                "[SORT] Ошибка перестроения кэша по layoutChanged: %s", e, exc_info=True
+            )

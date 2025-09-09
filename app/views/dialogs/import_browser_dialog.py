@@ -197,13 +197,15 @@ class ImportBrowserDialog(BaseDialog):
             self.selected_section_id = section_id
             logger.info(
                 "Подтвержден импорт в раздел: %s / %s",
-                section_info['sphere_name'],
-                section_info['section_name'],
+                section_info["sphere_name"],
+                section_info["section_name"],
             )
             super().accept()
 
         except Exception as e:
-            logger.error("Ошибка при подтверждении выбора раздела: %s", e, exc_info=True)
+            logger.error(
+                "Ошибка при подтверждении выбора раздела: %s", e, exc_info=True
+            )
             self.show_error(
                 "Не удалось подтвердить выбор раздела.",
                 "Ошибка при подтверждении",

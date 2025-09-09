@@ -24,6 +24,7 @@ def _worker_set_values(db_dir: str, n: int, prefix: str):
     # Создаем кэш с тем же расположением БД
     def _fake_dir():
         from pathlib import Path
+
         return Path(db_dir)
 
     fav_mod.icon_path_service.get_user_icons_dir = _fake_dir  # type: ignore[attr-defined]
@@ -32,7 +33,7 @@ def _worker_set_values(db_dir: str, n: int, prefix: str):
     rnd = random.Random(prefix)
     for i in range(n):
         # генерим уникальный ключ и данные
-        suffix = ''.join(rnd.choice(string.ascii_lowercase) for _ in range(6))
+        suffix = "".join(rnd.choice(string.ascii_lowercase) for _ in range(6))
         key = f"{prefix}-{i}-{suffix}"
         cache.set(key, {"icon": "", "title": key})
         # небольшая пауза, чтобы спровоцировать чередование
@@ -47,7 +48,9 @@ def test_favicon_cache_parallel_writes(monkeypatch, tmp_path):
 
     procs = []
     for p in range(proc_count):
-        pr = mp.Process(target=_worker_set_values, args=(str(tmp_path), per_proc, f"p{p}"))
+        pr = mp.Process(
+            target=_worker_set_values, args=(str(tmp_path), per_proc, f"p{p}")
+        )
         pr.start()
         procs.append(pr)
 

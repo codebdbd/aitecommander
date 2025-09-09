@@ -19,6 +19,7 @@ from app.utils.ui.qt.delegates.combo_row_height_delegate import ComboRowHeightDe
 
 logger = logging.getLogger(__name__)
 
+
 def apply_uniform_height(dialog: QDialog):
     """
     Finds specific widget types within a dialog and sets their height to a uniform 32px.
@@ -41,7 +42,6 @@ def apply_uniform_height(dialog: QDialog):
             except Exception:
                 # Fall back to leaving the current font as-is if something goes wrong
                 logger.exception("Failed to set uniform font size for QPushButton")
-
 
 
 def create_russian_context_menu(widget):
@@ -170,7 +170,9 @@ class BaseDialog(QDialog):
                     if view is not None:
                         view.setIconSize(QSize(target_icon, target_icon))
                 except Exception:
-                    logger.exception("Failed to apply combo popup styles to a QComboBox")
+                    logger.exception(
+                        "Failed to apply combo popup styles to a QComboBox"
+                    )
                     continue
         except Exception:
             logger.exception("Failed to apply combo popup styles (outer)")

@@ -41,6 +41,7 @@ class _LazyAppConfig:
         if inst is None:
             # Ленивая инициализация при первом set
             from .config_loader import AppConfig as _AppConfig  # локальный импорт
+
             inst = _AppConfig()
             object.__setattr__(self, "_instance", inst)
         setattr(inst, name, value)

@@ -45,4 +45,7 @@ def test_init_raises_setup_error_when_timer_interval_setup_fails(monkeypatch, ca
             links_business=LinksBusinessStub(),
         )
 
-    assert any("failed to set structure timer interval" in rec.getMessage().lower() for rec in caplog.records)
+    assert any(
+        "failed to set structure timer interval" in rec.getMessage().lower()
+        for rec in caplog.records
+    )

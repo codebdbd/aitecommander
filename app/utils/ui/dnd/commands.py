@@ -261,7 +261,9 @@ class MoveCategoriesCommand(BaseCommand):
     def __init__(self, category_ids, new_section_id, base_row, main_window):
         super().__init__(f"Перемещение {len(category_ids)} категорий", main_window)
         self.category_ids = list(category_ids or [])
-        self.new_section_id = int(new_section_id) if isinstance(new_section_id, int) else new_section_id
+        self.new_section_id = (
+            int(new_section_id) if isinstance(new_section_id, int) else new_section_id
+        )
         self.base_row = int(base_row) if isinstance(base_row, int) else 0
         self._old_states = []  # [{id, name, section_id, position, icon_path}]
         self._new_states = []  # такой же формат, но с целевыми section/position
@@ -278,13 +280,15 @@ class MoveCategoriesCommand(BaseCommand):
             if not data:
                 logger.debug("Категория %s не найдена, пропуск", cid)
                 continue
-            old_states.append({
-                "id": data["id"],
-                "name": data.get("name", ""),
-                "section_id": data.get("section_id"),
-                "position": data.get("position", 0),
-                "icon_path": data.get("icon_path", ""),
-            })
+            old_states.append(
+                {
+                    "id": data["id"],
+                    "name": data.get("name", ""),
+                    "section_id": data.get("section_id"),
+                    "position": data.get("position", 0),
+                    "icon_path": data.get("icon_path", ""),
+                }
+            )
         # Стабильный порядок по исходной позиции, затем по id
         old_states.sort(key=lambda x: (x.get("position", 0), x.get("id", 0)))
 
@@ -349,9 +353,11 @@ class MoveCategoriesCommand(BaseCommand):
 
             # Попытка использовать настоящую батч-операцию, если все элементы переносятся в один раздел
             try:
-                target_ids = [int(st.get("id")) for st in states if isinstance(st.get("id"), int)]
+                target_ids = [
+                    int(st.get("id")) for st in states if isinstance(st.get("id"), int)
+                ]
                 targets = {st.get("section_id") for st in states}
-                single_target = (len(targets) == 1)
+                single_target = len(targets) == 1
                 target_section_id = next(iter(targets)) if single_target else None
             except Exception:
                 target_ids = []
@@ -364,13 +370,21 @@ class MoveCategoriesCommand(BaseCommand):
                     # Вычислим base_row как минимальную позицию среди целевых состояний
                     base_row = 0
                     try:
-                        base_row = min(int(st.get("position", 0) or 0) for st in states) if states else 0
+                        base_row = (
+                            min(int(st.get("position", 0) or 0) for st in states)
+                            if states
+                            else 0
+                        )
                     except Exception:
                         base_row = 0
-                    moved = sb.move_categories_batch(target_ids, int(target_section_id), int(base_row))
+                    moved = sb.move_categories_batch(
+                        target_ids, int(target_section_id), int(base_row)
+                    )
                     batch_done = True
                     if len(moved) != len(target_ids):
-                        logger.debug("Часть категорий пропущена батч-переносом (дубликаты имён в целевом разделе)")
+                        logger.debug(
+                            "Часть категорий пропущена батч-переносом (дубликаты имён в целевом разделе)"
+                        )
                 except Exception:
                     # Безопасный фолбэк на поштучное обновление
                     batch_done = False
@@ -389,7 +403,7 @@ class MoveCategoriesCommand(BaseCommand):
                         sb.update_category(cid, payload)
                     except Exception as e:
                         logger.error(
-                            "Ошибка обновления категории %s: %s", st.get('id'), e
+                            "Ошибка обновления категории %s: %s", st.get("id"), e
                         )
         finally:
             # Возвращаем обычную обработку сигналов

@@ -73,7 +73,9 @@ def window_stub():
     return win
 
 
-def test_connect_structure_signals_wires_active_sphere_and_schedules_refresh(window_stub, caplog):
+def test_connect_structure_signals_wires_active_sphere_and_schedules_refresh(
+    window_stub, caplog
+):
     caplog.set_level(logging.DEBUG)
 
     _connect_structure_signals(
@@ -88,7 +90,9 @@ def test_connect_structure_signals_wires_active_sphere_and_schedules_refresh(win
     window_stub.structure_business.active_sphere_changed.emit(5)
 
     # Проверяем, что визуальное состояние кнопки обновлено
-    assert window_stub.spheres_controller.update_calls, "update_active_sphere_button должен быть вызван"
+    assert window_stub.spheres_controller.update_calls, (
+        "update_active_sphere_button должен быть вызван"
+    )
     assert window_stub.spheres_controller.update_calls[-1] in (5, None)
 
     # Проверяем, что запланировано единое обновление верхних панелей
@@ -108,13 +112,17 @@ def test_initial_button_state_set_if_current_sphere_known(window_stub):
     )
 
     # После подключения сигналов выполняется первичная установка состояния кнопок
-    assert window_stub.spheres_controller.update_calls, "Ожидался первичный апдейт активной кнопки"
+    assert window_stub.spheres_controller.update_calls, (
+        "Ожидался первичный апдейт активной кнопки"
+    )
     assert window_stub.spheres_controller.update_calls[-1] in (3, None)
 
 
 def test_connect_structure_signals_requires_top_panels_controller():
     # Без TopPanelsController должен быть поднят SetupError (как в коде)
-    sb = SimpleNamespace(active_sphere_changed=SignalMock(), structure_loaded=SignalMock())
+    sb = SimpleNamespace(
+        active_sphere_changed=SignalMock(), structure_loaded=SignalMock()
+    )
     win = SimpleNamespace(
         structure_business=sb,
         spheres_controller=SpheresControllerMock(),

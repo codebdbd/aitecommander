@@ -28,6 +28,7 @@ def test_auto_hide_tree_filter_uses_module_logger(caplog):
     class BadStack:
         def currentIndex(self):
             raise RuntimeError("boom index")
+
         def count(self):
             return 0
 
@@ -43,7 +44,9 @@ def test_auto_hide_tree_filter_uses_module_logger(caplog):
     window.fav_widget = BadPanel()
     window.recent_links_widget = BadPanel()
 
-    filt = _AutoHideTreeFilter(window, threshold_width=280, default_sizes=[250, 750], logger_=module_logger)
+    filt = _AutoHideTreeFilter(
+        window, threshold_width=280, default_sizes=[250, 750], logger_=module_logger
+    )
 
     caplog.set_level(logging.DEBUG, logger=module_logger.name)
     filt._apply()

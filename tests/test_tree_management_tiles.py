@@ -20,14 +20,18 @@ class DummyTilesController:
 class _MinimalModel:
     def insert_sections(self, *_):
         pass
+
     def insert_categories(self, *_):
         pass
+
     def update_item(self, *_):
         pass
+
 
 class _TreeWithModel:
     def model(self):
         return _MinimalModel()
+
 
 @pytest.fixture
 def controller_stub():
@@ -44,7 +48,9 @@ def test_refresh_section_tiles_calls_controller(controller_stub):
     assert tiles.calls == [5]
 
 
-def test_refresh_section_tiles_expected_errors_are_logged_and_swallowed(controller_stub, caplog):
+def test_refresh_section_tiles_expected_errors_are_logged_and_swallowed(
+    controller_stub, caplog
+):
     tiles = DummyTilesController()
     tiles.raise_exc = ValueError("bad section id")
     tm = TreeManagement(controller_stub, tiles)

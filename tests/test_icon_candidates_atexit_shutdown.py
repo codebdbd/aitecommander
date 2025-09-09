@@ -5,6 +5,7 @@ from app.utils.links.parser import icon_candidates as ic
 
 def _soup(html: str):
     from bs4 import BeautifulSoup
+
     return BeautifulSoup(html, "html.parser")
 
 

@@ -101,8 +101,12 @@ class _CategoryListView(QListView):
                     # Порог из системных настроек
                     threshold = QApplication.startDragDistance()
                     start = getattr(self, "_press_pos", event.position().toPoint())
-                    if (event.position().toPoint() - start).manhattanLength() >= threshold:
-                        self.startDrag(Qt.DropAction.CopyAction | Qt.DropAction.MoveAction)
+                    if (
+                        event.position().toPoint() - start
+                    ).manhattanLength() >= threshold:
+                        self.startDrag(
+                            Qt.DropAction.CopyAction | Qt.DropAction.MoveAction
+                        )
                         return
         except (AttributeError, RuntimeError, TypeError, ValueError) as e:
             logger.debug("CategoryListView.mouseMoveEvent: %s", e)
@@ -119,9 +123,14 @@ class _CategoryListView(QListView):
                     try:
                         self.enterActivated.emit(idx)
                     except (RuntimeError, AttributeError) as e:
-                        logger.warning("CategoryListView.keyPressEvent: failed to emit enterActivated: %s", e)
+                        logger.warning(
+                            "CategoryListView.keyPressEvent: failed to emit enterActivated: %s",
+                            e,
+                        )
                     except Exception:
-                        logger.exception("CategoryListView.keyPressEvent: unexpected error on emit")
+                        logger.exception(
+                            "CategoryListView.keyPressEvent: unexpected error on emit"
+                        )
                     event.accept()
                     return
         except (AttributeError, RuntimeError, TypeError, ValueError) as e:
@@ -142,15 +151,22 @@ class _CategoryListView(QListView):
         except (AttributeError, RuntimeError, TypeError, ValueError) as e:
             logger.debug("CategoryListView.contextMenuEvent: %s", e)
         except Exception:
-            logger.exception("CategoryListView.contextMenuEvent: unexpected error while setting current index")
+            logger.exception(
+                "CategoryListView.contextMenuEvent: unexpected error while setting current index"
+            )
         try:
             self.customContextMenuRequested.emit(event.pos())
             event.accept()
             return
         except (RuntimeError, AttributeError) as e:
-            logger.warning("CategoryListView.contextMenuEvent: failed to emit customContextMenuRequested: %s", e)
+            logger.warning(
+                "CategoryListView.contextMenuEvent: failed to emit customContextMenuRequested: %s",
+                e,
+            )
         except Exception:
-            logger.exception("CategoryListView.contextMenuEvent: unexpected error on emit")
+            logger.exception(
+                "CategoryListView.contextMenuEvent: unexpected error on emit"
+            )
         super().contextMenuEvent(event)
 
 

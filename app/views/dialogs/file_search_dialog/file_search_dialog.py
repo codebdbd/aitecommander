@@ -83,7 +83,9 @@ class _SearchResultsModel(QAbstractTableModel):
         self._rows.clear()
         self.endResetModel()
 
-    def add_result(self, name: str, path: str, size_kb: int, mtime_str: str, has_content: str):
+    def add_result(
+        self, name: str, path: str, size_kb: int, mtime_str: str, has_content: str
+    ):
         row = len(self._rows)
         self.beginInsertRows(QModelIndex(), row, row)
         self._rows.append((name, path, str(size_kb), mtime_str, has_content))
@@ -298,9 +300,13 @@ class FileSearchDialog(BaseDialog):
         header.setStretchLastSection(False)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # Имя
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Путь
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Размер
+        header.setSectionResizeMode(
+            2, QHeaderView.ResizeMode.ResizeToContents
+        )  # Размер
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Дата
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)  # Содержит
+        header.setSectionResizeMode(
+            4, QHeaderView.ResizeMode.ResizeToContents
+        )  # Содержит
 
         # Двойной клик для открытия в проводнике
         self.table.doubleClicked.connect(self._on_double_click)
@@ -621,4 +627,3 @@ class FileSearchDialog(BaseDialog):
         count = self.model.rowCount()
         self.status_label.setText(f"Поиск завершен. Найдено файлов: {count}")
         self._update_buttons()
-

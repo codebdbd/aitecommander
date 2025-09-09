@@ -62,7 +62,9 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
                             }
                         )
                         logger.debug(
-                            "Найден профиль Firefox: %s (%s)", name, (email or "без email")
+                            "Найден профиль Firefox: %s (%s)",
+                            name,
+                            (email or "без email"),
                         )
         except Exception as e:
             logger.error("Ошибка при чтении профилей Firefox: %s", e)

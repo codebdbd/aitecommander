@@ -33,7 +33,12 @@ def make_handlers(table_controller):
     ctrl = ControllerStub(table_controller)
     ops = LinkOperationsStub()
     ui_state = UIStateStub()
-    return LinksUIHandlers(ctrl, link_operations=ops, links_table_controller=table_controller, ui_state=ui_state)
+    return LinksUIHandlers(
+        ctrl,
+        link_operations=ops,
+        links_table_controller=table_controller,
+        ui_state=ui_state,
+    )
 
 
 def test_update_search_results_raises_on_table_controller_contract_error():

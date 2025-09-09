@@ -13,7 +13,9 @@ def test_raises_when_links_missing():
         links_actions=SimpleNamespace(links=None),
     )
     with pytest.raises(SetupError):
-        DatabaseEventHandler._update_controllers_with_new_db(window, SimpleNamespace(links=object()))
+        DatabaseEventHandler._update_controllers_with_new_db(
+            window, SimpleNamespace(links=object())
+        )
 
 
 def test_raises_when_links_interface_invalid():
@@ -26,7 +28,9 @@ def test_raises_when_links_interface_invalid():
         links_actions=SimpleNamespace(links=BadLinks()),
     )
     with pytest.raises(SetupError):
-        DatabaseEventHandler._update_controllers_with_new_db(window, SimpleNamespace(links=object()))
+        DatabaseEventHandler._update_controllers_with_new_db(
+            window, SimpleNamespace(links=object())
+        )
 
 
 def test_raises_when_structure_business_missing_signal():

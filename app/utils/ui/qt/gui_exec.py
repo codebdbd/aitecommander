@@ -21,6 +21,7 @@ __all__ = [
     "run_in_gui_thread_async",
 ]
 
+
 def is_gui_thread() -> bool:
     try:
         app = QApplication.instance()
