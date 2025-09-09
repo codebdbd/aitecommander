@@ -132,6 +132,32 @@ def copy_icon_smart(
         # Возвращаем имя PNG файла для SVG
         return png_dst.name
 
+    # Автоконвертация распространённых растров в PNG (для унификации и независимости от плагинов)
+    ext = src_path_obj.suffix.lower()
+    if ext in {".jpg", ".jpeg", ".webp", ".bmp", ".gif"}:
+        png_dst = dest_dir / (dst.stem + ".png")
+        if png_dst.exists():
+            # Если PNG уже есть (например, ранее конвертировали) — используем его
+            try:
+                # Удаляем только что скопированный исходник, чтобы не дублировать хранение
+                dst.unlink(missing_ok=True)
+            except Exception:
+                logger.debug("Failed to remove temp copied raster: %s", dst, exc_info=True)
+            return png_dst.name
+
+        # Конвертируем растровую иконку в PNG
+        if convert_raster_icon_to_png(str(dst), str(png_dst), size=128):
+            try:
+                # Удаляем исходник после успешной конвертации
+                dst.unlink(missing_ok=True)
+            except Exception:
+                logger.debug("Failed to remove source raster after conversion: %s", dst, exc_info=True)
+            return png_dst.name
+        else:
+            logger.warning("Failed to convert raster icon to PNG: %s -> %s", dst, png_dst)
+            # Возвращаем исходное имя, если конвертация не удалась
+            return dst.name
+
     return dst.name
 
 

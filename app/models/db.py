@@ -16,6 +16,7 @@ from app.utils.db.synchronization import db_lock
 from .category_model import CategoryModel
 from .db_base import VALID_POSITION_TABLES, DatabaseBase, DatabaseError, ValidationError
 from .link_model import LinkModel
+from .link_type import LinkType
 from .section_model import SectionModel
 from .sphere_model import SphereModel
 
@@ -931,7 +932,11 @@ def _upsert_category_tree(tree: dict, connection: sqlite3.Connection) -> None:
         rec["name"] = rec.get("name", "") or ""
         rec["url"] = rec.get("url", "") or ""
         rec["args"] = rec.get("args", "") or ""
-        rec["type"] = rec.get("type", "web") or "web"
+        # Нормализация типа к строковому значению ('web', 'file', ...), на случай Enum
+        try:
+            rec["type"] = LinkType.from_value(rec.get("type", "web")).value
+        except Exception:
+            rec["type"] = LinkType.WEB.value
         rec["notes"] = rec.get("notes", "") or ""
         rec["is_favorite"] = int(rec.get("is_favorite", 0) or 0)
         rec["icon_path"] = rec.get("icon_path", "default.ico") or "default.ico"

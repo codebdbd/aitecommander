@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
+from app.services import share_service
+
 from app.controllers.ui.state.task_scheduler import schedule_selection_restore
 
 
@@ -70,6 +72,107 @@ class LinksActions:
     def show_note_dialog(self, link: Dict):
         if self.links:
             self.links.show_note_dialog(link)
+
+    # --- Поделиться ссылкой ---
+    def share_via_telegram(self, link: Dict) -> bool:
+        if not link:
+            return False
+        name = link.get("name")
+        url = link.get("url") or link.get("href")
+        if not url:
+            return False
+        return share_service.share_via_telegram(name, url)
+
+    def share_via_whatsapp(self, link: Dict) -> bool:
+        if not link:
+            return False
+        name = link.get("name")
+        url = link.get("url") or link.get("href")
+        if not url:
+            return False
+        return share_service.share_via_whatsapp(name, url)
+
+    def share_via_viber(self, link: Dict) -> bool:
+        if not link:
+            return False
+        name = link.get("name")
+        url = link.get("url") or link.get("href")
+        if not url:
+            return False
+        return share_service.share_via_viber(name, url)
+
+    def share_via_email(self, link: Dict) -> bool:
+        if not link:
+            return False
+        name = link.get("name")
+        url = link.get("url") or link.get("href")
+        if not url:
+            return False
+        return share_service.share_via_email(name, url)
+
+    def share_via_email_client(self, link: Dict) -> bool:
+        if not link:
+            return False
+        name = link.get("name")
+        url = link.get("url") or link.get("href")
+        if not url:
+            return False
+        return share_service.share_via_email_client(name, url)
+
+    def share_via_email_gmail(self, link: Dict) -> bool:
+        if not link:
+            return False
+        name = link.get("name")
+        url = link.get("url") or link.get("href")
+        if not url:
+            return False
+        return share_service.share_via_email_gmail(name, url)
+
+    def copy_email_template(self, link: Dict) -> bool:
+        if not link:
+            return False
+        name = link.get("name")
+        url = link.get("url") or link.get("href")
+        if not url:
+            return False
+        return share_service.copy_email_template(name, url)
+
+    # --- Соцсети: X(Twitter), Facebook, LinkedIn ---
+    def share_via_x(self, link: Dict) -> bool:
+        if not link:
+            return False
+        name = link.get("name")
+        url = link.get("url") or link.get("href")
+        if not url:
+            return False
+        return share_service.share_via_x(name, url)
+
+    def share_via_facebook(self, link: Dict) -> bool:
+        if not link:
+            return False
+        name = link.get("name")
+        url = link.get("url") or link.get("href")
+        if not url:
+            return False
+        return share_service.share_via_facebook(name, url)
+
+    def share_via_linkedin(self, link: Dict) -> bool:
+        if not link:
+            return False
+        name = link.get("name")
+        url = link.get("url") or link.get("href")
+        if not url:
+            return False
+        return share_service.share_via_linkedin(name, url)
+
+    def share_via_pinterest(self, link: Dict) -> bool:
+        if not link:
+            return False
+        name = link.get("name")
+        url = link.get("url") or link.get("href")
+        if not url:
+            return False
+        return share_service.share_via_pinterest(name, url)
 
     # --- Поиск и восстановление выбора ---
     def on_search(self, text: str):
