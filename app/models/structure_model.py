@@ -89,30 +89,23 @@ class StructureModel:
             return None
 
         try:
-            # Поддерживаем оба формата: dict и последовательность (tuple/list)
-            if isinstance(hierarchy_data, dict):
-                # Пытаемся прочитать стандартные ключи
-                sphere_id = hierarchy_data.get("sphere_id")
-                section_id = hierarchy_data.get("section_id")
-                # Возможные альтернативные ключи
-                if sphere_id is None:
-                    sphere_id = hierarchy_data.get("sphereId")
-                if section_id is None:
-                    section_id = hierarchy_data.get("sectionId")
-            else:
-                # Считаем, что это последовательность из 2 элементов
-                if (
-                    isinstance(hierarchy_data, (tuple, list))
-                    and len(hierarchy_data) >= 2
-                ):
-                    sphere_id, section_id = hierarchy_data[0], hierarchy_data[1]
-                else:
-                    self.logger.warning(
-                        "Некорректный формат иерархии для категории %s: %s",
-                        category_id,
-                        type(hierarchy_data),
-                    )
-                    return None
+            # Ожидаем только dict из CategoryModel.get_category_hierarchy
+            if not isinstance(hierarchy_data, dict):
+                self.logger.warning(
+                    "Некорректный формат иерархии для категории %s: %s",
+                    category_id,
+                    type(hierarchy_data),
+                )
+                return None
+
+            # Пытаемся прочитать стандартные ключи
+            sphere_id = hierarchy_data.get("sphere_id")
+            section_id = hierarchy_data.get("section_id")
+            # Возможные альтернативные ключи (на случай старых вызовов)
+            if sphere_id is None:
+                sphere_id = hierarchy_data.get("sphereId")
+            if section_id is None:
+                section_id = hierarchy_data.get("sectionId")
 
             # Базовая проверка типов/значений
             if sphere_id is None or section_id is None:
@@ -249,12 +242,8 @@ class StructureModel:
         links_count = 0
         if categories_data:
             for category_row in categories_data:
-                # Оптимизация: прямой доступ к полю без преобразования dict()
-                category_id = (
-                    category_row["id"]
-                    if hasattr(category_row, "__getitem__")
-                    else category_row.id
-                )
+                # Прямой доступ к полю id: get_categories возвращает список dict
+                category_id = category_row["id"]
                 # Оптимизировано: используем эффективный подсчет вместо загрузки всех строк ссылок
                 links_count += self.db.links.count_links_by_category(category_id)
 
@@ -301,7 +290,10 @@ class StructureModel:
         """
         try:
             # Прямое создание через БД для избежания циклических зависимостей
-            return self.db.links.upsert_link(link_data)
+            link_id = self.db.links.upsert_link(link_data)
+            # Явная фиксация, если операция выполняется в рамках активной транзакции
+            self._commit_if_in_tx()
+            return link_id
         except Exception as e:
             self.logger.error("Ошибка создания ссылки: %s", e, exc_info=True)
             return None

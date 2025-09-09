@@ -60,9 +60,11 @@ class SphereModel(DatabaseBase):
     def get_sphere_name(self, sphere_id: int) -> str:
         """Возвращает имя сферы по её ID."""
         row = self._execute_with_error_handling(
-            "SELECT name FROM sphere WHERE id=?", (sphere_id,), fetch_method="one"
+            "SELECT name FROM sphere WHERE id=?",
+            (sphere_id,),
+            fetch_method="one"
         )
-        return row[0] if row else ""
+        return dict(row)["name"] if row else ""
 
     def initialize_default_spheres(self):
         """Инициализирует начальные данные для таблицы sphere, если она пуста.

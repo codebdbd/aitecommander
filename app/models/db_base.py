@@ -1,7 +1,8 @@
 import logging
 import sqlite3
 from contextlib import contextmanager
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
+import threading
 
 from app.utils.db.synchronization import db_lock
 
@@ -30,6 +31,8 @@ class DatabaseBase:
     def __init__(self, connection_manager):
         """Инициализирует базовый класс с менеджером соединения (Database)."""
         self.connection_manager = connection_manager
+        # Счётчик для генерации уникальных имён SAVEPOINT в рамках процесса/потока
+        self._savepoint_counter = 0
 
     @property
     def connection(self):
@@ -70,13 +73,33 @@ class DatabaseBase:
           используйте один общий блок или SAVEPOINT при необходимости.
         """
         with db_lock:
-            try:
-                self.connection.execute("BEGIN TRANSACTION")
-                yield
-                self.connection.commit()
-            except Exception:
-                self.connection.rollback()
-                raise
+            conn = self.connection
+            # Если уже внутри транзакции — создаём вложенную через SAVEPOINT
+            if getattr(conn, "in_transaction", False):
+                sp_name = f"sp_{threading.get_ident()}_{self._savepoint_counter}"
+                self._savepoint_counter += 1
+                try:
+                    conn.execute(f"SAVEPOINT {sp_name}")
+                    yield
+                    conn.execute(f"RELEASE SAVEPOINT {sp_name}")
+                except Exception:
+                    try:
+                        # Откат только до границ вложенной транзакции
+                        conn.execute(f"ROLLBACK TO SAVEPOINT {sp_name}")
+                        conn.execute(f"RELEASE SAVEPOINT {sp_name}")
+                    except Exception:
+                        # Игнорируем вторичные ошибки отката, чтобы не скрыть первичную
+                        pass
+                    raise
+            else:
+                # Внешняя (верхнего уровня) транзакция
+                try:
+                    conn.execute("BEGIN TRANSACTION")
+                    yield
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                    raise
 
     def _validate_required_fields(
         self, data: Dict[str, Any], required_fields: List[str], entity_name: str = ""
@@ -122,7 +145,7 @@ class DatabaseBase:
 
     def _execute_with_error_handling(
         self, query: str, params: tuple = (), fetch_method: str = None
-    ):
+    ) -> Union[sqlite3.Cursor, sqlite3.Row, List[sqlite3.Row], None]:
         """Выполняет SQL-запрос с обработкой ошибок и блокировкой."""
         try:
             with db_lock:

@@ -46,6 +46,16 @@ def share_via_telegram(name: Optional[str], url: str) -> bool:
     web = f"https://t.me/share/url?url={quote_plus(url)}&text={quote_plus(text)}"
     if _open_url(web):
         return True
+    # Если по какой‑то причине веб не открылся — пробуем клиент через deeplink
+    candidates = [
+        f"tg://msg?text={quote_plus(text)}",
+        f"tg://msg_url?url={quote_plus(url)}&text={quote_plus(text)}",
+        f"tg://share?url={quote_plus(url)}&text={quote_plus(text)}",
+    ]
+    for deep in candidates:
+        if _open_url(deep):
+            return True
+    return False
 
 
 # --- Соцсети: X(Twitter), Facebook, LinkedIn ---
@@ -100,17 +110,7 @@ def open_default_apps_settings() -> bool:
     except Exception:
         logger.exception("ShareService: failed to open Windows default apps settings")
         return False
-    # Если по какой‑то причине веб не открылся — пробуем клиент
-    # Разные варианты схем у Telegram
-    candidates = [
-        f"tg://msg?text={quote_plus(text)}",
-        f"tg://msg_url?url={quote_plus(url)}&text={quote_plus(text)}",
-        f"tg://share?url={quote_plus(url)}&text={quote_plus(text)}",
-    ]
-    for deep in candidates:
-        if _open_url(deep):
-            return True
-    return False
+    
 
 
 def share_via_whatsapp(name: Optional[str], url: str) -> bool:
