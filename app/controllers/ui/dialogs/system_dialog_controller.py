@@ -16,7 +16,14 @@ class SetupError(Exception):
 class SystemDialogController:
     """Контроллер для управления системными диалогами."""
 
-    def __init__(self, main_window, *, database_controller, links_table_controller, links_business):
+    def __init__(
+        self,
+        main_window,
+        *,
+        database_controller,
+        links_table_controller,
+        links_business,
+    ):
         self.main_window = main_window
         self.database_controller = database_controller
         self.links_table_controller = links_table_controller
@@ -95,7 +102,9 @@ class SystemDialogController:
                     raise SetupError("database_controller.db is required for backup")
                 db.backup()
             except SetupError:
-                logger.exception("SystemDialogController: backup failed due to setup error")
+                logger.exception(
+                    "SystemDialogController: backup failed due to setup error"
+                )
                 raise
             except Exception as backup_err:
                 logger.warning(
@@ -112,10 +121,14 @@ class SystemDialogController:
                         raise SetupError("links_table_controller must expose reload()")
                     self.links_table_controller.reload(category_id)
                 except SetupError:
-                    logger.exception("SystemDialogController: reload after import failed (setup error)")
+                    logger.exception(
+                        "SystemDialogController: reload after import failed (setup error)"
+                    )
                     raise
                 except Exception as _e:
-                    logger.debug("SystemDialogController: reload after import failed: %s", _e)
+                    logger.debug(
+                        "SystemDialogController: reload after import failed: %s", _e
+                    )
             self.main_window.update_statusbar()
             DialogManager.show_info(
                 self.main_window,

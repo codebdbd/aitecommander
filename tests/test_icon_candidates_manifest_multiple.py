@@ -35,17 +35,17 @@ def test_multiple_manifest_links_are_merged(monkeypatch):
         ]
     }
     m2_json = {
-        "icons": [
-            {"src": "/icons/b-48.png", "sizes": "48x48", "type": "image/png"}
-        ]
+        "icons": [{"src": "/icons/b-48.png", "sizes": "48x48", "type": "image/png"}]
     }
 
     def fake_http_request(url, config=None, allow_non_2xx=False, **kwargs):
         if url == m1_url:
             import json
+
             return DummyResp(True, json.dumps(m1_json))
         if url == m2_url:
             import json
+
             return DummyResp(True, json.dumps(m2_json))
         return DummyResp(False, "{}")
 
@@ -54,7 +54,9 @@ def test_multiple_manifest_links_are_merged(monkeypatch):
     # Minimal config object
     config = types.SimpleNamespace()
 
-    urls = ic.find_favicon_candidates(soup, base_url, config=config, on_manifest_icons=None, use_external=False)
+    urls = ic.find_favicon_candidates(
+        soup, base_url, config=config, on_manifest_icons=None, use_external=False
+    )
 
     # Expect icons from BOTH manifests present
     expected_urls = {
@@ -62,7 +64,9 @@ def test_multiple_manifest_links_are_merged(monkeypatch):
         "https://example.com/icons/a-64.png",
         "https://example.com/icons/b-48.png",
     }
-    assert expected_urls.issubset(set(urls)), f"Missing some manifest icons: {expected_urls - set(urls)}"
+    assert expected_urls.issubset(set(urls)), (
+        f"Missing some manifest icons: {expected_urls - set(urls)}"
+    )
 
     # Ensure no duplication
     assert len(urls) == len(set(urls))

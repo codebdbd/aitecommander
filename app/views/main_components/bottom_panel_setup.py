@@ -49,7 +49,9 @@ class BottomPanelBuilder:
                 font10.setPointSize(10)
         except Exception:
             # Неожиданная ошибка — логируем и используем фоллбэк
-            logger.exception("BottomPanel: unexpected error determining button font size; fallback to 10")
+            logger.exception(
+                "BottomPanel: unexpected error determining button font size; fallback to 10"
+            )
             font10.setPointSize(10)
 
         # Кнопка переключения сфер (будет создана после инициализации контроллеров)
@@ -67,11 +69,19 @@ class BottomPanelBuilder:
                 btn.setMinimumWidth(0)
                 btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
             except (RuntimeError, TypeError):
-                logger.debug("BottomPanel: failed to apply size policy to bottom button '%s'", text, exc_info=True)
+                logger.debug(
+                    "BottomPanel: failed to apply size policy to bottom button '%s'",
+                    text,
+                    exc_info=True,
+                )
             # Обработчик клика и добавление на панель
             handler = getattr(self.window, fn_name, None)
             if not callable(handler):
-                logger.warning("BottomPanel: click handler '%s' not found for button '%s' — skipping", fn_name, text)
+                logger.warning(
+                    "BottomPanel: click handler '%s' not found for button '%s' — skipping",
+                    fn_name,
+                    text,
+                )
                 continue
             try:
                 btn.clicked.connect(handler)
@@ -91,9 +101,15 @@ class BottomPanelBuilder:
             try:
                 bottom_btns[-1].setProperty("last", "1")
             except (RuntimeError, AttributeError):
-                logger.debug("BottomPanel: failed to set 'last' property on final button", exc_info=True)
+                logger.debug(
+                    "BottomPanel: failed to set 'last' property on final button",
+                    exc_info=True,
+                )
 
-        container_parent = getattr(self.main_layout, "parentWidget", lambda: None)() or self.window.centralWidget()
+        container_parent = (
+            getattr(self.main_layout, "parentWidget", lambda: None)()
+            or self.window.centralWidget()
+        )
         bottom_bar_container = QWidget(container_parent)
         bottom_bar_container.setObjectName("bottomBarContainer")
         bottom_bar_container.setLayout(bottom_layout)
@@ -106,7 +122,10 @@ class BottomPanelBuilder:
                 QSizePolicy.Policy.Fixed,
             )
         except (RuntimeError, TypeError):
-            logger.debug("BottomPanel: failed to set size policy on bottom bar container", exc_info=True)
+            logger.debug(
+                "BottomPanel: failed to set size policy on bottom bar container",
+                exc_info=True,
+            )
 
         self.main_layout.addWidget(bottom_bar_container)
 

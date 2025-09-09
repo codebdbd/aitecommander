@@ -10,12 +10,15 @@ from app.utils.ui.updates import suspend_updates
 
 
 class PopulationManagerMixin:
+    # Модульный логгер
+    logger = logging.getLogger(__name__)
+
     """Миксин для заполнения и обновления таблицы ссылок."""
 
     def populate(self, links: List[Dict], mode: str = "normal"):
         """Заполняет таблицу данными ссылок с инкрементальным обновлением."""
         if not isinstance(links, list):
-            logging.warning(
+            self.logger.warning(
                 "[LinksTableView] Ожидался список ссылок, получен %s",
                 type(links),
             )
@@ -28,7 +31,9 @@ class PopulationManagerMixin:
                 sel = self.selectionModel()
                 current_selection = [i.row() for i in sel.selectedRows()] if sel else []
             except Exception:
-                logging.getLogger(__name__).debug("populate: failed to capture selection", exc_info=True)
+                self.logger.debug(
+                    "populate: failed to capture selection", exc_info=True
+                )
                 current_selection = []
             current_scroll_pos = self.verticalScrollBar().value()
 
@@ -40,7 +45,9 @@ class PopulationManagerMixin:
                     header.sortIndicatorOrder(),
                 )
             except Exception:
-                logging.getLogger(__name__).debug("populate: failed to read sort state; using defaults", exc_info=True)
+                self.logger.debug(
+                    "populate: failed to read sort state; using defaults", exc_info=True
+                )
                 sort_col, sort_order = -1, Qt.SortOrder.AscendingOrder
 
             # Если режим изменился, делаем полное обновление
@@ -59,7 +66,9 @@ class PopulationManagerMixin:
                     if hasattr(self, "blockSignals"):
                         self.blockSignals(True)
                 except Exception:
-                    logging.getLogger(__name__).debug("_restore_ui_state: sortByColumn failed", exc_info=True)
+                    self.logger.debug(
+                        "_restore_ui_state: sortByColumn failed", exc_info=True
+                    )
                 try:
                     header = self.horizontalHeader()
                     if header is not None and hasattr(header, "blockSignals"):
@@ -85,7 +94,7 @@ class PopulationManagerMixin:
                 current_order = _ids_from_table()
                 new_order = [link.get("id") for link in links if link and "id" in link]
                 if (sort_col == -1) and current_order and (current_order != new_order):
-                    logging.info(
+                    self.logger.info(
                         "[LinksTableView] Обнаружено изменение порядка ID без активной сортировки — выполняем полное обновление"
                     )
                     self._full_populate(links, mode)
@@ -103,7 +112,7 @@ class PopulationManagerMixin:
                 # Если изменений очень много — дешевле сделать полное обновление
                 bulk_changes = len(ids_to_add) + len(ids_to_remove)
                 if bulk_changes >= 30 or len(links) >= 200:
-                    logging.info(
+                    self.logger.info(
                         "[LinksTableView] Большой объём изменений (%s) — выполняем полное обновление",
                         bulk_changes,
                     )
@@ -124,10 +133,14 @@ class PopulationManagerMixin:
                     try:
                         removed_ok = bool(self._remove_row(row))
                     except Exception as e:
-                        logging.debug("[LinksTableView] _remove_row исключение: %s", e, exc_info=True)
+                        self.logger.debug(
+                            "[LinksTableView] _remove_row исключение: %s",
+                            e,
+                            exc_info=True,
+                        )
                         removed_ok = False
                     if not removed_ok:
-                        logging.warning(
+                        self.logger.warning(
                             f"[LinksTableView] Не удалось удалить строку {row} при инкрементальном обновлении"
                         )
 
@@ -152,7 +165,7 @@ class PopulationManagerMixin:
                             # Если есть активная сортировка, добавляем в конец и затем сортировка восстановится
                             model = self.model()
                             total = model.rowCount() if model is not None else 0
-                            target_row = (total if sort_col != -1 else min(i, total))
+                            target_row = total if sort_col != -1 else min(i, total)
                             # Оптимизация: не перестраиваем кэш на каждый insert — сделаем один раз ниже
                             self._add_row(target_row, link, mode)
 
@@ -161,10 +174,13 @@ class PopulationManagerMixin:
                     if hasattr(self, "rebuild_cache_from_items"):
                         self.rebuild_cache_from_items()
                 except Exception:
-                    logging.getLogger(__name__).debug("populate: rebuild_cache_from_items failed after incremental ops", exc_info=True)
+                    self.logger.debug(
+                        "populate: rebuild_cache_from_items failed after incremental ops",
+                        exc_info=True,
+                    )
 
             except Exception as e:
-                logging.error(
+                self.logger.error(
                     "[LinksTableView] Ошибка при инкрементальном обновлении: %s",
                     e,
                     exc_info=True,
@@ -178,12 +194,16 @@ class PopulationManagerMixin:
                     if header is not None and hasattr(header, "blockSignals"):
                         header.blockSignals(False)
                 except Exception:
-                    logging.getLogger(__name__).debug("populate: failed to unblock header signals", exc_info=True)
+                    self.logger.debug(
+                        "populate: failed to unblock header signals", exc_info=True
+                    )
                 try:
                     if hasattr(self, "blockSignals"):
                         self.blockSignals(False)
                 except Exception:
-                    logging.getLogger(__name__).debug("populate: failed to unblock table signals", exc_info=True)
+                    self.logger.debug(
+                        "populate: failed to unblock table signals", exc_info=True
+                    )
                 self._restore_ui_state(
                     current_selection, current_scroll_pos, sort_col, sort_order
                 )
@@ -192,7 +212,7 @@ class PopulationManagerMixin:
                     if hasattr(self, "table_populated"):
                         self.table_populated.emit()
                 except Exception as e:
-                    logging.debug(
+                    self.logger.debug(
                         "[LinksTableView] Не удалось эмитить table_populated после populate: %s",
                         e,
                         exc_info=True,
@@ -212,14 +232,18 @@ class PopulationManagerMixin:
                 self.rebuild_cache_from_items()
 
         except Exception as e:
-            logging.error("[LinksTableView] Ошибка при полном обновлении таблицы: %s", e, exc_info=True)
+            self.logger.error(
+                "[LinksTableView] Ошибка при полном обновлении таблицы: %s",
+                e,
+                exc_info=True,
+            )
         finally:
             # Сообщаем подписчикам, что таблица полностью обновлена
             try:
                 if hasattr(self, "table_populated"):
                     self.table_populated.emit()
             except Exception as e:
-                logging.debug(
+                self.logger.debug(
                     "[LinksTableView] Не удалось эмитить table_populated после _full_populate: %s",
                     e,
                     exc_info=True,
@@ -253,7 +277,7 @@ class PopulationManagerMixin:
                     if hasattr(self, "rebuild_cache_from_items"):
                         self.rebuild_cache_from_items()
                 except Exception as e:
-                    logging.warning(
+                    self.logger.warning(
                         "[LinksTableView] Не удалось перестроить кэш после сортировки: %s",
                         e,
                         exc_info=True,
@@ -268,4 +292,8 @@ class PopulationManagerMixin:
             self.viewport().update()
 
         except Exception as e:
-            logging.error("[LinksTableView] Ошибка восстановления UI состояния: %s", e, exc_info=True)
+            self.logger.error(
+                "[LinksTableView] Ошибка восстановления UI состояния: %s",
+                e,
+                exc_info=True,
+            )

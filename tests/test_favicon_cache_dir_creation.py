@@ -7,7 +7,9 @@ from app.utils.links.parser.favicon_cache import favicon_cache
 
 
 @pytest.mark.parametrize("use_invalidate_all_first", [True, False])
-def test_favicon_cache_creates_dir_and_operates_when_missing(tmp_path, monkeypatch, use_invalidate_all_first):
+def test_favicon_cache_creates_dir_and_operates_when_missing(
+    tmp_path, monkeypatch, use_invalidate_all_first
+):
     # Arrange: point user icons dir to a temporary non-existing directory
     user_icons_dir = tmp_path / "icons"
     assert not user_icons_dir.exists()
@@ -20,8 +22,18 @@ def test_favicon_cache_creates_dir_and_operates_when_missing(tmp_path, monkeypat
         user_icons_dir.mkdir(parents=True, exist_ok=True)
         return user_icons_dir
 
-    monkeypatch.setattr(fc_module.icon_path_service, "get_user_icons_dir", _get_user_icons_dir, raising=True)
-    monkeypatch.setattr(fc_module.icon_path_service, "ensure_user_icons_dir", _ensure_user_icons_dir, raising=True)
+    monkeypatch.setattr(
+        fc_module.icon_path_service,
+        "get_user_icons_dir",
+        _get_user_icons_dir,
+        raising=True,
+    )
+    monkeypatch.setattr(
+        fc_module.icon_path_service,
+        "ensure_user_icons_dir",
+        _ensure_user_icons_dir,
+        raising=True,
+    )
 
     # Act + Assert: operations should auto-create the directory and not raise
     if use_invalidate_all_first:
@@ -41,8 +53,16 @@ def test_favicon_cache_creates_dir_and_operates_when_missing(tmp_path, monkeypat
     # Ensure shelve files were created inside our directory
     db_base = user_icons_dir / "favicon_cache.db"
     # Shelve can create a variety of files depending on backend
-    possible = [db_base, db_base.with_suffix(".db"), Path(str(db_base) + ".dat"), Path(str(db_base) + ".dir"), Path(str(db_base) + ".bak")]
-    assert any(p.exists() for p in possible), "Shelve database files should be present after write"
+    possible = [
+        db_base,
+        db_base.with_suffix(".db"),
+        Path(str(db_base) + ".dat"),
+        Path(str(db_base) + ".dir"),
+        Path(str(db_base) + ".bak"),
+    ]
+    assert any(p.exists() for p in possible), (
+        "Shelve database files should be present after write"
+    )
 
     # Invalidate single key and verify it's gone
     favicon_cache.invalidate(key)

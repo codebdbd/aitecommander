@@ -78,8 +78,8 @@ class UniversalProfileProcessor:
             link_type,
             browser_key,
             len(selected_profiles),
-            'present' if existing_link else 'None',
-            'present' if user_args else 'None',
+            "present" if existing_link else "None",
+            "present" if user_args else "None",
         )
 
         logger.debug(
@@ -231,7 +231,9 @@ class UniversalProfileProcessor:
                         link_type,
                         prof_args,
                     ) in existing_keys
-                logger.debug("Результат проверки дубликатов: %s", duplicate_check_result)
+                logger.debug(
+                    "Результат проверки дубликатов: %s", duplicate_check_result
+                )
 
                 if not skip_duplicate_check and duplicate_check_result:
                     logger.info(
@@ -258,10 +260,14 @@ class UniversalProfileProcessor:
                 )
 
                 result_links.append(link_record)
-                logger.debug("Создана ссылка: %s с аргументами %s", link_name, prof_args)
+                logger.debug(
+                    "Создана ссылка: %s с аргументами %s", link_name, prof_args
+                )
 
             except Exception as e:
-                logger.error("Ошибка при обработке профиля %s: %s", profile, e, exc_info=True)
+                logger.error(
+                    "Ошибка при обработке профиля %s: %s", profile, e, exc_info=True
+                )
                 continue
 
         logger.info(

@@ -234,7 +234,9 @@ class ThemeController:
                 self._common_qss = ""
             return False
         except Exception as exc:
-            logger.error("Неожиданная ошибка при загрузке общих стилей: %s", exc, exc_info=True)
+            logger.error(
+                "Неожиданная ошибка при загрузке общих стилей: %s", exc, exc_info=True
+            )
             with self._cache_lock:
                 self._common_qss = ""
             return False
@@ -289,7 +291,12 @@ class ThemeController:
             logger.error("Ошибка загрузки темы %s: %s", theme_name, exc)
             return None
         except Exception as exc:
-            logger.error("Неожиданная ошибка при загрузке темы %s: %s", theme_name, exc, exc_info=True)
+            logger.error(
+                "Неожиданная ошибка при загрузке темы %s: %s",
+                theme_name,
+                exc,
+                exc_info=True,
+            )
             return None
 
     def apply(self, name: str) -> bool:
@@ -322,7 +329,12 @@ class ThemeController:
                 )
                 return False
         except Exception as exc:
-            logger.error("Ошибка проверки пути к файлу темы %s: %s", theme_path, exc, exc_info=True)
+            logger.error(
+                "Ошибка проверки пути к файлу темы %s: %s",
+                theme_path,
+                exc,
+                exc_info=True,
+            )
             return False
 
         # Кэшируем и ищем по каноническому имени, чтобы избежать дублей ключей
@@ -352,7 +364,9 @@ class ThemeController:
             try:
                 self._apply_qt_icon_theme(canonical_name)
             except Exception as icon_exc:
-                logger.warning("Не удалось применить тему иконок Qt: %s", icon_exc, exc_info=True)
+                logger.warning(
+                    "Не удалось применить тему иконок Qt: %s", icon_exc, exc_info=True
+                )
 
             # Обновляем настройки и окно
             logger.info("Применена тема: %s", canonical_name)
@@ -398,7 +412,9 @@ class ThemeController:
             from app.utils.ui.updates import suspend_updates
         except Exception as exc:
             suspend_updates = None  # fallback, если модуль недоступен
-            logger.debug("Не удалось импортировать suspend_updates: %s", exc, exc_info=True)
+            logger.debug(
+                "Не удалось импортировать suspend_updates: %s", exc, exc_info=True
+            )
 
         if suspend_updates is None:
             # Fallback: выполняем операции без приостановки перерисовки
@@ -407,17 +423,23 @@ class ThemeController:
                 if menu_ctrl:
                     menu_ctrl.rebuild_after_theme_change()
             except Exception as exc:
-                logger.warning("Ошибка пересборки меню после смены темы: %s", exc, exc_info=True)
+                logger.warning(
+                    "Ошибка пересборки меню после смены темы: %s", exc, exc_info=True
+                )
             try:
                 structure = getattr(mw, "structure", None)
                 if structure and hasattr(structure, "reload_icons"):
                     structure.reload_icons()
             except Exception as exc:
-                logger.warning("Ошибка перезагрузки иконок структуры: %s", exc, exc_info=True)
+                logger.warning(
+                    "Ошибка перезагрузки иконок структуры: %s", exc, exc_info=True
+                )
             try:
                 self.top_panels_controller.refresh_all()
             except Exception as exc:
-                logger.warning("Ошибка обновления верхних панелей: %s", exc, exc_info=True)
+                logger.warning(
+                    "Ошибка обновления верхних панелей: %s", exc, exc_info=True
+                )
             return
 
         # Основной путь: выполняем массовые обновления при приостановленной перерисовке окна
@@ -429,7 +451,11 @@ class ThemeController:
                     if menu_ctrl:
                         menu_ctrl.rebuild_after_theme_change()
                 except Exception as exc:
-                    logger.warning("Ошибка пересборки меню после смены темы: %s", exc, exc_info=True)
+                    logger.warning(
+                        "Ошибка пересборки меню после смены темы: %s",
+                        exc,
+                        exc_info=True,
+                    )
 
                 # Перезагрузка иконок в структуре
                 try:
@@ -437,15 +463,23 @@ class ThemeController:
                     if structure and hasattr(structure, "reload_icons"):
                         structure.reload_icons()
                 except Exception as exc:
-                    logger.warning("Ошибка перезагрузки иконок структуры: %s", exc, exc_info=True)
+                    logger.warning(
+                        "Ошибка перезагрузки иконок структуры: %s", exc, exc_info=True
+                    )
 
                 # Обновление верхних панелей — прямая зависимость из конструктора
                 try:
                     self.top_panels_controller.refresh_all()
                 except Exception as exc:
-                    logger.warning("Ошибка обновления верхних панелей: %s", exc, exc_info=True)
+                    logger.warning(
+                        "Ошибка обновления верхних панелей: %s", exc, exc_info=True
+                    )
         except Exception as exc:
-            logger.warning("ThemeController: сбой при пакетном обновлении UI: %s", exc, exc_info=True)
+            logger.warning(
+                "ThemeController: сбой при пакетном обновлении UI: %s",
+                exc,
+                exc_info=True,
+            )
 
         # Не переустанавливаем размеры шрифтов при смене темы.
         # Базовый размер приложения и точечные размеры для меню/меню-бара управляются отдельно,
@@ -488,7 +522,11 @@ class ThemeController:
                 if p not in search_paths:
                     search_paths.append(p)
         except Exception as exc:
-            logger.debug("Не удалось получить текущие пути поиска тем QIcon: %s", exc, exc_info=True)
+            logger.debug(
+                "Не удалось получить текущие пути поиска тем QIcon: %s",
+                exc,
+                exc_info=True,
+            )
         QIcon.setThemeSearchPaths(search_paths)
         # Имя темы — каноническое имя, ожидая поддиректории ui_icons_dir/<theme_name>
         QIcon.setThemeName(theme_name)

@@ -39,7 +39,9 @@ def test_logs_warning_when_manifest_fetch_fails_sync(monkeypatch, caplog):
     config = types.SimpleNamespace()
 
     caplog.set_level(logging.WARNING)
-    ic.find_favicon_candidates(soup, base_url, config=config, on_manifest_icons=None, use_external=False)
+    ic.find_favicon_candidates(
+        soup, base_url, config=config, on_manifest_icons=None, use_external=False
+    )
 
     assert any(
         "Failed to fetch manifest" in rec.getMessage() and "(sync)" in rec.getMessage()
@@ -60,10 +62,13 @@ def test_logs_warning_when_manifest_json_parse_fails_sync(monkeypatch, caplog):
     config = types.SimpleNamespace()
 
     caplog.set_level(logging.WARNING)
-    ic.find_favicon_candidates(soup, base_url, config=config, on_manifest_icons=None, use_external=False)
+    ic.find_favicon_candidates(
+        soup, base_url, config=config, on_manifest_icons=None, use_external=False
+    )
 
     assert any(
-        "Failed to parse manifest JSON" in rec.getMessage() and "(sync)" in rec.getMessage()
+        "Failed to parse manifest JSON" in rec.getMessage()
+        and "(sync)" in rec.getMessage()
         for rec in caplog.records
     ), "Expected warning log about failing to parse manifest JSON (sync)"
 
@@ -93,6 +98,7 @@ def test_logs_warning_when_manifest_fetch_fails_async(monkeypatch, caplog):
         raise RuntimeError("boom")
 
     monkeypatch.setattr(ic, "http_request", fake_http_request)
+
     # Force async path by providing on_manifest_icons
     def on_manifest_icons(urls):
         return None
@@ -101,10 +107,17 @@ def test_logs_warning_when_manifest_fetch_fails_async(monkeypatch, caplog):
     monkeypatch.setattr(ic, "_get_manifest_executor", lambda: _DummySyncExecutor())
 
     caplog.set_level(logging.WARNING)
-    ic.find_favicon_candidates(soup, base_url, config=types.SimpleNamespace(), on_manifest_icons=on_manifest_icons, use_external=False)
+    ic.find_favicon_candidates(
+        soup,
+        base_url,
+        config=types.SimpleNamespace(),
+        on_manifest_icons=on_manifest_icons,
+        use_external=False,
+    )
 
     assert any(
-        "Failed to fetch manifest" in rec.getMessage() and "(sync)" not in rec.getMessage()
+        "Failed to fetch manifest" in rec.getMessage()
+        and "(sync)" not in rec.getMessage()
         for rec in caplog.records
     ), "Expected warning log about failing to fetch manifest (async)"
 
@@ -117,14 +130,23 @@ def test_logs_warning_when_manifest_json_parse_fails_async(monkeypatch, caplog):
         return DummyResp(True, "{bad json}")
 
     monkeypatch.setattr(ic, "http_request", fake_http_request)
+
     def on_manifest_icons(urls):
         return None
+
     monkeypatch.setattr(ic, "_get_manifest_executor", lambda: _DummySyncExecutor())
 
     caplog.set_level(logging.WARNING)
-    ic.find_favicon_candidates(soup, base_url, config=types.SimpleNamespace(), on_manifest_icons=on_manifest_icons, use_external=False)
+    ic.find_favicon_candidates(
+        soup,
+        base_url,
+        config=types.SimpleNamespace(),
+        on_manifest_icons=on_manifest_icons,
+        use_external=False,
+    )
 
     assert any(
-        "Failed to parse manifest JSON" in rec.getMessage() and "(sync)" not in rec.getMessage()
+        "Failed to parse manifest JSON" in rec.getMessage()
+        and "(sync)" not in rec.getMessage()
         for rec in caplog.records
     ), "Expected warning log about failing to parse manifest JSON (async)"

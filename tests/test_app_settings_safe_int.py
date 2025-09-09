@@ -27,7 +27,9 @@ def test_get_max_backups_safe_cast(settings_tmp: AppSettings, caplog):
     with caplog.at_level("WARNING"):
         val = s.get_max_backups()
     assert val == default_value
-    assert any("некорректное числовое значение" in rec.message for rec in caplog.records)
+    assert any(
+        "некорректное числовое значение" in rec.message for rec in caplog.records
+    )
 
     # Пустая строка -> дефолт
     s._qs.setValue("Backup/MaxCopies", " ")

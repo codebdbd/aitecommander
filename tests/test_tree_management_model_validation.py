@@ -48,5 +48,8 @@ def test_init_raises_when_model_is_none():
 
 def test_init_raises_when_model_missing_methods():
     ctrl = Controller(TreeWithIncompleteModel())
-    with pytest.raises(ValueError, match=r"requires a model providing methods: insert_sections, insert_categories, update_item"):
+    with pytest.raises(
+        ValueError,
+        match=r"requires a model providing methods: insert_sections, insert_categories, update_item",
+    ):
         TreeManagement(ctrl, TilesStub())

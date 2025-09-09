@@ -31,6 +31,7 @@ class FavWidgetStub:
 
     def set_favorites(self, items):
         pass
+
     def clear_favorites(self):
         pass
 
@@ -110,5 +111,9 @@ def test_top_panels_signals_are_debounced(monkeypatch, caplog):
     ctrl._on_fav_refresh_timeout()
     ctrl._on_recent_refresh_timeout()
 
-    assert len(fav_calls) == 1, "Должен быть один вызов refresh_favorites при серии refresh_requested"
-    assert len(rec_calls) == 1, "Должен быть один вызов refresh_recent при серии refresh_requested"
+    assert len(fav_calls) == 1, (
+        "Должен быть один вызов refresh_favorites при серии refresh_requested"
+    )
+    assert len(rec_calls) == 1, (
+        "Должен быть один вызов refresh_recent при серии refresh_requested"
+    )

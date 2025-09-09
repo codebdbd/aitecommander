@@ -63,7 +63,9 @@ class StructureTreeModel(QAbstractItemModel):
         node = self._node_from_index(parent)
         return len(node.children)
 
-    def index(self, row: int, column: int, parent: QModelIndex = QModelIndex()) -> QModelIndex:  # noqa: N802
+    def index(
+        self, row: int, column: int, parent: QModelIndex = QModelIndex()
+    ) -> QModelIndex:  # noqa: N802
         if column != 0 or row < 0:
             return QModelIndex()
         parent_node = self._node_from_index(parent)
@@ -99,7 +101,9 @@ class StructureTreeModel(QAbstractItemModel):
             return (node.type, node.id)
         return None
 
-    def setData(self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole) -> bool:  # noqa: N802
+    def setData(
+        self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole
+    ) -> bool:  # noqa: N802
         if not index.isValid():
             return False
         node: TreeNode = index.internalPointer()
@@ -117,12 +121,22 @@ class StructureTreeModel(QAbstractItemModel):
             try:
                 if isinstance(value, (tuple, list)) and len(value) == 2:
                     t_val, i_val = value
-                    if isinstance(t_val, str) and (isinstance(i_val, int) or i_val is None):
+                    if isinstance(t_val, str) and (
+                        isinstance(i_val, int) or i_val is None
+                    ):
                         # Обновляем мапы, если меняется id/тип
                         old_type, old_id = node.type, node.id
-                        if old_type == "section" and isinstance(old_id, int) and old_id in self._section_by_id:
+                        if (
+                            old_type == "section"
+                            and isinstance(old_id, int)
+                            and old_id in self._section_by_id
+                        ):
                             del self._section_by_id[old_id]
-                        if old_type == "category" and isinstance(old_id, int) and old_id in self._category_by_id:
+                        if (
+                            old_type == "category"
+                            and isinstance(old_id, int)
+                            and old_id in self._category_by_id
+                        ):
                             del self._category_by_id[old_id]
 
                         node.type = t_val
@@ -166,6 +180,7 @@ class StructureTreeModel(QAbstractItemModel):
         import json
 
         from PyQt6.QtCore import QByteArray, QMimeData
+
         mime = QMimeData()
         payload = []
         for idx in indexes or []:
@@ -243,7 +258,9 @@ class StructureTreeModel(QAbstractItemModel):
                 self._category_by_id[cat_node.id] = cat_node
         self.endInsertRows()
 
-    def update_item(self, item_type: NodeType, item_id: int, data: Dict[str, Any]) -> None:
+    def update_item(
+        self, item_type: NodeType, item_id: int, data: Dict[str, Any]
+    ) -> None:
         idx = self.index_for(item_type, int(item_id))
         if not idx.isValid():
             return
@@ -256,7 +273,15 @@ class StructureTreeModel(QAbstractItemModel):
         if data:
             # Сохраняем исходный словарь (например, для диалогов)
             node.payload.update(data)
-        self.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.DecorationRole, Qt.ItemDataRole.UserRole])
+        self.dataChanged.emit(
+            idx,
+            idx,
+            [
+                Qt.ItemDataRole.DisplayRole,
+                Qt.ItemDataRole.DecorationRole,
+                Qt.ItemDataRole.UserRole,
+            ],
+        )
 
     def remove_sections(self, section_ids: List[int]) -> None:
         # Удаляем по одному, учитывая сдвиги индексов
@@ -288,7 +313,11 @@ class StructureTreeModel(QAbstractItemModel):
             cats_sorted = sorted(cats, key=lambda n: n.row())
             # Удаляем по одному (простая и безопасная стратегия)
             for node in reversed(cats_sorted):
-                parent_index = QModelIndex() if parent_node is self._root else self.createIndex(parent_node.row(), 0, parent_node)
+                parent_index = (
+                    QModelIndex()
+                    if parent_node is self._root
+                    else self.createIndex(parent_node.row(), 0, parent_node)
+                )
                 row = node.row()
                 self.beginRemoveRows(parent_index, row, row)
                 parent_node.children.pop(row)
@@ -296,7 +325,9 @@ class StructureTreeModel(QAbstractItemModel):
                     del self._category_by_id[node.id]
                 self.endRemoveRows()
 
-    def move_category(self, category_id: int, new_section_id: int, new_row: int) -> bool:
+    def move_category(
+        self, category_id: int, new_section_id: int, new_row: int
+    ) -> bool:
         cat_node = self._category_by_id.get(int(category_id))
         dst_parent = self._section_by_id.get(int(new_section_id))
         if not cat_node or not dst_parent:
@@ -306,14 +337,24 @@ class StructureTreeModel(QAbstractItemModel):
             return False
         if new_row < 0:
             new_row = len(dst_parent.children)
-        src_parent_index = QModelIndex() if src_parent is self._root else self.createIndex(src_parent.row(), 0, src_parent)
-        dst_parent_index = QModelIndex() if dst_parent is self._root else self.createIndex(dst_parent.row(), 0, dst_parent)
+        src_parent_index = (
+            QModelIndex()
+            if src_parent is self._root
+            else self.createIndex(src_parent.row(), 0, src_parent)
+        )
+        dst_parent_index = (
+            QModelIndex()
+            if dst_parent is self._root
+            else self.createIndex(dst_parent.row(), 0, dst_parent)
+        )
         src_row = cat_node.row()
         # Корректируем new_row если перенос внутри одного родителя и ниже по списку
         if src_parent is dst_parent and new_row > src_row:
             new_row -= 1
         # Выполняем перенос
-        if not self.beginMoveRows(src_parent_index, src_row, src_row, dst_parent_index, new_row):
+        if not self.beginMoveRows(
+            src_parent_index, src_row, src_row, dst_parent_index, new_row
+        ):
             return False
         # Реальный перенос в структуре
         src_parent.children.pop(src_row)
@@ -351,7 +392,7 @@ class StructureTreeModel(QAbstractItemModel):
             if isinstance(sec_node.id, int):
                 self._section_by_id[sec_node.id] = sec_node
 
-            for c in (s.get("categories") or []):
+            for c in s.get("categories") or []:
                 cat_node = TreeNode(
                     type="category",
                     id=int(c.get("id")) if c.get("id") is not None else None,

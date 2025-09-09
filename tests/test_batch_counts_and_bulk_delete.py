@@ -19,6 +19,7 @@ def _disable_model_validation(monkeypatch):
 
     monkeypatch.setattr(_db_base.DatabaseBase, "_validate_required_fields", _noop)
 
+
 @pytest.fixture()
 def db_in_memory():
     """
@@ -43,10 +44,13 @@ def service(db_in_memory: Database) -> StructureService:
     return StructureService(db_in_memory)
 
 
-def create_structure(db: Database, *,
-                     sphere_name: str = "S",
-                     section_name: str = "SEC",
-                     categories: list[str] = None) -> dict:
+def create_structure(
+    db: Database,
+    *,
+    sphere_name: str = "S",
+    section_name: str = "SEC",
+    categories: list[str] = None,
+) -> dict:
     """
     Утилита: создаёт сферу, раздел и набор категорий (по порядку),
     возвращает их идентификаторы.
@@ -57,7 +61,9 @@ def create_structure(db: Database, *,
     # Вставляем сферу
     sphere_id = db.spheres.insert_sphere({"name": sphere_name})
     # Вставляем раздел
-    section_id = db.sections.insert_section({"name": section_name, "sphere_id": sphere_id})
+    section_id = db.sections.insert_section(
+        {"name": section_name, "sphere_id": sphere_id}
+    )
     # Вставляем категории (позиции назначатся автоматически 0..)
     cat_ids = []
     for name in categories:
@@ -71,23 +77,28 @@ def create_structure(db: Database, *,
 
 # --- Тесты batch counting ---
 
-def test_count_links_by_categories_basic(service: StructureService, db_in_memory: Database):
+
+def test_count_links_by_categories_basic(
+    service: StructureService, db_in_memory: Database
+):
     ids = create_structure(db_in_memory, categories=["A", "B", "C", "D"])  # 4 категории
     cids = ids["category_ids"]
 
     # Добавим по ссылкам: A:2, B:0, C:1, D:3
     def add_link(cat_id: int, name: str, url: str):
-        return db_in_memory.links.upsert_link({
-            "category_id": cat_id,
-            "name": name,
-            "url": url,
-            "type": "web",
-            "notes": "",
-            "is_favorite": 0,
-            "icon_path": "default.ico",
-            "args": "",
-            "browser_key": None,
-        })
+        return db_in_memory.links.upsert_link(
+            {
+                "category_id": cat_id,
+                "name": name,
+                "url": url,
+                "type": "web",
+                "notes": "",
+                "is_favorite": 0,
+                "icon_path": "default.ico",
+                "args": "",
+                "browser_key": None,
+            }
+        )
 
     # A
     add_link(cids[0], "a1", "https://a1")
@@ -107,7 +118,9 @@ def test_count_links_by_categories_basic(service: StructureService, db_in_memory
     assert result.get(cids[3], 0) == 3
 
 
-def test_count_links_by_categories_empty_and_invalid(service: StructureService, db_in_memory: Database):
+def test_count_links_by_categories_empty_and_invalid(
+    service: StructureService, db_in_memory: Database
+):
     ids = create_structure(db_in_memory, categories=["X", "Y"])  # 2 категории
     cids = ids["category_ids"]
 
@@ -131,8 +144,11 @@ def test_count_links_by_categories_empty_and_invalid(service: StructureService, 
 
 # --- Тесты переиндексации после пакетного удаления категорий ---
 
+
 def test_delete_categories_bulk_reindexes_positions(db_in_memory: Database):
-    ids = create_structure(db_in_memory, categories=["C1", "C2", "C3", "C4", "C5"])  # 5 категорий
+    ids = create_structure(
+        db_in_memory, categories=["C1", "C2", "C3", "C4", "C5"]
+    )  # 5 категорий
     section_id = ids["section_id"]
     cids = ids["category_ids"]
 
@@ -155,7 +171,9 @@ def test_delete_categories_bulk_reindexes_positions(db_in_memory: Database):
     assert [r["id"] for r in rows_after] == remaining_expected
 
 
-def test_delete_categories_bulk_handles_duplicates_and_invalid_ids(db_in_memory: Database):
+def test_delete_categories_bulk_handles_duplicates_and_invalid_ids(
+    db_in_memory: Database,
+):
     ids = create_structure(db_in_memory, categories=["A", "B", "C"])  # 3 категории
     section_id = ids["section_id"]
     cids = ids["category_ids"]
@@ -172,7 +190,9 @@ def test_delete_categories_bulk_handles_duplicates_and_invalid_ids(db_in_memory:
     assert rows_after[0]["position"] == 0
 
 
-def test_delete_then_bulk_import_restores_categories_and_positions(db_in_memory: Database):
+def test_delete_then_bulk_import_restores_categories_and_positions(
+    db_in_memory: Database,
+):
     """Интеграционный сценарий: удаление нескольких категорий -> восстановление одним bulk-импортом.
 
     Проверяем, что:
@@ -180,7 +200,9 @@ def test_delete_then_bulk_import_restores_categories_and_positions(db_in_memory:
     - последующий bulk-импорт восстанавливает категории с их ID и позициями из бэкапа
     - итоговый порядок в get_categories(section_id) соответствует position
     """
-    ids = create_structure(db_in_memory, categories=["A", "B", "C", "D"])  # positions: 0..3
+    ids = create_structure(
+        db_in_memory, categories=["A", "B", "C", "D"]
+    )  # positions: 0..3
     section_id = ids["section_id"]
     cids = ids["category_ids"]
 
@@ -214,7 +236,9 @@ def test_delete_then_bulk_import_restores_categories_and_positions(db_in_memory:
     assert positions_after == sorted(positions_after)
 
 
-def test_insert_categories_bulk_appends_positions_and_handles_duplicates(db_in_memory: Database):
+def test_insert_categories_bulk_appends_positions_and_handles_duplicates(
+    db_in_memory: Database,
+):
     """Проверка пакетной вставки категорий с назначением позиций и игнорированием дублей.
 
     - Новые категории получают позиции после текущего MAX(position) в разделе
@@ -225,11 +249,13 @@ def test_insert_categories_bulk_appends_positions_and_handles_duplicates(db_in_m
     section_id = base["section_id"]
 
     # Пакетно добавим: F(дубль), G, H
-    result_rows = db_in_memory.categories.insert_categories_bulk([
-        {"name": "F", "section_id": section_id},
-        {"name": "G", "section_id": section_id},
-        {"name": "H", "section_id": section_id},
-    ])
+    result_rows = db_in_memory.categories.insert_categories_bulk(
+        [
+            {"name": "F", "section_id": section_id},
+            {"name": "G", "section_id": section_id},
+            {"name": "H", "section_id": section_id},
+        ]
+    )
 
     # Должны вернуться записи для всех уникальных по (section_id,name): F,G,H
     names = [r["name"] for r in result_rows]

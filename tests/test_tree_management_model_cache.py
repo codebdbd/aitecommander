@@ -27,6 +27,7 @@ class ModelStub:
         class _Index:
             def isValid(self):
                 return True
+
         return _Index()
 
 
@@ -35,29 +36,38 @@ class ControllerStub:
         class _Tree:
             def __init__(self, model):
                 self._model = model
+
             def model(self):
                 return self._model
+
             def currentIndex(self):
                 return None
+
         self.tree = _Tree(model)
         self.icon_handler = object()
         self.main = SimpleNamespace(_first_structure_load=False)
+
         class _Sel:
             def _restore_selection_after_load(self, *args, **kwargs):
                 pass
+
             def _select_first_item_if_needed(self):
                 pass
+
         self.selection_handler = _Sel()
 
 
 def test_model_is_cached_and_not_rerequested_after_init(monkeypatch):
     model = ModelStub()
     main_ctrl = ControllerStub(model)
-    tm = TreeManagement(main_ctrl, category_tiles_controller=SimpleNamespace(refresh=lambda *_: None))
+    tm = TreeManagement(
+        main_ctrl, category_tiles_controller=SimpleNamespace(refresh=lambda *_: None)
+    )
 
     # После инициализации подменим tree.model на функцию, бросающую исключение.
     def _boom():
         raise RuntimeError("should not be called")
+
     main_ctrl.tree.model = _boom  # type: ignore[assignment]
 
     # Методы должны использовать tm.model, а не вызывать tree.model()
@@ -73,8 +83,11 @@ def test_on_item_deleted_logs_when_model_missing(caplog):
     class BadController(ControllerStub):
         def __init__(self):
             super().__init__(ModelStub())
+
     ctrl = BadController()
-    tm = TreeManagement(ctrl, category_tiles_controller=SimpleNamespace(refresh=lambda *_: None))
+    tm = TreeManagement(
+        ctrl, category_tiles_controller=SimpleNamespace(refresh=lambda *_: None)
+    )
     tm.model = None  # сломали ссылку
 
     caplog.set_level(logging.ERROR)

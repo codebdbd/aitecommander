@@ -11,6 +11,7 @@
 - TTL (секунды) можно задавать на запись; реализация может также иметь дефолтный TTL.
 - Реализации должны быть потокобезопасны, если предполагается многопоточность.
 """
+
 from __future__ import annotations
 
 import abc
@@ -47,11 +48,15 @@ class BaseCache(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def set(self, key: str, value: Any, *, ttl: Optional[float] = None) -> None:  # pragma: no cover - контракт
+    def set(
+        self, key: str, value: Any, *, ttl: Optional[float] = None
+    ) -> None:  # pragma: no cover - контракт
         raise NotImplementedError
 
     @abc.abstractmethod
-    def invalidate(self, key: Optional[str] = None) -> None:  # pragma: no cover - контракт
+    def invalidate(
+        self, key: Optional[str] = None
+    ) -> None:  # pragma: no cover - контракт
         raise NotImplementedError
 
     def clear(self) -> None:
@@ -65,7 +70,9 @@ class InMemoryCache(BaseCache):
     Вытеснение: при вставке, если достигнут max_size, удаляется самый старый ключ по последнему доступу.
     """
 
-    def __init__(self, *, default_ttl: Optional[float] = None, max_size: Optional[int] = None) -> None:
+    def __init__(
+        self, *, default_ttl: Optional[float] = None, max_size: Optional[int] = None
+    ) -> None:
         self._default_ttl = default_ttl
         # Валидируем max_size: допускаем None или целое число >= 0; отрицательные — ошибка
         if max_size is None:
@@ -112,7 +119,11 @@ class InMemoryCache(BaseCache):
 
     def set(self, key: str, value: Any, *, ttl: Optional[float] = None) -> None:
         with self._lock:
-            rec = CacheRecord(value=value, ts=time.time(), ttl=ttl if ttl is not None else self._default_ttl)
+            rec = CacheRecord(
+                value=value,
+                ts=time.time(),
+                ttl=ttl if ttl is not None else self._default_ttl,
+            )
             self._store[key] = rec
             # Переместим в конец как самый свежий
             self._store.move_to_end(key, last=True)

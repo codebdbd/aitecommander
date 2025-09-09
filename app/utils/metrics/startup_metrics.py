@@ -77,7 +77,9 @@ class StartupMetrics:
         with self._lock:
             self._marks.append(label)
 
-    def flush_log(self, logger: Optional[logging.Logger] = None, *, level: int = logging.INFO) -> None:
+    def flush_log(
+        self, logger: Optional[logging.Logger] = None, *, level: int = logging.INFO
+    ) -> None:
         """Вывести сводку метрик старта в лог.
 
         Формат:
@@ -104,7 +106,12 @@ class StartupMetrics:
             else:
                 lg.log(level, "  (no spans recorded)")
             if self._marks:
-                lg.log(level, "Startup marks (%d): %s", len(self._marks), ", ".join(self._marks))
+                lg.log(
+                    level,
+                    "Startup marks (%d): %s",
+                    len(self._marks),
+                    ", ".join(self._marks),
+                )
 
 
 # Глобальный синглтон

@@ -18,19 +18,27 @@ class DbReadyGate:
     Проверка выполняется периодически таймером (100 мс), пока окно заблокировано.
     """
 
-    def __init__(self, window: MainWindowLike, _logger: Optional[logging.Logger] = None) -> None:
+    def __init__(
+        self, window: MainWindowLike, _logger: Optional[logging.Logger] = None
+    ) -> None:
         self._window = window
         self._logger = _logger or logger
         self._timer: Optional[QTimer] = None
 
-    def ensure_ready_or_wait(self, on_ready: Callable[[], None], on_waiting: Optional[Callable[[], None]] = None) -> None:
+    def ensure_ready_or_wait(
+        self,
+        on_ready: Callable[[], None],
+        on_waiting: Optional[Callable[[], None]] = None,
+    ) -> None:
         try:
-            if hasattr(self._window, 'isEnabled') and self._window.isEnabled():
+            if hasattr(self._window, "isEnabled") and self._window.isEnabled():
                 on_ready()
                 return
         except Exception:
             # Если проверка упала — логируем и пытаемся продолжить, вызвав on_ready как есть
-            self._logger.exception("DbReadyGate: error checking window.isEnabled, proceeding as ready")
+            self._logger.exception(
+                "DbReadyGate: error checking window.isEnabled, proceeding as ready"
+            )
             on_ready()
             return
 
@@ -39,7 +47,9 @@ class DbReadyGate:
             try:
                 on_waiting()
             except Exception:
-                self._logger.debug("DbReadyGate: on_waiting callback raised", exc_info=True)
+                self._logger.debug(
+                    "DbReadyGate: on_waiting callback raised", exc_info=True
+                )
 
         # Таймер привязываем к окну, чтобы он уничтожился вместе с окном.
         # Делаем его одноразовым и вручную перезапускаем до готовности БД.
@@ -50,14 +60,17 @@ class DbReadyGate:
 
     def _check_and_continue(self, on_ready: Callable[[], None]) -> None:
         try:
-            if hasattr(self._window, 'isEnabled') and self._window.isEnabled():
+            if hasattr(self._window, "isEnabled") and self._window.isEnabled():
                 try:
                     if self._timer is not None:
                         self._timer.stop()
                         self._timer.deleteLater()
                         self._timer = None
                 except Exception:
-                    self._logger.debug("DbReadyGate: failed to stop/delete timer on ready", exc_info=True)
+                    self._logger.debug(
+                        "DbReadyGate: failed to stop/delete timer on ready",
+                        exc_info=True,
+                    )
                 on_ready()
             else:
                 # Не готово — перезапускаем одноразовый таймер для следующей проверки
@@ -66,14 +79,20 @@ class DbReadyGate:
                         self._timer.start(100)
                 except Exception:
                     # В случае ошибки перестрахуемся: удалим таймер, чтобы не протекал
-                    self._logger.debug("DbReadyGate: failed to restart timer; will attempt to dispose", exc_info=True)
+                    self._logger.debug(
+                        "DbReadyGate: failed to restart timer; will attempt to dispose",
+                        exc_info=True,
+                    )
                     try:
                         if self._timer is not None:
                             self._timer.stop()
                             self._timer.deleteLater()
                             self._timer = None
                     except Exception:
-                        self._logger.debug("DbReadyGate: failed to dispose timer after restart failure", exc_info=True)
+                        self._logger.debug(
+                            "DbReadyGate: failed to dispose timer after restart failure",
+                            exc_info=True,
+                        )
         except Exception:
             self._logger.exception("DbReadyGate: error during readiness check")
             # При ошибке проверки — безопасно остановим и удалим таймер
@@ -83,4 +102,6 @@ class DbReadyGate:
                     self._timer.deleteLater()
                     self._timer = None
             except Exception:
-                self._logger.debug("DbReadyGate: failed to dispose timer after error", exc_info=True)
+                self._logger.debug(
+                    "DbReadyGate: failed to dispose timer after error", exc_info=True
+                )

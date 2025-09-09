@@ -1,6 +1,7 @@
 """
 Миксин для валидации и обработки ошибок сохранения формы LinkDialog.
 """
+
 import logging
 from typing import Any, Dict, List, Tuple
 
@@ -15,7 +16,9 @@ class ValidationMixin:
         else:
             return self.dialog.dialog_controller.validate_and_save(form_data)
 
-    def _handle_validation_errors(self, form_data: Dict[str, Any], result: Dict[str, Any]) -> None:
+    def _handle_validation_errors(
+        self, form_data: Dict[str, Any], result: Dict[str, Any]
+    ) -> None:
         """Обрабатывает ошибки валидации и показывает соответствующие сообщения."""
         # Специальный мягкий сценарий: пустая форма (без URL и имени)
         name_empty = not (form_data.get("name") or "").strip()
@@ -73,7 +76,9 @@ class ValidationMixin:
             main_msg = f"Заполните/исправьте: {', '.join(sorted(problems))}."
             extra = (" " + " ".join(short_hints)) if short_hints else ""
             info_msg = (
-                "Проверьте подсказки возле полей." + extra + " Полный список замечаний — в подробностях."
+                "Проверьте подсказки возле полей."
+                + extra
+                + " Полный список замечаний — в подробностях."
             )
         else:
             main_msg = "Пожалуйста, проверьте данные перед сохранением."

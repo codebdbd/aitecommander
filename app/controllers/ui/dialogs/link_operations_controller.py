@@ -102,7 +102,9 @@ class LinkOperationsController(QObject):
         """Вызвать после успешного открытия ссылки (обновляет недавние и таблицу категории)."""
         try:
             self.emit_recents_changed()
-            cat_id = link_data.get("category_id") if isinstance(link_data, dict) else None
+            cat_id = (
+                link_data.get("category_id") if isinstance(link_data, dict) else None
+            )
             if isinstance(cat_id, int) and cat_id > 0:
                 self.emit_links_changed(cat_id)
         except Exception:
@@ -121,7 +123,11 @@ class LinkOperationsController(QObject):
         """Вызвать после обновления ссылки (влияет на недавние и возможно таблицу)."""
         try:
             self.emit_recents_changed()
-            cat_id = updated_link.get("category_id") if isinstance(updated_link, dict) else None
+            cat_id = (
+                updated_link.get("category_id")
+                if isinstance(updated_link, dict)
+                else None
+            )
             if isinstance(cat_id, int) and cat_id > 0:
                 self.emit_links_changed(cat_id)
         except Exception:
@@ -232,7 +238,10 @@ class LinkOperationsController(QObject):
 
                 # Если среди сохраняемых ссылок есть изменение признака избранного — уведомим UI централизованно
                 try:
-                    if any(isinstance(p, dict) and ("is_favorite" in p) for p in links_to_save):
+                    if any(
+                        isinstance(p, dict) and ("is_favorite" in p)
+                        for p in links_to_save
+                    ):
                         # Передаём None, чтобы не дублировать финальный links_changed ниже
                         self.on_favorite_toggled(None)
                 except Exception:
@@ -295,7 +304,9 @@ class LinkOperationsController(QObject):
                             # Передаём None, чтобы не дублировать финальный links_changed ниже
                             self.on_favorite_toggled(None)
                     except Exception:
-                        logger.exception("show_link_dialog(single): on_favorite_toggled failed")
+                        logger.exception(
+                            "show_link_dialog(single): on_favorite_toggled failed"
+                        )
 
                     # Планируем восстановление фокуса на ссылке (для новых и обновлённых)
                     logger.debug(
@@ -332,7 +343,9 @@ class LinkOperationsController(QObject):
                         if isinstance(data, dict):
                             self.link_saved.emit(data)
                     except Exception:
-                        logger.exception("show_link_dialog(single): emit link_saved failed")
+                        logger.exception(
+                            "show_link_dialog(single): emit link_saved failed"
+                        )
 
             # Сигнализируем о необходимости перезагрузки таблицы текущей категории
             try:
@@ -361,13 +374,17 @@ class LinkOperationsController(QObject):
             try:
                 cmd._suppress_ui = True
             except Exception:
-                logger.exception("delete_links_with_confirmation(single): failed to set _suppress_ui")
+                logger.exception(
+                    "delete_links_with_confirmation(single): failed to set _suppress_ui"
+                )
             self.undo_stack.push(cmd)
             # Централизованный вызов сигналов
             try:
                 self.on_links_deleted(links)
             except Exception:
-                logger.exception("delete_links_with_confirmation(single): on_links_deleted failed")
+                logger.exception(
+                    "delete_links_with_confirmation(single): on_links_deleted failed"
+                )
             return
 
         # Пакетное удаление — без подтверждения, с макросом для Undo
@@ -385,4 +402,6 @@ class LinkOperationsController(QObject):
         try:
             self.on_links_deleted(links)
         except Exception:
-            logger.exception("delete_links_with_confirmation(batch): on_links_deleted failed")
+            logger.exception(
+                "delete_links_with_confirmation(batch): on_links_deleted failed"
+            )

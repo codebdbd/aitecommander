@@ -1,6 +1,7 @@
 """
 Миксин для работы с выбором браузерных профилей в LinkDialogHandlers.
 """
+
 import logging
 
 from PyQt6.QtWidgets import QDialog
@@ -14,8 +15,11 @@ try:  # переносим импорт на верхний уровень дл�
     from app.views.dialogs.browser_profile_dialog import (
         BrowserProfileDialog,  # type: ignore
     )
+
     _BPD_IMPORT_ERROR: Exception | None = None
-except ImportError as _e:  # не прерываем импорт модуля, чтобы остальной функционал был доступен
+except (
+    ImportError
+) as _e:  # не прерываем импорт модуля, чтобы остальной функционал был доступен
     BrowserProfileDialog = None  # type: ignore[assignment]
     _BPD_IMPORT_ERROR = _e
 

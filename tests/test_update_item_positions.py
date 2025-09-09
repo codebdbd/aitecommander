@@ -77,7 +77,9 @@ def test_update_item_positions_validation_errors(db_in_memory: Database):
 
     # Дубликаты в списке id
     with pytest.raises(ValidationError):
-        db_in_memory.update_item_positions("category", [cat_ids[0], cat_ids[0], cat_ids[2]])
+        db_in_memory.update_item_positions(
+            "category", [cat_ids[0], cat_ids[0], cat_ids[2]]
+        )
 
     # Несуществующий id
     bogus = max(cat_ids) + 9999

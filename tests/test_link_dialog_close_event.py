@@ -27,7 +27,9 @@ def test_close_event_calls_cancel_processing(monkeypatch, qtbot):
     controller = DummyDialogController()
 
     # Создаём реальный диалог (он использует упрощённые UI-стабы из LinkDialogUI)
-    dlg = LinkDialog(initialization_data, controller, link=None, category_id=None, parent=None)
+    dlg = LinkDialog(
+        initialization_data, controller, link=None, category_id=None, parent=None
+    )
     qtbot.addWidget(dlg)
 
     # Подготовка: считаем, что идёт обработка — чтобы прошла ветка с подтверждением

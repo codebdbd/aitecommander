@@ -152,24 +152,37 @@ class IconDownloader:
         self.config = config
         # Поддержка тестового клиента
         self.http_get = getattr(config, "HTTP_GET", None) or (
-            lambda u, headers, timeout: requests.get(u, headers=headers, timeout=timeout)
+            lambda u, headers, timeout: requests.get(
+                u, headers=headers, timeout=timeout
+            )
         )
-
 
     # === Валидация и декодирование ===
     @staticmethod
     def is_non_image_data(ct: str, data: bytes) -> bool:
-        if ct.startswith("text/") or "html" in ct or ct in {"application/json", "application/xml"}:
+        if (
+            ct.startswith("text/")
+            or "html" in ct
+            or ct in {"application/json", "application/xml"}
+        ):
             head = data[:256].lstrip()
-            return head.startswith(b"<!DOCTYPE") or head.startswith(b"<html") or (b"<html" in head.lower())
+            return (
+                head.startswith(b"<!DOCTYPE")
+                or head.startswith(b"<html")
+                or (b"<html" in head.lower())
+            )
         return False
 
     @staticmethod
-    def maybe_convert_svg(icon_url: str, ct: str, ext: str, data: bytes) -> Optional[bytes]:
+    def maybe_convert_svg(
+        icon_url: str, ct: str, ext: str, data: bytes
+    ) -> Optional[bytes]:
         if "image/svg" in ct or ext == "svg" or b"<svg" in data[:200].lower():
             logger.debug("SVG detected %s", icon_url)
             try:
-                target = int(getattr(app_config, "ICON_TARGET_SIZE", TARGET_SIZE) or TARGET_SIZE)
+                target = int(
+                    getattr(app_config, "ICON_TARGET_SIZE", TARGET_SIZE) or TARGET_SIZE
+                )
             except Exception:
                 target = TARGET_SIZE
             return convert_svg(data, target_size=target)
@@ -206,7 +219,12 @@ class IconDownloader:
     def validate_image_geometry(img: Image.Image, icon_url: str) -> bool:
         width, height = img.size
         if width < MIN_GOOD_SIZE or height < MIN_GOOD_SIZE:
-            logger.info("[icon] skip reason=too_small size=%sx%s url=%s", width, height, icon_url)
+            logger.info(
+                "[icon] skip reason=too_small size=%sx%s url=%s",
+                width,
+                height,
+                icon_url,
+            )
             return False
         aspect_ratio = max(width, height) / max(1, min(width, height))
         if aspect_ratio > 2.0:
@@ -221,7 +239,15 @@ class IconDownloader:
         return True
 
     @staticmethod
-    def save_png_with_meta(domain: str, icon_url: str, response_headers: dict, img: Image.Image, data: bytes, is_fallback: bool, meta: Optional[dict] = None) -> Optional[str]:
+    def save_png_with_meta(
+        domain: str,
+        icon_url: str,
+        response_headers: dict,
+        img: Image.Image,
+        data: bytes,
+        is_fallback: bool,
+        meta: Optional[dict] = None,
+    ) -> Optional[str]:
         path = os.path.join(
             str(icon_path_service.get_user_icons_dir()),
             f"web_{domain.replace('.', '_')}.png",
@@ -236,7 +262,8 @@ class IconDownloader:
                 prev_meta = meta or {}
                 meta_update = {
                     "etag": response_headers.get("ETag") or prev_meta.get("etag"),
-                    "last_modified": response_headers.get("Last-Modified") or prev_meta.get("last_modified"),
+                    "last_modified": response_headers.get("Last-Modified")
+                    or prev_meta.get("last_modified"),
                     "saved_at": time.time(),
                     "source_url": icon_url,
                     "content_hash": hashlib.sha256(data).hexdigest(),
@@ -246,11 +273,19 @@ class IconDownloader:
                 }
                 write_icon_meta(domain, meta_update)
             except Exception as me:
-                logger.debug("Icon meta update failed for %s: %s", domain, me, exc_info=True)
+                logger.debug(
+                    "Icon meta update failed for %s: %s", domain, me, exc_info=True
+                )
         return path
 
     # === Публичный метод ===
-    def save_icon(self, icon_url: str, domain: str, is_fallback: bool = False, force_refresh: bool = False) -> Optional[str]:
+    def save_icon(
+        self,
+        icon_url: str,
+        domain: str,
+        is_fallback: bool = False,
+        force_refresh: bool = False,
+    ) -> Optional[str]:
         meta = read_icon_meta(domain)
         cond_headers = build_conditional_headers(domain, meta, force_refresh)
 
@@ -267,7 +302,12 @@ class IconDownloader:
                 allow_redirects=True,
             )
         except Exception as e:
-            logger.info("[icon] skip reason=request_failed url=%s err=%s", icon_url, e, exc_info=True)
+            logger.info(
+                "[icon] skip reason=request_failed url=%s err=%s",
+                icon_url,
+                e,
+                exc_info=True,
+            )
             return None
 
         # Обработка статусов до чтения тела
@@ -282,7 +322,11 @@ class IconDownloader:
                 return path
             return None
         if getattr(resp, "status_code", 0) >= 400:
-            logger.info("[icon] skip reason=bad_status status=%s url=%s", resp.status_code, icon_url)
+            logger.info(
+                "[icon] skip reason=bad_status status=%s url=%s",
+                resp.status_code,
+                icon_url,
+            )
             return None
 
         ct_dbg = resp.headers.get("Content-Type")
@@ -295,12 +339,16 @@ class IconDownloader:
             cl_dbg,
         )
 
-        ct_header = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        ct_header = (
+            (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        )
         url_lower = icon_url.lower().split("?")[0].split("#")[0]
         ext = url_lower.rsplit(".", 1)[-1] if "." in url_lower else ""
         # Проверка контент-тайпа до чтения
         if not ct_header.startswith("image/"):
-            img_ext = url_lower.endswith((".png", ".ico", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg"))
+            img_ext = url_lower.endswith(
+                (".png", ".ico", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg")
+            )
             if img_ext:
                 logger.info(
                     "[icon] non_image_ct ct=%s, but URL suggests image; skipping body %s",
@@ -308,7 +356,11 @@ class IconDownloader:
                     icon_url,
                 )
             else:
-                logger.info("[icon] skip reason=non_image_head ct=%s url=%s", ct_header, icon_url)
+                logger.info(
+                    "[icon] skip reason=non_image_head ct=%s url=%s",
+                    ct_header,
+                    icon_url,
+                )
             resp.close()
             return None
 
@@ -345,7 +397,12 @@ class IconDownloader:
                     resp.close()
                     return None
         except Exception as e:
-            logger.info("[icon] skip reason=stream_error url=%s err=%s", icon_url, e, exc_info=True)
+            logger.info(
+                "[icon] skip reason=stream_error url=%s err=%s",
+                icon_url,
+                e,
+                exc_info=True,
+            )
             resp.close()
             return None
         finally:
@@ -360,7 +417,9 @@ class IconDownloader:
 
         # Дополнительная страховка после стрим-лимита
         if len(data) > max_size:
-            logger.info("[icon] skip reason=body_too_large size=%s url=%s", len(data), icon_url)
+            logger.info(
+                "[icon] skip reason=body_too_large size=%s url=%s", len(data), icon_url
+            )
             return None
 
         data2 = self.maybe_convert_svg(icon_url, ct, ext, data)
@@ -370,7 +429,9 @@ class IconDownloader:
         # Безопасное открытие изображения с ограничением на количество пикселей и проверкой содержимого
         try:
             try:
-                max_pixels_limit = int(getattr(app_config, "ICON_MAX_IMAGE_PIXELS", 2_000_000) or 2_000_000)
+                max_pixels_limit = int(
+                    getattr(app_config, "ICON_MAX_IMAGE_PIXELS", 2_000_000) or 2_000_000
+                )
             except Exception:
                 max_pixels_limit = 2_000_000
 
@@ -386,7 +447,9 @@ class IconDownloader:
                     img = img.copy()
                     if not self.validate_image_geometry(img, icon_url):
                         return None
-                    path = self.save_png_with_meta(domain, icon_url, resp.headers, img, data2, is_fallback, meta)
+                    path = self.save_png_with_meta(
+                        domain, icon_url, resp.headers, img, data2, is_fallback, meta
+                    )
                     etag = resp.headers.get("ETag")
                     lm = resp.headers.get("Last-Modified")
                     w, h = img.size
@@ -404,7 +467,9 @@ class IconDownloader:
                     )
                     return path
         except (UnidentifiedImageError, Image.DecompressionBombError) as e:
-            logger.warning("[icon] unsafe_or_invalid_image url=%s: %s", icon_url, e, exc_info=True)
+            logger.warning(
+                "[icon] unsafe_or_invalid_image url=%s: %s", icon_url, e, exc_info=True
+            )
             return None
         except Exception as e:
             logger.error("Save icon error %s: %s", icon_url, e, exc_info=True)
@@ -422,7 +487,9 @@ def save_icon(
     force_refresh: bool = False,
 ) -> Optional[str]:
     """Тонкий фасад поверх IconDownloader.save_icon."""
-    return IconDownloader(config).save_icon(icon_url, domain, is_fallback, force_refresh)
+    return IconDownloader(config).save_icon(
+        icon_url, domain, is_fallback, force_refresh
+    )
 
 
 def pick_icon_parallel(
@@ -433,7 +500,9 @@ def pick_icon_parallel(
     force_refresh: bool = False,
 ) -> Optional[str]:
     # Сначала только локальные и fallback-кандидаты (без сторонних сервисов)
-    candidates = find_favicon_candidates(soup, page_url, config, use_external=False)[:10]
+    candidates = find_favicon_candidates(soup, page_url, config, use_external=False)[
+        :10
+    ]
     logger.debug("Trying %s favicon candidates for %s", len(candidates), domain)
 
     max_elapsed = float(getattr(config, "ICON_PICK_MAX_SECONDS", 6.0))
@@ -460,7 +529,9 @@ def pick_icon_parallel(
         executor = ThreadPoolExecutor(max_workers=max_workers)
         try:
             futures = [
-                executor.submit(save_icon, u, domain, config, is_fallback, force_refresh)
+                executor.submit(
+                    save_icon, u, domain, config, is_fallback, force_refresh
+                )
                 for u in icon_urls
             ]
             # Неблокирующий опрос futures до дедлайна
@@ -498,7 +569,9 @@ def pick_icon_parallel(
     tried_urls = set(candidates)
     saved_path = _try_candidates_parallel(candidates, is_fallback=False)
     if saved_path:
-        logger.info("Successfully saved good-sized icon %s for domain %s", saved_path, domain)
+        logger.info(
+            "Successfully saved good-sized icon %s for domain %s", saved_path, domain
+        )
         return saved_path
     logger.debug(
         "No icons ≥%spx found, trying fallback mode for %s",
@@ -507,11 +580,15 @@ def pick_icon_parallel(
     )
     saved_path = _try_candidates_parallel(candidates, is_fallback=True)
     if saved_path:
-        logger.info("Successfully saved fallback icon %s for domain %s", saved_path, domain)
+        logger.info(
+            "Successfully saved fallback icon %s for domain %s", saved_path, domain
+        )
         return saved_path
     # После неудачи локальных попыток — подключаем внешние источники при разрешении в конфиге
     if bool(getattr(config, "ICON_USE_EXTERNAL", False)):
-        ext_all = find_favicon_candidates(soup, page_url, config, use_external=True)[:12]
+        ext_all = find_favicon_candidates(soup, page_url, config, use_external=True)[
+            :12
+        ]
         ext_only = [u for u in ext_all if u not in tried_urls]
         if ext_only:
             logger.debug(
@@ -521,7 +598,11 @@ def pick_icon_parallel(
             )
             saved_path = _try_candidates_parallel(ext_only, is_fallback=True)
             if saved_path:
-                logger.info("Successfully saved external fallback icon %s for domain %s", saved_path, domain)
+                logger.info(
+                    "Successfully saved external fallback icon %s for domain %s",
+                    saved_path,
+                    domain,
+                )
                 return saved_path
 
     logger.warning(

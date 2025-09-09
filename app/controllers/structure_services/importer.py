@@ -34,7 +34,7 @@ class ImportService:
                 logger.info(
                     "Создана категория для импорта %s: %s",
                     category_id,
-                    category_data.get('name', 'Без названия'),
+                    category_data.get("name", "Без названия"),
                 )
             return category_id
         except Exception as e:

@@ -24,6 +24,7 @@ class RecentLinksWidgetMock:
     def set_recent_links(self, items):  # новый основной путь
         self.calls.append(("set_recent_links", items))
 
+
 class LinksBusinessStub:
     def get_favorite_links(self):
         return [{"id": 1}, {"id": 2}]
@@ -116,16 +117,24 @@ def test_init_requires_widgets():
 def test_refresh_favorites_requires_set_method():
     class NoSetFav:
         pass
+
     with pytest.raises(TypeError):
         TopPanelsController(
-            SimpleNamespace(), fav_widget=NoSetFav(), recent_links_widget=RecentLinksWidgetMock(), links_business=LinksBusinessStub()
+            SimpleNamespace(),
+            fav_widget=NoSetFav(),
+            recent_links_widget=RecentLinksWidgetMock(),
+            links_business=LinksBusinessStub(),
         )
 
 
 def test_refresh_recent_requires_set_method():
     class NoSetRecent:
         limit = 5
+
     with pytest.raises(TypeError):
         TopPanelsController(
-            SimpleNamespace(), fav_widget=FavWidgetMock(), recent_links_widget=NoSetRecent(), links_business=LinksBusinessStub()
+            SimpleNamespace(),
+            fav_widget=FavWidgetMock(),
+            recent_links_widget=NoSetRecent(),
+            links_business=LinksBusinessStub(),
         )

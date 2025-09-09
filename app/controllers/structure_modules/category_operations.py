@@ -410,7 +410,7 @@ class CategoryOperations(BaseOperations):
             self.logger.info(
                 "Создан %s для импорта: %s",
                 item_type,
-                signal_data.get('name', 'без имени'),
+                signal_data.get("name", "без имени"),
             )
             return result_id
 

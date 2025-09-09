@@ -23,7 +23,10 @@ def read_text(p: Path) -> str:
 def test_atomic_write_json_dump_failure(tmp_cache_path: Path, monkeypatch):
     # Arrange: create initial valid file
     tmp_cache_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_cache_path.write_text(json.dumps({"initial": [1, 2, 3]}, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp_cache_path.write_text(
+        json.dumps({"initial": [1, 2, 3]}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
     cache = PersistentProfileCache()
 
@@ -45,7 +48,9 @@ def test_atomic_write_json_dump_failure(tmp_cache_path: Path, monkeypatch):
 def test_atomic_write_replace_failure(tmp_cache_path: Path, monkeypatch):
     # Arrange: initial file
     tmp_cache_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_cache_path.write_text(json.dumps({"a": 1}, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp_cache_path.write_text(
+        json.dumps({"a": 1}, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     cache = PersistentProfileCache()
 

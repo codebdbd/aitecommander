@@ -1,6 +1,7 @@
 """
 Миксин для сбора данных формы LinkDialog.
 """
+
 import logging
 from typing import Any, Dict
 
@@ -46,21 +47,23 @@ class FormDataMixin:
         if hasattr(self.dialog, "selected_profiles"):
             logger.debug(
                 "_collect_form_data: selected_profiles count=%s",
-                len(self.dialog.selected_profiles) if self.dialog.selected_profiles else 0,
+                len(self.dialog.selected_profiles)
+                if self.dialog.selected_profiles
+                else 0,
             )
             if self.dialog.selected_profiles:
                 for i, profile in enumerate(self.dialog.selected_profiles):
                     logger.debug(
                         "_collect_form_data: profile %s: name=%s, browser_key=%s",
                         i,
-                        profile.get('name'),
-                        profile.get('browser_key'),
+                        profile.get("name"),
+                        profile.get("browser_key"),
                     )
         else:
             logger.debug("_collect_form_data: no selected_profiles attribute")
 
         logger.debug(
             "_collect_form_data: returning form_data with link_type=%s",
-            form_data.get('link_type'),
+            form_data.get("link_type"),
         )
         return form_data

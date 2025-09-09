@@ -10,8 +10,12 @@ from app.utils.ui.icon import cache_manager as ic
 def test_base_api_ttl_override(prefix, monkeypatch: pytest.MonkeyPatch):
     # Базовые TTL делаем большими, чтобы не мешали per-entry override
     monkeypatch.setattr(app_config, "get_icon_cache_ttl", lambda: 10.0, raising=True)
-    monkeypatch.setattr(app_config, "get_abs_icon_cache_ttl", lambda: 10.0, raising=True)
-    monkeypatch.setattr(app_config, "get_negative_cache_ttl", lambda: 10.0, raising=True)
+    monkeypatch.setattr(
+        app_config, "get_abs_icon_cache_ttl", lambda: 10.0, raising=True
+    )
+    monkeypatch.setattr(
+        app_config, "get_negative_cache_ttl", lambda: 10.0, raising=True
+    )
 
     key = f"{prefix}:ttl-test::light"
 
@@ -23,6 +27,7 @@ def test_base_api_ttl_override(prefix, monkeypatch: pytest.MonkeyPatch):
     else:
         # Для qicon None интерпретируется как негативная запись, но TTL тоже должен работать
         from PyQt6.QtGui import QIcon
+
         ic.set(key, QIcon(), ttl=0.1)
 
     # Сразу после установки есть значение

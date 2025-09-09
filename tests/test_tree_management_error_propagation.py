@@ -63,4 +63,7 @@ def test_refresh_section_tiles_expected_error_logged_and_swallowed(caplog):
 
     # Убедимся, что был вызов refresh
     assert tiles_ctrl.calls == [("refresh", 123)]
-    assert any("controller refresh failed (expected)" in rec.getMessage() for rec in caplog.records)
+    assert any(
+        "controller refresh failed (expected)" in rec.getMessage()
+        for rec in caplog.records
+    )

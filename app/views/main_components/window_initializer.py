@@ -106,7 +106,11 @@ class WindowInitializer:
             DiagnosticsInstaller(self.window, self._dump_top_levels).install_all()
         except (RuntimeError, AttributeError, ImportError) as e:
             # Диагностика не критична для работы приложения — логируем предупреждение и продолжаем
-            logger.warning("Diagnostics: failed to install one or more handlers: %s", e, exc_info=True)
+            logger.warning(
+                "Diagnostics: failed to install one or more handlers: %s",
+                e,
+                exc_info=True,
+            )
 
     def _run_light_steps(self) -> None:
         """Выполняет лёгкие синхронные шаги, подключает сигналы и показывает окно."""
@@ -128,7 +132,9 @@ class WindowInitializer:
             if hasattr(self.window, "shown"):
                 self.window.shown.connect(self._on_window_shown)
         except Exception:
-            logger.exception("WindowInitializer: не удалось подключить слот к сигналу 'shown'")
+            logger.exception(
+                "WindowInitializer: не удалось подключить слот к сигналу 'shown'"
+            )
 
         try:
             self._dump_top_levels("before window.show")
@@ -140,11 +146,13 @@ class WindowInitializer:
                 with self._metrics.time_span("light:window_show"):
                     self.window.show()
         except Exception:
-            logger.exception("WindowInitializer: не удалось показать окно после лёгких шагов")
+            logger.exception(
+                "WindowInitializer: не удалось показать окно после лёгких шагов"
+            )
 
         try:
             self._dump_top_levels("after window.show")
-            QTimer.singleShot(10,  lambda: self._dump_top_levels("+10ms after show"))
+            QTimer.singleShot(10, lambda: self._dump_top_levels("+10ms after show"))
             QTimer.singleShot(100, lambda: self._dump_top_levels("+100ms after show"))
         except Exception:
             logger.debug("DiagTopLevels: failed post-show dumps", exc_info=False)
@@ -211,14 +219,18 @@ class WindowInitializer:
         self.controllers_setup.setup_controllers()
 
     def _apply_user_font_size(self) -> None:
-        if hasattr(self.settings, "get_font_size") and hasattr(self.window, "apply_font_size_to_content"):
+        if hasattr(self.settings, "get_font_size") and hasattr(
+            self.window, "apply_font_size_to_content"
+        ):
             fs = self.settings.get_font_size()
             try:
                 with suppress(AttributeError, ValueError, TypeError):
                     if fs:
                         self.window.apply_font_size_to_content(int(fs))
             except Exception:
-                logger.exception("WindowInitializer: unexpected error applying font size")
+                logger.exception(
+                    "WindowInitializer: unexpected error applying font size"
+                )
 
     def _initialize_spheres(self) -> None:
         self.controllers_setup.initialize_spheres()
@@ -228,7 +240,9 @@ class WindowInitializer:
             if hasattr(self.window, "message_label") and self.window.message_label:
                 self.window.message_label.setText("Загрузка интерфейса…")
         except Exception:
-            logger.exception("WindowInitializer: ошибка обновления текста статус-бара после инициализации")
+            logger.exception(
+                "WindowInitializer: ошибка обновления текста статус-бара после инициализации"
+            )
 
     def _post_controllers_init(self) -> None:
         try:
@@ -240,22 +254,39 @@ class WindowInitializer:
                     self._metrics.start("async:structure_load")
                     try:
                         if hasattr(sb, "structure_loaded"):
+
                             def _on_structure_loaded_once(*_args):
                                 try:
                                     self._metrics.stop("async:structure_load")
                                 except Exception:
-                                    logger.debug("WindowInitializer: failed to stop 'async:structure_load' metric", exc_info=False)
+                                    logger.debug(
+                                        "WindowInitializer: failed to stop 'async:structure_load' metric",
+                                        exc_info=False,
+                                    )
                                 try:
-                                    sb.structure_loaded.disconnect(_on_structure_loaded_once)
+                                    sb.structure_loaded.disconnect(
+                                        _on_structure_loaded_once
+                                    )
                                 except Exception:
-                                    logger.debug("WindowInitializer: failed to disconnect temporary structure_loaded slot", exc_info=False)
+                                    logger.debug(
+                                        "WindowInitializer: failed to disconnect temporary structure_loaded slot",
+                                        exc_info=False,
+                                    )
+
                             sb.structure_loaded.connect(_on_structure_loaded_once)
                     except Exception:
-                        logger.debug("WindowInitializer: failed to wire metrics to structure_loaded", exc_info=False)
-                    QTimer.singleShot(0, lambda cid=int(curr_id): ao.load_structure_async(cid))
+                        logger.debug(
+                            "WindowInitializer: failed to wire metrics to structure_loaded",
+                            exc_info=False,
+                        )
+                    QTimer.singleShot(
+                        0, lambda cid=int(curr_id): ao.load_structure_async(cid)
+                    )
                     self._metrics.mark("async:load_structure_async scheduled")
         except Exception:
-            logger.exception("WindowInitializer: не удалось запланировать load_structure_async")
+            logger.exception(
+                "WindowInitializer: не удалось запланировать load_structure_async"
+            )
 
     def _execute_db_dependent_steps(self) -> None:
         self._current_db_step = 0
@@ -270,17 +301,18 @@ class WindowInitializer:
             special_hooks=self._special_hooks_after,
         )
 
-
     def _finalize_initialization(self) -> None:
         """Завершает асинхронную инициализацию."""
         try:
             # Выводим сводку метрик старта в лог
             self._metrics.flush_log(logger)
-            
+
             # Обновляем статус на "Готово"
             self._status.set_message("Готово")
-            
-            logger.info("WindowInitializer: асинхронная инициализация завершена успешно")
+
+            logger.info(
+                "WindowInitializer: асинхронная инициализация завершена успешно"
+            )
             # Финальный снимок top-level виджетов
             try:
                 self._dump_top_levels("finalize initialization")
@@ -310,16 +342,16 @@ class WindowInitializer:
             on_waiting=self._on_waiting_for_db,
         )
 
-    
     def _on_waiting_for_db(self) -> None:
         """Вызывается, когда БД ещё не готова: выставляет флаг ожидания и обновляет статус."""
         try:
             setattr(self, "_waiting_for_db", True)
             self._status.set_message("Ожидание готовности базы данных...")
         except Exception:
-            logger.exception("WindowInitializer: failed to update waiting-for-DB status")
+            logger.exception(
+                "WindowInitializer: failed to update waiting-for-DB status"
+            )
 
-    
     def _dump_top_levels(self, tag: str) -> None:
         """Логирует текущее множество top-level виджетов Qt и окон QGuiApplication."""
         app = QApplication.instance()
@@ -361,11 +393,17 @@ class WindowInitializer:
             except Exception:
                 flags_s = "?"
             info_list.append(f"{cls}[{name}] vis={visible} size={size_s} pos={pos_s}")
-        logger.info("DiagTopLevels[%s]: %d widgets: %s", tag, len(info_list), "; ".join(info_list))
+        logger.info(
+            "DiagTopLevels[%s]: %d widgets: %s",
+            tag,
+            len(info_list),
+            "; ".join(info_list),
+        )
 
         # Диагностика окон уровня QWindow (например, всплывающие тултипы/меню могут быть QWindow)
         try:
             from PyQt6.QtGui import QGuiApplication
+
             wins = list(QGuiApplication.allWindows())
         except Exception:
             wins = []
@@ -381,12 +419,18 @@ class WindowInitializer:
                 vis = win.isVisible() if hasattr(win, "isVisible") else False
                 flags = win.flags() if hasattr(win, "flags") else None
                 flags_s = hex(int(flags)) if flags is not None else "?"
-                win_list.append(f"{cls} title='{title}' vis={vis} size={size_s} pos={pos_s} flags={flags_s}")
+                win_list.append(
+                    f"{cls} title='{title}' vis={vis} size={size_s} pos={pos_s} flags={flags_s}"
+                )
             except Exception:
                 continue
         if win_list:
-            logger.info("DiagTopLevels[%s]: QWindows(%d): %s", tag, len(win_list), "; ".join(win_list))
-
+            logger.info(
+                "DiagTopLevels[%s]: QWindows(%d): %s",
+                tag,
+                len(win_list),
+                "; ".join(win_list),
+            )
 
     # === Слоты ===
     def _on_window_shown(self) -> None:
@@ -399,18 +443,25 @@ class WindowInitializer:
             if hasattr(self.window, "message_label") and self.window.message_label:
                 self.window.message_label.setText("Загрузка интерфейса…")
         except Exception:
-            logger.exception("WindowInitializer: ошибка обновления текста статус-бара в _on_window_shown")
+            logger.exception(
+                "WindowInitializer: ошибка обновления текста статус-бара в _on_window_shown"
+            )
 
     # === Обработчики ошибок ===
     def _handle_deferred_init_error(self, exc: Exception) -> None:
         """Показывает диалог ошибки и завершает приложение при сбое отложенной инициализации."""
         try:
             parent = self.window if hasattr(self.window, "isVisible") else None
-            QMessageBox.critical(parent, "Ошибка инициализации", f"Произошла ошибка при инициализации UI:\n{exc}")
+            QMessageBox.critical(
+                parent,
+                "Ошибка инициализации",
+                f"Произошла ошибка при инициализации UI:\n{exc}",
+            )
         except Exception:
-            logger.exception("WindowInitializer: не удалось показать диалог ошибки инициализации")
+            logger.exception(
+                "WindowInitializer: не удалось показать диалог ошибки инициализации"
+            )
         finally:
             app = QApplication.instance()
             if app is not None:
                 app.quit()
-

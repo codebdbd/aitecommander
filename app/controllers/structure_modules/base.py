@@ -217,10 +217,14 @@ class BaseOperations:
     ) -> None:
         """Базовая валидация данных."""
         if not isinstance(data, dict):
-            raise ValidationError("Данные должны быть словарем", item_type=item_type.value)
+            raise ValidationError(
+                "Данные должны быть словарем", item_type=item_type.value
+            )
 
         if not data.get("name", "").strip():
-            raise ValidationError("Поле 'name' обязательно", field="name", item_type=item_type.value)
+            raise ValidationError(
+                "Поле 'name' обязательно", field="name", item_type=item_type.value
+            )
 
         if require_parent:
             try:
@@ -470,7 +474,9 @@ class BaseOperations:
             delete_func()
 
             # Эмитим сигнал удаления (parent_or_id = id элемента)
-            self._emit_signal(SignalType.ITEM_DELETED, item_type.value, item_id, emit_data or {})
+            self._emit_signal(
+                SignalType.ITEM_DELETED, item_type.value, item_id, emit_data or {}
+            )
 
             # Логирование
             ru_name = ItemTypeRegistry.get_config(item_type).ru_name

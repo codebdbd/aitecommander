@@ -28,6 +28,7 @@ from .base_dialog import BaseDialog
 
 logger = logging.getLogger(__name__)
 
+
 def _populate_spheres_common(
     structure_business: StructureBusinessLogic, sphere_cb: QComboBox
 ) -> None:
@@ -70,7 +71,10 @@ class BaseEntityDialog(BaseDialog):
         try:
             self.name_le.returnPressed.connect(self._on_return_pressed)
         except Exception:
-            logger.debug("BaseEntityDialog: failed to connect returnPressed handler", exc_info=True)
+            logger.debug(
+                "BaseEntityDialog: failed to connect returnPressed handler",
+                exc_info=True,
+            )
         self.icon_btn = QPushButton("Иконка")
         self.icon_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
         # Use centralized dialog icon size from UIConfig
@@ -102,7 +106,10 @@ class BaseEntityDialog(BaseDialog):
             # Кнопка получает фокус только по Tab (не автоматически при показе окна)
             ok_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         except Exception:
-            logger.debug("BaseEntityDialog: failed to adjust Ok button defaults/focus", exc_info=True)
+            logger.debug(
+                "BaseEntityDialog: failed to adjust Ok button defaults/focus",
+                exc_info=True,
+            )
 
         cancel_btn = bb.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_btn.setText("Отмена")
@@ -113,7 +120,10 @@ class BaseEntityDialog(BaseDialog):
             cancel_btn.setAutoDefault(False)
             cancel_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         except Exception:
-            logger.debug("BaseEntityDialog: failed to adjust Cancel button defaults/focus", exc_info=True)
+            logger.debug(
+                "BaseEntityDialog: failed to adjust Cancel button defaults/focus",
+                exc_info=True,
+            )
 
         # Блокируем кнопку Сохранить, пока имя пустое; обновляем по мере ввода
         try:
@@ -124,7 +134,10 @@ class BaseEntityDialog(BaseDialog):
                     lambda _t: ok_btn.setEnabled(bool(self.name_le.text().strip()))
                 )
         except Exception:
-            logger.debug("BaseEntityDialog: failed to wire name_le textChanged to Ok button enable", exc_info=True)
+            logger.debug(
+                "BaseEntityDialog: failed to wire name_le textChanged to Ok button enable",
+                exc_info=True,
+            )
 
         bb.accepted.connect(self._on_accept)
         bb.rejected.connect(self.reject)

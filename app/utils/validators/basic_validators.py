@@ -1,5 +1,7 @@
 import logging
 
+logger = logging.getLogger(__name__)
+
 
 def validate_required_fields(
     data: dict, required_fields: list, entity_name: str = ""
@@ -9,7 +11,7 @@ def validate_required_fields(
     """
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
-        logging.error(
+        logger.error(
             f"Отсутствуют обязательные поля для {entity_name}: {missing_fields}"
         )
         return False

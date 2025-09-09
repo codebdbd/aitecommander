@@ -20,8 +20,12 @@ def _clear_cache_before():
 def test_ttl_override_via_unified_set_read_by_get_path(monkeypatch: pytest.MonkeyPatch):
     # Глобальные TTL делаем большими, чтобы не мешали per-entry override
     monkeypatch.setattr(app_config, "get_icon_cache_ttl", lambda: 10.0, raising=True)
-    monkeypatch.setattr(app_config, "get_abs_icon_cache_ttl", lambda: 10.0, raising=True)
-    monkeypatch.setattr(app_config, "get_negative_cache_ttl", lambda: 10.0, raising=True)
+    monkeypatch.setattr(
+        app_config, "get_abs_icon_cache_ttl", lambda: 10.0, raising=True
+    )
+    monkeypatch.setattr(
+        app_config, "get_negative_cache_ttl", lambda: 10.0, raising=True
+    )
 
     key = "path:special-path-ttl::dark"
 
@@ -39,8 +43,12 @@ def test_ttl_override_via_unified_set_read_by_get_path(monkeypatch: pytest.Monke
 def test_ttl_override_via_unified_set_read_by_get_icon(monkeypatch: pytest.MonkeyPatch):
     # Глобальные TTL делаем большими, чтобы не мешали per-entry override
     monkeypatch.setattr(app_config, "get_icon_cache_ttl", lambda: 10.0, raising=True)
-    monkeypatch.setattr(app_config, "get_abs_icon_cache_ttl", lambda: 10.0, raising=True)
-    monkeypatch.setattr(app_config, "get_negative_cache_ttl", lambda: 10.0, raising=True)
+    monkeypatch.setattr(
+        app_config, "get_abs_icon_cache_ttl", lambda: 10.0, raising=True
+    )
+    monkeypatch.setattr(
+        app_config, "get_negative_cache_ttl", lambda: 10.0, raising=True
+    )
 
     key = "qicon:special-qicon-ttl::light"
 

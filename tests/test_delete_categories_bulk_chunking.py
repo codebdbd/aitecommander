@@ -32,7 +32,9 @@ def _create_many_categories(db: Database, n: int):
     return section_id, ids
 
 
-def test_delete_categories_bulk_handles_more_than_sqlite_params_limit(db_in_memory: Database):
+def test_delete_categories_bulk_handles_more_than_sqlite_params_limit(
+    db_in_memory: Database,
+):
     # создадим 1200 категорий (больше лимита 999)
     section_id, ids = _create_many_categories(db_in_memory, 1200)
 

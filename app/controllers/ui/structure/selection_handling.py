@@ -44,7 +44,10 @@ class SelectionHandling:
             )
         except Exception:
             # На всякий случай не ломаем поток
-            logger.debug("SelectionHandling.begin_suppress_selection: failed to update counter", exc_info=True)
+            logger.debug(
+                "SelectionHandling.begin_suppress_selection: failed to update counter",
+                exc_info=True,
+            )
             self._suppress_counter = max(1, getattr(self, "_suppress_counter", 0))
 
     def end_suppress_selection(self) -> None:
@@ -55,7 +58,10 @@ class SelectionHandling:
                 "Selection handling resumed (level=%s)", self._suppress_counter
             )
         except Exception:
-            logger.debug("SelectionHandling.end_suppress_selection: failed to update counter", exc_info=True)
+            logger.debug(
+                "SelectionHandling.end_suppress_selection: failed to update counter",
+                exc_info=True,
+            )
             self._suppress_counter = 0
 
     def is_suppressed(self) -> bool:
@@ -69,7 +75,9 @@ class SelectionHandling:
         try:
             self.tiles_controller.refresh(int(section_id))
         except Exception:
-            logger.exception("SelectionHandling._on_section_selected: controller refresh failed")
+            logger.exception(
+                "SelectionHandling._on_section_selected: controller refresh failed"
+            )
 
     def _on_category_selected(self, category_id: int) -> None:
         """ЦЕНТРАЛИЗОВАНО: Использует UIStateManager.load_category() вместо MainWindow.load_category()"""
@@ -102,7 +110,9 @@ class SelectionHandling:
             if not has_selection and model.rowCount() > 0:
                 first = model.index(0, 0)
                 if first.isValid():
-                    sel_model.setCurrentIndex(first, sel_model.SelectionFlag.ClearAndSelect)
+                    sel_model.setCurrentIndex(
+                        first, sel_model.SelectionFlag.ClearAndSelect
+                    )
                     # Восстанавливаем фокус на дереве через планировщик, без жёстких задержек
                     try:
                         schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
@@ -111,9 +121,14 @@ class SelectionHandling:
                         try:
                             self.tree.setFocus()
                         except Exception:
-                            logger.debug("SelectionHandling._select_first_item_if_needed: setFocus() failed", exc_info=True)
+                            logger.debug(
+                                "SelectionHandling._select_first_item_if_needed: setFocus() failed",
+                                exc_info=True,
+                            )
         except Exception:
-            logger.debug("SelectionHandling._select_first_item_if_needed failed", exc_info=True)
+            logger.debug(
+                "SelectionHandling._select_first_item_if_needed failed", exc_info=True
+            )
 
     @signal_guard()
     def _on_current_changed(self, current: QModelIndex, _prev: QModelIndex) -> None:
@@ -166,7 +181,10 @@ class SelectionHandling:
             if table and hasattr(table, "clearSelection"):
                 table.clearSelection()
         except Exception:
-            logger.debug("SelectionHandling._handle_item_selection: clearSelection failed", exc_info=True)
+            logger.debug(
+                "SelectionHandling._handle_item_selection: clearSelection failed",
+                exc_info=True,
+            )
         try:
             t = get_tree_tuple(index, 0)
             if not t:
@@ -175,7 +193,9 @@ class SelectionHandling:
 
             typ, id_ = t
             if typ not in ("section", "category") or not isinstance(id_, int):
-                logger.warning("Invalid item data types for selection: %s, %s", typ, id_)
+                logger.warning(
+                    "Invalid item data types for selection: %s, %s", typ, id_
+                )
                 return
 
             # Защита от повторной обработки того же элемента подряд
@@ -189,20 +209,32 @@ class SelectionHandling:
                 try:
                     self.tiles_controller.refresh(int(id_))
                 except Exception as e:
-                    logger.exception("SelectionHandling._handle_item_selection: controller refresh failed: %s", e)
+                    logger.exception(
+                        "SelectionHandling._handle_item_selection: controller refresh failed: %s",
+                        e,
+                    )
                 logger.debug("Section #%s selected - tiles refresh requested", id_)
             elif typ == "category":
                 # Переход на UIState: не трогаем бизнес-логику здесь
                 ui_state = getattr(self.main, "ui_state", None)
                 if ui_state is not None and hasattr(ui_state, "load_category"):
                     try:
-                        ui_state.load_category(id_, source="SelectionHandling._handle_item_selection")
-                        logger.debug("Category #%s selected - UI state will load links", id_)
+                        ui_state.load_category(
+                            id_, source="SelectionHandling._handle_item_selection"
+                        )
+                        logger.debug(
+                            "Category #%s selected - UI state will load links", id_
+                        )
                     except Exception as e:
-                        logger.exception("SelectionHandling._handle_item_selection: ui_state.load_category failed: %s", e)
+                        logger.exception(
+                            "SelectionHandling._handle_item_selection: ui_state.load_category failed: %s",
+                            e,
+                        )
                         return
                 else:
-                    logger.error("UIStateManager not available in _handle_item_selection")
+                    logger.error(
+                        "UIStateManager not available in _handle_item_selection"
+                    )
                     return
             else:
                 logger.warning("Unknown item type: %s", typ)
@@ -244,11 +276,17 @@ class SelectionHandling:
                 try:
                     self.tree.setFocus()
                 except Exception as e:
-                    logger.debug("SelectionHandling._set_focus_on_new_item_by_id: setFocus() failed: %s", e, exc_info=True)
+                    logger.debug(
+                        "SelectionHandling._set_focus_on_new_item_by_id: setFocus() failed: %s",
+                        e,
+                        exc_info=True,
+                    )
             if item_type == "category":
                 # ЦЕНТРАЛИЗОВАНО: Для новой категории показываем таблицу ссылок
                 if hasattr(self.main, "ui_state") and self.main.ui_state:
-                    self.main.ui_state.load_category(item_id, source="SelectionHandling._handle_item_selection")
+                    self.main.ui_state.load_category(
+                        item_id, source="SelectionHandling._handle_item_selection"
+                    )
                 else:
                     logger.error(
                         "UIStateManager not available in _handle_item_selection"
@@ -292,4 +330,8 @@ class SelectionHandling:
                 try:
                     self.tree.setFocus()
                 except Exception as e:
-                    logger.debug("SelectionHandling._restore_category_selection: setFocus() failed: %s", e, exc_info=True)
+                    logger.debug(
+                        "SelectionHandling._restore_category_selection: setFocus() failed: %s",
+                        e,
+                        exc_info=True,
+                    )

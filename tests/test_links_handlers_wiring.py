@@ -78,7 +78,9 @@ class SelModel:
         ),
     ],
 )
-def test_connect_table_signals_raises_setup_error_on_missing_critical_signals(table_factory):
+def test_connect_table_signals_raises_setup_error_on_missing_critical_signals(
+    table_factory,
+):
     table = table_factory()
     controller = ControllerStub(table)
     handlers = LinksUIHandlers(

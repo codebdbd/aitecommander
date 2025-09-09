@@ -4,6 +4,7 @@
 Использует shelve для хранения. Блокировка реализована через lock-файл .lock рядом с БД.
 Совместим по данным с предыдущей версией (ключи = URL, значения = dict с полями icon/title/...)
 """
+
 from __future__ import annotations
 
 import os
@@ -85,7 +86,10 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, poll_interval: float = 0
                 try:
                     os.remove(lock_path)
                 except Exception:
-                    logger.debug("favicon_lock: failed to remove fallback lock file", exc_info=True)
+                    logger.debug(
+                        "favicon_lock: failed to remove fallback lock file",
+                        exc_info=True,
+                    )
 
 
 def _db_path() -> str:
@@ -167,7 +171,9 @@ class FaviconCache(BaseCache):
             last_ts = float(db.get("__last_cleanup_ts__", 0.0) or 0.0)
         except Exception as exc:
             last_ts = 0.0
-            logger.debug("favicon_cache: failed to read last cleanup ts: %s", exc, exc_info=True)
+            logger.debug(
+                "favicon_cache: failed to read last cleanup ts: %s", exc, exc_info=True
+            )
         now = self._now()
         if (now - last_ts) < self._cleanup_interval_sec:
             return
@@ -191,13 +197,23 @@ class FaviconCache(BaseCache):
                         to_delete.append(k)
                 except Exception as exc:
                     to_delete.append(k)
-                    logger.debug("favicon_cache: failed to inspect entry '%s' during cleanup: %s", k, exc, exc_info=True)
+                    logger.debug(
+                        "favicon_cache: failed to inspect entry '%s' during cleanup: %s",
+                        k,
+                        exc,
+                        exc_info=True,
+                    )
             for k in to_delete:
                 try:
                     del db[k]
                     removed += 1
                 except Exception as exc:
-                    logger.debug("favicon_cache: failed to delete expired key '%s': %s", k, exc, exc_info=True)
+                    logger.debug(
+                        "favicon_cache: failed to delete expired key '%s': %s",
+                        k,
+                        exc,
+                        exc_info=True,
+                    )
 
             # 2) ограничиваем размер БД, удаляя самые старые по timestamp
             max_size = self._get_max_size()
@@ -208,10 +224,17 @@ class FaviconCache(BaseCache):
                     continue
                 try:
                     it = db.get(k)
-                    ts = float(it.get("timestamp", 0.0)) if isinstance(it, dict) else 0.0
+                    ts = (
+                        float(it.get("timestamp", 0.0)) if isinstance(it, dict) else 0.0
+                    )
                 except Exception as exc:
                     ts = 0.0
-                    logger.debug("favicon_cache: failed to get ts for key '%s': %s", k, exc, exc_info=True)
+                    logger.debug(
+                        "favicon_cache: failed to get ts for key '%s': %s",
+                        k,
+                        exc,
+                        exc_info=True,
+                    )
                 items.append((k, ts))
             if len(items) > max_size:
                 # Сортируем по возрастанию ts и удаляем лишние
@@ -222,14 +245,23 @@ class FaviconCache(BaseCache):
                         del db[k]
                         removed += 1
                     except Exception as exc:
-                        logger.debug("favicon_cache: failed to evict key '%s': %s", k, exc, exc_info=True)
+                        logger.debug(
+                            "favicon_cache: failed to evict key '%s': %s",
+                            k,
+                            exc,
+                            exc_info=True,
+                        )
         finally:
             try:
                 db["__last_cleanup_ts__"] = now
                 if removed:
                     logger.debug("[cache] CLEANUP removed=%s", removed)
             except Exception as exc:
-                logger.debug("favicon_cache: failed to write last cleanup ts or log removed count: %s", exc, exc_info=True)
+                logger.debug(
+                    "favicon_cache: failed to write last cleanup ts or log removed count: %s",
+                    exc,
+                    exc_info=True,
+                )
 
     # Реализация BaseCache
     def get(self, key: str) -> Optional[Any]:
@@ -238,7 +270,11 @@ class FaviconCache(BaseCache):
             try:
                 icon_path_service.ensure_user_icons_dir()
             except Exception as exc:  # noqa: BLE001
-                logger.debug("favicon_cache: ensure_user_icons_dir() failed in get(): %s", exc, exc_info=True)
+                logger.debug(
+                    "favicon_cache: ensure_user_icons_dir() failed in get(): %s",
+                    exc,
+                    exc_info=True,
+                )
             path = _db_path()
             lock_path = f"{path}.lock"
             with _file_lock(lock_path):
@@ -253,7 +289,12 @@ class FaviconCache(BaseCache):
                         try:
                             del db[key]
                         except Exception as exc:
-                            logger.debug("favicon_cache: failed to delete expired key '%s' in get(): %s", key, exc, exc_info=True)
+                            logger.debug(
+                                "favicon_cache: failed to delete expired key '%s' in get(): %s",
+                                key,
+                                exc,
+                                exc_info=True,
+                            )
                         return None
                     return item
 
@@ -272,7 +313,11 @@ class FaviconCache(BaseCache):
                     try:
                         self._maybe_cleanup(db)
                     except Exception as exc:
-                        logger.debug("favicon_cache: cleanup before set failed: %s", exc, exc_info=True)
+                        logger.debug(
+                            "favicon_cache: cleanup before set failed: %s",
+                            exc,
+                            exc_info=True,
+                        )
                     if isinstance(value, dict):
                         to_store = dict(value)
                     else:
@@ -292,10 +337,18 @@ class FaviconCache(BaseCache):
                                 continue
                             try:
                                 it = db.get(k)
-                                ts = float(it.get("timestamp", 0.0)) if isinstance(it, dict) else 0.0
+                                ts = (
+                                    float(it.get("timestamp", 0.0))
+                                    if isinstance(it, dict)
+                                    else 0.0
+                                )
                             except Exception as exc:
                                 ts = 0.0
-                                logger.debug("favicon_cache: failed to read ts during enforce max size: %s", exc, exc_info=True)
+                                logger.debug(
+                                    "favicon_cache: failed to read ts during enforce max size: %s",
+                                    exc,
+                                    exc_info=True,
+                                )
                             items.append((k, ts))
                         if len(items) > max_size:
                             items.sort(key=lambda x: x[1])
@@ -304,9 +357,18 @@ class FaviconCache(BaseCache):
                                 try:
                                     del db[k]
                                 except Exception as exc:
-                                    logger.debug("favicon_cache: failed to evict key '%s' after set(): %s", k, exc, exc_info=True)
+                                    logger.debug(
+                                        "favicon_cache: failed to evict key '%s' after set(): %s",
+                                        k,
+                                        exc,
+                                        exc_info=True,
+                                    )
                     except Exception as exc:
-                        logger.debug("favicon_cache: failed enforcing max size after set(): %s", exc, exc_info=True)
+                        logger.debug(
+                            "favicon_cache: failed enforcing max size after set(): %s",
+                            exc,
+                            exc_info=True,
+                        )
 
     def invalidate(self, key: Optional[str] = None) -> None:
         with self._lock:
@@ -327,7 +389,11 @@ class FaviconCache(BaseCache):
                                 os.remove(p)
                         logger.debug("[cache] CLEAR ALL")
                     except Exception as exc:  # noqa: BLE001
-                        logger.debug("favicon_cache: failed to clear db files: %s", exc, exc_info=True)
+                        logger.debug(
+                            "favicon_cache: failed to clear db files: %s",
+                            exc,
+                            exc_info=True,
+                        )
                     return
                 with closing(shelve.open(path)) as db:
                     if key in db:

@@ -16,6 +16,8 @@ from app.utils.ui.icon.icon_resolver import (
 )
 from app.views.base_widgets import BasePanelWidget
 
+logger = logging.getLogger(__name__)
+
 
 class BaseTopPanelWidget(BasePanelWidget):
     """Base class for all top panel widgets with common signals and behavior."""
@@ -29,7 +31,7 @@ class BaseTopPanelWidget(BasePanelWidget):
         super().__init__()
         self._main_window = main_window
         self._default_icon_path: Optional[Path] = None
-        
+
         # Size policy наследуется из BasePanelWidget: (Minimum, Fixed) для горизонтального сжатия
 
     def set_data(self, items: List[Dict[str, Any]]) -> None:
@@ -59,14 +61,14 @@ class BaseTopPanelWidget(BasePanelWidget):
         try:
             self.actionRequested.emit(action_data)
         except Exception as exc:
-            logging.error("BaseTopPanelWidget: failed to emit actionRequested: %s", exc)
+            logger.error("BaseTopPanelWidget: failed to emit actionRequested: %s", exc)
 
     def _emit_refresh_safely(self, refresh_data: Dict[str, Any]) -> None:
         """Safely emits refreshRequested signal with error handling."""
         try:
             self.refreshRequested.emit(refresh_data)
         except Exception as exc:
-            logging.error("BaseTopPanelWidget: failed to emit refreshRequested: %s", exc)
+            logger.error("BaseTopPanelWidget: failed to emit refreshRequested: %s", exc)
 
     def _get_default_icon_path(self) -> Path:
         """Returns path to default icon with caching."""
@@ -82,10 +84,10 @@ class BaseTopPanelWidget(BasePanelWidget):
             resolved = resolve_icon_path(icon_path)
             return resolved or str(self._get_default_icon_path())
         except (OSError, FileNotFoundError, PermissionError) as e:
-            logging.warning("Failed to resolve icon path '%s': %s", icon_path, e)
+            logger.warning("Failed to resolve icon path '%s': %s", icon_path, e)
             return str(self._get_default_icon_path())
         except Exception as e:
-            logging.exception("Unexpected error resolving icon '%s': %s", icon_path, e)
+            logger.exception("Unexpected error resolving icon '%s': %s", icon_path, e)
             return str(self._get_default_icon_path())
 
     def _create_link_button(self, link_data: Dict[str, Any]) -> QToolButton:
@@ -97,14 +99,14 @@ class BaseTopPanelWidget(BasePanelWidget):
         button.setFixedSize(button_size, button_size)
         button.setIconSize(QSize(icon_size[0], icon_size[1]))
         button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        
+
         try:
             resolved_path = self._find_icon(resolve_icon_for_link(link_data))
             icon = create_icon_from_path(resolved_path)
             # Fallback: if icon not created or empty - use default
             if not icon or getattr(icon, "isNull", lambda: True)():
                 fallback_path = str(self._get_default_icon_path())
-                logging.warning(
+                logger.warning(
                     "Icon not created/empty for link %r (path=%s). Using default: %s",
                     link_data.get("name"),
                     resolved_path,
@@ -113,7 +115,11 @@ class BaseTopPanelWidget(BasePanelWidget):
                 icon = create_icon_from_path(fallback_path)
             button.setIcon(icon)
         except Exception as e:
-            logging.warning("Failed to create icon for link '%s': %s", link_data.get("name", "Unknown"), e)
+            logger.warning(
+                "Failed to create icon for link '%s': %s",
+                link_data.get("name", "Unknown"),
+                e,
+            )
             # Guarantee visual feedback - set default icon
             try:
                 fallback_path = str(self._get_default_icon_path())
@@ -146,24 +152,29 @@ class BaseTopPanelWidget(BasePanelWidget):
             except Exception:
                 # Detailed diagnostics for easier debugging
                 link_info = {
-                    'index': i,
-                    'id': link.get('id', 'Unknown'),
-                    'name': link.get('name', 'Unknown'),
-                    'url': link.get('url', 'Unknown')[:50] if link.get('url') else 'Unknown'
+                    "index": i,
+                    "id": link.get("id", "Unknown"),
+                    "name": link.get("name", "Unknown"),
+                    "url": link.get("url", "Unknown")[:50]
+                    if link.get("url")
+                    else "Unknown",
                 }
-                logging.exception(
-                    "Failed to create button for panel element %s", 
-                    link_info
+                logger.exception(
+                    "Failed to create button for panel element %s", link_info
                 )
                 continue
 
             if button is not None:
                 self.panel_layout.addWidget(button)
             else:
-                logging.debug("create_button_func returned None for element %d: %s", i, link.get('name', 'Unknown'))
+                logger.debug(
+                    "create_button_func returned None for element %d: %s",
+                    i,
+                    link.get("name", "Unknown"),
+                )
 
         try:
             if self.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Expanding:
                 self.panel_layout.addStretch()
         except (AttributeError, RuntimeError) as e:
-            logging.warning("Failed to add stretch to layout: %s", e)
+            logger.warning("Failed to add stretch to layout: %s", e)

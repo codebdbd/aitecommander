@@ -40,7 +40,12 @@ class AsyncStepRunner:
             on_completed: Коллбек по завершении всех шагов
             special_hooks: Необязательные хуки (после конкретных функций шагов)
         """
-        QTimer.singleShot(0, lambda: self._execute_next(steps, index_getter, index_setter, on_completed, on_error, special_hooks))
+        QTimer.singleShot(
+            0,
+            lambda: self._execute_next(
+                steps, index_getter, index_setter, on_completed, on_error, special_hooks
+            ),
+        )
 
     # Внутренняя рекурсивная функция
     def _execute_next(
@@ -64,7 +69,12 @@ class AsyncStepRunner:
         except Exception:
             # Не мешаем выполнению шагов, но фиксируем сбой обновления статуса
             import logging as _logging
-            _logging.getLogger(__name__).debug("AsyncStepRunner: failed to set status message: %s", step_name, exc_info=True)
+
+            _logging.getLogger(__name__).debug(
+                "AsyncStepRunner: failed to set status message: %s",
+                step_name,
+                exc_info=True,
+            )
 
         # Выполняем шаг под метриками
         try:
@@ -91,7 +101,12 @@ class AsyncStepRunner:
                         return
                 # иначе подавляем, чтобы не ломать пайплайн, но логируем
                 import logging as _logging
-                _logging.getLogger(__name__).debug("AsyncStepRunner: special hook failed for %s", getattr(step_func, "__name__", str(step_func)), exc_info=True)
+
+                _logging.getLogger(__name__).debug(
+                    "AsyncStepRunner: special hook failed for %s",
+                    getattr(step_func, "__name__", str(step_func)),
+                    exc_info=True,
+                )
 
         # Инкремент индекса и продолжение
         index_setter(idx + 1)
@@ -100,4 +115,9 @@ class AsyncStepRunner:
         QApplication.processEvents()
 
         # Планируем следующий шаг
-        QTimer.singleShot(0, lambda: self._execute_next(steps, index_getter, index_setter, on_completed, on_error, special_hooks))
+        QTimer.singleShot(
+            0,
+            lambda: self._execute_next(
+                steps, index_getter, index_setter, on_completed, on_error, special_hooks
+            ),
+        )

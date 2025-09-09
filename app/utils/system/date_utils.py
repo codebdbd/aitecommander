@@ -1,6 +1,8 @@
 import logging
 from datetime import datetime
 
+logger = logging.getLogger(__name__)
+
 
 def format_last_used(last_used: str) -> str:
     if not last_used:
@@ -38,7 +40,7 @@ def format_last_used(last_used: str) -> str:
             return f"{weeks} {unit} назад"
         return last_time.strftime("%d.%m.%Y")
     except (ValueError, TypeError) as e:
-        logging.error(
+        logger.error(
             f"[format_last_used] Ошибка форматирования времени: {e}", exc_info=True
         )
         return "Неизвестно"

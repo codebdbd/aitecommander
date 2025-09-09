@@ -51,7 +51,9 @@ def test_icon_path_lru_eviction(monkeypatch: pytest.MonkeyPatch):
 def test_qicon_ttl_and_abs_ttl(monkeypatch: pytest.MonkeyPatch):
     # TTL обычных иконок и для абсолютных путей
     monkeypatch.setattr(ic.app_config, "get_icon_cache_ttl", lambda: 0.1, raising=True)
-    monkeypatch.setattr(ic.app_config, "get_abs_icon_cache_ttl", lambda: 0.2, raising=True)
+    monkeypatch.setattr(
+        ic.app_config, "get_abs_icon_cache_ttl", lambda: 0.2, raising=True
+    )
 
     from PyQt6.QtGui import QIcon
 

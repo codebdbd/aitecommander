@@ -59,11 +59,32 @@ def update_status_bar(window) -> None:
     - Формирует путь текущего элемента структуры и активной сферы
     """
     try:
-        # Счётчик ссылок
-        links = getattr(window, "links", None)
-        if links is not None:
-            window.links_count_label.setText(f"Ссылок: {links.get_row_count()}")
-        else:
+        # Счётчик: если активен режим плиток категорий — показываем количество категорий,
+        # иначе показываем количество ссылок в таблице
+        try:
+            stack = getattr(window, "stack", None)
+            tiles_active = False
+            if stack is not None:
+                tiles_index = app_config.ui.get_stack_index_tiles()
+                try:
+                    current_index = stack.currentIndex()
+                except Exception:
+                    current_index = None
+                tiles_active = current_index == tiles_index
+            if tiles_active and hasattr(window, "tiles") and window.tiles:
+                try:
+                    cats = int(window.tiles.get_categories_count())
+                except Exception:
+                    cats = 0
+                window.links_count_label.setText(f"Категорий: {cats}")
+            else:
+                links = getattr(window, "links", None)
+                if links is not None:
+                    window.links_count_label.setText(f"Ссылок: {links.get_row_count()}")
+                else:
+                    window.links_count_label.setText("Ссылок: 0")
+        except Exception:
+            # На случай непредвиденных ошибок — не роняем UI и показываем 0
             window.links_count_label.setText("Ссылок: 0")
 
         # Статус БД (через DatabaseController)

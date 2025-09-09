@@ -71,7 +71,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             try:
                 # Бизнес-слой сам эмитит link_updated внутри save_link()
                 self.business.save_link(link_copy)
-                logger.debug("Note saved for link: %s", link_copy.get('name'))
+                logger.debug("Note saved for link: %s", link_copy.get("name"))
             except DatabaseError as e:
                 logger.error("Database error saving note: %s", e)
                 self._show_error(f"{self.get_message('database_error')}: {str(e)}")
@@ -81,7 +81,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
 
     def _open_link(self, link: Dict):
         """Открыть ссылку используя LinkOpener."""
-        logger.debug("Opening link: type=%s, url=%s", link.get('type'), link.get('url'))
+        logger.debug("Opening link: type=%s, url=%s", link.get("type"), link.get("url"))
 
         success = False
         try:
@@ -90,7 +90,8 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             link_info = LinkInfo.from_dict(link)
             logger.info("_open_link: link_info=%s", link_info)
             logger.debug(
-                "_open_link: link_info created with browser_key=%s", link_info.browser_key
+                "_open_link: link_info created with browser_key=%s",
+                link_info.browser_key,
             )
 
             # Используем LinkOpener для открытия
@@ -127,12 +128,12 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             else:
                 # Прочие ValueError — как ошибка
                 logger.error(
-                    "Error opening link %s: %s", link.get('url', link), e, exc_info=True
+                    "Error opening link %s: %s", link.get("url", link), e, exc_info=True
                 )
                 self._show_error(f"Не удалось открыть ссылку: {str(e)}")
         except Exception as e:
             logger.error(
-                "Error opening link %s: %s", link.get('url', link), e, exc_info=True
+                "Error opening link %s: %s", link.get("url", link), e, exc_info=True
             )
             self._show_error(f"Не удалось открыть ссылку: {str(e)}")
 

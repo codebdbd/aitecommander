@@ -17,6 +17,8 @@ from PyQt6.QtCore import QByteArray, QMimeData
 
 from app.config_data import app_config
 
+logger = logging.getLogger(__name__)
+
 
 class MimeDataParser:
     """Utilities for creating and parsing drag-and-drop MIME data."""
@@ -38,7 +40,7 @@ class MimeDataParser:
                     return ids
             return []
         except Exception as exc:
-            logging.warning("Failed to extract IDs from MIME (%s): %s", mime_type, exc)
+            logger.warning("Failed to extract IDs from MIME (%s): %s", mime_type, exc)
             return []
 
     @staticmethod
@@ -52,7 +54,7 @@ class MimeDataParser:
             md.setData(mime_type, QByteArray(payload))
             return md
         except Exception as exc:
-            logging.error("Failed to create MIME data (%s): %s", mime_type, exc)
+            logger.error("Failed to create MIME data (%s): %s", mime_type, exc)
             return md
 
 

@@ -42,7 +42,9 @@ class LinksTableControllerStub:
 
 
 class LinksUIControllerStub:
-    def __init__(self, table, links_business, window, link_operations, links_table_controller):  # noqa: ARG002
+    def __init__(
+        self, table, links_business, window, link_operations, links_table_controller
+    ):  # noqa: ARG002
         pass
 
 
@@ -57,7 +59,14 @@ class DatabaseControllerStub:
 
 
 class SystemDialogControllerStub:
-    def __init__(self, window, *, database_controller=None, links_table_controller=None, links_business=None):  # noqa: ARG002
+    def __init__(
+        self,
+        window,
+        *,
+        database_controller=None,
+        links_table_controller=None,
+        links_business=None,
+    ):  # noqa: ARG002
         pass
 
 
@@ -81,15 +90,29 @@ class LinksBusinessLogicStub:
 @pytest.fixture(autouse=True)
 def patch_controllers(monkeypatch):
     # Patch heavy controllers with lightweight stubs directly in the setup module namespace
-    monkeypatch.setattr(wcs, "CategoryTilesController", CategoryTilesControllerStub, raising=True)
-    monkeypatch.setattr(wcs, "StructureUIController", StructureUIControllerStub, raising=True)
-    monkeypatch.setattr(wcs, "LinkOperationsController", LinkOperationsControllerStub, raising=True)
-    monkeypatch.setattr(wcs, "LinksTableController", LinksTableControllerStub, raising=True)
+    monkeypatch.setattr(
+        wcs, "CategoryTilesController", CategoryTilesControllerStub, raising=True
+    )
+    monkeypatch.setattr(
+        wcs, "StructureUIController", StructureUIControllerStub, raising=True
+    )
+    monkeypatch.setattr(
+        wcs, "LinkOperationsController", LinkOperationsControllerStub, raising=True
+    )
+    monkeypatch.setattr(
+        wcs, "LinksTableController", LinksTableControllerStub, raising=True
+    )
     monkeypatch.setattr(wcs, "LinksUIController", LinksUIControllerStub, raising=True)
     monkeypatch.setattr(wcs, "DatabaseController", DatabaseControllerStub, raising=True)
-    monkeypatch.setattr(wcs, "SystemDialogController", SystemDialogControllerStub, raising=True)
-    monkeypatch.setattr(wcs, "AppShutdownController", AppShutdownControllerStub, raising=True)
-    monkeypatch.setattr(wcs, "SpheresBarController", SpheresBarControllerStub, raising=True)
+    monkeypatch.setattr(
+        wcs, "SystemDialogController", SystemDialogControllerStub, raising=True
+    )
+    monkeypatch.setattr(
+        wcs, "AppShutdownController", AppShutdownControllerStub, raising=True
+    )
+    monkeypatch.setattr(
+        wcs, "SpheresBarController", SpheresBarControllerStub, raising=True
+    )
     monkeypatch.setattr(wcs, "LinksBusinessLogic", LinksBusinessLogicStub, raising=True)
 
 

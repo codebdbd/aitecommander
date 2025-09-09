@@ -20,7 +20,9 @@ def get_tree_tuple(index: QModelIndex, column: int = 0) -> Optional[Tuple[str, i
     except Exception:
         return None
 
+
 # --- QTableView/QModelIndex helpers ---
+
 
 def get_index_int(index) -> Optional[int]:
     """Читает целочисленное значение из UserRole по QModelIndex. Возвращает None при неудаче."""
@@ -46,7 +48,9 @@ def get_index_dict(index) -> Optional[Dict[str, Any]]:
         return None
 
 
-def set_index_data(index, value: Any, role: Qt.ItemDataRole = Qt.ItemDataRole.UserRole) -> bool:
+def set_index_data(
+    index, value: Any, role: Qt.ItemDataRole = Qt.ItemDataRole.UserRole
+) -> bool:
     """Устанавливает значение через model.setData(index, value, role).
     Возвращает True при успехе, False иначе. Требуется, чтобы модель поддерживала setData для данной роли.
     """
@@ -78,7 +82,9 @@ def set_tree_tuple(index: QModelIndex, value: Tuple[str, int]) -> bool:
         return False
 
 
-def get_row_userrole(view, row: int, column: int = 0, role: Qt.ItemDataRole = Qt.ItemDataRole.UserRole) -> Any:
+def get_row_userrole(
+    view, row: int, column: int = 0, role: Qt.ItemDataRole = Qt.ItemDataRole.UserRole
+) -> Any:
     """Возвращает данные роли из модели по номеру строки через view (QTableView).
     Удобно для получения словаря ссылки из UserRole: role=UserRole, column=0.
     """

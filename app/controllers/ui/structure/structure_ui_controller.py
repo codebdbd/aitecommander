@@ -35,10 +35,14 @@ class StructureUIController(QObject):
         self.icon_handler = IconHandling(self)
         # Явная зависимость контроллера плиток категорий
         cat_tiles_ctrl = getattr(self.main, "category_tiles_controller", None)
-        self.selection_handler = SelectionHandling(self, category_tiles_controller=cat_tiles_ctrl)
+        self.selection_handler = SelectionHandling(
+            self, category_tiles_controller=cat_tiles_ctrl
+        )
         self.item_ops = ItemOperations(self)
         # Передаём явную зависимость контроллера плиток категорий в TreeManagement
-        self.tree_manager = TreeManagement(self, category_tiles_controller=cat_tiles_ctrl)  # TreeManagement после IconHandling
+        self.tree_manager = TreeManagement(
+            self, category_tiles_controller=cat_tiles_ctrl
+        )  # TreeManagement после IconHandling
 
         self._setup_tree()
         self._connect_business_signals()
@@ -57,9 +61,7 @@ class StructureUIController(QObject):
         self.tree.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         self.tree.setDefaultDropAction(Qt.DropAction.MoveAction)
         # Разрешаем множественное выделение, чтобы "Выделить все" сохранялось
-        self.tree.setSelectionMode(
-            QAbstractItemView.SelectionMode.ExtendedSelection
-        )
+        self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._on_context_menu)
         # Переключение выделения для QTreeView через QItemSelectionModel

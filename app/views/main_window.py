@@ -22,6 +22,7 @@ if TYPE_CHECKING:
         Конкретный тип в рантайме может быть `QModelIndex` или объект модели дерева.
         Здесь протокол пустой, так как `MainWindow` лишь проксирует объект дальше.
         """
+
         ...
 
     LinkDict = Dict[str, Any]
@@ -41,6 +42,7 @@ from app.utils.ui.updates import suspend_updates
 from app.views.status_bar import update_status_bar as _update_status_bar
 
 logger = logging.getLogger(__name__)
+
 
 class MainWindow(QMainWindow):
     shown: pyqtSignal = pyqtSignal()
@@ -151,7 +153,10 @@ class MainWindow(QMainWindow):
                 )
             )
         except Exception:
-            logger.debug("MainWindow: failed to connect undo/redo triggered diagnostics", exc_info=True)
+            logger.debug(
+                "MainWindow: failed to connect undo/redo triggered diagnostics",
+                exc_info=True,
+            )
 
         try:
             # Локальные безопасные колбэки через weakref, чтобы избежать обращения к удалённому объекту
@@ -191,7 +196,10 @@ class MainWindow(QMainWindow):
             us.indexChanged.connect(_on_index_changed)
             us.cleanChanged.connect(_on_clean_changed)
         except Exception:
-            logger.debug("MainWindow: failed to connect undo stack diagnostics (index/clean)", exc_info=True)
+            logger.debug(
+                "MainWindow: failed to connect undo stack diagnostics (index/clean)",
+                exc_info=True,
+            )
         try:
             us.canUndoChanged.connect(
                 lambda can: logging.getLogger(__name__).debug(
@@ -199,7 +207,10 @@ class MainWindow(QMainWindow):
                 )
             )
         except Exception:
-            logger.debug("MainWindow: failed to connect canUndoChanged diagnostics", exc_info=True)
+            logger.debug(
+                "MainWindow: failed to connect canUndoChanged diagnostics",
+                exc_info=True,
+            )
         try:
             us.canRedoChanged.connect(
                 lambda can: logging.getLogger(__name__).debug(
@@ -207,7 +218,10 @@ class MainWindow(QMainWindow):
                 )
             )
         except Exception:
-            logger.debug("MainWindow: failed to connect canRedoChanged diagnostics", exc_info=True)
+            logger.debug(
+                "MainWindow: failed to connect canRedoChanged diagnostics",
+                exc_info=True,
+            )
 
         return undo_action, redo_action
 
@@ -263,16 +277,18 @@ class MainWindow(QMainWindow):
     def show_section_dialog(self) -> None:
         self.structure.add_new_section()
 
-    
-
     def update_statusbar(self) -> None:
         _update_status_bar(self)
 
-    def on_structure_item_added(self, item_type: str, parent_id: int, data: dict) -> None:
+    def on_structure_item_added(
+        self, item_type: str, parent_id: int, data: dict
+    ) -> None:
         self.structure.on_structure_item_added(item_type, parent_id, data)
 
     @signal_guard("on_structure_item_changed")
-    def on_structure_item_changed(self, item_type: str, item_id: int, data: dict) -> None:
+    def on_structure_item_changed(
+        self, item_type: str, item_id: int, data: dict
+    ) -> None:
         self.structure.on_structure_item_changed(item_type, item_id, data)
 
     def show_about_dialog(self) -> None:
@@ -349,10 +365,14 @@ class MainWindow(QMainWindow):
         if la is None:
             # Отложенная переотправка: дадим системе инициализироваться
             if not hasattr(self, "_search_retry_attempts"):
-                self._search_retry_attempts = SEARCH_RETRY_ATTEMPTS  # ~2 сек при шаге 100 мс
+                self._search_retry_attempts = (
+                    SEARCH_RETRY_ATTEMPTS  # ~2 сек при шаге 100 мс
+                )
             if not getattr(self, "_search_retry_active", False):
                 self._search_retry_active = True
-                logger.debug("MainWindow.on_search buffered until links_actions is ready")
+                logger.debug(
+                    "MainWindow.on_search buffered until links_actions is ready"
+                )
                 QTimer.singleShot(SEARCH_RETRY_INTERVAL_MS, self._retry_forward_search)
             return
         try:
@@ -372,7 +392,9 @@ class MainWindow(QMainWindow):
             attempts = getattr(self, "_search_retry_attempts", 0)
             if attempts <= 0:
                 self._search_retry_active = False
-                logger.debug("Search retry limit reached before links_actions initialized")
+                logger.debug(
+                    "Search retry limit reached before links_actions initialized"
+                )
                 return
             self._search_retry_attempts = attempts - 1
             QTimer.singleShot(SEARCH_RETRY_INTERVAL_MS, self._retry_forward_search)

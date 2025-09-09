@@ -402,7 +402,9 @@ async def batch_convert_icons_async(
                 queue.task_done()
 
     # Поднимаем ограниченное число воркеров
-    workers = [asyncio.create_task(worker(i)) for i in range(max(1, int(max_concurrent)))]
+    workers = [
+        asyncio.create_task(worker(i)) for i in range(max(1, int(max_concurrent)))
+    ]
 
     # Ждём завершения всех задач в очереди
     await queue.join()

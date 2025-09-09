@@ -37,6 +37,7 @@ class LimitedThreadPool(QThreadPool):
 
 class TaskScheduler(QObject):
     """Унифицированный планировщик задач для управления потоками и таймерами."""
+
     # Сигнал класса для потокобезопасного планирования (QueuedConnection между потоками)
     _schedule_sig = pyqtSignal(object, object, object, object, bool)
 
@@ -76,7 +77,9 @@ class TaskScheduler(QObject):
         """Обработчик сигнала: выполняет логику планирования в потоке владельца объекта."""
         # Реиспользуем реальную логику schedule_operation, но без повторной проверки потока
         # Небольшая инкапсуляция общей части
-        self._schedule_operation_internal(operation, task_type, delay, operation_id, replace_existing)
+        self._schedule_operation_internal(
+            operation, task_type, delay, operation_id, replace_existing
+        )
 
     def _setup_batch_timers(self):
         """Настраивает таймеры для батчинга операций по типам."""
@@ -119,13 +122,21 @@ class TaskScheduler(QObject):
         # Если вызвали из другого потока — отправим запрос через сигнал (queued connection)
         if QThread.currentThread() is not self.thread():
             try:
-                self._schedule_sig.emit(operation, task_type, delay, operation_id, replace_existing)
+                self._schedule_sig.emit(
+                    operation, task_type, delay, operation_id, replace_existing
+                )
             except Exception as e:
-                logger.error("Не удалось запланировать операцию через сигнал %s: %s", operation_id, e)
+                logger.error(
+                    "Не удалось запланировать операцию через сигнал %s: %s",
+                    operation_id,
+                    e,
+                )
             return operation_id
 
         # Иначе — тот же поток, можно планировать напрямую
-        self._schedule_operation_internal(operation, task_type, delay, operation_id, replace_existing)
+        self._schedule_operation_internal(
+            operation, task_type, delay, operation_id, replace_existing
+        )
         return operation_id
 
     def _schedule_operation_internal(
@@ -158,7 +169,10 @@ class TaskScheduler(QObject):
         batch_timer.start(delay)
 
         logger.debug(
-            "Запланирована операция %s типа %s с задержкой %sms", operation_id, task_type.value, delay
+            "Запланирована операция %s типа %s с задержкой %sms",
+            operation_id,
+            task_type.value,
+            delay,
         )
 
     def _execute_batched_operations(self, task_type: TaskType):

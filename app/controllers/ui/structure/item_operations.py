@@ -145,21 +145,31 @@ class ItemOperations:
     def edit_selected_item(self) -> None:
         # QTreeView: используем текущий индекс
         try:
-            cur = self.tree.currentIndex() if hasattr(self.tree, "currentIndex") else None
+            cur = (
+                self.tree.currentIndex() if hasattr(self.tree, "currentIndex") else None
+            )
             if cur and cur.isValid():
                 self.edit_item(cur)
                 return
         except (AttributeError, RuntimeError) as e:
-            logger.debug("[ItemOperations.edit_selected_item] currentIndex failed: %s", e)
+            logger.debug(
+                "[ItemOperations.edit_selected_item] currentIndex failed: %s", e
+            )
 
     def delete_item(self, item) -> None:
         # Глобальная защита от удалений на время чувствительных операций (например, вставки)
         try:
-            if hasattr(self.main, "_suppress_deletes") and getattr(self.main, "_suppress_deletes"):
-                logger.debug("[DeleteGuard] delete_item suppressed by _suppress_deletes flag")
+            if hasattr(self.main, "_suppress_deletes") and getattr(
+                self.main, "_suppress_deletes"
+            ):
+                logger.debug(
+                    "[DeleteGuard] delete_item suppressed by _suppress_deletes flag"
+                )
                 return
         except Exception as e:
-            logger.debug("[ItemOperations.delete_item] suppress flag check failed: %s", e)
+            logger.debug(
+                "[ItemOperations.delete_item] suppress flag check failed: %s", e
+            )
         if not item:
             return
         t = get_tree_tuple(item, 0)
@@ -174,11 +184,18 @@ class ItemOperations:
     def delete_selected_item(self) -> None:
         # Глобальная защита от удалений на время чувствительных операций (например, вставки)
         try:
-            if hasattr(self.main, "_suppress_deletes") and getattr(self.main, "_suppress_deletes"):
-                logger.debug("[DeleteGuard] delete_selected_item suppressed by _suppress_deletes flag")
+            if hasattr(self.main, "_suppress_deletes") and getattr(
+                self.main, "_suppress_deletes"
+            ):
+                logger.debug(
+                    "[DeleteGuard] delete_selected_item suppressed by _suppress_deletes flag"
+                )
                 return
         except Exception as e:
-            logger.debug("[ItemOperations.delete_selected_item] suppress flag check failed: %s", e)
+            logger.debug(
+                "[ItemOperations.delete_selected_item] suppress flag check failed: %s",
+                e,
+            )
         try:
             # QTreeView: множественное выделение через selectionModel
             if hasattr(self.tree, "selectionModel") and hasattr(self.tree, "model"):
@@ -186,7 +203,9 @@ class ItemOperations:
                 rows = sel_model.selectedRows(0) if sel_model else []
                 selected = rows or []
         except (AttributeError, RuntimeError) as e:
-            logger.debug("[ItemOperations.delete_selected_item] selectionModel failed: %s", e)
+            logger.debug(
+                "[ItemOperations.delete_selected_item] selectionModel failed: %s", e
+            )
             selected = []
 
         if selected and len(selected) > 1:
@@ -202,14 +221,21 @@ class ItemOperations:
             if category_ids:
                 # Считаем суммарное количество ссылок
                 try:
-                    counts_map = self.business.structure_model.count_links_by_categories(category_ids)
+                    counts_map = (
+                        self.business.structure_model.count_links_by_categories(
+                            category_ids
+                        )
+                    )
                 except Exception:
                     counts_map = {}
                 total_links = sum(int(c) for c in (counts_map or {}).values())
 
                 # Если ссылок нет ни в одной категории — удаляем без подтверждения
                 if total_links == 0:
-                    logger.debug("[Delete] batch without confirmation, count=%s", len(category_ids))
+                    logger.debug(
+                        "[Delete] batch without confirmation, count=%s",
+                        len(category_ids),
+                    )
                     try:
                         cats_data = [
                             self.business.get_category_data(cid) for cid in category_ids
@@ -229,8 +255,12 @@ class ItemOperations:
                     "Все вложенные ссылки будут удалены безвозвратно!\n\n"
                     "Вы уверены, что хотите продолжить?"
                 )
-                if DialogManager.ask_confirmation(self.main, msg, "Подтвердите удаление"):
-                    logger.debug("[Delete] batch with confirmation, count=%s", len(category_ids))
+                if DialogManager.ask_confirmation(
+                    self.main, msg, "Подтвердите удаление"
+                ):
+                    logger.debug(
+                        "[Delete] batch with confirmation, count=%s", len(category_ids)
+                    )
                     try:
                         cats_data = [
                             self.business.get_category_data(cid) for cid in category_ids
@@ -245,12 +275,17 @@ class ItemOperations:
 
         # Fallback: одиночное удаление по текущему элементу/индексу
         try:
-            cur = self.tree.currentIndex() if hasattr(self.tree, "currentIndex") else None
+            cur = (
+                self.tree.currentIndex() if hasattr(self.tree, "currentIndex") else None
+            )
             if cur and cur.isValid():
                 self.delete_item(cur)
                 return
         except (AttributeError, RuntimeError) as e:
-            logger.debug("[ItemOperations.delete_selected_item] currentIndex fallback failed: %s", e)
+            logger.debug(
+                "[ItemOperations.delete_selected_item] currentIndex fallback failed: %s",
+                e,
+            )
 
     def _edit_section(self, section_id: int) -> None:
         try:
@@ -413,7 +448,9 @@ class ItemOperations:
     def _get_selected_section_id(self) -> int:
         # Ветка для QTreeView
         try:
-            cur = self.tree.currentIndex() if hasattr(self.tree, "currentIndex") else None
+            cur = (
+                self.tree.currentIndex() if hasattr(self.tree, "currentIndex") else None
+            )
             if cur and cur.isValid():
                 t = get_tree_tuple(cur, 0)
                 if not t:
@@ -440,5 +477,7 @@ class ItemOperations:
                 if model is not None and hasattr(model, "rowCount"):
                     return (model.rowCount() or 0) > 0
         except (AttributeError, RuntimeError) as e:
-            logger.debug("[ItemOperations._has_any_items_in_tree] model access failed: %s", e)
+            logger.debug(
+                "[ItemOperations._has_any_items_in_tree] model access failed: %s", e
+            )
         return False

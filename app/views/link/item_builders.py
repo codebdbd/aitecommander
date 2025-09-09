@@ -43,12 +43,15 @@ class ItemBuildersMixin:
     def _last_used_display_text(self, last_used) -> str:
         """Форматированный текст для даты последнего использования."""
         from app.utils.system.date_utils import format_last_used
+
         try:
             return format_last_used(last_used)
         except Exception:
             return ""
 
-    def _notes_display_and_tooltip(self, notes: str, truncate: bool = False) -> Tuple[str, str]:
+    def _notes_display_and_tooltip(
+        self, notes: str, truncate: bool = False
+    ) -> Tuple[str, str]:
         """Возвращает (display, tooltip) для заметок."""
         text = str(notes or "")
         if truncate and len(text) > MAX_NOTES_LENGTH:

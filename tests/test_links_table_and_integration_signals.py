@@ -97,6 +97,7 @@ def test_links_table_controller_reacts_to_link_ops_signals():
 def test_integration_link_ops_to_top_panels_and_table(monkeypatch):
     # Поднимаем TopPanelsController и LinksTableController и соединяем с LinkOperationsController
     business = LinksBusinessMock()
+
     # Заглушим методы получения данных, чтобы TopPanelsController мог отработать
     def _fake_get_fav():
         return ["X"]
@@ -109,7 +110,12 @@ def test_integration_link_ops_to_top_panels_and_table(monkeypatch):
 
     fav = FavWidgetMock()
     recent = RecentWidgetMock(limit=3)
-    top_ctrl = TopPanelsController(types.SimpleNamespace(), fav_widget=fav, recent_links_widget=recent, links_business=business)
+    top_ctrl = TopPanelsController(
+        types.SimpleNamespace(),
+        fav_widget=fav,
+        recent_links_widget=recent,
+        links_business=business,
+    )
 
     table = TableWidgetMock()
     main2 = types.SimpleNamespace(current_category_id=None)

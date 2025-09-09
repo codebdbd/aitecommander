@@ -47,7 +47,9 @@ def test_negative_ttl_shorter_than_regular(monkeypatch):
 
     # Обычный TTL длиннее, негативный короче
     monkeypatch.setattr(app_config, "get_icon_cache_ttl", lambda: 0.5, raising=True)
-    monkeypatch.setattr(app_config, "get_negative_cache_ttl", lambda: 0.15, raising=True)
+    monkeypatch.setattr(
+        app_config, "get_negative_cache_ttl", lambda: 0.15, raising=True
+    )
 
     icon_neg = "neg-faster"
     icon_pos = "pos-slower"

@@ -45,14 +45,18 @@ def _maybe_log_metrics() -> None:
     except AttributeError:
         raw_interval = 60.0
     except Exception:
-        logger.exception("_maybe_log_metrics: неожиданная ошибка доступа к app_config.icon_metrics_report_interval_s")
+        logger.exception(
+            "_maybe_log_metrics: неожиданная ошибка доступа к app_config.icon_metrics_report_interval_s"
+        )
         raw_interval = 60.0
     try:
         interval = float(raw_interval)
     except (TypeError, ValueError):
         interval = 60.0
     except Exception:
-        logger.exception("_maybe_log_metrics: неожиданная ошибка преобразования интервала в float")
+        logger.exception(
+            "_maybe_log_metrics: неожиданная ошибка преобразования интервала в float"
+        )
         interval = 60.0
     now = time.time()
     if now - _METRICS_LAST_LOG >= interval:
@@ -71,9 +75,13 @@ def _maybe_log_metrics() -> None:
                 stats.get("uptime"),
             )
         except (AttributeError, TypeError, ValueError):
-            logger.exception("_maybe_log_metrics: некорректный формат статистики метрик")
+            logger.exception(
+                "_maybe_log_metrics: некорректный формат статистики метрик"
+            )
         except Exception:
-            logger.exception("_maybe_log_metrics: неожиданная ошибка при логировании метрик")
+            logger.exception(
+                "_maybe_log_metrics: неожиданная ошибка при логировании метрик"
+            )
         _METRICS_LAST_LOG = now
 
 
@@ -90,10 +98,15 @@ def _build_theme_index(theme: str) -> None:
                 if p.is_file() and is_valid_icon_file(p):
                     mapping[p.name.lower()] = p
     except (OSError, PermissionError) as exc:
-        logger.debug("Index build failed for theme %s due to filesystem error: %s", theme, exc)
+        logger.debug(
+            "Index build failed for theme %s due to filesystem error: %s", theme, exc
+        )
         mapping = {}
     except Exception:
-        logger.exception("_build_theme_index: неожиданная ошибка при обходе директории темы '%s'", theme)
+        logger.exception(
+            "_build_theme_index: неожиданная ошибка при обходе директории темы '%s'",
+            theme,
+        )
         mapping = {}
     # Получаем mtime директории темы (если есть)
     try:
@@ -101,7 +114,10 @@ def _build_theme_index(theme: str) -> None:
     except (OSError, PermissionError):
         dir_mtime = 0.0
     except Exception:
-        logger.exception("_build_theme_index: неожиданная ошибка получения mtime для темы '%s'", theme)
+        logger.exception(
+            "_build_theme_index: неожиданная ошибка получения mtime для темы '%s'",
+            theme,
+        )
         dir_mtime = 0.0
     with _INDEX_LOCK:
         _THEME_ICON_INDEX[theme] = mapping
@@ -249,7 +265,9 @@ class IconPathResolver:
         self.service = service
 
     # --- Управление кешем и статистикой ---
-    def resolve_from_cache(self, icon_name: str, theme: str) -> Tuple[Optional[str], bool]:
+    def resolve_from_cache(
+        self, icon_name: str, theme: str
+    ) -> Tuple[Optional[str], bool]:
         if not _validate_icon_name(icon_name):
             logger.warning("Invalid icon name provided: %r", icon_name)
             set_path(icon_name, theme, None)  # негативное кеширование
@@ -336,7 +354,9 @@ class IconPathResolver:
                         return path_str
                 except Exception:  # noqa: BLE001
                     pass
-            slow_ms = float(getattr(app_config, "icon_slow_convert_threshold_ms", 150.0))
+            slow_ms = float(
+                getattr(app_config, "icon_slow_convert_threshold_ms", 150.0)
+            )
             t0 = time.perf_counter()
             if convert_icon_to_png_128(str(themed_svg), str(themed_png)):
                 dt_ms = (time.perf_counter() - t0) * 1000.0
@@ -453,6 +473,7 @@ def get_icon_path(icon_name: str, theme: str = "light") -> Optional[str]:
 def get_qss_dir() -> Path:
     """Путь к директории QSS-тем."""
     return app_config.paths.get_qss_dir()
+
 
 _CURRENT_THEME_CACHE: Optional[str] = None
 _LAST_THEME_CHECK: float = 0.0

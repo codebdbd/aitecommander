@@ -29,9 +29,13 @@ def test_get_selected_rows_with_selection():
     mock_index2 = Mock()
     mock_index2.row.return_value = 3
     mock_index3 = Mock()
-    mock_index3.row.return_value = 3 # дубликат
+    mock_index3.row.return_value = 3  # дубликат
 
-    mock_selection_model.selectedRows.return_value = [mock_index1, mock_index2, mock_index3]
+    mock_selection_model.selectedRows.return_value = [
+        mock_index1,
+        mock_index2,
+        mock_index3,
+    ]
     mock_view.selectionModel.return_value = mock_selection_model
 
     # Act

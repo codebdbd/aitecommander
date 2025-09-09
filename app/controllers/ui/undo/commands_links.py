@@ -73,7 +73,12 @@ class SaveLinkCmd(BaseCommand):
                                 try:
                                     links_business.load_links(cat_id)
                                 except Exception as exc:
-                                    logger.debug("SaveLinkCmd.redo: links_business.load_links(%s) failed: %s", cat_id, exc, exc_info=True)
+                                    logger.debug(
+                                        "SaveLinkCmd.redo: links_business.load_links(%s) failed: %s",
+                                        cat_id,
+                                        exc,
+                                        exc_info=True,
+                                    )
             except Exception as exc:
                 logger.warning(
                     "SaveLinkCmd.redo: reload failed: %s",
@@ -100,7 +105,9 @@ class SaveLinkCmd(BaseCommand):
                     try:
                         self.main.links_business.link_updated.emit(self.old_data)
                     except Exception as exc:
-                        logger.warning("SaveLinkCmd.undo: link_updated emit failed: %s", exc)
+                        logger.warning(
+                            "SaveLinkCmd.undo: link_updated emit failed: %s", exc
+                        )
         # Перезагружаем таблицу соответствующей категории, если не подавлено
         try:
             if not getattr(self, "_suppress_ui", False):
@@ -117,7 +124,12 @@ class SaveLinkCmd(BaseCommand):
                             try:
                                 links_business.load_links(cat_id)
                             except Exception as exc:
-                                logger.debug("SaveLinkCmd.undo: links_business.load_links(%s) failed: %s", cat_id, exc, exc_info=True)
+                                logger.debug(
+                                    "SaveLinkCmd.undo: links_business.load_links(%s) failed: %s",
+                                    cat_id,
+                                    exc,
+                                    exc_info=True,
+                                )
         except Exception as exc:
             logger.warning(
                 "SaveLinkCmd.undo: reload failed: %s",
@@ -169,13 +181,21 @@ class BatchDeleteLinksCmd(BaseCommand):
             LinksService(self.db).batch_create_or_update_links(self.links)
         except Exception as exc:
             # Fallback: поштучно
-            logger.warning("BatchDeleteLinksCmd.undo: batch upsert failed, fallback to single: %s", exc)
+            logger.warning(
+                "BatchDeleteLinksCmd.undo: batch upsert failed, fallback to single: %s",
+                exc,
+            )
             for link in self.links:
                 try:
                     LinksService(self.db).create_or_update_link(link)
                 except Exception as exc:
                     # продолжаем попытки для остальных
-                    logger.debug("BatchDeleteLinksCmd.undo: per-link upsert failed for id=%s: %s", link.get("id"), exc, exc_info=True)
+                    logger.debug(
+                        "BatchDeleteLinksCmd.undo: per-link upsert failed for id=%s: %s",
+                        link.get("id"),
+                        exc,
+                        exc_info=True,
+                    )
         # Обновление UI после восстановления (игнорируем подавление для Undo)
         try:
             cat_id = (self.links[0] if self.links else {}).get("category_id")
@@ -195,6 +215,7 @@ class BatchDeleteLinksCmd(BaseCommand):
                 "BatchDeleteLinksCmd.undo: reload failed: %s",
                 exc,
             )
+
 
 class DeleteLinkCmd(BaseCommand):
     def __init__(self, link_to_delete: Dict, main_window):

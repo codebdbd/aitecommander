@@ -10,6 +10,8 @@ from PyQt6.QtCore import Qt
 class DataManagementMixin:
     """Миксин для управления данными и кэшем таблицы ссылок."""
 
+    logger = logging.getLogger(__name__)
+
     def validate_cache_integrity(self) -> bool:
         """Проверяет целостность кэша ссылок."""
         try:
@@ -19,7 +21,7 @@ class DataManagementMixin:
 
             # Проверяем, что размер кэша соответствует количеству строк
             if cache_size != row_count:
-                logging.warning(
+                self.logger.warning(
                     "[LinksTableView] Несоответствие размера кэша: %s != %s",
                     cache_size,
                     row_count,
@@ -29,7 +31,7 @@ class DataManagementMixin:
             # Проверяем, что все индексы в кэше находятся в допустимом диапазоне
             for row in self._current_links.keys():
                 if not (0 <= row < row_count):
-                    logging.warning(
+                    self.logger.warning(
                         "[LinksTableView] Недопустимый индекс в кэше: %s",
                         row,
                     )
@@ -37,7 +39,9 @@ class DataManagementMixin:
 
             return True
         except Exception as e:
-            logging.error("[LinksTableView] Ошибка проверки целостности кэша: %s", e)
+            self.logger.error(
+                "[LinksTableView] Ошибка проверки целостности кэша: %s", e
+            )
             return False
 
     def _links_equal(self, link1: Dict, link2: Dict, mode: str) -> bool:
@@ -93,7 +97,7 @@ class DataManagementMixin:
                 if link_data:
                     self._current_links[row] = link_data
         except Exception as e:
-            logging.error(
+            self.logger.error(
                 "[LinksTableView] Ошибка перестроения кэша из элементов: %s",
                 e,
             )
@@ -114,7 +118,7 @@ class DataManagementMixin:
             data = model.data(idx, Qt.ItemDataRole.UserRole)
             return data if isinstance(data, dict) else None
         except Exception as e:
-            logging.error(
+            self.logger.error(
                 "[LinksTableView] Ошибка получения данных ссылки в строке %s: %s",
                 row,
                 e,
@@ -133,7 +137,9 @@ class DataManagementMixin:
                     return row
             return None
         except Exception as e:
-            logging.error("[LinksTableView] Ошибка поиска строки по ID %s: %s", link_id, e)
+            self.logger.error(
+                "[LinksTableView] Ошибка поиска строки по ID %s: %s", link_id, e
+            )
             return None
 
     def focus_on_link_id(self, link_id: int) -> bool:
@@ -147,19 +153,19 @@ class DataManagementMixin:
                 idx = model.index(row, 0)
                 self.setCurrentIndex(idx)
                 self.scrollTo(idx)
-                logging.info(
+                self.logger.info(
                     "[LinksTableView] Успешно установлен фокус на ссылку ID %s в строке %s",
                     link_id,
                     row,
                 )
                 return True
             else:
-                logging.warning(
+                self.logger.warning(
                     "[LinksTableView] Ссылка с ID %s не найдена в таблице", link_id
                 )
                 return False
         except Exception as e:
-            logging.error(
+            self.logger.error(
                 "[LinksTableView] Ошибка установки фокуса на ссылку ID %s: %s",
                 link_id,
                 e,

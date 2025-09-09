@@ -25,7 +25,9 @@ class LinksActions:
         self.links = links
         self.link_ops = link_ops
         if self.links is None or self.link_ops is None:
-            raise ValueError("LinksActions requires explicit 'links' and 'link_ops' instances")
+            raise ValueError(
+                "LinksActions requires explicit 'links' and 'link_ops' instances"
+            )
 
     # --- Диалог ссылки ---
     def show_link_dialog(
@@ -103,7 +105,6 @@ class LinksActions:
             return []
         return self.links.get_selected_rows()
 
-
     def current_row(self) -> Optional[int]:
         if not self.links or not hasattr(self.links, "current_row"):
             return None
@@ -139,7 +140,7 @@ class LinksActions:
         """Handles unified actions from refactored panel widgets."""
         if not isinstance(action_data, dict):
             return
-        
+
         action_type = action_data.get("type")
         if action_type == "open_link":
             link = action_data.get("link")

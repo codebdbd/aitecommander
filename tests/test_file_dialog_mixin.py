@@ -136,7 +136,9 @@ def test_on_browse_program_lnk_parsing(monkeypatch, patch_default_paths):
 
     # Заглушка parse_lnk в модуле миксина
     monkeypatch.setattr(
-        fdm, "parse_lnk", lambda p: {"path": r"C:\\Program Files\\MyApp\\MyApp.exe", "args": "--foo"}
+        fdm,
+        "parse_lnk",
+        lambda p: {"path": r"C:\\Program Files\\MyApp\\MyApp.exe", "args": "--foo"},
     )
 
     ui = UIStub()
@@ -175,7 +177,9 @@ def test_on_browse_cancel_does_nothing(monkeypatch, patch_default_paths):
     assert ui.get_widget("name_le").text() == "Name"
 
 
-def test_on_browse_program_exe_does_not_call_parse_lnk(monkeypatch, patch_default_paths):
+def test_on_browse_program_exe_does_not_call_parse_lnk(
+    monkeypatch, patch_default_paths
+):
     selected = [r"C:\\Temp\\MyApp.exe"]
 
     class QFileDialogExe(QFileDialogStub):
@@ -211,7 +215,12 @@ def test_on_browse_program_lnk_keeps_existing_args(monkeypatch, patch_default_pa
     monkeypatch.setattr(fdm, "QFileDialog", QFileDialogLnk)
 
     monkeypatch.setattr(
-        fdm, "parse_lnk", lambda p: {"path": r"C:\\Program Files\\MyApp\\MyApp.exe", "args": "--from-lnk"}
+        fdm,
+        "parse_lnk",
+        lambda p: {
+            "path": r"C:\\Program Files\\MyApp\\MyApp.exe",
+            "args": "--from-lnk",
+        },
     )
 
     ui = UIStub()
@@ -246,7 +255,9 @@ def test_on_browse_preserve_existing_name(monkeypatch, patch_default_paths):
     assert ui.get_widget("name_le").text() == "Custom Name"
 
 
-def test_on_browse_program_lnk_parse_returns_none_is_safe(monkeypatch, patch_default_paths):
+def test_on_browse_program_lnk_parse_returns_none_is_safe(
+    monkeypatch, patch_default_paths
+):
     selected = [r"C:\\Temp\\Broken.lnk"]
 
     class QFileDialogLnk(QFileDialogStub):

@@ -47,7 +47,9 @@ class ActionController:
         has_tree_sel = False
         try:
             tree = self.main_window.tree
-            has_tree_sel = hasattr(tree, "currentIndex") and tree.currentIndex().isValid()
+            has_tree_sel = (
+                hasattr(tree, "currentIndex") and tree.currentIndex().isValid()
+            )
         except Exception:
             has_tree_sel = False
         if self.main_window.tree.hasFocus() and has_tree_sel:
@@ -92,7 +94,9 @@ class ActionController:
         has_tree_sel = False
         try:
             tree = self.main_window.tree
-            has_tree_sel = hasattr(tree, "currentIndex") and tree.currentIndex().isValid()
+            has_tree_sel = (
+                hasattr(tree, "currentIndex") and tree.currentIndex().isValid()
+            )
         except Exception:
             has_tree_sel = False
         if (

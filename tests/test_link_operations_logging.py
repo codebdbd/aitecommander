@@ -16,14 +16,41 @@ def controller():
 @pytest.mark.parametrize(
     "method_name, signal_attr, args, expected_msg",
     [
-        ("emit_links_changed", "links_changed", (123,), "emit_links_changed: failed to emit signal"),
-        ("emit_favorites_changed", "favorites_changed", tuple(), "emit_favorites_changed: failed to emit signal"),
-        ("emit_recents_changed", "recents_changed", tuple(), "emit_recents_changed: failed to emit signal"),
-        ("emit_link_saved", "link_saved", ({"id": 1},), "emit_link_saved: failed to emit signal"),
-        ("emit_link_deleted", "link_deleted", ({"id": 1},), "emit_link_deleted: failed to emit signal"),
+        (
+            "emit_links_changed",
+            "links_changed",
+            (123,),
+            "emit_links_changed: failed to emit signal",
+        ),
+        (
+            "emit_favorites_changed",
+            "favorites_changed",
+            tuple(),
+            "emit_favorites_changed: failed to emit signal",
+        ),
+        (
+            "emit_recents_changed",
+            "recents_changed",
+            tuple(),
+            "emit_recents_changed: failed to emit signal",
+        ),
+        (
+            "emit_link_saved",
+            "link_saved",
+            ({"id": 1},),
+            "emit_link_saved: failed to emit signal",
+        ),
+        (
+            "emit_link_deleted",
+            "link_deleted",
+            ({"id": 1},),
+            "emit_link_deleted: failed to emit signal",
+        ),
     ],
 )
-def test_logs_exception_when_emit_fails(controller, method_name, signal_attr, args, expected_msg, caplog, monkeypatch):
+def test_logs_exception_when_emit_fails(
+    controller, method_name, signal_attr, args, expected_msg, caplog, monkeypatch
+):
     # Имитация сбоя во время эмиссии сигнала (PyQt проглатывает исключения слотов, потому
     # проверяем именно наш try/except вокруг emit)
     class _Raiser:

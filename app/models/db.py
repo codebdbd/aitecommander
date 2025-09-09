@@ -196,7 +196,9 @@ class Database(DatabaseBase):
                             logger.info("Миграция link завершена успешно")
                         except Exception as inner:
                             self.rollback()
-                            logger.error("Ошибка миграции таблицы link: %s", inner, exc_info=True)
+                            logger.error(
+                                "Ошибка миграции таблицы link: %s", inner, exc_info=True
+                            )
                             # не пробрасываем исключение, чтобы не падало приложение
             except Exception as mig_err:
                 logger.error(
@@ -229,7 +231,9 @@ class Database(DatabaseBase):
                         """
                     )
                     self.commit()
-                logger.info("Миграция: добавлены case-insensitive уникальные индексы для sphere/section/category")
+                logger.info(
+                    "Миграция: добавлены case-insensitive уникальные индексы для sphere/section/category"
+                )
             except sqlite3.OperationalError as e:
                 # Если в данных уже есть дубликаты, создание индекса упадёт — логируем и продолжаем
                 logger.warning(
@@ -273,9 +277,7 @@ class Database(DatabaseBase):
             # Проверка типов и значений
             for v in ids:
                 if isinstance(v, bool) or not isinstance(v, int) or v < 0:
-                    raise ValidationError(
-                        f"Некорректный ID в списке позиций: {v}"
-                    )
+                    raise ValidationError(f"Некорректный ID в списке позиций: {v}")
 
             # Проверка уникальности
             if len(set(ids)) != len(ids):
@@ -316,8 +318,7 @@ class Database(DatabaseBase):
                         for _id, pos in chunk:
                             params.extend([_id, pos])
 
-                        sql = (
-                            f"""
+                        sql = f"""
                             WITH newpos(id, position) AS (
                                 VALUES {values_sql}
                             )
@@ -327,7 +328,6 @@ class Database(DatabaseBase):
                             )
                             WHERE id IN (SELECT id FROM newpos)
                             """
-                        )
                         self.connection.execute(sql, tuple(params))
                         batches += 1
                 _t1 = time.perf_counter()
@@ -337,9 +337,7 @@ class Database(DatabaseBase):
                     len(ids),
                     batches,
                     CHUNK_SIZE,
-                    ("%.2f" % ((
-                        (_t1 - _t0) * 1000.0
-                    ))),
+                    ("%.2f" % ((_t1 - _t0) * 1000.0)),
                 )
             logger.debug(
                 "Обновлены позиции (%s шт.) в таблице %s",
@@ -350,7 +348,12 @@ class Database(DatabaseBase):
             # Ошибки валидации входных данных пробрасываем как есть
             raise
         except Exception as e:
-            logger.error("Ошибка обновления позиций в таблице %s: %s", table_name, e, exc_info=True)
+            logger.error(
+                "Ошибка обновления позиций в таблице %s: %s",
+                table_name,
+                e,
+                exc_info=True,
+            )
             raise DatabaseError(f"Не удалось обновить позиции: {e}")
 
     # Методы импорта/экспорта
@@ -425,12 +428,20 @@ class Database(DatabaseBase):
             build_ms = (t2 - t1) * 1000.0
             logger.debug(
                 "export_full_structure: spheres=%d, sections=%d, categories=%d, links=%d, db_ms=%.2f, build_ms=%.2f, total_ms=%.2f",
-                len(spheres), len(sections), len(categories), len(links), db_ms, build_ms, total_ms,
+                len(spheres),
+                len(sections),
+                len(categories),
+                len(links),
+                db_ms,
+                build_ms,
+                total_ms,
             )
             if total_ms > 50.0:
                 logger.info(
                     "export_full_structure: завершено, total_ms=%.2f (>50ms), db_ms=%.2f, build_ms=%.2f",
-                    total_ms, db_ms, build_ms,
+                    total_ms,
+                    db_ms,
+                    build_ms,
                 )
             else:
                 logger.info("Экспорт структуры выполнен успешно (bulk-загрузка)")
@@ -473,9 +484,9 @@ class Database(DatabaseBase):
 
     def import_full_structure(self, data: List[Dict]):
         """Очищает базу и импортирует данные из структуры.
-        
+
         Потокобезопасная операция, которая не изменяет входные данные.
-        
+
         Args:
             data: Список словарей со структурой данных для импорта.
                   Исходный объект остается неизменным.
@@ -483,7 +494,7 @@ class Database(DatabaseBase):
         try:
             # Создаем глубокую копию данных, чтобы не мутировать исходный объект
             data_copy = copy.deepcopy(data)
-            
+
             with db_lock:  # Потокобезопасный доступ к базе данных
                 with self.connection:
                     # Очищаем таблицы в правильном порядке
@@ -553,6 +564,7 @@ class Database(DatabaseBase):
     def _get_max_backups(self) -> int:
         """Возвращает максимальное количество резервных копий из пользовательских настроек."""
         from app.config_data import app_config
+
         return app_config.settings.get_max_backups()
 
     def export_section_tree(self, section_id: int) -> dict:
@@ -740,7 +752,9 @@ class Database(DatabaseBase):
             ).fetchall()
             for r in rows or []:
                 ids = [int(x) for x in (r["ids"] or "").split(",") if x]
-                result["sphere"].append({"scope": None, "lname": r["lname"], "ids": ids})
+                result["sphere"].append(
+                    {"scope": None, "lname": r["lname"], "ids": ids}
+                )
 
             # Разделы: внутри одной сферы
             rows = self.connection.execute(
@@ -753,7 +767,9 @@ class Database(DatabaseBase):
             ).fetchall()
             for r in rows or []:
                 ids = [int(x) for x in (r["ids"] or "").split(",") if x]
-                result["section"].append({"scope": int(r["scope"]), "lname": r["lname"], "ids": ids})
+                result["section"].append(
+                    {"scope": int(r["scope"]), "lname": r["lname"], "ids": ids}
+                )
 
             # Категории: внутри одного раздела
             rows = self.connection.execute(
@@ -766,7 +782,9 @@ class Database(DatabaseBase):
             ).fetchall()
             for r in rows or []:
                 ids = [int(x) for x in (r["ids"] or "").split(",") if x]
-                result["category"].append({"scope": int(r["scope"]), "lname": r["lname"], "ids": ids})
+                result["category"].append(
+                    {"scope": int(r["scope"]), "lname": r["lname"], "ids": ids}
+                )
 
         return result
 
@@ -851,6 +869,7 @@ class Database(DatabaseBase):
             )
             self.commit()
 
+
 # === Вспомогательная функция апсерта категории и её ссылок (без транзакций) ===
 def _upsert_category_tree(tree: dict, connection: sqlite3.Connection) -> None:
     """Выполняет апсерт категории и её ссылок, используя только переданное соединение.
@@ -903,7 +922,7 @@ def _upsert_category_tree(tree: dict, connection: sqlite3.Connection) -> None:
     # --- Upsert ссылок для категории (поштучно, без вложенных транзакций) ---
     # Нормализация входных элементов и назначение category_id
     prepared_links: List[dict] = []
-    for link in (links or []):
+    for link in links or []:
         if not isinstance(link, dict):
             continue
         rec = dict(link)
@@ -1015,6 +1034,7 @@ def _upsert_category_tree(tree: dict, connection: sqlite3.Connection) -> None:
                     rec["id"] = int(row[0] if isinstance(row, tuple) else row["id"])  # type: ignore[index]
                 except Exception:
                     pass
+
 
 def _log_duplicates_human(dups: dict) -> None:
     logger.info("== Дубликаты (регистронезависимые) ==")

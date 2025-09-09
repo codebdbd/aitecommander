@@ -1,6 +1,7 @@
 """
 Миксин для обновления иерархии (разделы и категории) в LinkDialogHandlers.
 """
+
 from typing import Any
 
 from ..icon_utils import make_icon
@@ -22,6 +23,7 @@ class HierarchyMixin:
     def _get_category_cb(self) -> Any:
         """Возвращает комбобокс категорий."""
         return self.dialog._get_category_cb()
+
     def _update_sections(self) -> None:
         """Обновляет список разделов."""
         sphere_cb = self._get_sphere_cb()
@@ -34,7 +36,9 @@ class HierarchyMixin:
             sections = self.dialog.dialog_controller.get_sections_for_sphere(sphere_id)
             for sec in sections:
                 icon_path_val = self._extract_icon_path(sec)
-                self._add_with_optional_icon(section_cb, sec["name"], sec["id"], icon_path_val)
+                self._add_with_optional_icon(
+                    section_cb, sec["name"], sec["id"], icon_path_val
+                )
 
         self._update_categories()
 
@@ -52,9 +56,13 @@ class HierarchyMixin:
             )
             for cat in categories:
                 icon_path_val = self._extract_icon_path(cat)
-                self._add_with_optional_icon(category_cb, cat["name"], cat["id"], icon_path_val)
+                self._add_with_optional_icon(
+                    category_cb, cat["name"], cat["id"], icon_path_val
+                )
 
-    def _add_with_optional_icon(self, combo: Any, name: str, item_id: Any, icon_path_val: str) -> None:
+    def _add_with_optional_icon(
+        self, combo: Any, name: str, item_id: Any, icon_path_val: str
+    ) -> None:
         """Добавляет элемент в комбобокс с иконкой, если она валидна, иначе без иконки.
 
         Поведение идентично прежнему коду: сначала пытаемся создать иконку через

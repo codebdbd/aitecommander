@@ -36,6 +36,7 @@ class LinksTableController(QObject):
             from PyQt6.QtCore import (
                 QObject as _QtQObject,  # локальный импорт для безопасности
             )
+
             parent = main_window if isinstance(main_window, _QtQObject) else None
         except Exception:
             parent = None
@@ -45,7 +46,9 @@ class LinksTableController(QObject):
         self.business = links_business
         self.category_provider = category_provider
         if self.table is None or self.business is None:
-            raise ValueError("LinksTableController: table и links_business должны быть переданы явно")
+            raise ValueError(
+                "LinksTableController: table и links_business должны быть переданы явно"
+            )
         # Явная валидация провайдера категории
         if not hasattr(self.category_provider, "current_category_id"):
             raise ValueError(
@@ -69,12 +72,17 @@ class LinksTableController(QObject):
         """
         try:
             if not isinstance(category_id, int) or category_id <= 0:
-                logger.debug("LinksTableController.reload: invalid category_id=%s", category_id)
+                logger.debug(
+                    "LinksTableController.reload: invalid category_id=%s", category_id
+                )
                 return
 
             if self._reloading:
                 # Если уже выполняется reload, поставим в очередь, но избегаем дубликатов
-                if category_id == self._current_category_id or category_id == self._queued_category_id:
+                if (
+                    category_id == self._current_category_id
+                    or category_id == self._queued_category_id
+                ):
                     logger.debug(
                         "LinksTableController.reload: already processing or queued category_id=%s",
                         category_id,
@@ -82,19 +90,24 @@ class LinksTableController(QObject):
                     return
                 self._queued_category_id = category_id
                 logger.debug(
-                    "LinksTableController.reload: busy, queued category_id=%s", category_id
+                    "LinksTableController.reload: busy, queued category_id=%s",
+                    category_id,
                 )
                 return
 
             self._reloading = True
-            logger.debug("LinksTableController.reload: start (category_id=%s)", category_id)
+            logger.debug(
+                "LinksTableController.reload: start (category_id=%s)", category_id
+            )
             self._current_category_id = category_id
 
             # Централизовано: загружаем данные через бизнес-логику; UI подписан на изменения
             # Исключения ловим здесь, чтобы вести единообразное логирование и не падать UI
             self.business.load_links(category_id)
         except Exception as e:
-            logger.error("LinksTableController.reload: unexpected error: %s", e, exc_info=True)
+            logger.error(
+                "LinksTableController.reload: unexpected error: %s", e, exc_info=True
+            )
         finally:
             self._reloading = False
             # Если за время выполнения прилетела ещё одна категория — перезапустим для последней
@@ -106,7 +119,8 @@ class LinksTableController(QObject):
                 queued = self._queued_category_id
                 self._queued_category_id = None
                 logger.debug(
-                    "LinksTableController.reload: processing queued category_id=%s", queued
+                    "LinksTableController.reload: processing queued category_id=%s",
+                    queued,
                 )
                 # Вызовем повторно синхронно; защита _reloading уже снята
                 try:
@@ -132,11 +146,16 @@ class LinksTableController(QObject):
             logger.warning("LinksTableController.update_row: invalid link_dict: %s", e)
         except AttributeError as e:
             # Таблица не реализует требуемый метод — это программная ошибка, пробрасываем
-            logger.error("LinksTableController.update_row: table missing update_link_by_id: %s", e)
+            logger.error(
+                "LinksTableController.update_row: table missing update_link_by_id: %s",
+                e,
+            )
             raise
 
     # --- Slots for business signals ---
-    def on_links_loaded(self, links: list[Dict], category_id: int, task_id: int) -> None:
+    def on_links_loaded(
+        self, links: list[Dict], category_id: int, task_id: int
+    ) -> None:
         """Централизованная реакция на загрузку ссылок из бизнес-логики.
 
         Выполняет populate только если это текущая категория, чтобы избежать рассинхронизации UI.
@@ -154,7 +173,9 @@ class LinksTableController(QObject):
                 return
             self.table.populate(links)
         except Exception as e:
-            logger.error("LinksTableController.on_links_loaded: failed: %s", e, exc_info=True)
+            logger.error(
+                "LinksTableController.on_links_loaded: failed: %s", e, exc_info=True
+            )
 
     def on_search_results(self, search_results: list[Dict]) -> None:
         """Обновить таблицу результатами поиска централизованно."""
@@ -171,9 +192,14 @@ class LinksTableController(QObject):
                             stack.setCurrentIndex(i)
                             break
             except Exception:
-                logger.debug("LinksTableController.on_search_results: failed to switch stack to table", exc_info=True)
+                logger.debug(
+                    "LinksTableController.on_search_results: failed to switch stack to table",
+                    exc_info=True,
+                )
         except Exception as e:
-            logger.error("LinksTableController.on_search_results: failed: %s", e, exc_info=True)
+            logger.error(
+                "LinksTableController.on_search_results: failed: %s", e, exc_info=True
+            )
 
     # --- Slots for link_operations signals ---
     def on_links_changed(self, category_id: Optional[int]) -> None:

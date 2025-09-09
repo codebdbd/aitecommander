@@ -20,7 +20,9 @@ class TreeManagement:
         self.icon_handler = controller.icon_handler
         # Явная обязательная зависимость: контроллер плиток категорий
         if category_tiles_controller is None:
-            raise ValueError("TreeManagement requires a non-None category_tiles_controller")
+            raise ValueError(
+                "TreeManagement requires a non-None category_tiles_controller"
+            )
         self.tiles_controller = category_tiles_controller
 
         # Явная ссылка на модель дерева и проверка контракта
@@ -58,7 +60,9 @@ class TreeManagement:
                 sections_data or [], key=lambda s: (s.get("name") or "").lower()
             )
         except Exception:
-            logger.exception("TreeManagement._on_structure_loaded: ошибка сортировки разделов")
+            logger.exception(
+                "TreeManagement._on_structure_loaded: ошибка сортировки разделов"
+            )
 
         # Обновляем модель одним снимком
         model = self.tree.model()
@@ -80,10 +84,15 @@ class TreeManagement:
 
         # После обновления модели проставляем иконки через IconHandling для QTreeView
         try:
-            if hasattr(self.controller, "icon_handler") and self.controller.icon_handler:
+            if (
+                hasattr(self.controller, "icon_handler")
+                and self.controller.icon_handler
+            ):
                 self.controller.icon_handler.reload_icons()
         except Exception:
-            logger.exception("TreeManagement._on_structure_loaded: ошибка перезагрузки иконок")
+            logger.exception(
+                "TreeManagement._on_structure_loaded: ошибка перезагрузки иконок"
+            )
 
         # После первой загрузки структуры обновляем отображение главного окна
         if hasattr(self.controller, "main") and getattr(
@@ -136,7 +145,10 @@ class TreeManagement:
             try:
                 schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
             except Exception:
-                logger.debug("TreeManagement._on_item_added: schedule_focus failed", exc_info=True)
+                logger.debug(
+                    "TreeManagement._on_item_added: schedule_focus failed",
+                    exc_info=True,
+                )
 
     def _on_item_updated(self, item_type: str, item_id: int, data: dict) -> None:
         # Инкрементальное обновление
@@ -190,7 +202,9 @@ class TreeManagement:
                     section_id = t[1]
                     self.refresh_section_tiles(section_id)
             except Exception:
-                logger.exception("TreeManagement._on_item_deleted: ошибка обновления плиток после удаления категории")
+                logger.exception(
+                    "TreeManagement._on_item_deleted: ошибка обновления плиток после удаления категории"
+                )
         # Гарантируем восстановление фокуса на дереве после удаления
         try:
             schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
@@ -203,7 +217,9 @@ class TreeManagement:
             self.tiles_controller.refresh(int(section_id))
         except (ValueError, RuntimeError):
             # Ожидаемые ошибки контроллера плиток логируем и продолжаем работу UI
-            logger.exception("TreeManagement.refresh_section_tiles: controller refresh failed (expected)")
+            logger.exception(
+                "TreeManagement.refresh_section_tiles: controller refresh failed (expected)"
+            )
         # Неожиданные исключения — не подавляем, пусть упадут до тестов/CI
 
     def _iter_indexes(self, parent: QModelIndex = QModelIndex()):
@@ -257,7 +273,9 @@ class TreeManagement:
         try:
             model = self.model
             if not model or not hasattr(model, "index_for"):
-                logger.error("TreeManagement._find_item_by_id: model is not available or has no index_for")
+                logger.error(
+                    "TreeManagement._find_item_by_id: model is not available or has no index_for"
+                )
                 return None
             idx = model.index_for(item_type, int(item_id))
             if idx and hasattr(idx, "isValid") and idx.isValid():
@@ -348,7 +366,10 @@ class TreeManagement:
                     )
         except Exception:
             # Безопасный fallback: ничего не делаем, но фиксируем контекст
-            logger.debug("TreeManagement._sort_tree: snapshot update failed; fallback to no-op", exc_info=True)
+            logger.debug(
+                "TreeManagement._sort_tree: snapshot update failed; fallback to no-op",
+                exc_info=True,
+            )
 
     def on_structure_item_changed(
         self, item_type: str, item_id: int, data: dict
@@ -368,9 +389,14 @@ class TreeManagement:
                 if hier and "section_id" in hier:
                     self.refresh_section_tiles(int(hier["section_id"]))
             except Exception:
-                logger.exception("TreeManagement._update_category_display: ошибка обновления плиток по иерархии категории #%s", category_id)
+                logger.exception(
+                    "TreeManagement._update_category_display: ошибка обновления плиток по иерархии категории #%s",
+                    category_id,
+                )
 
-    def _update_category_tiles_after_edit(self, _category_index: QModelIndex | None = None) -> None:
+    def _update_category_tiles_after_edit(
+        self, _category_index: QModelIndex | None = None
+    ) -> None:
         """Обновляет плитки категорий после редактирования категории."""
         # Определим текущий раздел по текущему индексу и обновим плитки
         try:
@@ -386,9 +412,13 @@ class TreeManagement:
                 if pt and pt[0] == "section":
                     self.refresh_section_tiles(pt[1])
         except Exception:
-            logger.exception("TreeManagement._update_category_tiles_after_edit: ошибка обновления плиток")
+            logger.exception(
+                "TreeManagement._update_category_tiles_after_edit: ошибка обновления плиток"
+            )
 
-    def _update_section_tiles_after_edit(self, _section_index: QModelIndex | None = None) -> None:
+    def _update_section_tiles_after_edit(
+        self, _section_index: QModelIndex | None = None
+    ) -> None:
         """Обновляет плитки категорий после редактирования раздела."""
         try:
             cur = self.tree.currentIndex()
@@ -397,4 +427,6 @@ class TreeManagement:
                 if t and t[0] == "section":
                     self.refresh_section_tiles(t[1])
         except Exception:
-            logger.exception("TreeManagement._update_section_tiles_after_edit: ошибка обновления плиток")
+            logger.exception(
+                "TreeManagement._update_section_tiles_after_edit: ошибка обновления плиток"
+            )

@@ -164,8 +164,6 @@ class StructureBusinessLogic(QObject):
 
         # Таймеры и дополнительные компоненты настраиваются напрямую в __init__
 
-    
-
     # =============================================================================
     # ОСНОВНЫЕ МЕТОДЫ КОНТРОЛЛЕРА (СОВМЕСТИМОСТЬ)
     # =============================================================================
@@ -368,16 +366,25 @@ class StructureBusinessLogic(QObject):
                     if isinstance(sid, int) and sid > 0:
                         self.async_operations.load_categories_async(int(sid))
                 except Exception as exc:
-                    self.logger.debug("end_batch: failed to schedule load_categories_async for %s: %s", sid, exc, exc_info=True)
+                    self.logger.debug(
+                        "end_batch: failed to schedule load_categories_async for %s: %s",
+                        sid,
+                        exc,
+                        exc_info=True,
+                    )
         except Exception as exc:
-            self.logger.debug("end_batch: failed to iterate touched sections: %s", exc, exc_info=True)
+            self.logger.debug(
+                "end_batch: failed to iterate touched sections: %s", exc, exc_info=True
+            )
 
         # И одна коалесцированная перезагрузка структуры сферы
         try:
             self._invalidate_structure_cache()
             self._schedule_structure_reload(0)
         except Exception as exc:
-            self.logger.debug("end_batch: failed to schedule structure reload: %s", exc, exc_info=True)
+            self.logger.debug(
+                "end_batch: failed to schedule structure reload: %s", exc, exc_info=True
+            )
 
     def _schedule_structure_reload(self, delay_ms: int = 200) -> None:
         """Планирует отложенную перезагрузку структуры (дебаунсирует частые события)."""
@@ -389,7 +396,9 @@ class StructureBusinessLogic(QObject):
                 self._structure_reload_timer.stop()
             self._structure_reload_timer.start(delay_ms)
         except Exception as e:
-            self.logger.warning("_schedule_structure_reload: failed to schedule: %s", e, exc_info=True)
+            self.logger.warning(
+                "_schedule_structure_reload: failed to schedule: %s", e, exc_info=True
+            )
 
     def _perform_structure_reload(self) -> None:
         """Выполняет фактическую перезагрузку структуры текущей сферы."""
@@ -430,7 +439,9 @@ class StructureBusinessLogic(QObject):
         """
         try:
             total = len(ids) if isinstance(ids, (list, tuple)) else 0
-            self.logger.info("[BL] items_batch_deleted: type=%s, count=%s", item_type, total)
+            self.logger.info(
+                "[BL] items_batch_deleted: type=%s, count=%s", item_type, total
+            )
             # Для ссылок используем небольшую задержку, чтобы коалесцировать
             if item_type == "link":
                 self._schedule_structure_reload(200)
@@ -448,7 +459,9 @@ class StructureBusinessLogic(QObject):
         """Выбирает раздел и загружает его категории."""
         categories = self.get_categories(section_id)
         self.section_selected.emit(section_id)
-        self.logger.debug("Выбран раздел %s с %s категориями", section_id, len(categories))
+        self.logger.debug(
+            "Выбран раздел %s с %s категориями", section_id, len(categories)
+        )
 
     @handle_exceptions()
     def select_category(self, category_id: int) -> None:
@@ -679,7 +692,11 @@ class StructureBusinessLogic(QObject):
         - Инвалидирует кэши затронутых разделов и выполняет одну коалесцированную перезагрузку.
         Возвращает список фактически перенесённых id (дубликаты имён пропускаются).
         """
-        if not category_ids or not isinstance(target_section_id, int) or target_section_id <= 0:
+        if (
+            not category_ids
+            or not isinstance(target_section_id, int)
+            or target_section_id <= 0
+        ):
             return []
 
         # Соберём исходные разделы (минимально необходимое для инвалидирования)
@@ -719,7 +736,9 @@ class StructureBusinessLogic(QObject):
             self.end_batch()
 
     @handle_exceptions(default_return=[])
-    def create_categories_bulk(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def create_categories_bulk(
+        self, items: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """Пакетно создаёт категории через сервис и эмитит сигналы для UI.
 
         Возвращает список фактических категорий после операции (как новые, так и
@@ -731,7 +750,11 @@ class StructureBusinessLogic(QObject):
         created_or_existing = self.structure_service.create_categories_bulk(items)
         # Инвалидируем кэш и планируем одну перезагрузку структуры.
         try:
-            touched_sections = {c.get("section_id") for c in (created_or_existing or []) if isinstance(c, dict)}
+            touched_sections = {
+                c.get("section_id")
+                for c in (created_or_existing or [])
+                if isinstance(c, dict)
+            }
             for sid in touched_sections:
                 if sid:
                     self._invalidate_categories_cache(sid)

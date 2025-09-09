@@ -96,8 +96,8 @@ class CategoryModel(DatabaseBase):
             # Категория с таким именем уже существует в этом разделе
             logger.warning(
                 "Категория '%s' уже существует в разделе %s",
-                data['name'],
-                data['section_id'],
+                data["name"],
+                data["section_id"],
             )
             return None
 
@@ -106,10 +106,12 @@ class CategoryModel(DatabaseBase):
             "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
             (data["name"], data["section_id"], data.get("icon_path", ""), position),
         )
-        logger.info("Добавлена новая категория: %s", data['name'])
+        logger.info("Добавлена новая категория: %s", data["name"])
         return cursor.lastrowid
 
-    def insert_categories_bulk(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def insert_categories_bulk(
+        self, items: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """Пакетная вставка категорий с атомарной транзакцией.
 
         - Ожидает список словарей с ключами минимум: 'name', 'section_id'.
@@ -127,7 +129,9 @@ class CategoryModel(DatabaseBase):
 
         # Валидация входных данных
         for it in items:
-            self._validate_required_fields(it or {}, ["name", "section_id"], "категории")
+            self._validate_required_fields(
+                it or {}, ["name", "section_id"], "категории"
+            )
 
         # Группируем по section_id для расчёта позиций
         by_section: Dict[int, List[Dict[str, Any]]] = {}
@@ -135,7 +139,9 @@ class CategoryModel(DatabaseBase):
             try:
                 sid = int(it.get("section_id"))
             except Exception:
-                raise ValidationError("Некорректный section_id в одном из элементов пакета")
+                raise ValidationError(
+                    "Некорректный section_id в одном из элементов пакета"
+                )
             by_section.setdefault(sid, []).append(it)
 
         # Формируем батч вставки
@@ -155,7 +161,7 @@ class CategoryModel(DatabaseBase):
                     rows = self._execute_with_error_handling(
                         query, tuple(section_ids), fetch_method="all"
                     )
-                    for row in (rows or []):
+                    for row in rows or []:
                         max_pos_map[row["section_id"]] = row["max_pos"]
 
                 for section_id, group in by_section.items():
@@ -163,7 +169,7 @@ class CategoryModel(DatabaseBase):
                     max_pos = max_pos_map.get(section_id)
                     start_pos = (max_pos + 1) if (max_pos is not None) else 0
                     pos = start_pos
-                
+
                 # Единая предзагрузка существующих имён для всех затронутых разделов одним запросом
                 existing_names_by_section: Dict[int, set] = {}
                 if section_ids:
@@ -175,8 +181,12 @@ class CategoryModel(DatabaseBase):
                     rows = self._execute_with_error_handling(
                         query_names, tuple(section_ids), fetch_method="all"
                     )
-                    for r in (rows or []):
-                        sid = int(r["section_id"]) if r["section_id"] is not None else None
+                    for r in rows or []:
+                        sid = (
+                            int(r["section_id"])
+                            if r["section_id"] is not None
+                            else None
+                        )
                         if sid is None:
                             continue
                         nm = str(r["lname"]).strip().lower()
@@ -197,7 +207,11 @@ class CategoryModel(DatabaseBase):
 
                     for it in group:
                         raw_name = it.get("name")
-                        name_norm = (str(raw_name).strip().lower() if raw_name is not None else "")
+                        name_norm = (
+                            str(raw_name).strip().lower()
+                            if raw_name is not None
+                            else ""
+                        )
                         # Пропускаем, если имя пустое — валидация выше, но на всякий случай
                         if not name_norm:
                             continue
@@ -330,12 +344,18 @@ class CategoryModel(DatabaseBase):
             # 2) Переиндексация позиций в затронутых разделах, чтобы убрать "дыры"
             try:
                 # Дедупликация и фильтр валидных id
-                uniq_sections = list(dict.fromkeys([s for s in affected_sections if isinstance(s, int) and s > 0]))
+                uniq_sections = list(
+                    dict.fromkeys(
+                        [s for s in affected_sections if isinstance(s, int) and s > 0]
+                    )
+                )
                 for sid in uniq_sections:
                     self._reindex_positions(sid)
             except Exception:
                 # Не прерываем удаление, но логируем на верхнем уровне
-                logger.warning("Не удалось переиндексировать позиции категорий после удаления")
+                logger.warning(
+                    "Не удалось переиндексировать позиции категорий после удаления"
+                )
 
         logger.info(
             "Пакетно удалены категории (шт=%s), ids=%s",
@@ -357,7 +377,11 @@ class CategoryModel(DatabaseBase):
         Возвращает список фактически перенесённых id в порядке применения.
         """
         # Валидация входных данных
-        if not category_ids or not isinstance(target_section_id, int) or target_section_id <= 0:
+        if (
+            not category_ids
+            or not isinstance(target_section_id, int)
+            or target_section_id <= 0
+        ):
             return []
 
         # Оставляем только валидные положительные целые ID и удаляем дубликаты (сохраняя порядок)
@@ -388,7 +412,9 @@ class CategoryModel(DatabaseBase):
             (target_section_id,),
             fetch_method="all",
         )
-        existing_names = {str(r["name"]).strip().lower() for r in (existing_names_rows or [])}
+        existing_names = {
+            str(r["name"]).strip().lower() for r in (existing_names_rows or [])
+        }
 
         # Отфильтруем по дубликатам имён (в целевом разделе)
         to_move_ids: List[int] = []
@@ -398,14 +424,20 @@ class CategoryModel(DatabaseBase):
             if nm in existing_names:
                 continue
             to_move_ids.append(cid)
-            existing_names.add(nm)  # зарезервировать имя, чтобы исключить повторы внутри набора
+            existing_names.add(
+                nm
+            )  # зарезервировать имя, чтобы исключить повторы внутри набора
 
         if not to_move_ids:
             return []
 
         # Соберём исходные разделы для переиндексации после переноса
-        source_sections = [int(data_by_id[cid].get("section_id", 0) or 0) for cid in to_move_ids]
-        source_sections = [sid for sid in source_sections if sid and sid != target_section_id]
+        source_sections = [
+            int(data_by_id[cid].get("section_id", 0) or 0) for cid in to_move_ids
+        ]
+        source_sections = [
+            sid for sid in source_sections if sid and sid != target_section_id
+        ]
         uniq_source_sections = list(dict.fromkeys(source_sections))
 
         # Применяем обновления одной транзакцией
@@ -426,13 +458,19 @@ class CategoryModel(DatabaseBase):
                 for sid in uniq_source_sections:
                     self._reindex_positions(sid)
             except Exception:
-                logger.warning("Не удалось переиндексировать исходные разделы после переноса", exc_info=False)
+                logger.warning(
+                    "Не удалось переиндексировать исходные разделы после переноса",
+                    exc_info=False,
+                )
 
             # Переиндексируем целевой раздел, чтобы согласовать позиции
             try:
                 self._reindex_positions(target_section_id)
             except Exception:
-                logger.warning("Не удалось переиндексировать целевой раздел после переноса", exc_info=False)
+                logger.warning(
+                    "Не удалось переиндексировать целевой раздел после переноса",
+                    exc_info=False,
+                )
 
         logger.info(
             f"Пакетный перенос категорий (шт={len(to_move_ids)}) в раздел {target_section_id}, ids={to_move_ids}"

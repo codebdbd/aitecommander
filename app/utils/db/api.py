@@ -89,13 +89,19 @@ def run_db(
             sig = inspect.signature(callable_obj)
         except (TypeError, ValueError):
             return False
-        has_var_positional = any(p.kind is inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values())
+        has_var_positional = any(
+            p.kind is inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values()
+        )
         if has_var_positional:
             return True
         positional_count = sum(
             1
             for p in sig.parameters.values()
-            if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+            if p.kind
+            in (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            )
         )
         return positional_count == 1
 
@@ -103,18 +109,22 @@ def run_db(
 
     if expects_reporter:
         if use_lock:
+
             def _wrapped(report_progress: Callable[[int], None]) -> T:
                 with db_lock:
                     return func(report_progress)  # type: ignore[misc]
         else:
+
             def _wrapped(report_progress: Callable[[int], None]) -> T:
                 return func(report_progress)  # type: ignore[misc]
     else:
         if use_lock:
+
             def _wrapped() -> T:
                 with db_lock:
                     return func()
         else:
+
             def _wrapped() -> T:
                 return func()
 

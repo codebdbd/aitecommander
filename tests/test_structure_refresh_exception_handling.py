@@ -43,6 +43,7 @@ def make_ctrl_with_timer(timer):
     class Fav:
         def set_favorites(self, *_):
             pass
+
         def clear_favorites(self):
             pass
 
@@ -57,7 +58,10 @@ def make_ctrl_with_timer(timer):
     )
 
     ctrl = TopPanelsController(
-        QObjectLike(), fav_widget=Fav(), recent_links_widget=Recent(), links_business=links_business
+        QObjectLike(),
+        fav_widget=Fav(),
+        recent_links_widget=Recent(),
+        links_business=links_business,
     )
     # Подменяем только структурный таймер
     ctrl._structure_refresh_timer = timer
@@ -79,15 +83,14 @@ def test_schedule_structure_refresh_unexpected_error_is_propagated(caplog):
     ctrl = make_ctrl_with_timer(KeyErrorTimer())
     with pytest.raises(KeyError):
         ctrl.schedule_structure_refresh()
-    assert any(
-        "unexpected error" in rec.getMessage() for rec in caplog.records
-    )
+    assert any("unexpected error" in rec.getMessage() for rec in caplog.records)
 
 
 def test_on_structure_changed_schedule_refresh_attribute_error_becomes_setup_error():
     class Stub:
         def schedule_structure_refresh(self):
             raise AttributeError("nope")
+
     with pytest.raises(SetupError):
         _on_structure_changed_schedule_refresh(Stub())
 
@@ -96,5 +99,6 @@ def test_on_structure_changed_schedule_refresh_unexpected_error_propagates():
     class Stub:
         def schedule_structure_refresh(self):
             raise KeyError("boom")
+
     with pytest.raises(KeyError):
         _on_structure_changed_schedule_refresh(Stub())

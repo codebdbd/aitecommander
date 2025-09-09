@@ -26,7 +26,9 @@ def test_negative_cache_max_size_eviction(monkeypatch):
 def test_negative_cache_periodic_cleanup(monkeypatch):
     # Сделаем базовый TTL очень коротким, чтобы быстро протухали
     monkeypatch.setattr(nc.app_config, "icon_negative_cache_ttl", 0.05, raising=False)
-    monkeypatch.setattr(nc.app_config, "icon_negative_cache_ttl_max", 0.1, raising=False)
+    monkeypatch.setattr(
+        nc.app_config, "icon_negative_cache_ttl_max", 0.1, raising=False
+    )
 
     nc.clear()
 

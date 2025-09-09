@@ -38,7 +38,10 @@ def test_handle_favorites_cleared_raises_without_links_table_controller():
     window = WindowStub(current_category_id=7)
     top_ctrl = TopPanelsControllerStub()
 
-    with pytest.raises(SetupError, match=r"LinksTableController is required to reload table after favorites clear"):
+    with pytest.raises(
+        SetupError,
+        match=r"LinksTableController is required to reload table after favorites clear",
+    ):
         DatabaseEventHandler.handle_favorites_cleared(
             window,
             top_panels_controller=top_ctrl,

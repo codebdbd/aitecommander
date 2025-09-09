@@ -12,10 +12,13 @@ from app.config_data import app_config
 try:
     from sip import isdeleted as _sip_isdeleted
 except ImportError:  # pragma: no cover
+
     def _sip_isdeleted(_obj) -> bool:
         return False
 
+
 logger = logging.getLogger(__name__)
+
 
 class TopBarLayoutManager(QObject):
     """Управляет иерархическим схлопыванием верхней панели при изменении размера.
@@ -46,15 +49,23 @@ class TopBarLayoutManager(QObject):
     def __init__(self, window):
         super().__init__(window)
         self.window: QObject = window
-        self._last_applied: Optional[Tuple[int, int, int, int]] = None  # (width, recent, fav, quick)
+        self._last_applied: Optional[Tuple[int, int, int, int]] = (
+            None  # (width, recent, fav, quick)
+        )
         self._warmup_adjusts_remaining: int = 2
         self._container_widget: Optional[QWidget] = None
         self._watched_panels: WeakSet[QObject] = WeakSet()
 
         # Настройки из конфига с fallback
-        self._throttle_interval_ms: int = self._get_cfg_int("ui.topbar.throttle_ms", self.DEFAULT_THROTTLE_MS)
-        self._log_info: bool = self._get_cfg_bool("ui.topbar.log_info", self.DEFAULT_LOG_INFO)
-        self._min_search_width: int = self._get_cfg_int("ui.topbar.min_search_width", self.DEFAULT_MIN_SEARCH_WIDTH)
+        self._throttle_interval_ms: int = self._get_cfg_int(
+            "ui.topbar.throttle_ms", self.DEFAULT_THROTTLE_MS
+        )
+        self._log_info: bool = self._get_cfg_bool(
+            "ui.topbar.log_info", self.DEFAULT_LOG_INFO
+        )
+        self._min_search_width: int = self._get_cfg_int(
+            "ui.topbar.min_search_width", self.DEFAULT_MIN_SEARCH_WIDTH
+        )
         self._max_recent: int = self.DEFAULT_MAX_RECENT
         self._max_fav: int = self.DEFAULT_MAX_FAV
         self._max_quick: int = self.DEFAULT_MAX_QUICK
@@ -64,7 +75,9 @@ class TopBarLayoutManager(QObject):
         self._min_quick: int = 0
         # Узкий режим: фиксированный порог 280, без переопределения конфигом
         self._narrow_threshold: int = self.DEFAULT_NARROW_THRESHOLD
-        self._button_size: int = self._get_cfg_int("ui.top_panel_button_size", self.DEFAULT_BUTTON_SIZE)
+        self._button_size: int = self._get_cfg_int(
+            "ui.top_panel_button_size", self.DEFAULT_BUTTON_SIZE
+        )
 
         self._throttle_timer = QTimer(self)
         self._throttle_timer.setSingleShot(True)
@@ -79,7 +92,13 @@ class TopBarLayoutManager(QObject):
 
     def _install_event_filters(self) -> None:
         """Устанавливает фильтры событий на релевантные виджеты."""
-        for attr_name in ["top_bar_host", "content_container", "quick_add_widget", "fav_widget", "recent_links_widget"]:
+        for attr_name in [
+            "top_bar_host",
+            "content_container",
+            "quick_add_widget",
+            "fav_widget",
+            "recent_links_widget",
+        ]:
             widget = self._safe_get(self.window, attr_name)
             if isinstance(widget, QWidget) and widget not in self._watched_panels:
                 widget.installEventFilter(self)
@@ -89,7 +108,12 @@ class TopBarLayoutManager(QObject):
             self.window.installEventFilter(self)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
-        if event.type() in (QEvent.Type.Resize, QEvent.Type.LayoutRequest, QEvent.Type.Show, QEvent.Type.Hide):
+        if event.type() in (
+            QEvent.Type.Resize,
+            QEvent.Type.LayoutRequest,
+            QEvent.Type.Show,
+            QEvent.Type.Hide,
+        ):
             self._throttle_timer.start(0)
         return super().eventFilter(obj, event)
 
@@ -104,11 +128,17 @@ class TopBarLayoutManager(QObject):
         except RuntimeError:
             return None
 
-    def _iter_buttons(self, panel_widget: Optional[QWidget], name: str) -> List[QToolButton]:
+    def _iter_buttons(
+        self, panel_widget: Optional[QWidget], name: str
+    ) -> List[QToolButton]:
         if not panel_widget:
             return []
         bg = self._safe_get(panel_widget, "bg_frame")
-        lay = (bg.layout() if isinstance(bg, QWidget) and callable(getattr(bg, "layout", None)) else None)
+        lay = (
+            bg.layout()
+            if isinstance(bg, QWidget) and callable(getattr(bg, "layout", None))
+            else None
+        )
         ordered: List[QToolButton] = []
         if lay:
             for i in range(lay.count()):
@@ -121,7 +151,9 @@ class TopBarLayoutManager(QObject):
                 ordered.append(b)
         return ordered
 
-    def _set_visible_count(self, panel_widget: Optional[QWidget], btn_object_name: str, count: int) -> int:
+    def _set_visible_count(
+        self, panel_widget: Optional[QWidget], btn_object_name: str, count: int
+    ) -> int:
         buttons = self._iter_buttons(panel_widget, btn_object_name)
         if not buttons:
             if panel_widget:
@@ -148,7 +180,9 @@ class TopBarLayoutManager(QObject):
     def _get_container_widget(self) -> Optional[QWidget]:
         if self._container_widget and not _sip_isdeleted(self._container_widget):
             return self._container_widget
-        self._container_widget = self._safe_get(self.window, "top_bar_host") or self._safe_get(self.window, "content_container")
+        self._container_widget = self._safe_get(
+            self.window, "top_bar_host"
+        ) or self._safe_get(self.window, "content_container")
         return self._container_widget
 
     def adjust(self) -> None:
@@ -175,9 +209,15 @@ class TopBarLayoutManager(QObject):
         self._install_event_filters()  # Убедиться в фильтрах
 
         if effective_w <= self._narrow_threshold:
-            logger.debug("TopBar narrow mode: width=%s <= threshold=%s", width, self._narrow_threshold)
+            logger.debug(
+                "TopBar narrow mode: width=%s <= threshold=%s",
+                width,
+                self._narrow_threshold,
+            )
             self._apply_counts(width, 0, 0, 0)
-            self._update_separators_visibility(top_bar, False, False, False, bool(search))
+            self._update_separators_visibility(
+                top_bar, False, False, False, bool(search)
+            )
             # Скрыть любые виджеты top-bar, кроме поля поиска
             try:
                 count = top_bar.count()
@@ -191,43 +231,68 @@ class TopBarLayoutManager(QObject):
                     try:
                         w.setVisible(False)
                     except Exception:
-                        logger.debug("TopBarLM: failed to hide non-search widget in narrow mode", exc_info=True)
+                        logger.debug(
+                            "TopBarLM: failed to hide non-search widget in narrow mode",
+                            exc_info=True,
+                        )
                 # Обнулить все spacerItem, чтобы не было отступов слева/справа от поиска
                 try:
                     for i in range(count):
                         sp = top_bar.itemAt(i).spacerItem()
                         if sp is not None:
-                            sp.changeSize(0, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+                            sp.changeSize(
+                                0, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+                            )
                 except Exception:
-                    logger.debug("TopBarLM: failed to zero spacers in narrow mode", exc_info=True)
+                    logger.debug(
+                        "TopBarLM: failed to zero spacers in narrow mode", exc_info=True
+                    )
                 # Отключить встроенные действия у поиска (иконки слева/справа, кнопка очистки)
                 if isinstance(search, QLineEdit):
                     try:
                         search.setClearButtonEnabled(False)
                     except Exception:
-                        logger.debug("TopBarLM: failed to disable clear button on search (narrow mode)", exc_info=True)
+                        logger.debug(
+                            "TopBarLM: failed to disable clear button on search (narrow mode)",
+                            exc_info=True,
+                        )
                     try:
                         for act in search.actions():
                             try:
                                 act.setVisible(False)
                             except Exception:
-                                logger.debug("TopBarLM: failed to hide search action in narrow mode", exc_info=True)
+                                logger.debug(
+                                    "TopBarLM: failed to hide search action in narrow mode",
+                                    exc_info=True,
+                                )
                     except Exception:
-                        logger.debug("TopBarLM: failed to iterate search actions in narrow mode", exc_info=True)
+                        logger.debug(
+                            "TopBarLM: failed to iterate search actions in narrow mode",
+                            exc_info=True,
+                        )
                 # Нулевые отступы у top_bar, чтобы поиск примыкал к краям
                 try:
                     self._set_top_bar_margins(top_bar, 0, 0, 0, 0)
                 except Exception:
-                    logger.debug("TopBarLM: failed to set zero margins on top_bar (narrow mode)", exc_info=True)
+                    logger.debug(
+                        "TopBarLM: failed to set zero margins on top_bar (narrow mode)",
+                        exc_info=True,
+                    )
                 # Поиск занимает всю ширину
                 try:
                     if isinstance(search, QLineEdit):
                         search.setMinimumWidth(0)
                         # Не ограничиваем maxWidth конкретным значением, чтобы тянулся на весь доступный размер
                         search.setMaximumWidth(16777215)
-                        search.setSizePolicy(QSizePolicy.Policy.Expanding, search.sizePolicy().verticalPolicy())
+                        search.setSizePolicy(
+                            QSizePolicy.Policy.Expanding,
+                            search.sizePolicy().verticalPolicy(),
+                        )
                 except Exception:
-                    logger.debug("TopBarLM: failed to expand search to full width (narrow mode)", exc_info=True)
+                    logger.debug(
+                        "TopBarLM: failed to expand search to full width (narrow mode)",
+                        exc_info=True,
+                    )
                 # Пересчитать лейаут, чтобы исключить наложение
                 try:
                     # Зафиксировать stretch-факторы: только поиск тянется
@@ -238,9 +303,15 @@ class TopBarLayoutManager(QObject):
                         host.updateGeometry()
                         host.update()
                 except Exception:
-                    logger.debug("TopBarLM: failed to enforce stretches/update host in narrow mode", exc_info=True)
+                    logger.debug(
+                        "TopBarLM: failed to enforce stretches/update host in narrow mode",
+                        exc_info=True,
+                    )
             except Exception:
-                logger.debug("TopBarLayoutManager: narrow-mode hide non-search widgets failed", exc_info=True)
+                logger.debug(
+                    "TopBarLayoutManager: narrow-mode hide non-search widgets failed",
+                    exc_info=True,
+                )
             return
 
         # Кэшировать списки кнопок
@@ -250,14 +321,24 @@ class TopBarLayoutManager(QObject):
 
         # Рассчитать видимые количества
         cnt_recent, cnt_fav, cnt_quick = self._compute_visible_counts(
-            width, top_bar, search, recent, fav, quick, recent_btns, fav_btns, quick_btns
+            width,
+            top_bar,
+            search,
+            recent,
+            fav,
+            quick,
+            recent_btns,
+            fav_btns,
+            quick_btns,
         )
 
         # Если расчёт показал, что места нет даже для одной кнопки любой панели — принудительно оставляем только поиск
         if cnt_recent == 0 and cnt_fav == 0 and cnt_quick == 0:
             try:
                 self._apply_counts(width, 0, 0, 0)
-                self._update_separators_visibility(top_bar, False, False, False, bool(search))
+                self._update_separators_visibility(
+                    top_bar, False, False, False, bool(search)
+                )
                 count = top_bar.count()
                 for i in range(count):
                     it = top_bar.itemAt(i)
@@ -275,7 +356,9 @@ class TopBarLayoutManager(QObject):
                     for i in range(count):
                         sp = top_bar.itemAt(i).spacerItem()
                         if sp is not None:
-                            sp.changeSize(0, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+                            sp.changeSize(
+                                0, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+                            )
                 except Exception:
                     pass
                 # Отключить встроенные действия у поиска
@@ -303,9 +386,15 @@ class TopBarLayoutManager(QObject):
                         host.updateGeometry()
                         host.update()
                 except Exception:
-                    logger.debug("TopBarLM: failed to set zero margins/enforce stretches (zero-count mode)", exc_info=True)
+                    logger.debug(
+                        "TopBarLM: failed to set zero margins/enforce stretches (zero-count mode)",
+                        exc_info=True,
+                    )
             except Exception:
-                logger.debug("TopBarLayoutManager: forced narrow-mode hide due to zero counts failed", exc_info=True)
+                logger.debug(
+                    "TopBarLayoutManager: forced narrow-mode hide due to zero counts failed",
+                    exc_info=True,
+                )
             return
 
         state = (width, cnt_recent, cnt_fav, cnt_quick)
@@ -354,7 +443,13 @@ class TopBarLayoutManager(QObject):
         self._set_top_bar_margins(top_bar, side, 0, side, 0)
         # Гарантируем стабильные stretch-факторы в обычном режиме
         self._enforce_stretches(top_bar, search)
-        self._update_separators_visibility(top_bar, recent_visible > 0, fav_visible > 0, quick_visible > 0, search is not None)
+        self._update_separators_visibility(
+            top_bar,
+            recent_visible > 0,
+            fav_visible > 0,
+            quick_visible > 0,
+            search is not None,
+        )
 
     def _zero_all_spacers(self, top_bar: QLayout) -> None:
         """Устанавливает ширину всех spacerItem в 0 для полного освобождения места (узкий режим)."""
@@ -369,18 +464,27 @@ class TopBarLayoutManager(QObject):
             # Диагностические ошибки не критичны
             logger.debug("TopBarLM: _zero_all_spacers failed", exc_info=True)
 
-    def _apply_panel_width_bounds(self, panel: Optional[QWidget], btns: List[QToolButton], visible: int) -> None:
+    def _apply_panel_width_bounds(
+        self, panel: Optional[QWidget], btns: List[QToolButton], visible: int
+    ) -> None:
         if not panel:
             return
         panel.setMinimumWidth(0)
         max_w = self._panel_width(panel, btns, visible) if visible > 0 else 0
         panel.setMaximumWidth(max_w)
 
-    def _set_top_bar_margins(self, top_bar: QLayout, left: int, top: int, right: int, bottom: int) -> None:
+    def _set_top_bar_margins(
+        self, top_bar: QLayout, left: int, top: int, right: int, bottom: int
+    ) -> None:
         """Безопасно выставляет отступы для top_bar (QLayout)."""
         try:
             m = top_bar.contentsMargins()
-            if m.left() == left and m.top() == top and m.right() == right and m.bottom() == bottom:
+            if (
+                m.left() == left
+                and m.top() == top
+                and m.right() == right
+                and m.bottom() == bottom
+            ):
                 return
         except Exception:
             logger.debug("TopBarLM: failed to read contentsMargins()", exc_info=True)
@@ -402,12 +506,18 @@ class TopBarLayoutManager(QObject):
                 try:
                     top_bar.setStretch(i, 0)
                 except Exception:
-                    logger.debug("TopBarLM: setStretch(0) failed at index %s", i, exc_info=True)
+                    logger.debug(
+                        "TopBarLM: setStretch(0) failed at index %s", i, exc_info=True
+                    )
             if search_index >= 0:
                 try:
                     top_bar.setStretch(search_index, 1)
                 except Exception:
-                    logger.debug("TopBarLM: setStretch(1) for search failed at index %s", search_index, exc_info=True)
+                    logger.debug(
+                        "TopBarLM: setStretch(1) for search failed at index %s",
+                        search_index,
+                        exc_info=True,
+                    )
         except Exception:
             logger.debug("TopBarLM: _enforce_stretches failed", exc_info=True)
 
@@ -437,9 +547,27 @@ class TopBarLayoutManager(QObject):
         cnt_fav = max(min_fav, cnt_fav)
         cnt_quick = max(min_quick, cnt_quick)
 
-        max_steps = (cnt_recent - min_recent) + (cnt_fav - min_fav) + (cnt_quick - min_quick)
+        max_steps = (
+            (cnt_recent - min_recent) + (cnt_fav - min_fav) + (cnt_quick - min_quick)
+        )
         steps = 0
-        while self._total_width_for(top_bar, search, recent, fav, quick, recent_btns, fav_btns, quick_btns, cnt_recent, cnt_fav, cnt_quick) > width and steps < max_steps:
+        while (
+            self._total_width_for(
+                top_bar,
+                search,
+                recent,
+                fav,
+                quick,
+                recent_btns,
+                fav_btns,
+                quick_btns,
+                cnt_recent,
+                cnt_fav,
+                cnt_quick,
+            )
+            > width
+            and steps < max_steps
+        ):
             steps += 1
             if cnt_recent > min_recent:
                 cnt_recent -= 1
@@ -450,12 +578,29 @@ class TopBarLayoutManager(QObject):
             else:
                 break
 
-        if self._total_width_for(top_bar, search, recent, fav, quick, recent_btns, fav_btns, quick_btns, cnt_recent, cnt_fav, cnt_quick) > width:
+        if (
+            self._total_width_for(
+                top_bar,
+                search,
+                recent,
+                fav,
+                quick,
+                recent_btns,
+                fav_btns,
+                quick_btns,
+                cnt_recent,
+                cnt_fav,
+                cnt_quick,
+            )
+            > width
+        ):
             cnt_recent, cnt_fav, cnt_quick = 0, 0, 0
 
         return cnt_recent, cnt_fav, cnt_quick
 
-    def _panel_width(self, panel: Optional[QWidget], btns: List[QToolButton], count: int) -> int:
+    def _panel_width(
+        self, panel: Optional[QWidget], btns: List[QToolButton], count: int
+    ) -> int:
         if not panel or not btns or count <= 0:
             return 0
         bg = self._safe_get(panel, "bg_frame")
@@ -558,16 +703,27 @@ class TopBarLayoutManager(QObject):
                         right_widget = next_it.widget()
                     j += 1
                 show_sep = logical_visible_panel(left_widget) and (
-                    logical_visible_panel(right_widget) or (search_exists and isinstance(right_widget, QLineEdit))
+                    logical_visible_panel(right_widget)
+                    or (search_exists and isinstance(right_widget, QLineEdit))
                 )
                 w.setVisible(show_sep)
                 # Спейсеры фиксированы на 4px
                 left_sp = top_bar.itemAt(i - 1).spacerItem() if i - 1 >= 0 else None
                 if left_sp:
-                    left_sp.changeSize(self.DEFAULT_SPACER_SIZE, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+                    left_sp.changeSize(
+                        self.DEFAULT_SPACER_SIZE,
+                        0,
+                        QSizePolicy.Policy.Fixed,
+                        QSizePolicy.Policy.Fixed,
+                    )
                 right_sp = top_bar.itemAt(i + 1).spacerItem() if i + 1 < count else None
                 if right_sp:
-                    right_sp.changeSize(self.DEFAULT_SPACER_SIZE, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+                    right_sp.changeSize(
+                        self.DEFAULT_SPACER_SIZE,
+                        0,
+                        QSizePolicy.Policy.Fixed,
+                        QSizePolicy.Policy.Fixed,
+                    )
             i += 1
         top_bar.invalidate()
 

@@ -389,7 +389,9 @@ def _get_best_title(candidates: list[tuple[str, str]]) -> str:
 
     # Return best scored title
     best = max(scored, key=lambda x: x[1])
-    logger.debug("[title] best source=%s score=%s title='%s'", best[2], best[1], best[0])
+    logger.debug(
+        "[title] best source=%s score=%s title='%s'", best[2], best[1], best[0]
+    )
     return best[0]
 
 
@@ -696,7 +698,9 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
             try:
                 driver.set_page_load_timeout(pl_to)
             except Exception:
-                logger.debug("[title] could not set selenium page load timeout", exc_info=True)
+                logger.debug(
+                    "[title] could not set selenium page load timeout", exc_info=True
+                )
             try:
                 driver.get(url)
                 page = driver.page_source or ""
@@ -714,9 +718,16 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
                     )
                     return title2 or host
                 except Exception as pe:
-                    logger.error("[title] selenium parse error url=%s err=%s", url, pe, exc_info=True)
+                    logger.error(
+                        "[title] selenium parse error url=%s err=%s",
+                        url,
+                        pe,
+                        exc_info=True,
+                    )
         except Exception as se:
-            logger.warning("[title] selenium fallback failed url=%s err=%s", url, se, exc_info=True)
+            logger.warning(
+                "[title] selenium fallback failed url=%s err=%s", url, se, exc_info=True
+            )
 
     return base_domain(urlparse(url).netloc)
 

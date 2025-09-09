@@ -30,13 +30,17 @@ class ControllerStub:
         class _MinimalModel:
             def insert_sections(self, *_):
                 pass
+
             def insert_categories(self, *_):
                 pass
+
             def update_item(self, *_):
                 pass
+
         class _TreeWithModel:
             def model(self):
                 return _MinimalModel()
+
         self.tree = _TreeWithModel()
         self.icon_handler = object()
 

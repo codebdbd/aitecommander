@@ -65,7 +65,9 @@ class BaseLinksPanelWidget(BasePanelWidget):
 
     linkClicked: pyqtSignal = pyqtSignal(object)
 
-    def __init__(self, main_window: Optional[QWidget] = None, links_business: Any = None):
+    def __init__(
+        self, main_window: Optional[QWidget] = None, links_business: Any = None
+    ):
         """Инициализирует панель ссылок.
 
         Args:
@@ -92,7 +94,9 @@ class BaseLinksPanelWidget(BasePanelWidget):
             logging.warning("Не удалось разрешить путь к иконке '%s': %s", icon_path, e)
             return str(self._get_default_icon_path())
         except Exception as e:
-            logger.exception("Неожиданная ошибка при разрешении иконки '%s': %s", icon_path, e)
+            logger.exception(
+                "Неожиданная ошибка при разрешении иконки '%s': %s", icon_path, e
+            )
             return str(self._get_default_icon_path())
 
     def _create_link_button(self, link_data: Dict[str, Any]) -> QToolButton:
@@ -110,7 +114,7 @@ class BaseLinksPanelWidget(BasePanelWidget):
             # Фолбэк: если иконка не создана или пуста — используем дефолтную
             if not icon or getattr(icon, "isNull", lambda: True)():
                 fallback_path = str(self._get_default_icon_path())
-                logging.warning(
+                logger.warning(
                     "Иконка не создана/пустая для ссылки %r (path=%s). Используем дефолтную: %s",
                     link_data.get("name"),
                     resolved_path,
@@ -122,23 +126,31 @@ class BaseLinksPanelWidget(BasePanelWidget):
             try:
                 from PyQt6.QtCore import QSize as _QSize
                 from PyQt6.QtGui import QGuiApplication
+
                 req_size = _QSize(icon_size[0], icon_size[1])
                 actual = icon.actualSize(req_size)
                 screen = QGuiApplication.primaryScreen()
                 dpr = float(screen.devicePixelRatio()) if screen is not None else 1.0
-                logging.debug(
+                logger.debug(
                     "[TopBarIconDiag] name=%r path=%s req=%sx%s actual=%sx%s btn=%sx%s DPR=%.2f",
                     link_data.get("name"),
                     resolved_path,
-                    req_size.width(), req_size.height(),
-                    actual.width(), actual.height(),
-                    button.size().width(), button.size().height(),
+                    req_size.width(),
+                    req_size.height(),
+                    actual.width(),
+                    actual.height(),
+                    button.size().width(),
+                    button.size().height(),
                     dpr,
                 )
             except Exception as diag_exc:
                 logging.debug("[TopBarIconDiag] failed to log diagnostics: %s", diag_exc)
         except Exception as e:
-            logging.warning("Не удалось создать иконку для ссылки '%s': %s", link_data.get("name", "Unknown"), e)
+            logger.warning(
+                "Не удалось создать иконку для ссылки '%s': %s",
+                link_data.get("name", "Unknown"),
+                e,
+            )
             # Гарантируем визуальный отклик — ставим иконку по умолчанию
             try:
                 fallback_path = str(self._get_default_icon_path())
@@ -171,21 +183,26 @@ class BaseLinksPanelWidget(BasePanelWidget):
             except Exception:
                 # Подробная диагностика для упрощения отладки
                 link_info = {
-                    'index': i,
-                    'id': link.get('id', 'Unknown'),
-                    'name': link.get('name', 'Unknown'),
-                    'url': link.get('url', 'Unknown')[:50] if link.get('url') else 'Unknown'
+                    "index": i,
+                    "id": link.get("id", "Unknown"),
+                    "name": link.get("name", "Unknown"),
+                    "url": link.get("url", "Unknown")[:50]
+                    if link.get("url")
+                    else "Unknown",
                 }
                 logger.exception(
-                    "Не удалось создать кнопку для элемента панели %s", 
-                    link_info
+                    "Не удалось создать кнопку для элемента панели %s", link_info
                 )
                 continue
 
             if button is not None:
                 self.panel_layout.addWidget(button)
             else:
-                logging.debug("create_button_func вернула None для элемента %d: %s", i, link.get('name', 'Unknown'))
+                logging.debug(
+                    "create_button_func вернула None для элемента %d: %s",
+                    i,
+                    link.get("name", "Unknown"),
+                )
 
         try:
             if self.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Expanding:
@@ -193,22 +210,26 @@ class BaseLinksPanelWidget(BasePanelWidget):
         except (AttributeError, RuntimeError) as e:
             logging.warning("Не удалось добавить stretch в layout: %s", e)
 
-
     def _handle_link_click_base(self, link_info) -> None:
         """Эмитит сигнал `linkClicked` по клику по ссылке."""
-        logging.debug("[BaseLinksPanelWidget] link clicked: %s", link_info)
+        logger.debug("[BaseLinksPanelWidget] link clicked: %s", link_info)
         try:
             self.linkClicked.emit(link_info)
         except (TypeError, RuntimeError):
             try:
                 link_ctx = {
-                    'id': getattr(link_info, 'id', None) or (link_info.get('id') if isinstance(link_info, dict) else None),
-                    'name': getattr(link_info, 'name', None) or (link_info.get('name') if isinstance(link_info, dict) else None),
-                    'url': getattr(link_info, 'url', None) or (link_info.get('url') if isinstance(link_info, dict) else None),
+                    "id": getattr(link_info, "id", None)
+                    or (link_info.get("id") if isinstance(link_info, dict) else None),
+                    "name": getattr(link_info, "name", None)
+                    or (link_info.get("name") if isinstance(link_info, dict) else None),
+                    "url": getattr(link_info, "url", None)
+                    or (link_info.get("url") if isinstance(link_info, dict) else None),
                 }
             except Exception:
-                link_ctx = {'raw': repr(link_info)}
-            logger.exception("Ошибка при эмитировании linkClicked; контекст=%s", link_ctx)
+                link_ctx = {"raw": repr(link_info)}
+            logger.exception(
+                "Ошибка при эмитировании linkClicked; контекст=%s", link_ctx
+            )
             raise
 
     def _get_default_icon_path(self) -> Path:
@@ -243,26 +264,28 @@ class BaseDragDropTableWidget(QTableView):
             self.viewport().setAcceptDrops(True)
             self.viewport().installEventFilter(self)
         except (AttributeError, RuntimeError) as e:
-            logging.warning("_setup_drag_drop: viewport DnD setup failed: %s", e)
+            logger.warning("_setup_drag_drop: viewport DnD setup failed: %s", e)
             raise
         self.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
         try:
             self.setDragDropOverwriteMode(False)
         except (AttributeError, RuntimeError) as e:
-            logging.warning("_setup_drag_drop: setDragDropOverwriteMode unsupported: %s", e)
+            logger.warning(
+                "_setup_drag_drop: setDragDropOverwriteMode unsupported: %s", e
+            )
         try:
             self.setDefaultDropAction(Qt.DropAction.MoveAction)
         except (AttributeError, RuntimeError) as e:
-            logging.warning("_setup_drag_drop: setDefaultDropAction unsupported: %s", e)
+            logger.warning("_setup_drag_drop: setDefaultDropAction unsupported: %s", e)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         try:
             self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         except (AttributeError, RuntimeError) as e:
-            logging.warning("_setup_drag_drop: setSelectionMode unsupported: %s", e)
+            logger.warning("_setup_drag_drop: setSelectionMode unsupported: %s", e)
         try:
             self.setDropIndicatorShown(True)
         except (AttributeError, RuntimeError) as e:
-            logging.warning("_setup_drag_drop: setDropIndicatorShown unsupported: %s", e)
+            logger.warning("_setup_drag_drop: setDropIndicatorShown unsupported: %s", e)
         self.setSortingEnabled(True)
         self.setTabKeyNavigation(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -352,23 +375,32 @@ class BaseDragDropTableWidget(QTableView):
             if self._sorting_disabled_for_drag:
                 self.setSortingEnabled(False)
         try:
-            if self._is_internal_drop(event) and event.mimeData() and event.mimeData().hasFormat(self.MIME_TYPE):
-                logging.debug("[DROP] dragEnterEvent: accept internal with our MIME")
+            if (
+                self._is_internal_drop(event)
+                and event.mimeData()
+                and event.mimeData().hasFormat(self.MIME_TYPE)
+            ):
+                logger.debug("[DROP] dragEnterEvent: accept internal with our MIME")
                 event.acceptProposedAction()
                 return
         except Exception as exc:
             try:
                 md = event.mimeData() if hasattr(event, "mimeData") else None
                 formats = list(md.formats()) if md and hasattr(md, "formats") else []
-                has_our_mime = bool(md and hasattr(md, "hasFormat") and md.hasFormat(self.MIME_TYPE))
+                has_our_mime = bool(
+                    md and hasattr(md, "hasFormat") and md.hasFormat(self.MIME_TYPE)
+                )
                 pos = getattr(event, "position", None)
                 pos_tuple = (int(pos.x()), int(pos.y())) if pos is not None else None
                 proposed = getattr(event, "proposedAction", None)
                 proposed_val = proposed() if callable(proposed) else proposed
             except Exception as info_exc:
                 formats, has_our_mime, pos_tuple, proposed_val = [], False, None, None
-                logging.debug("[DROP] dragEnterEvent: failed to collect diagnostic info: %s", info_exc)
-            logging.warning(
+                logger.debug(
+                    "[DROP] dragEnterEvent: failed to collect diagnostic info: %s",
+                    info_exc,
+                )
+            logger.warning(
                 "[DROP] dragEnterEvent: handler error: %s; mime_formats=%r has_our_mime=%s pos=%r proposed=%r",
                 exc,
                 formats,
@@ -383,23 +415,32 @@ class BaseDragDropTableWidget(QTableView):
     def dragMoveEvent(self, event):
         """Поддержка перетаскивания внутри виджета."""
         try:
-            if self._is_internal_drop(event) and event.mimeData() and event.mimeData().hasFormat(self.MIME_TYPE):
-                logging.debug("[DROP] dragMoveEvent: accept internal with our MIME")
+            if (
+                self._is_internal_drop(event)
+                and event.mimeData()
+                and event.mimeData().hasFormat(self.MIME_TYPE)
+            ):
+                logger.debug("[DROP] dragMoveEvent: accept internal with our MIME")
                 event.acceptProposedAction()
                 return
         except Exception as exc:
             try:
                 md = event.mimeData() if hasattr(event, "mimeData") else None
                 formats = list(md.formats()) if md and hasattr(md, "formats") else []
-                has_our_mime = bool(md and hasattr(md, "hasFormat") and md.hasFormat(self.MIME_TYPE))
+                has_our_mime = bool(
+                    md and hasattr(md, "hasFormat") and md.hasFormat(self.MIME_TYPE)
+                )
                 pos = getattr(event, "position", None)
                 pos_tuple = (int(pos.x()), int(pos.y())) if pos is not None else None
                 proposed = getattr(event, "proposedAction", None)
                 proposed_val = proposed() if callable(proposed) else proposed
             except Exception as info_exc:
                 formats, has_our_mime, pos_tuple, proposed_val = [], False, None, None
-                logging.debug("[DROP] dragMoveEvent: failed to collect diagnostic info: %s", info_exc)
-            logging.warning(
+                logger.debug(
+                    "[DROP] dragMoveEvent: failed to collect diagnostic info: %s",
+                    info_exc,
+                )
+            logger.warning(
                 "[DROP] dragMoveEvent: handler error: %s; mime_formats=%r has_our_mime=%s pos=%r proposed=%r",
                 exc,
                 formats,
@@ -425,9 +466,11 @@ class BaseDragDropTableWidget(QTableView):
             return
 
         source_rows, target_row = self._get_drop_positions(event)
-        logging.info("[DROP] dropEvent: source_rows=%s, target_row=%s", source_rows, target_row)
+        logger.info(
+            "[DROP] dropEvent: source_rows=%s, target_row=%s", source_rows, target_row
+        )
         if not self._is_valid_internal_drop(source_rows, target_row):
-            logging.info("[DROP] dropEvent: invalid internal drop, ignoring")
+            logger.info("[DROP] dropEvent: invalid internal drop, ignoring")
             event.ignore()
             return
 
@@ -443,13 +486,15 @@ class BaseDragDropTableWidget(QTableView):
 
             ids_in_order = self._get_current_order()
             if ids_in_order:
-                logging.info("[DROP] dropEvent: items_reordered -> %s ids", len(ids_in_order))
+                logger.info(
+                    "[DROP] dropEvent: items_reordered -> %s ids", len(ids_in_order)
+                )
                 self.items_reordered.emit(ids_in_order)
             else:
-                logging.warning("[DROP] Не удалось собрать ID после перемещения")
+                logger.warning("[DROP] Не удалось собрать ID после перемещения")
 
         except Exception as e:
-            logging.error("[DROP] Ошибка при перемещении строки: %s", e)
+            logger.error("[DROP] Ошибка при перемещении строки: %s", e)
             event.ignore()
         finally:
             if not moved and self._sorting_disabled_for_drag:
@@ -499,7 +544,9 @@ class BaseDragDropTableWidget(QTableView):
             # Фолбэк: попытка привести к int строковое значение
             return int(str(data))
         except (TypeError, ValueError) as e:
-            logging.warning("[BaseTableView] Некорректные данные ID в UserRole: %r", data)
+            logger.warning(
+                "[BaseTableView] Некорректные данные ID в UserRole: %r", data
+            )
             raise ValueError("Cannot extract integer ID from UserRole data") from e
 
     def _get_drop_positions(self, event) -> tuple:
@@ -511,10 +558,10 @@ class BaseDragDropTableWidget(QTableView):
         """
         if self._is_internal_drop(event):
             source_rows = self._extract_source_rows_from_mime(event)
-            logging.debug("[DROP] extracted rows from MIME: %s", len(source_rows))
+            logger.debug("[DROP] extracted rows from MIME: %s", len(source_rows))
         else:
             source_rows = self._get_selected_rows()
-            logging.debug("[DROP] selected rows: %s", len(source_rows))
+            logger.debug("[DROP] selected rows: %s", len(source_rows))
 
         if not source_rows:
             return [], -1
@@ -537,7 +584,7 @@ class BaseDragDropTableWidget(QTableView):
                 target_row = self.model().rowCount()
             except Exception:
                 target_row = -1
-            logging.debug("[DROP] target_row (viewport append): %s", target_row)
+            logger.debug("[DROP] target_row (viewport append): %s", target_row)
             return source_rows, target_row
 
         target_row = target_index.row()
@@ -553,9 +600,13 @@ class BaseDragDropTableWidget(QTableView):
         if source_rows:
             first, last = min(source_rows), max(source_rows)
             if first <= target_row <= last + 1:
-                target_row = last + 1 if pos == QAbstractItemView.DropIndicatorPosition.BelowItem else first
+                target_row = (
+                    last + 1
+                    if pos == QAbstractItemView.DropIndicatorPosition.BelowItem
+                    else first
+                )
 
-        logging.debug("[DROP] target_row: %s", target_row)
+        logger.debug("[DROP] target_row: %s", target_row)
         return source_rows, target_row
 
     def _is_valid_internal_drop(self, source_rows: list, target_row: int) -> bool:
@@ -595,7 +646,7 @@ class BaseDragDropTableWidget(QTableView):
             else:
                 rows = self._get_selected_rows()
 
-            logging.debug("[PIXMAP] rows for drag pixmap: %s", len(rows))
+            logger.debug("[PIXMAP] rows for drag pixmap: %s", len(rows))
 
             if not rows:
                 return None
@@ -608,7 +659,7 @@ class BaseDragDropTableWidget(QTableView):
                 return self._create_multi_row_pixmap(row_count)
 
         except Exception as e:
-            logging.warning("Не удалось создать drag pixmap: %s", e)
+            logger.warning("Не удалось создать drag pixmap: %s", e)
             return None
 
     def _create_single_row_pixmap(self, row: int) -> Optional[QPixmap]:
@@ -639,7 +690,7 @@ class BaseDragDropTableWidget(QTableView):
             return self._create_text_pixmap(text, single_row=True)
 
         except Exception as e:
-            logging.warning("Ошибка создания single row pixmap: %s", e)
+            logger.warning("Ошибка создания single row pixmap: %s", e)
             return self._create_default_pixmap()
 
     def _create_multi_row_pixmap(self, count: int) -> QPixmap:

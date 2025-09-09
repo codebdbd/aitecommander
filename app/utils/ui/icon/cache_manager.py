@@ -83,6 +83,7 @@ CacheMetrics = _ExternalCacheMetrics or _FallbackCacheMetrics
 
 # --- Типы записей кэша ---
 
+
 def _is_entry_valid(timestamp: float, ttl_seconds: Optional[float]) -> bool:
     """Проверяет валидность записи по TTL."""
     if ttl_seconds is None:
@@ -178,7 +179,9 @@ class ThreadSafeIconCache:
             raise ValueError("Unified key must contain prefix 'path:' or 'qicon:'")
         prefix, rest = key.split(":", 1)
         if "::" not in rest:
-            raise ValueError("Unified key must be in form '<prefix>:<icon_name>::<theme>'")
+            raise ValueError(
+                "Unified key must be in form '<prefix>:<icon_name>::<theme>'"
+            )
         icon_name, theme = rest.split("::", 1)
         if prefix not in {"path", "qicon"}:
             raise ValueError("Unsupported prefix, expected 'path' or 'qicon'")
@@ -203,21 +206,33 @@ class ThreadSafeIconCache:
                     self._ttl_icon = app_config.get_icon_cache_ttl()
                 except Exception:  # noqa: BLE001
                     self._ttl_icon = None
-            if getattr(app_config, "get_abs_icon_cache_ttl", None) is not self._getter_abs:
+            if (
+                getattr(app_config, "get_abs_icon_cache_ttl", None)
+                is not self._getter_abs
+            ):
                 self._getter_abs = getattr(app_config, "get_abs_icon_cache_ttl", None)
                 try:
                     self._ttl_abs = app_config.get_abs_icon_cache_ttl()
                 except Exception:  # noqa: BLE001
                     self._ttl_abs = None
-            if getattr(app_config, "get_negative_cache_ttl", None) is not self._getter_negative:
-                self._getter_negative = getattr(app_config, "get_negative_cache_ttl", None)
+            if (
+                getattr(app_config, "get_negative_cache_ttl", None)
+                is not self._getter_negative
+            ):
+                self._getter_negative = getattr(
+                    app_config, "get_negative_cache_ttl", None
+                )
                 try:
                     self._ttl_negative = app_config.get_negative_cache_ttl()
                 except Exception:  # noqa: BLE001
                     self._ttl_negative = None
         except Exception as exc:
             # Никогда не мешаем основному пути исполнения из-за ошибок конфигурации
-            logger.debug("IconCache: TTL refresh failed, using previous values: %s", exc, exc_info=True)
+            logger.debug(
+                "IconCache: TTL refresh failed, using previous values: %s",
+                exc,
+                exc_info=True,
+            )
 
     # --- PATH API ---
 
@@ -232,11 +247,15 @@ class ThreadSafeIconCache:
                 try:
                     self.metrics.record_miss()
                 except Exception as exc:  # noqa: BLE001
-                    logger.debug("IconCache.metrics.record_miss failed: %s", exc, exc_info=True)
+                    logger.debug(
+                        "IconCache.metrics.record_miss failed: %s", exc, exc_info=True
+                    )
                 return None
 
             # Персональный TTL имеет приоритет над глобальным TTL для путей
-            ttl = entry.ttl_override if entry.ttl_override is not None else self._ttl_icon
+            ttl = (
+                entry.ttl_override if entry.ttl_override is not None else self._ttl_icon
+            )
             if not entry.is_valid(ttl):
                 self._path_cache.pop(key, None)
                 self._path_lru.remove(key)
@@ -250,7 +269,9 @@ class ThreadSafeIconCache:
             try:
                 self.metrics.record_hit()
             except Exception as exc:  # noqa: BLE001
-                logger.debug("IconCache.metrics.record_hit failed: %s", exc, exc_info=True)
+                logger.debug(
+                    "IconCache.metrics.record_hit failed: %s", exc, exc_info=True
+                )
             return entry.path
 
     def set_path(self, icon_name: str, theme: str, path: Optional[str]) -> None:
@@ -290,7 +311,7 @@ class ThreadSafeIconCache:
             if entry.negative:
                 base_ttl = self._ttl_negative
             else:
-                base_ttl = (self._ttl_abs if theme == "__abs__" else self._ttl_icon)
+                base_ttl = self._ttl_abs if theme == "__abs__" else self._ttl_icon
             ttl = entry.ttl_override if entry.ttl_override is not None else base_ttl
             if not entry.is_valid(ttl):
                 self._qicon_cache.pop(key, None)
@@ -327,7 +348,9 @@ class ThreadSafeIconCache:
             if should_evict and old_key:
                 self._qicon_cache.pop(old_key, None)
 
-            entry = IconCacheEntry(icon=icon, timestamp=time.time(), negative=negative, ttl_override=None)
+            entry = IconCacheEntry(
+                icon=icon, timestamp=time.time(), negative=negative, ttl_override=None
+            )
             self._qicon_cache[key] = entry
             self._qicon_lru.access(key)
             logger.debug("Set QICON: %s", key)
@@ -347,9 +370,17 @@ class ThreadSafeIconCache:
                     try:
                         self.metrics.record_miss()
                     except Exception as exc:  # noqa: BLE001
-                        logger.debug("IconCache.metrics.record_miss failed: %s", exc, exc_info=True)
+                        logger.debug(
+                            "IconCache.metrics.record_miss failed: %s",
+                            exc,
+                            exc_info=True,
+                        )
                     return None
-                ttl = entry.ttl_override if entry.ttl_override is not None else self._ttl_icon
+                ttl = (
+                    entry.ttl_override
+                    if entry.ttl_override is not None
+                    else self._ttl_icon
+                )
                 if not entry.is_valid(ttl):
                     self._path_cache.pop(k, None)
                     self._path_lru.remove(k)
@@ -362,7 +393,9 @@ class ThreadSafeIconCache:
                 try:
                     self.metrics.record_hit()
                 except Exception as exc:  # noqa: BLE001
-                    logger.debug("IconCache.metrics.record_hit failed: %s", exc, exc_info=True)
+                    logger.debug(
+                        "IconCache.metrics.record_hit failed: %s", exc, exc_info=True
+                    )
                 return entry.path
             else:  # qicon
                 self._sync_qicon_structs()
@@ -390,31 +423,52 @@ class ThreadSafeIconCache:
                 try:
                     self.metrics.record_hit()
                 except Exception as exc:  # noqa: BLE001
-                    logger.debug("IconCache.metrics.record_hit failed: %s", exc, exc_info=True)
+                    logger.debug(
+                        "IconCache.metrics.record_hit failed: %s", exc, exc_info=True
+                    )
                 return entry.icon
 
-    def set(self, key: str, value: Optional[Union[str, QIcon]], *, ttl: Optional[float] = None) -> None:
+    def set(
+        self,
+        key: str,
+        value: Optional[Union[str, QIcon]],
+        *,
+        ttl: Optional[float] = None,
+    ) -> None:
         """Устанавливает значение по ключу (для qicon None означает негативную запись)."""
         prefix, icon_name, theme = self._parse_unified_key(key)
         with acquire_cache_lock():
             if prefix == "path":
                 self._sync_path_structs()
                 k = self._key(icon_name, theme)
-                should_evict, old_key = self._path_lru.evict_if_needed(self._path_cache, k)
+                should_evict, old_key = self._path_lru.evict_if_needed(
+                    self._path_cache, k
+                )
                 if should_evict and old_key:
                     self._path_cache.pop(old_key, None)
-                entry = PathCacheEntry(path=value if isinstance(value, (str, type(None))) else None, timestamp=time.time(), ttl_override=ttl)
+                entry = PathCacheEntry(
+                    path=value if isinstance(value, (str, type(None))) else None,
+                    timestamp=time.time(),
+                    ttl_override=ttl,
+                )
                 self._path_cache[k] = entry
                 self._path_lru.access(k)
             else:
                 self._sync_qicon_structs()
                 k = self._key(icon_name, theme)
-                should_evict, old_key = self._qicon_lru.evict_if_needed(self._qicon_cache, k)
+                should_evict, old_key = self._qicon_lru.evict_if_needed(
+                    self._qicon_cache, k
+                )
                 if should_evict and old_key:
                     self._qicon_cache.pop(old_key, None)
                 negative = value is None
                 icon_val: Optional[QIcon] = value if isinstance(value, QIcon) else None
-                entry = IconCacheEntry(icon=icon_val, timestamp=time.time(), negative=negative, ttl_override=ttl)
+                entry = IconCacheEntry(
+                    icon=icon_val,
+                    timestamp=time.time(),
+                    negative=negative,
+                    ttl_override=ttl,
+                )
                 self._qicon_cache[k] = entry
                 self._qicon_lru.access(k)
 
@@ -520,7 +574,13 @@ class IconManager:
     def get(self, key: str) -> Optional[Union[str, QIcon]]:
         return self._cache.get(key)
 
-    def set(self, key: str, value: Optional[Union[str, QIcon]], *, ttl: Optional[float] = None) -> None:
+    def set(
+        self,
+        key: str,
+        value: Optional[Union[str, QIcon]],
+        *,
+        ttl: Optional[float] = None,
+    ) -> None:
         self._cache.set(key, value, ttl=ttl)
 
     def invalidate(self, key: Optional[str] = None) -> None:
@@ -628,11 +688,14 @@ def get_path(icon_name: str, theme: str) -> Optional[str]:
 def set_path(icon_name: str, theme: str, path: Optional[str]) -> None:
     _icon_manager.set_path(icon_name, theme, path)
 
+
 def get(key: str) -> Optional[Union[str, QIcon]]:
     return _icon_manager.get(key)
 
 
-def set(key: str, value: Optional[Union[str, QIcon]], *, ttl: Optional[float] = None) -> None:
+def set(
+    key: str, value: Optional[Union[str, QIcon]], *, ttl: Optional[float] = None
+) -> None:
     _icon_manager.set(key, value, ttl=ttl)
 
 

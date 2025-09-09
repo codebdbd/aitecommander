@@ -63,7 +63,9 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
             if col == 2:
                 return self._last_used_display_text(link.get("last_used"))
             if col == 3:
-                display, _ = self._notes_display_and_tooltip(link.get("notes", ""), truncate=False)
+                display, _ = self._notes_display_and_tooltip(
+                    link.get("notes", ""), truncate=False
+                )
                 return display
 
         if role == Qt.ItemDataRole.DecorationRole:
@@ -88,7 +90,9 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
                 if tip:
                     return tip
             if col == 3:
-                _, tip = self._notes_display_and_tooltip(link.get("notes", ""), truncate=False)
+                _, tip = self._notes_display_and_tooltip(
+                    link.get("notes", ""), truncate=False
+                )
                 if tip:
                     return tip
 
@@ -104,7 +108,10 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
         orientation: Qt.Orientation,
         role: int = Qt.ItemDataRole.DisplayRole,
     ) -> Any:  # type: ignore[override]
-        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
+        if (
+            orientation == Qt.Orientation.Horizontal
+            and role == Qt.ItemDataRole.DisplayRole
+        ):
             if 0 <= section < len(self._headers):
                 return self._headers[section]
         return super().headerData(section, orientation, role)
@@ -150,7 +157,9 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
                 top_left = self.index(row, 0)
                 bottom_right = self.index(row, len(self._headers) - 1)
                 # Сообщаем, что могли измениться и декорации (иконки)
-                self.dataChanged.emit(top_left, bottom_right, [Qt.ItemDataRole.DecorationRole])
+                self.dataChanged.emit(
+                    top_left, bottom_right, [Qt.ItemDataRole.DecorationRole]
+                )
                 return True
 
             if role in (Qt.ItemDataRole.EditRole, Qt.ItemDataRole.DisplayRole):
@@ -167,7 +176,9 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
                     return False
                 # Любое изменение данных потенциально влияет на отображение — чистим кеш иконки
                 link.pop("_icon", None)
-                self.dataChanged.emit(index, index, [role, Qt.ItemDataRole.DecorationRole])
+                self.dataChanged.emit(
+                    index, index, [role, Qt.ItemDataRole.DecorationRole]
+                )
                 return True
         except Exception:
             return False
@@ -189,7 +200,9 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
         self._headers = headers
         # Более дешёвый сигнал изменения заголовков
 
-        self.headerDataChanged.emit(Qt.Orientation.Horizontal, 0, len(self._headers) - 1)
+        self.headerDataChanged.emit(
+            Qt.Orientation.Horizontal, 0, len(self._headers) - 1
+        )
 
     def set_links(self, links: Sequence[Dict[str, Any]]) -> None:
         self.beginResetModel()
@@ -276,14 +289,16 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
                 # если цель попадает внутрь диапазона, считаем как no-op
                 return
 
-            if not self.beginMoveRows(QModelIndex(), first, last, QModelIndex(), insert_row):
+            if not self.beginMoveRows(
+                QModelIndex(), first, last, QModelIndex(), insert_row
+            ):
                 return
             # Извлекаем сегмент и вставляем
             segment = self._links[first : last + 1]
             del self._links[first : last + 1]
             # Корректируем позицию вставки после удаления
             if insert_row > first:
-                insert_row -= (last - first + 1)
+                insert_row -= last - first + 1
             for i, item in enumerate(segment):
                 self._links.insert(insert_row + i, item)
             self.endMoveRows()
@@ -295,7 +310,9 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
         # Это соответствует пользовательскому ожиданию: "вставить перед элементом,
         # который был на позиции target_row до перемещения".
         src_set = set(src)
-        remaining: List[Dict[str, Any]] = [item for i, item in enumerate(self._links) if i not in src_set]
+        remaining: List[Dict[str, Any]] = [
+            item for i, item in enumerate(self._links) if i not in src_set
+        ]
         segment: List[Dict[str, Any]] = [self._links[i] for i in src]
         insert_at = max(0, min(target_row, len(remaining)))
         self.layoutAboutToBeChanged.emit()
@@ -305,7 +322,9 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
             self.layoutChanged.emit()
 
     # --- Сортировка ---
-    def sort(self, column: int, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder) -> None:  # type: ignore[override]
+    def sort(
+        self, column: int, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder
+    ) -> None:  # type: ignore[override]
         """Сортировка данных модели по клику в заголовке QTableView.
 
         Поддерживаются колонки:
@@ -322,6 +341,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
             Возвращает -inf (очень старое), если значение отсутствует/непарсибельно.
             """
             from math import inf
+
             if v is None:
                 return -inf
             # Already numeric
@@ -332,6 +352,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
             # ISO datetime string
             try:
                 from datetime import datetime
+
                 return datetime.fromisoformat(str(v)).timestamp()
             except Exception:
                 pass

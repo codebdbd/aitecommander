@@ -8,6 +8,7 @@ Goals:
 This module intentionally avoids duplicating lock logic. It delegates to the
 existing LockManager while adding thin convenience wrappers.
 """
+
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -52,7 +53,9 @@ def ensure_default_locks_registered() -> None:
 
 
 @contextmanager
-def acquire_lock(name: str, timeout: float | None = None) -> Generator[None, None, None]:
+def acquire_lock(
+    name: str, timeout: float | None = None
+) -> Generator[None, None, None]:
     """Acquire a single lock by name via the global LockManager.
 
     Delegates to synchronization's `acquire_lock` for the given registered name.
@@ -64,7 +67,9 @@ def acquire_lock(name: str, timeout: float | None = None) -> Generator[None, Non
 
 
 @contextmanager
-def acquire_multiple_locks(*names: str, timeout_per_lock: float | None = None) -> Generator[None, None, None]:
+def acquire_multiple_locks(
+    *names: str, timeout_per_lock: float | None = None
+) -> Generator[None, None, None]:
     """Acquire multiple locks in a well-defined order to avoid deadlocks.
 
     - If all names are icon locks, they are sorted by `_ICON_ORDER`.

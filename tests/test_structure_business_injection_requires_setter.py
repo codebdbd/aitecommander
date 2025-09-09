@@ -5,6 +5,7 @@ import pytest
 # Тест проверяет, что отсутствие set_top_panels_controller в StructureBusinessLogic
 # приводит к SetupError при вызове setup_controllers
 
+
 def test_setup_raises_if_structure_business_lacks_setter(monkeypatch):
     from app.controllers.system import window_controllers_setup as wcs
 
@@ -12,6 +13,7 @@ def test_setup_raises_if_structure_business_lacks_setter(monkeypatch):
         # Отсутствует set_top_panels_controller
         def __init__(self, db):
             self.db = db
+
         # Нужные минимальные атрибуты/сигналы для дальнейшей проводки
         active_sphere_changed = SimpleNamespace(connect=lambda *_args, **_kw: None)
         structure_loaded = SimpleNamespace(connect=lambda *_args, **_kw: None)
@@ -19,6 +21,7 @@ def test_setup_raises_if_structure_business_lacks_setter(monkeypatch):
     class DummyLinksBusiness:
         def __init__(self, db):
             self.db = db
+
         # Сигналы, к которым подключается код
         links_loaded = SimpleNamespace(connect=lambda *_args, **_kw: None)
         search_results_ready = SimpleNamespace(connect=lambda *_args, **_kw: None)
@@ -37,20 +40,28 @@ def test_setup_raises_if_structure_business_lacks_setter(monkeypatch):
     class DummyLinksTableController:
         def __init__(self, window, table, links_business, category_provider):
             pass
+
         def on_links_changed(self, *_):
             pass
+
         def on_link_saved(self, *_):
             pass
+
         def on_link_deleted(self, *_):
             pass
+
         def on_links_loaded(self, *_):
             pass
+
         def on_search_results(self, *_):
             pass
 
     class DummyLinksUIController:
-        def __init__(self, table, links_business, window, link_operations, links_table_controller):
+        def __init__(
+            self, table, links_business, window, link_operations, links_table_controller
+        ):
             pass
+
         def on_quick_add_requested(self, *_):
             pass
 
@@ -64,7 +75,14 @@ def test_setup_raises_if_structure_business_lacks_setter(monkeypatch):
             self.operation_error = SimpleNamespace(connect=lambda *_a, **_k: None)
 
     class DummySystemDialogController:
-        def __init__(self, window, *, database_controller=None, links_table_controller=None, links_business=None):  # noqa: ARG002
+        def __init__(
+            self,
+            window,
+            *,
+            database_controller=None,
+            links_table_controller=None,
+            links_business=None,
+        ):  # noqa: ARG002
             pass
 
     class DummyAppShutdownController:
@@ -74,6 +92,7 @@ def test_setup_raises_if_structure_business_lacks_setter(monkeypatch):
     class DummyCategoryTilesController:
         def __init__(self, ui_state, structure_business):
             pass
+
         def attach_tiles_widget(self, tiles):
             pass
 
@@ -86,41 +105,53 @@ def test_setup_raises_if_structure_business_lacks_setter(monkeypatch):
     class DummySpheresBarController:
         def __init__(self, window):
             pass
+
         def update_active_sphere_button(self, *_):
             pass
 
     class DummyTopPanelsController:
         def __init__(self, window, fav_widget, recent_links_widget, links_business):
             pass
+
         def request_refresh(self):
             pass
+
         def request_favorites_refresh(self, *_):
             pass
+
         def request_recents_refresh(self, *_):
             pass
+
         def clear_favorites(self):
             pass
+
         def schedule_structure_refresh(self):
             pass
 
     class DummyQAction:
         def __init__(self, *args, **kwargs):
             pass
+
         def setToolTip(self, *_):
             pass
+
         @property
         def icon(self):
             return lambda: None
+
         def triggered(self):
             return SimpleNamespace(connect=lambda *_a, **_k: None)
 
     class DummyQPushButton:
         def __init__(self, *args, **kwargs):
             pass
+
         def setToolTip(self, *_):
             pass
+
         def setFont(self, *_):
             pass
+
         def clicked(self):
             return SimpleNamespace(connect=lambda *_a, **_k: None)
 
@@ -161,6 +192,7 @@ def test_setup_raises_if_structure_business_lacks_setter(monkeypatch):
         editRequested = SimpleNamespace(connect=lambda *_a, **_k: None)
         deleteRequested = SimpleNamespace(connect=lambda *_a, **_k: None)
         addLinkRequested = SimpleNamespace(connect=lambda *_a, **_k: None)
+
         def inject_dependencies(self, **_deps):
             pass
 
