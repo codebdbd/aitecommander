@@ -11,9 +11,8 @@ class IconsMixin:
     def _on_choose_icon(self) -> None:
         """Обработчик выбора иконки."""
         user_icons_dir = self.dialog.get_user_icons_dir()
-        fname, icon = choose_icon_and_copy(
-            self.dialog, user_icons_dir, file_filter="Изображения (*.png *.ico *.svg)"
-        )
+        # Фильтр формируется динамически на основе app_config.get_supported_icon_formats()
+        fname, icon = choose_icon_and_copy(self.dialog, user_icons_dir)
         if not fname or not icon:
             return
 

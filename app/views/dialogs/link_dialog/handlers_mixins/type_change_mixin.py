@@ -116,7 +116,7 @@ class TypeChangeMixin:
                     codes.add(str(item))
         except (TypeError, ValueError, AttributeError) as e:
             # В спорных случаях просто выходим тихо, не меняя состояние
-            logging.debug("set_link_type: ошибка нормализации link_types: %s", e)
+            logger.debug("set_link_type: ошибка нормализации link_types: %s", e)
             return
 
         # Поддерживаем внешние вызовы как строками, так и Enum

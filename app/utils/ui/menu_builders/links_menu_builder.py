@@ -83,6 +83,10 @@ class LinksMenuBuilder:
             )
         )
 
+        # Поделиться (сразу после избранного) — только для веб‑ссылок
+        if self._is_web_link(link):
+            self._add_share_submenu(menu, link)
+
         menu.addSeparator()
 
         # Редактировать
@@ -143,6 +147,129 @@ class LinksMenuBuilder:
             menu.addAction(self.main_window.undo_action)
         if getattr(self.main_window, "redo_action", None) is not None:
             menu.addAction(self.main_window.redo_action)
+
+    def _add_share_submenu(self, menu: QMenu, link: Dict) -> None:
+        """Добавляет подменю «Поделиться» для одиночной ссылки."""
+        try:
+            # Защита от не‑веб ссылок (например, program://, file:// и т.п.)
+            if not self._is_web_link(link):
+                return
+            share_menu = QMenu("Поделиться", menu)
+            share_menu.setIcon(get_menu_icon("share", self.theme))
+
+            # Telegram
+            share_menu.addAction(
+                self.actions.create(
+                    "Telegram",
+                    lambda: self.main_window.links_actions.share_via_telegram(link),
+                    None,
+                    get_menu_icon("telegram", self.theme),
+                )
+            )
+            # WhatsApp
+            share_menu.addAction(
+                self.actions.create(
+                    "WhatsApp",
+                    lambda: self.main_window.links_actions.share_via_whatsapp(link),
+                    None,
+                    get_menu_icon("whatsapp", self.theme),
+                )
+            )
+            # Viber
+            share_menu.addAction(
+                self.actions.create(
+                    "Viber",
+                    lambda: self.main_window.links_actions.share_via_viber(link),
+                    None,
+                    get_menu_icon("viber", self.theme),
+                )
+            )
+            # X (Twitter)
+            share_menu.addAction(
+                self.actions.create(
+                    "X (Twitter)",
+                    lambda: self.main_window.links_actions.share_via_x(link),
+                    None,
+                    get_menu_icon("x", self.theme),
+                )
+            )
+            # Facebook
+            share_menu.addAction(
+                self.actions.create(
+                    "Facebook",
+                    lambda: self.main_window.links_actions.share_via_facebook(link),
+                    None,
+                    get_menu_icon("facebook", self.theme),
+                )
+            )
+            # LinkedIn
+            share_menu.addAction(
+                self.actions.create(
+                    "LinkedIn",
+                    lambda: self.main_window.links_actions.share_via_linkedin(link),
+                    None,
+                    get_menu_icon("linkedin", self.theme),
+                )
+            )
+            # Pinterest
+            share_menu.addAction(
+                self.actions.create(
+                    "Pinterest",
+                    lambda: self.main_window.links_actions.share_via_pinterest(link),
+                    None,
+                    get_menu_icon("pinterest", self.theme),
+                )
+            )
+            # Email (подменю)
+            email_menu = QMenu("Email", share_menu)
+            email_menu.setIcon(get_menu_icon("email", self.theme))
+            # Сначала Gmail, затем системный почтовый клиент
+            email_menu.addAction(
+                self.actions.create(
+                    "Через Gmail",
+                    lambda: self.main_window.links_actions.share_via_email_gmail(link),
+                    None,
+                    get_menu_icon("gmail", self.theme),
+                )
+            )
+            email_menu.addAction(
+                self.actions.create(
+                    "Через приложение (mailto)",
+                    lambda: self.main_window.links_actions.share_via_email_client(link),
+                    None,
+                    get_menu_icon("email_client", self.theme),
+                )
+            )
+            email_menu.addAction(
+                self.actions.create(
+                    "Скопировать как письмо",
+                    lambda: self.main_window.links_actions.copy_email_template(link),
+                    None,
+                    get_menu_icon("copy", self.theme),
+                )
+            )
+
+            # Настройка почтового клиента не добавляется по просьбе пользователя –
+            # ассоциации mailto управляются в Windows автоматически.
+
+            share_menu.addMenu(email_menu)
+
+            menu.addMenu(share_menu)
+        except Exception as e:
+            logger.warning("Failed to build Share submenu: %s", e, exc_info=True)
+
+    def _is_web_link(self, link: Dict) -> bool:
+        """Проверяет, является ли ссылка веб‑ссылкой (http/https)."""
+        if not isinstance(link, dict):
+            return False
+        try:
+            url = link.get("url") or link.get("href")
+            if not isinstance(url, str):
+                return False
+            low = url.strip().lower()
+            return low.startswith("http://") or low.startswith("https://")
+        except Exception:
+            return False
 
     def _add_additional_actions(self, menu: QMenu, link: dict):
         """Добавляет дополнительные действия."""

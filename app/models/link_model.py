@@ -4,6 +4,7 @@ import sqlite3
 from typing import Any, Dict, List, Optional, Tuple
 
 from .db_base import DatabaseBase, DatabaseError
+from .link_type import LinkType
 
 logger = logging.getLogger(__name__)
 
@@ -198,6 +199,12 @@ class LinkModel(DatabaseBase):
         # Создаем копию данных с учётом всех возможных полей
         data = {field: link.get(field) for field in all_possible_fields}
         data["is_favorite"] = int(data.get("is_favorite", 0) or 0)
+        # Нормализация типа ссылки: Enum/строка -> строковое значение ('web', 'file', ...)
+        try:
+            data["type"] = LinkType.from_value(data.get("type", "web")).value
+        except Exception:
+            # Безопасный фолбэк
+            data["type"] = LinkType.WEB.value
 
         logger.debug(
             "Upsert ссылки: %s, browser_key=%s",
@@ -632,7 +639,11 @@ class LinkModel(DatabaseBase):
             data["name"] = data.get("name", "") or ""
             data["url"] = data.get("url", "") or ""
             data["args"] = data.get("args", "") or ""
-            data["type"] = data.get("type", "web") or "web"
+            # Нормализуем тип к строке (на случай, если пришёл Enum)
+            try:
+                data["type"] = LinkType.from_value(data.get("type", "web")).value
+            except Exception:
+                data["type"] = LinkType.WEB.value
             data["notes"] = data.get("notes", "") or ""
             data["is_favorite"] = int(data.get("is_favorite", 0) or 0)
             data["icon_path"] = data.get("icon_path", "default.ico") or "default.ico"

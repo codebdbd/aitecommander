@@ -113,7 +113,7 @@ class WindowInitializer:
             )
 
     def _run_light_steps(self) -> None:
-        """Выполняет лёгкие синхронные шаги, подключает сигналы и показывает окно."""
+        """Выполняет лёгкие синхронные шаги и подключает сигналы (без показа окна)."""
         light_steps = (
             self._init_window_properties,
             self._init_basic_attributes,
@@ -131,31 +131,11 @@ class WindowInitializer:
         try:
             if hasattr(self.window, "shown"):
                 self.window.shown.connect(self._on_window_shown)
-        except Exception:
+        except (RuntimeError, AttributeError, TypeError):
             logger.exception(
                 "WindowInitializer: не удалось подключить слот к сигналу 'shown'"
             )
 
-        try:
-            self._dump_top_levels("before window.show")
-        except Exception:
-            logger.debug("DiagTopLevels: failed to dump before show", exc_info=False)
-
-        try:
-            if hasattr(self.window, "show"):
-                with self._metrics.time_span("light:window_show"):
-                    self.window.show()
-        except Exception:
-            logger.exception(
-                "WindowInitializer: не удалось показать окно после лёгких шагов"
-            )
-
-        try:
-            self._dump_top_levels("after window.show")
-            QTimer.singleShot(10, lambda: self._dump_top_levels("+10ms after show"))
-            QTimer.singleShot(100, lambda: self._dump_top_levels("+100ms after show"))
-        except Exception:
-            logger.debug("DiagTopLevels: failed post-show dumps", exc_info=False)
 
     def _schedule_heavy_steps(self) -> None:
         """Разбивает тяжёлые шаги на асинхронные этапы и планирует их выполнение с ожиданием БД."""
@@ -302,24 +282,46 @@ class WindowInitializer:
         )
 
     def _finalize_initialization(self) -> None:
-        """Завершает асинхронную инициализацию."""
+        """Завершает асинхронную инициализацию и показывает полностью собранное окно."""
+        # Сводка метрик старта в лог (ошибки здесь не критичны)
         try:
-            # Выводим сводку метрик старта в лог
             self._metrics.flush_log(logger)
-
-            # Обновляем статус на "Готово"
-            self._status.set_message("Готово")
-
-            logger.info(
-                "WindowInitializer: асинхронная инициализация завершена успешно"
-            )
-            # Финальный снимок top-level виджетов
-            try:
-                self._dump_top_levels("finalize initialization")
-            except Exception:
-                logger.debug("DiagTopLevels: failed to dump at finalize", exc_info=True)
         except Exception:
-            logger.exception("WindowInitializer: ошибка при финализации инициализации")
+            logger.debug("WindowInitializer: failed to flush startup metrics at finalize", exc_info=True)
+
+        # Обновляем статус на "Готово" (к этому моменту статус-бар создан)
+        self._status.set_message("Готово")
+
+        logger.info(
+            "WindowInitializer: асинхронная инициализация завершена успешно"
+        )
+
+        # Диагностика перед показом окна
+        try:
+            self._dump_top_levels("before final window.show")
+        except Exception:
+            logger.debug("DiagTopLevels: failed to dump before final show", exc_info=False)
+
+        # Покажем окно только после завершения всех этапов
+        try:
+            if hasattr(self.window, "show"):
+                with self._metrics.time_span("final:window_show"):
+                    self.window.show()
+        except Exception as e:
+            logger.exception(
+                "WindowInitializer: не удалось показать окно в финале инициализации"
+            )
+            # Делегируем централизованному обработчику ошибок
+            self._on_init_error(e)
+            return
+
+        # Пост-диагностика после показа окна
+        try:
+            self._dump_top_levels("after final window.show")
+            QTimer.singleShot(10, lambda: self._dump_top_levels("+10ms after final show"))
+            QTimer.singleShot(100, lambda: self._dump_top_levels("+100ms after final show"))
+        except Exception:
+            logger.debug("DiagTopLevels: failed post-show dumps (final)", exc_info=False)
 
     def _on_init_error(self, exc: Exception) -> None:
         """Единая обработка ошибок этапов инициализации.
