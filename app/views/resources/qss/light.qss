@@ -80,6 +80,8 @@ QMenu::indicator:checked {
 
 QMenuBar {
     background-color: #F0F0F0;
+    border-bottom: 1px solid #E0E0E0; /* subtle separator under menu bar */
+    border-top: 1px solid #E0E0E0; /* top separator above main menu */
 }
 
 QMenuBar::item {

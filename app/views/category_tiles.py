@@ -187,27 +187,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
         rect = option.rect
         icon = index.data(Qt.ItemDataRole.DecorationRole)
         text = index.data(Qt.ItemDataRole.DisplayRole)
-        try:
-            # Централизованный приоритет: если родительский виджет передал явный pt, используем его
-            explicit_pt = None
-            try:
-                parent = self.parent()
-                explicit_pt = getattr(parent, "_font_point_size", None)
-            except Exception:
-                explicit_pt = None
-            if isinstance(explicit_pt, (int, float)) and explicit_pt > 0:
-                f = painter.font()
-                f.setPointSize(int(explicit_pt))
-                painter.setFont(f)
-            else:
-                # Fallback: берем из конфигурации, чтобы сохранить обратную совместимость
-                cfg_sz = app_config.ui.get_tile_text_font_size()
-                if isinstance(cfg_sz, (int, float)) and cfg_sz > 0:
-                    f = painter.font()
-                    f.setPointSize(int(cfg_sz))
-                    painter.setFont(f)
-        except (TypeError, ValueError, AttributeError) as e:
-            logger.debug("Failed to set font size from config in paint: %s", e)
+        # Шрифт текста плиток задаётся централизованно через ui.fonts.tiles_px (QSS)
 
         try:
             from PyQt6.QtWidgets import QStyle
@@ -256,22 +236,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
                 logger.debug("Placeholder '?' draw skipped: %s", e)
 
         if text:
-            try:
-                if not self._font_diag_logged:
-                    fm_diag = QFontMetrics(painter.font())
-                    if logger.isEnabledFor(logging.DEBUG):
-                        logger.debug(
-                            "CategoryTileDelegate font diag: family='%s', requested_px=%s, pixelSize=%s, pointSizeF=%.2f, fm.height=%s, fm.lineSpacing=%s",
-                            painter.font().family(),
-                            app_config.ui.get_tile_text_font_size(),
-                            painter.font().pixelSize(),
-                            painter.font().pointSizeF(),
-                            fm_diag.height(),
-                            fm_diag.lineSpacing(),
-                        )
-                    self._font_diag_logged = True
-            except (RuntimeError, AttributeError) as e:
-                logger.debug("Font diagnostics skipped: %s", e)
+            # Диагностика размеров шрифтов в плитках убрана: размеры централизованы через QSS
             text_rect = QRect(
                 rect.left() + self.padding,
                 rect.top() + self.padding + self.icon_size.height() + 5,
@@ -343,23 +308,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
 
     def sizeHint(self, option, index):
         """Простой расчет размера плитки."""
-        font = QFont(option.font)
-        try:
-            # Централизованный приоритет: использовать явный размер от родителя
-            explicit_pt = None
-            try:
-                parent = self.parent()
-                explicit_pt = getattr(parent, "_font_point_size", None)
-            except Exception:
-                explicit_pt = None
-            if isinstance(explicit_pt, (int, float)) and explicit_pt > 0:
-                font.setPointSize(int(explicit_pt))
-            else:
-                cfg_sz = app_config.ui.get_tile_text_font_size()
-                if isinstance(cfg_sz, (int, float)) and cfg_sz > 0:
-                    font.setPointSize(int(cfg_sz))
-        except (TypeError, ValueError, AttributeError) as e:
-            logger.debug("Failed to set font size from config in sizeHint: %s", e)
+        font = QFont(option.font)  # размер шрифта приходит из QSS (ui.fonts.tiles_px)
         try:
             max_lines = int(app_config.ui.get_tile_text_max_lines())
         except (TypeError, ValueError, AttributeError) as e:
@@ -412,22 +361,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
 
             available_w = max(0, option.rect.width() - 2 * self.padding)
 
-            font = QFont(option.font)
-            try:
-                explicit_pt = None
-                try:
-                    parent = self.parent()
-                    explicit_pt = getattr(parent, "_font_point_size", None)
-                except Exception:
-                    explicit_pt = None
-                if isinstance(explicit_pt, (int, float)) and explicit_pt > 0:
-                    font.setPointSize(int(explicit_pt))
-                else:
-                    cfg_sz = app_config.ui.get_tile_text_font_size()
-                    if isinstance(cfg_sz, (int, float)) and cfg_sz > 0:
-                        font.setPointSize(int(cfg_sz))
-            except (TypeError, ValueError, AttributeError) as e:
-                logger.debug("Failed to set font size in helpEvent: %s", e)
+            font = QFont(option.font)  # размер берётся из QSS
 
             layout = QTextLayout(text, font)
             opt = QTextOption()

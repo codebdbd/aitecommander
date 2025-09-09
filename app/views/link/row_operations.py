@@ -15,6 +15,8 @@ class RowOperationsMixin:
         Обновляет строку таблицы по id ссылки, если она есть.
         """
         try:
+            from app.config_data import app_config
+            _debug = bool(app_config.ui.get_debug_links_inline_update())
             # Проверка входных параметров
             if not isinstance(link, dict):
                 logger.warning(
@@ -56,10 +58,23 @@ class RowOperationsMixin:
                         break
 
             if row >= 0:
+                if _debug:
+                    logger.debug(
+                        "update_link_by_id: found row=%s for id=%s; updating",
+                        row,
+                        link_id,
+                    )
                 success = self._update_row(row, link, mode)
+                if _debug:
+                    logger.debug(
+                        "update_link_by_id: dataChanged emitted for row=%s success=%s",
+                        row,
+                        success,
+                    )
                 return success
 
-            logger.debug("Ссылка с ID %s не найдена в таблице", link_id)
+            if _debug:
+                logger.debug("update_link_by_id: id=%s not found in table", link_id)
             return False
         except Exception as e:
             logger.error(

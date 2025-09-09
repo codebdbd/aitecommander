@@ -5,7 +5,6 @@ import logging
 from typing import Any
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QWidget
 
 from app.config_data import app_config
@@ -34,25 +33,11 @@ class BottomPanelBuilder:
         Примечание: сохраняет имеющееся поведение, включая политики фокуса и обработку ошибок.
         """
         bottom_layout = QHBoxLayout()
-        # Отступы панели берём из конфигурации (можно выставить в 0,0,0,0 для полного прилегания)
-        bottom_layout.setContentsMargins(*app_config.ui.get_layout_margins("bottom"))
-        # Расстояние между кнопками: берём из конфига, по умолчанию 0 — кнопки занимают всю ширину без зазоров
-        bottom_layout.setSpacing(app_config.ui.get_bottom_layout_spacing())
+        # Полное прилегание: без внутренних отступов и без межкнопочного зазора
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setSpacing(0)
 
-        # Используем глобальный размер шрифта приложения для кнопок нижней панели
-        font10 = QFont()
-        try:
-            try:
-                font10.setPointSize(self.window.font().pointSize())
-            except (AttributeError, TypeError, RuntimeError, ValueError):
-                # Ожидаемые проблемы типов/доступности — спокойный фоллбэк
-                font10.setPointSize(10)
-        except Exception:
-            # Неожиданная ошибка — логируем и используем фоллбэк
-            logger.exception(
-                "BottomPanel: unexpected error determining button font size; fallback to 10"
-            )
-            font10.setPointSize(10)
+        # Шрифт нижней панели задаётся централизованно через ui.fonts.bottom_bar_button_px (ThemeController)
 
         # Кнопка переключения сфер (будет создана после инициализации контроллеров)
         self.window.switch_sphere_button = None
@@ -62,7 +47,6 @@ class BottomPanelBuilder:
         bottom_btns = []
         for text, fn_name in bottom_actions:
             btn = QPushButton(text)
-            btn.setFont(font10)
             btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             # Разрешаем горизонтальное сжатие ниже sizeHint
             try:
@@ -129,7 +113,4 @@ class BottomPanelBuilder:
 
         self.main_layout.addWidget(bottom_bar_container)
 
-        # Разделитель под нижней панелью (аналог h_line_2)
-        h_line_bottom = QWidget(container_parent)
-        h_line_bottom.setProperty("class", "separator")
-        self.main_layout.addWidget(h_line_bottom)
+        # Убираем нижний разделитель: панель примыкает вплотную к содержимому

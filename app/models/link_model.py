@@ -116,11 +116,11 @@ class LinkModel(DatabaseBase):
         """Возвращает количество ссылок для указанной категории (эффективный подсчет)."""
         try:
             result = self._execute_with_error_handling(
-                "SELECT COUNT(*) FROM link WHERE category_id=?",
+                "SELECT COUNT(*) AS cnt FROM link WHERE category_id=?",
                 (category_id,),
                 fetch_method="one",
             )
-            return result[0] if result else 0
+            return int(result["cnt"]) if result else 0
         except Exception as e:
             logger.error(
                 "Ошибка подсчета ссылок для категории %s: %s",
@@ -151,14 +151,14 @@ class LinkModel(DatabaseBase):
                 chunk = ids[i : i + CHUNK]
                 placeholders = ",".join(["?"] * len(chunk))
                 rows = self._execute_with_error_handling(
-                    f"SELECT category_id, COUNT(*) AS cnt FROM link WHERE category_id IN ({placeholders}) GROUP BY category_id",
+                    f"SELECT category_id AS category_id, COUNT(*) AS cnt FROM link WHERE category_id IN ({placeholders}) GROUP BY category_id",
                     tuple(chunk),
                     fetch_method="all",
                 )
                 for r in rows or []:
                     try:
-                        cat_id = int(r[0] if isinstance(r, tuple) else r["category_id"])  # type: ignore[index]
-                        cnt = int(r[1] if isinstance(r, tuple) else r["cnt"])  # type: ignore[index]
+                        cat_id = int(r["category_id"])  # sqlite3.Row supports key access
+                        cnt = int(r["cnt"])             # aggregated alias
                         result[cat_id] = result.get(cat_id, 0) + cnt
                     except Exception:
                         continue
@@ -299,7 +299,7 @@ class LinkModel(DatabaseBase):
                     fetch_method="one",
                 )
                 if row:
-                    return row[0] if isinstance(row, tuple) else row["id"]
+                    return int(dict(row)["id"])  # sqlite3.Row -> dict for stable key access
             except Exception as ee:
                 logger.debug(
                     "upsert_link: failed to recover existing row after IntegrityError: %s",
@@ -394,10 +394,11 @@ class LinkModel(DatabaseBase):
 
     def count_favorites(self) -> int:
         """Возвращает количество избранных ссылок."""
-        cursor = self._execute_with_error_handling(
-            "SELECT COUNT(*) FROM link WHERE is_favorite=1", fetch_method="one"
+        row = self._execute_with_error_handling(
+            "SELECT COUNT(*) AS cnt FROM link WHERE is_favorite=1",
+            fetch_method="one",
         )
-        return cursor[0]
+        return int(row["cnt"]) if row else 0
 
     def clear_favorites(self):
         """Сбрасывает признак избранного у всех ссылок."""
@@ -580,11 +581,11 @@ class LinkModel(DatabaseBase):
         """Получить следующую позицию для новой ссылки в категории."""
         try:
             result = self._execute_with_error_handling(
-                "SELECT COALESCE(MAX(position), 0) + 1 FROM link WHERE category_id = ?",
+                "SELECT COALESCE(MAX(position), 0) + 1 AS next_pos FROM link WHERE category_id = ?",
                 (category_id,),
                 fetch_method="one",
             )
-            return result[0] if result else 1
+            return int(result["next_pos"]) if result else 1
         except Exception as e:
             logger.error(
                 "Ошибка получения следующей позиции для категории %s: %s",

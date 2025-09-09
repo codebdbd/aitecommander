@@ -142,11 +142,11 @@ class Database(DatabaseBase):
                     need_migrate = False
                     for idx in idx_list:
                         # row: seq, name, unique, origin, partial
-                        if idx[2] == 1:  # unique
+                        if idx["unique"] == 1:  # unique
                             cols = self.connection.execute(
-                                f"PRAGMA index_info('{idx[1]}')"
+                                f"PRAGMA index_info('{idx['name']}')"
                             ).fetchall()
-                            col_names = [c[2] for c in cols]
+                            col_names = [c["name"] for c in cols]
                             if col_names == ["category_id", "url", "args", "type"]:
                                 need_migrate = True
                                 break
@@ -297,7 +297,7 @@ class Database(DatabaseBase):
                         f"SELECT id FROM {table_name} WHERE id IN ({placeholders})",
                         tuple(part),
                     ).fetchall()
-                    existing_ids.update(row[0] for row in rows)
+                    existing_ids.update(int(dict(row)["id"]) for row in rows)
                 missing = [i for i in ids if i not in existing_ids]
                 if missing:
                     raise ValidationError(
@@ -811,7 +811,7 @@ class Database(DatabaseBase):
                     row = self.connection.execute(
                         f"SELECT name FROM {table} WHERE id=?", (rec_id,)
                     ).fetchone()
-                    return row[0] if row else ""
+                    return (dict(row)["name"] if row else "")
 
                 # Обработчик группы
                 def process_group(table: str, ids: list[int]):
@@ -972,11 +972,11 @@ def _upsert_category_tree(tree: dict, connection: sqlite3.Connection) -> None:
             return
         if next_pos is None:
             row = connection.execute(
-                "SELECT COALESCE(MAX(position), -1) + 1 FROM link WHERE category_id=?",
+                "SELECT COALESCE(MAX(position), 0) + 1 AS next_pos FROM link WHERE category_id=?",
                 (cat_id,),
             ).fetchone()
             try:
-                next_pos = int(row[0]) if row is not None else 0
+                next_pos = int(dict(row)["next_pos"]) if row is not None else 0
             except Exception:
                 next_pos = 0
         rec["position"] = next_pos
@@ -1036,7 +1036,7 @@ def _upsert_category_tree(tree: dict, connection: sqlite3.Connection) -> None:
             ).fetchone()
             if row:
                 try:
-                    rec["id"] = int(row[0] if isinstance(row, tuple) else row["id"])  # type: ignore[index]
+                    rec["id"] = int(dict(row)["id"])  # stable key-based access
                 except Exception:
                     pass
 

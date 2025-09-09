@@ -1,0 +1,40 @@
+name: SQL positional access check
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  grep-sql-positional:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run positional index grep in models
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pattern = '\\[[0-9]+\\]'
+          $paths = @('app/models/**/*.py')
+          $hasIssues = $false
+          foreach ($p in $paths) {
+            $matches = Select-String -Path $p -Pattern $pattern -AllMatches -CaseSensitive -ErrorAction SilentlyContinue
+            foreach ($m in $matches) {
+              # Простейшая эвристика: игнорируем строки-комментарии и doctestы
+              if ($m.Line.Trim().StartsWith('#')) { continue }
+              Write-Host "Possible positional SQL access: $($m.Path):$($m.LineNumber): $($m.Line.Trim())"
+              $hasIssues = $true
+            }
+          }
+          if ($hasIssues) {
+            Write-Error 'Found positional index usages in models (possible SQL result access via row[0]). Please replace with aliased key-based access.'
+          }
+
+      - name: Summary
+        if: success()
+        shell: pwsh
+        run: |
+          echo 'SQL positional access check: OK'

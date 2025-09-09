@@ -209,10 +209,49 @@ class LinksTableController(QObject):
     def on_link_saved(self, payload: Optional[Dict] = None) -> None:
         """Слот для сигнала link_operations.link_saved(dict)."""
         try:
-            cat_id = None
+            from app.config_data import app_config
+            _debug = bool(app_config.ui.get_debug_links_inline_update())
+            # Если пришли достаточно полные данные по ссылке и категория совпадает с текущей,
+            # выполняем ТОЛЬКО точечное обновление строки без полного reload.
             if isinstance(payload, dict):
+                link_id = payload.get("id")
                 cat_id = payload.get("category_id")
-            self.reload(cat_id)
+                current_category_id = getattr(self.category_provider, "current_category_id", None)
+                if (
+                    isinstance(link_id, int)
+                    and link_id > 0
+                    and isinstance(cat_id, int)
+                    and cat_id > 0
+                    and current_category_id == cat_id
+                ):
+                    try:
+                        if _debug:
+                            logger.debug(
+                                "on_link_saved: inline update id=%s category=%s (current=%s)",
+                                link_id,
+                                cat_id,
+                                current_category_id,
+                            )
+                        self.update_row(payload)
+                        return
+                    except Exception:
+                        logger.debug(
+                            "LinksTableController.on_link_saved: lightweight update failed; fallback to reload",
+                            exc_info=True,
+                        )
+                # Фолбэк: если данных недостаточно или категория не совпадает — делаем обычный reload
+                if _debug:
+                    logger.debug(
+                        "on_link_saved: reload due to payload insufficiency or category mismatch payload_cat=%s current_cat=%s",
+                        cat_id,
+                        current_category_id,
+                    )
+                self.reload(cat_id)
+                return
+            # Нет полезного payload — делаем безопасный reload без категории
+            if _debug:
+                logger.debug("on_link_saved: reload without payload")
+            self.reload(None)
         except Exception:
             logger.exception("LinksTableController.on_link_saved: failed")
 

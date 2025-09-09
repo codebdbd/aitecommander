@@ -373,6 +373,12 @@ class ThemeController:
             self.settings.set_theme(canonical_name)
             if self.main_window and hasattr(self.main_window, "update_theme"):
                 self.main_window.update_theme()
+            # Диагностика: логируем шрифт шапки таблиц сразу после применения темы на старте
+            try:
+                if self.main_window is not None:
+                    self._log_tables_header_font(self.main_window)
+            except Exception:
+                logger.debug("ThemeController: _log_tables_header_font at apply() failed", exc_info=True)
             return True
         except Exception as exc:
             logger.error("Ошибка применения темы %s: %s", name, exc, exc_info=True)
@@ -385,6 +391,61 @@ class ThemeController:
             self._qss_cache.clear()
             self._common_qss = None
         logger.debug("Кэш тем очищен, удалено %d записей", cache_size)
+
+    def _log_tables_header_font(self, mw) -> None:
+        """Логирует фактический размер шрифта заголовков всех таблиц/деревьев.
+
+        Цель: подтвердить, что после применения темы у шапки ровно 11px и нет bold.
+        Если не 11px — выводим WARNING с деталями (px/pt/bold/stylesheet/objectName/class).
+        """
+        try:
+            from PyQt6.QtWidgets import QTableView, QTreeView
+        except Exception:
+            return
+
+        widgets = []
+        try:
+            # Наиболее вероятный наш виджет
+            tv = getattr(mw, "table", None)
+            if tv is not None:
+                widgets.append(tv)
+        except Exception:
+            pass
+        try:
+            # Подстраховка: найти все таблицы/деревья в окне
+            widgets.extend(mw.findChildren(QTableView))
+            widgets.extend(mw.findChildren(QTreeView))
+        except Exception:
+            pass
+
+        seen = set()
+        for w in widgets:
+            if id(w) in seen:
+                continue
+            seen.add(id(w))
+            try:
+                header = getattr(w, "horizontalHeader", lambda: None)()
+                if not header:
+                    continue
+                f = header.font()
+                px = f.pixelSize()
+                pt = f.pointSize()
+                bold = f.bold()
+                ss = header.styleSheet() if hasattr(header, "styleSheet") else ""
+                name = getattr(w, "objectName", lambda: "")()
+                cls = w.__class__.__name__
+                # Считаем корректным равенство 11 по pixelSize, либо точное совпадение по QSS
+                ok = (px == 11) or ("font-size:11px" in (ss or "").replace(" ", ""))
+                log_msg = (
+                    f"HeaderFont[{cls}#{name}] px={px} pt={pt} bold={bold} "
+                    f"stylesheet_len={len(ss) if ss else 0}"
+                )
+                if ok and not bold:
+                    logger.info(log_msg)
+                else:
+                    logger.warning("NON-11 HEADER FONT: " + log_msg)
+            except Exception:
+                logger.debug("ThemeController: header font inspection failed", exc_info=True)
 
     def apply_and_refresh_ui(self) -> None:
         """Централизованно обновляет UI после применения темы.
@@ -440,6 +501,11 @@ class ThemeController:
                 logger.warning(
                     "Ошибка обновления верхних панелей: %s", exc, exc_info=True
                 )
+            # Диагностика: фактический размер шрифта заголовка таблицы(ц)
+            try:
+                self._log_tables_header_font(mw)
+            except Exception:
+                logger.debug("ThemeController: _log_tables_header_font failed", exc_info=True)
             return
 
         # Основной путь: выполняем массовые обновления при приостановленной перерисовке окна
@@ -474,6 +540,11 @@ class ThemeController:
                     logger.warning(
                         "Ошибка обновления верхних панелей: %s", exc, exc_info=True
                     )
+                # Диагностика: фактический размер шрифта заголовка таблицы(ц)
+                try:
+                    self._log_tables_header_font(mw)
+                except Exception:
+                    logger.debug("ThemeController: _log_tables_header_font failed", exc_info=True)
         except Exception as exc:
             logger.warning(
                 "ThemeController: сбой при пакетном обновлении UI: %s",
@@ -556,6 +627,44 @@ class ThemeController:
             menu_indicator_size = int(app_config.ui.get_menu_indicator_size())
         except Exception:
             menu_indicator_size = None
+        # Единый реестр шрифтов из конфигурации (ui.fonts.*)
+        def _get_font_px(key: str, default: int | None) -> int | None:
+            try:
+                # ВАЖНО: у UIConfig ключи должны начинаться с 'ui.'
+                val = app_config.ui.get(f"ui.fonts.{key}", default)
+                return int(val) if val is not None else None
+            except Exception:
+                return default
+
+        table_header_px = _get_font_px("table_header_px", 11)
+        table_row_px = _get_font_px("table_row_px", None)
+        table_opened_col_px = _get_font_px("table_opened_col_px", None)
+        table_notes_col_px = _get_font_px("table_notes_col_px", None)
+        notes_editor_px = _get_font_px("notes_editor_px", None)
+        button_text_px = _get_font_px("button_text_px", None)
+        menubar_px = _get_font_px("menubar_px", None)
+        menu_item_px = _get_font_px("menu_item_px", None)
+        context_menu_px = _get_font_px("context_menu_px", None)
+        bottom_bar_button_px = _get_font_px("bottom_bar_button_px", None)
+        tooltip_px = _get_font_px("tooltip_px", None)
+        tree_px = _get_font_px("tree_px", None)
+        tiles_px = _get_font_px("tiles_px", None)
+        form_label_px = _get_font_px("form_label_px", None)
+        form_field_px = _get_font_px("form_field_px", None)
+        link_type_button_px = _get_font_px("link_type_button_px", None)
+
+        # Глобальная единица измерения для шрифтов: 'px' (по умолчанию) или 'pt'
+        try:
+            fonts_units = str(app_config.ui.get("ui.fonts.units", "px")).strip().lower()
+        except Exception:
+            fonts_units = "px"
+        if fonts_units not in ("px", "pt"):
+            fonts_units = "px"
+
+        def sz(val: int | None) -> str | None:
+            if val is None or int(val) <= 0:
+                return None
+            return f"{int(val)}{fonts_units}"
 
         lines = []
 
@@ -598,6 +707,8 @@ class ThemeController:
         if menubar_font_size:
             # Тоже используем pt для соответствия системному масштабу
             menubar_rules.append(f"font-size: {menubar_font_size}pt;")
+        if menubar_px:
+            menubar_rules.append(f"font-size: {sz(menubar_px)};")
         if menubar_rules:
             lines.append("QMenuBar { " + " ".join(menubar_rules) + " }")
         item_rules = []
@@ -613,7 +724,70 @@ class ThemeController:
                 lines.append("QMenuBar::item:selected { " + " ".join(item_rules) + " }")
                 lines.append("QMenuBar::item:hover { " + " ".join(item_rules) + " }")
                 lines.append("QMenuBar::item:pressed { " + " ".join(item_rules) + " }")
+        
+        # Заголовки таблиц/деревьев (QHeaderView): финальный оверрайд размера шрифта
+        if table_header_px and table_header_px > 0:
+            fs = sz(table_header_px)
+            lines.append(f"QHeaderView {{ font-size: {fs}; font-weight: normal; }}")
+            lines.append(f"QTableView QHeaderView, QTreeView QHeaderView {{ font-size: {fs}; font-weight: normal; }}")
+            # Не навязываем жирный в интерактивных состояниях
+            lines.append(
+                f"QHeaderView::section:pressed, QHeaderView::section:hover, QHeaderView::section:checked {{ font-weight: normal; }}"
+            )
+
+        # Табличные строки по умолчанию
+        if table_row_px and table_row_px > 0:
+            lines.append(f"QTableView {{ font-size: {sz(table_row_px)}; }}")
+
+        # Дерево (QTreeView)
+        if tree_px and tree_px > 0:
+            lines.append(f"QTreeView {{ font-size: {sz(tree_px)}; }}")
+
+        # Текст в редакторе заметок (QTextEdit)
+        if notes_editor_px and notes_editor_px > 0:
+            lines.append(f"QTextEdit {{ font-size: {sz(notes_editor_px)}; }}")
+
+        # Кнопки (включая нижнюю панель)
+        if button_text_px and button_text_px > 0:
+            lines.append(f"QPushButton {{ font-size: {sz(button_text_px)}; }}")
+        if bottom_bar_button_px and bottom_bar_button_px > 0:
+            # Повышение специфичности для нижней панели: поддерживаем оба имени контейнера
+            fsb = sz(bottom_bar_button_px)
+            lines.append(f"QWidget#BottomPanel QPushButton {{ font-size: {fsb}; }}")
+            lines.append(f"QWidget#bottomBarContainer QPushButton {{ font-size: {fsb}; }}")
+
+        # Главное меню и выпадающие меню
+        if menu_item_px and menu_item_px > 0:
+            fs = sz(menu_item_px)
+            lines.append(f"QMenu {{ font-size: {fs}; }}")
+            lines.append(f"QMenu::item {{ font-size: {fs}; }}")
+        if context_menu_px and context_menu_px > 0:
+            # Контекстные меню — это тоже QMenu; отдельный ключ позволяет отличать, если нужно
+            lines.append(f"QMenu[contextMenuPolicy] {{ font-size: {sz(context_menu_px)}; }}")
+
+        # Подсказки (ToolTip)
+        if tooltip_px and tooltip_px > 0:
+            lines.append(f"QToolTip {{ font-size: {sz(tooltip_px)}; }}")
+        # Плитки категорий (QListView#categoryTiles)
+        if tiles_px and tiles_px > 0:
+            lines.append(f"QListView#categoryTiles {{ font-size: {sz(tiles_px)}; }}")
+        # Лейблы и поля форм (диалоги и формы)
+        if form_label_px and form_label_px > 0:
+            fs = sz(form_label_px)
+            lines.append(f"QLabel {{ font-size: {fs}; }}")
+        if form_field_px and form_field_px > 0:
+            fs = sz(form_field_px)
+            lines.append(f"QLineEdit {{ font-size: {fs}; }}")
+            lines.append(f"QTextEdit {{ font-size: {fs}; }}")
+            lines.append(f"QComboBox {{ font-size: {fs}; }}")
+            lines.append(f"QSpinBox {{ font-size: {fs}; }}")
+        # Кнопки выбора типа ссылки (QToolButton с property link_type)
+        if link_type_button_px and link_type_button_px > 0:
+            fs = sz(link_type_button_px)
+            lines.append(f"QToolButton[link_type=\"true\"] {{ font-size: {fs}; }}")
         return "\n".join(lines)
+        
+        # Примечание: код ниже не выполнится из-за раннего return; сохраняется порядок на будущее
 
     def get_cache_stats(self) -> Dict[str, Any]:
         """Возвращает статистику кэша тем."""

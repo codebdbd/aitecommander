@@ -10,6 +10,7 @@ import time
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
+from PyQt6.QtWidgets import QApplication
 
 from app.controllers.structure_modules import (
     CacheManager,
@@ -117,6 +118,12 @@ class StructureBusinessLogic(QObject):
             self.item_deleted.connect(self._on_item_deleted)
             # Подключаем обработчик нового батч-сигнала
             self.items_batch_deleted.connect(self._on_items_batch_deleted)
+            # Прогрев кэша "первой категории" после загрузки структуры (per-sphere)
+            try:
+                self.structure_loaded.connect(self._on_structure_loaded_warm_cache)
+            except Exception:
+                # Если сигнал недоступен — пропускаем прогрев, это необязательно
+                pass
             self.logger.info("[BL] Handlers connected for business id=%s", id(self))
         except Exception:
             # Защита от ошибок подключения сигналов, не ломаем инициализацию
@@ -185,6 +192,17 @@ class StructureBusinessLogic(QObject):
                 self._last_switch_started_ms = None
 
             self.current_sphere_id = sphere_id
+            # Обновляем токен переключения сферы для отмены устаревших отложенных задач
+            try:
+                self._switch_token = int(getattr(self, "_switch_token", 0)) + 1
+            except Exception:
+                self._switch_token = 1
+            # Сообщаем UI-слою, что переключение сферы активно: не восстанавливать
+            # автоматически выбор категории (это вызывает тяжёлую загрузку ссылок).
+            try:
+                setattr(self, "_suppress_category_restore_once", True)
+            except Exception:
+                pass
 
             # Очищаем кэш при смене сферы
             if old_sphere_id != sphere_id:
@@ -409,6 +427,108 @@ class StructureBusinessLogic(QObject):
                 self.async_operations.load_structure_async(sphere_id)
         except Exception as e:
             self.logger.error("_perform_structure_reload: %s", e, exc_info=True)
+
+    # -------------------------------------------------------------------------
+    # Вспомогательные обработчики
+    # -------------------------------------------------------------------------
+    def _on_structure_loaded_warm_cache(self, _payload: list) -> None:
+        """Лёгкий прогрев per-sphere кэша первой категории после загрузки структуры.
+
+        Приоритетно используем уже загруженный payload, чтобы избежать дополнительных
+        синхронных обращений к БД при переключении сфер. Если payload не содержит
+        категорий, откладываем вычисление через QTimer.singleShot(0), чтобы не блокировать UI.
+        Ошибки прогрева не фатальны и логируются на уровне DEBUG.
+        """
+        try:
+            sphere_id = self.current_sphere_id
+            if not isinstance(sphere_id, int) or sphere_id <= 0:
+                return
+
+            # 1) Попробуем извлечь первую категорию напрямую из payload структуры
+            try:
+                if isinstance(_payload, list):
+                    for section in _payload:
+                        cats = None
+                        try:
+                            cats = section.get("categories") if isinstance(section, dict) else None
+                        except Exception:
+                            cats = None
+                        if cats:
+                            first = cats[0]
+                            cid = first.get("id") if isinstance(first, dict) else None
+                            if isinstance(cid, int) and cid > 0:
+                                self.cache_manager.set(f"first_category_id:{sphere_id}", cid)
+                                return
+            except Exception:
+                # Переходим к отложенному способу
+                pass
+
+            # 2) Если в payload нет категорий — прогреем кэш асинхронно в следующий тик
+            def _deferred_warmup():
+                try:
+                    _ = self.utility_service.get_target_section_id(
+                        current_sphere_id=sphere_id,
+                        get_sections=self.get_sections,
+                        get_categories=self.get_categories,
+                        cache_get=self.cache_manager.get,
+                        cache_set=self.cache_manager.set,
+                    )
+                except Exception as ex:
+                    try:
+                        self.logger.debug("Deferred warm cache failed: %s", ex, exc_info=True)
+                    except Exception:
+                        pass
+
+            try:
+                QTimer.singleShot(0, _deferred_warmup)
+            except Exception:
+                # Фолбэк: в крайнем случае — синхронный вызов
+                _deferred_warmup()
+
+            # В тестовой среде без QApplication немедленно выполняем прогрев,
+            # чтобы избежать провала таймера. В обычном UI-режиме не дублируем работу.
+            try:
+                if QApplication.instance() is None:
+                    _deferred_warmup()
+            except Exception:
+                pass
+
+            # 3) Лёгкий асинхронный прелоад категорий для первых секций сферы (улучшает UX дерева)
+            try:
+                if isinstance(_payload, list) and _payload:
+                    from app.config_data import app_config
+                    preload_limit = int(app_config.ui.get_preload_categories_limit())
+                    delay_step_ms = int(app_config.ui.get_preload_delay_step_ms())
+                    planned_token = int(getattr(self, "_switch_token", 0))
+                    planned_sphere = sphere_id
+                    for idx, section in enumerate(_payload[:preload_limit]):
+                        sid = section.get("id") if isinstance(section, dict) else None
+                        if not isinstance(sid, int) or sid <= 0:
+                            continue
+                        delay = max(0, int(idx) * delay_step_ms)
+
+                        def _preload_one(section_id: int = sid, token: int = planned_token, psid: int = planned_sphere):
+                            try:
+                                # Отбрасываем устаревшие задачи при смене сферы
+                                if int(getattr(self, "_switch_token", 0)) != int(token):
+                                    return
+                                cur = getattr(self, "current_sphere_id", None)
+                                if cur != psid:
+                                    return
+                                ops = getattr(self, "async_operations", None)
+                                if ops and hasattr(ops, "load_categories_async"):
+                                    ops.load_categories_async(section_id)
+                            except Exception:
+                                pass
+
+                        QTimer.singleShot(delay, _preload_one)
+            except Exception:
+                self.logger.debug("Warm cache: preload categories scheduling failed", exc_info=True)
+        except Exception as e:
+            try:
+                self.logger.debug("Warm cache after structure_loaded failed: %s", e, exc_info=True)
+            except Exception:
+                pass
 
     def _on_item_deleted(self, item_type: str, item_id: int) -> None:
         """Элемент удалён: инвалидируем кэш и запускаем асинхронную перезагрузку.
@@ -930,7 +1050,8 @@ class StructureBusinessLogic(QObject):
             # Инвалидируем кэш структуры и разделов для текущей сферы
             self.cache_manager.invalidate(f"structure_{self.current_sphere_id}")
             self.cache_manager.invalidate(f"sections_{self.current_sphere_id}")
-            self.cache_manager.invalidate(f"first_category_{self.current_sphere_id}")
+            # Пер-сферный ключ для первой категории (унифицированный формат)
+            self.cache_manager.invalidate(f"first_category_id:{self.current_sphere_id}")
 
     def _invalidate_categories_cache(self, section_id: Optional[int]) -> None:
         """Инвалидирует кэш категорий для раздела."""

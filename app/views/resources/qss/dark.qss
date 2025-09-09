@@ -22,6 +22,9 @@
   17) Служебные элементы
    =============================================================== */
 
+/* Базовый цвет текста по умолчанию для тёмной темы */
+QWidget { color: #E0E0E0; }
+
 /* ===============================================================
    1) Левая панель и панель сфер — цвета
    =============================================================== */
@@ -126,7 +129,7 @@ QMenu::item:disabled {
 }
 
 QMenu::separator {
-    background: #252D3A;
+    background: #3A3E44;
 }
 
 QMenu::item:hover {
@@ -152,6 +155,8 @@ QMenu::indicator:checked {
    =============================================================== */
 QMenuBar {
     background-color: #1A1F26;
+    border-top: 1px solid #3A3E44; /* top separator above main menu */
+    border-bottom: 1px solid #3A3E44; /* subtle separator under menu bar */
 }
 
 QMenuBar::item {
@@ -175,7 +180,7 @@ QMenuBar QMenu {
 
 QMainWindow {
     background-color: #1A1F26;
-    color: #C9D1DA;
+    color: #E0E0E0;
 }
 
 /* ===============================================================
@@ -309,20 +314,23 @@ QComboBox QAbstractItemView {
    =============================================================== */
 QHeaderView::section {
     background-color: #1A1F26;
-    border-right-color: #252D3A; /* как горизонтальные сепараторы */
+    border-right-color: #3A3E44; /* как горизонтальные сепараторы */
     color: #C9D1DA;
 }
 
 /* Нижняя граница для всех заголовков (покрывает TreeView, TableView и др.) */
 QHeaderView {
-    border-bottom-color: #252D3A;
+    border-bottom-color: #3A3E44;
 }
 
 QTableView QHeaderView::section:horizontal {
-    border-right-color: #252D3A; /* как горизонтальные сепараторы */
+    /* Цвет шапки таблицы такой же, как у вертикального заголовка (колонка цифр) */
+    background-color: #202731;
+    border-right-color: #3A3E44; /* как горизонтальные сепараторы */
+    color: #BFC7D5; /* цвет текста шапки таблицы */
 }
 QTableView QHeaderView {
-    border-bottom-color: #252D3A;
+    border-bottom-color: #3A3E44;
 }
 
 QLabel#pathLabel {
@@ -333,6 +341,10 @@ QLabel#pathLabel {
 QTableView QTableCornerButton::section,
 QTableView QTableCornerButton::section:first {
     background-color: #202731;
+    /* Сбрасываем любые унаследованные границы и задаём только нужные стороны */
+    border: none;
+    border-right: 1px solid #3A3E44;  /* правая граница */
+    border-bottom: 1px solid #3A3E44; /* нижняя граница */
 }
 QTableView QTableCornerButton::section:alternate {
     background-color: #202731;
@@ -341,6 +353,7 @@ QTableView QTableCornerButton::section:alternate {
 /* Вертикальные заголовки для QTableView (колонка цифр) */
 QTableView QHeaderView::section:vertical {
     background-color: #202731;
+    color: #BFC7D5; /* цвет текста колонки с цифрами */
 }
 QTableView QHeaderView:vertical {
     background-color: #202731;
@@ -350,6 +363,12 @@ QTableView {
     background-color: #2D2D2D;
     alternate-background-color: #1A1F26;
     gridline-color: transparent;
+}
+
+/* Цвет текста для колонки "Открывалась" задаётся через qproperty на LinksTableView */
+LinksTableView {
+    qproperty-openedColColor: #A0A7B5;
+    qproperty-notesColColor: #D0D5E0;
 }
 
 /* TreeView background: задан в common.qss */
@@ -373,12 +392,12 @@ QTreeView::item:!selected:hover {
    10) Разделители и сплиттеры — цвета
    =============================================================== */
 QWidget[class="separator"] {
-    background-color: #252D3A;
+    background-color: #3A3E44;
 }
 
 /* Вертикальные разделители в верхней панели: тот же цвет, что и у горизонтальных */
 QWidget[class="vertical_separator"] {
-    background-color: #252D3A;
+    background-color: #3A3E44;
 }
 
 /* ===============================================================
@@ -386,7 +405,7 @@ QWidget[class="vertical_separator"] {
    =============================================================== */
 QStatusBar {
     background-color: #202731;
-    border-top-color: #252D3A; /* темовый разделитель сверху */
+    border-top-color: #3A3E44; /* темовый разделитель сверху */
 }
 
 /* Менее контрастные надписи справа в статус-баре */
@@ -403,7 +422,7 @@ QWidget#bottomBarContainer {
 QWidget#bottomBarContainer QPushButton {
     color: #fff;
     /* Разделитель справа между кнопками — только цвет (геометрия в common.qss) */
-    border-right-color: #252D3A;
+    border-right-color: #3A3E44;
     /* Остальные стороны — прозрачные цвета, без изменения геометрии */
     border-left-color: transparent;
     border-top-color: transparent;
@@ -508,7 +527,10 @@ QDialog QToolButton#linkTypeBtn:checked:hover {
 /* На всякий случай: делаем вертикальные сепараторы невидимыми */
 /* vertical_separator геометрия/фон — в common.qss */
 
-/* QSplitter::handle фон — в common.qss */
+/* QSplitter::handle фон — переопределяем для тёмной темы */
+QSplitter::handle { background-color: #3A3E44; }
+QSplitter::handle:horizontal { background-color: #3A3E44; }
+QSplitter::handle:vertical { background-color: #3A3E44; }
 
 /* ===============================================================
    11) Панель сфер — фон контейнера (градиент)

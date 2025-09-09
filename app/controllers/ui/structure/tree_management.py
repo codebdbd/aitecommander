@@ -69,6 +69,15 @@ class TreeManagement:
         if model and hasattr(model, "set_snapshot"):
             model.set_snapshot(sections_data or [])
 
+        # Если структура пуста (нет ни одного раздела) — очистим плитки категорий
+        try:
+            if not sections_data:
+                self.tiles_controller.clear()
+        except Exception:
+            logger.exception(
+                "TreeManagement._on_structure_loaded: ошибка очистки плиток при пустой структуре"
+            )
+
         # Восстанавливаем развёрнутость
         self._restore_expanded_state_model(expanded_state)
 
@@ -76,23 +85,43 @@ class TreeManagement:
         if current_selection:
             item_type, item_id = current_selection
             if item_type in ("section", "category") and isinstance(item_id, int):
+                # Если только что произошло переключение сферы и бизнес-слой
+                # поставил флаг подавления восстановления категории, не
+                # восстанавливаем категорию (избежать тяжёлой загрузки ссылок).
+                if item_type == "category":
+                    try:
+                        sb = getattr(self.controller, "business", None) or getattr(
+                            self.controller, "structure_business", None
+                        )
+                    except Exception:
+                        sb = None
+                    if sb and getattr(sb, "_suppress_category_restore_once", False):
+                        try:
+                            setattr(sb, "_suppress_category_restore_once", False)
+                        except Exception:
+                            pass
+                        # Вместо восстановления категории выберем первый доступный элемент
+                        self.controller.selection_handler._select_first_item_if_needed()
+                        return
                 self.controller.selection_handler._restore_selection_after_load(
                     item_type, item_id
                 )
         else:
             self.controller.selection_handler._select_first_item_if_needed()
 
-        # После обновления модели проставляем иконки через IconHandling для QTreeView
+        # Гарантированно сбросим одноразовый флаг подавления восстановления категории,
+        # если он по какой-то причине остался установлен после обработки выше.
         try:
-            if (
-                hasattr(self.controller, "icon_handler")
-                and self.controller.icon_handler
-            ):
-                self.controller.icon_handler.reload_icons()
-        except Exception:
-            logger.exception(
-                "TreeManagement._on_structure_loaded: ошибка перезагрузки иконок"
+            sb = getattr(self.controller, "business", None) or getattr(
+                self.controller, "structure_business", None
             )
+            if sb and getattr(sb, "_suppress_category_restore_once", False):
+                setattr(sb, "_suppress_category_restore_once", False)
+        except Exception:
+            pass
+
+        # Иконки теперь обновляются событием modelReset в StructureUIController;
+        # здесь дополнительных вызовов не делаем, чтобы избежать двойной работы.
 
         # После первой загрузки структуры обновляем отображение главного окна
         if hasattr(self.controller, "main") and getattr(
@@ -193,8 +222,9 @@ class TreeManagement:
                 item_type,
                 item_id,
             )
-        # Если удалили категорию и сейчас выбран раздел — обновим плитки для него.
+        # Обновление плиток в зависимости от типа удалённого элемента
         if item_type == "category":
+            # Если удалили категорию и сейчас выбран раздел — обновим плитки для него.
             try:
                 cur = self.tree.currentIndex()
                 t = get_tree_tuple(cur, 0) if cur and cur.isValid() else None
@@ -204,6 +234,30 @@ class TreeManagement:
             except Exception:
                 logger.exception(
                     "TreeManagement._on_item_deleted: ошибка обновления плиток после удаления категории"
+                )
+        elif item_type == "section":
+            # Если удалили раздел(ы):
+            # - когда дерево стало пустым — очищаем плитки;
+            # - если выбран какой-то раздел — обновим плитки по текущему разделу;
+            # - иначе (нет выбранного раздела) — очищаем плитки.
+            try:
+                model = self.tree.model()
+                if model and hasattr(model, "rowCount"):
+                    if int(model.rowCount(QModelIndex())) == 0:
+                        self.tiles_controller.clear()
+                        # Больше делать нечего
+                        pass
+                    else:
+                        cur = self.tree.currentIndex()
+                        t = get_tree_tuple(cur, 0) if cur and cur.isValid() else None
+                        if t and t[0] == "section":
+                            self.refresh_section_tiles(t[1])
+                        else:
+                            # Нет выбранного раздела — сбрасываем плитки
+                            self.tiles_controller.clear()
+            except Exception:
+                logger.exception(
+                    "TreeManagement._on_item_deleted: ошибка обновления плиток после удаления раздела"
                 )
         # Гарантируем восстановление фокуса на дереве после удаления
         try:

@@ -265,43 +265,79 @@ class AppShutdownController:
     def _execute_single_handler(
         self, handler: ShutdownHandler, override_timeout_ms: int | None = None
     ):
-        """Выполнение одного handler с обработкой ошибок и таймаутов."""
+        """Выполнение одного handler с реальным таймаутом и расширенным логированием.
+
+        Исполняем обработчик в отдельном потоке и ждём завершения через Future.result(timeout).
+        В случае таймаута — логируем, пытаемся отменить и продолжаем (или прерываем для critical).
+        """
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FTimeout
+
+        eff_timeout_ms = (
+            override_timeout_ms if override_timeout_ms is not None else handler.timeout
+        )
+        eff_timeout_sec = max(0.001, float(eff_timeout_ms) / 1000.0) if eff_timeout_ms else None
+
+        logger.debug(
+            "Executing shutdown handler: %s (timeout=%sms, critical=%s)",
+            handler.name,
+            eff_timeout_ms,
+            handler.critical,
+        )
+
         try:
-            logger.debug("Executing shutdown handler: %s", handler.name)
-
-            # Выполняем handler с таймаутом
-            eff_timeout = (
-                override_timeout_ms
-                if override_timeout_ms is not None
-                else handler.timeout
-            )
-            with self._timeout_context(eff_timeout, handler.name):
-                handler.handler()
-
-            logger.debug("Handler %s completed successfully", handler.name)
-
-        except ShutdownTimeoutError as exc:
+            with ThreadPoolExecutor(max_workers=1) as ex:
+                fut = ex.submit(handler.handler)
+                try:
+                    fut.result(timeout=eff_timeout_sec)
+                    logger.debug("Handler %s completed successfully", handler.name)
+                    return
+                except _FTimeout:
+                    # Пытаемся отменить, если ещё не начался
+                    try:
+                        fut.cancel()
+                    except Exception:
+                        pass
+                    msg = (
+                        f"Handler '{handler.name}' timed out after {eff_timeout_sec:.3f}s"
+                    )
+                    if handler.critical:
+                        logger.critical(msg)
+                        raise ShutdownTimeoutError(msg)
+                    else:
+                        logger.error(msg)
+                        return
+                except Exception as exc:
+                    if handler.critical:
+                        logger.critical(
+                            "Handler '%s' failed: %s", handler.name, exc, exc_info=True
+                        )
+                        raise
+                    else:
+                        logger.error(
+                            "Handler '%s' failed: %s", handler.name, exc, exc_info=True
+                        )
+                        return
+        except ShutdownTimeoutError:
+            # Уже залогировано выше, пробрасываем дальше для критичных кейсов
+            raise
+        except Exception as exc:
+            # Непредвиденные ошибки инфраструктуры исполнения
             if handler.critical:
                 logger.critical(
-                    "Handler '%s' timed out: %s", handler.name, exc, exc_info=True
+                    "Execution infrastructure failed for handler '%s': %s",
+                    handler.name,
+                    exc,
+                    exc_info=True,
                 )
                 raise
             else:
                 logger.error(
-                    "Handler '%s' timed out: %s", handler.name, exc, exc_info=True
+                    "Execution infrastructure failed for handler '%s': %s",
+                    handler.name,
+                    exc,
+                    exc_info=True,
                 )
-
-        except Exception as exc:
-            if handler.critical:
-                logger.critical(
-                    "Handler '%s' failed: %s", handler.name, exc, exc_info=True
-                )
-                raise  # Прерываем shutdown для критичных операций
-            else:
-                logger.error(
-                    "Handler '%s' failed: %s", handler.name, exc, exc_info=True
-                )
-                # Продолжаем для некритичных операций
+                return
 
     def _register_default_handlers(self):
         """Регистрация стандартных handlers (совместимость с оригинальным кодом)."""

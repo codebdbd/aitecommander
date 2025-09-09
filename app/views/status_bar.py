@@ -59,6 +59,17 @@ def update_status_bar(window) -> None:
     - Формирует путь текущего элемента структуры и активной сферы
     """
     try:
+        def _set_text_if_changed(label, text: str) -> None:
+            try:
+                if label is None:
+                    return
+                current = label.text() if hasattr(label, "text") else None
+                if current != text:
+                    label.setText(text)
+            except Exception:
+                # Никогда не роняем UI из‑за статус‑бара
+                pass
+
         # Счётчик: если активен режим плиток категорий — показываем количество категорий,
         # иначе показываем количество ссылок в таблице
         try:
@@ -76,24 +87,30 @@ def update_status_bar(window) -> None:
                     cats = int(window.tiles.get_categories_count())
                 except Exception:
                     cats = 0
-                window.links_count_label.setText(f"Категорий: {cats}")
+                _set_text_if_changed(window.links_count_label, f"Категорий: {cats}")
             else:
                 links = getattr(window, "links", None)
                 if links is not None:
-                    window.links_count_label.setText(f"Ссылок: {links.get_row_count()}")
+                    _set_text_if_changed(
+                        window.links_count_label, f"Ссылок: {links.get_row_count()}"
+                    )
                 else:
-                    window.links_count_label.setText("Ссылок: 0")
+                    _set_text_if_changed(window.links_count_label, "Ссылок: 0")
         except Exception:
             # На случай непредвиденных ошибок — не роняем UI и показываем 0
-            window.links_count_label.setText("Ссылок: 0")
+            _set_text_if_changed(window.links_count_label, "Ссылок: 0")
 
         # Статус БД (через DatabaseController)
         dc = getattr(window, "database_controller", None)
         db = getattr(dc, "db", None)
         if db is not None and getattr(db, "is_connected", lambda: False)():
-            window.db_status_label.setText(app_config.ui.get_db_connected_text())
+            _set_text_if_changed(
+                window.db_status_label, app_config.ui.get_db_connected_text()
+            )
         else:
-            window.db_status_label.setText(app_config.ui.get_db_disconnected_text())
+            _set_text_if_changed(
+                window.db_status_label, app_config.ui.get_db_disconnected_text()
+            )
 
         # Путь в дереве + активная сфера (QTreeView-only)
         parts = []
@@ -142,11 +159,14 @@ def update_status_bar(window) -> None:
             pass
 
         if parts:
-            window.path_label.setText("Путь: " + " > ".join(parts))
+            _set_text_if_changed(window.path_label, "Путь: " + " > ".join(parts))
         else:
             if hasattr(window, "path_label") and window.path_label:
-                window.path_label.setText("Путь: ")
+                _set_text_if_changed(window.path_label, "Путь: ")
     except Exception:
         # В случае неожиданных ошибок не роняем UI, просто очищаем путь
         if hasattr(window, "path_label") and window.path_label:
-            window.path_label.setText("Путь: ")
+            try:
+                _set_text_if_changed(window.path_label, "Путь: ")
+            except Exception:
+                pass

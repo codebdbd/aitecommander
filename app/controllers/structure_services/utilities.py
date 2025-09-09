@@ -5,6 +5,9 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 from app.models.structure_model import StructureModel
 
+# Модульный логгер для диагностических сообщений (не навязывает параметр logger)
+logger = logging.getLogger(__name__)
+
 
 class UtilityService:
     """Вспомогательные и совместимые операции для структуры."""
@@ -88,18 +91,45 @@ class UtilityService:
     ) -> Optional[int]:
         if current_sphere_id is None:
             return None
-        cache_key = f"first_category_{current_sphere_id}"
+        # Единый формат ключа кэша (per-sphere), согласованный с CacheManager: 'first_category_id:{sphere_id}'
+        cache_key = f"first_category_id:{current_sphere_id}"
         cached = cache_get(cache_key)
         if cached is not None:
+            try:
+                logger.debug("first_category cache HIT: key=%s → %s", cache_key, cached)
+            except Exception:
+                pass
             return cached
         sections = get_sections(current_sphere_id)
+        try:
+            logger.debug(
+                "first_category cache MISS: key=%s; sections_count=%s",
+                cache_key,
+                len(sections) if isinstance(sections, list) else "?",
+            )
+        except Exception:
+            pass
         for section in sections:
             categories = get_categories(section["id"])
             if categories:
                 first_category_id = categories[0]["id"]
                 cache_set(cache_key, first_category_id)
+                try:
+                    logger.debug(
+                        "first_category cache SET: key=%s → %s (section=%s, cats=%s)",
+                        cache_key,
+                        first_category_id,
+                        section.get("id"),
+                        len(categories) if isinstance(categories, list) else "?",
+                    )
+                except Exception:
+                    pass
                 return first_category_id
         cache_set(cache_key, None)
+        try:
+            logger.debug("first_category cache SET: key=%s → None (no categories)", cache_key)
+        except Exception:
+            pass
         return None
 
     def get_first_category_id(
@@ -127,13 +157,50 @@ class UtilityService:
         cache_invalidate: Callable[[str], None],
         logger: Optional[logging.Logger] = None,
     ) -> bool:
+        """Обновляет позиции элементов.
+
+        Усилен контроль корректности имени таблицы: вместо молчаливого успеха при
+        неподдерживаемом table_name метод теперь логирует ошибку и возвращает False.
+
+        Допустимые имена (вход → БД):
+          - "sections"  → "section"
+          - "categories"→ "category"
+          - "spheres"   → "sphere"
+          - "links"     → "link"
+
+        Фактическое обновление делегируется в модель (`StructureModel.update_item_positions`),
+        которая проксирует вызов в `Database.update_item_positions` с полной валидацией и
+        корректной пересборкой позиций.
+        """
         try:
-            for i, item_id in enumerate(ids_in_order):
-                if table_name == "sections":
-                    model.update_section(item_id, {"position": i + 1})
-                elif table_name == "categories":
-                    model.update_category(item_id, {"position": i + 1})
-            cache_invalidate(table_name)
+            name_map = {
+                "sections": "section",
+                "categories": "category",
+                "spheres": "sphere",
+                "links": "link",
+            }
+            normalized = name_map.get(table_name)
+            if not normalized:
+                if logger:
+                    logger.error(
+                        "update_item_positions: неподдерживаемое имя таблицы: %s",
+                        table_name,
+                    )
+                return False
+
+            # Делегируем атомарное обновление порядков в слой БД через модель
+            model.update_item_positions(normalized, ids_in_order)
+
+            # Инвалидируем кэш по исходному ключу и нормализованному имени (на всякий случай)
+            try:
+                cache_invalidate(table_name)
+            except Exception:
+                pass
+            if table_name != normalized:
+                try:
+                    cache_invalidate(normalized)
+                except Exception:
+                    pass
             return True
         except Exception as e:
             if logger:

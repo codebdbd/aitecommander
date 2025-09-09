@@ -715,6 +715,30 @@ class AsyncSignalHandlers:
             except Exception:
                 # Никогда не ломаем UI из-за метрик
                 pass
+            # Опционально отбрасываем устаревшие снапшоты, если включен флаг в конфиге
+            try:
+                from app.config_data import app_config
+                drop_stale = bool(app_config.ui.get_drop_stale_structure_snapshots())
+            except Exception:
+                drop_stale = False
+            if drop_stale:
+                try:
+                    current = getattr(self.controller, "current_sphere_id", None)
+                    if (
+                        isinstance(current, int)
+                        and current > 0
+                        and current != sphere_id
+                    ):
+                        self.logger.info(
+                            "Пропуск structure_loaded: загружена сфера %s, текущая = %s (drop_stale enabled)",
+                            sphere_id,
+                            current,
+                        )
+                        return
+                except Exception:
+                    # Никогда не ломаем UI из-за диагностики
+                    pass
+
             # Кэшируем результат в бизнес-логике, если доступен cache_manager
             try:
                 cache = getattr(self.controller, "cache_manager", None)

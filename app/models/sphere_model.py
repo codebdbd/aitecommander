@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class SphereModel(DatabaseBase):
     """Модель для работы со сферами"""
 
-    def get_spheres(self):
+    def get_spheres(self) -> list[dict[str, Any]]:
         """Возвращает список всех сфер в формате dict."""
         rows = self._execute_with_error_handling(
             "SELECT id, name, position, icon_path FROM sphere ORDER BY position",
@@ -23,7 +23,7 @@ class SphereModel(DatabaseBase):
         )
         return [dict(row) for row in rows] if rows else []
 
-    def get_sphere_by_id(self, sphere_id: int):
+    def get_sphere_by_id(self, sphere_id: int) -> dict[str, Any] | None:
         """Возвращает сферу по её ID в формате dict."""
         row = self._execute_with_error_handling(
             "SELECT id, name, position, icon_path FROM sphere WHERE id = ?",

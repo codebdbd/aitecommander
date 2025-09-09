@@ -413,7 +413,12 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Корректно завершает работу и закрывает ресурсы."""
+        logger.info("MainWindow.closeEvent: initiating shutdown")
         if hasattr(self, "app_shutdown") and self.app_shutdown:
-            self.app_shutdown.perform_shutdown(event)
-            return
+            try:
+                logger.info("MainWindow.closeEvent: delegating to AppShutdownController")
+                self.app_shutdown.perform_shutdown(event)
+                return
+            except Exception:
+                logger.exception("MainWindow.closeEvent: AppShutdownController failed, falling back to base closeEvent")
         super().closeEvent(event)
