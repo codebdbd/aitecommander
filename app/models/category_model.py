@@ -17,7 +17,7 @@ class CategoryModel(DatabaseBase):
         """Инициализация модели категорий."""
         super().__init__(database)
 
-    def get_categories(self, section_id: int):
+    def get_categories(self, section_id: int) -> List[Dict[str, Any]]:
         """Возвращает список категорий для указанного раздела в формате dict."""
         rows = self._execute_with_error_handling(
             "SELECT id, name, section_id, position, icon_path FROM category "
@@ -27,7 +27,7 @@ class CategoryModel(DatabaseBase):
         )
         return [dict(row) for row in rows] if rows else []
 
-    def get_categories_for_sections(self, section_ids: List[int]):
+    def get_categories_for_sections(self, section_ids: List[int]) -> List[Dict[str, Any]]:
         """Возвращает категории для нескольких разделов одним запросом в формате dict."""
         if not section_ids:
             return []
@@ -42,7 +42,7 @@ class CategoryModel(DatabaseBase):
         rows = self._execute_with_error_handling(query, section_ids, fetch_method="all")
         return [dict(row) for row in rows] if rows else []
 
-    def get_category_by_id(self, category_id: int):
+    def get_category_by_id(self, category_id: int) -> Optional[Dict[str, Any]]:
         """Возвращает категорию по её ID в формате dict."""
         row = self._execute_with_error_handling(
             "SELECT * FROM category WHERE id= ?", (category_id,), fetch_method="one"
@@ -163,12 +163,6 @@ class CategoryModel(DatabaseBase):
                     )
                     for row in rows or []:
                         max_pos_map[row["section_id"]] = row["max_pos"]
-
-                for section_id, group in by_section.items():
-                    # Стартовая позиция: (MAX(position) + 1) или 0, если записей нет
-                    max_pos = max_pos_map.get(section_id)
-                    start_pos = (max_pos + 1) if (max_pos is not None) else 0
-                    pos = start_pos
 
                 # Единая предзагрузка существующих имён для всех затронутых разделов одним запросом
                 existing_names_by_section: Dict[int, set] = {}
@@ -307,18 +301,15 @@ class CategoryModel(DatabaseBase):
 
         # 0) Собираем затронутые разделы чанками
         affected_sections: List[int] = []
-        try:
-            for i in range(0, len(unique_ids), CHUNK):
-                chunk = unique_ids[i : i + CHUNK]
-                placeholders = ",".join(["?"] * len(chunk))
-                rows = self._execute_with_error_handling(
-                    f"SELECT DISTINCT section_id FROM category WHERE id IN ({placeholders})",
-                    tuple(chunk),
-                    fetch_method="all",
-                )
-                affected_sections.extend(int(r["section_id"]) for r in (rows or []))
-        except Exception:
-            affected_sections = []
+        for i in range(0, len(unique_ids), CHUNK):
+            chunk = unique_ids[i : i + CHUNK]
+            placeholders = ",".join(["?"] * len(chunk))
+            rows = self._execute_with_error_handling(
+                f"SELECT DISTINCT section_id FROM category WHERE id IN ({placeholders})",
+                tuple(chunk),
+                fetch_method="all",
+            )
+            affected_sections.extend(int(r["section_id"]) for r in (rows or []))
 
         deleted_categories = 0
         with self.transaction():

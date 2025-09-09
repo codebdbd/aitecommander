@@ -1,10 +1,14 @@
 from typing import Any, Dict, List, Optional
+import logging
 
 from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt
 from PyQt6.QtGui import QIcon
 
 from app.utils.ui.icon import resolve_category_icon_path
 from app.utils.ui.icon.cache_manager import get_cached_category_icon
+
+
+logger = logging.getLogger(__name__)
 
 
 class CategoriesListModel(QAbstractListModel):
@@ -59,8 +63,15 @@ class CategoriesListModel(QAbstractListModel):
                 if raw_id is None:
                     raise ValueError("id is None")
                 cat_id = int(raw_id)
-            except Exception:
-                # пропускаем некорректные
+            except Exception as e:
+                # Логируем пропуск некорректного элемента по общему паттерну
+                logger.warning(
+                    "Пропущен элемент списка категорий: некорректный id (%r). Элемент=%r; причина: %s",
+                    raw_id,
+                    cat,
+                    e,
+                    exc_info=False,
+                )
                 continue
             icon_path = cat.get("icon_path", "") or ""
             if icon_path:

@@ -451,8 +451,6 @@ QDialog QToolButton:disabled:hover {
     background: #3A3A3A;
 }
 
- 
-
 
 /* QFocusFrame базовые нейтрали в common.qss */
 
