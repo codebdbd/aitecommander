@@ -485,11 +485,10 @@ class StructureBusinessLogic(QObject):
                 # Фолбэк: в крайнем случае — синхронный вызов
                 _deferred_warmup()
 
-            # В тестовой среде без QApplication немедленно выполняем прогрев,
-            # чтобы избежать провала таймера. В обычном UI-режиме не дублируем работу.
+            # Дополнительный немедленный прогрев для сред без активного цикла событий.
+            # Даже если QTimer сработает позже, повторный вызов безвреден благодаря кэшу.
             try:
-                if QApplication.instance() is None:
-                    _deferred_warmup()
+                _deferred_warmup()
             except Exception:
                 pass
 

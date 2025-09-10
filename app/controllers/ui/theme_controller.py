@@ -379,12 +379,6 @@ class ThemeController:
             self.settings.set_theme(canonical_name)
             if self.main_window and hasattr(self.main_window, "update_theme"):
                 self.main_window.update_theme()
-            # Диагностика: логируем шрифт шапки таблиц сразу после применения темы на старте
-            try:
-                if self.main_window is not None:
-                    self._log_tables_header_font(self.main_window)
-            except Exception:
-                logger.debug("ThemeController: _log_tables_header_font at apply() failed", exc_info=True)
             return True
         except Exception as exc:
             logger.error("Ошибка применения темы %s: %s", name, exc, exc_info=True)
@@ -397,61 +391,6 @@ class ThemeController:
             self._qss_cache.clear()
             self._common_qss = None
         logger.debug("Кэш тем очищен, удалено %d записей", cache_size)
-
-    def _log_tables_header_font(self, mw) -> None:
-        """Логирует фактический размер шрифта заголовков всех таблиц/деревьев.
-
-        Цель: подтвердить, что после применения темы у шапки ровно 11px и нет bold.
-        Если не 11px — выводим WARNING с деталями (px/pt/bold/stylesheet/objectName/class).
-        """
-        try:
-            from PyQt6.QtWidgets import QTableView, QTreeView
-        except Exception:
-            return
-
-        widgets = []
-        try:
-            # Наиболее вероятный наш виджет
-            tv = getattr(mw, "table", None)
-            if tv is not None:
-                widgets.append(tv)
-        except Exception:
-            pass
-        try:
-            # Подстраховка: найти все таблицы/деревья в окне
-            widgets.extend(mw.findChildren(QTableView))
-            widgets.extend(mw.findChildren(QTreeView))
-        except Exception:
-            pass
-
-        seen = set()
-        for w in widgets:
-            if id(w) in seen:
-                continue
-            seen.add(id(w))
-            try:
-                header = getattr(w, "horizontalHeader", lambda: None)()
-                if not header:
-                    continue
-                f = header.font()
-                px = f.pixelSize()
-                pt = f.pointSize()
-                bold = f.bold()
-                ss = header.styleSheet() if hasattr(header, "styleSheet") else ""
-                name = getattr(w, "objectName", lambda: "")()
-                cls = w.__class__.__name__
-                # Считаем корректным равенство 11 по pixelSize, либо точное совпадение по QSS
-                ok = (px == 11) or ("font-size:11px" in (ss or "").replace(" ", ""))
-                log_msg = (
-                    f"HeaderFont[{cls}#{name}] px={px} pt={pt} bold={bold} "
-                    f"stylesheet_len={len(ss) if ss else 0}"
-                )
-                if ok and not bold:
-                    logger.info(log_msg)
-                else:
-                    logger.warning("NON-11 HEADER FONT: " + log_msg)
-            except Exception:
-                logger.debug("ThemeController: header font inspection failed", exc_info=True)
 
     def apply_and_refresh_ui(self) -> None:
         """Централизованно обновляет UI после применения темы.
@@ -507,11 +446,7 @@ class ThemeController:
                 logger.warning(
                     "Ошибка обновления верхних панелей: %s", exc, exc_info=True
                 )
-            # Диагностика: фактический размер шрифта заголовка таблицы(ц)
-            try:
-                self._log_tables_header_font(mw)
-            except Exception:
-                logger.debug("ThemeController: _log_tables_header_font failed", exc_info=True)
+            # Диагностика размеров шапки отключена как шумная
             return
 
         # Основной путь: выполняем массовые обновления при приостановленной перерисовке окна
@@ -546,11 +481,7 @@ class ThemeController:
                     logger.warning(
                         "Ошибка обновления верхних панелей: %s", exc, exc_info=True
                     )
-                # Диагностика: фактический размер шрифта заголовка таблицы(ц)
-                try:
-                    self._log_tables_header_font(mw)
-                except Exception:
-                    logger.debug("ThemeController: _log_tables_header_font failed", exc_info=True)
+                # Диагностика размеров шапки отключена как шумная
         except Exception as exc:
             logger.warning(
                 "ThemeController: сбой при пакетном обновлении UI: %s",

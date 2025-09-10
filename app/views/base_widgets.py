@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
-from PyQt6.QtCore import QEvent, QModelIndex, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QModelIndex, Qt, pyqtSignal
 from PyQt6.QtGui import QDrag, QDropEvent, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -33,12 +33,8 @@ from app.utils.ui.dnd.link import (
 )
 from app.utils.ui.dnd.mime import MimeDataParser, get_link_mime
 from app.utils.ui.dnd.pixmap import create_default_pixmap, create_text_pixmap
-from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.utils.ui.icon.icon_resolver import (
-    get_default_icon_path,
-    resolve_icon_for_link,
-    resolve_icon_path,
-)
+from app.utils.ui.icon.icon_resolver import get_default_icon_path, resolve_icon_path
+from app.views.link_button_mixin import LinkButtonMixin
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +56,7 @@ class BasePanelWidget(QWidget):
         main_layout.addWidget(self.bg_frame)
 
 
-class BaseLinksPanelWidget(BasePanelWidget):
+class BaseLinksPanelWidget(BasePanelWidget, LinkButtonMixin):
     """Базовый класс для панелей со ссылками."""
 
     linkClicked: pyqtSignal = pyqtSignal(object)
@@ -84,7 +80,12 @@ class BaseLinksPanelWidget(BasePanelWidget):
         self._default_icon_path: Optional[Path] = None
 
     def _find_icon(self, icon_path: str) -> str:
-        """Возвращает путь к иконке через общий резолвер с fallback."""
+        """Совместимый с тестами shim: использует resolve_icon_path из этого модуля.
+
+        Логика идентична миксину, но опирается на символ, который тесты патчат:
+        tests/test_base_widgets_exception_handling.py ожидает патч
+        `app.views.base_widgets.resolve_icon_path`.
+        """
         if not icon_path:
             return str(self._get_default_icon_path())
         try:
@@ -98,68 +99,6 @@ class BaseLinksPanelWidget(BasePanelWidget):
                 "Неожиданная ошибка при разрешении иконки '%s': %s", icon_path, e
             )
             return str(self._get_default_icon_path())
-
-    def _create_link_button(self, link_data: Dict[str, Any]) -> QToolButton:
-        """Создаёт кнопку ссылки с иконкой, синхронизированной с таблицей."""
-        button = QToolButton()
-
-        button_size = app_config.ui.get_top_panel_button_size()
-        icon_size = app_config.ui.get_top_panel_icon_size()
-        button.setFixedSize(button_size, button_size)
-        button.setIconSize(QSize(icon_size[0], icon_size[1]))
-        button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        try:
-            resolved_path = self._find_icon(resolve_icon_for_link(link_data))
-            icon = create_icon_from_path(resolved_path)
-            # Фолбэк: если иконка не создана или пуста — используем дефолтную
-            if not icon or getattr(icon, "isNull", lambda: True)():
-                fallback_path = str(self._get_default_icon_path())
-                logger.warning(
-                    "Иконка не создана/пустая для ссылки %r (path=%s). Используем дефолтную: %s",
-                    link_data.get("name"),
-                    resolved_path,
-                    fallback_path,
-                )
-                icon = create_icon_from_path(fallback_path)
-            button.setIcon(icon)
-            # Диагностика фактических размеров и DPR
-            try:
-                from PyQt6.QtCore import QSize as _QSize
-                from PyQt6.QtGui import QGuiApplication
-
-                req_size = _QSize(icon_size[0], icon_size[1])
-                actual = icon.actualSize(req_size)
-                screen = QGuiApplication.primaryScreen()
-                dpr = float(screen.devicePixelRatio()) if screen is not None else 1.0
-                logger.debug(
-                    "[TopBarIconDiag] name=%r path=%s req=%sx%s actual=%sx%s btn=%sx%s DPR=%.2f",
-                    link_data.get("name"),
-                    resolved_path,
-                    req_size.width(),
-                    req_size.height(),
-                    actual.width(),
-                    actual.height(),
-                    button.size().width(),
-                    button.size().height(),
-                    dpr,
-                )
-            except Exception as diag_exc:
-                logging.debug("[TopBarIconDiag] failed to log diagnostics: %s", diag_exc)
-        except Exception as e:
-            logger.warning(
-                "Не удалось создать иконку для ссылки '%s': %s",
-                link_data.get("name", "Unknown"),
-                e,
-            )
-            # Гарантируем визуальный отклик — ставим иконку по умолчанию
-            try:
-                fallback_path = str(self._get_default_icon_path())
-                button.setIcon(create_icon_from_path(fallback_path))
-            except Exception:
-                pass
-
-        button.setToolTip(link_data.get("name", "Неизвестная ссылка"))
-        return button
 
     def _clear_layout(self):
         """Безопасно очищает layout от виджетов."""
