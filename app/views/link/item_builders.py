@@ -6,7 +6,8 @@ from typing import Dict, Tuple
 
 # Константы для магических чисел
 MAX_NOTES_LENGTH = 462
-STAR_SYMBOL = "★"
+# Маркер избранного: сердечко вместо звезды
+STAR_SYMBOL = "♥"
 STAR_COLOR = "#FFD700"
 PATH_SEPARATOR = " → "
 

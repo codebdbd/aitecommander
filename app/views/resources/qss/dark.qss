@@ -109,18 +109,14 @@ QWidget#LeftPanel QToolButton:hover {
    =============================================================== */
 QMenu {
     color: #D1D6E0;
-    background-color: #1E2633;
-    border-color: #14191F;
+    background-color: #2C2F36; /* фон контекстных меню по запросу */
+    /* Равномерная тёмная рамка */
+    border: 1px solid #3A3E44;
 }
 
 QMenu::item {
     background-color: transparent;
     color: #D1D6E0;
-}
-
-QMenu::item:selected {
-    background-color: #2E4066;
-    color: #FFFFFF;
 }
 
 QMenu::item:disabled {
@@ -132,10 +128,16 @@ QMenu::separator {
     background: #3A3E44;
 }
 
-QMenu::item:hover {
+
+/* Ховер/выделение пунктов меню (усиленная специфичность) */
+QMenu::item:enabled:hover,
+QMenu::item:enabled:selected,
+QMenu::item:hover,
+QMenu::item:selected {
     background-color: #2E4066;
     color: #FFFFFF;
 }
+
 
 QMenu::item:pressed {
     background-color: #3D507A;
@@ -174,8 +176,8 @@ QMenuBar::item:pressed {
 }
 
 QMenuBar QMenu {
-    background-color: #1E2633;
-    border-color: #252D3A;
+    background-color: #2C2F36; /* фон контекстных меню (из меню-бара) */
+    border: 1px solid #3A3E44;
 }
 
 QMainWindow {

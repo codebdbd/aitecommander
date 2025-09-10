@@ -78,10 +78,49 @@ class StructureUIController(QObject):
 
             QTimer.singleShot(0, _do_reload)
 
+        # После modelReset у QTreeView меняется selectionModel. Переподключаем currentChanged.
+        def _schedule_selection_reconnect():
+            try:
+                from PyQt6.QtCore import QTimer
+
+                def _reconnect():
+                    try:
+                        sel_model = self.tree.selectionModel()
+                    except Exception:
+                        sel_model = None
+                    if not sel_model:
+                        return
+                    # На всякий случай пытаемся отключить старую связь, если она есть
+                    try:
+                        sel_model.currentChanged.disconnect(
+                            self.selection_handler._on_current_changed
+                        )
+                    except Exception:
+                        pass
+                    try:
+                        sel_model.currentChanged.connect(
+                            self.selection_handler._on_current_changed
+                        )
+                    except Exception:
+                        pass
+
+                QTimer.singleShot(0, _reconnect)
+            except Exception:
+                # Не критично, просто логируем в DEBUG
+                import logging
+                logging.getLogger(__name__).debug(
+                    "Failed to schedule selection reconnect after modelReset", exc_info=True
+                )
+
         # Подписываемся ТОЛЬКО на modelReset, чтобы выполнять один проход
         # после полной сборки снапшота и не дергать перерисовку на каждом rowsInserted/layoutChanged
         try:
             model.modelReset.connect(_schedule_reload)
+        except Exception:
+            pass
+        # Переподключение selectionModel после сброса модели
+        try:
+            model.modelReset.connect(_schedule_selection_reconnect)
         except Exception:
             pass
 
