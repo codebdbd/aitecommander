@@ -336,7 +336,8 @@ class WindowUISetup:
     def _post_shown_second_adjust(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
         """Во второй тик после shown: повторный adjust для устойчивости."""
         try:
-            QTimer.singleShot(16, mgr.adjust)
+            # Завершим прогрев и покажем топ-бар только после «боевого» adjust
+            QTimer.singleShot(16, lambda: self._finalize_topbar_show(mgr))
         except Exception:
             logger.debug("TopPanel: failed in _post_shown_second_adjust", exc_info=True)
 
@@ -361,12 +362,6 @@ class WindowUISetup:
                 "TopPanel: adjust() failed in _invoke_adjust_and_show_host",
                 exc_info=True,
             )
-        try:
-            self.window.top_bar_host.setVisible(True)
-        except Exception:
-            logger.debug(
-                "TopPanel: setVisible(True) failed for top_bar_host", exc_info=True
-            )
 
     def _invoke_adjust(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
         """Безопасно вызывает mgr.adjust()."""
@@ -374,6 +369,60 @@ class WindowUISetup:
             mgr.adjust()
         except Exception:
             logger.debug("TopPanel: adjust() failed in _invoke_adjust", exc_info=True)
+
+    def _finalize_topbar_show(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
+        """Сбрасывает warmup, выполняет боевой adjust, затем показывает host и делает финальный adjust."""
+        try:
+            # Импортируем лениво, чтобы избежать циклов
+            from app.utils.ui.updates import suspend_updates
+        except Exception:
+            suspend_updates = None  # type: ignore
+
+        try:
+            if suspend_updates is not None:
+                with suspend_updates(self.window):
+                    # Сбросить прогрев, чтобы следующий adjust был боевым
+                    try:
+                        if hasattr(mgr, "_warmup_adjusts_remaining"):
+                            setattr(mgr, "_warmup_adjusts_remaining", 0)
+                    except Exception:
+                        logger.debug("TopBar: failed to reset warmup flag", exc_info=True)
+                    # Боевой adjust на скрытом host (контейнер уже создан)
+                    try:
+                        mgr.adjust()
+                    except Exception:
+                        logger.debug("TopBar: adjust() failed before host show", exc_info=True)
+                    # Показать host
+                    try:
+                        self.window.top_bar_host.setVisible(True)
+                    except Exception:
+                        logger.debug("TopBar: failed to show top_bar_host in finalize", exc_info=True)
+                    # Финальный adjust уже на видимом контейнере
+                    try:
+                        mgr.adjust()
+                    except Exception:
+                        logger.debug("TopBar: final adjust() failed after host show", exc_info=True)
+            else:
+                # Fallback без приостановки обновлений
+                try:
+                    if hasattr(mgr, "_warmup_adjusts_remaining"):
+                        setattr(mgr, "_warmup_adjusts_remaining", 0)
+                except Exception:
+                    logger.debug("TopBar: failed to reset warmup flag (no suspend)", exc_info=True)
+                try:
+                    mgr.adjust()
+                except Exception:
+                    logger.debug("TopBar: adjust() failed before host show (no suspend)", exc_info=True)
+                try:
+                    self.window.top_bar_host.setVisible(True)
+                except Exception:
+                    logger.debug("TopBar: failed to show top_bar_host (no suspend)", exc_info=True)
+                try:
+                    mgr.adjust()
+                except Exception:
+                    logger.debug("TopBar: final adjust() failed after host show (no suspend)", exc_info=True)
+        except Exception:
+            logger.debug("TopBar: finalize_topbar_show unexpected error", exc_info=True)
 
     def _log_setup_top_panel_total(self, t_total_start: float) -> None:
         """Логирует итоговую длительность настройки верхней панели."""
@@ -503,15 +552,8 @@ class WindowUISetup:
                 exc_info=True,
             )
 
-        # Поиск (в конце, расширяется по ширине)
+        # Поиск (в конце)
         self.setup_search_widget(top_bar)
-        # Нормализуем stretch-факторы: только поиск должен иметь stretch=1
-        try:
-            self._normalize_top_bar_stretches(top_bar)
-        except Exception:
-            logger.debug(
-                "TopPanel: failed to normalize top bar stretches", exc_info=True
-            )
 
     def _create_vertical_separator(self) -> QWidget:
         """Создаёт вертикальный разделитель по аналогии с горизонтальными.
@@ -587,8 +629,8 @@ class WindowUISetup:
             logger.warning(
                 "SearchWidget: window.on_search handler not found; textChanged not connected"
             )
-        # Добавляем со stretch-фактором, чтобы строка поиска занимала всё оставшееся место
-        top_bar.addWidget(self.window.search, 1)
+        # Добавляем БЕЗ stretch на этапе сборки (растягивание задаст TopBarLayoutManager после финального adjust)
+        top_bar.addWidget(self.window.search)
         try:
             dur = (time.perf_counter() - t_start) * 1000.0
             logger.info("TopPanelMetrics: setup_search_widget: %.1f ms", dur)

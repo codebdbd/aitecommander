@@ -189,6 +189,13 @@ class TopBarLayoutManager(QObject):
         container = self._get_container_widget()
         if not container or container.width() <= 0:
             return
+        # Не меняем раскладку, пока контейнер верхней панели ещё скрыт — это предотвращает
+        # преждевременное растягивание поиска до показа top_bar_host
+        try:
+            if hasattr(container, "isVisible") and not container.isVisible():
+                return
+        except Exception:
+            pass
         width = container.width()
         # Для активации узкого режима учитываем фактическую ширину окна, если доступна
         try:
@@ -332,69 +339,57 @@ class TopBarLayoutManager(QObject):
             quick_btns,
         )
 
-        # Если расчёт показал, что места нет даже для одной кнопки любой панели — принудительно оставляем только поиск
+        # Если расчёт показал, что места нет даже для одной кнопки любой панели (zero-count)
         if cnt_recent == 0 and cnt_fav == 0 and cnt_quick == 0:
-            try:
-                self._apply_counts(width, 0, 0, 0)
-                self._update_separators_visibility(
-                    top_bar, False, False, False, bool(search)
-                )
-                count = top_bar.count()
-                for i in range(count):
-                    it = top_bar.itemAt(i)
-                    w = it.widget()
-                    if w is None:
-                        continue
-                    if isinstance(search, QLineEdit) and w is search:
-                        continue
-                    try:
-                        w.setVisible(False)
-                    except Exception:
-                        pass
-                # Обнулить все spacerItem, чтобы не было отступов
+            # В узком режиме сохраняем прежнее поведение: оставляем только поиск, без отступов
+            if effective_w <= self._narrow_threshold:
                 try:
+                    self._apply_counts(width, 0, 0, 0)
+                    self._update_separators_visibility(
+                        top_bar, False, False, False, bool(search)
+                    )
+                    count = top_bar.count()
                     for i in range(count):
-                        sp = top_bar.itemAt(i).spacerItem()
-                        if sp is not None:
-                            sp.changeSize(
-                                0, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-                            )
-                except Exception:
-                    pass
-                # Отключить встроенные действия у поиска
-                if isinstance(search, QLineEdit):
+                        it = top_bar.itemAt(i)
+                        w = it.widget()
+                        if w is None:
+                            continue
+                        if isinstance(search, QLineEdit) and w is search:
+                            continue
+                        try:
+                            w.setVisible(False)
+                        except Exception:
+                            pass
+                    # Обнулить spacerItem, чтобы не было отступов
                     try:
-                        search.setClearButtonEnabled(False)
+                        for i in range(count):
+                            sp = top_bar.itemAt(i).spacerItem()
+                            if sp is not None:
+                                sp.changeSize(0, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
                     except Exception:
                         pass
+                    # Нулевые отступы и перерасчёт
                     try:
-                        for act in search.actions():
-                            try:
-                                act.setVisible(False)
-                            except Exception:
-                                pass
+                        self._set_top_bar_margins(top_bar, 0, 0, 0, 0)
+                        self._enforce_stretches(top_bar, search)
+                        top_bar.invalidate()
+                        host = self._get_container_widget()
+                        if isinstance(host, QWidget):
+                            host.updateGeometry()
+                            host.update()
                     except Exception:
-                        pass
-                # Нулевые отступы и перерасчёт
-                try:
-                    self._set_top_bar_margins(top_bar, 0, 0, 0, 0)
-                    # Зафиксировать stretch-факторы: только поиск тянется
-                    self._enforce_stretches(top_bar, search)
-                    top_bar.invalidate()
-                    host = self._get_container_widget()
-                    if isinstance(host, QWidget):
-                        host.updateGeometry()
-                        host.update()
+                        logger.debug(
+                            "TopBarLM: failed to apply narrow-mode zero-count layout",
+                            exc_info=True,
+                        )
                 except Exception:
                     logger.debug(
-                        "TopBarLM: failed to set zero margins/enforce stretches (zero-count mode)",
+                        "TopBarLayoutManager: zero-count narrow-mode handling failed",
                         exc_info=True,
                     )
-            except Exception:
-                logger.debug(
-                    "TopBarLayoutManager: forced narrow-mode hide due to zero counts failed",
-                    exc_info=True,
-                )
+                return
+            # НЕ узкий режим: ничего не меняем сейчас, чтобы не растянуть поиск «в одинокого»
+            # Следующий корректный adjust с ненулевыми панелями разложит всё и назначит stretch
             return
 
         state = (width, cnt_recent, cnt_fav, cnt_quick)
