@@ -683,6 +683,10 @@ QDialog QToolButton {
     border-radius: 8px;
     outline: none;
 }
+/* Плитки выбора типа ссылок: скругление 4px */
+QDialog QToolButton#linkTypeBtn {
+    border-radius: 4px;
+}
 /* Диалоговые кнопки: при hover/pressed/checked толщина рамки неизменна */
 QDialog QPushButton:hover,
 QDialog QPushButton:pressed,

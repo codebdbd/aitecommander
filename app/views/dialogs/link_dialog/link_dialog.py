@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Tuple, runtime_checkable
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -193,11 +193,21 @@ class LinkDialog(BaseDialog):
 
         # Неоновое свечение для кнопок типов ссылок — как у кнопок сфер
         try:
+            # Поведение как у кнопок сфер: реальный неон на hover и у активной
             self._neon_link_filter = NeonEventFilter(
                 color=QColor("#0194F0"), blur_radius=18
             )
             for btn in self._get_type_group().buttons():
                 btn.installEventFilter(self._neon_link_filter)
+                # Подключаем отслеживание toggled и синхронизируем состояние свечения
+                try:
+                    self._neon_link_filter._maybe_connect_toggled(btn)
+                    if getattr(btn, "isChecked", lambda: False)():
+                        self._neon_link_filter._apply_effect(btn)
+                    else:
+                        self._neon_link_filter._clear_effect(btn)
+                except Exception:
+                    pass
         except (AttributeError, RuntimeError) as e:
             # Не блокируем диалог при ошибке эффекта
             logger.warning(
@@ -208,8 +218,45 @@ class LinkDialog(BaseDialog):
         self.handlers = LinkDialogHandlers(self)
         self.handlers.connect_signals()
 
+        # Устанавливаем защиту от нежелательных перескоков фокуса в блок иерархии
+        try:
+            self._install_focus_guard()
+        except Exception:
+            pass
+
         # Инициализация воркеров и таймеров
         self._init_workers_and_timers()
+
+    # --- Focus guard -------------------------------------------------------
+    def _install_focus_guard(self) -> None:
+        """Устанавливает eventFilter на комбобоксы иерархии, чтобы временно
+        не позволять им перехватывать фокус сразу после смены типа.
+
+        Использует атрибут `_preferred_focus_widget`, который выставляется
+        в `TypeChangeMixin._update_ui_state()` на 300 мс и затем сбрасывается.
+        """
+        try:
+            for cb in (self._get_sphere_cb(), self._get_section_cb(), self._get_category_cb()):
+                if cb and not getattr(cb, "_focus_guard_installed", False):
+                    cb.installEventFilter(self)
+                    setattr(cb, "_focus_guard_installed", True)
+        except Exception:
+            pass
+
+    def eventFilter(self, obj, event):
+        try:
+            # Если задан желаемый фокус и текущий объект пытается забрать фокус — вернём его обратно
+            if event and event.type() == event.Type.FocusIn:
+                target = getattr(self, "_preferred_focus_widget", None)
+                if target is not None and obj is not target:
+                    try:
+                        target.setFocus(Qt.FocusReason.OtherFocusReason)
+                        return True  # Поглотить фокус-событие
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return super().eventFilter(obj, event)
 
     def _init_workers_and_timers(self) -> None:
         """Инициализирует воркеры и таймеры для обработки ссылок."""
@@ -286,6 +333,23 @@ class LinkDialog(BaseDialog):
 
         # Обновление состояния UI
         self.handlers._update_ui_state()
+
+        # Установка фокуса по типу ссылки:
+        #  - для WEB: фокус на поле URL/Путь
+        #  - для остальных типов: фокус на кнопке "Обзор…"
+        try:
+            lt = LinkType.from_value(self.link_type)
+            def _apply_initial_focus():
+                try:
+                    if lt == LinkType.WEB:
+                        self._get_url_le().setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+                    else:
+                        self._get_browse_btn().setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+                except Exception:
+                    pass
+            QTimer.singleShot(0, _apply_initial_focus)
+        except Exception:
+            pass
 
     def _set_initial_icon(self) -> None:
         """Устанавливает начальную иконку."""
