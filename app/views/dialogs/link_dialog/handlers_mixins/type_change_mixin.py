@@ -4,6 +4,7 @@
 
 import logging
 from pathlib import Path
+from PyQt6.QtCore import Qt, QTimer
 
 from PyQt6.QtGui import QIcon
 
@@ -55,6 +56,20 @@ class TypeChangeMixin:
 
         self._update_ui_state()
 
+        # Синхронизация неон-эффекта для плиток типов: убрать остаточное свечение
+        try:
+            filt = getattr(self.dialog, "_neon_link_filter", None)
+            type_group = self.dialog.ui.widgets.get("type_group") if hasattr(self.dialog, "ui") else None
+            if filt and type_group:
+                for btn in type_group.buttons():
+                    if getattr(btn, "isChecked", lambda: False)():
+                        filt._apply_effect(btn)
+                    else:
+                        filt._clear_effect(btn)
+        except Exception:
+            # Не падаем из-за эффекта: это только визуальная синхронизация
+            pass
+
     def _update_ui_state(self) -> None:
         """Обновляет состояние UI в зависимости от типа ссылки."""
         lt = LinkType.from_value(self.dialog.link_type)
@@ -80,14 +95,35 @@ class TypeChangeMixin:
 
         # Аргументы только для типов, где они предусмотрены
         args_supported_types = (
-            LinkType.PROGRAM,
             LinkType.SCRIPT,
-            LinkType.CHROMEAPP,
             LinkType.WEB,
         )
         show_args = lt in args_supported_types
         args_le.setVisible(show_args)
         args_label.setVisible(show_args)
+
+        # Фокус в зависимости от типа: WEB -> поле URL, иначе -> кнопка "Обзор…"
+        def _apply_focus():
+            try:
+                if lt == LinkType.WEB:
+                    target = self.dialog._get_url_le()
+                    target.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+                else:
+                    target = self.dialog._get_browse_btn()
+                    target.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
+                # Зафиксируем желаемый фокус на короткое время, чтобы обновления
+                # списков (разделы/категории) не перехватывали его.
+                try:
+                    self.dialog._preferred_focus_widget = target
+                    QTimer.singleShot(300, lambda: setattr(self.dialog, "_preferred_focus_widget", None))
+                except Exception:
+                    pass
+            except Exception:
+                pass
+        try:
+            QTimer.singleShot(10, _apply_focus)
+        except Exception:
+            _apply_focus()
 
     def set_link_type(self, link_type) -> None:
         """Программно выбрать тип ссылки и обновить UI."""

@@ -42,12 +42,14 @@ class NeonEventFilter(QObject):
         blur_radius: int = 18,
         x_offset: int = 0,
         y_offset: int = 0,
+        outline_only: bool = False,
     ) -> None:
         super().__init__(parent)
         self._color = color or QColor("#0194F0")
         self._blur = blur_radius
         self._x = x_offset
         self._y = y_offset
+        self._outline_only = outline_only
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         et = event.type()
@@ -70,11 +72,20 @@ class NeonEventFilter(QObject):
                 QAbstractItemView,
             ),
         ):
-            # Наведение / фокус
-            if et in (QEvent.Type.Enter, QEvent.Type.FocusIn):
+            # Наведение / фокус (включая hover события)
+            if et in (
+                QEvent.Type.Enter,
+                QEvent.Type.FocusIn,
+                QEvent.Type.HoverEnter,
+                QEvent.Type.HoverMove,
+            ):
                 self._apply_effect(watched)
-            # Уход курсора / потеря фокуса
-            elif et in (QEvent.Type.Leave, QEvent.Type.FocusOut):
+            # Уход курсора / потеря фокуса (включая hover leave)
+            elif et in (
+                QEvent.Type.Leave,
+                QEvent.Type.FocusOut,
+                QEvent.Type.HoverLeave,
+            ):
                 # Для checkable-активных кнопок оставляем свечение
                 if self._is_active_checked_button(watched):
                     self._apply_effect(watched)
@@ -153,11 +164,36 @@ class NeonEventFilter(QObject):
         return eff
 
     def _apply_effect(self, w: QWidget) -> None:
+        # В режиме outline_only настоящий неон используем ТОЛЬКО для выбранной (checked) кнопки
+        if self._outline_only and not self._is_active_checked_button(w):
+            # В режиме только обводки не используем графический эффект —
+            # переключаем динамическое свойство для QSS.
+            try:
+                w.setProperty("_neon_on", True)
+                st = w.style()
+                if st is not None:
+                    st.unpolish(w)
+                    st.polish(w)
+                w.update()
+            except Exception:
+                pass
+            return
         eff = self._ensure_effect(w)
         w.setGraphicsEffect(eff)
         eff.setEnabled(True)
 
     def _clear_effect(self, w: QWidget) -> None:
+        if self._outline_only and not self._is_active_checked_button(w):
+            try:
+                w.setProperty("_neon_on", False)
+                st = w.style()
+                if st is not None:
+                    st.unpolish(w)
+                    st.polish(w)
+                w.update()
+            except Exception:
+                pass
+            return
         eff = getattr(w, "_neon_effect", None)
         if isinstance(eff, QGraphicsDropShadowEffect):
             eff.setEnabled(False)

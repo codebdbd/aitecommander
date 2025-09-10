@@ -437,6 +437,28 @@ QWidget#bottomBarContainer QPushButton:hover {
 /* ===============================================================
    15) Диалоги — цвета и фокус
    =============================================================== */
+/* БАЗОВЫЙ ЦВЕТ ОБВОДКИ ДЛЯ ЭЛЕМЕНТОВ ДИАЛОГОВ (по умолчанию) */
+QDialog QLineEdit,
+QDialog QTextEdit,
+QDialog QPlainTextEdit,
+QDialog QComboBox,
+QDialog QSpinBox,
+QDialog QDoubleSpinBox,
+QDialog QDateEdit,
+QDialog QTimeEdit {
+    border-color: #3A3F47;
+}
+
+/* Кнопки диалогов: базовый цвет обводки по умолчанию */
+QDialog QPushButton,
+QDialog QToolButton {
+    border-color: #3A3F47;
+}
+
+/* Выпадающий список (popup) у комбобокса в диалогах: базовая обводка */
+QDialog QComboBox QAbstractItemView {
+    border-color: #3A3F47;
+}
 /* Focus outline for dialog inputs */
 QDialog QLineEdit:focus,
 QDialog QTextEdit:focus,
@@ -454,6 +476,8 @@ QDialog QPushButton:focus,
 QDialog QToolButton:focus {
     border-color: #0194F0;
 }
+
+/* (rollback) no overrides here; dialog button borders managed by base + focus rules */
 
 /* Disabled dialog buttons: gray background, keep existing borders */
 QDialog QPushButton:disabled,
@@ -502,7 +526,7 @@ QDialog QPushButton:autoDefault:focus {
 /* Match spheres bar behavior for link type buttons */
 /* linkTypeBtn база перенесена в common.qss */
 QDialog QToolButton#linkTypeBtn:hover {
-    /* Same hover outline and hover background as spheres */
+    /* Как у кнопок сфер: даём тёмный фон, чтобы неон был вокруг всей плитки */
     border-color: #0194F0;
     background: #1E2633;
 }
@@ -513,6 +537,11 @@ QDialog QToolButton#linkTypeBtn:checked {
 }
 QDialog QToolButton#linkTypeBtn:checked:hover {
     /* Keep blue outline on hover for active */
+    border-color: #0194F0;
+}
+
+/* Неоновый эффект: только обводка при активном динамическом свойстве */
+QDialog QToolButton#linkTypeBtn[_neon_on="true"] {
     border-color: #0194F0;
 }
 

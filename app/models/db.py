@@ -12,6 +12,7 @@ from typing import Dict, List, Optional
 
 from app.config_data import app_config
 from app.utils.db.synchronization import db_lock
+from app.utils.db.migrations import MigrationRunner
 
 from .category_model import CategoryModel
 from .db_base import VALID_POSITION_TABLES, DatabaseBase, DatabaseError, ValidationError
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 # Пути к файлам
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
+MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
 # Пути к базе данных из централизованной конфигурации
 PATHS = app_config.paths
@@ -60,13 +62,23 @@ class Database(DatabaseBase):
         блокировки `db_lock` внутри методов, где это необходимо.
         """
         try:
-            # Инициализация схемы и начальных данных, если БД новая
-            if not DB_PATH.exists():
-                self._init_schema()
-                self.spheres.initialize_default_spheres()
-            else:
-                # Выполняем миграции для существующих БД
-                self._run_migrations()
+            is_new = not DB_PATH.exists()
+            # Запускаем миграции через MigrationRunner (создаст схему через 0001_init)
+            with db_lock:
+                runner = MigrationRunner(self.connection, MIGRATIONS_DIR)
+                applied = runner.run_all_pending()
+                logger.info("Миграции применены: %d", applied)
+
+            # Инициализация дефолтных данных для новой базы (после миграций)
+            if is_new:
+                try:
+                    self.spheres.initialize_default_spheres()
+                except Exception as init_err:
+                    logger.warning(
+                        "Не удалось инициализировать дефолтные сферы: %s",
+                        init_err,
+                        exc_info=True,
+                    )
         finally:
             # Закрываем соединение текущего потока (например, воркера),
             # чтобы не держать открытым соединение из фонового потока.
@@ -104,147 +116,28 @@ class Database(DatabaseBase):
         return self.thread_local.conn
 
     def _init_schema(self):
-        """Инициализирует схему базы данных из файла schema.sql."""
+        """[DEPRECATED] Инициализация схемы напрямую из schema.sql.
+
+        Используйте систему миграций (MigrationRunner) вместо прямого вызова.
+        Оставлено для обратной совместимости в утилитах.
+        """
         try:
             sql = SCHEMA_PATH.read_text(encoding="utf-8")
             with db_lock:
                 self.connection.executescript(sql)
                 self.commit()
-            logger.info("Схема базы данных инициализирована")
+            logger.info("Схема базы данных инициализирована (deprecated метод)")
         except Exception as e:
             logger.error("Ошибка инициализации схемы: %s", e, exc_info=True)
             raise DatabaseError(f"Не удалось инициализировать схему базы данных: {e}")
 
     def _run_migrations(self):
-        """Выполняет миграции для существующих баз данных."""
+        """[DEPRECATED] Ручные миграции. Не используется, оставлено для истории."""
         try:
-            # Миграция: добавление поля browser_key в таблицу link
-            try:
-                with db_lock:
-                    self.connection.execute(
-                        "ALTER TABLE link ADD COLUMN browser_key TEXT DEFAULT NULL"
-                    )
-                    self.commit()
-                logger.info("Миграция: добавлено поле browser_key в таблицу link")
-            except sqlite3.OperationalError as e:
-                if "duplicate column name" in str(e).lower():
-                    logger.debug("Поле browser_key уже существует в таблице link")
-                else:
-                    raise
-
-            # Миграция: изменить уникальность с (category_id,url,args,type) на (category_id,name,url,args)
-            try:
-                with db_lock:
-                    # Проверяем текущие уникальные индексы таблицы link
-                    idx_list = self.connection.execute(
-                        "PRAGMA index_list('link')"
-                    ).fetchall()
-                    need_migrate = False
-                    for idx in idx_list:
-                        # row: seq, name, unique, origin, partial
-                        if idx["unique"] == 1:  # unique
-                            cols = self.connection.execute(
-                                f"PRAGMA index_info('{idx['name']}')"
-                            ).fetchall()
-                            col_names = [c["name"] for c in cols]
-                            if col_names == ["category_id", "url", "args", "type"]:
-                                need_migrate = True
-                                break
-
-                    if need_migrate:
-                        logger.info(
-                            "Миграция: пересоздание link с UNIQUE(category_id,name,url,args)"
-                        )
-                        self.connection.execute("BEGIN TRANSACTION")
-                        try:
-                            # Создаем новую таблицу c нужным UNIQUE
-                            self.connection.execute(
-                                """
-                                CREATE TABLE IF NOT EXISTS link_new (
-                                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                                    category_id  INTEGER NOT NULL REFERENCES category(id) ON DELETE CASCADE,
-                                    name         TEXT    NOT NULL,
-                                    url          TEXT    NOT NULL,
-                                    type         TEXT    NOT NULL CHECK(type IN ('web','file','program','script','chromeapp','folder')),
-                                    notes        TEXT    DEFAULT '',
-                                    is_favorite  INTEGER NOT NULL CHECK(is_favorite IN (0,1)) DEFAULT 0,
-                                    last_used    TEXT    DEFAULT NULL,
-                                    icon_path    TEXT    NOT NULL DEFAULT 'default.ico',
-                                    args         TEXT    DEFAULT '',
-                                    browser_key  TEXT    DEFAULT NULL,
-                                    position     INTEGER NOT NULL DEFAULT 0,
-                                    UNIQUE(category_id, name, url, args)
-                                )
-                                """
-                            )
-
-                            # Перенос данных
-                            self.connection.execute(
-                                """
-                                INSERT OR IGNORE INTO link_new 
-                                    (id, category_id, name, url, type, notes, is_favorite, last_used, icon_path, args, browser_key, position)
-                                SELECT id, category_id, name, url, type, notes, is_favorite, last_used, icon_path, args, browser_key, position
-                                FROM link
-                                """
-                            )
-
-                            # Заменяем таблицы
-                            self.connection.execute("DROP TABLE link")
-                            self.connection.execute(
-                                "ALTER TABLE link_new RENAME TO link"
-                            )
-                            self.commit()
-                            logger.info("Миграция link завершена успешно")
-                        except Exception as inner:
-                            self.rollback()
-                            logger.error(
-                                "Ошибка миграции таблицы link: %s", inner, exc_info=True
-                            )
-                            # не пробрасываем исключение, чтобы не падало приложение
-            except Exception as mig_err:
-                logger.error(
-                    "Ошибка при подготовке миграции уникальности link: %s",
-                    mig_err,
-                    exc_info=True,
-                )
-            # Миграция: добавить уникальные индексы с COLLATE NOCASE для case-insensitive уникальности
-            try:
-                with db_lock:
-                    # Для сфер: уникальность имени без учёта регистра
-                    self.connection.execute(
-                        """
-                        CREATE UNIQUE INDEX IF NOT EXISTS idx_sphere_name_nocase
-                        ON sphere(name COLLATE NOCASE)
-                        """
-                    )
-                    # Для разделов: уникальность (sphere_id, name) без учёта регистра
-                    self.connection.execute(
-                        """
-                        CREATE UNIQUE INDEX IF NOT EXISTS idx_section_sphere_name_nocase
-                        ON section(sphere_id, name COLLATE NOCASE)
-                        """
-                    )
-                    # Для категорий: уникальность (section_id, name) без учёта регистра
-                    self.connection.execute(
-                        """
-                        CREATE UNIQUE INDEX IF NOT EXISTS idx_category_section_name_nocase
-                        ON category(section_id, name COLLATE NOCASE)
-                        """
-                    )
-                    self.commit()
-                logger.info(
-                    "Миграция: добавлены case-insensitive уникальные индексы для sphere/section/category"
-                )
-            except sqlite3.OperationalError as e:
-                # Если в данных уже есть дубликаты, создание индекса упадёт — логируем и продолжаем
-                logger.warning(
-                    "Не удалось создать NOCASE-индексы (возможны дубликаты по регистру): %s",
-                    e,
-                    exc_info=True,
-                )
+            runner = MigrationRunner(self.connection, MIGRATIONS_DIR)
+            runner.run_all_pending()
         except Exception as e:
-            logger.error("Ошибка выполнения миграций: %s", e, exc_info=True)
-            # Не прерываем работу приложения из-за ошибок миграции
+            logger.error("Ошибка выполнения миграций (deprecated): %s", e, exc_info=True)
 
     # Вспомогательные методы
 

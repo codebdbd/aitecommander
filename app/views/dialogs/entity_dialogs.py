@@ -151,6 +151,11 @@ class BaseEntityDialog(BaseDialog):
             self.name_le.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
         except Exception:
             logger.debug("BaseEntityDialog.showEvent: setFocus failed", exc_info=True)
+        # После применения uniform-height в BaseDialog подгоняем размер по содержимому
+        try:
+            self.adjustSize()
+        except Exception:
+            logger.debug("BaseEntityDialog.showEvent: adjustSize failed", exc_info=True)
 
     def _on_return_pressed(self):
         """Локальная обработка Enter на поле имени: триггерим сохранение только при валидном имени."""
@@ -219,7 +224,8 @@ class SectionDialog(BaseEntityDialog):
     ):
         super().__init__(structure_business, "section", section_id, parent)
         self.default_sphere_id = default_sphere_id
-        self.resize(400, 150)
+        # Фиксируем только ширину, высоту определяет содержимое
+        self.setFixedWidth(400)
         self._init_ui()
         # Фокус на поле имени при открытии
         try:
@@ -228,6 +234,11 @@ class SectionDialog(BaseEntityDialog):
             logger.debug("SectionDialog.__init__: setFocus failed", exc_info=True)
         if section_id:
             self._load_section()
+        # Подогнать высоту по содержимому после инициализации и возможной загрузки данных
+        try:
+            self.adjustSize()
+        except Exception:
+            logger.debug("SectionDialog: adjustSize failed", exc_info=True)
 
     def _init_ui(self):
         vbox = QVBoxLayout(self)
@@ -301,7 +312,8 @@ class CategoryDialog(BaseEntityDialog):
         parent=None,
     ):
         super().__init__(structure_business, "category", category_id, parent)
-        self.resize(400, 200)
+        # Фиксируем только ширину, высоту определяет содержимое
+        self.setFixedWidth(400)
         self._init_ui()
         # Фокус на поле имени при открытии
         try:
@@ -310,6 +322,11 @@ class CategoryDialog(BaseEntityDialog):
             pass
         if category_id:
             self._load_category()
+        # Подогнать высоту по содержимому после инициализации и возможной загрузки данных
+        try:
+            self.adjustSize()
+        except Exception:
+            logger.debug("CategoryDialog: adjustSize failed", exc_info=True)
 
     def _init_ui(self):
         vbox = QVBoxLayout(self)

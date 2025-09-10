@@ -69,11 +69,7 @@ class LinkDialogUI:
         except (AttributeError, RuntimeError) as e:
             logger.warning("Ошибка подключения сигнала textChanged для name_le: %s", e)
 
-        # Начальный фокус ставим на поле URL/Путь (а не на кнопку)
-        try:
-            self.url_le.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
-        except (AttributeError, RuntimeError) as e:
-            logger.warning("Ошибка установки фокуса на url_le: %s", e)
+        # Фокус устанавливается в LinkDialog в зависимости от типа ссылки
 
     def _build_type_section(
         self, container: QVBoxLayout, link_types: List[Tuple[str, str]]
@@ -87,6 +83,12 @@ class LinkDialogUI:
             btn = QToolButton()
             btn.setCheckable(True)
             btn.setText(txt)
+            # Включаем hover-события как у кнопок сфер/категорий
+            try:
+                btn.setMouseTracking(True)
+                btn.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+            except Exception:
+                pass
             try:
                 icon_path = resolve_icon_for_link({"type": code, "icon_path": ""})
                 if icon_path:
@@ -176,6 +178,14 @@ class LinkDialogUI:
         self.sphere_cb = QComboBox()
         self.section_cb = QComboBox()
         self.category_cb = QComboBox()
+
+        # Избежим перехвата фокуса этими комбобоксами при движении мыши —
+        # оставим только фокус по клику/Tab
+        try:
+            for cb in (self.sphere_cb, self.section_cb, self.category_cb):
+                cb.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+        except Exception:
+            pass
 
         self.form.addRow("Сфера:", self.sphere_cb)
         self.form.addRow("Раздел:", self.section_cb)
