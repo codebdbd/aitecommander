@@ -432,6 +432,31 @@ class CategoryTiles(QWidget):
         except Exception as e:
             logger.debug("Failed to install event filter on viewport: %s", e)
         self.delegate = CategoryTileDelegate(parent=self)
+        # Применяем размеры плиток и иконок из конфигурации
+        try:
+            tile_w, tile_h = app_config.ui.get_tile_size()
+        except Exception:
+            tile_w, tile_h = (120, 100)
+        try:
+            icon_w, icon_h = app_config.ui.get_tile_icon_size()
+        except Exception:
+            icon_w, icon_h = (48, 48)
+        try:
+            spacing = int(app_config.ui.get_tile_spacing())
+        except Exception:
+            spacing = 8
+        try:
+            padding = int(app_config.ui.get_tile_padding())
+        except Exception:
+            padding = 8
+
+        # Передаём параметры делегату и виду
+        try:
+            self.delegate.icon_size = QSize(int(icon_w), int(icon_h))
+            self.delegate.tile_size = QSize(int(tile_w), int(tile_h))
+            self.delegate.padding = max(0, int(padding))
+        except Exception:
+            pass
         self.view.setItemDelegate(self.delegate)
 
         self.view.setUniformItemSizes(False)
@@ -440,7 +465,11 @@ class CategoryTiles(QWidget):
         except (AttributeError, RuntimeError) as e:
             logger.debug("WordWrap not supported on list widget: %s", e)
         self.view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.view.setSpacing(8)
+        # spacing из конфигурации
+        try:
+            self.view.setSpacing(int(spacing))
+        except Exception:
+            self.view.setSpacing(8)
 
         self.view.setDragEnabled(True)
         self.view.setAcceptDrops(False)

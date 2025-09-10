@@ -91,18 +91,17 @@ QWidget#LeftPanel QWidget#spheres_bar QToolButton {
    ========================= */
 QMenu {
     border-radius: 0px;
-    padding: 0 0 6px 0;
-    padding-top: 0;
+    padding: 0; /* без дополнительного нижнего отступа */
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     /* font-size: устанавливается динамически из config_loader.get_menu_font_size() */
 }
 
 QMenu::item {
-    padding: 8px 12px 8px 16px;
+    padding: 0 12px 0 16px; /* без вертикальных отступов */
     margin: 0 0px;
     border-radius: 0px;
     min-width: 180px;
-    min-height: 28px;
+    height: 32px; /* жёсткая высота строки меню */
 }
 
 QMenu::icon {
@@ -112,8 +111,8 @@ QMenu::icon {
 
 QMenu::separator {
     height: 1px;
-    margin: 6px 0;
-    padding: 0 8px;
+    margin: 0; /* без отступов до/после разделителя */
+    padding: 0; /* без горизонтального внутреннего отступа */
 }
 
 /* Use platform default submenu arrow; disable missing resource reference */
@@ -168,14 +167,14 @@ QMenuBar::item {
 
 QMenuBar QMenu {
     margin-top: 2px;
-    padding: 2px 0;
+    padding: 0; /* без верх/низ отступов, как у контекстного меню */
     border-radius: 0;
 }
 
 QMenuBar QMenu::item {
-    padding: 4px 24px 4px 8px;
+    padding: 0 24px 0 8px; /* без вертикальных отступов */
     min-width: 120px;
-    min-height: 24px;
+    height: 32px; /* жёсткая высота пункта в выпадающем меню-баре */
 }
 
 
@@ -502,7 +501,17 @@ QWidget#bottomBarContainer {
    - ui.separator_width, ui.separator_height */
 QWidget#favQuickSeparatorBefore,
 QWidget#favQuickSeparatorAfter {
-    /* geometry set in code */
+    /* Generic menu geometry and borders */
+}
+
+QMenu {
+    border-style: solid;
+    border-width: 1px; /* ширина линии задаётся здесь (общая); цвет — в теме */
+}
+
+/* Выпадающие меню главного меню: без зазора от меню-бара */
+QMenuBar QMenu {
+    margin-top: 0px;
 }
 
 /* Универсальный вертикальный разделитель (геометрия задаётся из кода при создании) */

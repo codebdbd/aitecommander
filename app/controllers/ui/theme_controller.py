@@ -5,7 +5,8 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Dict, List, Optional, Tuple
 
-from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import QObject, QEvent, Qt
+from PyQt6.QtGui import QIcon, QColor
 from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
@@ -52,6 +53,9 @@ class ThemeController:
 
         # Темы зафиксированы (light/dark)
         self._init_fixed_themes()
+        # Убраны любые кастомные тени у QMenu (см. требования стабильности)
+
+    # Кастомные тени у QMenu удалены; никаких фильтров событий не применяем
 
     def set_top_panels_controller(self, top_panels_controller) -> None:
         """Внедряет зависимость TopPanelsController.
@@ -359,6 +363,8 @@ class ThemeController:
                     logger.error("QApplication instance не найден")
                     return False
                 app.setStyleSheet(qss_content)
+
+            # Кастомные тени у меню отключены полностью — ничего не делаем
 
             # Инициализируем тему иконок Qt
             try:

@@ -17,7 +17,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
     Данные строки — dict с полями как минимум: id, name, last_used, notes, is_favorite, url/path.
     """
 
-    DEFAULT_HEADERS = ["★", "Название", "Открывалась", "Заметки"]
+    DEFAULT_HEADERS = ["♥", "Название", "Открывалась", "Заметки"]
 
     def __init__(self, links: Optional[Sequence[Dict[str, Any]]] = None, parent=None):
         super().__init__(parent)

@@ -373,7 +373,7 @@ class UIConfig(BaseConfig):
     def get_links_table_headers(self) -> list:
         """Получение заголовков колонок таблицы ссылок."""
         return self.get(
-            "ui.links_table_headers", ["★", "Название", "Последний запуск", "Заметки"]
+            "ui.links_table_headers", ["♥", "Название", "Последний запуск", "Заметки"]
         )
 
     def get_links_table_columns(self) -> Dict[str, int]:
