@@ -671,7 +671,8 @@ class LinkModel(DatabaseBase):
         rows = self._execute_with_error_handling(
             "SELECT id, name, url, args, position FROM link WHERE category_id=?",
             (category_id,),
-        ).fetchall()
+            fetch_method="all",
+        )
 
         existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
         existing_by_id: Dict[int, Dict[str, Any]] = {}
@@ -834,7 +835,8 @@ class LinkModel(DatabaseBase):
             tuple(rec.get(f) for f in insert_fields) for rec in inserts_with_id
         ]
         try:
-            self.connection.executemany(
+            # Используем защищённый executemany с удержанием db_lock
+            self._execute_many_with_error_handling(
                 f"INSERT INTO link ({', '.join(insert_fields)}) VALUES ({placeholders})",
                 params_with_id,
             )

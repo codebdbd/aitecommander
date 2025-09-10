@@ -230,11 +230,11 @@ class WindowUISetup:
         self.main_layout.setSpacing(app_config.ui.get_main_layout_spacing())
         # Убираем зазор между QMenuBar и верхним разделителем: верхний margin = 0
         try:
-            l, t, r, b = self.main_layout.getContentsMargins()
+            left, t, r, b = self.main_layout.getContentsMargins()
         except Exception:
-            l, t, r, b = (0, 0, 0, 0)
+            left, t, r, b = (0, 0, 0, 0)
         try:
-            self.main_layout.setContentsMargins(l, 0, r, b)
+            self.main_layout.setContentsMargins(left, 0, r, b)
         except Exception:
             logger.debug(
                 "WindowUISetup: failed to force top margin=0 for main_layout",

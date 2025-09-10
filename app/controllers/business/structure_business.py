@@ -10,7 +10,6 @@ import time
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
-from PyQt6.QtWidgets import QApplication
 
 from app.controllers.structure_modules import (
     CacheManager,

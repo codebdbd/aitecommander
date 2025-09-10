@@ -478,8 +478,8 @@ class Database(DatabaseBase):
         if not section:
             return
 
-        # Одна транзакция на весь импорт раздела
-        with self.connection:
+        # Одна транзакция на весь импорт раздела (с удержанием db_lock)
+        with self.transaction():
             # --- Upsert раздела с сохранением ID ---
             sec_id = section.get("id")
             name = section.get("name")
@@ -553,7 +553,8 @@ class Database(DatabaseBase):
 
     def import_category_tree(self, tree: dict):
         """Восстанавливает категорию и все ссылки из backup-структуры."""
-        with self.connection:
+        # Единая транзакция с удержанием db_lock для потокобезопасности
+        with self.transaction():
             _upsert_category_tree(tree, self.connection)
 
     def import_category_trees_bulk(self, trees: List[dict]) -> None:
@@ -571,7 +572,7 @@ class Database(DatabaseBase):
             return
 
         try:
-            with self.connection:  # Единая транзакция на весь импорт
+            with self.transaction():  # Единая транзакция на весь импорт (с удержанием db_lock)
                 for tree in trees:
                     if not tree:
                         continue

@@ -97,6 +97,7 @@ class TypeChangeMixin:
         args_supported_types = (
             LinkType.SCRIPT,
             LinkType.WEB,
+            LinkType.PROGRAM,
         )
         show_args = lt in args_supported_types
         args_le.setVisible(show_args)
