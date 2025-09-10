@@ -279,6 +279,7 @@ QLineEdit#mainSearch:focus {
     border-color: transparent;
 }
 
+/* Top bar buttons: disable any platform focus outline to avoid visual overflow */
 /* =========================
    5) Базовые кнопки (вне верхней панели)
    ========================= */

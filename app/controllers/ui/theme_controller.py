@@ -5,8 +5,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Dict, List, Optional, Tuple
 
-from PyQt6.QtCore import QObject, QEvent, Qt
-from PyQt6.QtGui import QIcon, QColor
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
@@ -669,7 +668,7 @@ class ThemeController:
             lines.append(f"QTableView QHeaderView, QTreeView QHeaderView {{ font-size: {fs}; font-weight: normal; }}")
             # Не навязываем жирный в интерактивных состояниях
             lines.append(
-                f"QHeaderView::section:pressed, QHeaderView::section:hover, QHeaderView::section:checked {{ font-weight: normal; }}"
+                "QHeaderView::section:pressed, QHeaderView::section:hover, QHeaderView::section:checked { font-weight: normal; }"
             )
 
         # Табличные строки по умолчанию

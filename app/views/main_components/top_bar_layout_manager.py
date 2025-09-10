@@ -35,7 +35,7 @@ class TopBarLayoutManager(QObject):
     # Константы по умолчанию
     DEFAULT_THROTTLE_MS = 32
     DEFAULT_LOG_INFO = False
-    DEFAULT_MIN_SEARCH_WIDTH = 148
+    DEFAULT_MIN_SEARCH_WIDTH = 146
     DEFAULT_MAX_RECENT = 10
     DEFAULT_MAX_FAV = 10
     DEFAULT_MAX_QUICK = 6
@@ -78,6 +78,7 @@ class TopBarLayoutManager(QObject):
         self._button_size: int = self._get_cfg_int(
             "ui.top_panel_button_size", self.DEFAULT_BUTTON_SIZE
         )
+        # No extra safety pads: use exact computed widths to avoid clipping
 
         self._throttle_timer = QTimer(self)
         self._throttle_timer.setSingleShot(True)
@@ -603,7 +604,7 @@ class TopBarLayoutManager(QObject):
         spacing = lay.spacing() if lay else 0
         total = 0
         for i in range(count):
-            # Используем реальную ширину кнопки (sizeHint), с fallback к конфигу
+            # Используем sizeHint с fallback на конфигурируемый размер кнопки
             try:
                 btn_w = max(self._button_size, int(btns[i].sizeHint().width()))
             except Exception:
