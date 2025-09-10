@@ -392,6 +392,14 @@ class WindowUISetup:
                         mgr.adjust()
                     except Exception:
                         logger.debug("TopBar: adjust() failed before host show", exc_info=True)
+                    # Перед показом top_bar_host инициируем первичную загрузку данных панелей,
+                    # чтобы лэйаут пересчитался уже с учётом видимых кнопок
+                    try:
+                        tpc = getattr(self.window, "top_panels_controller", None)
+                        if tpc and hasattr(tpc, "refresh_all"):
+                            tpc.refresh_all()
+                    except Exception:
+                        logger.debug("TopBar: top_panels_controller.refresh_all() failed", exc_info=True)
                     # Показать host
                     try:
                         self.window.top_bar_host.setVisible(True)
@@ -413,6 +421,13 @@ class WindowUISetup:
                     mgr.adjust()
                 except Exception:
                     logger.debug("TopBar: adjust() failed before host show (no suspend)", exc_info=True)
+                # Перед показом инициируем загрузку панелей
+                try:
+                    tpc = getattr(self.window, "top_panels_controller", None)
+                    if tpc and hasattr(tpc, "refresh_all"):
+                        tpc.refresh_all()
+                except Exception:
+                    logger.debug("TopBar: top_panels_controller.refresh_all() failed (no suspend)", exc_info=True)
                 try:
                     self.window.top_bar_host.setVisible(True)
                 except Exception:
