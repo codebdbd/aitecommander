@@ -151,7 +151,10 @@ QMenu::indicator:checked {
    ========================= */
 QMenuBar {
     padding: 0;
-    border: none;
+    border-top: 1px solid;
+    border-bottom: 1px solid;
+    border-left: none;
+    border-right: none;
     border-radius: 0;
     spacing: 0;
     margin: 0;
@@ -366,11 +369,19 @@ QComboBox::down-arrow {
     margin-right: 6px;
     margin-top: 1px;
 }
+/* Стрелка комбобокса: изображение перенесено из темы в common */
+QComboBox::down-arrow {
+    image: url("app/views/resources/ui_icons/dark/chevron_down.svg");
+}
 QDialog QComboBox::down-arrow {
     width: 12px;
     height: 12px;
     margin-right: 6px;
     margin-top: 1px;
+}
+/* Диалог: стрелка комбобокса — изображение перенесено из темы в common */
+QDialog QComboBox::down-arrow {
+    image: url("app/views/resources/ui_icons/dark/chevron_down.svg");
 }
 
 /* Плоский дропдаун у QComboBox в диалогах */
@@ -408,13 +419,13 @@ QHeaderView::section:checked {
 
 /* Правильное место для шрифта заголовка — сам QHeaderView */
 QHeaderView {
-    font-size: 11px;
+    font: 11pt;
     font-weight: normal;
 }
 /* Повышенная специфичность для таблиц и деревьев */
 QTableView QHeaderView,
 QTreeView QHeaderView {
-    font-size: 11px;
+    font: 11pt;
     font-weight: normal;
 }
 
@@ -426,6 +437,9 @@ QLabel#pathLabel {
 
 QTableView QTableCornerButton::section,
 QTableView QTableCornerButton::section:first {
+    border: none;
+    border-right: 1px solid;
+    border-bottom: 1px solid;
 }
 
 QTableView QTableCornerButton::section:alternate {

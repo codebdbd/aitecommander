@@ -4,22 +4,17 @@ import logging
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from PyQt6.QtCore import QSize, pyqtSignal
-from PyQt6.QtWidgets import QSizePolicy, QToolButton
+from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QSizePolicy
 
-from app.config_data import app_config
-from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.utils.ui.icon.icon_resolver import (
-    get_default_icon_path,
-    resolve_icon_for_link,
-    resolve_icon_path,
-)
+from app.utils.ui.icon.icon_resolver import get_default_icon_path
 from app.views.base_widgets import BasePanelWidget
+from app.views.link_button_mixin import LinkButtonMixin
 
 logger = logging.getLogger(__name__)
 
 
-class BaseTopPanelWidget(BasePanelWidget):
+class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
     """Base class for all top panel widgets with common signals and behavior."""
 
     # Unified signals
@@ -76,60 +71,6 @@ class BaseTopPanelWidget(BasePanelWidget):
             self._default_icon_path = get_default_icon_path()
         return self._default_icon_path
 
-    def _find_icon(self, icon_path: str) -> str:
-        """Returns icon path through common resolver with fallback."""
-        if not icon_path:
-            return str(self._get_default_icon_path())
-        try:
-            resolved = resolve_icon_path(icon_path)
-            return resolved or str(self._get_default_icon_path())
-        except (OSError, FileNotFoundError, PermissionError) as e:
-            logger.warning("Failed to resolve icon path '%s': %s", icon_path, e)
-            return str(self._get_default_icon_path())
-        except Exception as e:
-            logger.exception("Unexpected error resolving icon '%s': %s", icon_path, e)
-            return str(self._get_default_icon_path())
-
-    def _create_link_button(self, link_data: Dict[str, Any]) -> QToolButton:
-        """Creates a link button with icon synchronized with table."""
-        button = QToolButton()
-
-        button_size = app_config.ui.get_top_panel_button_size()
-        icon_size = app_config.ui.get_top_panel_icon_size()
-        button.setFixedSize(button_size, button_size)
-        button.setIconSize(QSize(icon_size[0], icon_size[1]))
-        button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-
-        try:
-            resolved_path = self._find_icon(resolve_icon_for_link(link_data))
-            icon = create_icon_from_path(resolved_path)
-            # Fallback: if icon not created or empty - use default
-            if not icon or getattr(icon, "isNull", lambda: True)():
-                fallback_path = str(self._get_default_icon_path())
-                logger.warning(
-                    "Icon not created/empty for link %r (path=%s). Using default: %s",
-                    link_data.get("name"),
-                    resolved_path,
-                    fallback_path,
-                )
-                icon = create_icon_from_path(fallback_path)
-            button.setIcon(icon)
-        except Exception as e:
-            logger.warning(
-                "Failed to create icon for link '%s': %s",
-                link_data.get("name", "Unknown"),
-                e,
-            )
-            # Guarantee visual feedback - set default icon
-            try:
-                fallback_path = str(self._get_default_icon_path())
-                button.setIcon(create_icon_from_path(fallback_path))
-            except Exception:
-                pass
-
-        button.setToolTip(link_data.get("name", "Unknown link"))
-        return button
-
     def _clear_layout(self):
         """Safely clears layout of widgets."""
         while self.panel_layout.count():
@@ -141,7 +82,7 @@ class BaseTopPanelWidget(BasePanelWidget):
     def _populate_panel(
         self,
         items: List[Dict[str, Any]],
-        create_button_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
+        create_button_func: Callable[[Dict[str, Any]], Optional[object]],
     ) -> None:
         """Clears panel and populates with link buttons."""
         self._clear_layout()

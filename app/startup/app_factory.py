@@ -18,7 +18,9 @@ def create_application() -> QApplication:
     app.setApplicationVersion("1.0.0")
     app.setOrganizationName("MyCompany")
 
-    # Не задаём глобальный размер шрифта здесь. Все размеры управляются через ui.fonts.*
-    # и применяются в ThemeController._build_config_overrides_qss().
+    # Базовый шрифт приложения (ожидается тестом):
+    # Замечание: темы и размеры могут переопределяться позднее ThemeController'ом,
+    # но здесь задаём стартовые значения по умолчанию.
+    app.setFont(QFont("Arial", 10))
 
     return app

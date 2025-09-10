@@ -271,55 +271,48 @@ class StructureTreeView(QTreeView):
         # Hover-поведение как в прежней версии
         self.setMouseTracking(True)
 
-    # --- Emit helpers (совместимость с прежним API) ---
-    def emit_items_moved(self, payload):
+    # --- Internal helpers ---
+    def _safe_emit(self, signal, payload, *, fallback=None, signal_name: str = "") -> None:
+        """Безопасно эмитит сигнал с унифицированной обработкой ошибок.
+
+        Args:
+            signal: pyqtSignal экземпляра (например, self.itemsMoved)
+            payload: данные для эмиссии
+            fallback: callable для альтернативной эмиссии (например, self.dragFeedback.emit)
+            signal_name: имя сигнала для логирования (itemsMoved/invalidDrop/dragFeedback)
+        """
         try:
-            self.itemsMoved.emit(payload)
+            signal.emit(payload)
         except (RuntimeError, TypeError, AttributeError) as e:
             logger.error(
-                "StructureTreeView.emit_items_moved: emit failed: payload=%r, error=%s",
+                "StructureTreeView._safe_emit: emit failed: signal=%s payload=%r error=%s",
+                signal_name or getattr(signal, "__name__", "<unknown>"),
                 payload,
                 e,
             )
-            # Без жестких зависимостей: даем обратную связь через dragFeedback
-            try:
-                self.dragFeedback.emit(
-                    {"type": "emit_error", "signal": "itemsMoved", "error": str(e)}
-                )
-            except (RuntimeError, TypeError, AttributeError) as e2:
-                logger.error(
-                    "StructureTreeView.emit_items_moved: dragFeedback emit failed: %s",
-                    e2,
-                )
+            if fallback is not None:
+                try:
+                    # Прокидываем единый формат обратной связи
+                    fb_payload = {
+                        "type": "emit_error",
+                        "signal": signal_name or getattr(signal, "__name__", "<unknown>"),
+                        "error": payload if isinstance(payload, str) else str(e),
+                    }
+                    fallback.emit(fb_payload)
+                except (RuntimeError, TypeError, AttributeError) as e2:
+                    logger.error(
+                        "StructureTreeView._safe_emit: fallback emit failed: %s", e2
+                    )
+
+    # --- Emit helpers (совместимость с прежним API) ---
+    def emit_items_moved(self, payload):
+        self._safe_emit(self.itemsMoved, payload, fallback=self.dragFeedback, signal_name="itemsMoved")
 
     def emit_invalid_drop(self, reason: str):
-        try:
-            self.invalidDrop.emit(reason)
-        except (RuntimeError, TypeError, AttributeError) as e:
-            logger.error(
-                "StructureTreeView.emit_invalid_drop: emit failed: reason=%r, error=%s",
-                reason,
-                e,
-            )
-            try:
-                self.dragFeedback.emit(
-                    {"type": "emit_error", "signal": "invalidDrop", "error": reason}
-                )
-            except (RuntimeError, TypeError, AttributeError) as e2:
-                logger.error(
-                    "StructureTreeView.emit_invalid_drop: dragFeedback emit failed: %s",
-                    e2,
-                )
+        self._safe_emit(self.invalidDrop, reason, fallback=self.dragFeedback, signal_name="invalidDrop")
 
     def emit_drag_feedback(self, info):
-        try:
-            self.dragFeedback.emit(info)
-        except (RuntimeError, TypeError, AttributeError) as e:
-            logger.error(
-                "StructureTreeView.emit_drag_feedback: emit failed: info=%r, error=%s",
-                info,
-                e,
-            )
+        self._safe_emit(self.dragFeedback, info, fallback=None, signal_name="dragFeedback")
 
     # --- DnD события: сначала собственный обработчик, затем (при необходимости) стандартная обработка ---
     # Подход сочетает кастомную логику (DragDropHandler) и базовое поведение Qt.

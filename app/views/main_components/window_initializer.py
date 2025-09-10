@@ -217,8 +217,8 @@ class WindowInitializer:
 
     def _post_status_bar_init(self) -> None:
         try:
-            if hasattr(self.window, "message_label") and self.window.message_label:
-                self.window.message_label.setText("Загрузка интерфейса…")
+            # Не изменяем текст статус-бара на этапе инициализации
+            pass
         except Exception:
             logger.exception(
                 "WindowInitializer: ошибка обновления текста статус-бара после инициализации"
@@ -451,8 +451,8 @@ class WindowInitializer:
         необходимых элементов перед обновлением текста.
         """
         try:
-            if hasattr(self.window, "message_label") and self.window.message_label:
-                self.window.message_label.setText("Загрузка интерфейса…")
+            # Не навязываем сообщение в статус-баре при показе окна
+            pass
         except Exception:
             logger.exception(
                 "WindowInitializer: ошибка обновления текста статус-бара в _on_window_shown"

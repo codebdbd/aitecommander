@@ -111,7 +111,7 @@ QMenu {
     color: #D1D6E0;
     background-color: #2C2F36; /* фон контекстных меню по запросу */
     /* Равномерная тёмная рамка */
-    border: 1px solid #3A3E44;
+    border-color: #3A3E44;
 }
 
 QMenu::item {
@@ -157,8 +157,8 @@ QMenu::indicator:checked {
    =============================================================== */
 QMenuBar {
     background-color: #1A1F26;
-    border-top: 1px solid #3A3E44; /* top separator above main menu */
-    border-bottom: 1px solid #3A3E44; /* subtle separator under menu bar */
+    border-top-color: #3A3E44; /* top separator above main menu */
+    border-bottom-color: #3A3E44; /* subtle separator under menu bar */
 }
 
 QMenuBar::item {
@@ -177,7 +177,7 @@ QMenuBar::item:pressed {
 
 QMenuBar QMenu {
     background-color: #2C2F36; /* фон контекстных меню (из меню-бара) */
-    border: 1px solid #3A3E44;
+    border-color: #3A3E44;
 }
 
 QMainWindow {
@@ -295,13 +295,7 @@ QLineEdit, QTextEdit, QComboBox, QSpinBox {
     border-color: #2E4066;
 }
 
-/* Down arrow icon for comboboxes (dark theme) */
-QComboBox::down-arrow {
-    image: url("app/views/resources/ui_icons/dark/chevron_down.svg");
-}
-QDialog QComboBox::down-arrow {
-    image: url("app/views/resources/ui_icons/dark/chevron_down.svg");
-}
+/* Down arrow icon moved to common.qss */
 
 
 
@@ -343,10 +337,9 @@ QLabel#pathLabel {
 QTableView QTableCornerButton::section,
 QTableView QTableCornerButton::section:first {
     background-color: #202731;
-    /* Сбрасываем любые унаследованные границы и задаём только нужные стороны */
-    border: none;
-    border-right: 1px solid #3A3E44;  /* правая граница */
-    border-bottom: 1px solid #3A3E44; /* нижняя граница */
+    /* Цвета правой и нижней границы (геометрия в common.qss) */
+    border-right-color: #3A3E44;  /* правая граница */
+    border-bottom-color: #3A3E44; /* нижняя граница */
 }
 QTableView QTableCornerButton::section:alternate {
     background-color: #202731;

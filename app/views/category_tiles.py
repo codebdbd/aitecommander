@@ -27,6 +27,7 @@ from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QListView,
+    QStyle,
     QStyledItemDelegate,
     QToolTip,
     QVBoxLayout,
@@ -190,8 +191,6 @@ class CategoryTileDelegate(QStyledItemDelegate):
         # Шрифт текста плиток задаётся централизованно через ui.fonts.tiles_px (QSS)
 
         try:
-            from PyQt6.QtWidgets import QStyle
-
             w = option.widget
             style = w.style() if w is not None else None
             if style is not None:
