@@ -14,13 +14,17 @@ from .constants import TIMEOUT, USER_AGENT, logger
 
 try:
     import cloudscraper  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
+except ImportError:  # pragma: no cover - optional dependency
     cloudscraper = None  # type: ignore
     logger.debug("cloudscraper not installed; fallback will be disabled")
 
 # Lazy, shared cloudscraper instance
 _CLOUDSCRAPER = None
 _CLOUDSCRAPER_GUARD = threading.Lock()
+
+# One-time registration guard for session atexit cleanup
+_SESSION_CLEANUP_REGISTERED = False
+_SESSION_CLEANUP_GUARD = threading.Lock()
 
 
 def get_cloudscraper():
@@ -39,12 +43,12 @@ def get_cloudscraper():
                         "mobile": False,
                     }
                 )
-            except Exception as e:  # pragma: no cover - creation failure
+            except (RuntimeError, ValueError) as e:  # pragma: no cover - creation failure
                 logger.warning("cloudscraper init failed: %s", e)
                 return None
             try:
                 atexit.register(lambda: shutdown_cloudscraper(wait=False))
-            except Exception as e:
+            except RuntimeError as e:
                 logger.debug("failed to register cloudscraper shutdown: %s", e)
     return _CLOUDSCRAPER
 
@@ -59,13 +63,27 @@ def shutdown_cloudscraper(wait: bool = False):
             close = getattr(s, "close", None)
             if callable(close):
                 close()
-    except Exception as e:
+    except (OSError, RuntimeError, AttributeError) as e:
         logger.debug("cloudscraper shutdown failed: %s", e)
 
 
 # Thread-local sessions with browser-like headers
 _tls = threading.local()
 
+
+def _cleanup_thread_local_session():
+    """Best-effort close for thread-local session at interpreter shutdown.
+
+    Registered once via atexit; safe to call multiple times.
+    """
+    try:
+        s = getattr(_tls, "session", None)
+        if s is not None:
+            close = getattr(s, "close", None)
+            if callable(close):
+                close()
+    except (OSError, RuntimeError, AttributeError) as e:  # pragma: no cover - best-effort cleanup
+        logger.debug("session cleanup failed: %s", e)
 
 def get_session() -> requests.Session:
     s = getattr(_tls, "session", None)
@@ -80,17 +98,19 @@ def get_session() -> requests.Session:
                     "Accept-Language": "en-US,en;q=0.9,ru;q=0.8",
                 }
             )
-        except Exception as e:
-            logger.debug("failed to update default session headers: %s", e)
+        except (TypeError, ValueError, RuntimeError) as e:
+            logger.warning("failed to update default session headers: %s", e)
         setattr(_tls, "session", s)
-        try:
-            # Best-effort cleanup on interpreter shutdown
-            atexit.register(
-                lambda: getattr(_tls, "session", None)
-                and getattr(_tls.session, "close", lambda: None)()
-            )
-        except Exception as e:
-            logger.debug("failed to register session atexit cleanup: %s", e)
+        # One-time atexit registration
+        global _SESSION_CLEANUP_REGISTERED
+        if not _SESSION_CLEANUP_REGISTERED:
+            with _SESSION_CLEANUP_GUARD:
+                if not _SESSION_CLEANUP_REGISTERED:
+                    try:
+                        atexit.register(_cleanup_thread_local_session)
+                        _SESSION_CLEANUP_REGISTERED = True
+                    except RuntimeError as e:
+                        logger.debug("failed to register session atexit cleanup: %s", e)
     return s
 
 
@@ -148,7 +168,7 @@ def http_request(
                         return resp
                     resp.raise_for_status()
                     return resp
-                except Exception as e:
+                except RequestException as e:
                     logger.warning("Cloudscraper failed for %s: %s", url, e)
                     last_err = e
             logger.debug("[session] %s %s", method, url)
@@ -162,10 +182,7 @@ def http_request(
         except RequestException as e:
             last_err = e
             err_s = str(e)
-            try:
-                status = getattr(getattr(e, "response", None), "status_code", None)
-            except Exception:
-                status = None
+            status = getattr(getattr(e, "response", None), "status_code", None)
             logger.debug(
                 "[http][error] method=%s url=%s status=%s err=%s",
                 method,
@@ -194,7 +211,7 @@ def http_request(
                         return resp
                     resp.raise_for_status()
                     return resp
-                except Exception as ce:
+                except RequestException as ce:
                     logger.warning("Cloudscraper fallback failed for %s: %s", url, ce)
                 finally:
                     cf_fallback_attempted = True

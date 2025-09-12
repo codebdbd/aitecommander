@@ -322,15 +322,38 @@ class CategoryModel(DatabaseBase):
                     f"DELETE FROM link WHERE category_id IN ({placeholders})",
                     tuple(chunk),
                 )
+                # Предварительно считаем количество записей категорий в чанке,
+                # чтобы иметь точную величину на случай отсутствия cursor.rowcount
+                pre_count_row = self._execute_with_error_handling(
+                    f"SELECT COUNT(*) as cnt FROM category WHERE id IN ({placeholders})",
+                    tuple(chunk),
+                    fetch_method="one",
+                )
+                if pre_count_row is None:
+                    pre_count = 0
+                else:
+                    try:
+                        pre_count = int(pre_count_row["cnt"])  # sqlite3.Row индексируется по ключу
+                    except Exception:
+                        pre_count = 0
+
                 # Удаляем сами категории
                 cursor = self._execute_with_error_handling(
                     f"DELETE FROM category WHERE id IN ({placeholders})",
                     tuple(chunk),
                 )
                 try:
-                    deleted_categories += int(getattr(cursor, "rowcount", 0) or 0)
-                except Exception:
-                    pass
+                    # Предпочитаем использовать фактический rowcount, если он доступен
+                    rc = getattr(cursor, "rowcount")
+                    deleted_categories += int(rc)
+                except AttributeError:
+                    # Логируем отсутствие rowcount и используем предварительный подсчёт
+                    logger.warning(
+                        "delete_categories_bulk: cursor.rowcount not available; using pre-count (%s) for chunk %s",
+                        pre_count,
+                        chunk,
+                    )
+                    deleted_categories += pre_count
 
             # 2) Переиндексация позиций в затронутых разделах, чтобы убрать "дыры"
             try:

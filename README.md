@@ -62,3 +62,41 @@ Run the application in development mode:
 
 ```powershell
 python -m app.main --log-level INFO
+```
+
+## Architecture contracts (DI and Transactions)
+
+- Dependency Injection (DI):
+  - Wiring выполняется централизованно в `app/controllers/system/window_controllers_setup.py`.
+  - Критичные зависимости валидируются явными проверками; ошибки конфигурации поднимаются как `SetupError`.
+  - Не используйте "магические" `getattr` в прод-пути; предпочтительнее явные проверки `hasattr` и явная передача зависимостей.
+
+- Transactions (SQLite):
+  - Все операции записи должны выполняться через внешний транзакционный контекст `DatabaseBase.transaction()` или `UnitOfWork` (`app/services/uow.py`).
+  - Модели не выполняют `commit()` внутрь методов. Транзакции контролируются вызывающей стороной.
+  - Потокобезопасность обеспечивается глобальной блокировкой `db_lock` и `thread_local` соединениями; рекомендовано избегать параллельных write-операций.
+  - Для массовых апсертов ссылок используется `_upsert_links_no_tx` с поштучными INSERT без временных таблиц (зафиксировано тестами).
+
+## Static analysis
+
+- Ruff: расширенные правила (flake8-bugbear, mccabe, pyupgrade). Конфиг: `ruff.toml`.
+- Mypy: строгие правила включены для ключевых модулей. Конфиг: `mypy.ini`.
+
+Запуск проверок:
+
+```powershell
+ruff check . --fix
+ruff format .
+mypy
+```
+
+## Pre-commit hooks
+
+Файл конфигурации: `.pre-commit-config.yaml`.
+
+Установка и запуск:
+
+```powershell
+pip install pre-commit ruff mypy
+pre-commit install
+pre-commit run --all-files

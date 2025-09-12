@@ -27,9 +27,9 @@ def setup_logging(log_level: int) -> None:
             numeric_level = getattr(logging, upper, None)
             if isinstance(numeric_level, int):
                 log_level = numeric_level
-    except Exception:
-        # В спорных случаях просто игнорируем переопределение
-        logger.debug("APP_LOG_LEVEL read failed", exc_info=True)
+    except (OSError, ValueError, KeyError, AttributeError, TypeError):
+        # В спорных случаях просто игнорируем переопределение, но предупреждаем
+        logger.warning("APP_LOG_LEVEL read failed", exc_info=True)
 
     ApplicationLogger(log_level)
     logger.info("=" * 60)
@@ -44,8 +44,8 @@ def setup_logging(log_level: int) -> None:
         for noisy in ("asyncio", "urllib3", "PIL"):
             nl = logging.getLogger(noisy)
             nl.setLevel(max(logging.WARNING, log_level))
-    except Exception:
-        logger.debug("failed to adjust noisy loggers", exc_info=True)
+    except (OSError, ValueError, KeyError, AttributeError, RuntimeError):
+        logger.warning("failed to adjust noisy loggers", exc_info=True)
 
 
 def log_system_info() -> None:
@@ -54,7 +54,7 @@ def log_system_info() -> None:
     try:
         if not logger.isEnabledFor(logging.DEBUG):
             return
-    except Exception:
+    except (AttributeError, RuntimeError):
         logger.warning("Failed to check log level", exc_info=True)
 
     from PyQt6.QtCore import QT_VERSION_STR
@@ -80,7 +80,7 @@ def log_system_info() -> None:
                 geometry.height(),
                 screen.devicePixelRatio(),
             )
-    except Exception as e:
+    except (OSError, RuntimeError, AttributeError) as e:
         logger.warning("Не удалось получить системную информацию: %s", e)
 
 

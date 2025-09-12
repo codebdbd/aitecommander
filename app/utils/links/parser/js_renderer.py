@@ -14,7 +14,7 @@ from .constants import logger
 # Optional import
 try:  # pragma: no cover - optional dependency
     from playwright.sync_api import sync_playwright  # type: ignore
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     sync_playwright = None  # type: ignore
 
 # Lazy-initialized global browser/context
@@ -26,10 +26,7 @@ _pl = None
 def _init_browser(config) -> bool:
     global _browser, _context, _pl
     if sync_playwright is None:
-        try:
-            logger.warning("Playwright is not installed. Skipping JS rendering.")
-        except Exception:
-            pass
+        logger.warning("Playwright is not installed. Skipping JS rendering.")
         return False
     if _browser is not None and _context is not None and _pl is not None:
         return True
@@ -62,20 +59,33 @@ def _init_browser(config) -> bool:
 
         _context.route("**/*", _route_intercept)
         return True
-    except Exception as e:
-        try:
-            logger.warning("Playwright init failed: %s", e)
-        except Exception:
-            pass
-        try:
-            if _pl:
-                _pl.stop()
-        except Exception:
-            pass
-        _pl = None
-        _browser = None
-        _context = None
-        return False
+    except (RuntimeError, ValueError) as e:
+        logger.warning("Playwright init failed: %s", e)
+    except Exception:
+        logger.exception("Playwright init failed with unexpected error")
+    finally:
+        if _browser is None or _context is None or _pl is None:
+            # partial init, ensure cleanup
+            try:
+                if _context:
+                    _context.close()
+            except Exception:
+                logger.debug("Context close failed during init cleanup", exc_info=True)
+            try:
+                if _browser:
+                    _browser.close()
+            except Exception:
+                logger.debug("Browser close failed during init cleanup", exc_info=True)
+            try:
+                if _pl:
+                    _pl.stop()
+            except Exception:
+                logger.debug("Playwright stop failed during init cleanup", exc_info=True)
+            _pl = None
+            _browser = None
+            _context = None
+        
+    return False
 
 
 def render_html(url: str, config) -> Optional[str]:
@@ -90,6 +100,7 @@ def render_html(url: str, config) -> Optional[str]:
         return None
     nav_timeout_ms = int(getattr(config, "PLAYWRIGHT_NAV_TIMEOUT_MS", 9000))
     max_wait_ms = int(getattr(config, "JS_RENDER_MAX_WAIT_MS", 1200))
+    page = None
     try:
         page = _context.new_page()
         page.set_default_navigation_timeout(nav_timeout_ms)
@@ -99,18 +110,19 @@ def render_html(url: str, config) -> Optional[str]:
         if max_wait_ms > 0:
             page.wait_for_timeout(max_wait_ms)
         html = page.content()
-        page.close()
         return html
-    except Exception as e:
-        try:
-            logger.warning("[render] Playwright render failed url=%s: %s", url, e)
-        except Exception:
-            pass
-        try:
-            page.close()
-        except Exception:
-            pass
+    except (RuntimeError, ValueError) as e:
+        logger.warning("[render] Playwright render failed url=%s: %s", url, e)
         return None
+    except Exception:
+        logger.exception("[render] Playwright render failed with unexpected error url=%s", url)
+        return None
+    finally:
+        if page is not None:
+            try:
+                page.close()
+            except Exception:
+                logger.debug("page.close() failed in finally", exc_info=True)
 
 
 def _shutdown():  # pragma: no cover
@@ -119,17 +131,17 @@ def _shutdown():  # pragma: no cover
         if _context:
             _context.close()
     except Exception:
-        pass
+        logger.debug("_shutdown: context.close failed", exc_info=True)
     try:
         if _browser:
             _browser.close()
     except Exception:
-        pass
+        logger.debug("_shutdown: browser.close failed", exc_info=True)
     try:
         if _pl:
             _pl.stop()
     except Exception:
-        pass
+        logger.debug("_shutdown: pl.stop failed", exc_info=True)
     _browser = None
     _context = None
     _pl = None
