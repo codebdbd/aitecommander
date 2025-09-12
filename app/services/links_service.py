@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from app.models.db import Database
 
-from .uow import UnitOfWork
+from .uow import unit_of_work
 
 
 class LinksService:
@@ -67,24 +67,24 @@ class LinksService:
         )
 
     # --- Мутации ---
+    @unit_of_work
     def create_or_update_link(self, link_data: Dict[str, Any]) -> int:
         """Создаёт или обновляет ссылку. Возвращает id.
         Бизнес‑правила (например, тихое игнорирование дубликатов) уже реализованы в репозитории.
         """
-        with UnitOfWork(self.db):
-            return self.repo.upsert_link(link_data)
+        return self.repo.upsert_link(link_data)
 
+    @unit_of_work
     def delete_link(self, link_id: int) -> None:
-        with UnitOfWork(self.db):
-            self.repo.delete_link(link_id)
+        self.repo.delete_link(link_id)
 
+    @unit_of_work
     def update_last_used(self, link_id: int) -> None:
-        with UnitOfWork(self.db):
-            self.repo.update_link_last_used(link_id)
+        self.repo.update_link_last_used(link_id)
 
+    @unit_of_work
     def clear_favorites(self) -> None:
-        with UnitOfWork(self.db):
-            self.repo.clear_favorites()
+        self.repo.clear_favorites()
 
     def reorder(self, link_ids: List[int]) -> bool:
         # ВАЖНО: update_link_order в репозитории сам управляет транзакцией через self.transaction()

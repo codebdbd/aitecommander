@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from app.models.db import Database
 from app.models.structure_model import StructureModel
 
-from .uow import UnitOfWork
+from .uow import unit_of_work
 
 
 class StructureService:
@@ -55,26 +55,26 @@ class StructureService:
         return self._model.count_links_by_categories(category_ids or [])
 
     # --- Мутации (с транзакциями) ---
+    @unit_of_work
     def update_item_positions(self, table_name: str, ids_in_order: List[int]) -> None:
         # Гарантируем атомарность перестановки
-        with UnitOfWork(self.db):
-            self._model.update_item_positions(table_name, ids_in_order)
+        self._model.update_item_positions(table_name, ids_in_order)
 
+    @unit_of_work
     def create_section(self, data: Dict[str, Any]) -> Optional[int]:
-        with UnitOfWork(self.db):
-            return self._model.create_section(data)
+        return self._model.create_section(data)
 
+    @unit_of_work
     def update_section(self, section_id: int, data: Dict[str, Any]) -> bool:
-        with UnitOfWork(self.db):
-            return self._model.update_section(section_id, data)
+        return self._model.update_section(section_id, data)
 
+    @unit_of_work
     def delete_section(self, section_id: int) -> bool:
-        with UnitOfWork(self.db):
-            return self._model.delete_section(section_id)
+        return self._model.delete_section(section_id)
 
+    @unit_of_work
     def create_category(self, data: Dict[str, Any]) -> Optional[int]:
-        with UnitOfWork(self.db):
-            return self._model.create_category(data)
+        return self._model.create_category(data)
 
     def update_category(self, category_id: int, data: Dict[str, Any]) -> bool:
         # ВАЖНО: StructureModel.update_category -> upsert_category категории
@@ -131,23 +131,23 @@ class StructureService:
     def export_full_structure(self) -> Dict[str, List]:
         return self.db.export_full_structure()
 
+    @unit_of_work
     def import_full_structure(self, data: List[Dict[str, Any]]) -> None:
-        with UnitOfWork(self.db):
-            self.db.import_full_structure(data)
+        self.db.import_full_structure(data)
 
     def export_section_tree(self, section_id: int) -> Dict[str, Any]:
         return self.db.export_section_tree(section_id)
 
+    @unit_of_work
     def import_section_tree(self, tree: Dict[str, Any]) -> None:
-        with UnitOfWork(self.db):
-            self.db.import_section_tree(tree)
+        self.db.import_section_tree(tree)
 
     def export_category_tree(self, category_id: int) -> Dict[str, Any]:
         return self.db.export_category_tree(category_id)
 
+    @unit_of_work
     def import_category_tree(self, tree: Dict[str, Any]) -> None:
-        with UnitOfWork(self.db):
-            self.db.import_category_tree(tree)
+        self.db.import_category_tree(tree)
 
     # --- Bulk operations ---
     def import_category_trees_bulk(self, trees: List[Dict[str, Any]]) -> None:

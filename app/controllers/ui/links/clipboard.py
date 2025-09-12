@@ -103,13 +103,13 @@ class LinksUIClipboard(BaseLinksUIComponent):
             logger.debug("Failed to emit signals after delete_links: %s", e)
 
     def get_selected_links(self) -> List[Dict]:
-        """Получить выбранные ссылки."""
-        selected_rows = sorted(set(idx.row() for idx in self.table.selectedIndexes()))
-        return [
-            self.controller.get_link_at(row)
-            for row in selected_rows
-            if self.controller.get_link_at(row)
-        ]
+        """Получить выбранные ссылки через единый источник истины (LinksUIController)."""
+        try:
+            return self.controller.get_selected_links()
+        except Exception:
+            # В редких случаях при отсутствии контроллера возвращаем пустой список
+            logger.debug("clipboard.get_selected_links: controller unavailable", exc_info=True)
+            return []
 
     def _validate_clipboard_data(self) -> List[Dict]:
         """Валидация данных из буфера обмена."""

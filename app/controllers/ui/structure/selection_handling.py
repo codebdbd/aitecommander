@@ -5,6 +5,7 @@ import logging
 from PyQt6.QtCore import QModelIndex
 
 from app.controllers.ui.state.task_scheduler import schedule_focus
+from app.utils.common import safe_call, safe_getattr
 from app.utils.db.synchronization import signal_guard
 from app.utils.ui.qt.roles import get_tree_tuple
 
@@ -102,24 +103,27 @@ class SelectionHandling:
 
     def _select_first_item_if_needed(self) -> None:
         try:
-            sel_model = self.tree.selectionModel()
-            model = self.tree.model()
+            sel_model = safe_call(self.tree, "selectionModel", default=None)
+            model = safe_call(self.tree, "model", default=None)
             if not model:
                 return
-            has_selection = bool(sel_model and sel_model.hasSelection())
-            if not has_selection and model.rowCount() > 0:
-                first = model.index(0, 0)
-                if first.isValid():
-                    sel_model.setCurrentIndex(
-                        first, sel_model.SelectionFlag.ClearAndSelect
+            has_selection = bool(sel_model and safe_call(sel_model, "hasSelection", default=False))
+            if not has_selection and (safe_call(model, "rowCount", default=0) or 0) > 0:
+                first = safe_call(model, "index", 0, 0, default=None)
+                if first and safe_call(first, "isValid", default=False):
+                    safe_call(
+                        sel_model,
+                        "setCurrentIndex",
+                        first,
+                        getattr(sel_model, "SelectionFlag").ClearAndSelect if hasattr(sel_model, "SelectionFlag") else None,
                     )
                     # Восстанавливаем фокус на дереве через планировщик, без жёстких задержек
                     try:
-                        schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
+                        schedule_focus(lambda: safe_call(self.tree, "setFocus"), "structure_tree")
                     except Exception:
                         # Фолбэк на случай проблем с планировщиком
                         try:
-                            self.tree.setFocus()
+                            safe_call(self.tree, "setFocus")
                         except Exception:
                             logger.debug(
                                 "SelectionHandling._select_first_item_if_needed: setFocus() failed",
@@ -162,7 +166,7 @@ class SelectionHandling:
         # Избегаем дублирующей обработки: если клик пришёл по уже текущему элементу,
         # то событие currentChanged уже покроет этот кейс или переключения нет вовсе.
         try:
-            cur = self.tree.currentIndex()
+            cur = safe_call(self.tree, "currentIndex", default=QModelIndex())
         except Exception:
             cur = QModelIndex()
         if index == cur:
@@ -177,9 +181,9 @@ class SelectionHandling:
             return
         # Эксклюзивность: любое выделение в дереве очищает выделение таблицы
         try:
-            table = getattr(self.main, "table", None)
+            table = safe_getattr(self.main, "table")
             if table and hasattr(table, "clearSelection"):
-                table.clearSelection()
+                safe_call(table, "clearSelection")
         except Exception:
             logger.debug(
                 "SelectionHandling._handle_item_selection: clearSelection failed",
@@ -216,21 +220,27 @@ class SelectionHandling:
                 logger.debug("Section #%s selected - tiles refresh requested", id_)
             elif typ == "category":
                 # Переход на UIState: не трогаем бизнес-логику здесь
-                ui_state = getattr(self.main, "ui_state", None)
+                ui_state = safe_getattr(self.main, "ui_state")
                 if ui_state is not None and hasattr(ui_state, "load_category"):
-                    try:
-                        ui_state.load_category(
-                            id_, source="SelectionHandling._handle_item_selection"
-                        )
+                    result = safe_call(
+                        ui_state,
+                        "load_category",
+                        id_,
+                        source="SelectionHandling._handle_item_selection",
+                        default=None,
+                    )
+                    if result is None:
+                        # Даже при None это допустимо (void метод); логируем переход
                         logger.debug(
                             "Category #%s selected - UI state will load links", id_
                         )
-                    except Exception as e:
-                        logger.exception(
-                            "SelectionHandling._handle_item_selection: ui_state.load_category failed: %s",
-                            e,
+                    else:
+                        logger.debug(
+                            "Category #%s selected - UI state returned %r",
+                            id_,
+                            result,
                         )
-                        return
+                    # Если safe_call проглотил неожиданное исключение — поведение без изменения UI будет видно в логах выше
                 else:
                     logger.error(
                         "UIStateManager not available in _handle_item_selection"
@@ -270,11 +280,11 @@ class SelectionHandling:
             self.tree.scrollTo(index)
             # Восстанавливаем фокус на дереве после выбора
             try:
-                schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
+                schedule_focus(lambda: safe_call(self.tree, "setFocus"), "structure_tree")
             except Exception:
                 # На случай проблем с планировщиком — прямой вызов как запасной вариант
                 try:
-                    self.tree.setFocus()
+                    safe_call(self.tree, "setFocus")
                 except Exception as e:
                     logger.debug(
                         "SelectionHandling._set_focus_on_new_item_by_id: setFocus() failed: %s",

@@ -2,7 +2,9 @@
 Общие утилиты, используемые по всему приложению.
 """
 
-from typing import Any
+from typing import Any, Callable, TypeVar
+
+T = TypeVar("T")
 
 
 def get_value(obj: Any, key: str, default: Any = None) -> Any:
@@ -26,3 +28,41 @@ def get_value(obj: Any, key: str, default: Any = None) -> Any:
         return getattr(obj, key, default)
     except Exception:
         return default
+
+
+def safe_getattr(obj: Any, attr: str, default: T | None = None) -> T | None:
+    """Безопасно получить атрибут у объекта, возвращая default при ошибке.
+
+    Обрабатывает AttributeError/TypeError и любые неожиданные исключения,
+    чтобы не ронять UI‑код при обращении к заглушкам/тестовым объектам.
+    """
+    try:
+        return getattr(obj, attr) if obj is not None else default
+    except (AttributeError, TypeError):
+        return default
+    except Exception:
+        return default
+
+
+def safe_call(
+    obj: Any,
+    method_name: str,
+    *args: Any,
+    default: T | None = None,
+    **kwargs: Any,
+) -> T | None:
+    """Безопасно вызвать метод объекта по имени.
+
+    Если метода нет или он выбросил ожидаемые ошибки, возвращает default.
+    Непредвиденные исключения проглатываются для защиты UI‑потока.
+    """
+    try:
+        method = getattr(obj, method_name, None)
+        if method and callable(method):
+            result = method(*args, **kwargs)
+            return result if result is not None else default
+    except (AttributeError, TypeError):
+        return default
+    except Exception:
+        return default
+    return default

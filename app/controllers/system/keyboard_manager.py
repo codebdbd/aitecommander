@@ -9,6 +9,7 @@ from PyQt6.QtGui import QKeyEvent, QKeySequence, QShortcut
 from PyQt6.QtWidgets import QApplication, QWidget
 
 from app.utils.ui.qt.roles import get_tree_tuple
+from app.utils.common import safe_getattr as _common_safe_getattr, safe_call as _common_safe_call
 
 logger = logging.getLogger(__name__)
 
@@ -63,24 +64,14 @@ class BaseKeyHandler:
         return self._is_widget_of_type(widget, "CATEGORY_TILES")
 
     def _safe_getattr(self, obj: Any, attr: str, default: T = None) -> Any:
-        try:
-            return getattr(obj, attr, default)
-        except (AttributeError, TypeError):
-            return default
+        # Delegate to shared common utils
+        return _common_safe_getattr(obj, attr, default)
 
     def _safe_call(
         self, obj: Any, method_name: str, *args: Any, default: T = None, **kwargs: Any
     ) -> Any:
-        try:
-            method = getattr(obj, method_name, None)
-            if method and callable(method):
-                result = method(*args, **kwargs)
-                return result if result is not None else default
-        except (AttributeError, TypeError) as e:
-            logger.debug(
-                "_safe_call failed for %r.%s(*args, **kwargs): %s", obj, method_name, e
-            )
-        return default
+        # Delegate to shared common utils
+        return _common_safe_call(obj, method_name, *args, default=default, **kwargs)
 
 
 class ClipboardKeyHandler(BaseKeyHandler):

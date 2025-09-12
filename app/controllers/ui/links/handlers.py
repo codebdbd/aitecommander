@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 from PyQt6.QtCore import Qt
 
 from .base_component import BaseLinksUIComponent
+from app.utils.common import safe_call, safe_getattr
 
 logger = logging.getLogger(__name__)
 
@@ -314,19 +315,16 @@ class LinksUIHandlers(BaseLinksUIComponent):
             link_name = link.get("name", "Untitled")
 
             # Получаем видимое имя через модель (DisplayRole)
-            try:
-                model = self.table.model()
-                idx = (
-                    model.index(row, self.COLUMNS["name"])
-                    if model is not None
-                    else None
-                )
-                if idx and idx.isValid():
-                    val = model.data(idx, Qt.ItemDataRole.DisplayRole)
-                    visible_name = str(val) if val is not None else "Unknown"
-                else:
-                    visible_name = "Unknown"
-            except Exception:
+            model = safe_call(self.table, "model", default=None)
+            idx = (
+                safe_call(model, "index", row, self.COLUMNS["name"], default=None)
+                if model is not None
+                else None
+            )
+            if idx and safe_call(idx, "isValid", default=False):
+                val = safe_call(model, "data", idx, Qt.ItemDataRole.DisplayRole, default=None)
+                visible_name = str(val) if val is not None else "Unknown"
+            else:
                 visible_name = "Unknown"
 
             if link_name != visible_name:
@@ -395,20 +393,16 @@ class LinksUIHandlers(BaseLinksUIComponent):
         """Эксклюзивность: при выделении в таблице очищаем выделение в дереве."""
         try:
             # Ранний выход: если фактически выделение пустое, не трогаем дерево
-            try:
-                if _selected is not None and hasattr(_selected, "isEmpty") and _selected.isEmpty():
-                    logger.debug("Table selection change: selected is empty; skip clearing tree")
-                    return
-            except Exception:
-                # Диагностика не критична
-                logger.debug("Selection emptiness check failed", exc_info=True)
+            if _selected is not None and bool(safe_call(_selected, "isEmpty", default=False)):
+                logger.debug("Table selection change: selected is empty; skip clearing tree")
+                return
 
             tree = self._structure_tree
             if not tree:
                 logger.debug("structure_tree not injected; skipping selection clear")
                 return
             if hasattr(tree, "clearSelection") and callable(tree.clearSelection):
-                tree.clearSelection()
+                safe_call(tree, "clearSelection")
                 logger.debug("Cleared selection in structure_tree due to table selection change")
             else:
                 logger.warning("structure_tree lacks clearSelection(); skipping")

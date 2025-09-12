@@ -17,6 +17,50 @@ class ActionController:
     def __init__(self, main_window: "MainWindow"):
         self.main_window = main_window
 
+    # --- Helpers: focus/selection/context ---
+    def _has_tree_selection(self) -> bool:
+        try:
+            tree = self.main_window.tree
+            return bool(hasattr(tree, "currentIndex") and tree.currentIndex().isValid())
+        except Exception:
+            return False
+
+    def _is_tree_focused(self) -> bool:
+        try:
+            tree = self.main_window.tree
+            fw = self.main_window.focusWidget()
+            return bool(tree.hasFocus() or (hasattr(tree, "isAncestorOf") and tree.isAncestorOf(fw)))
+        except Exception:
+            return False
+
+    def _table_has_selection(self) -> bool:
+        try:
+            return bool(self.main_window.links_actions.get_selected_rows())
+        except Exception:
+            return False
+
+    def _is_table_focused(self) -> bool:
+        try:
+            table = self.main_window.table
+            fw = self.main_window.focusWidget()
+            return bool(table.hasFocus() or (hasattr(table, "isAncestorOf") and table.isAncestorOf(fw)))
+        except Exception:
+            return False
+
+    def _is_table_stack_active(self) -> bool:
+        table_stack_index = app_config.ui.get_stack_index_table()
+        try:
+            stack = getattr(self.main_window, "stack", None)
+            return bool(stack is not None and stack.currentIndex() == table_stack_index)
+        except Exception:
+            return False
+
+    def _selected_links(self):
+        try:
+            return self.main_window.links_actions.get_selected_links()
+        except Exception:
+            return []
+
     def edit_current(self):
         """Определить контекст и выполнить редактирование текущего элемента."""
         # Проверяем плитки категорий
@@ -34,94 +78,55 @@ class ActionController:
             return
 
         # Проверяем таблицу ссылок (активная)
-        table_stack_index = app_config.ui.get_stack_index_table()
-        if (
-            stack is not None
-            and stack.currentIndex() == table_stack_index
-            and bool(self.main_window.links_actions.get_selected_rows())
-        ):
+        if self._is_table_stack_active() and self._table_has_selection():
             self._edit_selected_link()
             return
 
         # Проверяем фокус на дереве структуры (QTreeView-only)
-        has_tree_sel = False
-        try:
-            tree = self.main_window.tree
-            has_tree_sel = (
-                hasattr(tree, "currentIndex") and tree.currentIndex().isValid()
-            )
-        except Exception:
-            has_tree_sel = False
-        if self.main_window.tree.hasFocus() and has_tree_sel:
+        if self._is_tree_focused() and self._has_tree_selection():
             self.main_window.structure.edit_selected_item()
             return
 
         # Проверяем фокус на таблице ссылок
-        if self.main_window.table.hasFocus() and bool(
-            self.main_window.links_actions.get_selected_rows()
-        ):
+        if self._is_table_focused() and self._table_has_selection():
             self._edit_selected_link()
             return
 
         # Fallback: проверяем наличие выбранного элемента в дереве (QTreeView-only)
-        try:
-            tree = self.main_window.tree
-            has_sel = hasattr(tree, "currentIndex") and tree.currentIndex().isValid()
-        except Exception:
-            has_sel = False
-        if has_sel:
+        if self._has_tree_selection():
             self.main_window.structure.edit_selected_item()
             return
 
         # Fallback: проверяем наличие выбранной ссылки
-        if bool(self.main_window.links_actions.get_selected_rows()):
+        if self._table_has_selection():
             self._edit_selected_link()
 
     def delete_current(self):
         """Определить контекст и выполнить удаление текущего элемента."""
         # Проверяем фокус на таблице ссылок
-        if (
-            self.main_window.table.hasFocus()
-            or self.main_window.table.isAncestorOf(self.main_window.focusWidget())
-        ) and bool(self.main_window.links_actions.get_selected_rows()):
-            links = self._get_selected_links()
+        if self._is_table_focused() and self._table_has_selection():
+            links = self._selected_links()
             if links:
                 self.main_window.links_actions.delete_links_with_confirmation(links)
                 self.main_window.update_statusbar()
             return
 
         # Проверяем фокус на дереве структуры (QTreeView-only)
-        has_tree_sel = False
-        try:
-            tree = self.main_window.tree
-            has_tree_sel = (
-                hasattr(tree, "currentIndex") and tree.currentIndex().isValid()
-            )
-        except Exception:
-            has_tree_sel = False
-        if (
-            self.main_window.tree.hasFocus()
-            or self.main_window.tree.isAncestorOf(self.main_window.focusWidget())
-        ) and has_tree_sel:
+        if self._is_tree_focused() and self._has_tree_selection():
             self.main_window.structure.delete_selected_item()
             self.main_window.update_statusbar()
             return
 
         # Fallback: проверяем наличие выбранных ссылок
-        if bool(self.main_window.links_actions.get_selected_rows()):
-            links = self._get_selected_links()
+        if self._table_has_selection():
+            links = self._selected_links()
             if links:
                 self.main_window.links_actions.delete_links_with_confirmation(links)
                 self.main_window.update_statusbar()
             return
 
         # Fallback: проверяем наличие выбранного элемента в дереве (QTreeView-only)
-        try:
-            tree = self.main_window.tree
-            has_sel = hasattr(tree, "currentIndex") and tree.currentIndex().isValid()
-        except Exception:
-            has_sel = False
-        if has_sel:
+        if self._has_tree_selection():
             self.main_window.structure.delete_selected_item()
             self.main_window.update_statusbar()
 
@@ -150,11 +155,9 @@ class ActionController:
             return
 
     def _get_selected_links(self):
-        """Получить список выбранных ссылок."""
-        selected_rows = self.main_window.get_selected_rows()
-        links = []
-        for row in selected_rows:
-            link = self.main_window.get_link_at_row(row)
-            if link:
-                links.append(link)
-        return links
+        """Получить список выбранных ссылок через фасад LinksActions."""
+        try:
+            return self.main_window.links_actions.get_selected_links()
+        except Exception:
+            logger.debug("ActionController: failed to get selected links via facade", exc_info=True)
+            return []
