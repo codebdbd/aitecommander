@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 from PyQt6.QtCore import QObject
 
 from app.controllers.business.links_business import LinksBusinessLogic
+from app.utils.common import safe_call, safe_getattr
 from app.utils.ui.qt.roles import get_selected_rows as get_selected_rows_util
 from app.views.link import LinksTableView
 
@@ -108,11 +109,7 @@ class LinksUIController(QObject):
 
         Проверки границ и обработка ошибок инкапсулированы в методе представления.
         """
-        try:
-            return self.table.get_link_at(row)
-        except Exception as e:
-            logger.error("Ошибка при вызове table.get_link_at: %s", e)
-            return None
+        return safe_call(self.table, "get_link_at", row, default=None)
 
     def get_row_count(self) -> int:
         """Получить количество строк в таблице."""
@@ -182,8 +179,16 @@ class LinksUIController(QObject):
         self.link_ops.show_note_dialog(link)
 
     def get_selected_links(self) -> List[Dict]:
-        """Получить выбранные ссылки."""
-        return self.clipboard.get_selected_links()
+        """Получить выбранные ссылки (единый источник истины).
+
+        Собирает выбранные строки через get_selected_rows() и извлекает
+        объекты ссылок через get_link_at(). Фильтрует пустые значения.
+        """
+        rows = self.get_selected_rows()
+        if not rows:
+            return []
+        links = [self.get_link_at(r) for r in rows]
+        return [ln for ln in links if ln]
 
     def open_link(self, link: Dict) -> None:
         """Открыть ссылку."""

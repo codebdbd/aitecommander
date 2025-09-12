@@ -35,7 +35,6 @@ if TYPE_CHECKING:
 
 from .constants import MIN_GOOD_SIZE, TARGET_SIZE, logger
 from .http_client import get_session
-from types import SimpleNamespace
 from .icon_candidates import find_favicon_candidates
 from .svg_convert import convert_svg
 
@@ -45,13 +44,6 @@ _ICON_LOCKS_GUARD = threading.Lock()
 # Guard for thread-safe temporary changes to PIL global settings
 _PIL_MAX_PIXELS_GUARD = threading.Lock()
 
-
-# Backwards-compatible proxy for tests that monkeypatch http_session.request
-def _tls_request(method, url, **kwargs):
-    return get_session().request(method, url, **kwargs)
-
-
-http_session = SimpleNamespace(request=_tls_request)
 
 @contextmanager
 def _pil_max_pixels(limit: int):
@@ -301,7 +293,7 @@ class IconDownloader:
         headers = {k: v for k, v in cond_headers.items() if v}
 
         try:
-            resp = http_session.request(
+            resp = get_session().request(
                 "GET",
                 icon_url,
                 headers=headers,

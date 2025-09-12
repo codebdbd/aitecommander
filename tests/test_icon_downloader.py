@@ -45,16 +45,15 @@ def test_save_icon_rejects_non_image_head(monkeypatch, tmp_path):
     # Redirect user icons dir to tmp
     monkeypatch.setattr(mod.icon_path_service, "get_user_icons_dir", lambda: tmp_path)
 
-    # Mock underlying GET to return non-image content-type
-    def fake_request(
-        method, url, headers=None, timeout=None, stream=None, allow_redirects=True
-    ):
-        assert method == "GET"
-        return DummyResp(
-            200, {"Content-Type": "text/html; charset=utf-8"}, b"<html></html>"
-        )
+    # Mock underlying GET to return non-image content-type via get_session().request
+    class _DummySession:
+        def request(self, method, url, headers=None, timeout=None, stream=None, allow_redirects=True):
+            assert method == "GET"
+            return DummyResp(
+                200, {"Content-Type": "text/html; charset=utf-8"}, b"<html></html>"
+            )
 
-    monkeypatch.setattr(mod.http_session, "request", fake_request)
+    monkeypatch.setattr(mod, "get_session", lambda: _DummySession())
 
     result = mod.save_icon("https://example.com/favicon", "example.com", DummyConfig())
 
