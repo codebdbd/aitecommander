@@ -24,6 +24,7 @@ from io import BytesIO
 from typing import TYPE_CHECKING, Optional
 
 import requests
+from requests.exceptions import RequestException, Timeout, ConnectionError as RequestsConnectionError
 from PIL import Image, UnidentifiedImageError
 
 from app.config_data import app_config
@@ -301,7 +302,7 @@ class IconDownloader:
                 stream=True,
                 allow_redirects=True,
             )
-        except Exception as e:
+        except (RequestException, Timeout, RequestsConnectionError) as e:
             logger.info(
                 "[icon] skip reason=request_failed url=%s err=%s",
                 icon_url,
@@ -396,7 +397,7 @@ class IconDownloader:
                     )
                     resp.close()
                     return None
-        except Exception as e:
+        except (RequestException, Timeout, RequestsConnectionError) as e:
             logger.info(
                 "[icon] skip reason=stream_error url=%s err=%s",
                 icon_url,

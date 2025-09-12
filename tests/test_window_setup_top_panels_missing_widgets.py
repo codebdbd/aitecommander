@@ -43,8 +43,8 @@ def test_missing_recent_links_widget_raises_setup_error():
                 (),
                 {
                     "linkClicked": _Sig(),
-                    "refresh_requested": _Sig(),
-                    "clear_requested": _Sig(),
+                    "refreshRequested": _Sig(),
+                    "clearRequested": _Sig(),
                 },
             )()
 

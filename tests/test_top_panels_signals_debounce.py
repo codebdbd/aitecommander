@@ -25,8 +25,8 @@ class SignalStub:
 
 class FavWidgetStub:
     def __init__(self):
-        self.refresh_requested = SignalStub()
-        self.clear_requested = SignalStub()
+        self.refreshRequested = SignalStub()
+        self.clearRequested = SignalStub()
         self.linkClicked = SignalStub()
 
     def set_favorites(self, items):
@@ -38,7 +38,7 @@ class FavWidgetStub:
 
 class RecWidgetStub:
     def __init__(self):
-        self.refresh_requested = SignalStub()
+        self.refreshRequested = SignalStub()
         self.linkClicked = SignalStub()
 
     def set_recent_links(self, items):
@@ -98,21 +98,21 @@ def test_top_panels_signals_are_debounced(monkeypatch, caplog):
     ctrl.refresh_favorites = fake_refresh_favorites  # type: ignore[assignment]
     ctrl.refresh_recent = fake_refresh_recent  # type: ignore[assignment]
 
-    # Эмитим серию запросов refresh_requested — должны схлопнуться в один
-    fav.refresh_requested.emit()
-    fav.refresh_requested.emit()
-    fav.refresh_requested.emit()
+    # Эмитим серию запросов refreshRequested — должны схлопнуться в один
+    fav.refreshRequested.emit()
+    fav.refreshRequested.emit()
+    fav.refreshRequested.emit()
 
-    rec.refresh_requested.emit(10)
-    rec.refresh_requested.emit(5)
+    rec.refreshRequested.emit(10)
+    rec.refreshRequested.emit(5)
 
     # Исполняем таймауты вручную
     ctrl._on_fav_refresh_timeout()
     ctrl._on_recent_refresh_timeout()
 
     assert len(fav_calls) == 1, (
-        "Должен быть один вызов refresh_favorites при серии refresh_requested"
+        "Должен быть один вызов refresh_favorites при серии refreshRequested"
     )
     assert len(rec_calls) == 1, (
-        "Должен быть один вызов refresh_recent при серии refresh_requested"
+        "Должен быть один вызов refresh_recent при серии refreshRequested"
     )

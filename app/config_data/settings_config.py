@@ -251,3 +251,29 @@ class SettingsConfig(BaseConfig):
         if val is None:
             val = self.get("ui.mime_types.category", "application/x-category-id")
         return val
+
+    # === Сетевые настройки парсера / внешние сервисы ===
+    @property
+    def ENABLE_CLOUDSCRAPER_FALLBACK(self) -> bool:
+        """Глобальный флаг: разрешать ли fallback на cloudscraper в HTTP-клиенте парсера.
+
+        Источник: settings.enable_cloudscraper_fallback (bool), по умолчанию True.
+        Доступен как атрибут у app_config благодаря делегированию __getattr__.
+        """
+        try:
+            return bool(self.get("settings.enable_cloudscraper_fallback", True))
+        except Exception:
+            return True
+
+    @property
+    def REQUIRE_SUSPEND_UPDATES(self) -> bool:
+        """Требовать ли suspend_updates для пакетных UI-обновлений после смены темы.
+
+        Источник: settings.require_suspend_updates (bool), по умолчанию False.
+        Если True и утилита suspend_updates недоступна, ThemeController не будет выполнять
+        массовые обновления (чтобы не вызывать визуальные артефакты), а лишь залогирует проблему.
+        """
+        try:
+            return bool(self.get("settings.require_suspend_updates", False))
+        except Exception:
+            return False

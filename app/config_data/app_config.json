@@ -446,6 +446,8 @@
     "mime_types": {
       "link": "application/x-link-id",
       "category": "application/x-category-id"
-    }
+    },
+    "enable_cloudscraper_fallback": true,
+    "require_suspend_updates": false
   }
 }

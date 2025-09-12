@@ -535,108 +535,81 @@ def _connect_top_panels_signals_explicit(
     # Favorites panel wiring — критично требует TopPanelsController
     if not fav_widget:
         raise SetupError("Favorites widget is required for wiring")
-    # Подключение экшен-сигнала — опционально, поддерживаем разные имена; отсутствие не критично
+    # Подключение экшен-сигнала — только унифицированный контракт, НО опционально (не критично)
     try:
-        action_signal = None
-        # Возможные варианты имен сигналов для действий
-        for name in ("actionRequested", "action_requested", "linkClicked"):
-            if hasattr(fav_widget, name):
-                cand = getattr(fav_widget, name)
-                if hasattr(cand, "connect"):
-                    action_signal = cand
-                    break
-        # Возможные обработчики действий
-        handler = None
-        for hname in ("on_action_requested", "open_link"):
-            if hasattr(links_actions, hname):
-                h = getattr(links_actions, hname)
-                if callable(h):
-                    handler = h
-                    break
-        if action_signal and handler:
-            action_signal.connect(handler)
+        if hasattr(fav_widget, "actionRequested"):
+            action_signal = getattr(fav_widget, "actionRequested")
+            if hasattr(action_signal, "connect") and hasattr(
+                links_actions, "on_action_requested"
+            ) and callable(getattr(links_actions, "on_action_requested")):
+                action_signal.connect(links_actions.on_action_requested)
+            else:
+                logger.debug(
+                    "Favorites action wiring skipped: missing connect() or handler"
+                )
         else:
-            logger.debug(
-                "Favorites action signal or handler not available; skipping action wiring"
-            )
+            logger.debug("Favorites widget has no actionRequested; skipping action wiring")
     except (AttributeError, TypeError) as e:
-        logger.debug("Failed to connect favorites action (non-critical): %s", e)
+        logger.debug("Favorites actionRequested wiring failed (non-critical): %s", e)
 
     if not top_panels_controller:
         raise SetupError("TopPanelsController is required for favorites panel wiring")
-    # Поддерживаем snake_case/camelCase для refresh/clear
+    # Требуем только единый сигнал refreshRequested
     try:
-        # refresh
-        refresh_sig = None
-        for name in ("refresh_requested", "refreshRequested"):
-            if hasattr(fav_widget, name):
-                cand = getattr(fav_widget, name)
-                if hasattr(cand, "connect"):
-                    refresh_sig = cand
-                    break
-        if not refresh_sig:
-            raise AttributeError(
-                "Favorites widget must expose refresh_requested/refreshRequested"
+        if not hasattr(fav_widget, "refreshRequested"):
+            raise SetupError(
+                "Favorites widget must expose unified signal refreshRequested"
             )
+        refresh_sig = getattr(fav_widget, "refreshRequested")
+        if not hasattr(refresh_sig, "connect"):
+            raise SetupError("Favorites refreshRequested must provide connect()")
         refresh_sig.connect(top_panels_controller.request_favorites_refresh)
 
-        # clear — опционален (не все панели поддерживают), если есть — подключаем
-        for name in ("clear_requested", "clearRequested"):
-            if hasattr(fav_widget, name):
-                cand = getattr(fav_widget, name)
-                if hasattr(cand, "connect"):
-                    cand.connect(top_panels_controller.clear_favorites)
-                    break
+        # clear — опционален
+        if hasattr(fav_widget, "clearRequested"):
+            clear_sig = getattr(fav_widget, "clearRequested")
+            if hasattr(clear_sig, "connect"):
+                clear_sig.connect(top_panels_controller.clear_favorites)
     except (AttributeError, TypeError) as e:
-        raise SetupError(f"Failed to wire Favorites to TopPanelsController: {e}") from e
+        raise SetupError(
+            f"Failed to wire Favorites (refresh/clear) to TopPanelsController: {e}"
+        ) from e
 
     # Recent panel wiring — критично требует TopPanelsController
     if not recent_links_widget:
         raise SetupError("Recent links widget is required for wiring")
-    # Экшен для recent — опционально
+    # Экшен для recent — только унифицированный контракт, НО опционально (не критично)
     try:
-        action_signal = None
-        for name in ("actionRequested", "action_requested", "linkClicked"):
-            if hasattr(recent_links_widget, name):
-                cand = getattr(recent_links_widget, name)
-                if hasattr(cand, "connect"):
-                    action_signal = cand
-                    break
-        handler = None
-        for hname in ("on_action_requested", "open_link"):
-            if hasattr(links_actions, hname):
-                h = getattr(links_actions, hname)
-                if callable(h):
-                    handler = h
-                    break
-        if action_signal and handler:
-            action_signal.connect(handler)
+        if hasattr(recent_links_widget, "actionRequested"):
+            action_signal = getattr(recent_links_widget, "actionRequested")
+            if hasattr(action_signal, "connect") and hasattr(
+                links_actions, "on_action_requested"
+            ) and callable(getattr(links_actions, "on_action_requested")):
+                action_signal.connect(links_actions.on_action_requested)
+            else:
+                logger.debug(
+                    "Recent action wiring skipped: missing connect() or handler"
+                )
         else:
-            logger.debug(
-                "Recent action signal or handler not available; skipping action wiring"
-            )
+            logger.debug("Recent links widget has no actionRequested; skipping action wiring")
     except (AttributeError, TypeError) as e:
-        logger.debug("Failed to connect recent action (non-critical): %s", e)
+        logger.debug("Recent actionRequested wiring failed (non-critical): %s", e)
 
     if not top_panels_controller:
         raise SetupError("TopPanelsController is required for recent panel wiring")
     try:
-        # Поддерживаем разные имена
-        refresh_sig = None
-        for name in ("refresh_requested", "refreshRequested"):
-            if hasattr(recent_links_widget, name):
-                cand = getattr(recent_links_widget, name)
-                if hasattr(cand, "connect"):
-                    refresh_sig = cand
-                    break
-        if not refresh_sig:
-            raise AttributeError(
-                "Recent links widget must expose refresh_requested/refreshRequested"
+        if not hasattr(recent_links_widget, "refreshRequested"):
+            raise SetupError(
+                "Recent links widget must expose unified signal refreshRequested"
             )
-        # Подключаем напрямую метод контроллера; сигнатуры совместимы
+        refresh_sig = getattr(recent_links_widget, "refreshRequested")
+        if not hasattr(refresh_sig, "connect"):
+            raise SetupError("Recent refreshRequested must provide connect()")
         refresh_sig.connect(top_panels_controller.request_recents_refresh)
     except (AttributeError, TypeError) as e:
-        raise SetupError(f"Failed to wire Recents to TopPanelsController: {e}") from e
+        raise SetupError(
+            f"Failed to wire Recents (refresh) to TopPanelsController: {e}"
+        ) from e
 
     # Доп. настройки интерфейса — валидируем callables, без getattr от window
     if auto_hide_tree_filter is not None:

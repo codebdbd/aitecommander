@@ -54,8 +54,8 @@ def rec_widget_stub_min():
 def fav_widget_stub_with_clear_signals(signal_stub_cls):
     class Fav:
         def __init__(self):
-            self.refresh_requested = signal_stub_cls()
-            self.clear_requested = signal_stub_cls()
+            self.refreshRequested = signal_stub_cls()
+            self.clearRequested = signal_stub_cls()
             self.linkClicked = signal_stub_cls()
 
         def set_favorites(self, items):
@@ -71,7 +71,7 @@ def fav_widget_stub_with_clear_signals(signal_stub_cls):
 def rec_widget_stub_with_signals(signal_stub_cls):
     class Rec:
         def __init__(self):
-            self.refresh_requested = signal_stub_cls()
+            self.refreshRequested = signal_stub_cls()
             self.linkClicked = signal_stub_cls()
 
         def set_recent_links(self, items):

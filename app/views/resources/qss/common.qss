@@ -58,16 +58,17 @@ QWidget#LeftPanel {
 /* 1.1) Кнопки на панели сфер (только рамка, без цвета). Цвет задаёт тема */
 QWidget#spheres_bar QToolButton {
     border: 1px solid;
-    border-radius: 4px;
-    padding: 6px;
+    border-radius: 12px; /* более скруглённые углы по запросу */
+    padding: 4px; /* 4px отступ от изображения до края кнопки со всех сторон */
 }
 
 /* Сферы: на hover/pressed/checked оставляем ту же геометрию рамки (цвет в теме) */
 QWidget#spheres_bar QToolButton:hover,
 QWidget#spheres_bar QToolButton:pressed,
 QWidget#spheres_bar QToolButton:checked {
-    border: 1px solid;
+    border: 2px solid; /* толщина обводки 2px по требованию */
     border-color: transparent;
+    border-radius: 12px; /* сохраняем скругление на hover/pressed/checked */
 }
 
 /* 1.2) Любые QToolButton внутри левой панели: базово без рамки (цвет добавит тема) */
@@ -79,7 +80,16 @@ QWidget#LeftPanel QToolButton {
 QWidget#LeftPanel QWidget#spheres_bar QToolButton {
     border: 1px solid;
     border-color: transparent; /* цвет задаст тема (hover/checked) */
-    border-radius: 4px;
+    border-radius: 12px; /* согласовано с общим правилом для панели сфер */
+}
+
+/* Сохранить толщину 2px и скругление для состояний внутри LeftPanel */
+QWidget#LeftPanel QWidget#spheres_bar QToolButton:hover,
+QWidget#LeftPanel QWidget#spheres_bar QToolButton:pressed,
+QWidget#LeftPanel QWidget#spheres_bar QToolButton:checked {
+    border: 2px solid; /* толщина обводки 2px */
+    border-color: transparent; /* цвет задаст тема (dark.qss) */
+    border-radius: 12px;
 }
 
 /* =========================

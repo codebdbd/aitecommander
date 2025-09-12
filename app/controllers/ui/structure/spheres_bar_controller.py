@@ -12,7 +12,7 @@ from app.utils.db.synchronization import signal_guard
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.updates import suspend_updates
-from app.views.effects.neon_effect import NeonEventFilter
+ 
 
 
 class SpheresBarController:
@@ -28,8 +28,7 @@ class SpheresBarController:
     def __init__(self, window: Any):
         self.w = window  # Главное окно (QMainWindow с нужными атрибутами)
 
-        # Ленивая инициализация фильтра
-        self._neon_sphere_filter: NeonEventFilter | None = None
+        # Не используем неон для кнопок сфер
 
     def init(self) -> None:
         """Подписка на сигнал загрузки сфер и запуск асинхронной загрузки."""
@@ -41,10 +40,7 @@ class SpheresBarController:
         """Переключить активную сферу через контроллер структуры."""
         self.w.structure.switch_sphere(sphere_id)
 
-    def _ensure_neon_filter(self) -> NeonEventFilter:
-        if self._neon_sphere_filter is None:
-            self._neon_sphere_filter = NeonEventFilter(self.w)
-        return self._neon_sphere_filter
+    
 
     def _clear_spheres_bar(self) -> None:
         # Очистка группы кнопок
@@ -73,14 +69,27 @@ class SpheresBarController:
                 btn.setIcon(QIcon())
         else:
             btn.setIcon(QIcon())
-        _sz = app_config.get_sphere_button_icon_size()
-        btn.setIconSize(QSize(_sz[0], _sz[1]))
-        # Фиксируем квадратный размер кнопки сфер: 48(icon) + 6+6(padding) + 1+1(border) = 62
+        # Фиксируем квадратный размер кнопки сфер
         btn.setFixedSize(62, 62)
+        # Убираем внутренние отступы на уровне виджета
+        try:
+            btn.setContentsMargins(0, 0, 0, 0)
+        except Exception:
+            pass
+        # Размер иконки берём из конфигурации UI, отступ 4px задан QSS padding'ом
+        try:
+            _sz = app_config.get_sphere_button_icon_size()
+            btn.setIconSize(QSize(_sz[0], _sz[1]))
+        except Exception:
+            pass
         btn.setToolTip(sphere["name"])
         self.w.sphere_group.addButton(btn, sphere_id)
         btn.clicked.connect(lambda _=False, sid=sphere_id: self.switch_sphere(sid))
-        btn.installEventFilter(self._ensure_neon_filter())
+        # Убедимся, что на кнопке нет графических эффектов (неон и т.п.)
+        try:
+            btn.setGraphicsEffect(None)
+        except Exception:
+            pass
         self.w.sphere_buttons[sphere_id] = btn
         return btn
 
@@ -116,6 +125,11 @@ class SpheresBarController:
     def update_active_sphere_button(self, sphere_id: int):
         """Обновляет состояние кнопок сфер и фокус."""
         for button in self.w.sphere_buttons.values():
+            # Снимаем любые графические эффекты, чтобы неон не оставался на активной кнопке
+            try:
+                button.setGraphicsEffect(None)
+            except Exception:
+                pass
             button.setChecked(False)
         button = self.w.sphere_buttons.get(sphere_id)
         if button:
