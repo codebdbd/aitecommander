@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import atexit
 import threading
-import time
 from typing import Dict, Optional
 
 import requests
@@ -184,7 +183,7 @@ def http_request(
         # Configure per-call retries on shared session
         sess = get_session()
         backoff = float(getattr(config, "HTTP_RETRY_BACKOFF", 0.5) or 0.5)
-        _mount_session_retries(sess, retries=retries, backoff_factor=backoff)
+        _mount_session_retries(sess, retries=retries, backoff_factor=backoff, config=config)
         logger.debug("[session] %s %s", method, url)
         resp = sess.request(method, url, headers=headers, timeout=timeout)
         if allow_non_2xx:

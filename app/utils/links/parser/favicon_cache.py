@@ -35,7 +35,7 @@ def _get_lock_backend() -> str:
         if not isinstance(v, str):
             return "auto"
         v = v.lower().strip()
-        if v in {"auto", "portalocker", "filelock", "fallback"}:
+        if v in {"auto", "portalocker", "filelock"}:
             return v
     except Exception:  # noqa: BLE001
         pass
@@ -49,50 +49,54 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, poll_interval: float = 0
     Порядок механизмов:
     1) portalocker.Lock(..., timeout=timeout)
     2) filelock.FileLock(...).acquire(timeout=timeout)
-    3) Фоллбек: эксклюзивное создание файла с мягким backoff (последний рубеж)
+    Если ни один из бэкендов недоступен — работаем без межпроцессной блокировки (логируем предупреждение).
 
     Семантика сохранена: при истечении таймаута — логируем предупреждение и продолжаем без фактической блокировки.
+    Таймаут можно настроить через app_config.FAVICON_LOCK_TIMEOUT (секунды). Переданный аргумент
+    ``timeout`` имеет приоритет над конфигом.
     """
     backend = _get_lock_backend()
+    # Эффективный таймаут: параметр функции имеет приоритет, иначе берём из конфига
+    try:
+        cfg_timeout = getattr(app_config, "FAVICON_LOCK_TIMEOUT", timeout)
+        eff_timeout = float(timeout if timeout is not None else cfg_timeout)
+        if eff_timeout < 0:
+            eff_timeout = 0.0
+    except Exception:
+        eff_timeout = timeout
 
     # 1) portalocker (если доступен и разрешён)
     if backend in ("auto", "portalocker"):
         try:
             import portalocker  # type: ignore
 
-            # Используем неблокирующую попытку с мягким backoff до таймаута
-            locked = False
+            # Блокирующая попытка с внутренним таймаутом — используем контекстный менеджер
             try:
-                with open(lock_path, "a+b") as fp:
-                    start = time.monotonic()
-                    sleep_cur = max(0.01, float(poll_interval))
-                    while True:
-                        try:
-                            portalocker.lock(fp, portalocker.LOCK_EX | portalocker.LOCK_NB)
-                            locked = True
-                            break
-                        except Exception:
-                            if (time.monotonic() - start) >= float(timeout):
-                                logger.warning("favicon lock timeout: %s", lock_path)
-                                break
-                            time.sleep(sleep_cur)
-                            sleep_cur = min(sleep_cur * 2.0, 0.25)
-                    try:
-                        yield
-                    finally:
-                        if locked:
-                            try:
-                                portalocker.unlock(fp)
-                            except Exception:
-                                pass
+                with portalocker.Lock(lock_path, timeout=max(0.0, float(eff_timeout))):
+                    yield
                 return
             except Exception as e:
+                # Для таймаута portalocker бросает LockException; логируем как предупреждение
+                try:
+                    from portalocker import exceptions as _pl_exc  # type: ignore
+                    if isinstance(e, getattr(_pl_exc, "LockException", tuple())):
+                        logger.warning("favicon lock timeout: %s (%s)", lock_path, e)
+                        yield
+                        return
+                except Exception:
+                    pass
                 logger.debug("portalocker lock error: %s", e, exc_info=True)
                 # Переходим к следующему бэкенду
         except Exception:
             if backend == "portalocker":
-                logger.debug("portalocker selected but unavailable; falling back")
-            # иначе продолжаем к filelock
+                # Явно выбранный бэкенд недоступен — продолжаем без блокировки
+                logger.warning(
+                    "favicon lock backend unavailable; proceeding without interprocess lock: %s",
+                    lock_path,
+                )
+                yield
+                return
+            # auto: продолжаем к filelock
 
     # 2) filelock (если доступен и разрешён; сработает и для auto при отсутствии portalocker)
     if backend in ("auto", "filelock"):
@@ -101,7 +105,7 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, poll_interval: float = 0
 
             lock = FileLock(lock_path)
             try:
-                lock.acquire(timeout=max(0.0, float(timeout)))
+                lock.acquire(timeout=max(0.0, float(eff_timeout)))
                 try:
                     yield
                 finally:
@@ -119,43 +123,17 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, poll_interval: float = 0
                 # Падать не будем — перейдём к фоллбеку
         except Exception:
             if backend == "filelock":
-                logger.debug("filelock selected but unavailable; falling back")
-
-    # 3) Фоллбек: самодельная блокировка через эксклюзивное создание файла, с мягким backoff
-    start = time.time()
-    sleep_cur = max(0.01, float(poll_interval))
-    while True:
-        try:
-            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            try:
-                os.write(fd, str(os.getpid()).encode())
-            finally:
-                os.close(fd)
-            got_lock = True
-            break
-        except FileExistsError:
-            got_lock = False
-            if (time.time() - start) >= timeout:
-                logger.warning("favicon lock timeout(fallback): %s", lock_path)
-                break
-            time.sleep(sleep_cur)
-            # Экспоненциальный рост до 250мс, чтобы не грузить CPU
-            sleep_cur = min(sleep_cur * 2.0, 0.25)
-        except Exception as e:
-            logger.debug("fallback lock error: %s", e, exc_info=True)
-            got_lock = False
-            break
-    try:
-        yield
-    finally:
-        if got_lock and os.path.exists(lock_path):
-            try:
-                os.remove(lock_path)
-            except Exception:
-                logger.debug(
-                    "favicon_lock: failed to remove fallback lock file",
-                    exc_info=True,
+                # Явно выбранный бэкенд недоступен — продолжаем без блокировки
+                logger.warning(
+                    "favicon lock backend unavailable; proceeding without interprocess lock: %s",
+                    lock_path,
                 )
+                yield
+                return
+
+    # Нет доступных бэкендов — продолжаем без межпроцессной блокировки
+    logger.warning("favicon lock backend unavailable; proceeding without interprocess lock: %s", lock_path)
+    yield
 
 
 def _db_path() -> str:
