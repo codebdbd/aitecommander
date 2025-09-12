@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Индекс иконок по темам: theme -> {lower_name: Path}
 _THEME_ICON_INDEX: dict[str, dict[str, Path]] = {}
-_INDEX_LOCK = threading.Lock()
+_INDEX_LOCK = threading.RLock()
 _INDEX_TTL: float = 60.0
 _THEME_INDEX_TS: dict[str, float] = {}
 _THEME_DIR_MTIME: dict[str, float] = {}
@@ -35,6 +35,7 @@ _THEME_DIR_MTIME: dict[str, float] = {}
 # --- Метрики ---
 _ICON_METRICS = CacheMetrics()
 _METRICS_LAST_LOG: float = 0.0
+_metrics_lock = threading.Lock()
 
 
 def _maybe_log_metrics() -> None:
@@ -59,30 +60,35 @@ def _maybe_log_metrics() -> None:
         )
         interval = 60.0
     now = time.time()
-    if now - _METRICS_LAST_LOG >= interval:
-        try:
-            stats = _ICON_METRICS.get_stats()
-            # Используем безопасный доступ к ключам, чтобы не падать по KeyError
-            logger.info(
-                "Icon metrics: hits=%s misses=%s hit_rate=%s disk_loads=%s not_found=%s avg_load_time=%s load_count=%s uptime=%s",
-                stats.get("hits"),
-                stats.get("misses"),
-                stats.get("hit_rate"),
-                stats.get("disk_loads"),
-                stats.get("not_found"),
-                stats.get("avg_load_time"),
-                stats.get("load_count"),
-                stats.get("uptime"),
-            )
-        except (AttributeError, TypeError, ValueError):
-            logger.exception(
-                "_maybe_log_metrics: некорректный формат статистики метрик"
-            )
-        except Exception:
-            logger.exception(
-                "_maybe_log_metrics: неожиданная ошибка при логировании метрик"
-            )
+    # Критическая секция: проверка окна и обновление таймштампа
+    with _metrics_lock:
+        if now - _METRICS_LAST_LOG < interval:
+            return
         _METRICS_LAST_LOG = now
+
+    # Логирование выполняем вне блокировки, чтобы не блокировать другие потоки
+    try:
+        stats = _ICON_METRICS.get_stats()
+        # Используем безопасный доступ к ключам, чтобы не падать по KeyError
+        logger.info(
+            "Icon metrics: hits=%s misses=%s hit_rate=%s disk_loads=%s not_found=%s avg_load_time=%s load_count=%s uptime=%s",
+            stats.get("hits"),
+            stats.get("misses"),
+            stats.get("hit_rate"),
+            stats.get("disk_loads"),
+            stats.get("not_found"),
+            stats.get("avg_load_time"),
+            stats.get("load_count"),
+            stats.get("uptime"),
+        )
+    except (AttributeError, TypeError, ValueError):
+        logger.exception(
+            "_maybe_log_metrics: некорректный формат статистики метрик"
+        )
+    except Exception:
+        logger.exception(
+            "_maybe_log_metrics: неожиданная ошибка при логировании метрик"
+        )
 
 
 def _build_theme_index(theme: str) -> None:
@@ -128,21 +134,23 @@ def _build_theme_index(theme: str) -> None:
 def _get_indexed_icon(theme: str, icon_name: str) -> Optional[Path]:
     """Вернуть Path из индекса или None. Создаёт/обновляет индекс по TTL."""
     name_key = icon_name.lower()
-    ts = _THEME_INDEX_TS.get(theme, 0.0)
-    index_ttl = getattr(app_config, "icon_index_ttl", _INDEX_TTL)
-    # Проверяем изменение содержимого директории темы по mtime
+    # Читаем состояние индексов под общей блокировкой
+    with _INDEX_LOCK:
+        ts = _THEME_INDEX_TS.get(theme, 0.0)
+        stored_mtime = _THEME_DIR_MTIME.get(theme, -1.0)
+        has_index = theme in _THEME_ICON_INDEX
+        index_ttl = getattr(app_config, "icon_index_ttl", _INDEX_TTL)
+
+    # Проверяем изменение содержимого директории темы по mtime (вне блокировки)
     ui_dir = _icon_path_service.get_ui_icons_dir()
     theme_dir = ui_dir / theme
     try:
         current_mtime = theme_dir.stat().st_mtime if theme_dir.is_dir() else 0.0
     except Exception:  # noqa: BLE001
         current_mtime = 0.0
-    stored_mtime = _THEME_DIR_MTIME.get(theme, -1.0)
-    if (
-        (time.time() - ts) > index_ttl
-        or theme not in _THEME_ICON_INDEX
-        or current_mtime != stored_mtime
-    ):
+
+    # Решение о перестроении индекса принимаем на базе снимка, чтение было под локом
+    if ((time.time() - ts) > index_ttl) or (not has_index) or (current_mtime != stored_mtime):
         _build_theme_index(theme)
     with _INDEX_LOCK:
         mapping = _THEME_ICON_INDEX.get(theme, {})
@@ -478,21 +486,23 @@ def get_qss_dir() -> Path:
 _CURRENT_THEME_CACHE: Optional[str] = None
 _LAST_THEME_CHECK: float = 0.0
 _THEME_CACHE_TTL: float = 3.0
+_theme_lock = threading.RLock()
 
 
 def get_current_theme() -> str:
     """Получить текущую тему с кешем, при недоступности вернуть 'light'."""
-    import time
-
     global _CURRENT_THEME_CACHE, _LAST_THEME_CHECK
 
     now = time.time()
-    if (
-        _CURRENT_THEME_CACHE is not None
-        and (now - _LAST_THEME_CHECK) < _THEME_CACHE_TTL
-    ):
-        return _CURRENT_THEME_CACHE
+    # Быстрый путь: читаем кэш под блокировкой
+    with _theme_lock:
+        if (
+            _CURRENT_THEME_CACHE is not None
+            and (now - _LAST_THEME_CHECK) < _THEME_CACHE_TTL
+        ):
+            return _CURRENT_THEME_CACHE
 
+    # Медленный путь: пытаемся получить из GUI без удержания блокировки
     try:
         from PyQt6.QtWidgets import QApplication  # локальный импорт
 
@@ -503,14 +513,17 @@ def get_current_theme() -> str:
                 settings = getattr(widget, "settings", None)
                 if settings and hasattr(settings, "get_theme"):
                     theme = validate_theme(settings.get_theme())
-                    _CURRENT_THEME_CACHE = theme
-                    _LAST_THEME_CHECK = now
+                    with _theme_lock:
+                        _CURRENT_THEME_CACHE = theme
+                        _LAST_THEME_CHECK = now
                     return theme
     except Exception as exc:  # noqa: BLE001
         logger.debug("Could not get current theme from GUI: %s", exc)
 
-    _CURRENT_THEME_CACHE = "light"
-    _LAST_THEME_CHECK = now
+    # Фолбэк: записываем 'light' в кэш под блокировкой
+    with _theme_lock:
+        _CURRENT_THEME_CACHE = "light"
+        _LAST_THEME_CHECK = now
     return "light"
 
 

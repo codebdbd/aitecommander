@@ -63,15 +63,32 @@ def shutdown_cloudscraper(wait: bool = False):
         pass
 
 
-# Global session with browser-like headers
-session = requests.Session()
-session.headers.update(
-    {
-        "User-Agent": USER_AGENT,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9,ru;q=0.8",
-    }
-)
+# Thread-local sessions with browser-like headers
+_tls = threading.local()
+
+
+def get_session() -> requests.Session:
+    s = getattr(_tls, "session", None)
+    if s is None:
+        s = requests.Session()
+        # Initialize default headers once per thread
+        try:
+            s.headers.update(
+                {
+                    "User-Agent": USER_AGENT,
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9,ru;q=0.8",
+                }
+            )
+        except Exception:
+            pass
+        setattr(_tls, "session", s)
+        try:
+            # Best-effort cleanup on interpreter shutdown
+            atexit.register(lambda: getattr(_tls, "session", None) and getattr(_tls.session, "close", lambda: None)())
+        except Exception:
+            pass
+    return s
 
 
 def http_request(
@@ -121,7 +138,9 @@ def http_request(
                     logger.warning("Cloudscraper failed for %s: %s", url, e)
                     last_err = e
             logger.debug("[session] %s %s", method, url)
-            resp = session.request(method, url, headers=headers, timeout=timeout)
+            resp = get_session().request(
+                method, url, headers=headers, timeout=timeout
+            )
             if allow_non_2xx:
                 return resp
             resp.raise_for_status()
@@ -172,4 +191,4 @@ def http_request(
     return None
 
 
-__all__ = ["http_request", "session"]
+__all__ = ["http_request", "get_session"]
