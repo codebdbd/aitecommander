@@ -1,4 +1,5 @@
 import base64
+import binascii
 import logging
 from collections import defaultdict
 from urllib.parse import urlparse
@@ -41,8 +42,15 @@ class BrowserBookmarksImporter:
                     text = f.read()
                     used_encoding = enc
                     break
-            except Exception as e:
+            except (OSError, UnicodeDecodeError) as e:
                 last_err = e
+                logger.debug(
+                    "parse_bookmarks: failed to read %s with encoding %s: %s",
+                    html_path,
+                    enc,
+                    e,
+                    exc_info=True,
+                )
                 continue
         if text is None:
             try:
@@ -50,7 +58,10 @@ class BrowserBookmarksImporter:
                     raw = fb.read()
                     text = raw.decode("utf-8", errors="replace")
                     used_encoding = "utf-8(replace)"
-            except Exception as e:
+            except OSError as e:
+                logger.warning(
+                    "parse_bookmarks: failed to read file %s: %s", html_path, e, exc_info=True
+                )
                 raise last_err or e
         logger.debug("DEBUG: using encoding = %s", used_encoding)
         logger.debug("DEBUG: file head = %s", text[:500])
@@ -69,7 +80,8 @@ class BrowserBookmarksImporter:
                     b64 = icon_data.split("base64,", 1)[-1]
                     with open(icon_file, "wb") as f:
                         f.write(base64.b64decode(b64))
-                except Exception:
+                except (binascii.Error, ValueError, OSError) as e:
+                    logger.debug("save_icon_from_base64 failed for %s: %s", url, e, exc_info=True)
                     return ""
             return icon_fname
 
@@ -122,7 +134,8 @@ class BrowserBookmarksImporter:
         # 3) Пакетная вставка недостающих категорий
         try:
             default_icon = resolve_icon_for_link({"type": "category", "icon_path": ""})
-        except Exception:
+        except (RuntimeError, OSError, ValueError) as e:
+            logger.warning("resolve_icon_for_link failed, using empty icon: %s", e, exc_info=True)
             default_icon = ""
         bulk_items = [
             {"name": name, "section_id": section_id, "icon_path": default_icon}
@@ -139,7 +152,8 @@ class BrowserBookmarksImporter:
                     section_id,
                 )
             except Exception as e:
-                logger.error(
+                # Используем exception, чтобы не терять стек (непредвиденные ошибки сервисного слоя)
+                logger.exception(
                     "ERROR: Пакетное создание категорий завершилось ошибкой: %s", e
                 )
 
@@ -186,8 +200,8 @@ class BrowserBookmarksImporter:
                             str(el.get("url", "")).strip(),
                         )
                     )
-                except Exception:
-                    pass
+                except (AttributeError, ValueError, TypeError) as ex:
+                    logger.debug("skip malformed existing link entry: %s", ex, exc_info=True)
 
             for link in links:
                 icon_path = link.get("icon_path", "")
@@ -247,7 +261,7 @@ class BrowserBookmarksImporter:
                             cat_name,
                         )
                 except Exception as e:
-                    logger.error(
+                    logger.exception(
                         "ERROR: Не удалось добавить ссылку '%s' в категорию '%s': %s",
                         link.get("name", ""),
                         cat_name,

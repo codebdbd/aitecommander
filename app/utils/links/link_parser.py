@@ -115,7 +115,8 @@ def _get_default_icon(icon_type: str, config) -> str:
     try:
         resolved = resolve_icon_for_link({"type": icon_type, "icon_path": ""})
         return resolved or ""
-    except Exception:
+    except (RuntimeError, ValueError, OSError) as e:
+        logger.warning("_get_default_icon failed for type=%s: %s", icon_type, e)
         return ""
 
 
@@ -167,8 +168,8 @@ def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
         logger.error("Win32 error extracting icon from %s: %s", exe_path, e)
     except OSError as e:
         logger.error("File error extracting icon from %s: %s", exe_path, e)
-    except Exception as e:
-        logger.error("Unexpected error extracting icon from %s: %s", exe_path, e)
+    except (RuntimeError, ValueError) as e:
+        logger.error("Error extracting icon from %s: %s", exe_path, e)
     return None
 
 
@@ -203,8 +204,8 @@ def _parse_lnk(lnk_path: str) -> Dict[str, str]:
         logger.error("COM error parsing .lnk file %s: %s", lnk_path, e)
     except OSError as e:
         logger.error("File error parsing .lnк file %s: %s", lnk_path, e)
-    except Exception as e:
-        logger.error("Unexpected error parsing .lnк file %s: %s", lnk_path, e)
+    except (RuntimeError, ValueError) as e:
+        logger.error("Error parsing .lnк file %s: %s", lnk_path, e)
     return {}
 
 
@@ -233,8 +234,8 @@ def _get_name_for_link_type(link_type: str, path: str, lnk_info: Dict[str, str])
             return Path(path).stem
         else:
             return Path(path).stem
-    except Exception as e:
-        logger.error("Error getting name for %s, path %s: %s", link_type, path, e)
+    except (OSError, ValueError, RuntimeError, AttributeError, TypeError) as e:
+        logger.error("Error getting name for link_type=%s path=%s: %s", link_type, path, e)
         return "Unknown"
 
 
@@ -244,8 +245,8 @@ def _handle_folder_icon(config) -> str:
         resolved = resolve_icon_for_link({"type": "folder", "icon_path": ""})
         if resolved and os.path.exists(resolved):
             return resolved
-    except Exception as e:
-        logger.debug("folder icon resolve failed, fallback: %s", e)
+    except (RuntimeError, ValueError, OSError) as e:
+        logger.debug("folder icon resolve failed (type=folder): %s", e)
     return _get_default_icon("folder", config)
 
 
@@ -304,8 +305,8 @@ def _handle_file_icon(path: str, icons_dir: str) -> Optional[str]:
             if pixmap.save(icon_path, "PNG"):
                 logger.debug("Extracted file icon: %s", icon_path)
                 return icon_path
-    except Exception as e:
-        logger.error("Failed to extract file icon for %s: %s", path, e)
+    except (OSError, RuntimeError, AttributeError, ValueError) as e:
+        logger.error("Failed to extract file icon for path=%s: %s", path, e)
     return None
 
 
@@ -323,8 +324,14 @@ def _get_icon_for_link_type(
             icon = _handle_program_icon(path, lnk_info, icons_dir)
         elif link_type == "file":
             icon = _handle_file_icon(path, icons_dir)
-    except Exception as e:
-        logger.error("Error getting icon for %s, path %s: %s", link_type, path, e)
+    except (OSError, RuntimeError, ValueError, KeyError, AttributeError) as e:
+        logger.error(
+            "Error getting icon for link_type=%s path=%s lnk_info=%s: %s",
+            link_type,
+            path,
+            lnk_info,
+            e,
+        )
     if not is_valid_icon_file(icon):
         icon = _get_default_icon(link_type, config)
         logger.debug("Fallback to default icon: %s", icon)

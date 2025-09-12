@@ -120,9 +120,13 @@ class StructureBusinessLogic(QObject):
             # Прогрев кэша "первой категории" после загрузки структуры (per-sphere)
             try:
                 self.structure_loaded.connect(self._on_structure_loaded_warm_cache)
-            except Exception:
-                # Если сигнал недоступен — пропускаем прогрев, это необязательно
-                pass
+            except (AttributeError, RuntimeError) as e:
+                # Если сигнал недоступен — прогрев необязателен, фиксируем в debug
+                self.logger.debug(
+                    "Не удалось подключить прогрев кэша к сигналу structure_loaded: %s",
+                    e,
+                    exc_info=True,
+                )
             self.logger.info("[BL] Handlers connected for business id=%s", id(self))
         except Exception:
             # Защита от ошибок подключения сигналов, не ломаем инициализацию
@@ -140,27 +144,30 @@ class StructureBusinessLogic(QObject):
         try:
             # Локальная ссылка в бизнес-логике (может использоваться UI/другими службами)
             setattr(self, "top_panels_controller", top_panels_controller)
-        except Exception as e:
+        except AttributeError as e:
             self.logger.warning(
-                f"Failed to set top_panels_controller on StructureBusinessLogic: {e}",
+                "Failed to set top_panels_controller on StructureBusinessLogic: %s",
+                e,
                 exc_info=True,
             )
         try:
             # Прямая ссылка для асинхронного слоя
             if hasattr(self, "async_operations") and self.async_operations:
                 self.async_operations.top_panels = top_panels_controller
-        except Exception as e:
+        except AttributeError as e:
             self.logger.warning(
-                f"Failed to inject TopPanelsController into AsyncOperations: {e}",
+                "Failed to inject TopPanelsController into AsyncOperations: %s",
+                e,
                 exc_info=True,
             )
         try:
             # И немедленно для уже подключённых обработчиков сигналов
             if hasattr(self, "_async_handlers") and self._async_handlers:
                 self._async_handlers.top_panels = top_panels_controller
-        except Exception as e:
+        except AttributeError as e:
             self.logger.warning(
-                f"Failed to inject TopPanelsController into AsyncSignalHandlers: {e}",
+                "Failed to inject TopPanelsController into AsyncSignalHandlers: %s",
+                e,
                 exc_info=True,
             )
 
@@ -187,21 +194,18 @@ class StructureBusinessLogic(QObject):
             # Зафиксируем момент старта переключения для последующей метрики
             try:
                 self._last_switch_started_ms = time.monotonic()
-            except Exception:
+            except (RuntimeError, OverflowError):
                 self._last_switch_started_ms = None
 
             self.current_sphere_id = sphere_id
             # Обновляем токен переключения сферы для отмены устаревших отложенных задач
             try:
                 self._switch_token = int(getattr(self, "_switch_token", 0)) + 1
-            except Exception:
+            except (ValueError, TypeError):
                 self._switch_token = 1
             # Сообщаем UI-слою, что переключение сферы активно: не восстанавливать
             # автоматически выбор категории (это вызывает тяжёлую загрузку ссылок).
-            try:
-                setattr(self, "_suppress_category_restore_once", True)
-            except Exception:
-                pass
+            setattr(self, "_suppress_category_restore_once", True)
 
             # Очищаем кэш при смене сферы
             if old_sphere_id != sphere_id:
@@ -340,8 +344,13 @@ class StructureBusinessLogic(QObject):
                     try:
                         if isinstance(section_id, int) and section_id > 0:
                             self._batch_touched_sections.add(int(section_id))
-                    except Exception:
-                        pass
+                    except (ValueError, TypeError) as ex:
+                        self.logger.debug(
+                            "batch: failed to add touched section id=%s: %s",
+                            section_id,
+                            ex,
+                            exc_info=True,
+                        )
                     return
                 # Обычный режим: сразу подгрузим категории раздела
                 if isinstance(section_id, int) and section_id > 0:
@@ -444,23 +453,18 @@ class StructureBusinessLogic(QObject):
                 return
 
             # 1) Попробуем извлечь первую категорию напрямую из payload структуры
-            try:
-                if isinstance(_payload, list):
-                    for section in _payload:
+            if isinstance(_payload, list):
+                for section in _payload:
+                    try:
+                        cats = section.get("categories") if isinstance(section, dict) else None
+                    except (AttributeError, TypeError):
                         cats = None
-                        try:
-                            cats = section.get("categories") if isinstance(section, dict) else None
-                        except Exception:
-                            cats = None
-                        if cats:
-                            first = cats[0]
-                            cid = first.get("id") if isinstance(first, dict) else None
-                            if isinstance(cid, int) and cid > 0:
-                                self.cache_manager.set(f"first_category_id:{sphere_id}", cid)
-                                return
-            except Exception:
-                # Переходим к отложенному способу
-                pass
+                    if cats:
+                        first = cats[0]
+                        cid = first.get("id") if isinstance(first, dict) else None
+                        if isinstance(cid, int) and cid > 0:
+                            self.cache_manager.set(f"first_category_id:{sphere_id}", cid)
+                            return
 
             # 2) Если в payload нет категорий — прогреем кэш асинхронно в следующий тик
             def _deferred_warmup():
@@ -473,14 +477,11 @@ class StructureBusinessLogic(QObject):
                         cache_set=self.cache_manager.set,
                     )
                 except Exception as ex:
-                    try:
-                        self.logger.debug("Deferred warm cache failed: %s", ex, exc_info=True)
-                    except Exception:
-                        pass
+                    self.logger.debug("Deferred warm cache failed: %s", ex, exc_info=True)
 
             try:
                 QTimer.singleShot(0, _deferred_warmup)
-            except Exception:
+            except (RuntimeError, TypeError):
                 # Фолбэк: в крайнем случае — синхронный вызов
                 _deferred_warmup()
 
@@ -488,8 +489,8 @@ class StructureBusinessLogic(QObject):
             # Даже если QTimer сработает позже, повторный вызов безвреден благодаря кэшу.
             try:
                 _deferred_warmup()
-            except Exception:
-                pass
+            except Exception as ex:
+                self.logger.debug("Immediate warm cache failed: %s", ex, exc_info=True)
 
             # 3) Лёгкий асинхронный прелоад категорий для первых секций сферы (улучшает UX дерева)
             try:
@@ -516,8 +517,8 @@ class StructureBusinessLogic(QObject):
                                 ops = getattr(self, "async_operations", None)
                                 if ops and hasattr(ops, "load_categories_async"):
                                     ops.load_categories_async(section_id)
-                            except Exception:
-                                pass
+                            except Exception as ex:
+                                self.logger.debug("Preload categories failed: %s", ex, exc_info=True)
 
                         QTimer.singleShot(delay, _preload_one)
             except Exception:

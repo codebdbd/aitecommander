@@ -39,7 +39,7 @@ def apply_uniform_height(dialog: QDialog):
                 f = widget.font()
                 f.setPointSize(base_size)
                 widget.setFont(f)
-            except Exception:
+            except (RuntimeError, AttributeError, TypeError):
                 # Fall back to leaving the current font as-is if something goes wrong
                 logger.exception("Failed to set uniform font size for QPushButton")
 
@@ -92,7 +92,7 @@ def create_russian_context_menu(widget):
             )
             paste_action.triggered.connect(widget.paste)
             paste_action.setShortcut("Ctrl+V")
-    except Exception:
+    except (RuntimeError, AttributeError):
         # В случае ошибки проверки буфера не добавляем пункт вставки
         logger.exception("Failed to evaluate clipboard state for context menu")
 
@@ -155,7 +155,7 @@ class BaseDialog(QDialog):
                 screen = wh.screen() if wh else None
                 if screen is not None:
                     scale = max(1.0, screen.logicalDotsPerInch() / 96.0)
-            except Exception:
+            except (RuntimeError, AttributeError):
                 logger.exception("Failed to determine DPI scale for combo boxes")
             # DPI-aware popup icon size based on 24px logical (was 20)
             target_icon = int(round(24 * scale))
@@ -169,12 +169,12 @@ class BaseDialog(QDialog):
                     view = combo.view()
                     if view is not None:
                         view.setIconSize(QSize(target_icon, target_icon))
-                except Exception:
+                except (RuntimeError, AttributeError, TypeError):
                     logger.exception(
                         "Failed to apply combo popup styles to a QComboBox"
                     )
                     continue
-        except Exception:
+        except (RuntimeError, AttributeError):
             logger.exception("Failed to apply combo popup styles (outer)")
 
     # --- Local message box helpers to avoid importing controllers in views ---
@@ -198,7 +198,7 @@ class BaseDialog(QDialog):
             mb.setStandardButtons(QMessageBox.StandardButton.Ok)
             if not silent:
                 mb.exec()
-        except Exception:
+        except (RuntimeError, AttributeError):
             logger.exception("Failed to show info message box")
 
     def show_warning(
@@ -221,7 +221,7 @@ class BaseDialog(QDialog):
             mb.setStandardButtons(QMessageBox.StandardButton.Ok)
             if not silent:
                 mb.exec()
-        except Exception:
+        except (RuntimeError, AttributeError):
             logger.exception("Failed to show warning message box")
 
     def show_error(
@@ -244,7 +244,7 @@ class BaseDialog(QDialog):
             mb.setStandardButtons(QMessageBox.StandardButton.Ok)
             if not silent:
                 mb.exec()
-        except Exception:
+        except (RuntimeError, AttributeError):
             logger.exception("Failed to show error message box")
 
     def ask_confirmation(
@@ -268,6 +268,6 @@ class BaseDialog(QDialog):
             )
             mb.setDefaultButton(QMessageBox.StandardButton.No)
             return mb.exec() == QMessageBox.StandardButton.Yes
-        except Exception:
+        except (RuntimeError, AttributeError):
             logger.exception("Failed to show confirmation dialog")
             return False

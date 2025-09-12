@@ -428,25 +428,31 @@ class CategoryTiles(QWidget):
         # Перехват контекстного меню даже если оно блокируется родителями/стилями
         try:
             vp.installEventFilter(self)
-        except Exception as e:
+        except (AttributeError, RuntimeError) as e:
             logger.debug("Failed to install event filter on viewport: %s", e)
+        except Exception:
+            logger.exception("Unexpected error installing event filter on viewport")
         self.delegate = CategoryTileDelegate(parent=self)
         # Применяем размеры плиток и иконок из конфигурации
         try:
             tile_w, tile_h = app_config.ui.get_tile_size()
-        except Exception:
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning("Tile size config read failed; using defaults (120x100): %s", e)
             tile_w, tile_h = (120, 100)
         try:
             icon_w, icon_h = app_config.ui.get_tile_icon_size()
-        except Exception:
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning("Icon size config read failed; using defaults (48x48): %s", e)
             icon_w, icon_h = (48, 48)
         try:
             spacing = int(app_config.ui.get_tile_spacing())
-        except Exception:
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning("Tile spacing config read failed; using default 8: %s", e)
             spacing = 8
         try:
             padding = int(app_config.ui.get_tile_padding())
-        except Exception:
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning("Tile padding config read failed; using default 8: %s", e)
             padding = 8
 
         # Передаём параметры делегату и виду
@@ -454,8 +460,10 @@ class CategoryTiles(QWidget):
             self.delegate.icon_size = QSize(int(icon_w), int(icon_h))
             self.delegate.tile_size = QSize(int(tile_w), int(tile_h))
             self.delegate.padding = max(0, int(padding))
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning("Failed to apply delegate parameters; using existing defaults: %s", e)
         except Exception:
-            pass
+            logger.exception("Unexpected error applying delegate parameters")
         self.view.setItemDelegate(self.delegate)
 
         self.view.setUniformItemSizes(False)
@@ -467,7 +475,11 @@ class CategoryTiles(QWidget):
         # spacing из конфигурации
         try:
             self.view.setSpacing(int(spacing))
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning("Failed to set spacing from config; using 8: %s", e)
+            self.view.setSpacing(8)
         except Exception:
+            logger.exception("Unexpected error setting spacing; forcing 8")
             self.view.setSpacing(8)
 
         self.view.setDragEnabled(True)
@@ -487,12 +499,16 @@ class CategoryTiles(QWidget):
         # Открываем категорию ТОЛЬКО по двойному клику или Enter
         try:
             self.view.doubleClicked.connect(self._on_index_activated)
+        except (RuntimeError, AttributeError) as e:
+            logger.warning("Failed to connect doubleClicked: %s", e)
         except Exception:
-            pass
+            logger.exception("Unexpected error connecting doubleClicked")
         try:
             self.view.enterActivated.connect(self._on_index_activated)
+        except (RuntimeError, AttributeError) as e:
+            logger.warning("Failed to connect enterActivated: %s", e)
         except Exception:
-            pass
+            logger.exception("Unexpected error connecting enterActivated")
 
         self.layout.addWidget(self.view, 1)
         # Явно включаем режим только перетаскивания (DragOnly) для стабильной работы DnD
@@ -516,14 +532,17 @@ class CategoryTiles(QWidget):
                 self._font_point_size = val
             else:
                 self._font_point_size = None
-        except Exception:
+        except (AttributeError, ValueError, TypeError) as e:
+            logger.warning("update_font_size: invalid fs=%r, resetting to None: %s", fs, e)
             self._font_point_size = None
         # Перерисовать и обновить расчёты размеров
         try:
             self.view.viewport().update()
             self.view.reset()  # пересчитать sizeHint через делегат
+        except (RuntimeError, AttributeError) as e:
+            logger.warning("update_font_size: repaint/reset failed: %s", e)
         except Exception:
-            pass
+            logger.exception("update_font_size: unexpected error during repaint/reset")
 
     def set_categories(self, categories: list):
         """Обновление списка категорий через модель."""
@@ -595,8 +614,10 @@ class CategoryTiles(QWidget):
                 vpos2 = self.view.viewport().mapFromGlobal(gpos)
                 index = self.view.indexAt(vpos2)
                 source = "cursor"
+            except (RuntimeError, AttributeError) as e:
+                logger.debug("Context menu fallback mapping from cursor failed: %s", e)
             except Exception:
-                pass
+                logger.exception("Unexpected error during context menu cursor mapping")
         if not index.isValid():
             logger.debug("Invalid index at position")
             return

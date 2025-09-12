@@ -146,7 +146,13 @@ def _get_indexed_icon(theme: str, icon_name: str) -> Optional[Path]:
     theme_dir = ui_dir / theme
     try:
         current_mtime = theme_dir.stat().st_mtime if theme_dir.is_dir() else 0.0
-    except Exception:  # noqa: BLE001
+    except (OSError, PermissionError) as exc:
+        logger.warning(
+            "_get_indexed_icon: failed to stat theme dir for mtime (theme=%s, dir=%s): %s",
+            theme,
+            theme_dir,
+            exc,
+        )
         current_mtime = 0.0
 
     # Решение о перестроении индекса принимаем на базе снимка, чтение было под локом
@@ -360,8 +366,15 @@ class IconPathResolver:
                         finally:
                             _maybe_log_metrics()
                         return path_str
-                except Exception:  # noqa: BLE001
-                    pass
+                except (OSError, PermissionError) as exc:
+                    logger.warning(
+                        "convert_svg: failed to compare mtimes for themed files (icon=%s, theme=%s, png=%s, svg=%s): %s",
+                        icon_name,
+                        norm_theme,
+                        themed_png,
+                        themed_svg,
+                        exc,
+                    )
             slow_ms = float(
                 getattr(app_config, "icon_slow_convert_threshold_ms", 150.0)
             )
@@ -409,8 +422,15 @@ class IconPathResolver:
                             finally:
                                 _maybe_log_metrics()
                             return path_str
-                    except Exception:  # noqa: BLE001
-                        pass
+                    except (OSError, PermissionError) as exc:
+                        logger.warning(
+                            "convert_svg: failed to compare mtimes for light fallback (icon=%s, theme=%s, png=%s, light_svg=%s): %s",
+                            icon_name,
+                            norm_theme,
+                            themed_png,
+                            light_svg,
+                            exc,
+                        )
                 slow_ms = float(
                     getattr(app_config, "icon_slow_convert_threshold_ms", 150.0)
                 )

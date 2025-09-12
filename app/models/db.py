@@ -333,7 +333,7 @@ class Database(DatabaseBase):
                     build_ms,
                 )
             else:
-                logger.info("Экспорт структуры выполнен успешно (bulk-загрузка)")
+                logger.debug("Экспорт структуры выполнен успешно (bulk-загрузка)")
             return {"spheres": spheres_data}
         except Exception as e:
             logger.error("Ошибка экспорта структуры: %s", e, exc_info=True)
