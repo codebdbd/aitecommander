@@ -13,12 +13,13 @@
 from __future__ import annotations
 
 import hashlib
+import atexit
 import json
 import os
 import threading
 import time
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 from contextlib import contextmanager
 from io import BytesIO
 from typing import TYPE_CHECKING, Optional
@@ -44,6 +45,43 @@ _ICON_LOCKS_GUARD = threading.Lock()
 
 # Guard for thread-safe temporary changes to PIL global settings
 _PIL_MAX_PIXELS_GUARD = threading.Lock()
+
+# Shared executor for icon downloads (singleton)
+_ICON_EXECUTOR = None
+_ICON_EXECUTOR_GUARD = threading.Lock()
+
+def _shutdown_icon_executor(wait: bool = False):  # pragma: no cover - atexit path
+    global _ICON_EXECUTOR
+    try:
+        ex = _ICON_EXECUTOR
+        _ICON_EXECUTOR = None
+        if ex is not None:
+            try:
+                ex.shutdown(wait=wait, cancel_futures=True)
+            except TypeError:
+                # Python < 3.9 compat: cancel_futures not available
+                ex.shutdown(wait=wait)
+    except Exception as e:
+        logger.debug("icon executor shutdown failed: %s", e)
+
+def _get_icon_executor(max_workers_hint: int) -> ThreadPoolExecutor:
+    global _ICON_EXECUTOR
+    ex = _ICON_EXECUTOR
+    if ex is not None:
+        return ex
+    with _ICON_EXECUTOR_GUARD:
+        if _ICON_EXECUTOR is None:
+            try:
+                cfg = int(getattr(app_config, "ICON_MAX_WORKERS", 6) or 6)
+            except Exception:
+                cfg = 6
+            max_workers = max(1, int(min(max_workers_hint or 1, cfg)))
+            _ICON_EXECUTOR = ThreadPoolExecutor(max_workers=max_workers)
+            try:
+                atexit.register(lambda: _shutdown_icon_executor(wait=False))
+            except Exception as e:  # pragma: no cover - best-effort atexit
+                logger.debug("failed to register icon executor shutdown: %s", e)
+        return _ICON_EXECUTOR
 
 
 @contextmanager
@@ -527,7 +565,8 @@ def pick_icon_parallel(
             is_fallback,
             domain,
         )
-        executor = ThreadPoolExecutor(max_workers=max_workers)
+        # Используем общий пул потоков и неблокирующее ожидание первого завершившегося future
+        executor = _get_icon_executor(max_workers)
         try:
             futures = [
                 executor.submit(
@@ -535,36 +574,43 @@ def pick_icon_parallel(
                 )
                 for u in icon_urls
             ]
-            # Неблокирующий опрос futures до дедлайна
             while True:
-                if time.monotonic() >= finish_by:
+                remaining = max(0.0, finish_by - time.monotonic())
+                if remaining <= 0:
                     logger.debug("Parallel wait timeout: cancelled pending futures")
+                    # Отменяем все незавершенные задачи
+                    for f in futures:
+                        if not f.done():
+                            f.cancel()
                     return None
-                any_done = False
-                for fut in futures:
-                    if fut.done():
-                        any_done = True
-                        try:
-                            saved = fut.result()
-                        except Exception as e:
-                            logger.debug("Parallel fetch error: %s", e, exc_info=True)
-                            continue
-                        if saved:
-                            for f in futures:
-                                if f is not fut and not f.done():
-                                    f.cancel()
-                            return saved
-                if not any_done:
-                    # Короткий сон, чтобы не крутить CPU
-                    time.sleep(0.01)
+                done, not_done = wait(
+                    futures, timeout=remaining, return_when=FIRST_COMPLETED
+                )
+                # Проверяем завершившиеся задачи
+                any_completed = False
+                for fut in list(done):
+                    any_completed = True
+                    try:
+                        saved = fut.result()
+                    except Exception as e:
+                        logger.debug("Parallel fetch error: %s", e, exc_info=True)
+                        continue
+                    if saved:
+                        # Отменяем остальные
+                        for f in futures:
+                            if f is not fut and not f.done():
+                                f.cancel()
+                        return saved
+                # Если кто-то завершился, но результата нет — продолжаем ждать оставшиеся до дедлайна
+                if not not_done:
+                    # Все задачи завершились, ни одна не дала результат
+                    return None
+                if not any_completed:
+                    # Ничего не завершилось в заданный таймаут — цикл пересчитает оставшееся время
+                    continue
         except Exception as e:
             logger.debug("Parallel wait error: %s", e, exc_info=True)
             return None
-        finally:
-            try:
-                executor.shutdown(wait=False, cancel_futures=True)
-            except Exception:
-                pass
         return None
 
     tried_urls = set(candidates)
