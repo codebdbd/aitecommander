@@ -277,3 +277,26 @@ class SettingsConfig(BaseConfig):
             return bool(self.get("settings.require_suspend_updates", False))
         except Exception:
             return False
+
+    # === Параметры файловой блокировки кэша фавиконок ===
+    @property
+    def FAVICON_LOCK_TIMEOUT(self) -> float:
+        """Таймаут межпроцессной блокировки кэша (секунды). По умолчанию 5.0."""
+        try:
+            return float(self.get("settings.favicon_lock_timeout", 5.0))
+        except Exception:
+            return 5.0
+
+    @property
+    def FAVICON_LOCK_BACKEND(self) -> str:
+        """Бэкенд блокировки: 'auto'|'portalocker'|'filelock'. По умолчанию 'auto'."""
+        try:
+            v = self.get("settings.favicon_lock_backend", "auto")
+            if not isinstance(v, str):
+                return "auto"
+            v = v.strip().lower()
+            if v in {"auto", "portalocker", "filelock"}:
+                return v
+            return "auto"
+        except Exception:
+            return "auto"

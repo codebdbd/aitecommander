@@ -273,12 +273,9 @@ class AppShutdownController:
     ):
         """Выполнение одного handler с реальным таймаутом и расширенным логированием.
 
-        Исполняем обработчик в отдельном потоке и ждём завершения через Future.result(timeout).
-        В случае таймаута — логируем, пытаемся отменить и продолжаем (или прерываем для critical).
+        Исполняем обработчик в отдельном потоке и ждём завершения через Thread.join(timeout).
+        В случае таймаута — логируем и продолжаем (или прерываем для critical) без создания ThreadPoolExecutor.
         """
-        from concurrent.futures import ThreadPoolExecutor
-        from concurrent.futures import TimeoutError as _FTimeout
-
         eff_timeout_ms = (
             override_timeout_ms if override_timeout_ms is not None else handler.timeout
         )
@@ -291,39 +288,50 @@ class AppShutdownController:
             handler.critical,
         )
 
+        err_holder: list[BaseException] = []
+
+        def _runner():
+            try:
+                handler.handler()
+            except BaseException as e:  # noqa: BLE001
+                err_holder.append(e)
+
+        t = threading.Thread(name=f"shutdown:{handler.name}", target=_runner, daemon=True)
+
         try:
-            with ThreadPoolExecutor(max_workers=1) as ex:
-                fut = ex.submit(handler.handler)
-                try:
-                    fut.result(timeout=eff_timeout_sec)
-                    logger.debug("Handler %s completed successfully", handler.name)
+            t.start()
+            if eff_timeout_sec is None:
+                t.join()  # без таймаута
+            else:
+                t.join(timeout=eff_timeout_sec)
+
+            if t.is_alive():
+                msg = (
+                    f"Handler '{handler.name}' timed out after {eff_timeout_sec:.3f}s"
+                )
+                if handler.critical:
+                    logger.critical(msg)
+                    raise ShutdownTimeoutError(msg)
+                else:
+                    logger.error(msg)
                     return
-                except _FTimeout:
-                    # Пытаемся отменить, если ещё не начался
-                    try:
-                        fut.cancel()
-                    except Exception:
-                        pass
-                    msg = (
-                        f"Handler '{handler.name}' timed out after {eff_timeout_sec:.3f}s"
+
+            # Поток завершился — проверим, была ли ошибка
+            if err_holder:
+                exc = err_holder[0]
+                if handler.critical:
+                    logger.critical(
+                        "Handler '%s' failed: %s", handler.name, exc, exc_info=True
                     )
-                    if handler.critical:
-                        logger.critical(msg)
-                        raise ShutdownTimeoutError(msg)
-                    else:
-                        logger.error(msg)
-                        return
-                except Exception as exc:
-                    if handler.critical:
-                        logger.critical(
-                            "Handler '%s' failed: %s", handler.name, exc, exc_info=True
-                        )
-                        raise
-                    else:
-                        logger.error(
-                            "Handler '%s' failed: %s", handler.name, exc, exc_info=True
-                        )
-                        return
+                    raise exc
+                else:
+                    logger.error(
+                        "Handler '%s' failed: %s", handler.name, exc, exc_info=True
+                    )
+                    return
+
+            logger.debug("Handler %s completed successfully", handler.name)
+            return
         except ShutdownTimeoutError:
             # Уже залогировано выше, пробрасываем дальше для критичных кейсов
             raise

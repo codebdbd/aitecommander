@@ -1,6 +1,7 @@
 """Модуль для загрузки профилей браузеров."""
 
 import logging
+from typing import Any
 
 from PyQt6.QtCore import Qt
 
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 class BrowserProfilesLoader:
     """Класс для управления загрузкой профилей браузеров."""
 
-    def __init__(self, main_window):
+    def __init__(self, main_window: Any):
         """
         Инициализирует BrowserProfilesLoader.
 
@@ -40,6 +41,12 @@ class BrowserProfilesLoader:
             # Критично для функциональности, но не должно ронять приложение
             logger.warning("Модули профилей браузеров недоступны: %s", e, exc_info=True)
             return
+
+        # Обработчик должен быть одноразовым — отписываемся сразу
+        try:
+            self.main_window.shown.disconnect(self._on_window_shown)
+        except Exception:
+            pass
 
         try:
             cache_path = _pc.get_cache_path()
@@ -124,3 +131,41 @@ class BrowserProfilesLoader:
                     load_err,
                     exc_info=True,
                 )
+        else:
+            # Кэш существует — пробуем загрузить профили из кэша в менеджер
+            try:
+                cache = _pc.PersistentProfileCache(default_ttl=3600)
+                mgr = _pm.get_profile_manager()
+
+                # Попытка универсального API: перебрать ключи и обновить пакетно
+                loaded_any = False
+                profiles_by_key: dict[str, Any] = {}
+                try:
+                    keys = list(cache.keys())  # type: ignore[attr-defined]
+                except Exception:
+                    keys = []
+                for key in keys:
+                    try:
+                        profiles = cache.get(key)  # type: ignore[call-arg]
+                        if profiles is not None:
+                            profiles_by_key[str(key)] = profiles
+                            loaded_any = True
+                    except Exception as get_err:
+                        logger.debug(
+                            "Не удалось прочитать профили из кэша для ключа '%s': %s",
+                            key,
+                            get_err,
+                            exc_info=True,
+                        )
+
+                if loaded_any:
+                    try:
+                        mgr.update_profiles_bulk(profiles_by_key)
+                    except Exception as upd_err:
+                        logger.warning(
+                            "Не удалось обновить менеджер профилей из существующего кэша: %s",
+                            upd_err,
+                            exc_info=True,
+                        )
+            except Exception as cache_err:
+                logger.debug("Ошибка чтения существующего кэша профилей: %s", cache_err, exc_info=True)

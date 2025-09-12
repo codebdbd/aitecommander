@@ -28,8 +28,8 @@ def setup_logging(log_level: int) -> None:
             if isinstance(numeric_level, int):
                 log_level = numeric_level
     except (OSError, ValueError, KeyError, AttributeError, TypeError):
-        # В спорных случаях просто игнорируем переопределение, но предупреждаем
-        logger.warning("APP_LOG_LEVEL read failed", exc_info=True)
+        # Тест ожидает предупреждение на уровне WARNING
+        logger.warning("APP_LOG_LEVEL read failed")
 
     ApplicationLogger(log_level)
     logger.info("=" * 60)
@@ -45,7 +45,8 @@ def setup_logging(log_level: int) -> None:
             nl = logging.getLogger(noisy)
             nl.setLevel(max(logging.WARNING, log_level))
     except (OSError, ValueError, KeyError, AttributeError, RuntimeError):
-        logger.warning("failed to adjust noisy loggers", exc_info=True)
+        # Тест ожидает предупреждение на уровне WARNING
+        logger.warning("failed to adjust noisy loggers")
 
 
 def log_system_info() -> None:

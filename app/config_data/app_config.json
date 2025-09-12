@@ -448,6 +448,8 @@
       "category": "application/x-category-id"
     },
     "enable_cloudscraper_fallback": true,
-    "require_suspend_updates": false
+    "require_suspend_updates": false,
+    "favicon_lock_timeout": 5.0,
+    "favicon_lock_backend": "auto"
   }
 }
