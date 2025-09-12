@@ -36,7 +36,8 @@ if TYPE_CHECKING:
     from bs4 import BeautifulSoup
 
 from .constants import MIN_GOOD_SIZE, TARGET_SIZE, logger
-from .http_client import get_session
+from .http_client import http_request
+from .http_client import get_session as get_session  # backward-compat for tests
 from .icon_candidates import find_favicon_candidates
 from .svg_convert import convert_svg
 
@@ -48,10 +49,11 @@ _PIL_MAX_PIXELS_GUARD = threading.Lock()
 
 # Shared executor for icon downloads (singleton)
 _ICON_EXECUTOR = None
+_ICON_EXECUTOR_SIZE = 0  # текущий размер пула
 _ICON_EXECUTOR_GUARD = threading.Lock()
 
 def _shutdown_icon_executor(wait: bool = False):  # pragma: no cover - atexit path
-    global _ICON_EXECUTOR
+    global _ICON_EXECUTOR, _ICON_EXECUTOR_SIZE
     try:
         ex = _ICON_EXECUTOR
         _ICON_EXECUTOR = None
@@ -63,24 +65,60 @@ def _shutdown_icon_executor(wait: bool = False):  # pragma: no cover - atexit pa
                 ex.shutdown(wait=wait)
     except Exception as e:
         logger.debug("icon executor shutdown failed: %s", e)
+    finally:
+        _ICON_EXECUTOR_SIZE = 0
 
 def _get_icon_executor(max_workers_hint: int) -> ThreadPoolExecutor:
-    global _ICON_EXECUTOR
+    """Возвращает общий ThreadPoolExecutor для скачивания иконок.
+
+    Пул создаётся лениво и может динамически увеличиваться при возрастании `max_workers_hint`.
+    При расширении старый пул аккуратно останавливается без ожидания (running tasks завершаются там).
+    Верхняя граница — `app_config.ICON_MAX_WORKERS` (по умолчанию 6).
+    """
+    global _ICON_EXECUTOR, _ICON_EXECUTOR_SIZE
+
+    # Быстрая безблокировочная проверка
     ex = _ICON_EXECUTOR
-    if ex is not None:
+    if ex is not None and _ICON_EXECUTOR_SIZE >= max(1, int(max_workers_hint or 1)):
         return ex
+
     with _ICON_EXECUTOR_GUARD:
+        # Пересчитываем эффективные размеры под блокировкой
+        try:
+            cfg_limit = int(getattr(app_config, "ICON_MAX_WORKERS", 6) or 6)
+        except Exception:
+            cfg_limit = 6
+        desired = max(1, int(min(max_workers_hint or 1, cfg_limit)))
+
         if _ICON_EXECUTOR is None:
-            try:
-                cfg = int(getattr(app_config, "ICON_MAX_WORKERS", 6) or 6)
-            except Exception:
-                cfg = 6
-            max_workers = max(1, int(min(max_workers_hint or 1, cfg)))
-            _ICON_EXECUTOR = ThreadPoolExecutor(max_workers=max_workers)
+            # Первичное создание
+            _ICON_EXECUTOR = ThreadPoolExecutor(max_workers=desired)
+            _ICON_EXECUTOR_SIZE = desired
             try:
                 atexit.register(lambda: _shutdown_icon_executor(wait=False))
             except Exception as e:  # pragma: no cover - best-effort atexit
                 logger.debug("failed to register icon executor shutdown: %s", e)
+            return _ICON_EXECUTOR
+
+        # Есть существующий пул. Если новый размер больше — расширяем посредством пересоздания
+        if desired > _ICON_EXECUTOR_SIZE:
+            old = _ICON_EXECUTOR
+            try:
+                _ICON_EXECUTOR = ThreadPoolExecutor(max_workers=desired)
+                _ICON_EXECUTOR_SIZE = desired
+            except Exception as e:
+                logger.debug("failed to resize icon executor: %s", e, exc_info=True)
+                # Возвращаем старый пул при неудаче
+                _ICON_EXECUTOR = old
+                return _ICON_EXECUTOR
+            # Не блокируемся на завершении старого пула; не отменяем уже запущенные задачи
+            try:
+                old.shutdown(wait=False)
+            except Exception:
+                pass
+            return _ICON_EXECUTOR
+
+        # Текущий размер достаточен
         return _ICON_EXECUTOR
 
 
@@ -332,11 +370,14 @@ class IconDownloader:
         headers = {k: v for k, v in cond_headers.items() if v}
 
         try:
-            resp = get_session().request(
-                "GET",
+            resp = http_request(
                 icon_url,
-                headers=headers,
-                timeout=(5, 8),
+                self.config,
+                extra_headers=headers,
+                allow_non_2xx=True,
+                timeout_override=(5, 8),
+                retries=int(getattr(self.config, "HTTP_RETRIES", 2) or 2),
+                method="GET",
                 stream=True,
                 allow_redirects=True,
             )
@@ -347,6 +388,9 @@ class IconDownloader:
                 e,
                 exc_info=True,
             )
+            return None
+        if resp is None:
+            # http_request exhausted retries / permanent error
             return None
 
         # Обработка статусов до чтения тела

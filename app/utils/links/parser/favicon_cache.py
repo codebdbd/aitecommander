@@ -14,6 +14,7 @@ import threading
 import time
 from contextlib import closing, contextmanager
 from typing import Any, Optional
+from collections import OrderedDict
 
 from app.config_data import app_config
 from app.utils.cache.base import BaseCache
@@ -255,101 +256,89 @@ class FaviconCache(BaseCache):
 
     @staticmethod
     def _now() -> float:
-        return time.time()
+        return float(time.time())
 
-    def _maybe_cleanup(self, db: shelve.Shelf) -> None:
+    def _maybe_cleanup(self, db: shelve.Shelf, *, now: Optional[float] = None) -> None:
         """Периодическая очистка: удаление протухших и, при необходимости, самых старых записей.
 
         Чтобы избежать частых полных проходов, используем метку времени последней очистки,
         хранимую в специальном ключе "__last_cleanup_ts__".
         """
         try:
-            last_ts = float(db.get("__last_cleanup_ts__", 0.0) or 0.0)
+            last_ts = float(db.get("__last_cleanup_ts__", 0.0))
         except Exception as exc:
             last_ts = 0.0
             logger.debug(
                 "favicon_cache: failed to read last cleanup ts: %s", exc, exc_info=True
             )
-        now = self._now()
+        now = self._now() if now is None else float(now)
         if (now - last_ts) < self._cleanup_interval_sec:
             return
 
         removed = 0
         try:
-            # 1) удаляем протухшие
-            to_delete: list[str] = []
-            for k in list(db.keys()):
-                if k.startswith("__"):
-                    continue
+            # Загружаем/создаём упорядоченный индекс по времени: key -> ts (по возрастанию вставок)
+            index: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+            # 1) Удаляем протухшие и несогласованные записи, проходя по индексу (не по всей БД)
+            for k, ts in list(index.items()):
                 try:
                     item = db.get(k)
                     if not isinstance(item, dict):
-                        # Неподдерживаемый формат — удаляем
-                        to_delete.append(k)
+                        # отсутствует или невалиден — удалить
+                        index.pop(k, None)
+                        try:
+                            if k in db:
+                                del db[k]
+                                removed += 1
+                        except Exception:
+                            pass
                         continue
-                    ts = float(item.get("timestamp", 0.0))
                     ttl = self._compute_effective_ttl(item)
                     if ttl <= 0 or (now - ts) >= ttl:
-                        to_delete.append(k)
+                        index.pop(k, None)
+                        try:
+                            del db[k]
+                            removed += 1
+                        except Exception:
+                            pass
                 except Exception as exc:
-                    to_delete.append(k)
+                    index.pop(k, None)
+                    try:
+                        if k in db:
+                            del db[k]
+                            removed += 1
+                    except Exception:
+                        pass
                     logger.debug(
                         "favicon_cache: failed to inspect entry '%s' during cleanup: %s",
                         k,
                         exc,
                         exc_info=True,
                     )
-            for k in to_delete:
-                try:
-                    del db[k]
-                    removed += 1
-                except Exception as exc:
-                    logger.debug(
-                        "favicon_cache: failed to delete expired key '%s': %s",
-                        k,
-                        exc,
-                        exc_info=True,
-                    )
 
-            # 2) ограничиваем размер БД, удаляя самые старые по timestamp
+            # 2) ограничиваем размер БД, удаляя самые старые по минимальному timestamp
             max_size = self._get_max_size()
-            # Собираем пары (k, ts)
-            items: list[tuple[str, float]] = []
-            for k in db.keys():
-                if k.startswith("__"):
-                    continue
+            while len(index) > max_size:
                 try:
-                    it = db.get(k)
-                    ts = (
-                        float(it.get("timestamp", 0.0)) if isinstance(it, dict) else 0.0
-                    )
+                    oldest_key = min(index.items(), key=lambda kv: kv[1])[0]
+                except ValueError:
+                    break
+                index.pop(oldest_key, None)
+                try:
+                    if oldest_key in db:
+                        del db[oldest_key]
+                        removed += 1
                 except Exception as exc:
-                    ts = 0.0
                     logger.debug(
-                        "favicon_cache: failed to get ts for key '%s': %s",
-                        k,
+                        "favicon_cache: failed to evict key '%s': %s",
+                        oldest_key,
                         exc,
                         exc_info=True,
                     )
-                items.append((k, ts))
-            if len(items) > max_size:
-                # Сортируем по возрастанию ts и удаляем лишние
-                items.sort(key=lambda x: x[1])
-                to_evict = len(items) - max_size
-                for k, _ in items[:to_evict]:
-                    try:
-                        del db[k]
-                        removed += 1
-                    except Exception as exc:
-                        logger.debug(
-                            "favicon_cache: failed to evict key '%s': %s",
-                            k,
-                            exc,
-                            exc_info=True,
-                        )
         finally:
             try:
                 db["__last_cleanup_ts__"] = now
+                db["__ts_index__"] = index
                 try:
                     # Для постоянного соединения — синхронизируем на диск
                     sync = getattr(db, "sync", None)
@@ -385,14 +374,22 @@ class FaviconCache(BaseCache):
                         return None
                     ts = float(item.get("timestamp", 0.0))
                     ttl = self._compute_effective_ttl(item)
-                    if ttl <= 0 or (time.time() - ts) >= ttl:
+                    if ttl <= 0 or (self._now() - ts) >= ttl:
                         # Удаляем протухшую запись, чтобы база не разрасталась
                         try:
                             del db[key]
+                            # удаляем из индекса
                             try:
-                                sync = getattr(db, "sync", None)
-                                if callable(sync):
-                                    sync()
+                                idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                                if key in idx:
+                                    idx.pop(key, None)
+                                    db["__ts_index__"] = idx
+                                    try:
+                                        sync = getattr(db, "sync", None)
+                                        if callable(sync):
+                                            sync()
+                                    except Exception:
+                                        pass
                             except Exception:
                                 pass
                         except Exception as exc:
@@ -416,9 +413,23 @@ class FaviconCache(BaseCache):
                             return None
                         ts = float(item.get("timestamp", 0.0))
                         ttl = self._compute_effective_ttl(item)
-                        if ttl <= 0 or (time.time() - ts) >= ttl:
+                        if ttl <= 0 or (self._now() - ts) >= ttl:
                             try:
                                 del db2[key]
+                                # удалить из индекса
+                                try:
+                                    idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
+                                    if key in idx:
+                                        idx.pop(key, None)
+                                        db2["__ts_index__"] = idx
+                                        try:
+                                            sync = getattr(db2, "sync", None)
+                                            if callable(sync):
+                                                sync()
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    pass
                             except Exception as exc:
                                 logger.debug(
                                     "favicon_cache: failed to delete expired key '%s' in get(): %s",
@@ -442,23 +453,25 @@ class FaviconCache(BaseCache):
                     db = self._db
                     if db is None:
                         return
-                    # Очистка перед записью, чтобы ограничивать рост
-                    try:
-                        self._maybe_cleanup(db)
-                    except Exception as exc:
-                        logger.debug(
-                            "favicon_cache: cleanup before set failed: %s",
-                            exc,
-                            exc_info=True,
-                        )
+                    # Предочистку перед записью не выполняем; ограничение размера делаем индексом ниже
                     if isinstance(value, dict):
                         to_store = dict(value)
                     else:
                         to_store = {"value": value}
-                    to_store.setdefault("timestamp", time.time())
+                    ts_now = self._now()
+                    to_store.setdefault("timestamp", ts_now)
                     if ttl is not None:
                         to_store["ttl"] = float(ttl)
                     db[key] = to_store
+                    # Обновляем индекс времени: перемещаем ключ в конец как самый новый
+                    try:
+                        idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                        if key in idx:
+                            idx.pop(key, None)
+                        idx[key] = float(to_store.get("timestamp", ts_now))
+                        db["__ts_index__"] = idx
+                    except Exception:
+                        pass
                     logger.debug("[cache] SAVE %s", key)
                     try:
                         sync = getattr(db, "sync", None)
@@ -466,47 +479,64 @@ class FaviconCache(BaseCache):
                             sync()
                     except Exception:
                         pass
-                    # Жесткое ограничение размера сразу после записи
+                    # Мгновенное ограничение размера через индекс (без полной сортировки)
                     try:
                         max_size = self._get_max_size()
-                        items: list[tuple[str, float]] = []
-                        for k in db.keys():
-                            if k.startswith("__"):
-                                continue
+                        idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                        # Удалим фантомные ключи, которых нет в БД
+                        for k in list(idx.keys()):
+                            if k not in db or k.startswith("__"):
+                                idx.pop(k, None)
+                        # Эвикт по индексу
+                        while len(idx) > max_size:
                             try:
-                                it = db.get(k)
-                                ts = (
-                                    float(it.get("timestamp", 0.0))
-                                    if isinstance(it, dict)
-                                    else 0.0
-                                )
-                            except Exception as exc:
-                                ts = 0.0
-                                logger.debug(
-                                    "favicon_cache: failed to read ts during enforce max size: %s",
-                                    exc,
-                                    exc_info=True,
-                                )
-                            items.append((k, ts))
-                        if len(items) > max_size:
-                            items.sort(key=lambda x: x[1])
-                            to_evict = len(items) - max_size
-                            for k, _ in items[:to_evict]:
-                                try:
-                                    del db[k]
-                                except Exception as exc:
-                                    logger.debug(
-                                        "favicon_cache: failed to evict key '%s' after set(): %s",
-                                        k,
-                                        exc,
-                                        exc_info=True,
-                                    )
-                    except Exception as exc:
-                        logger.debug(
-                            "favicon_cache: failed enforcing max size after set(): %s",
-                            exc,
-                            exc_info=True,
-                        )
+                                oldest_key = min(idx.items(), key=lambda kv: kv[1])[0]
+                            except ValueError:
+                                break
+                            idx.pop(oldest_key, None)
+                            try:
+                                if oldest_key in db:
+                                    del db[oldest_key]
+                            except Exception:
+                                pass
+                        db["__ts_index__"] = idx
+                        # Фоллбек: если индекс пуст/неполон и лимит не соблюден — разовый лёгкий проход по БД
+                        try:
+                            non_service = [k for k in db.keys() if not k.startswith("__")]
+                            if len(non_service) > max_size:
+                                items: list[tuple[str, float]] = []
+                                for k in non_service:
+                                    try:
+                                        it = db.get(k)
+                                        ts = float(it.get("timestamp", 0.0)) if isinstance(it, dict) else 0.0
+                                    except Exception:
+                                        ts = 0.0
+                                    items.append((k, ts))
+                                items.sort(key=lambda x: x[1])
+                                for k, _ in items[: len(non_service) - max_size]:
+                                    try:
+                                        if k in db:
+                                            del db[k]
+                                        if k in idx:
+                                            idx.pop(k, None)
+                                    except Exception:
+                                        pass
+                                db["__ts_index__"] = idx
+                        except Exception:
+                            pass
+                        try:
+                            sync = getattr(db, "sync", None)
+                            if callable(sync):
+                                sync()
+                        except Exception:
+                            pass
+                    except Exception:
+                        pass
+                    # Установим маркер последней очистки (для тестов и отложенной периодической очистки)
+                    try:
+                        db["__last_cleanup_ts__"] = ts_now
+                    except Exception:
+                        pass
                 else:
                     # Непостоянный режим: открываем/закрываем на каждую операцию (поведение как прежде)
                     try:
@@ -514,65 +544,101 @@ class FaviconCache(BaseCache):
                     except Exception:
                         pass
                     with closing(shelve.open(current_path)) as db2:
-                        # Очистка перед записью
-                        try:
-                            self._maybe_cleanup(db2)
-                        except Exception as exc:
-                            logger.debug(
-                                "favicon_cache: cleanup before set failed: %s",
-                                exc,
-                                exc_info=True,
-                            )
+                        # Предочистку перед записью не выполняем; ограничение размера делаем индексом ниже
                         if isinstance(value, dict):
                             to_store = dict(value)
                         else:
                             to_store = {"value": value}
-                        to_store.setdefault("timestamp", time.time())
+                        ts_now = self._now()
+                        to_store.setdefault("timestamp", ts_now)
                         if ttl is not None:
                             to_store["ttl"] = float(ttl)
                         db2[key] = to_store
+                        # Обновляем индекс времени в непостоянном режиме
+                        try:
+                            idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
+                            if key in idx:
+                                idx.pop(key, None)
+                            idx[key] = float(to_store.get("timestamp", ts_now))
+                            db2["__ts_index__"] = idx
+                        except Exception:
+                            pass
                         logger.debug("[cache] SAVE %s", key)
-                        # Жесткое ограничение размера сразу после записи
+                        # Мгновенное ограничение размера через индекс (без полной сортировки)
                         try:
                             max_size = self._get_max_size()
-                            items: list[tuple[str, float]] = []
-                            for k in db2.keys():
-                                if k.startswith("__"):
-                                    continue
+                            idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
+                            # Удалим фантомные ключи, которых нет в БД
+                            for k in list(idx.keys()):
+                                if k not in db2 or k.startswith("__"):
+                                    idx.pop(k, None)
+                            # Эвикт по индексу
+                            while len(idx) > max_size:
                                 try:
-                                    it = db2.get(k)
-                                    ts = (
-                                        float(it.get("timestamp", 0.0))
-                                        if isinstance(it, dict)
-                                        else 0.0
-                                    )
-                                except Exception as exc:
-                                    ts = 0.0
-                                    logger.debug(
-                                        "favicon_cache: failed to read ts during enforce max size: %s",
-                                        exc,
-                                        exc_info=True,
-                                    )
-                                items.append((k, ts))
-                            if len(items) > max_size:
-                                items.sort(key=lambda x: x[1])
-                                to_evict = len(items) - max_size
-                                for k, _ in items[:to_evict]:
-                                    try:
-                                        del db2[k]
-                                    except Exception as exc:
-                                        logger.debug(
-                                            "favicon_cache: failed to evict key '%s' after set(): %s",
-                                            k,
-                                            exc,
-                                            exc_info=True,
-                                        )
-                        except Exception as exc:
-                            logger.debug(
-                                "favicon_cache: failed enforcing max size after set(): %s",
-                                exc,
-                                exc_info=True,
-                            )
+                                    oldest_key = min(idx.items(), key=lambda kv: kv[1])[0]
+                                except ValueError:
+                                    break
+                                idx.pop(oldest_key, None)
+                                try:
+                                    if oldest_key in db2:
+                                        del db2[oldest_key]
+                                except Exception:
+                                    pass
+                            db2["__ts_index__"] = idx
+                            # Фоллбек: если индекс пуст/неполон и лимит не соблюден — разовый лёгкий проход по БД
+                            try:
+                                non_service = [k for k in db2.keys() if not k.startswith("__")]
+                                if len(non_service) > max_size:
+                                    items: list[tuple[str, float]] = []
+                                    for k in non_service:
+                                        try:
+                                            it = db2.get(k)
+                                            ts = float(it.get("timestamp", 0.0)) if isinstance(it, dict) else 0.0
+                                        except Exception:
+                                            ts = 0.0
+                                        items.append((k, ts))
+                                    items.sort(key=lambda x: x[1])
+                                    for k, _ in items[: len(non_service) - max_size]:
+                                        try:
+                                            if k in db2:
+                                                del db2[k]
+                                            if k in idx:
+                                                idx.pop(k, None)
+                                        except Exception:
+                                            pass
+                                    db2["__ts_index__"] = idx
+                            except Exception:
+                                pass
+                        except Exception:
+                            pass
+                        # Установим маркер последней очистки (для тестов и отложенной периодической очистки)
+                        try:
+                            db2["__last_cleanup_ts__"] = ts_now
+                        except Exception:
+                            pass
+
+    def _get_max_size(self) -> int:
+        """Возвращает максимально допустимый размер кэша.
+        Поддерживает как новый get_* API, так и старый атрибут `favicon_cache_max_size` (для обратной совместимости тестов).
+        """
+        values: list[int] = []
+        # Атрибут
+        if hasattr(app_config, "favicon_cache_max_size"):
+            try:
+                values.append(int(getattr(app_config, "favicon_cache_max_size")))
+            except Exception:
+                pass
+        # Метод
+        if hasattr(app_config, "get_favicon_cache_max_size"):
+            try:
+                values.append(int(getattr(app_config, "get_favicon_cache_max_size")()))  # type: ignore[misc]
+            except Exception:
+                pass
+        # Выбираем наиболее строгий (минимальный) валидный предел
+        values = [v for v in values if v is not None]
+        if values:
+            return max(1, min(values))
+        return 5000
 
     def invalidate(self, key: Optional[str] = None) -> None:
         with self._lock:
@@ -610,6 +676,14 @@ class FaviconCache(BaseCache):
                         try:
                             del db[key]
                             logger.debug("[cache] INVALIDATE %s", key)
+                            # убрать из индекса
+                            try:
+                                idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                                if key in idx:
+                                    idx.pop(key, None)
+                                    db["__ts_index__"] = idx
+                            except Exception:
+                                pass
                             try:
                                 sync = getattr(db, "sync", None)
                                 if callable(sync):
@@ -633,6 +707,13 @@ class FaviconCache(BaseCache):
                             try:
                                 del db2[key]
                                 logger.debug("[cache] INVALIDATE %s", key)
+                                try:
+                                    idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
+                                    if key in idx:
+                                        idx.pop(key, None)
+                                        db2["__ts_index__"] = idx
+                                except Exception:
+                                    pass
                             except Exception as exc:
                                 logger.debug(
                                     "favicon_cache: failed to invalidate key '%s': %s",

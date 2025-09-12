@@ -300,3 +300,73 @@ class SettingsConfig(BaseConfig):
             return "auto"
         except Exception:
             return "auto"
+
+    # === HTTP клиент: параметры ретраев ===
+    @property
+    def HTTP_RETRIES(self) -> int:
+        """Количество повторов HTTP-запроса (Retry.total/connect/read). По умолчанию 2."""
+        try:
+            v = int(self.get("settings.http_retries", 2))
+            return max(0, v)
+        except Exception:
+            return 2
+
+    @property
+    def HTTP_RETRY_BACKOFF(self) -> float:
+        """Коэффициент экспоненциального бэкоффа для Retry (сек). По умолчанию 0.5."""
+        try:
+            v = float(self.get("settings.http_retry_backoff", 0.5))
+            return max(0.0, v)
+        except Exception:
+            return 0.5
+
+    @property
+    def HTTP_RETRY_ON_STATUS(self) -> bool:
+        """Включать ли ретраи по статусам 429/5xx (по умолчанию False)."""
+        try:
+            return bool(self.get("settings.http_retry_on_status", False))
+        except Exception:
+            return False
+
+    @property
+    def HTTP_POOL_CONNECTIONS(self) -> int:
+        """Размер пула базовых соединений адаптера (pool_connections). По умолчанию 10."""
+        try:
+            v = int(self.get("settings.http_pool_connections", 10))
+            return max(1, v)
+        except Exception:
+            return 10
+
+    @property
+    def HTTP_POOL_MAXSIZE(self) -> int:
+        """Максимум соединений в пуле (pool_maxsize). По умолчанию 20."""
+        try:
+            v = int(self.get("settings.http_pool_maxsize", 20))
+            return max(1, v)
+        except Exception:
+            return 20
+
+    # === FaviconCache параметры ===
+    def get_favicon_cache_max_size(self) -> int:
+        """Максимальный размер persistent-кэша фавиконок (кол-во записей). По умолчанию 5000."""
+        try:
+            v = int(self.get("settings.favicon_cache_max_size", 5000))
+            return max(1, v)
+        except Exception:
+            return 5000
+
+    def get_favicon_cache_cleanup_interval(self) -> float:
+        """Интервал периодической очистки (сек). По умолчанию 300.0 (5 минут). Минимум 30 секунд."""
+        try:
+            v = float(self.get("settings.favicon_cache_cleanup_interval", 300.0))
+            return max(30.0, v)
+        except Exception:
+            return 300.0
+
+    @property
+    def FAVICON_CACHE_PERSISTENT(self) -> bool:
+        """Включить постоянное соединение с shelve (держать БД открытой). По умолчанию False."""
+        try:
+            return bool(self.get("settings.favicon_cache_persistent", False))
+        except Exception:
+            return False

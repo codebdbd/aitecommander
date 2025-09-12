@@ -74,6 +74,11 @@ def _reset_icon_executor():
                 ex.shutdown(wait=False)
     finally:
         setattr(mod, "_ICON_EXECUTOR", None)
+        # also reset tracked size if present
+        try:
+            setattr(mod, "_ICON_EXECUTOR_SIZE", 0)
+        except Exception:
+            pass
 
 
 def test_pick_icon_parallel_first_success(monkeypatch, tmp_path):
@@ -153,4 +158,8 @@ def test_shared_executor_singleton(monkeypatch):
     _reset_icon_executor()
     ex1 = mod._get_icon_executor(2)
     ex2 = mod._get_icon_executor(4)
-    assert ex1 is ex2
+    # Допускаем динамическое расширение пула: ссылка может измениться
+    assert mod._ICON_EXECUTOR is ex2
+    # Размер должен быть не меньше последнего hint
+    size = getattr(mod, "_ICON_EXECUTOR_SIZE", 0)
+    assert size >= 4
