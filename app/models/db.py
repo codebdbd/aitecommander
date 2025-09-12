@@ -13,6 +13,7 @@ from typing import Dict, List, Optional
 from app.config_data import app_config
 from app.utils.db.migrations import MigrationRunner
 from app.utils.db.synchronization import db_lock
+from . import legacy_db
 
 from .category_model import CategoryModel
 from .db_base import VALID_POSITION_TABLES, DatabaseBase, DatabaseError, ValidationError
@@ -121,23 +122,17 @@ class Database(DatabaseBase):
         Используйте систему миграций (MigrationRunner) вместо прямого вызова.
         Оставлено для обратной совместимости в утилитах.
         """
-        try:
-            sql = SCHEMA_PATH.read_text(encoding="utf-8")
-            with db_lock:
-                self.connection.executescript(sql)
-                self.commit()
-            logger.info("Схема базы данных инициализирована (deprecated метод)")
-        except Exception as e:
-            logger.error("Ошибка инициализации схемы: %s", e, exc_info=True)
-            raise DatabaseError(f"Не удалось инициализировать схему базы данных: {e}")
+        logger.warning(
+            "Database._init_schema is deprecated; delegating to app.models.legacy_db.init_schema"
+        )
+        legacy_db.init_schema(self)
 
     def _run_migrations(self):
         """[DEPRECATED] Ручные миграции. Не используется, оставлено для истории."""
-        try:
-            runner = MigrationRunner(self.connection, MIGRATIONS_DIR)
-            runner.run_all_pending()
-        except Exception as e:
-            logger.error("Ошибка выполнения миграций (deprecated): %s", e, exc_info=True)
+        logger.warning(
+            "Database._run_migrations is deprecated; delegating to app.models.legacy_db.run_migrations"
+        )
+        legacy_db.run_migrations(self)
 
     # Вспомогательные методы
 
