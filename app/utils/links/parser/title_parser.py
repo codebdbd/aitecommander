@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html as _html
 import json
+from requests.exceptions import RequestException
 import re
 from typing import Optional
 from urllib.parse import urlencode, urlparse
@@ -189,7 +190,7 @@ def _fetch_youtube_title(url: str, config) -> Optional[str]:
         try:
             data = json.loads(resp.text)
             return data.get("title")
-        except Exception:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return None
     return None
 
@@ -606,13 +607,13 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
         if head_resp is not None:
             ctype = head_resp.headers.get("Content-Type", "")
             clen = head_resp.headers.get("Content-Length", "")
-            logger.debug("[title] HEAD url=%s type='%s' len=%s", url, ctype, clen)
+            logger.debug("[title][HEAD] url=%s type='%s' len=%s", url, ctype, clen)
             if ctype and "text/html" not in ctype.lower():
                 logger.warning(
-                    "[title] non-html content-type url=%s type='%s'", url, ctype
+                    "[title][HEAD] non-html content-type url=%s type='%s'", url, ctype
                 )
-    except Exception as he:
-        logger.debug("[title] HEAD failed url=%s err=%s", url, he, exc_info=True)
+    except RequestException as he:
+        logger.debug("[title][HEAD] request failed url=%s err=%s", url, he, exc_info=True)
 
     resp = http_request(
         url, config, timeout_override=timeout_override, retries=retries_override

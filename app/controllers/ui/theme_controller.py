@@ -429,7 +429,18 @@ class ThemeController:
                 "Не удалось импортировать suspend_updates: %s", exc, exc_info=True
             )
 
+        # Политика: требовать ли suspend_updates для пакетного обновления UI
+        try:
+            require_suspend = bool(getattr(app_config, "REQUIRE_SUSPEND_UPDATES", False))
+        except Exception:
+            require_suspend = False
+
         if suspend_updates is None:
+            if require_suspend:
+                logger.warning(
+                    "ThemeController: require_suspend_updates=True, но утилита suspend_updates недоступна — пропускаем пакетное обновление UI"
+                )
+                return
             # Fallback: выполняем операции без приостановки перерисовки
             try:
                 menu_ctrl = getattr(mw, "menu_controller", None)
@@ -457,6 +468,8 @@ class ThemeController:
             return
 
         # Основной путь: выполняем массовые обновления при приостановленной перерисовке окна
+        if require_suspend:
+            logger.debug("ThemeController: выполняем пакетное обновление UI с suspend_updates (strict mode)")
         try:
             with suspend_updates(mw):
                 # Пересоздание главного меню

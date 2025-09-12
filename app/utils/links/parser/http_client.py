@@ -16,7 +16,7 @@ try:
     import cloudscraper  # type: ignore
 except Exception:  # pragma: no cover - optional dependency
     cloudscraper = None  # type: ignore
-    logger.warning("cloudscraper not installed, some sites may fail to fetch")
+    logger.debug("cloudscraper not installed; fallback will be disabled")
 
 # Lazy, shared cloudscraper instance
 _CLOUDSCRAPER = None
@@ -44,8 +44,8 @@ def get_cloudscraper():
                 return None
             try:
                 atexit.register(lambda: shutdown_cloudscraper(wait=False))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("failed to register cloudscraper shutdown: %s", e)
     return _CLOUDSCRAPER
 
 
@@ -59,8 +59,8 @@ def shutdown_cloudscraper(wait: bool = False):
             close = getattr(s, "close", None)
             if callable(close):
                 close()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("cloudscraper shutdown failed: %s", e)
 
 
 # Thread-local sessions with browser-like headers
@@ -80,14 +80,17 @@ def get_session() -> requests.Session:
                     "Accept-Language": "en-US,en;q=0.9,ru;q=0.8",
                 }
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("failed to update default session headers: %s", e)
         setattr(_tls, "session", s)
         try:
             # Best-effort cleanup on interpreter shutdown
-            atexit.register(lambda: getattr(_tls, "session", None) and getattr(_tls.session, "close", lambda: None)())
-        except Exception:
-            pass
+            atexit.register(
+                lambda: getattr(_tls, "session", None)
+                and getattr(_tls.session, "close", lambda: None)()
+            )
+        except Exception as e:
+            logger.debug("failed to register session atexit cleanup: %s", e)
     return s
 
 
@@ -110,12 +113,23 @@ def http_request(
     attempt = 0
     last_err: Optional[Exception] = None
     cf_fallback_attempted = False
+    # Configurable switch: allow cloudscraper attempts
+    enable_cf = bool(getattr(config, "ENABLE_CLOUDSCRAPER_FALLBACK", True))
+    logger.debug(
+        "[http][start] method=%s url=%s enable_cf=%s retries=%s timeout=%s",
+        method,
+        url,
+        bool(getattr(config, "ENABLE_CLOUDSCRAPER_FALLBACK", True)),
+        retries,
+        timeout,
+    )
     while attempt <= max(0, int(retries)):
         if attempt > 0:
             time.sleep(0.5 * (2**attempt))
             logger.debug("[retry %s] %s %s", attempt, method, url)
         try:
             if http_get and method == "GET":
+                logger.debug("[injected] %s %s", method, url)
                 resp = http_get(url, headers=headers, timeout=timeout)
                 if resp is None:
                     raise RequestException("Injected http_get returned None")
@@ -123,7 +137,7 @@ def http_request(
                     return resp
                 resp.raise_for_status()
                 return resp
-            scraper = get_cloudscraper()
+            scraper = get_cloudscraper() if enable_cf else None
             if scraper is not None:
                 try:
                     logger.debug("[cloudscraper] %s %s", method, url)
@@ -152,16 +166,24 @@ def http_request(
                 status = getattr(getattr(e, "response", None), "status_code", None)
             except Exception:
                 status = None
-            should_try_cf = (status in (403, 429, 503)) or (
+            logger.debug(
+                "[http][error] method=%s url=%s status=%s err=%s",
+                method,
+                url,
+                status,
+                e,
+                exc_info=True,
+            )
+            should_try_cf = enable_cf and ((status in (403, 429, 503)) or (
                 status is None
                 and any(
                     tok in err_s.lower()
                     for tok in ["forbidden", "blocked", "cloudflare"]
                 )
-            )
+            ))
             if not cf_fallback_attempted and method == "GET" and should_try_cf:
                 try:
-                    scraper = get_cloudscraper()
+                    scraper = get_cloudscraper() if enable_cf else None
                     if scraper is None:
                         raise RequestException("cloudscraper unavailable")
                     logger.debug("[fallback->cloudscraper] %s %s", method, url)
@@ -186,6 +208,13 @@ def http_request(
             break
         except Exception as e:
             last_err = e
+            logger.error(
+                "[http][unexpected] method=%s url=%s err=%s",
+                method,
+                url,
+                e,
+                exc_info=True,
+            )
             break
     logger.warning("Requests failed for %s: %s", url, last_err)
     return None

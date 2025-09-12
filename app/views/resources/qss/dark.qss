@@ -71,24 +71,32 @@ QWidget#spheres_bar QToolButton {
 /* Усиленное правило hover: явно задаём border, чтобы перебить border:none */
 QWidget#spheres_bar QToolButton:hover,
 QWidget#LeftPanel QWidget#spheres_bar QToolButton:hover {
-    border-color: #0194F0;
+    border-color: transparent; /* без обводки */
+    background: rgba(255, 255, 255, 0.07); /* лёгкая светлая прозрачность, как hover в Win11 */
 }
 
 QWidget#spheres_bar QToolButton:checked {
-    background: #1E2633;
-    border-color: #0194F0;
+    background: rgba(255, 255, 255, 0.05); /* лёгкая подсветка активной кнопки без обводки */
+    border-color: transparent;
 }
 
 /* При наведении на активную кнопку показывать синюю рамку */
 QWidget#spheres_bar QToolButton:checked:hover,
 QWidget#LeftPanel QWidget#spheres_bar QToolButton:checked:hover {
-    border-color: #0194F0;
+    border-color: transparent; /* без обводки */
+    background: rgba(255, 255, 255, 0.08); /* чуть сильнее подсветка при наведении на активную */
 }
 
 /* Внутри LeftPanel активная кнопка сферы должна иметь такую же обводку, как hover */
 QWidget#LeftPanel QWidget#spheres_bar QToolButton:checked {
-    background: #1E2633;
-    border-color: #0194F0;
+    background: rgba(255, 255, 255, 0.05); /* та же лёгкая подсветка активной */
+    border-color: transparent;
+}
+
+/* Явно убираем фон при нажатии для кнопок сфер */
+QWidget#spheres_bar QToolButton:pressed,
+QWidget#LeftPanel QWidget#spheres_bar QToolButton:pressed {
+    background: rgba(255, 255, 255, 0.10); /* немного плотнее при нажатии */
 }
 
 /* QWidget#LeftPanel QToolButton: базовый фон задан в common.qss */
@@ -561,14 +569,8 @@ QSplitter::handle:vertical { background-color: #3A3E44; }
    11) Панель сфер — фон контейнера (градиент)
    =============================================================== */
 #spheres_bar {
-    /* Dark theme: neutral gradient without neon glow */
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0 #1A1F26,
-        stop: 0.95 #1A1F26,
-        stop: 0.95 #1E2633,
-        stop: 1 #1E2633
-    );
+    /* Dark theme: make spheres bar background transparent */
+    background: transparent;
 }
 
 /* ===============================================================
