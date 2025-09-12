@@ -3,14 +3,14 @@
 
 import logging
 
-from PyQt6.QtCore import QModelIndex, QSize, Qt, pyqtSignal, pyqtProperty
+from PyQt6.QtCore import QModelIndex, QSize, Qt, pyqtProperty, pyqtSignal
 from PyQt6.QtGui import QColor, QPalette
-from PyQt6.QtWidgets import QStyleOptionViewItem
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
     QStyle,
     QStyledItemDelegate,
+    QStyleOptionViewItem,
 )
 
 from app.config_data import app_config

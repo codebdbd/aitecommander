@@ -3,6 +3,7 @@ import logging
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
+    QProxyStyle,
     QStyle,
     QStyledItemDelegate,
     QStyleOptionViewItem,
@@ -11,6 +12,8 @@ from PyQt6.QtWidgets import (
 
 from app.config_data import app_config
 from app.utils.ui.dnd.tree import DragDropHandler
+from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
+from app.utils.ui.icon.path_service import get_current_theme
 from app.views.tree_components.move_operations_handler import MoveOperationsHandler
 
 # Используем строковые литералы "section" и "category"
@@ -271,7 +274,47 @@ class StructureTreeView(QTreeView):
         # Hover-поведение как в прежней версии
         self.setMouseTracking(True)
 
-    # --- Internal helpers ---
+        # Чистая реализация нестандартных индикаторов ветвей через QProxyStyle.
+        # Иконки берутся из общего кэша по текущей теме на этапе отрисовки — без подписок/хуков.
+        try:
+            def _get_branch_icons():
+                theme = get_current_theme()
+                closed_ic = icon_cache.get_icon("right", theme, source="tree_branch")
+                open_ic = icon_cache.get_icon("down", theme, source="tree_branch")
+                return closed_ic, open_ic
+
+            class _BranchStyle(QProxyStyle):
+                def __init__(self, base_style):
+                    super().__init__(base_style)
+
+                def drawPrimitive(self, element, option, painter, widget=None):  # noqa: N802
+                    if element == QStyle.PrimitiveElement.PE_IndicatorBranch:
+                        try:
+                            # Показываем индикатор только для узлов с детьми (разделы).
+                            if not (option.state & QStyle.StateFlag.State_Children):
+                                return super().drawPrimitive(element, option, painter, widget)
+                            is_open = bool(option.state & QStyle.StateFlag.State_Open)
+                            closed_ic, open_ic = _get_branch_icons()
+                            icon = open_ic if is_open else closed_ic
+                            if not icon.isNull():
+                                rect = option.rect
+                                pm = icon.pixmap(rect.size())
+                                x = rect.x() + max(0, (rect.width() - pm.width()) // 2)
+                                y = rect.y() + max(0, (rect.height() - pm.height()) // 2)
+                                painter.drawPixmap(x, y, pm)
+                                return
+                        except Exception:
+                            # Фолбэк на дефолтный рендеринг
+                            return super().drawPrimitive(element, option, painter, widget)
+                    return super().drawPrimitive(element, option, painter, widget)
+
+            try:
+                base_style = self.style()
+            except Exception:
+                base_style = None
+            self.setStyle(_BranchStyle(base_style))
+        except Exception:
+            logger.debug("StructureTreeView: failed to install branch proxy style", exc_info=True)
     def _safe_emit(self, signal, payload, *, fallback=None, signal_name: str = "") -> None:
         """Безопасно эмитит сигнал с унифицированной обработкой ошибок.
 

@@ -259,10 +259,14 @@ class WindowInitializer:
                             "WindowInitializer: failed to wire metrics to structure_loaded",
                             exc_info=False,
                         )
-                    QTimer.singleShot(
-                        0, lambda cid=int(curr_id): ao.load_structure_async(cid)
-                    )
-                    self._metrics.mark("async:load_structure_async scheduled")
+                    try:
+                        # Запускаем сразу, без лишнего тика event loop, чтобы быстрее показать дерево
+                        ao.load_structure_async(int(curr_id))
+                        self._metrics.mark("async:load_structure_async started")
+                    except Exception:
+                        logger.exception(
+                            "WindowInitializer: failed to start load_structure_async immediately"
+                        )
         except Exception:
             logger.exception(
                 "WindowInitializer: не удалось запланировать load_structure_async"
@@ -473,6 +477,15 @@ class WindowInitializer:
                 "WindowInitializer: не удалось показать диалог ошибки инициализации"
             )
         finally:
+            try:
+                # Централизуем завершение: закрываем главное окно, чтобы сработал AppShutdownController
+                if hasattr(self, "window") and hasattr(self.window, "close"):
+                    self.window.close()
+                    return
+            except Exception:
+                logger.debug("WindowInitializer: window.close() failed, falling back to app.quit()", exc_info=True)
+
+            # Fallback: если окна нет, завершаем приложение напрямую
             app = QApplication.instance()
             if app is not None:
                 app.quit()

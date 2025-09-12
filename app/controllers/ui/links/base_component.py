@@ -51,12 +51,21 @@ class BaseLinksUIComponent:
     def _update_category_safe(self, category_id: int) -> None:
         """Безопасное обновление категории с fallback."""
         try:
-            ctrl = getattr(self.main, "links_table_controller", None)
-            if ctrl:
+            # 1) Предпочитаем явную зависимость, переданную в компонент
+            ctrl = self.links_table_controller
+            if ctrl is not None:
                 ctrl.reload(category_id)
-            else:
-                # Fallback: только бизнес-логика без прямого UI
-                self.business.load_links(category_id)
+                return
+
+            # 2) Фолбэк: попытаться взять контроллер из main (для совместимости)
+            ctrl_from_main = getattr(self.main, "links_table_controller", None)
+            if ctrl_from_main is not None:
+                ctrl_from_main.reload(category_id)
+                return
+
+            # 3) Финальный фолбэк: напрямую дернуть бизнес-логику
+            # (без UI-контроллера таблицы; может дать менее согласованное поведение)
+            self.business.load_links(category_id)
         except Exception as e:
             logger.error("Error updating category %s: %s", category_id, e)
             raise DatabaseError(f"Failed to update category: {str(e)}")

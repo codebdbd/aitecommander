@@ -1,5 +1,6 @@
-from typing import Any
 import sqlite3
+from typing import Any
+
 
 def migrate(conn: sqlite3.Connection, logger: Any) -> None:
     """

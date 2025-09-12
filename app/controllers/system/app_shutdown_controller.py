@@ -18,6 +18,12 @@ from app.config_data import app_config
 # Модульный логгер
 logger = logging.getLogger(__name__)
 
+# Политика завершения приложения:
+# - UI-слой НЕ вызывает напрямую quit()/exit().
+# - Завершение производится ТОЛЬКО через AppShutdownController (perform_shutdown)
+#   либо косвенно через закрытие главного окна (MainWindow.close()), что триггерит контроллер.
+# - Функция emergency_shutdown() — исключительно для фатальных аварийных ситуаций.
+
 
 class ShutdownPriority(Enum):
     """Приоритеты выполнения операций shutdown."""
@@ -270,7 +276,8 @@ class AppShutdownController:
         Исполняем обработчик в отдельном потоке и ждём завершения через Future.result(timeout).
         В случае таймаута — логируем, пытаемся отменить и продолжаем (или прерываем для critical).
         """
-        from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FTimeout
+        from concurrent.futures import ThreadPoolExecutor
+        from concurrent.futures import TimeoutError as _FTimeout
 
         eff_timeout_ms = (
             override_timeout_ms if override_timeout_ms is not None else handler.timeout

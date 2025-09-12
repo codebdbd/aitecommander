@@ -411,7 +411,8 @@ QStatusBar QLabel#linksCountLabel {
 }
 
 QWidget#bottomBarContainer {
-    background-color: #1A1F26;
+    /* Dark theme: requested color for bottom bar */
+    background-color: #292929;
 }
 
 QWidget#bottomBarContainer QPushButton {
@@ -560,10 +561,13 @@ QSplitter::handle:vertical { background-color: #3A3E44; }
    11) Панель сфер — фон контейнера (градиент)
    =============================================================== */
 #spheres_bar {
+    /* Dark theme: neutral gradient without neon glow */
     background: qlineargradient(
         x1: 0, y1: 0, x2: 0, y2: 1,
-        stop: 0 #1A1F26, stop: 0.95 #1A1F26,
-        stop: 0.95 #1E2633, stop: 1 #1E2633
+        stop: 0 #1A1F26,
+        stop: 0.95 #1A1F26,
+        stop: 0.95 #1E2633,
+        stop: 1 #1E2633
     );
 }
 

@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
-from app.services import share_service
+from typing import Any, Dict, List, Optional
 
 from app.controllers.ui.state.task_scheduler import schedule_selection_restore
+from app.services import share_service
 
 
 class LinksActions:
@@ -239,8 +238,22 @@ class LinksActions:
         return False
 
     # --- Unified action handler for new panel widgets ---
-    def on_action_requested(self, action_data):
-        """Handles unified actions from refactored panel widgets."""
+    def on_action_requested(self, action_data: Dict[str, Any] | None) -> None:
+        """Обработчик унифицированных действий от верхних панелей.
+
+        Контракт action_data (dict):
+        - type: str — тип действия.
+            - "open_link": открыть ссылку из панели.
+            - "quick_add": быстро добавить ссылку заданного типа.
+        - link: dict | None — ссылка (для type == "open_link").
+        - link_type: str | None — тип быстрой ссылки (для type == "quick_add").
+        - category_id: int | None — категория назначения (опционально; если не указана,
+          используется текущая категория через LinksUIController).
+
+        Поведение:
+        - open_link: делегирует в self.open_link(link).
+        - quick_add: делегирует в LinksUIController.quick_add_link(link_type, category_id).
+        """
         if not isinstance(action_data, dict):
             return
 
@@ -250,10 +263,11 @@ class LinksActions:
             if link:
                 self.open_link(link)
         elif action_type == "quick_add":
-            # Handle quick add action
-            if hasattr(self.main, "show_link_dialog"):
-                category_id = action_data.get("category_id")
-                self.main.show_link_dialog(category_id=category_id)
+            # Delegate to LinksUIController for unified behavior
+            link_type = action_data.get("link_type")
+            category_id = action_data.get("category_id")
+            if self.links and hasattr(self.links, "quick_add_link"):
+                self.links.quick_add_link(link_type, category_id)
 
     # --- Делегаты для пассивных виджетов (Recent/Favorites) ---
     def on_recent_refresh_requested(self, limit: int):

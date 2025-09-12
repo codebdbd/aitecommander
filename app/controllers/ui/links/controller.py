@@ -177,21 +177,7 @@ class LinksUIController(QObject):
         """Быстрое добавление ссылки."""
         self.link_ops.quick_add_link(link_type, category_id)
 
-    def on_action_requested(self, action_data: Dict | None):
-        """Слот для actionRequested(action_data) из панельных виджетов."""
-        if not isinstance(action_data, dict):
-            return
-
-        action_type = action_data.get("type")
-        if action_type == "quick_add":
-            self.quick_add_link(
-                action_data.get("link_type"), action_data.get("category_id")
-            )
-        elif action_type == "open_link":
-            # Handle link opening if needed
-            pass
-
-    def show_note_dialog(self, link: Dict):
+    def show_note_dialog(self, link: Dict) -> None:
         """Показать диалог заметки для ссылки."""
         self.link_ops.show_note_dialog(link)
 
@@ -199,28 +185,28 @@ class LinksUIController(QObject):
         """Получить выбранные ссылки."""
         return self.clipboard.get_selected_links()
 
-    def open_link(self, link: Dict):
+    def open_link(self, link: Dict) -> None:
         """Открыть ссылку."""
         logger.info("open_link called with link: %s", link)
         self.link_ops._open_link(link)
 
-    def toggle_favorite(self, link: Dict = None):
+    def toggle_favorite(self, link: Dict = None) -> None:
         """Переключить статус избранного."""
         self.link_ops._toggle_fav(link)
 
-    def cut_selected_links(self):
+    def cut_selected_links(self) -> None:
         """Вырезать выбранные ссылки."""
         self.clipboard.cut_link()
 
-    def copy_selected_links(self):
+    def copy_selected_links(self) -> None:
         """Копировать выбранные ссылки."""
         self.clipboard.copy_link()
 
-    def paste_links(self):
+    def paste_links(self) -> None:
         """Вставить ссылки из буфера обмена."""
         self.clipboard.paste_link()
 
-    def delete_selected_links(self):
+    def delete_selected_links(self) -> None:
         """Удалить выбранные ссылки."""
         links = self.clipboard.get_selected_links()
         self.clipboard.delete_links(links)

@@ -15,6 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 class ThemeController:
+    # Политика завершения приложения:
+    # - UI-слой не вызывает напрямую quit()/exit().
+    # - Массовое обновление UI после смены темы выполняется без закрытия приложения;
+    #   завершение, если требуется, делегируется AppShutdownController через закрытие окна.
     def __init__(
         self,
         settings,
@@ -49,6 +53,7 @@ class ThemeController:
         # Инъекция зависимостей для тестируемости
         self._stylesheet_applier = stylesheet_applier  # Callable[[str], None]
         self._gui_scheduler = gui_scheduler  # Callable[[Callable[[], None]], None]
+        # Примечание: защита от реэнтрантности не используется — возвращаем исходное поведение
 
         # Темы зафиксированы (light/dark)
         self._init_fixed_themes()
@@ -373,7 +378,7 @@ class ThemeController:
                     "Не удалось применить тему иконок Qt: %s", icon_exc, exc_info=True
                 )
 
-            # Обновляем настройки и окно
+            # Обновляем настройки и окно (возвращаем исходный вызов update_theme у окна)
             logger.info("Применена тема: %s", canonical_name)
             self.settings.set_theme(canonical_name)
             if self.main_window and hasattr(self.main_window, "update_theme"):
@@ -403,6 +408,9 @@ class ThemeController:
         Все массовые операции выполняются при приостановленной перерисовке
         главного окна, чтобы избежать визуального дергания размеров панелей.
         """
+        logger.info(
+            "ThemeController: пакетное обновление UI после смены темы: меню → иконки структуры → верхние панели"
+        )
         try:
             clear_icon_cache()
         except Exception as exc:
@@ -574,8 +582,6 @@ class ThemeController:
 
         table_header_px = _get_font_px("table_header_px", 11)
         table_row_px = _get_font_px("table_row_px", None)
-        table_opened_col_px = _get_font_px("table_opened_col_px", None)
-        table_notes_col_px = _get_font_px("table_notes_col_px", None)
         notes_editor_px = _get_font_px("notes_editor_px", None)
         button_text_px = _get_font_px("button_text_px", None)
         menubar_px = _get_font_px("menubar_px", None)

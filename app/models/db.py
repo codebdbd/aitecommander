@@ -11,8 +11,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from app.config_data import app_config
-from app.utils.db.synchronization import db_lock
 from app.utils.db.migrations import MigrationRunner
+from app.utils.db.synchronization import db_lock
 
 from .category_model import CategoryModel
 from .db_base import VALID_POSITION_TABLES, DatabaseBase, DatabaseError, ValidationError

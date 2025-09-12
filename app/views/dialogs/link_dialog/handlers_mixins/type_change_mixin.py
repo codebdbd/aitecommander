@@ -4,8 +4,8 @@
 
 import logging
 from pathlib import Path
-from PyQt6.QtCore import Qt, QTimer
 
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QIcon
 
 from app.models.link_type import LinkType
