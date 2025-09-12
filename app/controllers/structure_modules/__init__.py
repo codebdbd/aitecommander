@@ -39,16 +39,11 @@ __all__ = [
     "PositioningOperations",
     "AsyncOperations",
     "AsyncSignalHandlers",
-    "OperationCoordinator",
 ]
 
 
 # Lazy import to avoid circular import during package initialization
 def __getattr__(name):
-    if name == "OperationCoordinator":
-        from .coordination import OperationCoordinator  # local import to break cycle
-
-        return OperationCoordinator
     if name in ("validate_category_data", "validate_section_data"):
         from .validation import (
             validate_category_data,

@@ -195,6 +195,10 @@ class DiagnosticsInstaller:
         if getattr(app, "_diag_top_levels_installed", False):
             return
 
+        # Захватываем колбэк дампа в замыкание, чтобы использовать его внутри watcher,
+        # не обращаясь к несуществующему атрибуту экземпляра внутреннего класса.
+        dump_cb = self._dump_top_levels
+
         class _TopLevelWatcher(QObject):
             def eventFilter(self, obj, event):
                 try:
@@ -239,9 +243,9 @@ class DiagnosticsInstaller:
                                 pos_s,
                             )
 
-                            if self._dump_top_levels:
+                            if dump_cb:
                                 try:
-                                    self._dump_top_levels("watcher installed")
+                                    dump_cb("watcher installed")
                                 except Exception:
                                     logger.debug(
                                         "DiagnosticsInstaller: dump_top_levels callback failed",

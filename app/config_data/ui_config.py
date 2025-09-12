@@ -395,6 +395,9 @@ class UIConfig(BaseConfig):
                 "validation_error": "Ошибка валидации",
                 "warning_title": "Предупреждение",
                 "error_title": "Ошибка",
+                # Сообщения безопасности для LinksUILinkOperations._open_link
+                "unsafe_url_info": "Эта ссылка не может быть открыта по соображениям безопасности.",
+                "unsafe_url_hint": "Проверьте адрес ссылки или отредактируйте её.",
             },
         )
 

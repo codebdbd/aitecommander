@@ -1,8 +1,8 @@
 import logging
 import sqlite3
+import threading
 from contextlib import contextmanager
 from typing import Any, Dict, List, Union
-import threading
 
 from app.utils.db.synchronization import db_lock
 

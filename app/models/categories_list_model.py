@@ -1,12 +1,11 @@
-from typing import Any, Dict, List, Optional
 import logging
+from typing import Any, Dict, List, Optional
 
 from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt
 from PyQt6.QtGui import QIcon
 
 from app.utils.ui.icon import resolve_category_icon_path
 from app.utils.ui.icon.cache_manager import get_cached_category_icon
-
 
 logger = logging.getLogger(__name__)
 

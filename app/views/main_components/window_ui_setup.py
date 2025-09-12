@@ -99,7 +99,13 @@ class _AutoHideTreeFilter(QObject):
                             exc_info=True,
                         )
 
-                if stack is not None and table is not None:
+                # Переключение правой области на таблицу делаем опциональным (по умолчанию — выключено),
+                # чтобы не скрывать плитки категорий при сжатии.
+                try:
+                    switch_to_table = bool(app_config.ui.get_auto_hide_switch_to_table())
+                except Exception:
+                    switch_to_table = False
+                if switch_to_table and stack is not None and table is not None:
                     try:
                         # Совместимость: таблица может быть добавлена как сам виджет или как контейнер
                         table_container = getattr(self.window, "table_container", None)
@@ -230,9 +236,9 @@ class WindowUISetup:
         self.main_layout.setSpacing(app_config.ui.get_main_layout_spacing())
         # Убираем зазор между QMenuBar и верхним разделителем: верхний margin = 0
         try:
-            left, t, r, b = self.main_layout.getContentsMargins()
+            left, _top, r, b = self.main_layout.getContentsMargins()
         except Exception:
-            left, t, r, b = (0, 0, 0, 0)
+            left, _top, r, b = (0, 0, 0, 0)
         try:
             self.main_layout.setContentsMargins(left, 0, r, b)
         except Exception:
@@ -516,6 +522,18 @@ class WindowUISetup:
                 )
             setattr(self.window, attr_name, widget)
             top_bar.addWidget(widget)
+            # Reduce spacing between buttons by 1px only for top-bar panels to gain a tiny width budget
+            try:
+                lay = getattr(widget, "panel_layout", None)
+                if lay is not None and hasattr(lay, "spacing") and hasattr(lay, "setSpacing"):
+                    cur = int(lay.spacing())
+                    lay.setSpacing(max(0, cur - 1))
+            except Exception:
+                logger.debug(
+                    "TopPanel: failed to reduce panel button spacing by 1px for %s",
+                    log_label,
+                    exc_info=True,
+                )
             try:
                 dur = (time.perf_counter() - t_start) * 1000.0
                 logger.info(

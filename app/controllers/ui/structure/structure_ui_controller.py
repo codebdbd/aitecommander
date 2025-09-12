@@ -96,13 +96,21 @@ class StructureUIController(QObject):
                             self.selection_handler._on_current_changed
                         )
                     except Exception:
-                        pass
+                        # Не критично: previous connection мог отсутствовать
+                        import logging
+                        logging.getLogger(__name__).debug(
+                            "Selection reconnect: disconnect previous failed",
+                            exc_info=True,
+                        )
                     try:
                         sel_model.currentChanged.connect(
                             self.selection_handler._on_current_changed
                         )
                     except Exception:
-                        pass
+                        import logging
+                        logging.getLogger(__name__).debug(
+                            "Selection reconnect: connect failed", exc_info=True
+                        )
 
                 QTimer.singleShot(0, _reconnect)
             except Exception:

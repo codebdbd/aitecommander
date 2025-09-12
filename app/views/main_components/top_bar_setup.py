@@ -50,6 +50,7 @@ class TopBarBuilder:
             side = 8
             logger.warning("TopPanel: invalid side spacing in config; using default 8")
         top_bar.setContentsMargins(side, 0, side, 0)
+        # Revert: keep spacing 0 for tight packing; separators control visual gaps
         top_bar.setSpacing(0)
         top_bar.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 

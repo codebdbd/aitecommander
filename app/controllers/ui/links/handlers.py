@@ -349,6 +349,15 @@ class LinksUIHandlers(BaseLinksUIComponent):
     def _on_context_menu(self, pos):
         """Обработка контекстного меню."""
         idx = self.table.indexAt(pos)
+        try:
+            if idx and idx.isValid():
+                logger.debug(
+                    "Context menu requested at row=%s, col=%s", idx.row(), idx.column()
+                )
+            else:
+                logger.debug("Context menu requested at invalid index")
+        except Exception:
+            logger.debug("Context menu diagnostics failed", exc_info=True)
 
         menu = self.main.menu_controller.create_links_context_menu(
             self.table, idx, self.controller.clipboard.paste_link
@@ -385,12 +394,22 @@ class LinksUIHandlers(BaseLinksUIComponent):
     def _on_table_selection_changed(self, _selected, _deselected):
         """Эксклюзивность: при выделении в таблице очищаем выделение в дереве."""
         try:
+            # Ранний выход: если фактически выделение пустое, не трогаем дерево
+            try:
+                if _selected is not None and hasattr(_selected, "isEmpty") and _selected.isEmpty():
+                    logger.debug("Table selection change: selected is empty; skip clearing tree")
+                    return
+            except Exception:
+                # Диагностика не критична
+                logger.debug("Selection emptiness check failed", exc_info=True)
+
             tree = self._structure_tree
             if not tree:
                 logger.debug("structure_tree not injected; skipping selection clear")
                 return
             if hasattr(tree, "clearSelection") and callable(tree.clearSelection):
                 tree.clearSelection()
+                logger.debug("Cleared selection in structure_tree due to table selection change")
             else:
                 logger.warning("structure_tree lacks clearSelection(); skipping")
         except Exception:

@@ -1,10 +1,9 @@
 import importlib.util
 import logging
+import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Optional
-
-import sqlite3
 
 from app.utils.db.synchronization import db_lock
 

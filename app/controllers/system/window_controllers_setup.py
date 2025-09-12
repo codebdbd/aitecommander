@@ -4,8 +4,9 @@ from typing import Any, Dict
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QAction, QFont
-from PyQt6.QtWidgets import QPushButton, QWidget
+from PyQt6.QtWidgets import QPushButton, QSizePolicy, QWidget
 
+from app.config_data import app_config
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.business.links_business import LinksBusinessLogic
 from app.controllers.system.app_shutdown_controller import AppShutdownController
@@ -345,7 +346,6 @@ def _deferred_setup(window: Any, controllers: Dict[str, Any]) -> None:
             links_actions=window.links_actions,
             fav_widget=window.fav_widget,
             recent_links_widget=window.recent_links_widget,
-            links=controllers.get("links"),
             quick_add_widget=(
                 window.quick_add_widget if hasattr(window, "quick_add_widget") else None
             ),
@@ -427,35 +427,89 @@ def _inject_to_category_tiles(window: Any, controllers: Dict[str, Any]) -> None:
         raise SetupError("Failed to connect CategoryTiles signals") from e
 
 
-def _setup_quick_add_widget(window: Any, controllers: Dict[str, Any]) -> None:
-    """Создать и настроить QuickAddWidget."""
-    if hasattr(window, "quick_add_widget") and window.quick_add_widget:
-        return
-
-    from app.views.quick_add_panel_widget import QuickAddPanelWidget
-
-    window.quick_add_widget = QuickAddPanelWidget(window, category_provider=window)
-
-    _connect_quick_add_signal(
-        quick_add_widget=window.quick_add_widget,
-        links=controllers.get("links"),
-    )
-    _add_quick_add_to_top_bar(window)
+    
 
 
-def _connect_quick_add_signal(*, quick_add_widget: Any, links: Any) -> None:
-    """Подключить сигнал QuickAddWidget c явными зависимостями."""
+def _connect_quick_add_signal(*, quick_add_widget: Any, links_actions: Any) -> None:
+    """Подключить сигнал QuickAddWidget к фасаду LinksActions.on_action_requested.
+
+    Единая публичная точка входа unified-действий — LinksActions.on_action_requested().
+    """
     if not quick_add_widget:
         return
     try:
-        quick_add_widget.actionRequested.connect(links.on_action_requested)
+        quick_add_widget.actionRequested.connect(links_actions.on_action_requested)
     except (AttributeError, TypeError) as e:
         raise SetupError(f"Failed to connect quick add signal: {e}") from e
 
 
 def _add_quick_add_to_top_bar(window: Any) -> None:
     """Добавить QuickAddWidget в топ-бар."""
-    return
+    try:
+        # Найти контейнер топ-бара и его лэйаут
+        host = getattr(window, "top_bar_host", None) or getattr(
+            window, "content_container", None
+        )
+        if host is None:
+            logger.debug("QuickAdd: top bar host not found; skipping add")
+            return
+        lay = host.layout() if hasattr(host, "layout") else None
+        if lay is None:
+            logger.debug("QuickAdd: top bar layout not found; skipping add")
+            return
+
+        qa = getattr(window, "quick_add_widget", None)
+        if qa is None:
+            logger.debug("QuickAdd: widget not created; skipping add")
+            return
+
+        # Предотвратить дублирование: если уже в лэйауте — не вставлять повторно
+        try:
+            for i in range(lay.count()):
+                if lay.itemAt(i).widget() is qa:
+                    return
+        except Exception:
+            # Если не удалось проверить — продолжаем аккуратно
+            pass
+
+        # Применить фиксированную высоту и политику размеров
+        try:
+            try:
+                btn_h = int(app_config.ui.get_top_panel_button_size())
+            except Exception:
+                btn_h = 32
+            qa.setFixedHeight(max(1, btn_h))
+            qa.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        except Exception:
+            logger.debug("QuickAdd: failed to set size policy/height", exc_info=True)
+
+        # Вставить перед fav_widget (если есть) или в начало
+        insert_index = 0
+        try:
+            fav = getattr(window, "fav_widget", None)
+            if fav is not None:
+                for i in range(lay.count()):
+                    if lay.itemAt(i).widget() is fav:
+                        insert_index = i
+                        break
+        except Exception:
+            logger.debug("QuickAdd: failed to locate fav_widget index", exc_info=True)
+
+        try:
+            lay.insertWidget(insert_index, qa)
+        except Exception:
+            logger.exception("QuickAdd: failed to insert widget into top bar layout")
+            return
+
+        # Запросить пересчет TopBarLayoutManager, если он инициализирован
+        try:
+            mgr = getattr(window, "_topbar_manager", None)
+            if mgr and hasattr(mgr, "adjust") and callable(mgr.adjust):
+                QTimer.singleShot(0, mgr.adjust)
+        except Exception:
+            logger.debug("QuickAdd: failed to schedule top bar adjust", exc_info=True)
+    except Exception:
+        logger.exception("QuickAdd: unexpected error while adding widget to top bar")
 
 
 def _connect_top_panels_signals_explicit(
@@ -464,7 +518,6 @@ def _connect_top_panels_signals_explicit(
     links_actions: Any,
     fav_widget: Any,
     recent_links_widget: Any,
-    links: Any,
     quick_add_widget: Any | None = None,
     auto_hide_tree_filter: Any | None = None,
     topbar_manager: Any | None = None,
@@ -473,7 +526,9 @@ def _connect_top_panels_signals_explicit(
     # QuickAddWidget — необязательная часть
     if quick_add_widget is not None:
         try:
-            _connect_quick_add_signal(quick_add_widget=quick_add_widget, links=links)
+            _connect_quick_add_signal(
+                quick_add_widget=quick_add_widget, links_actions=links_actions
+            )
         except (AttributeError, TypeError) as e:
             raise SetupError(f"Failed to wire quick add: {e}") from e
 

@@ -235,7 +235,7 @@ QWidget#topBarHost QToolButton {
 QWidget#topBarHost QToolButton:hover,
 QWidget#topBarHost QToolButton:pressed,
 QWidget#topBarHost QToolButton:checked {
-    border: 1px solid;
+    /* Меняем только цвет рамки, толщина/стиль остаются постоянными */
     border-color: transparent;
 }
 
@@ -252,8 +252,14 @@ QWidget#topBarHost QPushButton {
 QWidget#topBarHost QPushButton:hover,
 QWidget#topBarHost QPushButton:pressed,
 QWidget#topBarHost QPushButton:checked {
-    border: 1px solid;
+    /* Меняем только цвет рамки, толщина/стиль остаются постоянными */
     border-color: transparent;
+}
+
+/* Убираем платформенный outline у кнопок верхней панели */
+QWidget#topBarHost QToolButton:focus,
+QWidget#topBarHost QPushButton:focus {
+    outline: 0;
 }
 
 /* Поле поиска — базовая рамка без задания радиуса (радиус задаётся ТОЛЬКО в QLineEdit#mainSearch) */

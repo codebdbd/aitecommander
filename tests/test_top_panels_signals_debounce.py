@@ -80,7 +80,6 @@ def test_top_panels_signals_are_debounced(monkeypatch, caplog):
         links_actions=window.links_actions,
         fav_widget=window.fav_widget,
         recent_links_widget=window.recent_links_widget,
-        links=None,
         quick_add_widget=None,
         auto_hide_tree_filter=None,
         topbar_manager=None,
