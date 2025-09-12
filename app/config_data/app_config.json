@@ -450,6 +450,15 @@
     "enable_cloudscraper_fallback": true,
     "require_suspend_updates": false,
     "favicon_lock_timeout": 5.0,
-    "favicon_lock_backend": "auto"
+    "favicon_lock_backend": "auto",
+    "http_retries": 3,
+    "http_retry_backoff": 0.5,
+    "http_retry_on_status": true,
+    "http_pool_connections": 10,
+    "http_pool_maxsize": 20,
+    "icon_max_workers": 6,
+    "favicon_cache_max_size": 5000,
+    "favicon_cache_cleanup_interval": 300.0,
+    "favicon_cache_persistent": false
   }
 }

@@ -70,3 +70,54 @@ def test_sequential_critical_timeout_raises(caplog):
     with pytest.raises(ShutdownTimeoutError):
         ctrl._execute_handlers_sequential([h], remaining_ms=200)
     assert any("timed out" in r.message for r in caplog.records)
+
+
+def test_parallel_critical_exception_raises(caplog):
+    ctrl = _make_controller()
+    ctrl.parallel_execution = True
+
+    def fail():
+        raise RuntimeError("boom")
+
+    def ok():
+        return None
+
+    h_crit = ShutdownHandler(
+        name="crit_fail",
+        handler=fail,
+        priority=ShutdownPriority.NORMAL,
+        timeout=500,
+        critical=True,
+    )
+    h_ok = ShutdownHandler(
+        name="ok",
+        handler=ok,
+        priority=ShutdownPriority.NORMAL,
+        timeout=500,
+        critical=False,
+    )
+
+    caplog.set_level("CRITICAL")
+    with pytest.raises(RuntimeError):
+        ctrl._execute_handlers_parallel([h_crit, h_ok], remaining_ms=1000)
+    assert any("failed" in r.message or "Critical" in r.levelname for r in caplog.records)
+
+
+def test_parallel_critical_timeout_raises(caplog):
+    ctrl = _make_controller()
+    ctrl.parallel_execution = True
+
+    def slow():
+        time.sleep(0.2)
+
+    h_crit = ShutdownHandler(
+        name="crit_slow",
+        handler=slow,
+        priority=ShutdownPriority.NORMAL,
+        timeout=50,
+        critical=True,
+    )
+    caplog.set_level("CRITICAL")
+    with pytest.raises(ShutdownTimeoutError):
+        ctrl._execute_handlers_parallel([h_crit], remaining_ms=200)
+    assert any("timed out" in r.message for r in caplog.records)

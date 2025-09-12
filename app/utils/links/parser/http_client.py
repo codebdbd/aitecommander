@@ -102,6 +102,11 @@ def get_session() -> requests.Session:
         except (TypeError, ValueError, RuntimeError) as e:
             logger.warning("failed to update default session headers: %s", e)
         setattr(_tls, "session", s)
+        # Mark retries not configured yet; will be configured once by http_request on first use
+        try:
+            setattr(s, "_retry_installed", False)  # type: ignore[attr-defined]
+        except Exception:
+            pass
         # Add a simple response hook for debug logging of responses
         try:
             def _log_response(resp, *args, **kwargs):
@@ -139,6 +144,8 @@ def http_request(
     retries: int = 2,
     http_get=None,
     method: str = "GET",
+    stream: Optional[bool] = None,
+    allow_redirects: Optional[bool] = None,
 ) -> Optional[requests.Response]:
     headers = {"User-Agent": getattr(config, "USER_AGENT", USER_AGENT)}
     if extra_headers:
@@ -172,7 +179,12 @@ def http_request(
         if scraper is not None:
             try:
                 logger.debug("[cloudscraper] %s %s", method, url)
-                resp = scraper.request(method, url, headers=headers, timeout=timeout)
+                kwargs = {"headers": headers, "timeout": timeout}
+                if stream is not None:
+                    kwargs["stream"] = stream
+                if allow_redirects is not None:
+                    kwargs["allow_redirects"] = allow_redirects
+                resp = scraper.request(method, url, **kwargs)
                 if allow_non_2xx:
                     return resp
                 resp.raise_for_status()
@@ -180,12 +192,24 @@ def http_request(
             except RequestException as e:
                 logger.warning("Cloudscraper failed for %s: %s", url, e)
                 last_err = e
-        # Configure per-call retries on shared session
+        # Get shared session and configure retries once per session (no per-call remount)
         sess = get_session()
-        backoff = float(getattr(config, "HTTP_RETRY_BACKOFF", 0.5) or 0.5)
-        _mount_session_retries(sess, retries=retries, backoff_factor=backoff, config=config)
+        try:
+            if not bool(getattr(sess, "_retry_installed", False)):
+                _configure_session_retries(sess, config=config)
+                try:
+                    setattr(sess, "_retry_installed", True)  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+        except Exception:
+            logger.debug("failed to configure session retries (one-time)", exc_info=True)
         logger.debug("[session] %s %s", method, url)
-        resp = sess.request(method, url, headers=headers, timeout=timeout)
+        req_kwargs = {"headers": headers, "timeout": timeout}
+        if stream is not None:
+            req_kwargs["stream"] = stream
+        if allow_redirects is not None:
+            req_kwargs["allow_redirects"] = allow_redirects
+        resp = sess.request(method, url, **req_kwargs)
         if allow_non_2xx:
             return resp
         resp.raise_for_status()
@@ -236,20 +260,25 @@ def http_request(
 __all__ = ["http_request", "get_session"]
 
 
-def _mount_session_retries(session: requests.Session, *, retries: int, backoff_factor: float = 0.5, config=None) -> None:
-    """Mount per-call retry policy on the shared session.
+def _configure_session_retries(session: requests.Session, *, config=None) -> None:
+    """Configure retry policy on the shared session ONCE.
 
-    This respects the per-call `retries` argument while keeping a shared session. Safe to call repeatedly.
+    Uses config.HTTP_RETRIES (int, default 2), config.HTTP_RETRY_BACKOFF (float, default 0.5),
+    and config.HTTP_RETRY_ON_STATUS (bool, default False). Safe to call multiple times; idempotent by remounting once
+    at session creation.
     """
     try:
-        # By default, be conservative: retry on connection/read timeouts only.
-        # Enable status-based retries via config.HTTP_RETRY_ON_STATUS = True
+        # Read config values with safe defaults
+        retries = 0
+        backoff_factor = 0.5
         enable_status = False
         try:
             if config is not None:
+                retries = int(getattr(config, "HTTP_RETRIES", 2) or 0)
+                backoff_factor = float(getattr(config, "HTTP_RETRY_BACKOFF", 0.5) or 0.5)
                 enable_status = bool(getattr(config, "HTTP_RETRY_ON_STATUS", False))
         except Exception:
-            enable_status = False
+            pass
 
         status_forcelist = (429, 500, 502, 503, 504) if enable_status else None
         allowed_methods = frozenset(["HEAD", "GET", "OPTIONS"])  # idempotent only
@@ -265,14 +294,25 @@ def _mount_session_retries(session: requests.Session, *, retries: int, backoff_f
             respect_retry_after_header=True,
             raise_on_status=False,
         )
-        adapter = HTTPAdapter(max_retries=r)
+        # Pool sizing
+        pool_conns = 10
+        pool_size = 20
+        try:
+            if config is not None:
+                pool_conns = int(getattr(config, "HTTP_POOL_CONNECTIONS", 10) or 10)
+                pool_size = int(getattr(config, "HTTP_POOL_MAXSIZE", 20) or 20)
+        except Exception:
+            pass
+        adapter = HTTPAdapter(max_retries=r, pool_connections=pool_conns, pool_maxsize=pool_size)
         session.mount("http://", adapter)
         session.mount("https://", adapter)
         logger.debug(
-            "[http][retry] configured retries=%s backoff_factor=%s on_status=%s",
+            "[http][retry] configured(session) retries=%s backoff_factor=%s on_status=%s pool=(%s,%s)",
             retries,
             backoff_factor,
             enable_status,
+            pool_conns,
+            pool_size,
         )
     except Exception as e:
-        logger.debug("failed to configure retries: %s", e, exc_info=True)
+        logger.debug("failed to configure session retries: %s", e, exc_info=True)
