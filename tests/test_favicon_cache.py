@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+import threading
 
 import pytest
 
@@ -55,3 +56,76 @@ def test_favicon_cache_negative_ttl_via_default_icon(temp_icons_dir: Path, monke
     three_hours_ago = time.time() - (3 * 3600)
     favicon_cache.set(url, {"icon": "DEF", "timestamp": three_hours_ago})
     assert favicon_cache.get(url) is None
+
+
+# === New tests: file locking behavior ===
+
+def test_file_lock_portalocker_timeout(monkeypatch, tmp_path: Path):
+    pytest.importorskip("portalocker")
+    from app.utils.links.parser import favicon_cache as fc_mod
+
+    lock_path = str(tmp_path / "cache.db.lock")
+
+    # Hold the lock in the main thread
+    elapsed_info = {"elapsed": None, "err": None}
+
+    def contender():
+        start = time.monotonic()
+        try:
+            # Should timeout and proceed without exception, per semantics
+            with fc_mod._file_lock(lock_path, timeout=0.2):  # noqa: SLF001
+                pass
+        except Exception as e:  # should not happen
+            elapsed_info["err"] = e
+        finally:
+            elapsed_info["elapsed"] = time.monotonic() - start
+
+    with fc_mod._file_lock(lock_path, timeout=1.0):  # noqa: SLF001
+        t = threading.Thread(target=contender)
+        t.start()
+        t.join()
+
+    assert elapsed_info["err"] is None
+    assert elapsed_info["elapsed"] is not None
+    # Expect around ~0.2s (+ scheduler jitter)
+    assert 0.15 <= elapsed_info["elapsed"] < 0.7
+
+
+def test_file_lock_filelock_timeout(monkeypatch, tmp_path: Path):
+    pytest.importorskip("filelock")
+    from app.utils.links.parser import favicon_cache as fc_mod
+
+    lock_path = str(tmp_path / "cache2.db.lock")
+
+    elapsed_info = {"elapsed": None, "err": None}
+
+    def contender():
+        start = time.monotonic()
+        try:
+            with fc_mod._file_lock(lock_path, timeout=0.2):  # noqa: SLF001
+                pass
+        except Exception as e:
+            elapsed_info["err"] = e
+        finally:
+            elapsed_info["elapsed"] = time.monotonic() - start
+
+    with fc_mod._file_lock(lock_path, timeout=1.0):  # noqa: SLF001
+        t = threading.Thread(target=contender)
+        t.start()
+        t.join()
+
+    assert elapsed_info["err"] is None
+    assert elapsed_info["elapsed"] is not None
+    assert 0.15 <= elapsed_info["elapsed"] < 0.7
+
+
+def test_file_lock_release_allows_reacquire(tmp_path: Path):
+    from app.utils.links.parser import favicon_cache as fc_mod
+
+    lock_path = str(tmp_path / "cache3.db.lock")
+    # First acquire and release
+    with fc_mod._file_lock(lock_path, timeout=0.5):  # noqa: SLF001
+        pass
+    # Should acquire again without issues
+    with fc_mod._file_lock(lock_path, timeout=0.5):  # noqa: SLF001
+        pass

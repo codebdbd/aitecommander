@@ -67,7 +67,14 @@ class BaseCache(abc.ABC):
 class InMemoryCache(BaseCache):
     """Простая потокобезопасная in-memory реализация с опциональным дефолтным TTL и лимитом размера (LRU).
 
-    Вытеснение: при вставке, если достигнут max_size, удаляется самый старый ключ по последнему доступу.
+    Вытеснение: при вставке, если достигнут ``max_size``, удаляется самый старый ключ по последнему доступу.
+
+    Очистка протухших записей (TTL):
+    - При ``get`` протухшие записи удаляются лениво.
+    - Дополнительно доступен метод ``prune_expired()``, который удаляет все протухшие записи за один проход.
+    - Чтобы не делать полный проход по ключам на каждый вызов, используется оппортунистическая стратегия:
+      при ``set``/``invalidate`` очистка вызывается не чаще, чем раз в ``_prune_interval_sec`` секунд.
+    - Значение интервала по умолчанию — 60 секунд; можно изменить через свойство ``_prune_interval_sec``.
     """
 
     def __init__(
@@ -89,6 +96,9 @@ class InMemoryCache(BaseCache):
         # Порядок LRU хранится в OrderedDict: самый свежий справа (конце)
         # key -> CacheRecord
         self._store: OrderedDict[str, CacheRecord] = OrderedDict()
+        # Параметры фоновой/периодической очистки
+        self._last_prune_ts: float = 0.0
+        self._prune_interval_sec: float = 60.0
 
     def _touch(self, key: str) -> None:
         # Перемещаем ключ в конец как самый недавно использованный
@@ -128,11 +138,69 @@ class InMemoryCache(BaseCache):
             # Переместим в конец как самый свежий
             self._store.move_to_end(key, last=True)
             self._evict_if_needed()
+            self._maybe_prune_expired_locked()
 
     def invalidate(self, key: Optional[str] = None) -> None:
         with self._lock:
             if key is None:
                 if self._store:
                     self._store.clear()
+                # После полной очистки обновим время последней очистки
+                self._last_prune_ts = time.time()
                 return
             self._store.pop(key, None)
+            self._maybe_prune_expired_locked()
+
+    # --- Очистка протухших записей ---
+    def prune_expired(self) -> int:
+        """Удаляет все устаревшие записи (TTL истёк). Возвращает число удалённых ключей.
+
+        Выполняет полный проход по ключам под блокировкой. Безопасно вызывать в любое время.
+        """
+        removed = 0
+        with self._lock:
+            now = time.time()
+            # Собираем список, чтобы не модифицировать dict во время итерации
+            for k, rec in list(self._store.items()):
+                if rec is None:
+                    continue
+                try:
+                    ttl = rec.ttl if rec.ttl is not None else self._default_ttl
+                    if ttl is None:
+                        continue
+                    ttl_f = float(ttl)
+                except Exception:
+                    ttl_f = 0.0
+                if ttl_f <= 0 or (now - rec.ts) >= ttl_f:
+                    self._store.pop(k, None)
+                    removed += 1
+            self._last_prune_ts = now
+        return removed
+
+    def _maybe_prune_expired_locked(self) -> None:
+        """Оппортунистическая очистка: запускаем ``prune_expired`` не чаще,
+        чем раз в ``_prune_interval_sec`` секунд. Требует внешней блокировки ``_lock``.
+        """
+        try:
+            now = time.time()
+            if (now - self._last_prune_ts) >= self._prune_interval_sec:
+                # Вызов без повторного захвата, так как мы уже под _lock
+                removed = 0
+                # Лёгкая оптимизация: если мало ключей, просто пройдёмся
+                for k, rec in list(self._store.items()):
+                    if rec is None:
+                        continue
+                    ttl = rec.ttl if rec.ttl is not None else self._default_ttl
+                    if ttl is None:
+                        continue
+                    try:
+                        ttl_f = float(ttl)
+                    except Exception:
+                        ttl_f = 0.0
+                    if ttl_f <= 0 or (now - rec.ts) >= ttl_f:
+                        self._store.pop(k, None)
+                        removed += 1
+                self._last_prune_ts = now
+        except Exception:
+            # Никогда не мешаем пользовательскому коду из-за ошибок в очистке
+            pass

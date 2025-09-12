@@ -8,7 +8,9 @@ import time
 from typing import Dict, Optional
 
 import requests
+from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException
+from urllib3.util.retry import Retry
 
 from .constants import TIMEOUT, USER_AGENT, logger
 
@@ -101,6 +103,21 @@ def get_session() -> requests.Session:
         except (TypeError, ValueError, RuntimeError) as e:
             logger.warning("failed to update default session headers: %s", e)
         setattr(_tls, "session", s)
+        # Add a simple response hook for debug logging of responses
+        try:
+            def _log_response(resp, *args, **kwargs):
+                try:
+                    logger.debug(
+                        "[http][resp] method=%s url=%s status=%s",
+                        getattr(resp.request, "method", ""),
+                        getattr(resp, "url", ""),
+                        getattr(resp, "status_code", None),
+                    )
+                except Exception:
+                    pass
+            s.hooks.setdefault("response", []).append(_log_response)
+        except Exception:
+            pass
         # One-time atexit registration
         global _SESSION_CLEANUP_REGISTERED
         if not _SESSION_CLEANUP_REGISTERED:
@@ -130,7 +147,6 @@ def http_request(
     base_timeout = getattr(config, "TIMEOUT", TIMEOUT)
     timeout = timeout_override if timeout_override is not None else base_timeout
 
-    attempt = 0
     last_err: Optional[Exception] = None
     cf_fallback_attempted = False
     # Configurable switch: allow cloudscraper attempts
@@ -143,98 +159,121 @@ def http_request(
         retries,
         timeout,
     )
-    while attempt <= max(0, int(retries)):
-        if attempt > 0:
-            time.sleep(0.5 * (2**attempt))
-            logger.debug("[retry %s] %s %s", attempt, method, url)
-        try:
-            if http_get and method == "GET":
-                logger.debug("[injected] %s %s", method, url)
-                resp = http_get(url, headers=headers, timeout=timeout)
-                if resp is None:
-                    raise RequestException("Injected http_get returned None")
-                if allow_non_2xx:
-                    return resp
-                resp.raise_for_status()
-                return resp
-            scraper = get_cloudscraper() if enable_cf else None
-            if scraper is not None:
-                try:
-                    logger.debug("[cloudscraper] %s %s", method, url)
-                    resp = scraper.request(
-                        method, url, headers=headers, timeout=timeout
-                    )
-                    if allow_non_2xx:
-                        return resp
-                    resp.raise_for_status()
-                    return resp
-                except RequestException as e:
-                    logger.warning("Cloudscraper failed for %s: %s", url, e)
-                    last_err = e
-            logger.debug("[session] %s %s", method, url)
-            resp = get_session().request(
-                method, url, headers=headers, timeout=timeout
-            )
+    try:
+        if http_get and method == "GET":
+            logger.debug("[injected] %s %s", method, url)
+            resp = http_get(url, headers=headers, timeout=timeout)
+            if resp is None:
+                raise RequestException("Injected http_get returned None")
             if allow_non_2xx:
                 return resp
             resp.raise_for_status()
             return resp
-        except RequestException as e:
-            last_err = e
-            err_s = str(e)
-            status = getattr(getattr(e, "response", None), "status_code", None)
-            logger.debug(
-                "[http][error] method=%s url=%s status=%s err=%s",
-                method,
-                url,
-                status,
-                e,
-                exc_info=True,
-            )
-            should_try_cf = enable_cf and ((status in (403, 429, 503)) or (
-                status is None
-                and any(
-                    tok in err_s.lower()
-                    for tok in ["forbidden", "blocked", "cloudflare"]
-                )
-            ))
-            if not cf_fallback_attempted and method == "GET" and should_try_cf:
-                try:
-                    scraper = get_cloudscraper() if enable_cf else None
-                    if scraper is None:
-                        raise RequestException("cloudscraper unavailable")
-                    logger.debug("[fallback->cloudscraper] %s %s", method, url)
-                    resp = scraper.request(
-                        method, url, headers=headers, timeout=timeout
-                    )
-                    if allow_non_2xx:
-                        return resp
-                    resp.raise_for_status()
+        scraper = get_cloudscraper() if enable_cf else None
+        if scraper is not None:
+            try:
+                logger.debug("[cloudscraper] %s %s", method, url)
+                resp = scraper.request(method, url, headers=headers, timeout=timeout)
+                if allow_non_2xx:
                     return resp
-                except RequestException as ce:
-                    logger.warning("Cloudscraper fallback failed for %s: %s", url, ce)
-                finally:
-                    cf_fallback_attempted = True
-            if (
-                "Read timed out" in err_s
-                or "ConnectTimeout" in err_s
-                or "timeout" in err_s.lower()
-            ):
-                attempt += 1
-                continue
-            break
-        except Exception as e:
-            last_err = e
-            logger.error(
-                "[http][unexpected] method=%s url=%s err=%s",
-                method,
-                url,
-                e,
-                exc_info=True,
-            )
-            break
+                resp.raise_for_status()
+                return resp
+            except RequestException as e:
+                logger.warning("Cloudscraper failed for %s: %s", url, e)
+                last_err = e
+        # Configure per-call retries on shared session
+        sess = get_session()
+        backoff = float(getattr(config, "HTTP_RETRY_BACKOFF", 0.5) or 0.5)
+        _mount_session_retries(sess, retries=retries, backoff_factor=backoff)
+        logger.debug("[session] %s %s", method, url)
+        resp = sess.request(method, url, headers=headers, timeout=timeout)
+        if allow_non_2xx:
+            return resp
+        resp.raise_for_status()
+        return resp
+    except RequestException as e:
+        last_err = e
+        err_s = str(e)
+        status = getattr(getattr(e, "response", None), "status_code", None)
+        logger.debug(
+            "[http][error] method=%s url=%s status=%s err=%s",
+            method,
+            url,
+            status,
+            e,
+            exc_info=True,
+        )
+        should_try_cf = enable_cf and ((status in (403, 429, 503)) or (
+            status is None and any(tok in err_s.lower() for tok in ["forbidden", "blocked", "cloudflare"])
+        ))
+        if not cf_fallback_attempted and method == "GET" and should_try_cf:
+            try:
+                scraper = get_cloudscraper() if enable_cf else None
+                if scraper is None:
+                    raise RequestException("cloudscraper unavailable")
+                logger.debug("[fallback->cloudscraper] %s %s", method, url)
+                resp = scraper.request(method, url, headers=headers, timeout=timeout)
+                if allow_non_2xx:
+                    return resp
+                resp.raise_for_status()
+                return resp
+            except RequestException as ce:
+                logger.warning("Cloudscraper fallback failed for %s: %s", url, ce)
+            finally:
+                cf_fallback_attempted = True
+    except Exception as e:
+        last_err = e
+        logger.error(
+            "[http][unexpected] method=%s url=%s err=%s",
+            method,
+            url,
+            e,
+            exc_info=True,
+        )
     logger.warning("Requests failed for %s: %s", url, last_err)
     return None
 
 
 __all__ = ["http_request", "get_session"]
+
+
+def _mount_session_retries(session: requests.Session, *, retries: int, backoff_factor: float = 0.5, config=None) -> None:
+    """Mount per-call retry policy on the shared session.
+
+    This respects the per-call `retries` argument while keeping a shared session. Safe to call repeatedly.
+    """
+    try:
+        # By default, be conservative: retry on connection/read timeouts only.
+        # Enable status-based retries via config.HTTP_RETRY_ON_STATUS = True
+        enable_status = False
+        try:
+            if config is not None:
+                enable_status = bool(getattr(config, "HTTP_RETRY_ON_STATUS", False))
+        except Exception:
+            enable_status = False
+
+        status_forcelist = (429, 500, 502, 503, 504) if enable_status else None
+        allowed_methods = frozenset(["HEAD", "GET", "OPTIONS"])  # idempotent only
+
+        r = Retry(
+            total=max(0, int(retries)),
+            connect=max(0, int(retries)),
+            read=max(0, int(retries)),
+            status=max(0, int(retries)) if enable_status else 0,
+            backoff_factor=float(backoff_factor),
+            status_forcelist=status_forcelist,
+            allowed_methods=allowed_methods,
+            respect_retry_after_header=True,
+            raise_on_status=False,
+        )
+        adapter = HTTPAdapter(max_retries=r)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        logger.debug(
+            "[http][retry] configured retries=%s backoff_factor=%s on_status=%s",
+            retries,
+            backoff_factor,
+            enable_status,
+        )
+    except Exception as e:
+        logger.debug("failed to configure retries: %s", e, exc_info=True)
