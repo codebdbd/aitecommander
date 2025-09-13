@@ -105,5 +105,10 @@ def apply_with_animation(
     else:
         # Ensure panel width is applied when no animation
         panel.setMaximumWidth(new_w)
+        # Trigger a deferred adjust when applied instantly (no animations)
+        try:
+            throttle_timer.start(0)
+        except Exception:
+            pass
 
     return target_visible
