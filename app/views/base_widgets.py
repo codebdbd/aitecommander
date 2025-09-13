@@ -114,40 +114,51 @@ class BaseLinksPanelWidget(BasePanelWidget, LinkButtonMixin):
         create_button_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
     ) -> None:
         """Очищает панель и заполняет кнопками ссылок."""
-        self._clear_layout()
-
-        for i, link in enumerate(items):
-            try:
-                button = create_button_func(link)
-            except Exception:
-                # Подробная диагностика для упрощения отладки
-                link_info = {
-                    "index": i,
-                    "id": link.get("id", "Unknown"),
-                    "name": link.get("name", "Unknown"),
-                    "url": link.get("url", "Unknown")[:50]
-                    if link.get("url")
-                    else "Unknown",
-                }
-                logger.exception(
-                    "Не удалось создать кнопку для элемента панели %s", link_info
-                )
-                continue
-
-            if button is not None:
-                self.panel_layout.addWidget(button)
-            else:
-                logging.debug(
-                    "create_button_func вернула None для элемента %d: %s",
-                    i,
-                    link.get("name", "Unknown"),
-                )
-
+        self.setUpdatesEnabled(False)
         try:
-            if self.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Expanding:
-                self.panel_layout.addStretch()
-        except (AttributeError, RuntimeError) as e:
-            logging.warning("Не удалось добавить stretch в layout: %s", e)
+            self._clear_layout()
+
+            for i, link in enumerate(items):
+                try:
+                    button = create_button_func(link)
+                except Exception:
+                    # Подробная диагностика для упрощения отладки
+                    link_info = {
+                        "index": i,
+                        "id": link.get("id", "Unknown"),
+                        "name": link.get("name", "Unknown"),
+                        "url": link.get("url", "Unknown")[:50]
+                        if link.get("url")
+                        else "Unknown",
+                    }
+                    logger.exception(
+                        "Не удалось создать кнопку для элемента панели %s", link_info
+                    )
+                    continue
+
+                if button is not None:
+                    self.panel_layout.addWidget(button)
+                else:
+                    logging.debug(
+                        "create_button_func вернула None для элемента %d: %s",
+                        i,
+                        link.get("name", "Unknown"),
+                    )
+
+            try:
+                if self.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Expanding:
+                    self.panel_layout.addStretch()
+            except (AttributeError, RuntimeError) as e:
+                logging.warning("Не удалось добавить stretch в layout: %s", e)
+        finally:
+            self.setUpdatesEnabled(True)
+            try:
+                self.updateGeometry()
+            except Exception:
+                logger.debug(
+                    "BaseLinksPanelWidget: updateGeometry failed after populate",
+                    exc_info=True,
+                )
 
     def _handle_link_click_base(self, link_info) -> None:
         """Эмитит сигнал `linkClicked` по клику по ссылке."""
@@ -405,11 +416,11 @@ class BaseDragDropTableWidget(QTableView):
             return
 
         source_rows, target_row = self._get_drop_positions(event)
-        logger.info(
+        logger.debug(
             "[DROP] dropEvent: source_rows=%s, target_row=%s", source_rows, target_row
         )
         if not self._is_valid_internal_drop(source_rows, target_row):
-            logger.info("[DROP] dropEvent: invalid internal drop, ignoring")
+            logger.debug("[DROP] dropEvent: invalid internal drop, ignoring")
             event.ignore()
             return
 
@@ -425,7 +436,7 @@ class BaseDragDropTableWidget(QTableView):
 
             ids_in_order = self._get_current_order()
             if ids_in_order:
-                logger.info(
+                logger.debug(
                     "[DROP] dropEvent: items_reordered -> %s ids", len(ids_in_order)
                 )
                 self.items_reordered.emit(ids_in_order)

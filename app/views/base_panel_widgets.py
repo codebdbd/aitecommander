@@ -49,7 +49,9 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
             if mgr:
                 mgr.adjust()
         except Exception:
-            pass
+            logger.debug(
+                "BaseTopPanelWidget: topbar adjust failed", exc_info=True
+            )
 
     def _emit_action_safely(self, action_data: Dict[str, Any]) -> None:
         """Safely emits actionRequested signal with error handling."""
@@ -85,37 +87,48 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         create_button_func: Callable[[Dict[str, Any]], Optional[object]],
     ) -> None:
         """Clears panel and populates with link buttons."""
-        self._clear_layout()
-
-        for i, link in enumerate(items):
-            try:
-                button = create_button_func(link)
-            except Exception:
-                # Detailed diagnostics for easier debugging
-                link_info = {
-                    "index": i,
-                    "id": link.get("id", "Unknown"),
-                    "name": link.get("name", "Unknown"),
-                    "url": link.get("url", "Unknown")[:50]
-                    if link.get("url")
-                    else "Unknown",
-                }
-                logger.exception(
-                    "Failed to create button for panel element %s", link_info
-                )
-                continue
-
-            if button is not None:
-                self.panel_layout.addWidget(button)
-            else:
-                logger.debug(
-                    "create_button_func returned None for element %d: %s",
-                    i,
-                    link.get("name", "Unknown"),
-                )
-
+        self.setUpdatesEnabled(False)
         try:
-            if self.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Expanding:
-                self.panel_layout.addStretch()
-        except (AttributeError, RuntimeError) as e:
-            logger.warning("Failed to add stretch to layout: %s", e)
+            self._clear_layout()
+
+            for i, link in enumerate(items):
+                try:
+                    button = create_button_func(link)
+                except Exception:
+                    # Detailed diagnostics for easier debugging
+                    link_info = {
+                        "index": i,
+                        "id": link.get("id", "Unknown"),
+                        "name": link.get("name", "Unknown"),
+                        "url": link.get("url", "Unknown")[:50]
+                        if link.get("url")
+                        else "Unknown",
+                    }
+                    logger.exception(
+                        "Failed to create button for panel element %s", link_info
+                    )
+                    continue
+
+                if button is not None:
+                    self.panel_layout.addWidget(button)
+                else:
+                    logger.debug(
+                        "create_button_func returned None for element %d: %s",
+                        i,
+                        link.get("name", "Unknown"),
+                    )
+
+            try:
+                if self.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Expanding:
+                    self.panel_layout.addStretch()
+            except (AttributeError, RuntimeError) as e:
+                logger.warning("Failed to add stretch to layout: %s", e)
+        finally:
+            self.setUpdatesEnabled(True)
+            try:
+                self.updateGeometry()
+            except Exception:
+                logger.debug(
+                    "BaseTopPanelWidget: updateGeometry failed after populate",
+                    exc_info=True,
+                )
