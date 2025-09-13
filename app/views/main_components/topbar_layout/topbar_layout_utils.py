@@ -1,12 +1,40 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, MutableSet, Callable
+import logging
 
 from PyQt6.QtWidgets import QLayout, QLineEdit, QWidget
+from PyQt6.QtCore import QObject
+from app.config_data import app_config
+
+logger = logging.getLogger(__name__)
+
+
+def _topbar_debug_enabled() -> bool:
+    """Флаг детального отладочного логирования для topbar utils из конфига.
+
+    Ключ: ui.topbar.debug_utils (bool). По умолчанию False.
+    """
+    try:
+        return bool(app_config.get("ui.topbar.debug_utils", False))
+    except Exception:
+        return False
+
+
+def _dbg_log(msg: str, *args, exc: bool = False) -> None:
+    """Условное debug-логирование, управляемое конфигом ui.topbar.debug_utils.
+
+    Если exc=True, прикладывается traceback (exc_info=True).
+    """
+    if _topbar_debug_enabled():
+        if exc:
+            logger.debug(msg, *args, exc_info=True)
+        else:
+            logger.debug(msg, *args)
 
 try:  # pragma: no cover - optional in tests without sip
     from sip import isdeleted as _sip_isdeleted
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
 
     def _sip_isdeleted(_obj) -> bool:
         return False
@@ -20,16 +48,21 @@ def safe_get(obj: Optional[object], name: str) -> Optional[object]:
         if isinstance(obj, QWidget) and _sip_isdeleted(obj):
             return None
     except Exception:
-        # В редких случаях проверка удалённости может кидать ошибки — игнорируем
-        pass
+        # В редких случаях проверка удалённости может кидать ошибки — игнорируем, но логируем при включенном debug
+        _dbg_log("TopBar utils: _sip_isdeleted check failed for %r", obj, exc=True)
     try:
         return getattr(obj, name, None)
     except Exception:
+        _dbg_log("TopBar utils: getattr failed: obj=%r, name=%s", obj, name, exc=True)
         return None
 
 
 def install_topbar_event_filters(
-    *, window: object, watched_set, event_filter_obj, safe_get
+    *,
+    window: object,
+    watched_set: MutableSet[QWidget],
+    event_filter_obj: QObject,
+    safe_get: Callable[[Optional[object], str], Optional[object]],
 ) -> None:
     """Устанавливает фильтры событий на релевантные виджеты верхней панели и на окно.
 
@@ -47,27 +80,44 @@ def install_topbar_event_filters(
             if isinstance(widget, QWidget) and widget not in watched_set:
                 try:
                     widget.installEventFilter(event_filter_obj)
-                except Exception:
-                    pass
+                except Exception as e:
+                    _dbg_log(
+                        "TopBar utils: failed to install event filter on %s (%r)",
+                        attr_name,
+                        widget,
+                        exc=True,
+                    )
                 try:
                     watched_set.add(widget)
                 except Exception:
-                    pass
+                    _dbg_log(
+                        "TopBar utils: failed to add widget to watched_set: %s (%r)",
+                        attr_name,
+                        widget,
+                        exc=True,
+                    )
         if isinstance(window, QWidget) and not _sip_isdeleted(window):
             try:
                 window.installEventFilter(event_filter_obj)
             except Exception:
-                pass
+                _dbg_log(
+                    "TopBar utils: failed to install event filter on window (%r)",
+                    window,
+                    exc=True,
+                )
     except Exception:
-        # Не мешаем падать из-за диагностики
-        pass
+        # Не мешаем падать из-за диагностики, но пишем в debug при включенном флаге
+        _dbg_log(
+            "TopBar utils: install_topbar_event_filters encountered an error",
+            exc=True,
+        )
 
 
 def apply_counts(
     *,
     window: object,
-    set_visible_count,
-    safe_get,
+    set_visible_count: Callable[[Optional[QWidget], str, int], int],
+    safe_get: Callable[[Optional[object], str], Optional[object]],
     c_r: int,
     c_f: int,
     c_q: int,
@@ -100,6 +150,7 @@ def clamp_search_width_to_remaining_space(
     try:
         count = top_bar.count()
     except Exception:
+        _dbg_log("TopBar utils: failed to read top_bar.count()", exc=True)
         count = 0
     for i in range(count):
         it = top_bar.itemAt(i)
@@ -110,7 +161,7 @@ def clamp_search_width_to_remaining_space(
                 try:
                     occupied += max(0, sp.sizeHint().width())
                 except Exception:
-                    pass
+                    _dbg_log("TopBar utils: spacer sizeHint failed at index=%d", i, exc=True)
             continue
         if w is search:
             continue
@@ -121,10 +172,11 @@ def clamp_search_width_to_remaining_space(
                 try:
                     occupied += int(w.sizeHint().width())
                 except Exception:
-                    pass
+                    _dbg_log("TopBar utils: widget sizeHint failed for %r", w, exc=True)
     try:
         spacing = top_bar.spacing() or 0
     except Exception:
+        _dbg_log("TopBar utils: failed to read top_bar.spacing()", exc=True)
         spacing = 0
     # число видимых элементов (без поиска) для корректировки spacing
     visible_widgets = []
@@ -138,11 +190,12 @@ def clamp_search_width_to_remaining_space(
         m = top_bar.contentsMargins()
         occupied += m.left() + m.right()
     except Exception:
-        pass
+        _dbg_log("TopBar utils: failed to read top_bar.contentsMargins()", exc=True)
     host = get_container_widget()
     try:
         container_w = host.width() if isinstance(host, QWidget) else 0
     except Exception:
+        _dbg_log("TopBar utils: failed to read container width for %r", host, exc=True)
         container_w = 0
     remaining = max(0, container_w - occupied)
     # Не даём меньше минимальной ширины поиска
@@ -197,6 +250,7 @@ def enforce_stretches(top_bar: QLayout, search: Optional[QLineEdit]) -> None:
     try:
         count = top_bar.count()
     except Exception:
+        _dbg_log("TopBar utils: enforce_stretches failed to read top_bar.count()", exc=True)
         return
     search_index = -1
     for i in range(count):
@@ -204,13 +258,14 @@ def enforce_stretches(top_bar: QLayout, search: Optional[QLineEdit]) -> None:
             it = top_bar.itemAt(i)
             w = it.widget()
         except Exception:
+            _dbg_log("TopBar utils: failed to read itemAt(%d).widget()", i, exc=True)
             w = None
         if isinstance(search, QLineEdit) and w is search:
             search_index = i
         try:
             top_bar.setStretch(i, 0)
         except Exception:
-            pass
+            _dbg_log("TopBar utils: top_bar.setStretch(%d, 0) failed", i, exc=True)
     if search_index >= 0:
         try:
             top_bar.setStretch(search_index, 1)
@@ -238,6 +293,7 @@ def apply_panel_width_bounds(
     try:
         max_w = panel_width_func(panel, btns, visible) if visible > 0 else 0
     except Exception:
+        _dbg_log("TopBar utils: panel_width_func failed for %r", panel, exc=True)
         max_w = 0
     try:
         panel.setMaximumWidth(max_w)

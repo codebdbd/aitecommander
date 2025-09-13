@@ -258,17 +258,7 @@ class TopBarLayoutManager(QObject):
                 width,
                 self._narrow_threshold,
             )
-            self._apply_counts(width, 0, 0, 0)
-            self._update_separators_visibility(
-                top_bar, False, False, False, bool(search)
-            )
-            _apply_narrow_mode(
-                top_bar=top_bar,
-                search=search,
-                set_top_bar_margins=self._set_top_bar_margins,
-                enforce_stretches=self._enforce_stretches,
-                get_container_widget=self._get_container_widget,
-            )
+            self._apply_narrow_mode_state(width, top_bar, search)
             return
 
         # Кэшировать списки кнопок
@@ -294,17 +284,7 @@ class TopBarLayoutManager(QObject):
             # В узком режиме сохраняем прежнее поведение: оставляем только поиск, без отступов
             if effective_w <= self._narrow_threshold:
                 try:
-                    self._apply_counts(width, 0, 0, 0)
-                    self._update_separators_visibility(
-                        top_bar, False, False, False, bool(search)
-                    )
-                    _apply_narrow_mode(
-                        top_bar=top_bar,
-                        search=search,
-                        set_top_bar_margins=self._set_top_bar_margins,
-                        enforce_stretches=self._enforce_stretches,
-                        get_container_widget=self._get_container_widget,
-                    )
+                    self._apply_narrow_mode_state(width, top_bar, search)
                 except Exception:
                     logger.debug(
                         "TopBarLayoutManager: zero-count narrow-mode handling failed",
@@ -631,6 +611,31 @@ class TopBarLayoutManager(QObject):
             search_exists=search_exists,
             safe_get=self._safe_get,
             spacer_size=DEFAULT_SPACER_SIZE,
+        )
+
+    def _apply_narrow_mode_state(
+        self,
+        width: int,
+        top_bar: QLayout,
+        search: Optional[QLineEdit],
+    ) -> None:
+        """Применить состояние узкого режима: только поиск, без отступов у панелей.
+
+        Повторяет ранее дублированную логику внутри `adjust()`:
+        - обнуление видимых кнопок на всех панелях,
+        - обновление разделителей как скрытых панелей,
+        - применение узкого режима к лэйауту.
+        """
+        self._apply_counts(width, 0, 0, 0)
+        self._update_separators_visibility(
+            top_bar, False, False, False, bool(search)
+        )
+        _apply_narrow_mode(
+            top_bar=top_bar,
+            search=search,
+            set_top_bar_margins=self._set_top_bar_margins,
+            enforce_stretches=self._enforce_stretches,
+            get_container_widget=self._get_container_widget,
         )
 
     def _apply_counts(self, width: int, c_r: int, c_f: int, c_q: int) -> None:

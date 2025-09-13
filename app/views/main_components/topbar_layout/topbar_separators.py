@@ -81,9 +81,23 @@ def update_separators_visibility(
                 w.setVisible(show_sep)
             except Exception:
                 pass
-            # Размеры спейсеров по бокам разделителя
-            left_sp = top_bar.itemAt(i - 1).spacerItem() if i - 1 >= 0 else None
-            right_sp = top_bar.itemAt(i + 1).spacerItem() if i + 1 < count else None
+            # Размеры спейсеров по бокам разделителя (безопасный доступ)
+            left_sp = None
+            if i - 1 >= 0:
+                try:
+                    left_item = top_bar.itemAt(i - 1)
+                    if left_item is not None:
+                        left_sp = left_item.spacerItem()
+                except Exception:
+                    left_sp = None
+            right_sp = None
+            if i + 1 < count:
+                try:
+                    right_item = top_bar.itemAt(i + 1)
+                    if right_item is not None:
+                        right_sp = right_item.spacerItem()
+                except Exception:
+                    right_sp = None
 
             if show_sep:
                 if left_sp:

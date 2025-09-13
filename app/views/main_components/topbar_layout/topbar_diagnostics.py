@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, Callable
 
 from PyQt6.QtWidgets import QLayout, QLineEdit, QToolButton, QWidget
 
@@ -22,11 +22,13 @@ def log_layout_snapshot(
     c_r: int,
     c_f: int,
     c_q: int,
-    total_width_for_func,
+    total_width_for_func: Callable[..., int],
 ) -> None:
     """Логирование состояния лэйаута (как в исходном менеджере), когда включён инфо-лог.
 
-    total_width_for_func: callable(top_bar, search, recent, fav, quick, recent_btns, fav_btns, quick_btns, c_r, c_f, c_q) -> int
+    total_width_for_func: Callable[..., int]
+        Функция, вычисляющая суммарную ширину по текущему состоянию верхней панели.
+        Совместима с вызовом: (top_bar, search, recent, fav, quick, recent_btns, fav_btns, quick_btns, c_r, c_f, c_q) -> int
     """
     try:
         total = total_width_for_func(
