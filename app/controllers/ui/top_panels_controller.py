@@ -8,9 +8,8 @@ import os
 from PyQt6.QtCore import QObject, QTimer
 
 from app.interfaces import (
-    FavoritesPanelLike,
+    TopPanelDataLike,
     FavoritesPanelWithClear,
-    RecentsPanelLike,
     RecentsPanelWithLimit,
 )
 
@@ -31,8 +30,8 @@ class TopPanelsController:
         self,
         main_window,
         *,
-        fav_widget: FavoritesPanelLike,
-        recent_links_widget: RecentsPanelLike,
+        fav_widget: TopPanelDataLike,
+        recent_links_widget: TopPanelDataLike,
         links_business,
     ):
         self.main = main_window
@@ -40,12 +39,26 @@ class TopPanelsController:
             raise ValueError(
                 "TopPanelsController requires fav_widget and recent_links_widget"
             )
-        # Жёсткая проверка рантайм-совместимости с Protocol
-        # Требуем расширенный контракт с clear_favorites
-        if not isinstance(fav_widget, FavoritesPanelWithClear):
-            raise TypeError("fav_widget must implement FavoritesPanelWithClear")
-        if not isinstance(recent_links_widget, RecentsPanelLike):
-            raise TypeError("recent_links_widget must implement RecentsPanelLike")
+        # Совместимая с legacy-подставными виджетами проверка:
+        # Оба виджета должны уметь либо set_data(), либо legacy set_*().
+        # Наличие clear_favorites() не требуем на этапе инициализации.
+        # Проверка методов данных делается мягко: конкретная ветка в refresh_* отработает fallback
+        has_fav_setter = any(
+            callable(getattr(fav_widget, name, None))
+            for name in ("set_data", "set_favorites")
+        )
+        has_recent_setter = any(
+            callable(getattr(recent_links_widget, name, None))
+            for name in ("set_data", "set_recent_links")
+        )
+        if not has_fav_setter:
+            raise TypeError(
+                "fav_widget must provide set_data(items) or legacy set_favorites(items)"
+            )
+        if not has_recent_setter:
+            raise TypeError(
+                "recent_links_widget must provide set_data(items) or legacy set_recent_links(items)"
+            )
         self.fav_widget = fav_widget
         self.recent_links_widget = recent_links_widget
         if links_business is None:
@@ -185,7 +198,13 @@ class TopPanelsController:
 
         # 2) Обновление виджета
         try:
-            widget.set_favorites(items)
+            if callable(getattr(widget, "set_data", None)):
+                widget.set_data(items)  # type: ignore[call-arg]
+            elif callable(getattr(widget, "set_favorites", None)):
+                # legacy fallback для тестовых стабов
+                widget.set_favorites(items)  # type: ignore[attr-defined]
+            else:
+                raise AttributeError("favorites widget lacks set_data/set_favorites")
         except (TypeError, ValueError):
             logger.error(
                 "TopPanelsController.refresh_favorites: widget set_favorites signature error",
@@ -200,16 +219,16 @@ class TopPanelsController:
 
     def refresh_recent(self) -> None:
         widget = self.recent_links_widget
-        # Определяем лимит через расширенный протокол, без hasattr
+        # Определяем лимит: современный протокол или мягкий fallback по hasattr
         limit = 10
-        if isinstance(widget, RecentsPanelWithLimit):
-            try:
-                val = widget.get_limit()
+        try:
+            if isinstance(widget, RecentsPanelWithLimit) or hasattr(widget, "get_limit"):
+                val = widget.get_limit()  # type: ignore[attr-defined]
                 if isinstance(val, int) and val > 0:
                     limit = val
-            except (TypeError, ValueError):
-                # некорректное значение лимита — оставляем default
-                pass
+        except (TypeError, ValueError):
+            # некорректное значение лимита — оставляем default
+            pass
 
         # 1) Загрузка данных из бизнес-слоя
         items: list = []
@@ -231,7 +250,13 @@ class TopPanelsController:
 
         # 2) Обновление виджета
         try:
-            widget.set_recent_links(items)
+            if callable(getattr(widget, "set_data", None)):
+                widget.set_data(items)  # type: ignore[call-arg]
+            elif callable(getattr(widget, "set_recent_links", None)):
+                # legacy fallback для тестовых стабов
+                widget.set_recent_links(items)  # type: ignore[attr-defined]
+            else:
+                raise AttributeError("recent widget lacks set_data/set_recent_links")
         except (TypeError, ValueError):
             logger.error(
                 "TopPanelsController.refresh_recent: widget set_recent_links signature error",

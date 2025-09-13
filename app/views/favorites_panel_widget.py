@@ -21,7 +21,7 @@ class FavoritesPanelWidget(BaseTopPanelWidget):
         self.bg_frame.setObjectName("favoritesPanelBg")
 
     def set_data(self, items: List[Dict[str, Any]]) -> None:
-        """Sets favorites data and populates the panel."""
+        """Sets favorites data and populates the panel (unified contract)."""
         self._populate_panel(items, self._create_favorite_button)
 
         # Set visibility based on whether we have items
@@ -34,10 +34,6 @@ class FavoritesPanelWidget(BaseTopPanelWidget):
 
         # Sync top bar layout
         self._sync_topbar_layout()
-
-    def set_favorites(self, items: List[Any]) -> None:
-        """Sets favorites data - required by FavoritesPanelLike interface."""
-        self.set_data(items)
 
     def clear_favorites(self) -> None:
         """Clears favorites - required by FavoritesPanelWithClear interface."""

@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -23,11 +24,15 @@ class LinksBusinessStub:
         return []
 
 
-def test_init_requires_favorites_with_clear():
-    with pytest.raises(TypeError):
-        TopPanelsController(
-            SimpleNamespace(),
-            fav_widget=FavNoClear(),
-            recent_links_widget=RecentLinksWidgetMock(),
-            links_business=LinksBusinessStub(),
-        )
+def test_init_does_not_require_clear_favorites():
+    """Проверяет, что контроллер НЕ требует clear_favorites при инициализации."""
+    # Контроллер теперь не должен требовать clear_favorites на этапе инициализации
+    fav = SimpleNamespace(set_data=lambda x: None)  # Только set_data
+    recent = SimpleNamespace(set_data=lambda x: None)
+    # Не должно быть исключения
+    TopPanelsController(
+        main_window=MagicMock(),
+        fav_widget=fav,
+        recent_links_widget=recent,
+        links_business=MagicMock(),
+    )

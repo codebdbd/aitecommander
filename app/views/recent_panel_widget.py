@@ -23,7 +23,7 @@ class RecentPanelWidget(BaseTopPanelWidget):
         self.bg_frame.setObjectName("recentPanelBg")
 
     def set_data(self, items: List[Dict[str, Any]]) -> None:
-        """Sets recent links data and populates the panel."""
+        """Sets recent links data and populates the panel (unified contract)."""
         self._populate_panel(items, self._create_recent_button)
 
         # Set visibility based on whether we have items
@@ -37,9 +37,9 @@ class RecentPanelWidget(BaseTopPanelWidget):
         # Sync top bar layout
         self._sync_topbar_layout()
 
-    def set_recent_links(self, items: List[Any]) -> None:
-        """Sets recent links data - required by RecentsPanelLike interface."""
-        self.set_data(items)
+    def get_limit(self) -> int:
+        """Optional contract (RecentsPanelWithLimit): desired number of items."""
+        return RECENT_LINKS_LIMIT
 
     def _create_recent_button(self, link_data: Dict[str, Any]) -> QToolButton:
         """Creates a recent link button with proper styling and click handling."""
