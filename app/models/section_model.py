@@ -45,11 +45,50 @@ class SectionModel(DatabaseBase):
         self._update_entity("section", section_id, data, valid_keys)
 
     def delete_section(self, section_id: int):
-        """Удаляет раздел по его ID."""
+        """Удаляет раздел по его ID и реиндексирует позиции оставшихся в той же сфере."""
+        # Определим сферу раздела до удаления
+        row = self._execute_with_error_handling(
+            "SELECT sphere_id FROM section WHERE id=?",
+            (section_id,),
+            fetch_method="one",
+        )
+        sphere_id = int(row["sphere_id"]) if row is not None else None
+
         self._execute_with_error_handling(
             "DELETE FROM section WHERE id=?", (section_id,)
         )
         logger.info("Удален раздел с ID %s", section_id)
+
+        # Реиндексация позиций оставшихся разделов в той же сфере
+        if isinstance(sphere_id, int):
+            try:
+                self._reindex_positions(sphere_id)
+            except Exception:
+                # Не прерываем удаление, но логируем предупреждение
+                logger.warning(
+                    "Не удалось переиндексировать позиции разделов после удаления", exc_info=False
+                )
+
+    def _reindex_positions(self, sphere_id: int) -> None:
+        """Переиндексировать поле position для всех разделов сферы последовательно от 0.
+
+        Выполняется без собственного begin/commit, предполагая внешний контекст транзакции.
+        """
+        # Получаем id разделов в нужном порядке
+        rows = self._execute_with_error_handling(
+            "SELECT id FROM section WHERE sphere_id = ? ORDER BY position, id",
+            (sphere_id,),
+            fetch_method="all",
+        )
+        ids_in_order = [int(r["id"]) for r in (rows or [])]
+        if not ids_in_order:
+            return
+        # Готовим батч обновлений позиций 0..n-1
+        updates = [(pos, cid) for pos, cid in enumerate(ids_in_order)]
+        self._execute_many_with_error_handling(
+            "UPDATE section SET position = ? WHERE id = ?",
+            updates,
+        )
 
     def upsert_section(self, section_data: Dict[str, Any]) -> int:
         """Вставляет или обновляет раздел. Если раздела с таким id нет, вставляет новый с этим id."""

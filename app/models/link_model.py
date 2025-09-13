@@ -9,6 +9,23 @@ from .link_type import LinkType
 logger = logging.getLogger(__name__)
 
 
+# Белый список допустимых колонок для выборки ссылок (единый источник истины)
+ALLOWED_LINK_COLUMNS = {
+    "id",
+    "category_id",
+    "name",
+    "url",
+    "type",
+    "notes",
+    "is_favorite",
+    "last_used",
+    "icon_path",
+    "args",
+    "browser_key",
+    "position",
+}
+
+
 class LinkModel(DatabaseBase):
     """Унифицированная модель для работы со ссылками в базе данных.
 
@@ -37,21 +54,6 @@ class LinkModel(DatabaseBase):
         [id, category_id, name, url, type, notes, is_favorite, last_used, icon_path, args, browser_key, position].
         """
         try:
-            # Белый список допустимых колонок для выборки (защита от SQL-инъекций и опечаток)
-            ALLOWED_LINK_COLUMNS = {
-                "id",
-                "category_id",
-                "name",
-                "url",
-                "type",
-                "notes",
-                "is_favorite",
-                "last_used",
-                "icon_path",
-                "args",
-                "browser_key",
-                "position",
-            }
             if all_fields:
                 select_clause = "SELECT *"
             else:
@@ -199,6 +201,8 @@ class LinkModel(DatabaseBase):
         # Создаем копию данных с учётом всех возможных полей
         data = {field: link.get(field) for field in all_possible_fields}
         data["is_favorite"] = int(data.get("is_favorite", 0) or 0)
+        # icon_path NOT NULL в схеме: нормализуем к пустой строке, если отсутствует/None
+        data["icon_path"] = data.get("icon_path", "") or ""
         # Нормализация типа ссылки: Enum/строка -> строковое значение ('web', 'file', ...)
         try:
             data["type"] = LinkType.from_value(data.get("type", "web")).value
@@ -429,7 +433,7 @@ class LinkModel(DatabaseBase):
                 "OR l.url LIKE ? COLLATE NOCASE "
                 "OR l.notes LIKE ? COLLATE NOCASE "
                 "OR l.args LIKE ? COLLATE NOCASE "
-                "ORDER BY l.name",
+                "ORDER BY l.name COLLATE NOCASE",
                 (search_term, search_term, search_term, search_term),
                 fetch_method="all",
             )

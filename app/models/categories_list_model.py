@@ -9,6 +9,9 @@ from app.utils.ui.icon.cache_manager import get_cached_category_icon
 
 logger = logging.getLogger(__name__)
 
+# Единый дефолтный QIcon для экономии аллокаций
+DEFAULT_ICON = QIcon()
+
 
 class CategoriesListModel(QAbstractListModel):
     """Простая модель для списка категорий.
@@ -24,6 +27,8 @@ class CategoriesListModel(QAbstractListModel):
     def __init__(self, categories: Optional[List[Dict[str, Any]]] = None, parent=None):
         super().__init__(parent)
         self._items: List[Dict[str, Any]] = []
+        # Кэш строк по id для O(1) поиска: id -> row
+        self._row_by_id: Dict[int, int] = {}
         if categories:
             self.set_categories(categories)
 
@@ -44,7 +49,7 @@ class CategoriesListModel(QAbstractListModel):
             return item.get("name", "")
         if role == Qt.ItemDataRole.DecorationRole:
             icon = item.get("_icon")
-            return icon if isinstance(icon, QIcon) else QIcon()
+            return icon if isinstance(icon, QIcon) else DEFAULT_ICON
         if role == Qt.ItemDataRole.UserRole:
             return item.get("id")
         if role == Qt.ItemDataRole.ToolTipRole:
@@ -77,16 +82,22 @@ class CategoriesListModel(QAbstractListModel):
                 resolved_path = resolve_category_icon_path(icon_path)
                 icon = get_cached_category_icon(resolved_path)
             else:
-                icon = QIcon()
+                icon = DEFAULT_ICON
             items.append({"id": cat_id, "name": name, "_icon": icon})
 
         self.beginResetModel()
         self._items = items
+        # Перестроим кэш строк по id
+        # Важно: сохраняем индекс ПЕРВОГО вхождения для совместимости с прежним линейным поиском
+        row_by_id: Dict[int, int] = {}
+        for idx, it in enumerate(self._items):
+            cid = it["id"]
+            if cid not in row_by_id:
+                row_by_id[cid] = idx
+        self._row_by_id = row_by_id
         self.endResetModel()
 
     # --- helpers ---
     def find_row_by_id(self, category_id: int) -> int:
-        for i, it in enumerate(self._items):
-            if it.get("id") == category_id:
-                return i
-        return -1
+        # Используем кэш для O(1) поиска
+        return self._row_by_id.get(category_id, -1)
