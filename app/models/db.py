@@ -13,11 +13,6 @@ from typing import Dict, List, Optional
 from app.config_data import app_config
 from app.utils.db.migrations import MigrationRunner
 from app.utils.db.synchronization import db_lock
-from app.utils.db.positions import update_positions as _update_positions
-from app.utils.db.connection_manager import ConnectionManager
-from app.utils.db.structure_export import export_full_structure as _export_full_structure
-from app.utils.db.structure_import import import_full_structure as _import_full_structure
-from app.utils.backup import create_backup, apply_retention
 from . import legacy_db
 
 from .category_model import CategoryModel
@@ -42,8 +37,8 @@ BACKUP_DIR = PATHS.get_backups_dir()
 
 class Database(DatabaseBase):
     def __init__(self):
-        self._db_path = str(DB_PATH)
-        self._conn_manager = ConnectionManager(self._db_path)
+        self.db_path = str(DB_PATH)
+        self.thread_local = threading.local()
 
         # Инициализируем базовый класс (передаем self как connection_manager)
         super().__init__(self)
@@ -102,27 +97,22 @@ class Database(DatabaseBase):
 
     @property
     def connection(self):
-        """Возвращает потокобезопасное соединение с БД через ConnectionManager."""
-        return self._conn_manager.connection
+        """Возвращает потокобезопасное соединение с БД. ВАЖНО: используйте объект только из одного потока!
+        Для PyQt6 рекомендуется работать с базой только в главном потоке или через отдельный worker с передачей данных через сигналы/слоты."""
+        conn = getattr(self.thread_local, "conn", None)
+        if conn is not None:
+            # Не выполняем тестовый запрос (SELECT 1), чтобы избежать накладных расходов.
+            # Если соединение окажется закрытым к моменту использования, вызов execute()
+            # выбросит ProgrammingError, после чего вызывающий код может повторно обратиться
+            # к self.connection (который создаст новое соединение) или выполнить self.close().
+            return conn
 
-    @property
-    def db_path(self) -> str:
-        """Текущий путь к базе данных. Тесты могут переназначать, например ':memory:'."""
-        return self._db_path
-
-    @db_path.setter
-    def db_path(self, new_path: str) -> None:
-        """Изменяет путь к БД и переинициализирует менеджер соединений.
-
-        Важно для тестов, которые делают db.db_path=':memory:' до инициализации схемы.
-        """
-        try:
-            # Закрываем предыдущее соединение, если было
-            self._conn_manager.close()
-        except Exception:
-            pass
-        self._db_path = str(new_path)
-        self._conn_manager = ConnectionManager(self._db_path)
+        # Создаем новое соединение (лениво), без тестового запроса
+        self.thread_local.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        self.thread_local.conn.row_factory = sqlite3.Row
+        self.thread_local.conn.execute("PRAGMA foreign_keys = ON")
+        self.thread_local.conn.execute("PRAGMA journal_mode=WAL")
+        return self.thread_local.conn
 
     def _init_schema(self):
         """[DEPRECATED] Инициализация схемы напрямую из schema.sql.
@@ -183,12 +173,57 @@ class Database(DatabaseBase):
             # Проверка существования и обновление выполняются под ЕДИНЫМ db_lock
             with db_lock:
                 _t0 = time.perf_counter()
-                _update_positions(self.connection, table_name, ids)
+                # --- Проверка существования записей (чанками, чтобы не превысить лимит параметров SQLite ~999)
+                existing_ids = set()
+                SELECT_CHUNK = 900
+                for s in range(0, len(ids), SELECT_CHUNK):
+                    part = ids[s : s + SELECT_CHUNK]
+                    placeholders = ",".join(["?"] * len(part))
+                    rows = self.connection.execute(
+                        f"SELECT id FROM {table_name} WHERE id IN ({placeholders})",
+                        tuple(part),
+                    ).fetchall()
+                    existing_ids.update(int(dict(row)["id"]) for row in rows)
+                missing = [i for i in ids if i not in existing_ids]
+                if missing:
+                    raise ValidationError(
+                        f"Не найдены записи с ID: {missing} в таблице {table_name}"
+                    )
+
+                # --- Пакетное обновление позиций ---
+                # Формируем пары (id, position) согласно порядку в ids
+                id_pos_pairs = [(item_id, i) for i, item_id in enumerate(ids)]
+                # Ограничение SQLite по количеству параметров по умолчанию ~999 — по 2 параметра на запись
+                CHUNK_SIZE = 400
+                with self.connection:
+                    batches = 0
+                    for start in range(0, len(id_pos_pairs), CHUNK_SIZE):
+                        chunk = id_pos_pairs[start : start + CHUNK_SIZE]
+                        # Подготавливаем VALUES плейсхолдеры и параметры (id, position)
+                        values_sql = ",".join(["(?,?)"] * len(chunk))
+                        params = []
+                        for _id, pos in chunk:
+                            params.extend([_id, pos])
+
+                        sql = f"""
+                            WITH newpos(id, position) AS (
+                                VALUES {values_sql}
+                            )
+                            UPDATE {table_name}
+                            SET position = (
+                                SELECT newpos.position FROM newpos WHERE newpos.id = {table_name}.id
+                            )
+                            WHERE id IN (SELECT id FROM newpos)
+                            """
+                        self.connection.execute(sql, tuple(params))
+                        batches += 1
                 _t1 = time.perf_counter()
                 logger.debug(
-                    "update_item_positions: table=%s, count=%d, duration_ms=%.2f",
+                    "update_item_positions: table=%s, count=%d, batches=%d, chunk=%d, duration_ms=%.2f",
                     table_name,
                     len(ids),
+                    batches,
+                    CHUNK_SIZE,
                     ("%.2f" % ((_t1 - _t0) * 1000.0)),
                 )
             logger.debug(
@@ -199,11 +234,6 @@ class Database(DatabaseBase):
         except ValidationError:
             # Ошибки валидации входных данных пробрасываем как есть
             raise
-        except ValueError as e:
-            # Ядро (utils.db.positions) сигнализирует об отсутствии записей через ValueError.
-            # На уровне публичного API Database конвертируем это в ValidationError,
-            # как и ожидалось тестами/контрактом.
-            raise ValidationError(str(e))
         except Exception as e:
             logger.error(
                 "Ошибка обновления позиций в таблице %s: %s",
@@ -217,8 +247,92 @@ class Database(DatabaseBase):
     def export_full_structure(self) -> Dict[str, List]:
         """Экспортирует всю структуру данных из БД в виде словаря."""
         try:
+            # Загружаем все таблицы одной выборкой каждую под единой блокировкой
+            t0 = time.perf_counter()
             with db_lock:
-                return _export_full_structure(self.connection)
+                spheres = self.connection.execute(
+                    "SELECT * FROM sphere ORDER BY position"
+                ).fetchall()
+                sections = self.connection.execute(
+                    "SELECT * FROM section ORDER BY position"
+                ).fetchall()
+                categories = self.connection.execute(
+                    "SELECT * FROM category ORDER BY position"
+                ).fetchall()
+                links = self.connection.execute(
+                    "SELECT * FROM link ORDER BY position"
+                ).fetchall()
+            t1 = time.perf_counter()
+
+            # Подготовка индексов для сборки структуры
+            spheres_by_id = {}
+            sections_by_id = {}
+            categories_by_id = {}
+
+            sections_by_sphere = {}
+            categories_by_section = {}
+
+            # Преобразуем строки в dict и инициализируем контейнеры
+            for s in spheres:
+                sd = dict(s)
+                sd["sections"] = []
+                spheres_by_id[sd["id"]] = sd
+
+            for sec in sections:
+                sc = dict(sec)
+                sc["categories"] = []
+                sections_by_id[sc["id"]] = sc
+                sections_by_sphere.setdefault(sc["sphere_id"], []).append(sc)
+
+            for cat in categories:
+                cd = dict(cat)
+                cd["links"] = []
+                categories_by_id[cd["id"]] = cd
+                categories_by_section.setdefault(cd["section_id"], []).append(cd)
+
+            # Линки просто добавляем к категориям
+            for ln in links:
+                ld = dict(ln)
+                cat_id = ld.get("category_id")
+                cat_obj = categories_by_id.get(cat_id)
+                if cat_obj is not None:
+                    cat_obj["links"].append(ld)
+
+            # Собираем иерархию, сохраняя порядок по position (он уже в ORDER BY)
+            spheres_data: List[Dict] = []
+            for s in spheres:
+                s_obj = spheres_by_id[s["id"]]
+                # Добавляем секции в порядке их выборки (position)
+                for sc in sections_by_sphere.get(s_obj["id"], []):
+                    # Добавляем категории в порядке их выборки (position)
+                    sc["categories"] = categories_by_section.get(sc["id"], [])
+                    s_obj["sections"].append(sc)
+                spheres_data.append(s_obj)
+
+            t2 = time.perf_counter()
+            total_ms = (t2 - t0) * 1000.0
+            db_ms = (t1 - t0) * 1000.0
+            build_ms = (t2 - t1) * 1000.0
+            logger.debug(
+                "export_full_structure: spheres=%d, sections=%d, categories=%d, links=%d, db_ms=%.2f, build_ms=%.2f, total_ms=%.2f",
+                len(spheres),
+                len(sections),
+                len(categories),
+                len(links),
+                db_ms,
+                build_ms,
+                total_ms,
+            )
+            if total_ms > 50.0:
+                logger.info(
+                    "export_full_structure: завершено, total_ms=%.2f (>50ms), db_ms=%.2f, build_ms=%.2f",
+                    total_ms,
+                    db_ms,
+                    build_ms,
+                )
+            else:
+                logger.debug("Экспорт структуры выполнен успешно (bulk-загрузка)")
+            return {"spheres": spheres_data}
         except Exception as e:
             logger.error("Ошибка экспорта структуры: %s", e, exc_info=True)
             raise DatabaseError(f"Не удалось экспортировать структуру: {e}")
@@ -312,11 +426,307 @@ class Database(DatabaseBase):
 
     def import_full_structure(self, data: List[Dict]):
         """Очищает базу и импортирует данные из структуры.
-        Потокобезопасная операция, которая не изменяет входные данные."""
+
+        Потокобезопасная операция, которая не изменяет входные данные.
+
+        Args:
+            data: Список словарей со структурой данных для импорта.
+                  Исходный объект остается неизменным.
+        """
         try:
+            t0 = time.perf_counter()
+            root = copy.deepcopy(data or [])
+
+            # --- Фаза подготовки: нормализуем вход и строим связи ---
+            spheres_items: List[Dict] = []  # {ref, id?, name, icon_path, position}
+            sections_items: List[Dict] = []  # {ref, id?, name, sphere_ref, icon_path, position}
+            categories_items: List[Dict] = []  # {ref, id?, name, section_ref, icon_path, position}
+            links_with_id: List[Dict] = []  # готово к executemany
+            links_without_id: List[Dict] = []  # поштучные INSERT
+
+            for s_idx, s in enumerate(root):
+                if not isinstance(s, dict):
+                    continue
+                s_ref = id(s)
+                s_name = s.get("name", "")
+                s_pos = s.get("position", s_idx)
+                s_icon = s.get("icon_path", "")
+                spheres_items.append(
+                    {
+                        "ref": s_ref,
+                        "id": s.get("id"),
+                        "name": s_name,
+                        "icon_path": s_icon,
+                        "position": s_pos,
+                    }
+                )
+
+                for c_idx, sec in enumerate((s or {}).get("sections") or []):
+                    if not isinstance(sec, dict):
+                        continue
+                    sec_ref = id(sec)
+                    sections_items.append(
+                        {
+                            "ref": sec_ref,
+                            "id": sec.get("id"),
+                            "name": sec.get("name", ""),
+                            "icon_path": sec.get("icon_path", ""),
+                            "position": sec.get("position", c_idx),
+                            "sphere_ref": s_ref,
+                        }
+                    )
+
+                    for k_idx, cat in enumerate((sec or {}).get("categories") or []):
+                        if not isinstance(cat, dict):
+                            continue
+                        cat_ref = id(cat)
+                        categories_items.append(
+                            {
+                                "ref": cat_ref,
+                                "id": cat.get("id"),
+                                "name": cat.get("name", ""),
+                                "icon_path": cat.get("icon_path", ""),
+                                "position": cat.get("position", k_idx),
+                                "section_ref": sec_ref,
+                            }
+                        )
+
+                        for l_idx, ln in enumerate((cat or {}).get("links") or []):
+                            if not isinstance(ln, dict):
+                                continue
+                            ld = dict(ln)
+                            # Нормализация минимума
+                            try:
+                                ld["type"] = LinkType.from_value(ld.get("type", "web")).value
+                            except Exception:
+                                ld["type"] = LinkType.WEB.value
+                            ld["is_favorite"] = int(ld.get("is_favorite", 0) or 0)
+                            ld.setdefault("icon_path", "")
+                            if ld.get("position") is None:
+                                ld["position"] = l_idx
+                            # Проставим отложенную ссылку на категорию через ref
+                            ld["_category_ref"] = cat_ref
+                            if ld.get("id"):
+                                links_with_id.append(ld)
+                            else:
+                                links_without_id.append(ld)
+
+            # --- Фаза вставки: одна транзакция, уровни сверху вниз ---
             with db_lock:
-                _import_full_structure(self.connection, data)
-            # Создаем резервную копию после большой операции импорта (best-effort)
+                with self.connection:
+                    # Очистка таблиц в порядке зависимостей
+                    self.connection.execute("DELETE FROM link")
+                    self.connection.execute("DELETE FROM category")
+                    self.connection.execute("DELETE FROM section")
+                    self.connection.execute("DELETE FROM sphere")
+
+                    # 1) Сферы
+                    spheres_with_id = [x for x in spheres_items if x.get("id")]
+                    spheres_no_id = [x for x in spheres_items if not x.get("id")]
+
+                    if spheres_with_id:
+                        self.connection.executemany(
+                            "INSERT INTO sphere (id, name, icon_path, position) VALUES (?, ?, ?, ?)",
+                            [
+                                (
+                                    int(x["id"]),
+                                    x.get("name", ""),
+                                    x.get("icon_path", ""),
+                                    int(x.get("position", 0)),
+                                )
+                                for x in spheres_with_id
+                            ],
+                        )
+
+                    sphere_ref_to_id: Dict[int, int] = {}
+                    for x in spheres_with_id:
+                        sphere_ref_to_id[x["ref"]] = int(x["id"])  # задан явно
+                    for x in spheres_no_id:
+                        cur = self.connection.execute(
+                            "INSERT INTO sphere (name, icon_path, position) VALUES (?, ?, ?)",
+                            (x.get("name", ""), x.get("icon_path", ""), int(x.get("position", 0))),
+                        )
+                        sphere_ref_to_id[x["ref"]] = int(cur.lastrowid)
+
+                    # 2) Разделы
+                    for x in sections_items:
+                        x["sphere_id"] = sphere_ref_to_id.get(x["sphere_ref"])  # гарантируем FK
+                    sections_with_id = [x for x in sections_items if x.get("id")]
+                    sections_no_id = [x for x in sections_items if not x.get("id")]
+
+                    if sections_with_id:
+                        self.connection.executemany(
+                            "INSERT INTO section (id, name, sphere_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
+                            [
+                                (
+                                    int(x["id"]),
+                                    x.get("name", ""),
+                                    int(x.get("sphere_id")),
+                                    x.get("icon_path", ""),
+                                    int(x.get("position", 0)),
+                                )
+                                for x in sections_with_id
+                            ],
+                        )
+
+                    section_ref_to_id: Dict[int, int] = {}
+                    for x in sections_with_id:
+                        section_ref_to_id[x["ref"]] = int(x["id"])  # задан явно
+                    for x in sections_no_id:
+                        cur = self.connection.execute(
+                            "INSERT INTO section (name, sphere_id, icon_path, position) VALUES (?, ?, ?, ?)",
+                            (
+                                x.get("name", ""),
+                                int(x.get("sphere_id")),
+                                x.get("icon_path", ""),
+                                int(x.get("position", 0)),
+                            ),
+                        )
+                        section_ref_to_id[x["ref"]] = int(cur.lastrowid)
+
+                    # 3) Категории
+                    for x in categories_items:
+                        x["section_id"] = section_ref_to_id.get(x["section_ref"])  # гарантируем FK
+                    categories_with_id = [x for x in categories_items if x.get("id")]
+                    categories_no_id = [x for x in categories_items if not x.get("id")]
+
+                    if categories_with_id:
+                        self.connection.executemany(
+                            "INSERT INTO category (id, name, section_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
+                            [
+                                (
+                                    int(x["id"]),
+                                    x.get("name", ""),
+                                    int(x.get("section_id")),
+                                    x.get("icon_path", ""),
+                                    int(x.get("position", 0)),
+                                )
+                                for x in categories_with_id
+                            ],
+                        )
+
+                    category_ref_to_id: Dict[int, int] = {}
+                    for x in categories_with_id:
+                        category_ref_to_id[x["ref"]] = int(x["id"])  # задан явно
+                    for x in categories_no_id:
+                        cur = self.connection.execute(
+                            "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
+                            (
+                                x.get("name", ""),
+                                int(x.get("section_id")),
+                                x.get("icon_path", ""),
+                                int(x.get("position", 0)),
+                            ),
+                        )
+                        category_ref_to_id[x["ref"]] = int(cur.lastrowid)
+
+                    # 4) Ссылки
+                    # Проставим фактические category_id из карты
+                    for l in links_with_id:
+                        if not l.get("category_id"):
+                            cref = l.get("_category_ref")
+                            if cref is not None:
+                                l["category_id"] = category_ref_to_id.get(cref)
+                        l.pop("_category_ref", None)
+                    for l in links_without_id:
+                        if not l.get("category_id"):
+                            cref = l.get("_category_ref")
+                            if cref is not None:
+                                l["category_id"] = category_ref_to_id.get(cref)
+                        l.pop("_category_ref", None)
+
+                    if links_with_id:
+                        cols = [
+                            "id",
+                            "category_id",
+                            "name",
+                            "url",
+                            "type",
+                            "notes",
+                            "is_favorite",
+                            "last_used",
+                            "icon_path",
+                            "args",
+                            "browser_key",
+                            "position",
+                        ]
+                        placeholders = ",".join(["?"] * len(cols))
+                        sql = f"INSERT INTO link ({', '.join(cols)}) VALUES ({placeholders})"
+                        self.connection.executemany(
+                            sql,
+                            [
+                                (
+                                    int(l.get("id")),
+                                    int(l.get("category_id")),
+                                    l.get("name", ""),
+                                    l.get("url", ""),
+                                    l.get("type", "web"),
+                                    l.get("notes", ""),
+                                    int(l.get("is_favorite", 0) or 0),
+                                    l.get("last_used"),
+                                    l.get("icon_path", ""),
+                                    l.get("args", ""),
+                                    l.get("browser_key"),
+                                    int(l.get("position", 0)),
+                                )
+                                for l in links_with_id
+                            ],
+                        )
+
+                    # Уважаем согласованный хотфикс: поштучные INSERT для ссылок без id
+                    if links_without_id:
+                        cols = [
+                            "category_id",
+                            "name",
+                            "url",
+                            "type",
+                            "notes",
+                            "is_favorite",
+                            "last_used",
+                            "icon_path",
+                            "args",
+                            "browser_key",
+                            "position",
+                        ]
+                        placeholders = ", ".join(["?"] * len(cols))
+                        sql = f"INSERT INTO link ({', '.join(cols)}) VALUES ({placeholders})"
+                        for l in links_without_id:
+                            self.connection.execute(
+                                sql,
+                                (
+                                    int(l.get("category_id")),
+                                    l.get("name", ""),
+                                    l.get("url", ""),
+                                    l.get("type", "web"),
+                                    l.get("notes", ""),
+                                    int(l.get("is_favorite", 0) or 0),
+                                    l.get("last_used"),
+                                    l.get("icon_path", ""),
+                                    l.get("args", ""),
+                                    l.get("browser_key"),
+                                    int(l.get("position", 0)),
+                                ),
+                            )
+
+            t1 = time.perf_counter()
+            logger.info(
+                "import_full_structure: spheres=%d (with_id=%d, no_id=%d), sections=%d (with_id=%d, no_id=%d), categories=%d (with_id=%d, no_id=%d), links=%d (with_id=%d, no_id=%d), total_ms=%.2f",
+                len(spheres_items),
+                sum(1 for x in spheres_items if x.get('id')),
+                sum(1 for x in spheres_items if not x.get('id')),
+                len(sections_items),
+                sum(1 for x in sections_items if x.get('id')),
+                sum(1 for x in sections_items if not x.get('id')),
+                len(categories_items),
+                sum(1 for x in categories_items if x.get('id')),
+                sum(1 for x in categories_items if not x.get('id')),
+                len(links_with_id) + len(links_without_id),
+                len(links_with_id),
+                len(links_without_id),
+                (t1 - t0) * 1000.0,
+            )
+
+            # Создаем резервную копию после большой операции импорта
             try:
                 self.backup()
             except Exception as backup_err:
@@ -334,29 +744,51 @@ class Database(DatabaseBase):
         Использует sqlite3.Connection.backup для консистентности копии."""
         try:
             max_bak = self._get_max_backups()
-            # 1) Предочистка: попытаться освободить место под новый бэкап
-            pre_limit = max(0, int(max_bak) - 1)
-            _ = apply_retention(
-                BACKUP_DIR,
-                pre_limit,
-                keep=set(),
-                attempts=6,
-                sleep_sec=0.05,
-                settle_sec=0.0,
-            )
+            # 1) Создаём новый бэкап
+            now = datetime.datetime.now()
+            timestamp = now.strftime("%Y%m%d_%H%M%S_%f")
+            dst = BACKUP_DIR / f"links_{timestamp}.db"
+            with sqlite3.connect(self.db_path) as src, sqlite3.connect(dst) as dest:
+                src.backup(dest)
+            logger.info("Создана резервная копия: %s", dst)
 
-            # 2) Создаём новый бэкап через utility
-            dst = create_backup(Path(self.db_path), BACKUP_DIR)
-
-            # 3) Политика ретенции: удаляем сверх лимита, пропуская ошибки и повторяя попытки
-            _ = apply_retention(
-                BACKUP_DIR,
-                max_bak,
-                keep={dst},
-                attempts=6,
-                sleep_sec=0.05,
-                settle_sec=0.0,
-            )
+            # 2) Очистка сверх лимита: удаляем самые старые, пропуская ошибки
+            files = sorted(BACKUP_DIR.glob("links_*.db"))
+            
+            if len(files) > max_bak:
+                # Исключаем только что созданный файл из списка кандидатов на удаление
+                candidates = [f for f in files if f != dst]
+                deleted_count = 0
+                target_deletions = len(files) - max_bak
+                
+                # Пытаемся удалить достаточно файлов, чтобы остаться в пределах лимита
+                # Делаем несколько попыток, так как файлы могут быть временно заблокированы
+                max_attempts = 3
+                for attempt in range(max_attempts):
+                    files_to_try = [f for f in candidates if f.exists()]
+                    if not files_to_try or deleted_count >= target_deletions:
+                        break
+                        
+                    for old_file in files_to_try:
+                        if deleted_count >= target_deletions:
+                            break
+                        try:
+                            old_file.unlink()
+                            deleted_count += 1
+                            if old_file in candidates:
+                                candidates.remove(old_file)
+                        except Exception as del_err:
+                            logger.warning(
+                                "Не удалось удалить старую резервную копию %s: %s",
+                                old_file,
+                                del_err,
+                                exc_info=False,
+                            )
+                    
+                    # Небольшая пауза между попытками для освобождения файловых дескрипторов
+                    if attempt < max_attempts - 1 and deleted_count < target_deletions:
+                        import time
+                        time.sleep(0.1)
         except Exception as e:
             logger.error("Ошибка создания резервной копии: %s", e, exc_info=True)
             raise DatabaseError(f"Не удалось создать резервную копию: {e}")
@@ -498,11 +930,38 @@ class Database(DatabaseBase):
 
     def is_connected(self) -> bool:
         """Проверяет, установлено ли соединение с базой данных."""
-        return self._conn_manager.is_connected()
+        try:
+            conn = getattr(self.thread_local, "conn", None)
+            if conn is not None:
+                # Простая проверка, что соединение еще живо
+                conn.execute("SELECT 1").fetchone()
+                return True
+            return False
+        except Exception:
+            return False
 
     def close(self):
         """Закрывает соединение с базой данных."""
-        self._conn_manager.close()
+        try:
+            if hasattr(self.thread_local, "conn"):
+                # Выполняем WAL checkpoint перед закрытием для корректного восстановления
+                try:
+                    with db_lock:
+                        self.thread_local.conn.execute("PRAGMA wal_checkpoint(FULL)")
+                        self.thread_local.conn.commit()
+                    logger.debug("WAL checkpoint выполнен перед закрытием")
+                except Exception as checkpoint_err:
+                    logger.warning(
+                        "Ошибка WAL checkpoint при закрытии: %s",
+                        checkpoint_err,
+                        exc_info=True,
+                    )
+
+                self.thread_local.conn.close()
+                del self.thread_local.conn
+                logger.debug("Соединение с базой данных закрыто")
+        except Exception as e:
+            logger.error("Ошибка закрытия соединения: %s", e, exc_info=True)
 
     def detect_case_insensitive_duplicates(self) -> dict:
         """Ищет case-insensitive дубликаты имён.

@@ -146,8 +146,6 @@ class _AutoHideTreeFilter(QObject):
                     ):
                         splitter.setSizes(self._saved_splitter_sizes)
                     else:
-                        # Если сохранённых размеров нет — восстанавливаем значения из конфигурации
-                        # (default_sizes переданы при установке фильтра из UIConfig)
                         sizes = [int(x) for x in self.default_sizes]
                         splitter.setSizes(sizes)
                 except (RuntimeError, TypeError, ValueError):
