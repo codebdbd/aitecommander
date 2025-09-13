@@ -86,9 +86,17 @@ class CategoryModel(DatabaseBase):
         """
         self._validate_required_fields(data, ["name", "section_id"], "категории")
 
+        # Нормализация ввода: убираем лишние пробелы вокруг имени
+        try:
+            name_norm = str(data["name"]).strip()
+        except Exception:
+            name_norm = str(data["name"])  # на всякий случай
+        data = dict(data)
+        data["name"] = name_norm
+
         # Проверяем, существует ли уже категория с таким именем в этом разделе
         cursor = self._execute_with_error_handling(
-            "SELECT id FROM category WHERE section_id = ? AND name = ?",
+            "SELECT id FROM category WHERE section_id = ? AND name = ? COLLATE NOCASE",
             (data["section_id"], data["name"]),
             fetch_method="one",
         )
@@ -201,11 +209,10 @@ class CategoryModel(DatabaseBase):
 
                     for it in group:
                         raw_name = it.get("name")
-                        name_norm = (
-                            str(raw_name).strip().lower()
-                            if raw_name is not None
-                            else ""
-                        )
+                        # Канонизируем для сравнения и хранения: удаляем пробелы по краям.
+                        # Для сравнения используем lower(), но храним в оригинальном регистре без пробелов.
+                        name_canon = str(raw_name).strip() if raw_name is not None else ""
+                        name_norm = name_canon.lower()
                         # Пропускаем, если имя пустое — валидация выше, но на всякий случай
                         if not name_norm:
                             continue
@@ -215,7 +222,7 @@ class CategoryModel(DatabaseBase):
                         seen_in_batch.add(name_norm)
 
                         icon_path = it.get("icon_path", "")
-                        batched_params.append((raw_name, section_id, icon_path, pos))
+                        batched_params.append((name_canon, section_id, icon_path, pos))
                         pos += 1
 
                 # Вставляем одним executemany с тихим игнорированием дублей
@@ -229,10 +236,13 @@ class CategoryModel(DatabaseBase):
                 seen = set()
                 for section_id, group in by_section.items():
                     for g in group:
-                        name = g.get("name")
-                        if name is None:
+                        nm = g.get("name")
+                        if nm is None:
                             continue
-                        key = (section_id, name)
+                        # Поиск должен использовать канонизированное имя (без пробелов по краям),
+                        # так как мы именно его сохраняем в БД.
+                        nm_canon = str(nm).strip()
+                        key = (section_id, nm_canon)
                         if key in seen:
                             continue
                         seen.add(key)
@@ -289,8 +299,12 @@ class CategoryModel(DatabaseBase):
         if not category_ids:
             return 0
 
-        # Оставляем только валидные положительные целые ID и удаляем дубликаты
-        ids = [int(x) for x in category_ids if isinstance(x, int) and x > 0]
+        # Оставляем только валидные положительные целые ID (исключая bool) и удаляем дубликаты
+        ids = [
+            int(x)
+            for x in category_ids
+            if isinstance(x, int) and not isinstance(x, bool) and x > 0
+        ]
         # Дедупликация с сохранением порядка первой встречаемости
         unique_ids = list(dict.fromkeys(ids))
         if not unique_ids:
@@ -398,8 +412,12 @@ class CategoryModel(DatabaseBase):
         ):
             return []
 
-        # Оставляем только валидные положительные целые ID и удаляем дубликаты (сохраняя порядок)
-        ids = [int(x) for x in category_ids if isinstance(x, int) and x > 0]
+        # Оставляем только валидные положительные целые ID (исключая bool) и удаляем дубликаты (сохраняя порядок)
+        ids = [
+            int(x)
+            for x in category_ids
+            if isinstance(x, int) and not isinstance(x, bool) and x > 0
+        ]
         unique_ids = list(dict.fromkeys(ids))
         if not unique_ids:
             return []
@@ -514,17 +532,25 @@ class CategoryModel(DatabaseBase):
 
     def upsert_category(self, category_data: Dict[str, Any]) -> int:
         """Вставляет или обновляет категорию. Если категории с таким id нет, вставляет новую с этим id."""
-        if "id" in category_data and category_data["id"]:
+        # Канонизируем имя: убираем пробелы по краям
+        data = dict(category_data)  # не мутируем входящий dict
+        if "name" in data:
+            try:
+                data["name"] = str(data["name"]).strip()
+            except Exception:
+                data["name"] = str(data["name"])
+
+        if "id" in data and data["id"]:
             # Выполняем атомарно под транзакцией и единым механизмом блокировки
             with self.transaction():
                 cursor = self._execute_with_error_handling(
-                    "UPDATE category SET name=?, section_id=?, icon_path=?, position=? WHERE id=?",
+                    "UPDATE category SET name=?, section_id=?, icon_path=?, position=? WHERE id= ?",
                     (
-                        category_data["name"],
-                        category_data["section_id"],
-                        category_data.get("icon_path", ""),
-                        category_data.get("position", 0),
-                        category_data["id"],
+                        data["name"],
+                        data["section_id"],
+                        data.get("icon_path", ""),
+                        data.get("position", 0),
+                        data["id"],
                     ),
                 )
                 if int(getattr(cursor, "rowcount", 0) or 0) == 0:
@@ -532,19 +558,19 @@ class CategoryModel(DatabaseBase):
                     self._execute_with_error_handling(
                         "INSERT INTO category (id, name, section_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
                         (
-                            category_data["id"],
-                            category_data["name"],
-                            category_data["section_id"],
-                            category_data.get("icon_path", ""),
-                            category_data.get("position", 0),
+                            data["id"],
+                            data["name"],
+                            data["section_id"],
+                            data.get("icon_path", ""),
+                            data.get("position", 0),
                         ),
                     )
-            return category_data["id"]
+            return data["id"]
         else:
-            category_id = self.insert_category(category_data)
+            category_id = self.insert_category(data)
             if category_id is None:
                 raise ValueError(
-                    f"Категория с именем '{category_data['name']}' уже существует в этом разделе"
+                    f"Категория с именем '{data['name']}' уже существует в этом разделе"
                 )
             return category_id
 
@@ -559,9 +585,15 @@ class CategoryModel(DatabaseBase):
         self, section_id: int, category_name: str, exclude_id: Optional[int] = None
     ):
         """Проверяет наличие дубликата категории в разделе."""
+        # Проверка на дубликат без учета регистра
         query = (
-            "SELECT COUNT(*) as count FROM category WHERE section_id = ? AND name = ?"
+            "SELECT COUNT(*) as count FROM category WHERE section_id = ? AND name = ? COLLATE NOCASE"
         )
+        # Нормализуем вход для предсказуемости поведения
+        try:
+            category_name = str(category_name).strip()
+        except Exception:
+            category_name = str(category_name)
         params = [section_id, category_name]
 
         if exclude_id is not None:

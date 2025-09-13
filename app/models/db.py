@@ -101,11 +101,20 @@ class Database(DatabaseBase):
         Для PyQt6 рекомендуется работать с базой только в главном потоке или через отдельный worker с передачей данных через сигналы/слоты."""
         conn = getattr(self.thread_local, "conn", None)
         if conn is not None:
-            # Не выполняем тестовый запрос (SELECT 1), чтобы избежать накладных расходов.
-            # Если соединение окажется закрытым к моменту использования, вызов execute()
-            # выбросит ProgrammingError, после чего вызывающий код может повторно обратиться
-            # к self.connection (который создаст новое соединение) или выполнить self.close().
-            return conn
+            # Лёгкая самодиагностика соединения: если закрыто/некорректно — переоткроем.
+            try:
+                conn.execute("SELECT 1").fetchone()
+                return conn
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                # Отвязываем битый дескриптор и создаём новый ниже
+                try:
+                    del self.thread_local.conn
+                except Exception:
+                    pass
 
         # Создаем новое соединение (лениво), без тестового запроса
         self.thread_local.conn = sqlite3.connect(self.db_path, check_same_thread=False)
@@ -150,46 +159,21 @@ class Database(DatabaseBase):
                 f"Недопустимое имя таблицы для обновления позиций: {table_name}"
             )
 
-        # Валидация входных ID: типы, уникальность, существование
+        # Валидация и проверка существования
         try:
-            ids = list(ids_in_order or [])
+            ids = self._validate_ids(ids_in_order)
             if not ids:
-                # Нечего обновлять — выходим без ошибок
                 logger.debug(
                     "update_item_positions: пустой список ID для таблицы %s",
                     table_name,
                 )
                 return
 
-            # Проверка типов и значений
-            for v in ids:
-                if isinstance(v, bool) or not isinstance(v, int) or v < 0:
-                    raise ValidationError(f"Некорректный ID в списке позиций: {v}")
-
-            # Проверка уникальности
-            if len(set(ids)) != len(ids):
-                raise ValidationError("Список ID содержит дубликаты")
+            self._ensure_ids_exist(table_name, ids)
 
             # Проверка существования и обновление выполняются под ЕДИНЫМ db_lock
             with db_lock:
                 _t0 = time.perf_counter()
-                # --- Проверка существования записей (чанками, чтобы не превысить лимит параметров SQLite ~999)
-                existing_ids = set()
-                SELECT_CHUNK = 900
-                for s in range(0, len(ids), SELECT_CHUNK):
-                    part = ids[s : s + SELECT_CHUNK]
-                    placeholders = ",".join(["?"] * len(part))
-                    rows = self.connection.execute(
-                        f"SELECT id FROM {table_name} WHERE id IN ({placeholders})",
-                        tuple(part),
-                    ).fetchall()
-                    existing_ids.update(int(dict(row)["id"]) for row in rows)
-                missing = [i for i in ids if i not in existing_ids]
-                if missing:
-                    raise ValidationError(
-                        f"Не найдены записи с ID: {missing} в таблице {table_name}"
-                    )
-
                 # --- Пакетное обновление позиций ---
                 # Формируем пары (id, position) согласно порядку в ids
                 id_pos_pairs = [(item_id, i) for i, item_id in enumerate(ids)]
@@ -242,6 +226,44 @@ class Database(DatabaseBase):
                 exc_info=True,
             )
             raise DatabaseError(f"Не удалось обновить позиции: {e}")
+
+    # === Helpers for update_item_positions ===
+    def _validate_ids(self, ids_in_order: List[int]) -> List[int]:
+        """Проверяет и нормализует входные ID: типы, значения, уникальность.
+
+        Возвращает список int ID. Бросает ValidationError при несоответствиях.
+        """
+        ids = list(ids_in_order or [])
+        if not ids:
+            return []
+
+        for v in ids:
+            if isinstance(v, bool) or not isinstance(v, int) or v < 0:
+                raise ValidationError(f"Некорректный ID в списке позиций: {v}")
+
+        if len(set(ids)) != len(ids):
+            raise ValidationError("Список ID содержит дубликаты")
+
+        return ids
+
+    def _ensure_ids_exist(self, table_name: str, ids: List[int]) -> None:
+        """Проверяет существование всех указанных ID в таблице. Бросает ValidationError при отсутствии."""
+        with db_lock:
+            existing_ids = set()
+            SELECT_CHUNK = 900
+            for s in range(0, len(ids), SELECT_CHUNK):
+                part = ids[s : s + SELECT_CHUNK]
+                placeholders = ",".join(["?"] * len(part))
+                rows = self.connection.execute(
+                    f"SELECT id FROM {table_name} WHERE id IN ({placeholders})",
+                    tuple(part),
+                ).fetchall()
+                existing_ids.update(int(dict(row)["id"]) for row in rows)
+        missing = [i for i in ids if i not in existing_ids]
+        if missing:
+            raise ValidationError(
+                f"Не найдены записи с ID: {missing} в таблице {table_name}"
+            )
 
     # Методы импорта/экспорта
     def export_full_structure(self) -> Dict[str, List]:
