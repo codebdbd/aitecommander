@@ -136,6 +136,22 @@ class WindowInitializer:
                 "WindowInitializer: не удалось подключить слот к сигналу 'shown'"
             )
 
+        # Ранний показ окна: повышает отзывчивость UI, тяжёлые шаги выполнятся асинхронно
+        try:
+            if hasattr(self.window, "show"):
+                # Показываем только если окно ещё не видно
+                is_visible = False
+                try:
+                    is_visible = bool(getattr(self.window, "isVisible", lambda: False)())
+                except Exception:
+                    is_visible = False
+                if not is_visible:
+                    self.window.show()
+        except Exception:
+            logger.exception(
+                "WindowInitializer: ранний показ окна после лёгких шагов не удался"
+            )
+
 
     def _schedule_heavy_steps(self) -> None:
         """Разбивает тяжёлые шаги на асинхронные этапы и планирует их выполнение с ожиданием БД."""
@@ -306,11 +322,17 @@ class WindowInitializer:
         except Exception:
             logger.debug("DiagTopLevels: failed to dump before final show", exc_info=False)
 
-        # Покажем окно только после завершения всех этапов
+        # Покажем окно только если оно ещё не было показано ранним шагом
         try:
             if hasattr(self.window, "show"):
-                with self._metrics.time_span("final:window_show"):
-                    self.window.show()
+                need_show = True
+                try:
+                    need_show = not bool(getattr(self.window, "isVisible", lambda: False)())
+                except Exception:
+                    need_show = True
+                if need_show:
+                    with self._metrics.time_span("final:window_show"):
+                        self.window.show()
         except Exception as e:
             logger.exception(
                 "WindowInitializer: не удалось показать окно в финале инициализации"

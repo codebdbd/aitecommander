@@ -136,7 +136,8 @@ class TopBarLayoutManager(QObject):
             QEvent.Type.Show,
             QEvent.Type.Hide,
         ):
-            self._throttle_timer.start(0)
+            # Используем настраиваемый интервал троттлинга, чтобы уменьшить дребезг пересчётов
+            self._throttle_timer.start(self._throttle_interval_ms)
         return super().eventFilter(obj, event)
 
     def _run_adjust(self) -> None:
