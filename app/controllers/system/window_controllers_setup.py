@@ -25,6 +25,7 @@ from app.controllers.ui.state.ui_state_manager import UIStateManager
 from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
 from app.controllers.ui.structure.structure_ui_controller import StructureUIController
 from app.controllers.ui.top_panels_controller import TopPanelsController
+from app.services import LinksService
 from app.utils.ui.icon.icon_operations.creators import themed_icon
 from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.menu_builders.category_menu_builder import CategoryMenuBuilder
@@ -938,11 +939,13 @@ class DatabaseEventHandler:
             links_actions: LinksActions контроллер (обязательная зависимость)
         """
         if hasattr(window, "structure"):
+            # Обновляем ссылки на модели БД у контроллера UI структуры,
+            # но НЕ вызываем загрузку прямо сейчас — дождёмся корректной настройки
+            # StructureBusinessLogic и определения текущей сферы.
             window.structure.db = new_db
             window.structure.spheres = new_db.spheres
             window.structure.sections = new_db.sections
             window.structure.categories = new_db.categories
-            window.structure.load()
 
         # Явная проверка обязательной зависимости links_actions
         if links_actions is None:
@@ -952,18 +955,54 @@ class DatabaseEventHandler:
         if not hasattr(links_actions, "links") or links_actions.links is None:
             raise SetupError("links_actions.links is required when switching database")
 
-        links = links_actions.links
-        # И должен поддерживать необходимые атрибуты
-        if not hasattr(links, "db") or not hasattr(links, "links"):
-            raise SetupError(
-                "links_actions.links must have 'db' and 'links' attributes"
-            )
+        links_ref = links_actions.links
 
+        # Поддерживаем два варианта формы 'links':
+        # 1) Старый контракт: объект с атрибутами db и links (репозиторий/сервис)
+        # 2) Текущий контракт: LinksUIController с .business (LinksBusinessLogic) и .link_ops
         try:
-            links.db = new_db
-            links.links = new_db.links
+            if hasattr(links_ref, "db") and hasattr(links_ref, "links"):
+                # Совместимость со старым интерфейсом
+                links_ref.db = new_db
+                links_ref.links = new_db.links
+            elif hasattr(links_ref, "business") and hasattr(links_ref, "link_ops"):
+                # Актуальный интерфейс через UI-контроллер
+                business = getattr(links_ref, "business")
+                link_ops = getattr(links_ref, "link_ops")
+
+                # Обновляем LinkOperationsController
+                try:
+                    if hasattr(link_ops, "db"):
+                        link_ops.db = new_db
+                except Exception:
+                    logger.exception(
+                        "Failed to update LinkOperationsController.db during DB switch"
+                    )
+                    raise
+
+                # Обновляем LinksBusinessLogic и его сервисный слой
+                try:
+                    if hasattr(business, "db"):
+                        business.db = new_db
+                    # Переинициализируем ссылки на модели/сервисы базы
+                    if hasattr(business, "links_model"):
+                        business.links_model = new_db.links
+                    if hasattr(business, "links"):
+                        business.links = LinksService(new_db)
+                except Exception:
+                    logger.exception(
+                        "Failed to update LinksBusinessLogic with new DB during DB switch"
+                    )
+                    raise
+            else:
+                # Неизвестный интерфейс — чёткое сообщение для диагностики
+                raise SetupError(
+                    "links_actions.links must provide either ('db' and 'links') or ('business' and 'link_ops') attributes"
+                )
+        except SetupError:
+            raise
         except Exception:
-            logger.exception("Failed to update links_actions.links with new DB")
+            logger.exception("Failed to update links controllers with new DB")
             raise
 
         if hasattr(window, "structure_business"):
@@ -1015,10 +1054,32 @@ class DatabaseEventHandler:
                             )
 
                 sb.spheres_loaded.connect(_set_first_sphere_once)
-                if hasattr(sb, "load_spheres_async") and callable(
-                    sb.load_spheres_async
-                ):
-                    sb.load_spheres_async()
+                # Если текущая сфера уже известна — выполняем немедленную загрузку структуры.
+                try:
+                    curr_id = (
+                        sb.get_current_sphere_id()
+                        if hasattr(sb, "get_current_sphere_id") and callable(sb.get_current_sphere_id)
+                        else None
+                    )
+                except Exception:
+                    curr_id = None
+                if isinstance(curr_id, int) and curr_id > 0:
+                    try:
+                        loader_now = _resolve_structure_loader(sb)
+                        loader_now()
+                    except Exception as e:
+                        logger.error(
+                            "Immediate structure reload after DB switch failed: %s",
+                            e,
+                            exc_info=True,
+                        )
+                else:
+                    # Иначе запускаем асинхронную загрузку сфер; после spheres_loaded
+                    # будет выбрана первая сфера и через active_sphere_changed произойдёт загрузка структуры.
+                    if hasattr(sb, "load_spheres_async") and callable(
+                        sb.load_spheres_async
+                    ):
+                        sb.load_spheres_async()
             except Exception:
                 logger.exception("Failed to update structure_business with new DB")
                 raise
