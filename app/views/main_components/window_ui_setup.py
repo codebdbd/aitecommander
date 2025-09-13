@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 from app.config_data import app_config
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.controllers.ui.undo.stack import UndoManager
+from app.controllers.ui.menu_controller import MenuController
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.views.custom_widgets import StructureTreeView
 from app.views.favorites_panel_widget import FavoritesPanelWidget
@@ -209,8 +210,6 @@ class WindowUISetup:
 
     def setup_menu(self) -> None:
         """Настройка меню."""
-        from app.controllers.ui.menu_controller import MenuController
-
         self.window.menu_controller = MenuController(self.window)
         self.window.setMenuBar(self.window.menu_controller.create_main_menu())
 

@@ -769,7 +769,18 @@ class Database(DatabaseBase):
             # 1) Создаём новый бэкап
             now = datetime.datetime.now()
             timestamp = now.strftime("%Y%m%d_%H%M%S_%f")
-            dst = BACKUP_DIR / f"links_{timestamp}.db"
+            # Гарантируем уникальность имени даже при совпадении таймстемпа
+            base_name = f"links_{timestamp}"
+            dst = BACKUP_DIR / f"{base_name}.db"
+            if dst.exists():
+                suffix = 1
+                # добавляем порядковый индекс до первого свободного имени
+                while True:
+                    alt = BACKUP_DIR / f"{base_name}_{suffix:02d}.db"
+                    if not alt.exists():
+                        dst = alt
+                        break
+                    suffix += 1
             with sqlite3.connect(self.db_path) as src, sqlite3.connect(dst) as dest:
                 src.backup(dest)
             logger.info("Создана резервная копия: %s", dst)

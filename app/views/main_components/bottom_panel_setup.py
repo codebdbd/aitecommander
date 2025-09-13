@@ -113,4 +113,4 @@ class BottomPanelBuilder:
 
         self.main_layout.addWidget(bottom_bar_container)
 
-        # Убираем нижний разделитель: панель примыкает вплотную к содержимому
+

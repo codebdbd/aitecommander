@@ -159,18 +159,46 @@ class WindowInitializer:
         self._init_steps_before_db: List[Tuple[str, Callable[[], None]]] = []
         special_hooks_before: Dict[Callable[[], None], Callable[[], None]] = {}
         for label, method_name, hook_name in BEFORE_DB_STEP_CONFIG:
-            step_func = getattr(self, method_name)
+            step_func = getattr(self, method_name, None)
+            if not callable(step_func):
+                logger.warning(
+                    "WindowInitializer: missing or non-callable before-DB step '%s' — skipping",
+                    method_name,
+                )
+                continue
             self._init_steps_before_db.append((label, step_func))
             if hook_name:
-                special_hooks_before[step_func] = getattr(self, hook_name)
+                hook_func = getattr(self, hook_name, None)
+                if callable(hook_func):
+                    special_hooks_before[step_func] = hook_func  # type: ignore[arg-type]
+                else:
+                    logger.warning(
+                        "WindowInitializer: missing or non-callable before-DB hook '%s' for step '%s' — skipping",
+                        hook_name,
+                        method_name,
+                    )
 
         self._init_steps_after_db: List[Tuple[str, Callable[[], None]]] = []
         self._special_hooks_after: Dict[Callable[[], None], Callable[[], None]] = {}
         for label, method_name, hook_name in AFTER_DB_STEP_CONFIG:
-            step_func = getattr(self, method_name)
+            step_func = getattr(self, method_name, None)
+            if not callable(step_func):
+                logger.warning(
+                    "WindowInitializer: missing or non-callable after-DB step '%s' — skipping",
+                    method_name,
+                )
+                continue
             self._init_steps_after_db.append((label, step_func))
             if hook_name:
-                self._special_hooks_after[step_func] = getattr(self, hook_name)
+                hook_func = getattr(self, hook_name, None)
+                if callable(hook_func):
+                    self._special_hooks_after[step_func] = hook_func  # type: ignore[arg-type]
+                else:
+                    logger.warning(
+                        "WindowInitializer: missing or non-callable after-DB hook '%s' for step '%s' — skipping",
+                        hook_name,
+                        method_name,
+                    )
         self._db_ready = False
         self._waiting_for_db = False
         runner = AsyncStepRunner(self._metrics, self._status.set_message)

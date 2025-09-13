@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data import app_config
-from app.views.category_tiles import CategoryTiles
+from app.views.tiles import CategoryTiles
 from app.views.link import LinksTableView
 
 logger = logging.getLogger(__name__)

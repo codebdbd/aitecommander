@@ -8,20 +8,60 @@ from PyQt6.QtCore import (
     QEasingCurve,
     QEvent,
     QObject,
-    QParallelAnimationGroup,
-    QPropertyAnimation,
     QTimer,
 )
 from PyQt6.QtWidgets import (
-    QGraphicsOpacityEffect,
     QLayout,
     QLineEdit,
-    QSizePolicy,
     QToolButton,
     QWidget,
 )
 
 from app.config_data import app_config
+from app.views.main_components.topbar_layout.topbar_measure import (
+    iter_buttons as _tb_iter_buttons,
+    current_visible_count as _tb_current_visible_count,
+    panel_width as _tb_panel_width,
+    total_width_for as _tb_total_width_for,
+    compute_visible_counts as _tb_compute_visible_counts,
+)
+from app.views.main_components.topbar_layout.topbar_layout_utils import (
+    safe_get as _u_safe_get,
+    get_top_bar as _u_get_top_bar,
+    set_top_bar_margins as _u_set_top_bar_margins,
+    enforce_stretches as _u_enforce_stretches,
+    apply_panel_width_bounds as _u_apply_panel_width_bounds,
+    zero_all_spacers as _u_zero_all_spacers,
+    apply_counts as _u_apply_counts,
+    clamp_search_width_to_remaining_space as _u_clamp_search_width,
+    install_topbar_event_filters as _u_install_event_filters,
+)
+from app.views.main_components.topbar_layout.topbar_narrow_mode import (
+    apply_narrow_mode as _apply_narrow_mode,
+)
+from app.views.main_components.topbar_layout.topbar_separators import (
+    update_separators_visibility as _u_update_separators_visibility,
+)
+from app.views.main_components.topbar_layout.topbar_animations import (
+    apply_with_animation as _u_apply_with_animation,
+)
+from app.views.main_components.topbar_layout.topbar_diagnostics import (
+    log_layout_snapshot as _u_log_layout_snapshot,
+)
+from app.views.main_components.topbar_layout.constants import (
+    DEFAULT_THROTTLE_MS,
+    DEFAULT_LOG_INFO,
+    DEFAULT_MIN_SEARCH_WIDTH,
+    DEFAULT_MAX_RECENT,
+    DEFAULT_MAX_FAV,
+    DEFAULT_MAX_QUICK,
+    DEFAULT_MIN_RECENT,
+    DEFAULT_MIN_FAV,
+    DEFAULT_MIN_QUICK,
+    DEFAULT_NARROW_THRESHOLD,
+    DEFAULT_BUTTON_SIZE,
+    DEFAULT_SPACER_SIZE,
+)
 
 try:
     from sip import isdeleted as _sip_isdeleted
@@ -46,19 +86,7 @@ class TopBarLayoutManager(QObject):
     При расширении — в обратном порядке восстанавливаем кнопки до максимумов.
     """
 
-    # Константы по умолчанию
-    DEFAULT_THROTTLE_MS = 32
-    DEFAULT_LOG_INFO = False
-    DEFAULT_MIN_SEARCH_WIDTH = 148
-    DEFAULT_MAX_RECENT = 10
-    DEFAULT_MAX_FAV = 10
-    DEFAULT_MAX_QUICK = 6
-    DEFAULT_MIN_RECENT = 0
-    DEFAULT_MIN_FAV = 0
-    DEFAULT_MIN_QUICK = 0
-    DEFAULT_NARROW_THRESHOLD = 380
-    DEFAULT_BUTTON_SIZE = 32
-    DEFAULT_SPACER_SIZE = 4
+    # Константы по умолчанию (вынесены в topbar_layout.constants)
 
     def __init__(self, window):
         super().__init__(window)
@@ -72,25 +100,25 @@ class TopBarLayoutManager(QObject):
 
         # Настройки из конфига с fallback
         self._throttle_interval_ms: int = self._get_cfg_int(
-            "ui.topbar.throttle_ms", self.DEFAULT_THROTTLE_MS
+            "ui.topbar.throttle_ms", DEFAULT_THROTTLE_MS
         )
         self._log_info: bool = self._get_cfg_bool(
-            "ui.topbar.log_info", self.DEFAULT_LOG_INFO
+            "ui.topbar.log_info", DEFAULT_LOG_INFO
         )
         self._min_search_width: int = self._get_cfg_int(
-            "ui.topbar.min_search_width", self.DEFAULT_MIN_SEARCH_WIDTH
+            "ui.topbar.min_search_width", DEFAULT_MIN_SEARCH_WIDTH
         )
-        self._max_recent: int = self.DEFAULT_MAX_RECENT
-        self._max_fav: int = self.DEFAULT_MAX_FAV
-        self._max_quick: int = self.DEFAULT_MAX_QUICK
+        self._max_recent: int = DEFAULT_MAX_RECENT
+        self._max_fav: int = DEFAULT_MAX_FAV
+        self._max_quick: int = DEFAULT_MAX_QUICK
         # Минимальные квоты отключены: все панели могут схлопываться до 0
-        self._min_recent: int = 0
-        self._min_fav: int = 0
-        self._min_quick: int = 0
+        self._min_recent: int = DEFAULT_MIN_RECENT
+        self._min_fav: int = DEFAULT_MIN_FAV
+        self._min_quick: int = DEFAULT_MIN_QUICK
         # Узкий режим: фиксированный порог (значение задаётся DEFAULT_NARROW_THRESHOLD) и не переопределяется конфигом
-        self._narrow_threshold: int = self.DEFAULT_NARROW_THRESHOLD
+        self._narrow_threshold: int = DEFAULT_NARROW_THRESHOLD
         self._button_size: int = self._get_cfg_int(
-            "ui.top_panel_button_size", self.DEFAULT_BUTTON_SIZE
+            "ui.top_panel_button_size", DEFAULT_BUTTON_SIZE
         )
         # No extra safety pads: use exact computed widths to avoid clipping
 
@@ -98,12 +126,10 @@ class TopBarLayoutManager(QObject):
         self._throttle_timer.setSingleShot(True)
         self._throttle_timer.timeout.connect(self._run_adjust)
 
-        # Animation settings/state
-        self._animating: bool = False
+        # Animation settings
         self._anim_duration_ms: int = 140
         # PyQt6 requires using the enum under QEasingCurve.Type
         self._anim_curve = QEasingCurve.Type.OutCubic
-        self._active_groups: list[QParallelAnimationGroup] = []
 
         # Подключение к контейнерам
         self._install_event_filters()
@@ -113,21 +139,16 @@ class TopBarLayoutManager(QObject):
             self.window.shown.connect(self.adjust)
 
     def _install_event_filters(self) -> None:
-        """Устанавливает фильтры событий на релевантные виджеты."""
-        for attr_name in [
-            "top_bar_host",
-            "content_container",
-            "quick_add_widget",
-            "fav_widget",
-            "recent_links_widget",
-        ]:
-            widget = self._safe_get(self.window, attr_name)
-            if isinstance(widget, QWidget) and widget not in self._watched_panels:
-                widget.installEventFilter(self)
-                self._watched_panels.add(widget)
-        # Окно
-        if isinstance(self.window, QWidget) and not _sip_isdeleted(self.window):
-            self.window.installEventFilter(self)
+        """Устанавливает фильтры событий на релевантные виджеты.
+
+        Делегирует в `topbar_layout.topbar_layout_utils.install_topbar_event_filters`.
+        """
+        _u_install_event_filters(
+            window=self.window,
+            watched_set=self._watched_panels,
+            event_filter_obj=self,
+            safe_get=self._safe_get,
+        )
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         if event.type() in (
@@ -144,35 +165,20 @@ class TopBarLayoutManager(QObject):
         self.adjust()
 
     def _safe_get(self, obj: Optional[object], name: str) -> Optional[object]:
-        if obj is None or (isinstance(obj, QObject) and _sip_isdeleted(obj)):
-            return None
-        try:
-            return getattr(obj, name, None)
-        except RuntimeError:
-            return None
+        """Безопасный getattr.
+
+        Делегирует в `topbar_layout.topbar_layout_utils.safe_get`.
+        """
+        return _u_safe_get(obj, name)
 
     def _iter_buttons(
         self, panel_widget: Optional[QWidget], name: str
     ) -> List[QToolButton]:
-        if not panel_widget:
-            return []
-        bg = self._safe_get(panel_widget, "bg_frame")
-        lay = (
-            bg.layout()
-            if isinstance(bg, QWidget) and callable(getattr(bg, "layout", None))
-            else None
-        )
-        ordered: List[QToolButton] = []
-        if lay:
-            for i in range(lay.count()):
-                w = lay.itemAt(i).widget()
-                if isinstance(w, QToolButton) and w.objectName() == name:
-                    ordered.append(w)
-        # Дополнить findChildren
-        for b in panel_widget.findChildren(QToolButton, name):
-            if b not in ordered:
-                ordered.append(b)
-        return ordered
+        """Возвращает упорядоченные кнопки панели.
+
+        Делегирует в `topbar_layout.topbar_measure.iter_buttons`.
+        """
+        return _tb_iter_buttons(panel_widget, name)
 
     def _set_visible_count(
         self, panel_widget: Optional[QWidget], btn_object_name: str, count: int
@@ -195,20 +201,18 @@ class TopBarLayoutManager(QObject):
         return count
 
     def _current_visible_count(self, btns: List[QToolButton]) -> int:
-        cnt = 0
-        for i, b in enumerate(btns):
-            if b.isVisible():
-                cnt = i + 1
-        return cnt
+        """Количество видимых кнопок (по последнему видимому индексу).
+
+        Делегирует в `topbar_layout.topbar_measure.current_visible_count`.
+        """
+        return _tb_current_visible_count(btns)
 
     def _get_top_bar(self) -> Optional[QLayout]:
-        for attr in ["top_bar_host", "content_container"]:
-            host = self._safe_get(self.window, attr)
-            if isinstance(host, QWidget):
-                lay = host.layout()
-                if lay:
-                    return lay
-        return None
+        """Найти лэйаут верхней панели в окне.
+
+        Делегирует в `topbar_layout.topbar_layout_utils.get_top_bar`.
+        """
+        return _u_get_top_bar(self.window)
 
     def _get_container_widget(self) -> Optional[QWidget]:
         if self._container_widget and not _sip_isdeleted(self._container_widget):
@@ -258,100 +262,13 @@ class TopBarLayoutManager(QObject):
             self._update_separators_visibility(
                 top_bar, False, False, False, bool(search)
             )
-            # Скрыть любые виджеты top-bar, кроме поля поиска
-            try:
-                count = top_bar.count()
-                for i in range(count):
-                    it = top_bar.itemAt(i)
-                    w = it.widget()
-                    if w is None:
-                        continue
-                    if isinstance(search, QLineEdit) and w is search:
-                        continue
-                    try:
-                        w.setVisible(False)
-                    except Exception:
-                        logger.debug(
-                            "TopBarLM: failed to hide non-search widget in narrow mode",
-                            exc_info=True,
-                        )
-                # Обнулить все spacerItem, чтобы не было отступов слева/справа от поиска
-                try:
-                    for i in range(count):
-                        sp = top_bar.itemAt(i).spacerItem()
-                        if sp is not None:
-                            sp.changeSize(
-                                0, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-                            )
-                except Exception:
-                    logger.debug(
-                        "TopBarLM: failed to zero spacers in narrow mode", exc_info=True
-                    )
-                # Отключить встроенные действия у поиска (иконки слева/справа, кнопка очистки)
-                if isinstance(search, QLineEdit):
-                    try:
-                        search.setClearButtonEnabled(False)
-                    except Exception:
-                        logger.debug(
-                            "TopBarLM: failed to disable clear button on search (narrow mode)",
-                            exc_info=True,
-                        )
-                    try:
-                        for act in search.actions():
-                            try:
-                                act.setVisible(False)
-                            except Exception:
-                                logger.debug(
-                                    "TopBarLM: failed to hide search action in narrow mode",
-                                    exc_info=True,
-                                )
-                    except Exception:
-                        logger.debug(
-                            "TopBarLM: failed to iterate search actions in narrow mode",
-                            exc_info=True,
-                        )
-                # Нулевые отступы у top_bar, чтобы поиск примыкал к краям
-                try:
-                    self._set_top_bar_margins(top_bar, 0, 0, 0, 0)
-                except Exception:
-                    logger.debug(
-                        "TopBarLM: failed to set zero margins on top_bar (narrow mode)",
-                        exc_info=True,
-                    )
-                # Поиск занимает всю ширину
-                try:
-                    if isinstance(search, QLineEdit):
-                        search.setMinimumWidth(0)
-                        # Не ограничиваем maxWidth конкретным значением, чтобы тянулся на весь доступный размер
-                        search.setMaximumWidth(16777215)
-                        search.setSizePolicy(
-                            QSizePolicy.Policy.Expanding,
-                            search.sizePolicy().verticalPolicy(),
-                        )
-                except Exception:
-                    logger.debug(
-                        "TopBarLM: failed to expand search to full width (narrow mode)",
-                        exc_info=True,
-                    )
-                # Пересчитать лейаут, чтобы исключить наложение
-                try:
-                    # Зафиксировать stretch-факторы: только поиск тянется
-                    self._enforce_stretches(top_bar, search)
-                    top_bar.invalidate()
-                    host = self._get_container_widget()
-                    if isinstance(host, QWidget):
-                        host.updateGeometry()
-                        host.update()
-                except Exception:
-                    logger.debug(
-                        "TopBarLM: failed to enforce stretches/update host in narrow mode",
-                        exc_info=True,
-                    )
-            except Exception:
-                logger.debug(
-                    "TopBarLayoutManager: narrow-mode hide non-search widgets failed",
-                    exc_info=True,
-                )
+            _apply_narrow_mode(
+                top_bar=top_bar,
+                search=search,
+                set_top_bar_margins=self._set_top_bar_margins,
+                enforce_stretches=self._enforce_stretches,
+                get_container_widget=self._get_container_widget,
+            )
             return
 
         # Кэшировать списки кнопок
@@ -381,40 +298,13 @@ class TopBarLayoutManager(QObject):
                     self._update_separators_visibility(
                         top_bar, False, False, False, bool(search)
                     )
-                    count = top_bar.count()
-                    for i in range(count):
-                        it = top_bar.itemAt(i)
-                        w = it.widget()
-                        if w is None:
-                            continue
-                        if isinstance(search, QLineEdit) and w is search:
-                            continue
-                        try:
-                            w.setVisible(False)
-                        except Exception:
-                            pass
-                    # Обнулить spacerItem, чтобы не было отступов
-                    try:
-                        for i in range(count):
-                            sp = top_bar.itemAt(i).spacerItem()
-                            if sp is not None:
-                                sp.changeSize(0, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-                    except Exception:
-                        pass
-                    # Нулевые отступы и перерасчёт
-                    try:
-                        self._set_top_bar_margins(top_bar, 0, 0, 0, 0)
-                        self._enforce_stretches(top_bar, search)
-                        top_bar.invalidate()
-                        host = self._get_container_widget()
-                        if isinstance(host, QWidget):
-                            host.updateGeometry()
-                            host.update()
-                    except Exception:
-                        logger.debug(
-                            "TopBarLM: failed to apply narrow-mode zero-count layout",
-                            exc_info=True,
-                        )
+                    _apply_narrow_mode(
+                        top_bar=top_bar,
+                        search=search,
+                        set_top_bar_margins=self._set_top_bar_margins,
+                        enforce_stretches=self._enforce_stretches,
+                        get_container_widget=self._get_container_widget,
+                    )
                 except Exception:
                     logger.debug(
                         "TopBarLayoutManager: zero-count narrow-mode handling failed",
@@ -539,203 +429,61 @@ class TopBarLayoutManager(QObject):
         # чтобы исключить визуальное «переполнение» и наезд на соседние панели.
         try:
             if isinstance(search, QLineEdit):
-                # Считаем суммарную ширину уже применённых панелей + разделителей/отступов
-                occupied = 0
-                count = top_bar.count()
-                for i in range(count):
-                    it = top_bar.itemAt(i)
-                    w = it.widget()
-                    if w is None:
-                        sp = it.spacerItem()
-                        if sp:
-                            occupied += max(0, sp.sizeHint().width())
-                        continue
-                    if w is search:
-                        continue
-                    if w.isVisible():
-                        try:
-                            occupied += int(w.width())
-                        except Exception:
-                            occupied += w.sizeHint().width()
-                spacing = top_bar.spacing() or 0
-                # число видимых элементов (без поиска) для корректировки spacing
-                visible_widgets = [
-                    top_bar.itemAt(i).widget()
-                    for i in range(count)
-                    if top_bar.itemAt(i).widget() is not None and top_bar.itemAt(i).widget() is not search and top_bar.itemAt(i).widget().isVisible()
-                ]
-                occupied += spacing * max(0, len(visible_widgets) - 1)
-                m = top_bar.contentsMargins()
-                occupied += m.left() + m.right()
-                host = self._get_container_widget()
-                container_w = host.width() if isinstance(host, QWidget) else 0
-                remaining = max(0, container_w - occupied)
-                # Не даём меньше минимальной ширины поиска
-                max_search_w = max(self._min_search_width, remaining)
-                # Применяем ограничения к поиску
-                if search.maximumWidth() != max_search_w:
-                    search.setMaximumWidth(max_search_w)
-                if search.minimumWidth() != self._min_search_width:
-                    search.setMinimumWidth(self._min_search_width)
+                _u_clamp_search_width(
+                    top_bar=top_bar,
+                    search=search,
+                    get_container_widget=self._get_container_widget,
+                    min_search_width=self._min_search_width,
+                )
         except Exception:
             logger.debug("TopBarLM: failed to clamp search width to remaining space", exc_info=True)
 
     def _apply_with_animation(
         self, panel: Optional[QWidget], btns: list[QToolButton], target_visible: int
     ) -> int:
-        if not panel:
-            return 0
-        target_visible = max(0, min(target_visible, len(btns)))
+        """Анимированно применить количество кнопок панели.
 
-        # Build animation group
-        group = QParallelAnimationGroup(panel)
-        any_anim = False
-
-        # 1) Width animation (maximumWidth)
-        panel.setMinimumWidth(0)
-        new_w = self._panel_width(panel, btns, target_visible) if target_visible > 0 else 0
-        old_w = int(panel.maximumWidth())
-        if old_w != new_w:
-            wa = QPropertyAnimation(panel, b"maximumWidth")
-            wa.setDuration(self._anim_duration_ms)
-            wa.setEasingCurve(self._anim_curve)
-            wa.setStartValue(old_w)
-            wa.setEndValue(new_w)
-            group.addAnimation(wa)
-            any_anim = True
-        else:
-            panel.setMaximumWidth(new_w)
-
-        # 2) Buttons opacity animations
-        for i, btn in enumerate(btns):
-            need_visible = i < target_visible
-            cur_visible = btn.isVisible()
-            eff = btn.graphicsEffect()
-            if not isinstance(eff, QGraphicsOpacityEffect):
-                eff = QGraphicsOpacityEffect(btn)
-                btn.setGraphicsEffect(eff)
-            if need_visible and not cur_visible:
-                btn.setVisible(True)
-                eff.setOpacity(0.0)
-                oa = QPropertyAnimation(eff, b"opacity")
-                oa.setDuration(self._anim_duration_ms)
-                oa.setEasingCurve(self._anim_curve)
-                oa.setStartValue(0.0)
-                oa.setEndValue(1.0)
-                group.addAnimation(oa)
-                any_anim = True
-            elif (not need_visible) and cur_visible:
-                eff.setOpacity(1.0)
-                oa = QPropertyAnimation(eff, b"opacity")
-                oa.setDuration(self._anim_duration_ms)
-                oa.setEasingCurve(self._anim_curve)
-                oa.setStartValue(1.0)
-                oa.setEndValue(0.0)
-                # Hide after fade-out
-                def _hide_button(b=btn):
-                    try:
-                        b.setVisible(False)
-                    except Exception:
-                        pass
-                oa.finished.connect(_hide_button)
-                group.addAnimation(oa)
-                any_anim = True
-
-        # Run or apply instantly
-        if any_anim:
-            self._animating = True
-            self._active_groups.append(group)
-            def _on_done():
-                try:
-                    host = self._get_container_widget()
-                    if isinstance(host, QWidget):
-                        host.updateGeometry()
-                        host.update()
-                except Exception:
-                    pass
-                if group in self._active_groups:
-                    self._active_groups.remove(group)
-                if not self._active_groups:
-                    self._animating = False
-                    # Trigger a final adjust to settle last state
-                    self._throttle_timer.start(0)
-            group.finished.connect(_on_done)
-            group.start()
-        else:
-            # Ensure panel width is applied when no animation
-            panel.setMaximumWidth(new_w)
-
-        return target_visible
+        Делегирует в `topbar_layout.topbar_animations.apply_with_animation`.
+        """
+        return _u_apply_with_animation(
+            panel=panel,
+            btns=btns,
+            target_visible=target_visible,
+            anim_duration_ms=self._anim_duration_ms,
+            anim_curve=self._anim_curve,
+            get_container_widget=self._get_container_widget,
+            throttle_timer=self._throttle_timer,
+            panel_width_func=self._panel_width,
+        )
 
     def _zero_all_spacers(self, top_bar: QLayout) -> None:
-        """Устанавливает ширину всех spacerItem в 0 для полного освобождения места (узкий режим)."""
-        try:
-            count = top_bar.count()
-            for i in range(count):
-                it = top_bar.itemAt(i)
-                sp = it.spacerItem()
-                if sp is not None:
-                    sp.changeSize(0, 0)
-        except Exception:
-            # Диагностические ошибки не критичны
-            logger.debug("TopBarLM: _zero_all_spacers failed", exc_info=True)
+        """Схлопнуть все spacerItem до нуля.
+
+        Делегирует в `topbar_layout.topbar_layout_utils.zero_all_spacers`.
+        """
+        _u_zero_all_spacers(top_bar)
 
     def _apply_panel_width_bounds(
         self, panel: Optional[QWidget], btns: List[QToolButton], visible: int
     ) -> None:
-        if not panel:
-            return
-        panel.setMinimumWidth(0)
-        max_w = self._panel_width(panel, btns, visible) if visible > 0 else 0
-        panel.setMaximumWidth(max_w)
+        """Ограничить максимальную ширину панели по расчёту.
+
+        Делегирует в `topbar_layout.topbar_layout_utils.apply_panel_width_bounds`.
+        """
+        _u_apply_panel_width_bounds(
+            panel,
+            btns,
+            visible,
+            panel_width_func=self._panel_width,
+        )
 
     def _set_top_bar_margins(
         self, top_bar: QLayout, left: int, top: int, right: int, bottom: int
     ) -> None:
-        """Безопасно выставляет отступы для top_bar (QLayout)."""
-        try:
-            m = top_bar.contentsMargins()
-            if (
-                m.left() == left
-                and m.top() == top
-                and m.right() == right
-                and m.bottom() == bottom
-            ):
-                return
-        except Exception:
-            logger.debug("TopBarLM: failed to read contentsMargins()", exc_info=True)
-        try:
-            top_bar.setContentsMargins(left, top, right, bottom)
-        except Exception:
-            logger.debug("TopBarLM: setContentsMargins failed", exc_info=True)
+        _u_set_top_bar_margins(top_bar, left, top, right, bottom)
 
     def _enforce_stretches(self, top_bar: QLayout, search: Optional[QLineEdit]) -> None:
-        """Сбрасывает stretch=0 для всех элементов top_bar и ставит stretch=1 только для поиска."""
-        try:
-            count = top_bar.count()
-            search_index = -1
-            for i in range(count):
-                it = top_bar.itemAt(i)
-                w = it.widget()
-                if w is not None and isinstance(search, QLineEdit) and w is search:
-                    search_index = i
-                try:
-                    top_bar.setStretch(i, 0)
-                except Exception:
-                    logger.debug(
-                        "TopBarLM: setStretch(0) failed at index %s", i, exc_info=True
-                    )
-            if search_index >= 0:
-                try:
-                    top_bar.setStretch(search_index, 1)
-                except Exception:
-                    logger.debug(
-                        "TopBarLM: setStretch(1) for search failed at index %s",
-                        search_index,
-                        exc_info=True,
-                    )
-        except Exception:
-            logger.debug("TopBarLM: _enforce_stretches failed", exc_info=True)
+        _u_enforce_stretches(top_bar, search)
 
     def _compute_visible_counts(
         self,
@@ -749,68 +497,25 @@ class TopBarLayoutManager(QObject):
         fav_btns: List[QToolButton],
         quick_btns: List[QToolButton],
     ) -> Tuple[int, int, int]:
-        max_recent = min(self._max_recent, len(recent_btns))
-        max_fav = min(self._max_fav, len(fav_btns))
-        max_quick = min(self._max_quick, len(quick_btns))
+        """Рассчитать видимые количества кнопок на панелях.
 
-        # Минимальные квоты отключены для единообразного поведения
-        min_recent = 0
-        min_fav = 0
-        min_quick = 0
-
-        cnt_recent, cnt_fav, cnt_quick = max_recent, max_fav, max_quick
-        cnt_recent = max(min_recent, cnt_recent)
-        cnt_fav = max(min_fav, cnt_fav)
-        cnt_quick = max(min_quick, cnt_quick)
-
-        max_steps = (
-            (cnt_recent - min_recent) + (cnt_fav - min_fav) + (cnt_quick - min_quick)
+        Делегирует в `topbar_layout.topbar_measure.compute_visible_counts` и логирует снапшот.
+        """
+        cnt_recent, cnt_fav, cnt_quick = _tb_compute_visible_counts(
+            width=width,
+            top_bar=top_bar,
+            search=search,
+            recent=recent,
+            fav=fav,
+            quick=quick,
+            recent_btns=recent_btns,
+            fav_btns=fav_btns,
+            quick_btns=quick_btns,
+            max_recent_cap=self._max_recent,
+            max_fav_cap=self._max_fav,
+            max_quick_cap=self._max_quick,
+            total_width_for_func=self._total_width_for,
         )
-        steps = 0
-        while (
-            self._total_width_for(
-                top_bar,
-                search,
-                recent,
-                fav,
-                quick,
-                recent_btns,
-                fav_btns,
-                quick_btns,
-                cnt_recent,
-                cnt_fav,
-                cnt_quick,
-            )
-            > width
-            and steps < max_steps
-        ):
-            steps += 1
-            if cnt_recent > min_recent:
-                cnt_recent -= 1
-            elif cnt_fav > min_fav:
-                cnt_fav -= 1
-            elif cnt_quick > min_quick:
-                cnt_quick -= 1
-            else:
-                break
-
-        if (
-            self._total_width_for(
-                top_bar,
-                search,
-                recent,
-                fav,
-                quick,
-                recent_btns,
-                fav_btns,
-                quick_btns,
-                cnt_recent,
-                cnt_fav,
-                cnt_quick,
-            )
-            > width
-        ):
-            cnt_recent, cnt_fav, cnt_quick = 0, 0, 0
 
         self._log_layout_snapshot(
             width,
@@ -846,89 +551,30 @@ class TopBarLayoutManager(QObject):
     ) -> None:
         if not self._log_info:
             return
-        try:
-            total = self._total_width_for(
-                top_bar,
-                search,
-                recent,
-                fav,
-                quick,
-                recent_btns,
-                fav_btns,
-                quick_btns,
-                c_r,
-                c_f,
-                c_q,
-            )
-            tb_spacing = top_bar.spacing() or 0
-            tb_m = top_bar.contentsMargins()
-            def _panel_line(name: str, panel: Optional[QWidget], btns: List[QToolButton], cnt: int) -> str:
-                if not panel:
-                    return f"{name}: none"
-                try:
-                    comp = self._panel_width(panel, btns, cnt)
-                except Exception:
-                    comp = -1
-                try:
-                    pw = int(panel.width())
-                    pmw = int(panel.maximumWidth())
-                except Exception:
-                    pw = pmw = -1
-                try:
-                    bg = self._safe_get(panel, "bg_frame")
-                    lay = bg.layout() if bg else None
-                    sp = lay.spacing() if lay else 0
-                    lm = lay.contentsMargins() if lay else None
-                    lm_str = f"{lm.left()},{lm.right()}" if lm else "-"
-                except Exception:
-                    sp = 0
-                    lm_str = "-"
-                try:
-                    pm = panel.contentsMargins()
-                    pm_str = f"{pm.left()},{pm.right()}"
-                except Exception:
-                    pm_str = "-"
-                cur = self._current_visible_count(btns)
-                return (
-                    f"{name}: tgt={cnt} cur={cur} comp={comp} w={pw} maxW={pmw} "
-                    f"lay[sp={sp} mL,R={lm_str}] panel[mL,R={pm_str}]"
-                )
-            lines = [
-                f"TopBarSnapshot: container_w={container_w} total={total} tb[sp={tb_spacing} mL,R={tb_m.left()},{tb_m.right()}]",
-                _panel_line("recent", recent, recent_btns, c_r),
-                _panel_line("fav", fav, fav_btns, c_f),
-                _panel_line("quick", quick, quick_btns, c_q),
-                f"search minW={self._min_search_width}",
-            ]
-            for ln in lines:
-                logger.info(ln)
-        except Exception:
-            logger.debug("TopBarLM: _log_layout_snapshot failed", exc_info=True)
+        _u_log_layout_snapshot(
+            container_w=container_w,
+            top_bar=top_bar,
+            search=search,
+            recent=recent,
+            fav=fav,
+            quick=quick,
+            recent_btns=recent_btns,
+            fav_btns=fav_btns,
+            quick_btns=quick_btns,
+            c_r=c_r,
+            c_f=c_f,
+            c_q=c_q,
+            total_width_for_func=self._total_width_for,
+        )
 
     def _panel_width(
         self, panel: Optional[QWidget], btns: List[QToolButton], count: int
     ) -> int:
-        if not panel or not btns or count <= 0:
-            return 0
-        bg = self._safe_get(panel, "bg_frame")
-        lay = bg.layout() if bg else None
-        spacing = lay.spacing() if lay else 0
-        total = 0
-        for i in range(count):
-            # Используем sizeHint с fallback на конфигурируемый размер кнопки
-            try:
-                btn_w = max(self._button_size, int(btns[i].sizeHint().width()))
-            except Exception:
-                btn_w = self._button_size
-            if i > 0:
-                total += spacing
-            total += btn_w
-        if lay:
-            m = lay.contentsMargins()
-            total += m.left() + m.right()
-        pm = panel.contentsMargins()
-        total += pm.left() + pm.right()
-        return total
+        """Ширина панели с учётом margins/spacing.
+
+        Делегирует в `topbar_layout.topbar_measure.panel_width`.
+        """
+        return _tb_panel_width(panel, btns, count, button_size=self._button_size)
 
     def _total_width_for(
         self,
@@ -944,31 +590,25 @@ class TopBarLayoutManager(QObject):
         c_f: int,
         c_q: int,
     ) -> int:
-        items: List[int] = []
-        for i in range(top_bar.count()):
-            it = top_bar.itemAt(i)
-            w = it.widget()
-            if w:
-                if w is search:
-                    items.append(self._min_search_width)
-                elif w is recent and c_r > 0:
-                    items.append(self._panel_width(recent, recent_btns, c_r))
-                elif w is fav and c_f > 0:
-                    items.append(self._panel_width(fav, fav_btns, c_f))
-                elif w is quick and c_q > 0:
-                    items.append(self._panel_width(quick, quick_btns, c_q))
-                elif w.isVisible():
-                    items.append(w.sizeHint().width())
-            else:
-                sp = it.spacerItem()
-                if sp:
-                    items.append(max(0, sp.sizeHint().width()))
-        total = sum(items)
-        spacing = top_bar.spacing() or 0
-        total += spacing * max(0, len(items) - 1)
-        m = top_bar.contentsMargins()
-        total += m.left() + m.right()
-        return total
+        """Суммарная требуемая ширина top-bar.
+
+        Делегирует в `topbar_layout.topbar_measure.total_width_for`.
+        """
+        return _tb_total_width_for(
+            top_bar,
+            search,
+            recent,
+            fav,
+            quick,
+            recent_btns,
+            fav_btns,
+            quick_btns,
+            c_r,
+            c_f,
+            c_q,
+            button_size=self._button_size,
+            min_search_width=self._min_search_width,
+        )
 
     def _update_separators_visibility(
         self,
@@ -978,98 +618,30 @@ class TopBarLayoutManager(QObject):
         quick_visible: bool,
         search_exists: bool,
     ) -> None:
-        def logical_visible_panel(w: Optional[QWidget]) -> bool:
-            if not w:
-                return False
-            if w is self._safe_get(self.window, "recent_links_widget"):
-                return recent_visible and w.isVisible()
-            if w is self._safe_get(self.window, "fav_widget"):
-                return fav_visible and w.isVisible()
-            if w is self._safe_get(self.window, "quick_add_widget"):
-                return quick_visible and w.isVisible()
-            return False
+        """Обновить видимость вертикальных разделителей.
 
-        count = top_bar.count()
-        i = 0
-        while i < count:
-            it = top_bar.itemAt(i)
-            w = it.widget()
-            if self._is_vertical_separator(w):
-                left_widget = None
-                j = i - 1
-                while j >= 0 and not left_widget:
-                    prev_it = top_bar.itemAt(j)
-                    if prev_it.widget():
-                        left_widget = prev_it.widget()
-                    j -= 1
-                right_widget = None
-                j = i + 1
-                while j < count and not right_widget:
-                    next_it = top_bar.itemAt(j)
-                    if next_it.widget():
-                        right_widget = next_it.widget()
-                    j += 1
-                show_sep = logical_visible_panel(left_widget) and (
-                    logical_visible_panel(right_widget)
-                    or (search_exists and isinstance(right_widget, QLineEdit))
-                )
-                w.setVisible(show_sep)
-                # Размеры спейсеров: при видимом разделителе по 4px с обеих сторон.
-                # При скрытом разделителе оставляем стандартный отступ 4px только перед полем поиска,
-                # а с другой стороны схлопываем до 0, чтобы не было двойного зазора.
-                left_sp = top_bar.itemAt(i - 1).spacerItem() if i - 1 >= 0 else None
-                right_sp = top_bar.itemAt(i + 1).spacerItem() if i + 1 < count else None
-
-                if show_sep:
-                    if left_sp:
-                        left_sp.changeSize(
-                            self.DEFAULT_SPACER_SIZE,
-                            0,
-                            QSizePolicy.Policy.Fixed,
-                            QSizePolicy.Policy.Fixed,
-                        )
-                    if right_sp:
-                        right_sp.changeSize(
-                            self.DEFAULT_SPACER_SIZE,
-                            0,
-                            QSizePolicy.Policy.Fixed,
-                            QSizePolicy.Policy.Fixed,
-                        )
-                else:
-                    # Если справа Search (QLineEdit) — оставляем 4px справа, слева 0px.
-                    is_search_right = isinstance(right_widget, QLineEdit)
-                    if left_sp:
-                        left_sp.changeSize(
-                            0 if is_search_right else self.DEFAULT_SPACER_SIZE,
-                            0,
-                            QSizePolicy.Policy.Fixed,
-                            QSizePolicy.Policy.Fixed,
-                        )
-                    if right_sp:
-                        right_sp.changeSize(
-                            self.DEFAULT_SPACER_SIZE if is_search_right else 0,
-                            0,
-                            QSizePolicy.Policy.Fixed,
-                            QSizePolicy.Policy.Fixed,
-                        )
-            i += 1
-        top_bar.invalidate()
-
-    def _is_vertical_separator(self, w: Optional[QWidget]) -> bool:
-        if not w:
-            return False
-        if w.objectName() == "vSeparator":
-            return True
-        cls = str(w.property("class") or "")
-        return cls == "vertical_separator"
+        Делегирует в `topbar_layout.topbar_separators.update_separators_visibility`.
+        """
+        _u_update_separators_visibility(
+            top_bar=top_bar,
+            window=self.window,
+            recent_visible=recent_visible,
+            fav_visible=fav_visible,
+            quick_visible=quick_visible,
+            search_exists=search_exists,
+            safe_get=self._safe_get,
+            spacer_size=DEFAULT_SPACER_SIZE,
+        )
 
     def _apply_counts(self, width: int, c_r: int, c_f: int, c_q: int) -> None:
-        recent = self._safe_get(self.window, "recent_links_widget")
-        fav = self._safe_get(self.window, "fav_widget")
-        quick = self._safe_get(self.window, "quick_add_widget")
-        self._set_visible_count(recent, "recentButton", c_r)
-        self._set_visible_count(fav, "favoriteButton", c_f)
-        self._set_visible_count(quick, "quickButton", c_q)
+        _u_apply_counts(
+            window=self.window,
+            set_visible_count=self._set_visible_count,
+            safe_get=self._safe_get,
+            c_r=c_r,
+            c_f=c_f,
+            c_q=c_q,
+        )
         self._last_applied = (width, c_r, c_f, c_q)
 
     def _get_cfg_int(self, key: str, default: int) -> int:

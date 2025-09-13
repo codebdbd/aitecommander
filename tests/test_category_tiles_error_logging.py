@@ -5,7 +5,7 @@ from PyQt6.QtCore import QPoint
 
 
 def reload_tiles():
-    from app.views import category_tiles as ct
+    from app.views import tiles as ct
 
     importlib.reload(ct)
     return ct

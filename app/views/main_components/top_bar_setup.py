@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from PyQt6.QtCore import Qt
@@ -33,7 +34,7 @@ class TopBarBuilder:
 
         Примечание: метод полностью сохраняет текущее поведение (метрики, тайминги, правила видимости).
         """
-        t_total_start = __import__("time").perf_counter()
+        t_total_start = time.perf_counter()
         # Determine parent for helper widgets
         container_parent = (
             getattr(self.main_layout, "parentWidget", lambda: None)()
