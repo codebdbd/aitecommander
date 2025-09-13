@@ -224,7 +224,7 @@ class Database(DatabaseBase):
                     len(ids),
                     batches,
                     CHUNK_SIZE,
-                    ("%.2f" % ((_t1 - _t0) * 1000.0)),
+                    ((_t1 - _t0) * 1000.0),
                 )
             logger.debug(
                 "Обновлены позиции (%s шт.) в таблице %s",

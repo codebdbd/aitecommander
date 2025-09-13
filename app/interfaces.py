@@ -59,28 +59,25 @@ class SettingsLike(Protocol):
 
 
 @runtime_checkable
-class FavoritesPanelLike(Protocol):
-    """Панель избранного, требующая метод set_favorites."""
+class TopPanelDataLike(Protocol):
+    """Единый контракт верхних панелей: установка данных для отрисовки.
 
-    def set_favorites(self, items: list[Any]) -> None: ...
+    Виджеты не содержат бизнес-логики и не обращаются к БД, а только отображают
+    переданные элементы.
+    """
+
+    def set_data(self, items: list[Any]) -> None: ...
 
 
 @runtime_checkable
-class FavoritesPanelWithClear(FavoritesPanelLike, Protocol):
-    """Расширенный протокол панели избранного: поддерживает очистку на стороне виджета."""
+class FavoritesPanelWithClear(TopPanelDataLike, Protocol):
+    """Избранное: поддерживает очистку на стороне виджета."""
 
     def clear_favorites(self) -> None: ...
 
 
 @runtime_checkable
-class RecentsPanelLike(Protocol):
-    """Панель недавних ссылок, требующая метод set_recent_links."""
-
-    def set_recent_links(self, items: list[Any]) -> None: ...
-
-
-@runtime_checkable
-class RecentsPanelWithLimit(RecentsPanelLike, Protocol):
-    """Расширенный протокол панели недавних: предоставляет лимит элементов."""
+class RecentsPanelWithLimit(TopPanelDataLike, Protocol):
+    """Недавние: может сообщать желаемый лимит элементов (опционально)."""
 
     def get_limit(self) -> Optional[int]: ...
