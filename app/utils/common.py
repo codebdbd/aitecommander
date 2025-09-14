@@ -24,7 +24,8 @@ def get_value(obj: Any, key: str, default: Any = None) -> Any:
     """
     try:
         if hasattr(obj, "get"):
-            return obj.get(key, default)  # type: ignore[attr-defined]
+            # у словареподобных объектов безопасно вызываем get
+            return obj.get(key, default)
         return getattr(obj, key, default)
     except Exception:
         return default

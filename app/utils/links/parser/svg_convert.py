@@ -50,7 +50,9 @@ def convert_svg(svg_data: bytes, target_size: int | None = None) -> bytes | None
     try:
         buffer.open(QIODevice.OpenModeFlag.WriteOnly)
         if image.save(buffer, "PNG"):
-            return bytes(buffer.data())
+            ba = buffer.data()
+            raw: bytes = ba.data()  # PyQt6: QByteArray.data() -> bytes
+            return raw
     finally:
         buffer.close()
     return None

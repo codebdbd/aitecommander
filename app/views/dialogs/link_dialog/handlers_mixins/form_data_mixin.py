@@ -3,17 +3,21 @@
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Protocol
 
 logger = logging.getLogger(__name__)
 
 
+class _HasDialog(Protocol):
+    dialog: Any
+
+
 class FormDataMixin:
-    def _build_form_data(self) -> Dict[str, Any]:
+    def _build_form_data(self: _HasDialog) -> Dict[str, Any]:
         """Формирует данные формы из UI компонентов."""
         return self._collect_form_data()
 
-    def _collect_form_data(self) -> Dict[str, Any]:
+    def _collect_form_data(self: _HasDialog) -> Dict[str, Any]:
         """Сбор данных из формы."""
         collected_name = self.dialog._get_name_le().text().strip()
         collected_args = self.dialog._get_args_le().text().strip()

@@ -7,7 +7,7 @@ import os
 import sys
 import time
 from functools import partial
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from PyQt6.QtCore import QEvent, QObject, QSize, QTimer
 from PyQt6.QtWidgets import (
@@ -196,7 +196,7 @@ class WindowUISetup:
         self.theme_ctrl = window_initializer.theme_ctrl
 
         # main_layout будет установлен позже
-        self.main_layout = None
+        self.main_layout: QVBoxLayout | None = None
 
     def setup_basic_attributes(self) -> None:
         """Настройка базовых атрибутов окна."""
@@ -235,11 +235,19 @@ class WindowUISetup:
         self.main_layout.setSpacing(app_config.ui.get_main_layout_spacing())
         # Убираем зазор между QMenuBar и верхним разделителем: верхний margin = 0
         try:
-            left, _top, r, b = self.main_layout.getContentsMargins()
+            ml = self.main_layout
+            if ml is None:
+                raise RuntimeError("main_layout is None")
+            left, _top, r, b = ml.getContentsMargins()
         except Exception:
             left, _top, r, b = (0, 0, 0, 0)
         try:
-            self.main_layout.setContentsMargins(left, 0, r, b)
+            ml = self.main_layout
+            if ml is not None:
+                left_i = int(left or 0)
+                r_i = int(r or 0)
+                b_i = int(b or 0)
+                ml.setContentsMargins(left_i, 0, r_i, b_i)
         except Exception:
             logger.debug(
                 "WindowUISetup: failed to force top margin=0 for main_layout",
@@ -250,13 +258,15 @@ class WindowUISetup:
         """Настройка верхней панели."""
         from .top_bar_setup import TopBarBuilder
 
-        TopBarBuilder(self).build()
+        TopBarBuilder(cast(Any, self)).build()
 
     def _add_top_separator(self, container_parent: QWidget) -> None:
         """Добавляет верхний горизонтальный разделитель в основной layout."""
         h_line_top = QWidget(container_parent)
         h_line_top.setProperty("class", "separator")
-        self.main_layout.addWidget(h_line_top)
+        ml = self.main_layout
+        if ml is not None:
+            ml.addWidget(h_line_top)
 
     def _build_top_bar_widgets_with_metrics(self, top_bar: QHBoxLayout) -> None:
         """Строит виджеты верхней панели и логирует длительность."""
@@ -677,6 +687,8 @@ class WindowUISetup:
             search_index = -1
             for i in range(count):
                 it = top_bar.itemAt(i)
+                if it is None:
+                    continue
                 w = it.widget()
                 if w is search_widget:
                     search_index = i
@@ -711,7 +723,9 @@ class WindowUISetup:
         )
         h_line_top = QWidget(container_parent)
         h_line_top.setProperty("class", "separator")
-        self.main_layout.addWidget(h_line_top)
+        ml = self.main_layout
+        if ml is not None:
+            ml.addWidget(h_line_top)
 
         mid = QHBoxLayout()
         mid.setContentsMargins(*app_config.ui.get_layout_margins("mid"))
@@ -722,12 +736,16 @@ class WindowUISetup:
         # Правая панель с плитками и таблицей
         self.setup_right_panel(mid)
 
-        self.main_layout.addLayout(mid)
+        ml = self.main_layout
+        if ml is not None:
+            ml.addLayout(mid)
 
         # Разделитель после основного содержимого
         h_line_2 = QWidget(container_parent)
         h_line_2.setProperty("class", "separator")
-        self.main_layout.addWidget(h_line_2)
+        ml = self.main_layout
+        if ml is not None:
+            ml.addWidget(h_line_2)
 
     def setup_left_panel(self, mid: QHBoxLayout) -> None:
         """Настройка левой панели."""
@@ -783,7 +801,7 @@ class WindowUISetup:
         """Настройка правой панели."""
         from .right_panel_setup import RightPanelBuilder
 
-        RightPanelBuilder(self).build(mid)
+        RightPanelBuilder(cast(Any, self)).build(mid)
 
     def _setup_auto_hide_tree_filter(self, splitter_sizes: list[int]) -> None:
         """Инициализирует и запускает фильтр авто‑скрытия дерева для узких окон."""
@@ -818,7 +836,7 @@ class WindowUISetup:
         """Настройка нижней панели."""
         from .bottom_panel_setup import BottomPanelBuilder
 
-        BottomPanelBuilder(self).build()
+        BottomPanelBuilder(cast(Any, self)).build()
 
     def setup_status_bar(self) -> None:
         """Настройка статус-бара."""

@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from PyQt6.QtCore import QThreadPool
 from PyQt6.QtWidgets import QApplication
@@ -177,8 +177,8 @@ class AppShutdownController:
         return groups
 
     def _execute_handlers_sequential(
-        self, handlers: List[ShutdownHandler], remaining_ms: int | None = None
-    ):
+        self, handlers: List[ShutdownHandler], remaining_ms: Optional[int] = None
+    ) -> None:
         """Последовательное выполнение handlers с учетом общего дедлайна."""
         for handler in handlers:
             rem = self._remaining_time_ms() if remaining_ms is None else remaining_ms
@@ -193,8 +193,8 @@ class AppShutdownController:
             self._execute_single_handler(handler, override_timeout_ms=eff_timeout)
 
     def _execute_handlers_parallel(
-        self, handlers: List[ShutdownHandler], remaining_ms: int | None = None
-    ):
+        self, handlers: List[ShutdownHandler], remaining_ms: Optional[int] = None
+    ) -> None:
         """Параллельное выполнение handlers (для некритичных операций) с учетом общего дедлайна."""
         max_workers = min(len(handlers), 4)
         # Эффективный таймаут — минимум из максимального таймаута handlers и оставшегося времени
@@ -269,8 +269,8 @@ class AppShutdownController:
                 timer.cancel()
 
     def _execute_single_handler(
-        self, handler: ShutdownHandler, override_timeout_ms: int | None = None
-    ):
+        self, handler: ShutdownHandler, override_timeout_ms: Optional[int] = None
+    ) -> None:
         """Выполнение одного handler с реальным таймаутом и расширенным логированием.
 
         Исполняем обработчик в отдельном потоке и ждём завершения через Thread.join(timeout).
@@ -354,7 +354,7 @@ class AppShutdownController:
                 )
                 return
 
-    def _register_default_handlers(self):
+    def _register_default_handlers(self) -> None:
         """Регистрация стандартных handlers (совместимость с оригинальным кодом)."""
         # Порядок как раньше: controllers -> wait threads -> backup
         # 1) Остановка контроллеров (строгий, критичный)
@@ -387,7 +387,7 @@ class AppShutdownController:
             critical=False,
         )
 
-    def _remaining_time_ms(self) -> int | None:
+    def _remaining_time_ms(self) -> Optional[int]:
         """Сколько миллисекунд осталось до общего дедлайна. None — если дедлайн не настроен."""
         if not self.max_shutdown_time:
             return None
@@ -400,11 +400,11 @@ class AppShutdownController:
     def add_shutdown_handler(
         self,
         name: str,
-        handler: Callable,
+        handler: Callable[[], None],
         priority: ShutdownPriority = ShutdownPriority.NORMAL,
-        timeout: int = None,
+        timeout: Optional[int] = None,
         critical: bool = False,
-    ):
+    ) -> None:
         """Добавить пользовательский shutdown handler."""
         # Проверяем, нет ли уже handler'а с таким именем
         self.remove_shutdown_handler(name)

@@ -7,7 +7,7 @@ import logging
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, cast
 
 from app.config_data import app_config
 
@@ -526,8 +526,8 @@ def get_current_theme() -> str:
     try:
         from PyQt6.QtWidgets import QApplication  # локальный импорт
 
-        app = QApplication.instance()
-        if app:
+        app = cast(QApplication | None, QApplication.instance())
+        if app is not None:
             for widget in app.topLevelWidgets():
                 # ожидаем наличие settings.get_theme()
                 settings = getattr(widget, "settings", None)

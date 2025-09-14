@@ -33,7 +33,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import Callable, Optional, Protocol, TypeVar
+from typing import Callable, Optional, Protocol, TypeVar, overload, cast
 
 from PyQt6.QtCore import QThreadPool
 
@@ -60,6 +60,23 @@ class _TaskHandleImpl:
         self._task.cancel()
 
 
+ProgressReporter = Callable[[int], None]
+
+
+@overload
+def run_db(
+    func: Callable[[ProgressReporter], T],
+    *,
+    use_lock: bool = ...,
+    description: Optional[str] = ...,
+    pool: Optional[QThreadPool] = ...,
+    on_finished: Optional[Callable[[T], None]] = ...,
+    on_error: Optional[Callable[[Exception], None]] = ...,
+    on_progress: Optional[Callable[[int], None]] = ...,
+) -> TaskHandle: ...
+
+
+@overload
 def run_db(
     func: Callable[[], T],
     *,
@@ -108,25 +125,27 @@ def run_db(
     expects_reporter = _expects_reporter(func)
 
     if expects_reporter:
+        func_with_reporter = cast(Callable[[ProgressReporter], T], func)
         if use_lock:
 
-            def _wrapped(report_progress: Callable[[int], None]) -> T:
+            def _wrapped(report_progress: ProgressReporter) -> T:
                 with db_lock:
-                    return func(report_progress)  # type: ignore[misc]
+                    return func_with_reporter(report_progress)
         else:
 
-            def _wrapped(report_progress: Callable[[int], None]) -> T:
-                return func(report_progress)  # type: ignore[misc]
+            def _wrapped(report_progress: ProgressReporter) -> T:
+                return func_with_reporter(report_progress)
     else:
+        func_noargs = cast(Callable[[], T], func)
         if use_lock:
 
             def _wrapped() -> T:
                 with db_lock:
-                    return func()
+                    return func_noargs()
         else:
 
             def _wrapped() -> T:
-                return func()
+                return func_noargs()
 
     task = DatabaseTask[T](
         _wrapped, description=description, reporter=(on_progress or (lambda *_: None))

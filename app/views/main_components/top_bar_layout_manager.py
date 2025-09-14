@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, cast, Any
 from weakref import WeakSet
 
 from PyQt6.QtCore import (
@@ -64,7 +64,7 @@ from app.views.main_components.topbar_layout.constants import (
 )
 
 try:
-    from sip import isdeleted as _sip_isdeleted
+    from sip import isdeleted as _sip_isdeleted  # type: ignore[import-not-found]
 except ImportError:  # pragma: no cover
 
     def _sip_isdeleted(_obj) -> bool:
@@ -96,7 +96,7 @@ class TopBarLayoutManager(QObject):
         )
         self._warmup_adjusts_remaining: int = 2
         self._container_widget: Optional[QWidget] = None
-        self._watched_panels: WeakSet[QObject] = WeakSet()
+        self._watched_panels: WeakSet[QWidget] = WeakSet()
 
         # Настройки из конфига с fallback
         self._throttle_interval_ms: int = self._get_cfg_int(
@@ -150,7 +150,9 @@ class TopBarLayoutManager(QObject):
             safe_get=self._safe_get,
         )
 
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+    def eventFilter(self, obj: QObject | None, event: QEvent | None) -> bool:
+        if obj is None or event is None:
+            return False
         if event.type() in (
             QEvent.Type.Resize,
             QEvent.Type.LayoutRequest,
@@ -217,9 +219,10 @@ class TopBarLayoutManager(QObject):
     def _get_container_widget(self) -> Optional[QWidget]:
         if self._container_widget and not _sip_isdeleted(self._container_widget):
             return self._container_widget
-        self._container_widget = self._safe_get(
-            self.window, "top_bar_host"
-        ) or self._safe_get(self.window, "content_container")
+        cw = self._safe_get(self.window, "top_bar_host") or self._safe_get(
+            self.window, "content_container"
+        )
+        self._container_widget = cast(Optional[QWidget], cw)
         return self._container_widget
 
     def adjust(self) -> None:
@@ -245,10 +248,10 @@ class TopBarLayoutManager(QObject):
             return
 
         # Получить панели и поиск
-        quick = self._safe_get(self.window, "quick_add_widget")
-        fav = self._safe_get(self.window, "fav_widget")
-        recent = self._safe_get(self.window, "recent_links_widget")
-        search: Optional[QLineEdit] = self._safe_get(self.window, "search")
+        quick = cast(Optional[QWidget], self._safe_get(self.window, "quick_add_widget"))
+        fav = cast(Optional[QWidget], self._safe_get(self.window, "fav_widget"))
+        recent = cast(Optional[QWidget], self._safe_get(self.window, "recent_links_widget"))
+        search = cast(Optional[QLineEdit], self._safe_get(self.window, "search"))
 
         self._install_event_filters()  # Убедиться в фильтрах
 
@@ -310,9 +313,17 @@ class TopBarLayoutManager(QObject):
         if prev_counts is not None:
             _, pr, pf, pq = prev_counts
             total_new = self._total_width_for(
-                top_bar, search, recent, fav, quick,
-                recent_btns, fav_btns, quick_btns,
-                cnt_recent, cnt_fav, cnt_quick,
+                top_bar,
+                search,
+                recent,
+                fav,
+                quick,
+                recent_btns,
+                fav_btns,
+                quick_btns,
+                cnt_recent,
+                cnt_fav,
+                cnt_quick,
             )
             band = max(8, int(self._button_size // 2))
             if abs(width - total_new) < band:
@@ -320,10 +331,12 @@ class TopBarLayoutManager(QObject):
 
         # Применить пакетно под suspend_updates, чтобы исключить дребезжание лейаута
         recent_visible = fav_visible = quick_visible = 0
+        suspend_ctx = None  # type: Any
         try:
-            from app.utils.ui.updates import suspend_updates
+            from app.utils.ui.updates import suspend_updates as _suspend_import
+            suspend_ctx = _suspend_import
         except Exception:
-            suspend_updates = None
+            pass
 
         def _apply_one(panel, btns, btn_name, target):
             # Determine current count
@@ -362,9 +375,9 @@ class TopBarLayoutManager(QObject):
             fav_visible = _apply_one(fav, fav_btns, "favoriteButton", cnt_fav)
             quick_visible = _apply_one(quick, quick_btns, "quickButton", cnt_quick)
 
-        if suspend_updates is not None and isinstance(self.window, QWidget):
+        if suspend_ctx is not None and isinstance(self.window, QWidget):
             try:
-                with suspend_updates(self.window):
+                with suspend_ctx(self.window):
                     _batch_apply()
             except Exception:
                 _batch_apply()

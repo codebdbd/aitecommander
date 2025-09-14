@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.models.db import Database
 import functools
+from typing import Any, Callable, Optional, TypeVar, ParamSpec, Protocol
 
 
 class UnitOfWork:
@@ -12,7 +13,7 @@ class UnitOfWork:
 
     def __init__(self, db: Database):
         self.db = db
-        self._tx_ctx = None  # type: Optional[object]
+        self._tx_ctx: Optional[object] = None
         # Короткие алиасы на репозитории (без дублирования кода); безопасны для тестовых DB
         self.spheres = getattr(db, "spheres", None)
         self.sections = getattr(db, "sections", None)
@@ -25,14 +26,18 @@ class UnitOfWork:
         self._tx_ctx.__enter__()
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def __exit__(self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: Any) -> None:
         # Прокси к Database.transaction().__exit__
         assert self._tx_ctx is not None
         self._tx_ctx.__exit__(exc_type, exc, tb)
         self._tx_ctx = None
 
 
-def unit_of_work(func):
+P = ParamSpec("P")
+T = TypeVar("T")
+
+
+def unit_of_work(func: Callable[P, T]) -> Callable[P, T]:
     """Декоратор для оборачивания метода сервиса в транзакцию UnitOfWork(self.db).
 
     Используется только там, где нет внутреннего управления транзакциями в репозитории/модели,
@@ -40,7 +45,7 @@ def unit_of_work(func):
     """
 
     @functools.wraps(func)
-    def _wrapped(self, *args, **kwargs):
+    def _wrapped(self: Protocol, *args: P.args, **kwargs: P.kwargs) -> T:  # type: ignore[misc]
         with UnitOfWork(self.db):
             return func(self, *args, **kwargs)
 

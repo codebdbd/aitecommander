@@ -3,7 +3,7 @@
 """Модуль для нормализации данных из базы данных."""
 
 import logging
-from typing import Any, Dict, List, Protocol, Union, runtime_checkable
+from typing import Any, Dict, List, Optional, Protocol, Union, runtime_checkable
 
 # Модульный логгер
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class RowLike(Protocol):
 SupportedRowType = Union[Dict[str, Any], RowLike, tuple, None]
 
 
-def normalize_row(row: Any, logger: logging.Logger = None) -> Dict[str, Any]:
+def normalize_row(row: Any, logger: Optional[logging.Logger] = None) -> Dict[str, Any]:
     """Безопасно нормализует строку БД в словарь.
 
     Поддерживает:
@@ -108,7 +108,7 @@ def normalize_row(row: Any, logger: logging.Logger = None) -> Dict[str, Any]:
     return {}
 
 
-def normalize_rows(rows: Any, logger: logging.Logger = None) -> List[Dict[str, Any]]:
+def normalize_rows(rows: Any, logger: Optional[logging.Logger] = None) -> List[Dict[str, Any]]:
     """Нормализует список строк БД в список словарей.
 
     Args:
@@ -140,7 +140,7 @@ def normalize_rows(rows: Any, logger: logging.Logger = None) -> List[Dict[str, A
 
 
 def validate_normalized_data(
-    data: Union[Dict[str, Any], List[Dict[str, Any]]], required_keys: List[str] = None
+    data: Union[Dict[str, Any], List[Dict[str, Any]]], required_keys: Optional[List[str]] = None
 ) -> bool:
     """Валидирует нормализованные данные.
 

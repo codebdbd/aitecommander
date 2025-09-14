@@ -7,15 +7,21 @@ duplicates.py — диагностика и устранение регистр�
 from __future__ import annotations
 
 import sqlite3
-from typing import Dict, List
+from typing import Any, Dict, List
 
 
-def detect_case_insensitive_duplicates(connection: sqlite3.Connection, lock) -> dict:
+def detect_case_insensitive_duplicates(
+    connection: sqlite3.Connection, lock: Any
+) -> Dict[str, List[Dict[str, Any]]]:
     """Ищет case-insensitive дубликаты имён для sphere/section/category.
 
     Возвращает dict с ключами 'sphere', 'section', 'category'. Значения — список групп.
     """
-    result = {"sphere": [], "section": [], "category": []}
+    result: Dict[str, List[Dict[str, Any]]] = {
+        "sphere": [],
+        "section": [],
+        "category": [],
+    }
     with lock:
         # Сферы: глобальная область
         rows = connection.execute(
@@ -60,8 +66,11 @@ def detect_case_insensitive_duplicates(connection: sqlite3.Connection, lock) -> 
 
 
 def resolve_case_insensitive_duplicates(
-    connection: sqlite3.Connection, lock, dups: dict, strategy: str = "rename"
-) -> dict:
+    connection: sqlite3.Connection,
+    lock: Any,
+    dups: Dict[str, Any],
+    strategy: str = "rename",
+) -> Dict[str, int]:
     """Разрешает case-insensitive дубликаты по заданной стратегии.
 
     strategy:
@@ -73,7 +82,7 @@ def resolve_case_insensitive_duplicates(
     if strategy not in {"rename", "remove"}:
         raise ValueError("Недопустимая стратегия: 'rename' или 'remove'")
 
-    report = {"sphere": 0, "section": 0, "category": 0}
+    report: Dict[str, int] = {"sphere": 0, "section": 0, "category": 0}
 
     with lock:
         with connection:
@@ -83,7 +92,7 @@ def resolve_case_insensitive_duplicates(
                 return (dict(row)["name"] if row else "")
 
             # Обработчик группы
-            def process_group(table: str, ids: List[int]):
+            def process_group(table: str, ids: List[int]) -> int:
                 ids_sorted = sorted(int(i) for i in ids)
                 _keep = ids_sorted[0]
                 to_change = ids_sorted[1:]

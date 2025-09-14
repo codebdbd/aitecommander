@@ -8,13 +8,13 @@ subtree_io.py — импорт/экспорт поддеревьев (разде
 from __future__ import annotations
 
 import sqlite3
-from typing import List
+from typing import List, Callable, Dict, Any
 
 from app.models.link_type import LinkType
 
 
-def export_section_tree(db) -> callable:
-    def _export(section_id: int) -> dict:
+def export_section_tree(db: Any) -> Callable[[int], Dict[str, Any]]:
+    def _export(section_id: int) -> Dict[str, Any]:
         section = db.sections.get_section_by_id(section_id) or {}
         categories = []
         for cat_row in db.categories.get_categories(section_id):
@@ -26,8 +26,8 @@ def export_section_tree(db) -> callable:
     return _export
 
 
-def import_section_tree(db) -> callable:
-    def _import(tree: dict):
+def import_section_tree(db: Any) -> Callable[[Dict[str, Any]], None]:
+    def _import(tree: Dict[str, Any]) -> None:
         section = (tree or {}).get("section") or {}
         categories = (tree or {}).get("categories") or []
         if not section:
@@ -103,8 +103,8 @@ def import_section_tree(db) -> callable:
     return _import
 
 
-def export_category_tree(db) -> callable:
-    def _export(category_id: int) -> dict:
+def export_category_tree(db: Any) -> Callable[[int], Dict[str, Any]]:
+    def _export(category_id: int) -> Dict[str, Any]:
         cat = db.categories.get_category_by_id(category_id) or {}
         links = db.links.get_links(category_id)
         return {"category": cat, "links": links}
@@ -112,16 +112,16 @@ def export_category_tree(db) -> callable:
     return _export
 
 
-def import_category_tree(db) -> callable:
-    def _import(tree: dict):
+def import_category_tree(db: Any) -> Callable[[Dict[str, Any]], None]:
+    def _import(tree: Dict[str, Any]) -> None:
         with db.transaction():
             _upsert_category_tree(tree, db.connection)
 
     return _import
 
 
-def import_category_trees_bulk(db) -> callable:
-    def _import(trees: List[dict]) -> None:
+def import_category_trees_bulk(db: Any) -> Callable[[List[Dict[str, Any]]], None]:
+    def _import(trees: List[Dict[str, Any]]) -> None:
         if not trees:
             return
         with db.transaction():
