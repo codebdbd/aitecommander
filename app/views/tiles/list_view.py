@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 
-from PyQt6.QtCore import QEvent, QPoint, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QPoint, Qt, pyqtSignal, QItemSelectionModel
 from PyQt6.QtGui import QCursor, QDrag, QMouseEvent
 from PyQt6.QtWidgets import QAbstractItemView, QApplication, QListView
 
@@ -20,17 +20,19 @@ class CategoryListView(QListView):
     # Сигнал активации по клавише Enter/Return
     enterActivated = pyqtSignal(object)
 
-    def mousePressEvent(self, event: QMouseEvent):
+    def mousePressEvent(self, event: QMouseEvent | None) -> None:
         # Гарантируем установку currentIndex по месту клика (для DnD и контекстного меню)
         try:
+            if event is None:
+                return super().mousePressEvent(event)
             p = event.position().toPoint()
             self._press_pos = p
             idx = self.indexAt(p)
             if idx.isValid():
                 self.setCurrentIndex(idx)
-                self.selectionModel().setCurrentIndex(
-                    idx, QAbstractItemView.SelectionFlag.ClearAndSelect
-                )
+                sm = self.selectionModel()
+                if sm is not None:
+                    sm.setCurrentIndex(idx, QItemSelectionModel.SelectionFlag.ClearAndSelect)
         except (AttributeError, RuntimeError, TypeError, ValueError) as e:
             logger.debug("CategoryListView.mousePressEvent: %s", e)
         except Exception:
@@ -112,15 +114,15 @@ class CategoryListView(QListView):
             logger.exception("CategoryListView.keyPressEvent: unexpected error")
         super().keyPressEvent(event)
 
-    def contextMenuEvent(self, event):
+    def contextMenuEvent(self, event) -> None:
         # Всегда устанавливаем текущий индекс по правому клику и прокидываем сигнал
         try:
             idx = self.indexAt(event.pos())
             if idx.isValid():
                 self.setCurrentIndex(idx)
-                self.selectionModel().setCurrentIndex(
-                    idx, QAbstractItemView.SelectionFlag.ClearAndSelect
-                )
+                sm = self.selectionModel()
+                if sm is not None:
+                    sm.setCurrentIndex(idx, QItemSelectionModel.SelectionFlag.ClearAndSelect)
         except (AttributeError, RuntimeError, TypeError, ValueError) as e:
             logger.debug("CategoryListView.contextMenuEvent: %s", e)
         except Exception:

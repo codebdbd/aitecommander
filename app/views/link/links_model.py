@@ -116,7 +116,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
                 return self._headers[section]
         return super().headerData(section, orientation, role)
 
-    def flags(self, index: QModelIndex) -> Qt.ItemFlags:  # type: ignore[override]
+    def flags(self, index: QModelIndex) -> int:  # type: ignore[override]
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
         # По умолчанию таблица не редактируема через делегаты
@@ -185,11 +185,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
 
         return False
 
-    def supportedDropActions(self) -> Qt.DropActions:  # type: ignore[override]
+    def supportedDropActions(self) -> int:  # type: ignore[override]
         # Поддерживаем только перемещение строк
         return Qt.DropAction.MoveAction
 
-    def supportedDragActions(self) -> Qt.DropActions:  # type: ignore[override]
+    def supportedDragActions(self) -> int:  # type: ignore[override]
         return Qt.DropAction.MoveAction
 
     # --- Мутации данных ---

@@ -23,6 +23,8 @@ def apply_narrow_mode(
         count = top_bar.count()
         for i in range(count):
             it = top_bar.itemAt(i)
+            if it is None:
+                continue
             w = it.widget()
             if w is None:
                 continue
@@ -38,7 +40,10 @@ def apply_narrow_mode(
         # Обнулить все spacerItem, чтобы не было отступов слева/справа от поиска
         try:
             for i in range(count):
-                sp = top_bar.itemAt(i).spacerItem()
+                it2 = top_bar.itemAt(i)
+                if it2 is None:
+                    continue
+                sp = it2.spacerItem()
                 if sp is not None:
                     sp.changeSize(0, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         except Exception:

@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import Callable, Generic, Optional, TypeVar
+from typing import Callable, Generic, Optional, TypeVar, cast
 
 from PyQt6.QtCore import QObject, QRunnable, pyqtSignal
 
@@ -96,12 +96,15 @@ class DatabaseTask(QRunnable, Generic[T]):
                 )
 
                 if has_var_pos or len(pos_params) == 1:
-                    result = self.func(self.report_progress)  # type: ignore[misc]
+                    func_with_reporter = cast(Callable[[Callable[[int], None]], T], self.func)
+                    result = func_with_reporter(self.report_progress)
                 else:
-                    result = self.func()  # type: ignore[call-arg]
+                    func_noargs = cast(Callable[[], T], self.func)
+                    result = func_noargs()
             except ValueError:
                 # Сигнатура недоступна (встроенная/С-функция): по умолчанию вызываем без аргументов
-                result = self.func()  # type: ignore[call-arg]
+                func_noargs = cast(Callable[[], T], self.func)
+                result = func_noargs()
             if self._canceled:
                 self.signals.canceled.emit()
                 return

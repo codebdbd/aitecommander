@@ -3,13 +3,27 @@
 """
 
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Protocol
 
 logger = logging.getLogger(__name__)
 
 
+class _HasDialog(Protocol):
+    dialog: Any
+
+
+class _ValidationProtocol(Protocol):
+    """Ожидаемые атрибуты/методы на self для корректной типизации."""
+    dialog: Any
+    def _show_empty_form_message(self) -> None: ...
+    def _extract_problematic_fields(self, errors: List[str]) -> set: ...
+    def _show_validation_error_message(self, errors: List[str], problems: set) -> None: ...
+    def _focus_problematic_field(self, problems: set) -> None: ...
+    def _generate_error_messages(self, problems: set) -> Tuple[str, str]: ...
+
+
 class ValidationMixin:
-    def _validate_and_save_data(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_and_save_data(self: _HasDialog, form_data: Dict[str, Any]) -> Dict[str, Any]:
         """Проверяет и сохраняет данные формы."""
         if hasattr(self.dialog, "link_controller") and self.dialog.link_controller:
             return self.dialog.link_controller.validate_and_save(form_data)
@@ -17,7 +31,7 @@ class ValidationMixin:
             return self.dialog.dialog_controller.validate_and_save(form_data)
 
     def _handle_validation_errors(
-        self, form_data: Dict[str, Any], result: Dict[str, Any]
+        self: _ValidationProtocol, form_data: Dict[str, Any], result: Dict[str, Any]
     ) -> None:
         """Обрабатывает ошибки валидации и показывает соответствующие сообщения."""
         # Специальный мягкий сценарий: пустая форма (без URL и имени)
@@ -32,7 +46,7 @@ class ValidationMixin:
             self._show_validation_error_message(errors, problems)
             self._focus_problematic_field(problems)
 
-    def _show_empty_form_message(self) -> None:
+    def _show_empty_form_message(self: _ValidationProtocol) -> None:
         """Показывает сообщение для пустой формы."""
         self.dialog.show_info(
             "Пусто, как холодильник в конце месяца 🥶 — добавьте хоть адрес или название, и будет что сохранить!",
@@ -41,7 +55,7 @@ class ValidationMixin:
             silent=True,
         )
 
-    def _extract_problematic_fields(self, errors: List[str]) -> set:
+    def _extract_problematic_fields(self: _ValidationProtocol, errors: List[str]) -> set:
         """Извлекает проблемные поля из списка ошибок."""
         problems = set()
         lower_errors = [e.lower() for e in errors]
@@ -59,7 +73,7 @@ class ValidationMixin:
                 problems.add(label)
         return problems
 
-    def _generate_error_messages(self, problems: set) -> Tuple[str, str]:
+    def _generate_error_messages(self: _ValidationProtocol, problems: set) -> Tuple[str, str]:
         """Генерирует сообщения об ошибках на основе проблемных полей."""
         hint_map = {
             "Название": "Укажите понятное название (например, 'Документация API').",
@@ -86,7 +100,7 @@ class ValidationMixin:
 
         return main_msg, info_msg
 
-    def _show_validation_error_message(self, errors: List[str], problems: set) -> None:
+    def _show_validation_error_message(self: _ValidationProtocol, errors: List[str], problems: set) -> None:
         """Показывает сообщение об ошибках валидации."""
         error_text = "\n".join(errors)
         main_msg, info_msg = self._generate_error_messages(problems)
@@ -99,7 +113,7 @@ class ValidationMixin:
             silent=True,
         )
 
-    def _focus_problematic_field(self, problems: set) -> None:
+    def _focus_problematic_field(self: _ValidationProtocol, problems: set) -> None:
         """Устанавливает фокус на первое проблемное поле."""
         try:
             if "Адрес" in problems:

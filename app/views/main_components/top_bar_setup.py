@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any
+from typing import Any, cast
+from app.views.main_components.types import WindowUISetupProtocol
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QHBoxLayout
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 class TopBarBuilder:
     """Собирает верхнюю панель, используя хелперы WindowUISetup (без изменения поведения)."""
 
-    def __init__(self, ui: Any) -> None:
+    def __init__(self, ui: WindowUISetupProtocol) -> None:
         # ui is WindowUISetup; typed as Any to avoid circular imports
         self.ui = ui
         self.window = ui.window
@@ -36,9 +37,10 @@ class TopBarBuilder:
         """
         t_total_start = time.perf_counter()
         # Determine parent for helper widgets
+        win_any = cast(Any, self.window)
         container_parent = (
             getattr(self.main_layout, "parentWidget", lambda: None)()
-            or self.window.centralWidget()
+            or win_any.centralWidget()
         )
 
         # Убираем верхний разделитель перед top bar: визуальную линию нарисует QMenuBar border-bottom
@@ -61,7 +63,8 @@ class TopBarBuilder:
         # Create and insert host
         top_bar_host = self.ui._create_top_bar_host(container_parent, top_bar)
         self.main_layout.addWidget(top_bar_host)
-        self.window.top_bar_host = top_bar_host
+        # динамический атрибут окна — указываем mypy, что это допустимо
+        cast(Any, self.window).top_bar_host = top_bar_host
 
         # Init and schedule layout manager post-shown tasks
         self.ui._init_and_schedule_topbar_manager()

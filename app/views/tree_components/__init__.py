@@ -2,4 +2,6 @@
 
 # NavigationHandler удален - функциональность перенесена в централизованный KeyboardManager
 
-__all__ = []  # NavigationHandler удален
+from typing import List
+
+__all__: List[str] = []  # NavigationHandler удален

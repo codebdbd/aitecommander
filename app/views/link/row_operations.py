@@ -1,5 +1,5 @@
 import logging
-from typing import Dict
+from typing import Any, Dict, Protocol
 
 # Модуль для операций со строками таблицы ссылок
 # Содержит методы добавления, обновления и удаления строк
@@ -7,10 +7,21 @@ from typing import Dict
 logger = logging.getLogger(__name__)
 
 
+class _RowOpsProtocol(Protocol):
+    """Ожидаемые методы/атрибуты для операций со строками.
+
+    Протокол покрывает только то, что реально используется.
+    """
+    def model(self) -> Any: ...
+    def get_link_at(self, row: int) -> Dict | None: ...
+    def rebuild_cache_from_items(self) -> None: ...
+    _current_links: Dict[int, Dict]
+
+
 class RowOperationsMixin:
     """Миксин для операций со строками таблицы ссылок."""
 
-    def update_link_by_id(self, link: dict, mode: str = "normal"):
+    def update_link_by_id(self: _RowOpsProtocol, link: dict, mode: str = "normal") -> bool:
         """
         Обновляет строку таблицы по id ссылки, если она есть.
         """
@@ -82,7 +93,7 @@ class RowOperationsMixin:
             )
             return False
 
-    def _update_row(self, row: int, link: Dict, mode: str):
+    def _update_row(self: _RowOpsProtocol, row: int, link: Dict, mode: str) -> bool:
         """Обновляет существующую строку новыми данными через модель."""
         try:
             # Проверка входных параметров
@@ -149,7 +160,7 @@ class RowOperationsMixin:
             )
             return False
 
-    def _add_row(self, row: int, link: Dict, mode: str):
+    def _add_row(self: _RowOpsProtocol, row: int, link: Dict, mode: str) -> bool:
         """Добавляет новую строку через модель."""
         try:
             # Проверка входных параметров
@@ -209,7 +220,7 @@ class RowOperationsMixin:
             )
             return False
 
-    def _remove_row(self, row: int) -> bool:
+    def _remove_row(self: _RowOpsProtocol, row: int) -> bool:
         """Удаляет строку через модель. Возвращает True при успехе, иначе False."""
         try:
             # Проверка входных параметров

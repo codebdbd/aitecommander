@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, Optional
+from typing import Callable, Optional, cast
 
 from PyQt6.QtCore import QEvent, QObject
 from PyQt6.QtWidgets import QApplication
@@ -137,10 +137,10 @@ class DiagnosticsInstaller:
                                 and getattr(self._owner, "_diag_resize_logger", None)
                                 is self
                             ):
-                                setattr(self._owner, "_diag_resize_logger", None)  # type: ignore[attr-defined]
-                                setattr(
-                                    self._owner, "_diag_resize_logger_installed", False
-                                )  # type: ignore[attr-defined]
+                                from typing import Any as _Any
+                                _owner_any = cast(_Any, self._owner)
+                                _owner_any._diag_resize_logger = None
+                                _owner_any._diag_resize_logger_installed = False
                         except Exception:
                             logger.debug(
                                 "DiagnosticsInstaller: failed to reset _diag_resize_logger flags",
@@ -185,8 +185,10 @@ class DiagnosticsInstaller:
 
         rl = _ResizeLogger(win)
         win.installEventFilter(rl)
-        win._diag_resize_logger = rl  # type: ignore[attr-defined]
-        win._diag_resize_logger_installed = True  # type: ignore[attr-defined]
+        from typing import Any as _Any
+        _win_any = cast(_Any, win)
+        _win_any._diag_resize_logger = rl
+        _win_any._diag_resize_logger_installed = True
 
     def _install_top_level_watcher(self) -> None:
         app = QApplication.instance()
@@ -260,5 +262,7 @@ class DiagnosticsInstaller:
 
         watcher = _TopLevelWatcher(app)
         app.installEventFilter(watcher)
-        app._diag_top_levels_watcher = watcher  # type: ignore[attr-defined]
-        app._diag_top_levels_installed = True  # type: ignore[attr-defined]
+        from typing import Any as _Any
+        _app_any = cast(_Any, app)
+        _app_any._diag_top_levels_watcher = watcher
+        _app_any._diag_top_levels_installed = True

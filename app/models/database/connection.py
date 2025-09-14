@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import sqlite3
 from types import SimpleNamespace
+from typing import Any
+import logging
 
 
 def get_connection(thread_local: SimpleNamespace, db_path: str) -> sqlite3.Connection:
@@ -37,7 +39,7 @@ def get_connection(thread_local: SimpleNamespace, db_path: str) -> sqlite3.Conne
     return thread_local.conn
 
 
-def close_connection(thread_local: SimpleNamespace, logger, db_lock) -> None:
+def close_connection(thread_local: SimpleNamespace, logger: logging.Logger, db_lock: Any) -> None:
     """Закрывает соединение текущего потока. Выполняет WAL checkpoint(FULL)
     под db_lock перед закрытием, как в исходной реализации.
     """

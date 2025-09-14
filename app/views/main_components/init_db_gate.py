@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, Optional
+from typing import Callable, Optional, cast
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, QObject
 
 from app.interfaces import MainWindowLike
 
@@ -53,7 +53,7 @@ class DbReadyGate:
 
         # Таймер привязываем к окну, чтобы он уничтожился вместе с окном.
         # Делаем его одноразовым и вручную перезапускаем до готовности БД.
-        self._timer = QTimer(self._window)
+        self._timer = QTimer(cast(QObject, self._window))
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(lambda: self._check_and_continue(on_ready))
         self._timer.start(100)

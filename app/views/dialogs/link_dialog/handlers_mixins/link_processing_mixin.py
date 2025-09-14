@@ -4,7 +4,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Protocol
 
 from PyQt6.QtGui import QIcon
 
@@ -19,18 +19,26 @@ from app.utils.ui.icon.ui_helpers import set_icon_to_button
 logger = logging.getLogger(__name__)
 
 
+class _HasDialog(Protocol):
+    dialog: Any
+    signals: Any
+    _is_processing: bool
+    _last_processed_path: str
+    _worker_task_id: int
+    _active_worker: Any
+
+
 class LinkProcessingMixin:
-    def _on_path_changed(self, text: str) -> None:
+    def _on_path_changed(self: _HasDialog, text: str) -> None:
         """Обработчик изменения пути."""
         self.dialog._processing_timer.stop()
-        # Используем настраиваемую задержку дебаунса из диалога (с фолбэком на 300 мс)
         try:
             debounce_ms = getattr(self.dialog, "PATH_DEBOUNCE_MS", 300)
         except (AttributeError, TypeError):
             debounce_ms = 300
         self.dialog._processing_timer.start(int(debounce_ms) if debounce_ms else 300)
 
-    def trigger_link_processing(self, path: str) -> None:
+    def trigger_link_processing(self: _HasDialog, path: str) -> None:
         """Запуск обработки информации о ссылке."""
         if not path or self._is_processing:
             return
@@ -41,23 +49,19 @@ class LinkProcessingMixin:
         self._last_processed_path = path
         self._is_processing = True
 
-        # Защита от race condition
         self._worker_task_id += 1
         _task_id = self._worker_task_id
 
-        # Отмена активной задачи
         if self._active_worker:
             try:
                 self._active_worker.cancel()
             except (AttributeError, RuntimeError) as e:
-                # Логируем ошибку отмены воркера, но продолжаем выполнение
                 logger.debug("Ошибка при отмене воркера: %s", e)
 
         lt = LinkType.from_value(self.dialog.link_type)
         args_val = self.dialog._get_args_le().text().strip()
 
         def _emit_if_current(payload: Dict[str, Any]) -> None:
-            # Эмитим результат только если задача всё ещё актуальна
             if _task_id == self._worker_task_id:
                 self.signals.link_info_finished.emit(payload)
 
@@ -67,7 +71,6 @@ class LinkProcessingMixin:
 
         def _do_work() -> Dict[str, Any]:
             if lt == LinkType.WEB:
-                # Иконку подберём отложенно, чтобы не блокировать UI
                 info = fetch_web_link_info(
                     path,
                     app_config,
@@ -78,7 +81,6 @@ class LinkProcessingMixin:
                     ),
                 )
                 return {"title": info.get("title"), "icon": info.get("icon")}
-            # Локальные пути
             info = parse_local_link(lt.value, path, app_config, args=args_val)
             return info or {"name": "", "icon": ""}
 
@@ -88,16 +90,14 @@ class LinkProcessingMixin:
             on_finished=lambda info: _emit_if_current(info),
             on_error=lambda e: _emit_error_if_current(str(e)),
         )
-
-        # Сохраняем handle активного воркера
         self._active_worker = handle
 
-    def _trigger_link_processing(self) -> None:
+    def _trigger_link_processing(self: _HasDialog) -> None:
         """Внутренний метод для запуска обработки ссылки из таймера."""
         url = self.dialog._get_url_le().text().strip()
         self.trigger_link_processing(url)
 
-    def _on_link_info_fetched(self, info: Dict) -> None:
+    def _on_link_info_fetched(self: _HasDialog, info: Dict) -> None:
         """Обработка полученной информации о ссылке."""
         self._is_processing = False
         self._active_worker = None
@@ -111,7 +111,6 @@ class LinkProcessingMixin:
             self.dialog.icon_name = Path(icon_path_str).name
             set_icon_to_button(self.dialog._get_icon_btn(), icon_path_str)
         else:
-            # Фолбек через централизованный резолвер
             try:
                 resolved_icon_path = resolve_icon_for_link(
                     {
@@ -138,20 +137,11 @@ class LinkProcessingMixin:
 
         self._is_processing = False
 
-    def _on_link_info_error(self, error_message: str) -> None:
-        """Обработка ошибки получения информации.
-
-        Теперь метод не только сбрасывает внутреннее состояние, но и:
-        - логирует ошибку через logger.error с деталями контекста (тип ссылки, последний путь);
-        - уведомляет пользователя через диалоговое окно `show_error(...)` с подробностями.
-
-        :param error_message: Текст ошибки, полученный из фоновой задачи.
-        """
-        # Сброс внутреннего состояния обработки
+    def _on_link_info_error(self: _HasDialog, error_message: str) -> None:
+        """Обработка ошибки получения информации."""
         self._is_processing = False
         self._active_worker = None
 
-        # Логирование для диагностики
         try:
             link_type = getattr(self.dialog, "link_type", None) or "<unknown>"
             last_path = self._last_processed_path or (
@@ -168,7 +158,6 @@ class LinkProcessingMixin:
             error_message,
         )
 
-        # Дружелюбное уведомление пользователя с подробностями для диагностики
         try:
             self.dialog.show_error(
                 "Не удалось получить информацию о ссылке.",
@@ -180,5 +169,4 @@ class LinkProcessingMixin:
                 silent=True,
             )
         except (AttributeError, RuntimeError) as e:
-            # Даже если уведомить пользователя не получилось, зафиксируем это в логах
             logger.warning("Не удалось показать окно ошибки пользователю: %s", e)

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Iterable
 
-from PyQt6.QtCore import QAbstractItemModel, QModelIndex, Qt
+from PyQt6.QtCore import QAbstractItemModel, QModelIndex, Qt, QMimeData
 from PyQt6.QtGui import QIcon
 
 # Типы узлов дерева
@@ -76,7 +76,7 @@ class StructureTreeModel(QAbstractItemModel):
             return self.createIndex(row, 0, child)
         return QModelIndex()
 
-    def parent(self, index: QModelIndex) -> QModelIndex:  # noqa: N802
+    def parent(self, index: QModelIndex) -> QModelIndex:  # type: ignore[override]  # noqa: N802
         if not index.isValid():
             return QModelIndex()
         node: TreeNode = index.internalPointer()
@@ -178,7 +178,7 @@ class StructureTreeModel(QAbstractItemModel):
         # Используются типы из app_config; модель объявляет общий тип
         return ["application/x-structure-tree-index"]
 
-    def mimeData(self, indexes: list[QModelIndex]):  # noqa: N802
+    def mimeData(self, indexes: Iterable[QModelIndex]) -> QMimeData:  # noqa: N802
         import json
 
         from PyQt6.QtCore import QByteArray, QMimeData
@@ -220,9 +220,10 @@ class StructureTreeModel(QAbstractItemModel):
             return
         self.beginInsertRows(QModelIndex(), row, row + count - 1)
         for i, s in enumerate(sections):
+            sid = s.get("id")
             sec_node = TreeNode(
                 type="section",
-                id=int(s.get("id")) if s.get("id") is not None else None,
+                id=(sid if isinstance(sid, int) else None),
                 name=str(s.get("name", "")),
                 parent=self._root,
                 icon=(s.get("icon") if isinstance(s.get("icon"), QIcon) else None),
@@ -247,9 +248,10 @@ class StructureTreeModel(QAbstractItemModel):
             return
         self.beginInsertRows(parent_index, row, row + count - 1)
         for i, c in enumerate(categories):
+            cid = c.get("id")
             cat_node = TreeNode(
                 type="category",
-                id=int(c.get("id")) if c.get("id") is not None else None,
+                id=(cid if isinstance(cid, int) else None),
                 name=str(c.get("name", "")),
                 parent=sec_node,
                 icon=(c.get("icon") if isinstance(c.get("icon"), QIcon) else None),
@@ -259,31 +261,6 @@ class StructureTreeModel(QAbstractItemModel):
             if isinstance(cat_node.id, int):
                 self._category_by_id[cat_node.id] = cat_node
         self.endInsertRows()
-
-    def update_item(
-        self, item_type: NodeType, item_id: int, data: Dict[str, Any]
-    ) -> None:
-        idx = self.index_for(item_type, int(item_id))
-        if not idx.isValid():
-            return
-        node: TreeNode = idx.internalPointer()
-        # Обновляем поля узла
-        if "name" in data:
-            node.name = str(data.get("name", node.name))
-        if "icon" in data and isinstance(data.get("icon"), QIcon):
-            node.icon = data.get("icon")
-        if data:
-            # Сохраняем исходный словарь (например, для диалогов)
-            node.payload.update(data)
-        self.dataChanged.emit(
-            idx,
-            idx,
-            [
-                Qt.ItemDataRole.DisplayRole,
-                Qt.ItemDataRole.DecorationRole,
-                Qt.ItemDataRole.UserRole,
-            ],
-        )
 
     def remove_sections(self, section_ids: List[int]) -> None:
         # Удаляем по одному, учитывая сдвиги индексов
@@ -326,6 +303,42 @@ class StructureTreeModel(QAbstractItemModel):
                 if isinstance(node.id, int) and node.id in self._category_by_id:
                     del self._category_by_id[node.id]
                 self.endRemoveRows()
+
+    def update_item(self, item_type: str, item_id: int, data: Dict[str, Any]) -> None:
+        """Инкрементальное обновление узла по типу и id.
+
+        Поддерживаются поля: name, icon. При отсутствии узла — no-op.
+        """
+        node: Optional[TreeNode]
+        if item_type == "section":
+            node = self._section_by_id.get(int(item_id))
+        elif item_type == "category":
+            node = self._category_by_id.get(int(item_id))
+        else:
+            node = None
+        if not node:
+            return
+        idx = self.createIndex(node.row(), 0, node)
+        # Имя
+        if "name" in data:
+            try:
+                node.name = str(data.get("name", node.name))
+            except Exception:
+                pass
+        # Иконка
+        if "icon" in data:
+            ic = data.get("icon")
+            if isinstance(ic, QIcon) or ic is None:
+                node.icon = ic
+        # Нотификация
+        try:
+            self.dataChanged.emit(
+                idx,
+                idx,
+                [Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.DecorationRole],
+            )
+        except Exception:
+            pass
 
     def move_category(
         self, category_id: int, new_section_id: int, new_row: int
@@ -384,7 +397,7 @@ class StructureTreeModel(QAbstractItemModel):
         for s in sections or []:
             sec_node = TreeNode(
                 type="section",
-                id=int(s.get("id")) if s.get("id") is not None else None,
+                id=(s.get("id") if isinstance(s.get("id"), int) else None),
                 name=str(s.get("name", "")),
                 parent=self._root,
                 icon=s.get("icon"),
@@ -395,9 +408,10 @@ class StructureTreeModel(QAbstractItemModel):
                 self._section_by_id[sec_node.id] = sec_node
 
             for c in s.get("categories") or []:
+                cid = c.get("id")
                 cat_node = TreeNode(
                     type="category",
-                    id=int(c.get("id")) if c.get("id") is not None else None,
+                    id=(cid if isinstance(cid, int) else None),
                     name=str(c.get("name", "")),
                     parent=sec_node,
                     icon=(c.get("icon") if isinstance(c.get("icon"), QIcon) else None),

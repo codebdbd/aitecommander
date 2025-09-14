@@ -3,6 +3,7 @@
 """
 
 import logging
+from typing import Any, Protocol
 
 from PyQt6.QtWidgets import QDialog
 
@@ -12,20 +13,20 @@ logger = logging.getLogger(__name__)
 # Если зависимость отсутствует или импорт завершается ошибкой, сохраняем
 # исключение и используем дружелюбный запасной механизм при обращении к функционалу.
 try:  # переносим импорт на верхний уровень для явного выражения зависимостей
-    from app.views.dialogs.browser_profile_dialog import (
-        BrowserProfileDialog,  # type: ignore
-    )
-
+    from app.views.dialogs.browser_profile_dialog import BrowserProfileDialog as _BPD
+    BrowserProfileDialog: Any | None = _BPD
     _BPD_IMPORT_ERROR: Exception | None = None
-except (
-    ImportError
-) as _e:  # не прерываем импорт модуля, чтобы остальной функционал был доступен
-    BrowserProfileDialog = None  # type: ignore[assignment]
+except ImportError as _e:  # не прерываем импорт модуля
+    BrowserProfileDialog = None
     _BPD_IMPORT_ERROR = _e
 
 
+class _HasDialog(Protocol):
+    dialog: Any
+
+
 class ProfilesMixin:
-    def _on_profile(self) -> None:
+    def _on_profile(self: _HasDialog) -> None:
         """Обработчик кнопки выбора профиля."""
         if BrowserProfileDialog is None:
             # Логируем первопричину и показываем дружелюбное сообщение пользователю
@@ -46,7 +47,7 @@ class ProfilesMixin:
                 pass
             return
 
-        dlg = BrowserProfileDialog(self.dialog)
+        dlg = BrowserProfileDialog(self.dialog)  # type: ignore[operator]
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self.dialog.selected_profiles = dlg.get_selected_profiles()
             logger.debug(
