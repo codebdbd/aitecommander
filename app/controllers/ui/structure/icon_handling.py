@@ -74,6 +74,46 @@ class IconHandling:
         return QIcon()
 
 
+    def _schedule_on_gui(self, fn) -> None:
+        """Планирует выполнение fn в GUI-потоке дерева.
+
+        В продакшене используем перегрузку QTimer.singleShot(ms, receiver, fn),
+        но в тестах QTimer может быть замокан без такой перегрузки — поддержим
+        совместимость через fallback на QTimer.singleShot(ms, fn).
+        """
+        try:
+            QTimer.singleShot(0, self.tree, fn)
+        except TypeError:
+            # Совместимость с тестовыми подменами QTimer
+            QTimer.singleShot(0, fn)
+
+    def prepare_snapshot_async(self, data: list[dict] | None, on_ready) -> None:
+        """Готовит иконки для снапшота в пуле потоков и вызывает on_ready(prepared) в GUI-потоке.
+
+        Если data пустой/None — колбэк вызывается сразу с исходными данными.
+        """
+        if not data:
+            self._schedule_on_gui(lambda: on_ready(data))
+            return
+
+        def _work():
+            try:
+                return prepare_icons_snapshot(list(data))
+            except Exception:
+                logger.debug("prepare_snapshot_async: prepare_icons_snapshot failed", exc_info=True)
+                return data
+
+        fut = self._executor.submit(_work)
+
+        def _on_done(_f):
+            try:
+                result = _f.result()
+            except Exception:
+                result = data
+            self._schedule_on_gui(lambda: on_ready(result))
+
+        fut.add_done_callback(_on_done)
+
     def reload_icons(self) -> None:
         """Асинхронно переустанавливает иконки для всех элементов дерева.
 
@@ -279,10 +319,8 @@ class IconHandling:
                 # Не роняем GUI поток
                 logger.debug("IconHandling._apply_resolved_icons: apply failed", exc_info=True)
 
-        try:
-            QTimer.singleShot(0, _apply)
-        except Exception:
-            _apply()
+        # Гарантируем выполнение в GUI-потоке дерева
+        self._schedule_on_gui(_apply)
 
     def close(self) -> None:
         """Завершает пул потоков и отменяет незавершённые задачи.

@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Dict, Optional, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QObject
@@ -62,6 +63,8 @@ class LinksTableController(QObject):
         self._reloading: bool = False
         self._queued_category_id: Optional[int] = None
         self._current_category_id: Optional[int] = None
+        # Временное подавление приёма результатов поиска (например, при смене сферы)
+        self._suppress_search_until: float = 0.0
 
     # --- Public API ---
     def reload(self, category_id: Optional[int]) -> None:
@@ -180,6 +183,16 @@ class LinksTableController(QObject):
     def on_search_results(self, search_results: list[Dict]) -> None:
         """Обновить таблицу результатами поиска централизованно."""
         try:
+            # Игнорируем опоздавшие результаты поиска при недавней смене сферы/контекста
+            try:
+                now = time.monotonic()
+            except Exception:
+                now = 0.0
+            if now < getattr(self, "_suppress_search_until", 0.0):
+                logger.debug(
+                    "LinksTableController.on_search_results: suppressed due to recent context switch"
+                )
+                return
             self.table.populate(search_results, mode="search")
             # Переключаем правую область на таблицу, чтобы результаты были видны
             try:
@@ -200,6 +213,7 @@ class LinksTableController(QObject):
             logger.error(
                 "LinksTableController.on_search_results: failed: %s", e, exc_info=True
             )
+        
 
     # --- Slots for link_operations signals ---
     def on_links_changed(self, category_id: Optional[int]) -> None:
@@ -266,3 +280,22 @@ class LinksTableController(QObject):
             logger.exception("LinksTableController.on_link_deleted: failed")
 
     # --- Internals ---
+
+    def suppress_search_for(self, ms: int = 1000) -> None:
+        """Подавить приём результатов поиска на заданное время (мс).
+
+        Используется для предотвращения "фантомного поиска" при смене сферы, когда
+        опоздавшие результаты глобального поиска могли бы перезаписать контент таблицы.
+        """
+        try:
+            if not isinstance(ms, int) or ms < 0:
+                ms = 0
+            self._suppress_search_until = time.monotonic() + (ms / 1000.0)
+            logger.debug(
+                "LinksTableController: suppress_search_for %sms (until %.3f)",
+                ms,
+                self._suppress_search_until,
+            )
+        except Exception:
+            # В крайнем случае просто сбросим подавление
+            self._suppress_search_until = 0.0

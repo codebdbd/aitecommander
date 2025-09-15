@@ -34,19 +34,11 @@ class _DummyController:
         self.icon_handler = object()
 
 
-def test_prepare_snapshot_sorts_and_calls_prepare_icons_snapshot(monkeypatch):
+def test_prepare_snapshot_sorts_only_without_icon_preparation(monkeypatch):
     ctrl = _DummyController()
     tm = TreeManagement(ctrl, category_tiles_controller=_DummyTiles())
 
-    captured = {}
-
-    def _stub_prepare_icons_snapshot(data):
-        # capture input for assertions, return as-is
-        captured["received"] = list(data)
-        return data
-
-    # Monkeypatch the module-level imported function used by TreeManagement
-    monkeypatch.setattr(tm_mod, "prepare_icons_snapshot", _stub_prepare_icons_snapshot)
+    # prepare_icons_snapshot больше не вызывается из _prepare_snapshot — проверяем только сортировку
 
     src = [
         {"name": "work"},
@@ -56,12 +48,7 @@ def test_prepare_snapshot_sorts_and_calls_prepare_icons_snapshot(monkeypatch):
     ]
 
     result = tm._prepare_snapshot(src)
-
     # Ensure sorting is case-insensitive: alpha, Beta, work, Zeta
-    received = captured.get("received")
-    assert received is not None, "prepare_icons_snapshot must be invoked"
-    names = [d.get("name") for d in received]
+    names = [d.get("name") for d in result]
     assert names == ["alpha", "Beta", "work", "Zeta"]
 
-    # The result should be what stub returned (same list object values order)
-    assert [d.get("name") for d in result] == names

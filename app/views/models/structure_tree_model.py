@@ -517,16 +517,18 @@ class StructureTreeModel(QAbstractItemModel):
                 self._root.children.insert(i, node)
                 self.endInsertRows()
             else:
-                # Убедимся, что узел на позиции i соответствует sid; иначе переставим
+                # Убедимся, что узел на позиции i соответствует sid; иначе переставим через beginMoveRows
                 current_row = existing.row()
                 if current_row != i and current_row >= 0:
-                    # remove+insert для минимальной поддержки порядка
-                    self.beginRemoveRows(root_index, current_row, current_row)
-                    self._root.children.pop(current_row)
-                    self.endRemoveRows()
-                    self.beginInsertRows(root_index, i, i)
-                    self._root.children.insert(i, existing)
-                    self.endInsertRows()
+                    # Корректируем позицию назначения при переносе вниз в том же родителе
+                    dest_row = i
+                    if dest_row > current_row:
+                        dest_row -= 1
+                    if self.beginMoveRows(root_index, current_row, current_row, root_index, dest_row):
+                        # Перенос внутри структуры
+                        self._root.children.pop(current_row)
+                        self._root.children.insert(dest_row, existing)
+                        self.endMoveRows()
                 # Обновление имени/иконки секции
                 changed = False
                 try:
@@ -595,15 +597,16 @@ class StructureTreeModel(QAbstractItemModel):
                 self._category_by_id[cid] = cnode
                 self.endInsertRows()
             else:
-                # Убедимся, что на позиции j нужный узел; иначе переставим
+                # Убедимся, что на позиции j нужный узел; иначе переставим через beginMoveRows
                 cur_row = c_existing.row()
                 if cur_row != j and cur_row >= 0 and c_existing.parent is section_node:
-                    self.beginRemoveRows(parent_index, cur_row, cur_row)
-                    section_node.children.pop(cur_row)
-                    self.endRemoveRows()
-                    self.beginInsertRows(parent_index, j, j)
-                    section_node.children.insert(j, c_existing)
-                    self.endInsertRows()
+                    dest_row = j
+                    if dest_row > cur_row:
+                        dest_row -= 1
+                    if self.beginMoveRows(parent_index, cur_row, cur_row, parent_index, dest_row):
+                        section_node.children.pop(cur_row)
+                        section_node.children.insert(dest_row, c_existing)
+                        self.endMoveRows()
                 # Обновление имени/иконки
                 cdata = new_cat_by_id[cid]
                 c_changed = False
