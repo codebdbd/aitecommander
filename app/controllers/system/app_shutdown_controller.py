@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Iterator, cast
 
 from PyQt6.QtCore import QThreadPool
 from PyQt6.QtWidgets import QApplication
@@ -48,7 +48,7 @@ class ShutdownHandler:
         name: str,
         handler: Callable,
         priority: ShutdownPriority,
-        timeout: int = None,
+        timeout: Optional[int] = None,
         critical: bool = False,
     ):
         self.name = name
@@ -69,7 +69,7 @@ class AppShutdownController:
     - Безопасное завершение в многопоточной среде
     """
 
-    def __init__(self, main_window):
+    def __init__(self, main_window: object) -> None:
         self.window = main_window
         self.shutdown_handlers: List[ShutdownHandler] = []
         self.shutdown_in_progress = False
@@ -81,7 +81,7 @@ class AppShutdownController:
         self.max_shutdown_time = app_config.get("shutdown.max_total_time", 10000)
         self.parallel_execution = app_config.get("shutdown.parallel_execution", False)
 
-    def perform_shutdown(self, event):
+    def perform_shutdown(self, event: object) -> None:
         """Основной метод - полностью совместим с оригинальным интерфейсом."""
         with self._shutdown_lock:
             if self.shutdown_in_progress:
@@ -104,7 +104,7 @@ class AppShutdownController:
             # Безопасный вызов родительского closeEvent (обратная совместимость)
             self._safe_close_event(event)
 
-    def _safe_close_event(self, event):
+    def _safe_close_event(self, event: object) -> None:
         """Безопасный вызов родительского closeEvent с fallback."""
         try:
             # Пытаемся найти родительский класс с closeEvent
@@ -113,18 +113,23 @@ class AppShutdownController:
                     base_class.closeEvent(self.window, event)
                     return
 
-            # Если не нашли, просто принимаем событие
-            event.accept()
+            # Если не нашли, просто принимаем событие, если доступно
+            if hasattr(event, "accept"):
+                try:
+                    cast(Any, event).accept()
+                except Exception:
+                    pass
 
         except Exception as exc:
             logger.error("Error in base closeEvent: %s", exc, exc_info=True)
             # В любом случае принимаем событие, чтобы приложение могло закрыться
             try:
-                event.accept()
+                if hasattr(event, "accept"):
+                    cast(Any, event).accept()
             except Exception:
                 pass
 
-    def _execute_shutdown_sequence(self):
+    def _execute_shutdown_sequence(self) -> None:
         """Выполнить последовательность операций shutdown по приоритетам с учетом общего дедлайна."""
         handlers_by_priority = self._group_handlers_by_priority()
 
@@ -169,7 +174,7 @@ class AppShutdownController:
         self,
     ) -> Dict[ShutdownPriority, List[ShutdownHandler]]:
         """Группировка handlers по приоритетам."""
-        groups = {}
+        groups: Dict[ShutdownPriority, List[ShutdownHandler]] = {}
         for handler in self.shutdown_handlers:
             if handler.priority not in groups:
                 groups[handler.priority] = []
@@ -244,13 +249,13 @@ class AppShutdownController:
                         future.cancel()
 
     @contextmanager
-    def _timeout_context(self, timeout_ms: int, handler_name: str):
+    def _timeout_context(self, timeout_ms: int, handler_name: str) -> Iterator[None]:
         """Контекстный менеджер для установки таймаута операции."""
         timeout_seconds = timeout_ms / 1000.0
         timer = None
         timeout_occurred = False
 
-        def timeout_handler():
+        def timeout_handler() -> None:
             nonlocal timeout_occurred
             timeout_occurred = True
 
@@ -290,7 +295,7 @@ class AppShutdownController:
 
         err_holder: list[BaseException] = []
 
-        def _runner():
+        def _runner() -> None:
             try:
                 handler.handler()
             except BaseException as e:  # noqa: BLE001
@@ -438,7 +443,7 @@ class AppShutdownController:
 
     # =================== ОРИГИНАЛЬНЫЕ МЕТОДЫ (рефакторинг) ===================
 
-    def _shutdown_controllers(self):
+    def _shutdown_controllers(self) -> None:
         """Остановить фоновые контроллеры - улучшенная версия оригинала."""
         controllers_to_shutdown = [
             ("links", "Links controller"),
@@ -473,7 +478,7 @@ class AppShutdownController:
                     "Error shutting down %s: %s", display_name, exc, exc_info=True
                 )
 
-    def _wait_for_thread_pools(self):
+    def _wait_for_thread_pools(self) -> None:
         """Ожидание завершения потоков - улучшенная версия оригинала."""
         timeout = app_config.ui.get_thread_pool_shutdown_timeout()
 
@@ -520,7 +525,7 @@ class AppShutdownController:
         except Exception as exc:
             logger.error("Error waiting for local thread pool: %s", exc, exc_info=True)
 
-    def _backup_database(self):
+    def _backup_database(self) -> None:
         """Создание бэкапа БД - улучшенная версия оригинала."""
         try:
             if not hasattr(self.window, "db"):
@@ -553,7 +558,7 @@ class AppShutdownController:
 # ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
 
 
-def create_shutdown_controller(main_window) -> AppShutdownController:
+def create_shutdown_controller(main_window: object) -> AppShutdownController:
     """Фабричная функция для создания контроллера с настройками по умолчанию."""
     controller = AppShutdownController(main_window)
 
@@ -563,7 +568,7 @@ def create_shutdown_controller(main_window) -> AppShutdownController:
     return controller
 
 
-def emergency_shutdown():
+def emergency_shutdown() -> None:
     """Экстренное завершение приложения в случае критических ошибок."""
     logger.critical("Emergency shutdown initiated")
     try:

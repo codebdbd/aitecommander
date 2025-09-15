@@ -33,7 +33,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import Callable, Optional, Protocol, TypeVar, overload, cast
+from typing import Callable, Optional, Protocol, TypeVar, cast
 
 from PyQt6.QtCore import QThreadPool
 
@@ -63,22 +63,8 @@ class _TaskHandleImpl:
 ProgressReporter = Callable[[int], None]
 
 
-@overload
 def run_db(
-    func: Callable[[ProgressReporter], T],
-    *,
-    use_lock: bool = ...,
-    description: Optional[str] = ...,
-    pool: Optional[QThreadPool] = ...,
-    on_finished: Optional[Callable[[T], None]] = ...,
-    on_error: Optional[Callable[[Exception], None]] = ...,
-    on_progress: Optional[Callable[[int], None]] = ...,
-) -> TaskHandle: ...
-
-
-@overload
-def run_db(
-    func: Callable[[], T],
+    func: Callable[..., T],
     *,
     use_lock: bool = True,
     description: Optional[str] = None,
@@ -124,28 +110,19 @@ def run_db(
 
     expects_reporter = _expects_reporter(func)
 
-    if expects_reporter:
-        func_with_reporter = cast(Callable[[ProgressReporter], T], func)
-        if use_lock:
+    func_with_reporter = cast(Callable[[ProgressReporter], T], func)
+    func_noargs = cast(Callable[[], T], func)
 
-            def _wrapped(report_progress: ProgressReporter) -> T:
-                with db_lock:
+    def _wrapped(report_progress: ProgressReporter | None = None) -> T:
+        if use_lock:
+            with db_lock:
+                if expects_reporter and report_progress is not None:
                     return func_with_reporter(report_progress)
-        else:
-
-            def _wrapped(report_progress: ProgressReporter) -> T:
-                return func_with_reporter(report_progress)
-    else:
-        func_noargs = cast(Callable[[], T], func)
-        if use_lock:
-
-            def _wrapped() -> T:
-                with db_lock:
-                    return func_noargs()
-        else:
-
-            def _wrapped() -> T:
                 return func_noargs()
+        else:
+            if expects_reporter and report_progress is not None:
+                return func_with_reporter(report_progress)
+            return func_noargs()
 
     task = DatabaseTask[T](
         _wrapped, description=description, reporter=(on_progress or (lambda *_: None))

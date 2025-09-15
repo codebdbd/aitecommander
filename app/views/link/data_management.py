@@ -19,6 +19,7 @@ class _DataProtocol(Protocol):
     def selectRow(self, row: int) -> None: ...
     def setCurrentIndex(self, index: Any) -> None: ...
     def scrollTo(self, index: Any) -> None: ...
+    def find_row_by_link_id(self, link_id: int) -> Optional[int]: ...
 
 
 class DataManagementMixin:
@@ -85,25 +86,30 @@ class DataManagementMixin:
         # Оптимизация: используем all() для более быстрой проверки
         return all(link1.get(field) == link2.get(field) for field in basic_fields)
 
-    def _get_current_link_ids(self: _DataProtocol) -> Set[str]:
-        """Возвращает множество ID текущих ссылок на основе фактических элементов таблицы (не кэша)."""
-        ids: Set[str] = set()
+    def _get_current_link_ids(self: _DataProtocol) -> Set:
+        """Возвращает множество ID текущих ссылок на основе фактических элементов таблицы (не кэша).
+
+        Поддерживает как строковые, так и целочисленные ID.
+        """
+        ids: Set = set()
         model = getattr(self, "model", lambda: None)()
         total = model.rowCount() if model is not None else 0
         for row in range(total):
             link_data = self.get_link_at(row)
             if link_data and "id" in link_data:
-                ids.add(link_data["id"])
+                val = link_data.get("id")
+                if isinstance(val, (int, str)):
+                    ids.add(val)
         return ids
 
-    def _get_new_link_ids(self: _DataProtocol, new_links: List[Dict]) -> Set[str]:
-        """Возвращает множество ID новых ссылок."""
-        ids: Set[str] = set()
+    def _get_new_link_ids(self: _DataProtocol, new_links: List[Dict]) -> Set:
+        """Возвращает множество ID новых ссылок (int или str)."""
+        ids: Set = set()
         for link in new_links:
             if not link:
                 continue
             val = link.get("id")
-            if isinstance(val, str):
+            if isinstance(val, (int, str)):
                 ids.add(val)
         return ids
 
@@ -123,9 +129,16 @@ class DataManagementMixin:
                 e,
             )
 
-    def _create_link_id_to_data_map(self: _DataProtocol, links: List[Dict]) -> Dict[str, Dict]:
-        """Создает маппинг ID -> данные ссылки."""
-        return {link.get("id"): link for link in links if link and "id" in link}
+    def _create_link_id_to_data_map(self: _DataProtocol, links: List[Dict]) -> Dict:
+        """Создает маппинг ID -> данные ссылки. Поддерживает int и str ID."""
+        result: Dict = {}
+        for link in links:
+            if not link or "id" not in link:
+                continue
+            lid = link.get("id")
+            if isinstance(lid, (int, str)):
+                result[lid] = link
+        return result
 
     def get_link_at(self: _DataProtocol, row: int) -> Optional[Dict]:
         """Возвращает данные ссылки для строки через модель (UserRole)."""

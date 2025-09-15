@@ -105,9 +105,6 @@ class DatabaseTask(QRunnable, Generic[T]):
                 # Сигнатура недоступна (встроенная/С-функция): по умолчанию вызываем без аргументов
                 func_noargs = cast(Callable[[], T], self.func)
                 result = func_noargs()
-            if self._canceled:
-                self.signals.canceled.emit()
-                return
             self.signals.finished.emit(result)
         except Exception as e:  # noqa: BLE001
             self.signals.error.emit(e)

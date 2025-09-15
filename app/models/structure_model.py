@@ -89,15 +89,6 @@ class StructureModel:
             return None
 
         try:
-            # Ожидаем только dict из CategoryModel.get_category_hierarchy
-            if not isinstance(hierarchy_data, dict):
-                self.logger.warning(
-                    "Некорректный формат иерархии для категории %s: %s",
-                    category_id,
-                    type(hierarchy_data),
-                )
-                return None
-
             # Пытаемся прочитать стандартные ключи
             sphere_id = hierarchy_data.get("sphere_id")
             section_id = hierarchy_data.get("section_id")

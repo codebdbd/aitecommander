@@ -36,6 +36,18 @@ class _PopulationProtocol(Protocol):
     def _add_row(self, row: int, data: Dict, mode: str) -> None: ...
     def sortByColumn(self, column: int, order: Qt.SortOrder) -> None: ...
     def viewport(self) -> Any: ...
+    # Дополнительные приватные помощники, используемые внутри миксина
+    def _full_populate(self, links: List[Dict], mode: str) -> None: ...
+    def _restore_ui_state(
+        self,
+        selection: List[int],
+        scroll_pos: int,
+        sort_col: int,
+        sort_order: Qt.SortOrder,
+    ) -> None: ...
+    def _get_current_link_ids(self) -> set[str]: ...
+    def _get_new_link_ids(self, new_links: List[Dict]) -> set[str]: ...
+    def _create_link_id_to_data_map(self, links: List[Dict]) -> Dict[str, Dict]: ...
     # Сигнал может отсутствовать в заглушках, поэтому hasattr-проверки в коде
     # def table_populated(self) -> Any: ...
 
@@ -50,12 +62,7 @@ class PopulationManagerMixin:
 
     def populate(self: _PopulationProtocol, links: List[Dict], mode: str = "normal"):
         """Заполняет таблицу данными ссылок с инкрементальным обновлением."""
-        if not isinstance(links, list):
-            self.logger.warning(
-                "[LinksTableView] Ожидался список ссылок, получен %s",
-                type(links),
-            )
-            return
+        # links уже типизирован как List[Dict]; дополнительная проверка не требуется
 
         # Оптимизация: отключаем обновление UI при массовых изменениях
         # Аннотация self как Any для строгой совместимости с типом SupportsUpdates из утилиты
@@ -184,7 +191,18 @@ class PopulationManagerMixin:
                         continue
 
                     link_id = current_link.get("id")
-                    new_link = new_link_map.get(link_id)
+                    # Приводим ключ к str для безопасного доступа к карте ссылок
+                    key: Optional[str]
+                    if isinstance(link_id, str):
+                        key = link_id
+                    elif link_id is None:
+                        key = None
+                    else:
+                        try:
+                            key = str(link_id)
+                        except Exception:
+                            key = None
+                    new_link = new_link_map.get(key) if key is not None else None
 
                     if new_link and not self._links_equal(current_link, new_link, mode):
                         self._update_row(row, new_link, mode)
@@ -284,7 +302,7 @@ class PopulationManagerMixin:
                 )
 
     def _restore_ui_state(
-        self,
+        self: _PopulationProtocol,
         selection: List[int],
         scroll_pos: int,
         sort_col: int,

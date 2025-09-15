@@ -13,7 +13,11 @@ class _HasDialog(Protocol):
 
 
 class FormDataMixin:
-    def _build_form_data(self: _HasDialog) -> Dict[str, Any]:
+    class _HasDialogAndCollect(_HasDialog, Protocol):
+        def _collect_form_data(self) -> Dict[str, Any]:
+            ...
+
+    def _build_form_data(self: _HasDialogAndCollect) -> Dict[str, Any]:
         """Формирует данные формы из UI компонентов."""
         return self._collect_form_data()
 

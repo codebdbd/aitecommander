@@ -8,7 +8,8 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from types import SimpleNamespace
 
 from app.config_data import app_config
 from app.utils.db.migrations import MigrationRunner
@@ -43,9 +44,10 @@ BACKUP_DIR = PATHS.get_backups_dir()
 
 
 class Database(DatabaseBase):
-    def __init__(self):
+    def __init__(self) -> None:
         self.db_path = str(DB_PATH)
-        self.thread_local = threading.local()
+        # db_connection expects a SimpleNamespace-like container for thread-local state
+        self.thread_local: SimpleNamespace = SimpleNamespace()
 
         # Инициализируем базовый класс (передаем self как connection_manager)
         super().__init__(self)
@@ -86,20 +88,20 @@ class Database(DatabaseBase):
             except Exception:
                 pass
 
-    def __enter__(self):
+    def __enter__(self) -> "Database":
         """Позволяет использовать Database как context manager."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Optional[type[BaseException]], exc_val: Optional[BaseException], exc_tb: Any) -> None:
         self.close()
 
     @property
-    def connection(self):
+    def connection(self) -> sqlite3.Connection:
         """Возвращает потокобезопасное соединение с БД. ВАЖНО: используйте объект только из одного потока!
         Для PyQt6 рекомендуется работать с базой только в главном потоке или через отдельный worker с передачей данных через сигналы/слоты."""
         return db_connection.get_connection(self.thread_local, self.db_path)
 
-    def _init_schema(self):
+    def _init_schema(self) -> None:
         """[DEPRECATED] Инициализация схемы напрямую из schema.sql.
 
         Используйте систему миграций (MigrationRunner) вместо прямого вызова.
@@ -110,7 +112,7 @@ class Database(DatabaseBase):
         )
         legacy_db.init_schema(self)
 
-    def _run_migrations(self):
+    def _run_migrations(self) -> None:
         """[DEPRECATED] Ручные миграции. Не используется, оставлено для истории."""
         logger.warning(
             "Database._run_migrations is deprecated; delegating to app.models.legacy_db.run_migrations"
@@ -128,7 +130,7 @@ class Database(DatabaseBase):
         """Возвращает sphere_id для заданного раздела."""
         return self.sections.get_sphere_id_by_section(section_id)
 
-    def update_item_positions(self, table_name: str, ids_in_order: List[int]):
+    def update_item_positions(self, table_name: str, ids_in_order: List[int]) -> None:
         """Обновляет поле 'position' для списка элементов в указанной таблице."""
         return db_positioning.update_item_positions(self.connection, db_lock, table_name, ids_in_order)
 
@@ -154,7 +156,7 @@ class Database(DatabaseBase):
     def _ensure_ids_exist(self, table_name: str, ids: List[int]) -> None:
         """Проверяет существование всех указанных ID в таблице. Бросает ValidationError при отсутствии."""
         with db_lock:
-            existing_ids = set()
+            existing_ids: set[int] = set()
             SELECT_CHUNK = 900
             for s in range(0, len(ids), SELECT_CHUNK):
                 part = ids[s : s + SELECT_CHUNK]
@@ -171,7 +173,7 @@ class Database(DatabaseBase):
             )
 
     # Методы импорта/экспорта
-    def export_full_structure(self) -> Dict[str, List]:
+    def export_full_structure(self) -> Dict[str, List[Dict[str, Any]]]:
         """Экспортирует всю структуру данных из БД в виде словаря."""
         try:
             return db_structure_io.export_full_structure(self)
@@ -179,7 +181,7 @@ class Database(DatabaseBase):
             logger.error("Ошибка экспорта структуры: %s", e, exc_info=True)
             raise DatabaseError(f"Не удалось экспортировать структуру: {e}")
 
-    def get_full_structure(self) -> List[Dict]:
+    def get_full_structure(self) -> List[Dict[str, Any]]:
         """Возвращает полную структуру данных в виде вложенных словарей."""
         try:
             return db_structure_io.get_full_structure(self)
@@ -187,7 +189,7 @@ class Database(DatabaseBase):
             logger.error("Ошибка получения полной структуры: %s", e, exc_info=True)
             raise DatabaseError(f"Не удалось получить полную структуру: {e}")
 
-    def import_full_structure(self, data: List[Dict]):
+    def import_full_structure(self, data: List[Dict[str, Any]]) -> None:
         """Очищает базу и импортирует данные из структуры.
 
         Потокобезопасная операция, которая не изменяет входные данные.
@@ -207,22 +209,22 @@ class Database(DatabaseBase):
             logger.error("Ошибка импорта структуры: %s", e, exc_info=True)
             raise DatabaseError(f"Не удалось импортировать структуру: {e}")
 
-    def export_section_tree(self, section_id: int) -> dict:
+    def export_section_tree(self, section_id: int) -> Dict[str, Any]:
         """Экспортирует раздел вместе со всеми категориями и ссылками."""
         exporter = db_subtree_io.export_section_tree(self)
         return exporter(section_id)
 
-    def import_section_tree(self, tree: dict):
+    def import_section_tree(self, tree: dict) -> None:
         """Восстанавливает раздел, его категории и все ссылки из backup-структуры."""
         importer = db_subtree_io.import_section_tree(self)
         return importer(tree)
 
-    def export_category_tree(self, category_id: int) -> dict:
+    def export_category_tree(self, category_id: int) -> Dict[str, Any]:
         """Экспортирует категорию вместе со всеми ссылками."""
         exporter = db_subtree_io.export_category_tree(self)
         return exporter(category_id)
 
-    def import_category_tree(self, tree: dict):
+    def import_category_tree(self, tree: dict) -> None:
         """Восстанавливает категорию и все ссылки из backup-структуры."""
         importer = db_subtree_io.import_category_tree(self)
         return importer(tree)
@@ -250,7 +252,7 @@ class Database(DatabaseBase):
         except Exception:
             return False
 
-    def backup(self):
+    def backup(self) -> None:
         """Создаёт резервную копию базы данных и удаляет старые копии при превышении лимита.
         Использует sqlite3.Connection.backup для консистентности копии."""
         try:
@@ -266,7 +268,7 @@ class Database(DatabaseBase):
 
         return _app_config.settings.get_max_backups()
 
-    def close(self):
+    def close(self) -> None:
         """Закрывает соединение с базой данных."""
         db_connection.close_connection(self.thread_local, logger, db_lock)
 

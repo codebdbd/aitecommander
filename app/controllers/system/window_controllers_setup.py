@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-from typing import Any, Dict
+from typing import Any, Dict, Callable
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QAction, QFont
@@ -37,7 +37,29 @@ class SetupError(Exception):
     """Ошибки настройки компонентов окна."""
 
 
-def _resolve_structure_loader(structure_business: StructureBusinessLogic):
+def show_success_message(window: Any, title: str, message: str) -> None:
+    """Показать сообщение об успехе (top-level helper for signal connections)."""
+    from app.controllers.ui.dialogs import DialogManager
+    DialogManager.show_info(
+        window,
+        title,
+        message,
+        informative_text="Операция выполнена успешно.",
+    )
+
+
+def show_error_message(window: Any, title: str, message: str) -> None:
+    """Показать сообщение об ошибке (top-level helper for signal connections)."""
+    from app.controllers.ui.dialogs import DialogManager
+    DialogManager.show_error(
+        window,
+        title,
+        message,
+        informative_text="Попробуйте повторить действие или обратитесь в поддержку.",
+    )
+
+
+def _resolve_structure_loader(structure_business: StructureBusinessLogic) -> Callable[[], None]:
     """Вернуть callable для загрузки структуры: load_structure_async или load_structure.
 
     Строго типизированный поиск загрузчика: проверяем наличие методов через hasattr
@@ -55,7 +77,7 @@ def _resolve_structure_loader(structure_business: StructureBusinessLogic):
     try:
         # Приоритет async методу, если доступен
         if has_async:
-            loader = structure_business.load_structure_async  # type: ignore[attr-defined]
+            loader = structure_business.load_structure_async
             if not callable(loader):
                 raise SetupError(
                     "StructureBusinessLogic.load_structure_async must be callable"
@@ -63,7 +85,7 @@ def _resolve_structure_loader(structure_business: StructureBusinessLogic):
             return loader
 
         if has_sync:
-            loader = structure_business.load_structure  # type: ignore[attr-defined]
+            loader = structure_business.load_structure
             if not callable(loader):
                 raise SetupError(
                     "StructureBusinessLogic.load_structure must be callable"
@@ -372,11 +394,11 @@ def _inject_to_category_tiles(window: Any, controllers: Dict[str, Any]) -> None:
     from app.controllers.ui.dialogs import DialogMixin
 
     class DialogProvider(DialogMixin):
-        def __init__(self, parent_widget):
+        def __init__(self, parent_widget: Any) -> None:
             self.parent = parent_widget
 
         def show_link_dialog_for_category(
-            self, category_id: int | None = None, link=None
+            self, category_id: int | None = None, link: Any = None
         ) -> bool:
             """Проксирует вызов показа диалога ссылки к главному окну."""
             try:
@@ -403,7 +425,7 @@ def _inject_to_category_tiles(window: Any, controllers: Dict[str, Any]) -> None:
     tiles = window.tiles
     structure_ctrl = controllers["structure"]
 
-    def on_tiles_context_menu(category_id: int, global_pos):
+    def on_tiles_context_menu(category_id: int, global_pos: Any) -> None:
         # Ошибки контекстного меню не относятся к wiring и не должны скрываться.
         # Логируем неожиданные ошибки, но не используем общий перехват в wiring-блоках.
         try:
@@ -796,10 +818,10 @@ def _connect_database_signals(window: Any) -> None:
             )
         )
         db_controller.operation_success.connect(
-            partial(MessageHandler.show_success_message, window)
+            partial(show_success_message, window)
         )
         db_controller.operation_error.connect(
-            partial(MessageHandler.show_error_message, window)
+            partial(show_error_message, window)
         )
     except (AttributeError, TypeError) as e:
         logger.warning("Failed to connect database signals: %s", e)
@@ -819,7 +841,7 @@ def _connect_ui_signals(window: Any) -> None:
             sel_model = None
         if sel_model:
 
-            def _update_statusbar_tree(*_):
+            def _update_statusbar_tree(*_: Any) -> None:
                 try:
                     window.update_statusbar()
                 except Exception:
@@ -843,7 +865,7 @@ def _connect_ui_signals(window: Any) -> None:
             selection_model = None
         if selection_model:
 
-            def _update_statusbar_table(*_):
+            def _update_statusbar_table(*_: Any) -> None:
                 try:
                     window.update_statusbar()
                 except Exception:
@@ -869,16 +891,11 @@ def _connect_ui_signals(window: Any) -> None:
     window._ui_signals_connected = True
 
 
-def setup_keyboard(window: Any, controllers: Dict[str, Any]) -> None:
-    """Настроить централизованное управление горячими клавишами."""
-    window.keyboard_manager = KeyboardManager(window)
-
-
 class DatabaseEventHandler:
     """Обработчик событий базы данных."""
 
     @staticmethod
-    def handle_database_restored(window: Any, new_db: Any):
+    def handle_database_restored(window: Any, new_db: Any) -> None:
         """Обработать восстановление базы данных."""
         window.db = new_db
         # Явно передаем links_actions как зависимость
@@ -890,7 +907,7 @@ class DatabaseEventHandler:
         window.update_statusbar()
 
     @staticmethod
-    def handle_database_connected(window: Any, new_db: Any):
+    def handle_database_connected(window: Any, new_db: Any) -> None:
         """Обработать подключение новой базы данных."""
         window.db = new_db
         # Явно передаем links_actions как зависимость
@@ -907,7 +924,7 @@ class DatabaseEventHandler:
         *,
         top_panels_controller: TopPanelsController,
         links_table_controller: LinksTableController,
-    ):
+    ) -> None:
         """Обработать очистку избранного.
         Требует явных зависимостей: TopPanelsController и LinksTableController.
         """
@@ -930,7 +947,7 @@ class DatabaseEventHandler:
     @staticmethod
     def _update_controllers_with_new_db(
         window: Any, new_db: Any, *, links_actions: Any = None
-    ):
+    ) -> None:
         """Обновить все контроллеры новой БД.
 
         Args:
@@ -1033,7 +1050,7 @@ class DatabaseEventHandler:
                 )
             try:
 
-                def _set_first_sphere_once(spheres_list):
+                def _set_first_sphere_once(spheres_list: Any) -> None:
                     try:
                         has_get = hasattr(sb, "get_current_sphere_id") and callable(
                             sb.get_current_sphere_id
@@ -1085,7 +1102,7 @@ class DatabaseEventHandler:
                 raise
 
     @staticmethod
-    def _restore_ui_state(window: Any):
+    def _restore_ui_state(window: Any) -> None:
         """Восстановить состояние UI после смены БД."""
         category_id = window.get_current_category_id()
         if category_id:
@@ -1122,34 +1139,6 @@ class DatabaseEventHandler:
                         raise
 
 
-class MessageHandler:
-    """Обработчик сообщений пользователю."""
-
-    @staticmethod
-    def show_success_message(window: Any, title: str, message: str):
-        """Показать сообщение об успехе."""
-        from app.controllers.ui.dialogs import DialogManager
-
-        DialogManager.show_info(
-            window,
-            title,
-            message,
-            informative_text="Операция выполнена успешно.",
-        )
-
-    @staticmethod
-    def show_error_message(window: Any, title: str, message: str):
-        """Показать сообщение об ошибке."""
-        from app.controllers.ui.dialogs import DialogManager
-
-        DialogManager.show_error(
-            window,
-            title,
-            message,
-            informative_text="Попробуйте повторить действие или обратитесь в поддержку.",
-        )
-
-
 class WindowControllersSetup:
     """Координатор настройки контроллеров и компонентов главного окна."""
 
@@ -1171,29 +1160,39 @@ class WindowControllersSetup:
                 "Critical component ControllersSetup failed to initialize"
             ) from e
 
-        for name, step in (
-            ("UIElementsSetup", setup_ui_elements),
-            ("DependencyInjectionSetup", setup_dependency_injection),
-            ("SignalConnectionSetup", setup_signal_connections),
-            ("KeyboardSetup", setup_keyboard),
-        ):
-            try:
-                if step is setup_signal_connections:
-                    # Явно передаем TopPanelsController для ранней валидации DI
-                    step(
-                        self.window,
-                        controllers,
-                        top_panels_controller=self.window.top_panels_controller,
-                    )
-                else:
-                    step(self.window, controllers)
-                logger.info("%s completed", name)
-            except (AttributeError, TypeError, ValueError, SetupError) as e:
-                logger.error("%s failed: %s", name, e)
-                # Не скрываем проблемы конфигурации шагов — завершаем настройку ошибкой
-                raise SetupError(f"{name} failed during window setup") from e
+        # Выполняем шаги явно, чтобы сигнатуры аргументов были корректны для mypy
+        try:
+            setup_ui_elements(self.window, controllers)
+            logger.info("%s completed", "UIElementsSetup")
+        except (AttributeError, TypeError, ValueError, SetupError) as e:
+            logger.error("%s failed: %s", "UIElementsSetup", e)
+            raise SetupError("UIElementsSetup failed during window setup") from e
 
-    def initialize_spheres(self):
+        try:
+            setup_dependency_injection(self.window, controllers)
+            logger.info("%s completed", "DependencyInjectionSetup")
+        except (AttributeError, TypeError, ValueError, SetupError) as e:
+            logger.error("%s failed: %s", "DependencyInjectionSetup", e)
+            raise SetupError("DependencyInjectionSetup failed during window setup") from e
+
+        try:
+            setup_signal_connections(
+                self.window, controllers, top_panels_controller=self.window.top_panels_controller
+            )
+            logger.info("%s completed", "SignalConnectionSetup")
+        except (AttributeError, TypeError, ValueError, SetupError) as e:
+            logger.error("%s failed: %s", "SignalConnectionSetup", e)
+            raise SetupError("SignalConnectionSetup failed during window setup") from e
+
+        try:
+            # Inline keyboard setup to avoid name resolution issues
+            self.window.keyboard_manager = KeyboardManager(self.window)
+            logger.info("%s completed", "KeyboardSetup")
+        except (AttributeError, TypeError, ValueError, SetupError) as e:
+            logger.error("%s failed: %s", "KeyboardSetup", e)
+            raise SetupError("KeyboardSetup failed during window setup") from e
+
+    def initialize_spheres(self) -> None:
         """Инициализация сфер."""
         try:
             sc = getattr(self.window, "spheres_controller", None)

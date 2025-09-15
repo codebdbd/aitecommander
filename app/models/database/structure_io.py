@@ -11,14 +11,14 @@ from __future__ import annotations
 import copy
 import logging
 import time
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 from app.models.link_type import LinkType
 
 logger = logging.getLogger(__name__)
 
 
-def export_full_structure(db) -> Dict[str, List]:
+def export_full_structure(db: Any) -> Dict[str, List[Dict[str, Any]]]:
     try:
         # Загружаем все таблицы одной выборкой каждую под единой блокировкой
         t0 = time.perf_counter()
@@ -38,12 +38,12 @@ def export_full_structure(db) -> Dict[str, List]:
         t1 = time.perf_counter()
 
         # Подготовка индексов для сборки структуры
-        spheres_by_id = {}
-        sections_by_id = {}
-        categories_by_id = {}
+        spheres_by_id: Dict[int, Dict[str, Any]] = {}
+        sections_by_id: Dict[int, Dict[str, Any]] = {}
+        categories_by_id: Dict[int, Dict[str, Any]] = {}
 
-        sections_by_sphere = {}
-        categories_by_section = {}
+        sections_by_sphere: Dict[int, List[Dict[str, Any]]] = {}
+        categories_by_section: Dict[int, List[Dict[str, Any]]] = {}
 
         # Преобразуем строки в dict и инициализируем контейнеры
         for s in spheres:
@@ -66,13 +66,15 @@ def export_full_structure(db) -> Dict[str, List]:
         # Линки просто добавляем к категориям
         for ln in links:
             ld = dict(ln)
-            cat_id = ld.get("category_id")
-            cat_obj = categories_by_id.get(cat_id)
+            link_cat_id = ld.get("category_id")
+            if not isinstance(link_cat_id, int):
+                continue
+            cat_obj = categories_by_id.get(link_cat_id)
             if cat_obj is not None:
                 cat_obj["links"].append(ld)
 
         # Собираем иерархию, сохраняя порядок по position (он уже в ORDER BY)
-        spheres_data: List[Dict] = []
+        spheres_data: List[Dict[str, Any]] = []
         for s in spheres:
             s_obj = spheres_by_id[s["id"]]
             for sc in sections_by_sphere.get(s_obj["id"], []):
@@ -109,7 +111,7 @@ def export_full_structure(db) -> Dict[str, List]:
         raise
 
 
-def get_full_structure(db) -> List[Dict]:
+def get_full_structure(db: Any) -> List[Dict[str, Any]]:
     try:
         t0 = time.perf_counter()
         with db_lock(db):
@@ -128,12 +130,12 @@ def get_full_structure(db) -> List[Dict]:
 
         t1 = time.perf_counter()
 
-        spheres_by_id: Dict[int, Dict] = {}
-        sections_by_id: Dict[int, Dict] = {}
-        categories_by_id: Dict[int, Dict] = {}
+        spheres_by_id: Dict[int, Dict[str, Any]] = {}
+        sections_by_id: Dict[int, Dict[str, Any]] = {}
+        categories_by_id: Dict[int, Dict[str, Any]] = {}
 
-        sections_by_sphere: Dict[int, List[Dict]] = {}
-        categories_by_section: Dict[int, List[Dict]] = {}
+        sections_by_sphere: Dict[int, List[Dict[str, Any]]] = {}
+        categories_by_section: Dict[int, List[Dict[str, Any]]] = {}
 
         for s in spheres_rows:
             sd = dict(s)
@@ -156,10 +158,10 @@ def get_full_structure(db) -> List[Dict]:
 
         for ln in links_rows:
             ld = dict(ln)
-            cat_id = ld.get("category_id")
-            if cat_id is None:
+            link_cat_id = ld.get("category_id")
+            if not isinstance(link_cat_id, int):
                 continue
-            cat_obj = categories_by_id.get(int(cat_id))
+            cat_obj = categories_by_id.get(link_cat_id)
             if cat_obj is not None:
                 cat_obj["links"].append(ld)
 
@@ -191,29 +193,27 @@ def get_full_structure(db) -> List[Dict]:
         raise
 
 
-def db_lock(db):  # helper to access the same lock the Database uses
+def db_lock(db: Any) -> Any:  # helper to access the same lock the Database uses
     from app.utils.db.synchronization import db_lock as _lock
 
     # возвращаем сам объект блокировки; используется как контекст-менеджер
     return _lock
 
 
-def import_full_structure(db, data: List[Dict]):
+def import_full_structure(db: Any, data: List[Dict[str, Any]]) -> None:
     try:
         t0 = time.perf_counter()
         # Database.import_full_structure уже делает deepcopy входных данных.
         # Здесь используем данные как есть, чтобы избежать второго вызова deepcopy.
         root = data or []
 
-        spheres_items: List[Dict] = []
-        sections_items: List[Dict] = []
-        categories_items: List[Dict] = []
-        links_with_id: List[Dict] = []
-        links_without_id: List[Dict] = []
+        spheres_items: List[Dict[str, Any]] = []
+        sections_items: List[Dict[str, Any]] = []
+        categories_items: List[Dict[str, Any]] = []
+        links_with_id: List[Dict[str, Any]] = []
+        links_without_id: List[Dict[str, Any]] = []
 
         for s_idx, s in enumerate(root):
-            if not isinstance(s, dict):
-                continue
             s_ref = id(s)
             s_name = s.get("name", "")
             s_pos = s.get("position", s_idx)
@@ -322,11 +322,12 @@ def import_full_structure(db, data: List[Dict]):
                             (
                                 int(x["id"]),
                                 x.get("name", ""),
-                                int(x.get("sphere_id")),
+                                int(x["sphere_id"]),
                                 x.get("icon_path", ""),
                                 int(x.get("position", 0)),
                             )
                             for x in sections_with_id
+                            if isinstance(x.get("sphere_id"), int)
                         ],
                     )
                 section_ref_to_id = {}
@@ -337,7 +338,7 @@ def import_full_structure(db, data: List[Dict]):
                         "INSERT INTO section (name, sphere_id, icon_path, position) VALUES (?, ?, ?, ?)",
                         (
                             x.get("name", ""),
-                            int(x.get("sphere_id")),
+                            int(x["sphere_id"]),
                             x.get("icon_path", ""),
                             int(x.get("position", 0)),
                         ),
@@ -356,11 +357,12 @@ def import_full_structure(db, data: List[Dict]):
                             (
                                 int(x["id"]),
                                 x.get("name", ""),
-                                int(x.get("section_id")),
+                                int(x["section_id"]),
                                 x.get("icon_path", ""),
                                 int(x.get("position", 0)),
                             )
                             for x in categories_with_id
+                            if isinstance(x.get("section_id"), int)
                         ],
                     )
                 category_ref_to_id = {}
@@ -371,7 +373,7 @@ def import_full_structure(db, data: List[Dict]):
                         "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
                         (
                             x.get("name", ""),
-                            int(x.get("section_id")),
+                            int(x["section_id"]),
                             x.get("icon_path", ""),
                             int(x.get("position", 0)),
                         ),
@@ -413,8 +415,8 @@ def import_full_structure(db, data: List[Dict]):
                         sql,
                         [
                             (
-                                int(l.get("id")),
-                                int(l.get("category_id")),
+                                int(l["id"]),
+                                int(l["category_id"]),
                                 l.get("name", ""),
                                 l.get("url", ""),
                                 l.get("type", "web"),
@@ -427,6 +429,7 @@ def import_full_structure(db, data: List[Dict]):
                                 int(l.get("position", 0)),
                             )
                             for l in links_with_id
+                            if isinstance(l.get("id"), int) and isinstance(l.get("category_id"), int)
                         ],
                     )
 
@@ -447,10 +450,13 @@ def import_full_structure(db, data: List[Dict]):
                     placeholders = ", ".join(["?"] * len(cols))
                     sql = f"INSERT INTO link ({', '.join(cols)}) VALUES ({placeholders})"
                     for l in links_without_id:
+                        if not isinstance(l.get("category_id"), int):
+                            # пропускаем некорректные записи без валидного FK
+                            continue
                         db.connection.execute(
                             sql,
                             (
-                                int(l.get("category_id")),
+                                int(l["category_id"]),
                                 l.get("name", ""),
                                 l.get("url", ""),
                                 l.get("type", "web"),

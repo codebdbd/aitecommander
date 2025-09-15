@@ -1,4 +1,5 @@
 import importlib.util
+import importlib.abc
 import logging
 import sqlite3
 from dataclasses import dataclass
@@ -105,7 +106,11 @@ class MigrationRunner:
         if spec is None or spec.loader is None:
             raise MigrationError(f"Не удалось загрузить миграцию: {path}")
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)  # type: ignore
+        loader = spec.loader
+        # По контракту importlib, у loader должен быть метод exec_module
+        if not isinstance(loader, importlib.abc.Loader):
+            raise MigrationError(f"Некорректный loader для миграции: {path}")
+        loader.exec_module(module)
         migrate_func: Optional[Callable] = getattr(module, "migrate", None)
         if not callable(migrate_func):
             raise MigrationError(f"В python-миграции {path.name} отсутствует функция migrate(conn, logger)")

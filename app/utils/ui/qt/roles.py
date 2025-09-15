@@ -80,11 +80,7 @@ def set_tree_tuple(index: QModelIndex, value: Tuple[str, int]) -> bool:
     try:
         if not index or not index.isValid():
             return False
-        if not (isinstance(value, (tuple, list)) and len(value) == 2):
-            return False
         t, i = value
-        if not (isinstance(t, str) and isinstance(i, int)):
-            return False
         model = index.model()
         if model is None or not hasattr(model, "setData"):
             return False

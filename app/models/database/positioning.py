@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import time
 import sqlite3
-from typing import List
+from typing import Any, List
 
 from app.models.db_base import VALID_POSITION_TABLES, ValidationError, DatabaseError
 
@@ -38,10 +38,10 @@ def _validate_ids(ids_in_order: List[int]) -> List[int]:
     return ids
 
 
-def _ensure_ids_exist(connection: sqlite3.Connection, lock, table_name: str, ids: List[int]) -> None:
+def _ensure_ids_exist(connection: sqlite3.Connection, lock: Any, table_name: str, ids: List[int]) -> None:
     """Проверяет существование всех указанных ID в таблице. Бросает ValidationError при отсутствии."""
     with lock:
-        existing_ids = set()
+        existing_ids: set[int] = set()
         SELECT_CHUNK = 900
         for s in range(0, len(ids), SELECT_CHUNK):
             part = ids[s : s + SELECT_CHUNK]
@@ -58,7 +58,7 @@ def _ensure_ids_exist(connection: sqlite3.Connection, lock, table_name: str, ids
         )
 
 
-def update_item_positions(connection: sqlite3.Connection, lock, table_name: str, ids_in_order: List[int]) -> None:
+def update_item_positions(connection: sqlite3.Connection, lock: Any, table_name: str, ids_in_order: List[int]) -> None:
     """Обновляет поле 'position' для списка элементов в указанной таблице."""
     if table_name not in VALID_POSITION_TABLES:
         raise ValidationError(

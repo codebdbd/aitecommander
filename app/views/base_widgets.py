@@ -409,8 +409,10 @@ class BaseDragDropTableWidget(QTableView):
             self._sorting_disabled_for_drag = False
         super().dragLeaveEvent(event)
 
-    def dropEvent(self, event: QDropEvent):
+    def dropEvent(self, event: QDropEvent | None):
         """Обрабатывает drop для внутреннего перемещения строк."""
+        if event is None:
+            return
         if not self._is_internal_drop(event):
             super().dropEvent(event)
             return
