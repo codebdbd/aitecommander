@@ -354,7 +354,7 @@ class IconHandling:
         self, token_local: int, sec_icon_path: dict[int, str], cat_icon_path: dict[int, str]
     ) -> None:
 
-        CHUNK_STEPS = 2000
+        CHUNK_STEPS = 1000
         TOTAL_MAX_STEPS = 1000000
 
         def _init_traversal(model_local):
@@ -435,6 +435,12 @@ class IconHandling:
                             path = sec_icon_path.get(int(item_id), "")
                         elif item_type == "category":
                             path = cat_icon_path.get(int(item_id), "")
+                        # Если путь пуст — попробуем получить дефолтный путь от резолвера
+                        if not path:
+                            try:
+                                path = resolve_icon_for_link({"type": str(item_type), "icon_path": ""}) or ""
+                            except Exception:
+                                path = ""
                         # Пропуск, если путь не изменился
                         try:
                             key = (str(item_type), int(item_id)) if isinstance(item_id, int) else None
