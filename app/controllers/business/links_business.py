@@ -76,7 +76,7 @@ class LinksBusinessLogic(QObject):
             on_finished=lambda links: self._on_links_loaded(
                 links, category_id, task_id
             ),
-            on_error=lambda e: self._on_worker_error(str(e)),
+            on_error=lambda e: self._on_worker_error(str(e), task_id),
         )
 
     def get_links(self, category_id: int) -> List[Dict]:
@@ -443,7 +443,22 @@ class LinksBusinessLogic(QObject):
         """Обработка подсчета избранного."""
         self.favorites_counted.emit(fav_count, links, link)
 
-    def _on_worker_error(self, error_msg: str):
-        """Обработка ошибок воркеров."""
+    def _on_worker_error(self, error_msg: str, task_id: Optional[int] = None):
+        """Обработка ошибок воркеров.
+
+        Если передан task_id, удаляем задачу из pending_tasks под tasks_lock,
+        чтобы исключить утечки при ошибках асинхронной загрузки ссылок.
+        """
+        # Сначала очистим учёт задач, если есть task_id
+        if task_id is not None:
+            try:
+                with tasks_lock:
+                    if task_id in self.pending_tasks:
+                        self.pending_tasks.remove(task_id)
+                        self.logger.debug("Removed failed task_id=%s from pending_tasks", task_id)
+            except Exception as e:
+                # Никогда не прерываем обработку ошибки из-за проблем с очисткой
+                self.logger.debug("Failed to cleanup task_id=%s: %s", task_id, e, exc_info=True)
+
         self.logger.error("Worker error: %s", error_msg)
         self.error_occurred.emit(str(error_msg))
