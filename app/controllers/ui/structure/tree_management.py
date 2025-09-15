@@ -56,80 +56,70 @@ class TreeManagement:
             except Exception:
                 logger.debug("TreeManagement._on_structure_loaded: patch path failed", exc_info=True)
             return
-        # Сохраняем состояние вида (развороты, позиция скролла, выделение)
-        try:
-            state = self.tree.saveState()
-        except Exception:
-            state = None
+        # Высокоуровневая последовательность без лишних try/except
+        state = self._save_view_state()
+        snapshot = self._prepare_snapshot(sections_data)
+        self._apply_snapshot(snapshot)
+        self._restore_state(state)
+        self._ensure_selection(state)
+        self._notify_selection_handler()
 
-        # Сортируем разделы по имени (без учета регистра) перед передачей в модель
+    def _save_view_state(self):
+        """Сохраняет состояние дерева (развороты, скролл, выделение)."""
         try:
-            sections_data = sorted(
-                sections_data or [], key=lambda s: (s.get("name") or "").lower()
-            )
+            return self.tree.saveState()
+        except Exception:
+            return None
+
+    def _prepare_snapshot(self, sections_data: list | dict):
+        """Готовит снапшот для модели: сортировка разделов и подготовка иконок."""
+        data = sections_data
+        # Сортировка разделов по имени (case-insensitive)
+        try:
+            data = sorted(data or [], key=lambda s: (s.get("name") or "").lower())
         except Exception:
             logger.exception(
                 "TreeManagement._on_structure_loaded: ошибка сортировки разделов"
             )
-
-        # Преобразуем icon_path → QIcon непосредственно в данных снапшота,
-        # используя resolve_icon_for_link для типовых фолбэков (section/category).
+        # Подготовка иконок
         try:
-            if isinstance(sections_data, list):
-                sections_data = prepare_icons_snapshot(sections_data)
+            if isinstance(data, list):
+                data = prepare_icons_snapshot(data)
         except Exception:
-            logger.debug("TreeManagement._on_structure_loaded: prepare icons failed", exc_info=True)
+            logger.debug(
+                "TreeManagement._on_structure_loaded: prepare icons failed", exc_info=True
+            )
+        return data
 
-        # Обновляем модель с подавлением перерисовок и сигналов
-        self._update_model_snapshot(sections_data)
-
-        # Если структура пуста (нет ни одного раздела) — очистим плитки категорий
+    def _apply_snapshot(self, snapshot: list | dict) -> None:
+        """Применяет снапшот к модели и обновляет плитки при пустой структуре."""
+        self._update_model_snapshot(snapshot)
         try:
-            if not sections_data:
+            if not snapshot:
                 self.tiles_controller.clear()
         except Exception:
             logger.exception(
                 "TreeManagement._on_structure_loaded: ошибка очистки плиток при пустой структуре"
             )
 
-        # Восстанавливаем состояние вида (развороты, позиция скролла, выделение)
+    def _restore_state(self, state) -> None:
+        """Безопасное восстановление состояния вида (если оно есть)."""
         if state:
             self._restore_view_state(state)
 
-        # Если восстановления состояния не было или оно пустое — выберем первый элемент
-        # Либо если флаг подавления восстановления категории был активен — выбираем первый доступный элемент.
+    def _ensure_selection(self, state) -> None:
+        """Делегирует гарантию корректного выделения в SelectionHandling."""
         try:
-            sb = getattr(self.controller, "business", None) or getattr(
-                self.controller, "structure_business", None
-            )
+            sh = getattr(self.controller, "selection_handler", None)
+            if sh and hasattr(sh, "ensure_selection_after_load"):
+                sh.ensure_selection_after_load(state)
+            else:
+                # Fallback: выбрать первый элемент при отсутствии состояния
+                if not state and sh and hasattr(sh, "_select_first_item_if_needed"):
+                    sh._select_first_item_if_needed()
         except Exception:
-            sb = None
-        if not state or (sb and getattr(sb, "_suppress_category_restore_once", False)):
-            # Сброс флага на всякий случай, если не сбросили выше
-            if sb and getattr(sb, "_suppress_category_restore_once", False):
-                try:
-                    setattr(sb, "_suppress_category_restore_once", False)
-                except Exception:
-                    pass
-            self.controller.selection_handler._select_first_item_if_needed()
-
-        # После стабилизации модели и восстановления состояния — вручную уведомим обработчик выбора,
-        # так как сигналы selectionModel были заблокированы во время set_snapshot/restoreState
-        self._notify_selection_handler()
-
-        # Гарантированно сбросим одноразовый флаг подавления восстановления категории,
-        # если он по какой-то причине остался установлен после обработки выше.
-        try:
-            sb = getattr(self.controller, "business", None) or getattr(
-                self.controller, "structure_business", None
-            )
-            if sb and getattr(sb, "_suppress_category_restore_once", False):
-                setattr(sb, "_suppress_category_restore_once", False)
-        except Exception:
-            pass
-
-        # Иконки теперь обновляются событием modelReset в StructureUIController;
-        # здесь дополнительных вызовов не делаем, чтобы избежать двойной работы.
+            # Не мешаем остальной последовательности, логируем в DEBUG
+            logger.debug("TreeManagement._ensure_selection: delegate failed", exc_info=True)
 
         # После первой загрузки структуры обновляем отображение главного окна
         if hasattr(self.controller, "main") and getattr(
