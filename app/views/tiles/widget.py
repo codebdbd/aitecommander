@@ -9,7 +9,7 @@ from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QAbstractItemView, QVBoxLayout, QWidget
 
 from app.config_data import app_config
-from app.views.models.categories_list_model import CategoriesListModel
+from app.models.categories_list_model import CategoriesListModel
 
 from .list_view import CategoryListView
 from .delegate import CategoryTileDelegate

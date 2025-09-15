@@ -277,7 +277,7 @@ class WindowInitializer:
                 if isinstance(curr_id, int) and curr_id > 0:
                     self._metrics.start("async:structure_load")
                     try:
-                        if sb is not None and hasattr(sb, "structure_loaded"):
+                        if hasattr(sb, "structure_loaded"):
 
                             def _on_structure_loaded_once(*_args):
                                 try:
@@ -297,13 +297,7 @@ class WindowInitializer:
                                         exc_info=False,
                                     )
 
-                            try:
-                                sb.structure_loaded.connect(_on_structure_loaded_once)
-                            except Exception:
-                                logger.debug(
-                                    "WindowInitializer: failed to connect structure_loaded once hook",
-                                    exc_info=False,
-                                )
+                            sb.structure_loaded.connect(_on_structure_loaded_once)
                     except Exception:
                         logger.debug(
                             "WindowInitializer: failed to wire metrics to structure_loaded",

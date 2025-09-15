@@ -32,8 +32,7 @@ class MimeDataParser:
         try:
             if not mime_data or not mime_data.hasFormat(mime_type):
                 return []
-            # PyQt6: QByteArray -> get raw bytes via .data()
-            raw = mime_data.data(mime_type).data().decode("utf-8")
+            raw = bytes(mime_data.data(mime_type)).decode("utf-8")
             data = json.loads(raw)
             if isinstance(data, dict):
                 ids = data.get("ids", [])

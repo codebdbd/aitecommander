@@ -4,7 +4,7 @@ import logging
 import time
 from typing import Any, Optional, TypeVar
 
-from PyQt6.QtCore import QEvent, QItemSelection, QItemSelectionModel, QObject, Qt, QTimer
+from PyQt6.QtCore import QItemSelection, QItemSelectionModel, QObject, Qt, QTimer
 from PyQt6.QtGui import QKeyEvent, QKeySequence, QShortcut
 from PyQt6.QtWidgets import QApplication, QWidget
 
@@ -40,19 +40,18 @@ class BaseKeyHandler:
         class_name_to_check = WIDGET_CLASSES[widget_type]
         object_name_to_check = WIDGET_OBJECT_NAMES.get(widget_type)
 
-        current_w: Optional[QWidget] = widget
-        while current_w is not None:
-            class_name = current_w.__class__.__name__
+        current = widget
+        while current:
+            class_name = current.__class__.__name__
             if class_name_to_check in class_name:
                 return True
             if (
                 object_name_to_check
-                and hasattr(current_w, "objectName")
-                and object_name_to_check in str(current_w.objectName()).lower()
+                and hasattr(current, "objectName")
+                and object_name_to_check in current.objectName().lower()
             ):
                 return True
-            parent = current_w.parent()
-            current_w = parent if isinstance(parent, QWidget) else None
+            current = current.parent()
         return False
 
     def _is_tree_focused(self, widget: Optional[QWidget]) -> bool:
@@ -64,12 +63,12 @@ class BaseKeyHandler:
     def _is_tiles_focused(self, widget: Optional[QWidget]) -> bool:
         return self._is_widget_of_type(widget, "CATEGORY_TILES")
 
-    def _safe_getattr(self, obj: Any, attr: str, default: Optional[T] = None) -> Any:
+    def _safe_getattr(self, obj: Any, attr: str, default: T = None) -> Any:
         # Delegate to shared common utils
         return _common_safe_getattr(obj, attr, default)
 
     def _safe_call(
-        self, obj: Any, method_name: str, *args: Any, default: Optional[T] = None, **kwargs: Any
+        self, obj: Any, method_name: str, *args: Any, default: T = None, **kwargs: Any
     ) -> Any:
         # Delegate to shared common utils
         return _common_safe_call(obj, method_name, *args, default=default, **kwargs)
@@ -394,10 +393,10 @@ class KeyboardManager(QObject):
 
     ENTER_COOLDOWN = 150
 
-    def __init__(self, main_window: Any) -> None:
+    def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
-        self.shortcuts: list[QShortcut] = []
+        self.shortcuts = []
 
         self.global_handler = GlobalKeyHandler(main_window)
         self.editing_handler = EditingKeyHandler(main_window)
@@ -409,7 +408,7 @@ class KeyboardManager(QObject):
         self.main_window.installEventFilter(self)
         self._setup_shortcuts()
 
-    def _setup_shortcuts(self) -> None:
+    def _setup_shortcuts(self):
         """Настройка QShortcut для комбинаций клавиш."""
 
         global_shortcuts = [
@@ -452,9 +451,9 @@ class KeyboardManager(QObject):
             shortcut.activated.connect(handler)
             self.shortcuts.append(shortcut)
 
-    def eventFilter(self, obj: QObject | None, event: QEvent | None) -> bool:
+    def eventFilter(self, obj, event):
         """Фильтр событий для перехвата клавиш."""
-        if isinstance(event, QKeyEvent) and event.type() == QEvent.Type.KeyPress:
+        if event.type() == event.Type.KeyPress:
             if self._is_enter_duplicate(event):
                 return True
 
@@ -465,9 +464,9 @@ class KeyboardManager(QObject):
             elif self._handle_search_keys(event, focused_widget):
                 return True
 
-        return super().eventFilter(obj if obj is not None else QObject(), event if event is not None else QEvent(QEvent.Type.None_))
+        return super().eventFilter(obj, event)
 
-    def _is_enter_duplicate(self, event: QKeyEvent) -> bool:
+    def _is_enter_duplicate(self, event):
         """Проверка на двойное нажатие Enter."""
         if event.key() in (Qt.Key.Key_Enter, Qt.Key.Key_Return):
             current_time = int(time.time() * 1000)
@@ -479,7 +478,7 @@ class KeyboardManager(QObject):
 
         return False
 
-    def _handle_editing_keys(self, event: QKeyEvent, focused_widget: Optional[QWidget]) -> bool:
+    def _handle_editing_keys(self, event, focused_widget):
         """Обработка клавиш редактирования."""
         key = event.key()
 
@@ -488,7 +487,7 @@ class KeyboardManager(QObject):
 
         return False
 
-    def _handle_search_keys(self, event: QKeyEvent, focused_widget: Optional[QWidget]) -> bool:
+    def _handle_search_keys(self, event, focused_widget):
         """Обработка клавиш поиска."""
         if (
             event.text().isalnum()
@@ -499,7 +498,7 @@ class KeyboardManager(QObject):
 
         return False
 
-    def cleanup(self) -> None:
+    def cleanup(self):
         """Очистка ресурсов."""
         for shortcut in self.shortcuts:
             shortcut.setEnabled(False)

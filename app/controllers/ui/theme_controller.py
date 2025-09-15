@@ -3,7 +3,8 @@ import re
 from collections import OrderedDict
 from pathlib import Path
 from threading import RLock
-from typing import Any, Dict, List, Optional, Tuple, Callable, ContextManager, cast
+from typing import Any, Dict, List, Optional, Tuple
+
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
@@ -22,10 +23,10 @@ class ThemeController:
         self,
         settings,
         main_window=None,
+        stylesheet_applier: Optional[callable] = None,
+        gui_scheduler: Optional[callable] = None,
         *,
         top_panels_controller: Optional[Any] = None,
-                                                                stylesheet_applier: Optional[Callable[[str], None]] = None,
-                                                                gui_scheduler: Optional[Callable[[Callable[[], None]], None]] = None,
     ):
         """Инициализация контроллера тем."""
         self.settings = settings
@@ -50,8 +51,8 @@ class ThemeController:
         # Блокировка для потокобезопасности работы с кэшем
         self._cache_lock = RLock()
         # Инъекция зависимостей для тестируемости
-        self._stylesheet_applier: Optional[Callable[[str], None]] = stylesheet_applier
-        self._gui_scheduler: Optional[Callable[[Callable[[], None]], None]] = gui_scheduler
+        self._stylesheet_applier = stylesheet_applier  # Callable[[str], None]
+        self._gui_scheduler = gui_scheduler  # Callable[[Callable[[], None]], None]
         # Примечание: защита от реэнтрантности не используется — возвращаем исходное поведение
 
         # Темы зафиксированы (light/dark)
@@ -365,9 +366,7 @@ class ThemeController:
                 if not app:
                     logger.error("QApplication instance не найден")
                     return False
-                q_app = cast(QApplication | None, app)
-                if q_app:
-                    q_app.setStyleSheet(qss_content)
+                app.setStyleSheet(qss_content)
 
             # Кастомные тени у меню отключены полностью — ничего не делаем
 
@@ -422,11 +421,10 @@ class ThemeController:
             return
 
         # Импорт лениво, чтобы избежать циклов импортов на старте
-        suspend_updates: Optional[Callable[[Any], ContextManager[None]]] = None
         try:
-            from app.utils.ui.updates import suspend_updates as _suspend_updates
-            suspend_updates = _suspend_updates
+            from app.utils.ui.updates import suspend_updates
         except Exception as exc:
+            suspend_updates = None  # fallback, если модуль недоступен
             logger.debug(
                 "Не удалось импортировать suspend_updates: %s", exc, exc_info=True
             )
@@ -461,8 +459,7 @@ class ThemeController:
                     "Ошибка перезагрузки иконок структуры: %s", exc, exc_info=True
                 )
             try:
-                if self.top_panels_controller:
-                    self.top_panels_controller.refresh_all()
+                self.top_panels_controller.refresh_all()
             except Exception as exc:
                 logger.warning(
                     "Ошибка обновления верхних панелей: %s", exc, exc_info=True
@@ -471,48 +468,46 @@ class ThemeController:
             return
 
         # Основной путь: выполняем массовые обновления при приостановленной перерисовке окна
-        if suspend_updates is not None:
-            if require_suspend:
-                logger.debug("ThemeController: выполняем пакетное обновление UI с suspend_updates (strict mode)")
-            try:
-                with suspend_updates(mw):
-                    # Пересоздание главного меню
-                    try:
-                        menu_ctrl = getattr(mw, "menu_controller", None)
-                        if menu_ctrl:
-                            menu_ctrl.rebuild_after_theme_change()
-                    except Exception as exc:
-                        logger.warning(
-                            "Ошибка пересборки меню после смены темы: %s",
-                            exc,
-                            exc_info=True,
-                        )
+        if require_suspend:
+            logger.debug("ThemeController: выполняем пакетное обновление UI с suspend_updates (strict mode)")
+        try:
+            with suspend_updates(mw):
+                # Пересоздание главного меню
+                try:
+                    menu_ctrl = getattr(mw, "menu_controller", None)
+                    if menu_ctrl:
+                        menu_ctrl.rebuild_after_theme_change()
+                except Exception as exc:
+                    logger.warning(
+                        "Ошибка пересборки меню после смены темы: %s",
+                        exc,
+                        exc_info=True,
+                    )
 
-                    # Перезагрузка иконок в структуре
-                    try:
-                        structure = getattr(mw, "structure", None)
-                        if structure and hasattr(structure, "reload_icons"):
-                            structure.reload_icons()
-                    except Exception as exc:
-                        logger.warning(
-                            "Ошибка перезагрузки иконок структуры: %s", exc, exc_info=True
-                        )
+                # Перезагрузка иконок в структуре
+                try:
+                    structure = getattr(mw, "structure", None)
+                    if structure and hasattr(structure, "reload_icons"):
+                        structure.reload_icons()
+                except Exception as exc:
+                    logger.warning(
+                        "Ошибка перезагрузки иконок структуры: %s", exc, exc_info=True
+                    )
 
-                    # Обновление верхних панелей — прямая зависимость из конструктора
-                    if self.top_panels_controller:
-                        try:
-                            self.top_panels_controller.refresh_all()
-                        except Exception as exc:
-                            logger.warning(
-                                "Ошибка обновления верхних панелей: %s", exc, exc_info=True
-                            )
-                    # Диагностика размеров шапки отключена как шумная
-            except Exception as exc:
-                logger.warning(
-                    "ThemeController: сбой при пакетном обновлении UI: %s",
-                    exc,
-                    exc_info=True,
-                )
+                # Обновление верхних панелей — прямая зависимость из конструктора
+                try:
+                    self.top_panels_controller.refresh_all()
+                except Exception as exc:
+                    logger.warning(
+                        "Ошибка обновления верхних панелей: %s", exc, exc_info=True
+                    )
+                # Диагностика размеров шапки отключена как шумная
+        except Exception as exc:
+            logger.warning(
+                "ThemeController: сбой при пакетном обновлении UI: %s",
+                exc,
+                exc_info=True,
+            )
 
         # Не переустанавливаем размеры шрифтов при смене темы.
         # Базовый размер приложения и точечные размеры для меню/меню-бара управляются отдельно,
@@ -632,8 +627,7 @@ class ThemeController:
         # чтобы избежать нежелательных изменений из тем/стилей. Это не меняет семейство шрифта.
         try:
             app = QApplication.instance()
-            q_app = cast(QApplication | None, app)
-            dialog_font_size = q_app.font().pointSize() if q_app else None
+            dialog_font_size = app.font().pointSize() if app else None
         except Exception:
             dialog_font_size = None
         if dialog_font_size and dialog_font_size > 0:

@@ -7,7 +7,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, Union, Type, Protocol, runtime_checkable, cast
+from typing import Dict, Optional, Union
 
 from PyQt6.QtGui import QIcon
 
@@ -19,16 +19,11 @@ from .lru_policy import LRUPolicy
 logger = logging.getLogger(__name__)
 
 
-@runtime_checkable
-class CacheMetricsProto(Protocol):
-    def reset(self) -> None: ...
-    def record_hit(self) -> None: ...
-    def record_miss(self) -> None: ...
-    def record_actual_miss(self, load_time: float = ...) -> None: ...
-    def record_miss_without_increment(self, load_time: float = ...) -> None: ...
-    def record_disk_load(self) -> None: ...
-    def record_not_found(self) -> None: ...
-    def get_stats(self) -> Dict[str, Union[int, float]]: ...
+try:
+    from .metrics import CacheMetrics as _ExternalCacheMetrics  # type: ignore
+except Exception:  # noqa: BLE001
+    _ExternalCacheMetrics = None
+
 
 class _FallbackCacheMetrics:
     """Простая реализация метрик, если .metrics недоступен."""
@@ -83,12 +78,8 @@ class _FallbackCacheMetrics:
                 "total_load_time": round(self.total_load_time, 6),
             }
 
-try:
-    # Выбираем класс метрик после объявления fallback-класса
-    from .metrics import CacheMetrics as _CacheMetricsClass
-    _METRICS_CLS: Type[CacheMetricsProto] = cast(Type[CacheMetricsProto], _CacheMetricsClass)
-except Exception:  # noqa: BLE001
-    _METRICS_CLS = _FallbackCacheMetrics
+
+CacheMetrics = _ExternalCacheMetrics or _FallbackCacheMetrics
 
 # --- Типы записей кэша ---
 
@@ -152,7 +143,7 @@ class ThreadSafeIconCache:
         self._path_lru = LRUPolicy(capacity)
         self._qicon_lru = LRUPolicy(capacity)
 
-        self.metrics: CacheMetricsProto = _METRICS_CLS()
+        self.metrics: CacheMetrics = CacheMetrics()
         self._capacity = capacity
 
         try:
@@ -357,12 +348,8 @@ class ThreadSafeIconCache:
             if should_evict and old_key:
                 self._qicon_cache.pop(old_key, None)
 
-            # IconCacheEntry требует QIcon, для негативной записи используем пустой QIcon()
             entry = IconCacheEntry(
-                icon=icon if isinstance(icon, QIcon) else QIcon(),
-                timestamp=time.time(),
-                negative=negative,
-                ttl_override=None,
+                icon=icon, timestamp=time.time(), negative=negative, ttl_override=None
             )
             self._qicon_cache[key] = entry
             self._qicon_lru.access(key)
@@ -378,8 +365,8 @@ class ThreadSafeIconCache:
             k = self._key(icon_name, theme)
             if prefix == "path":
                 self._sync_path_structs()
-                entry_p = self._path_cache.get(k)
-                if entry_p is None:
+                entry = self._path_cache.get(k)
+                if entry is None:
                     try:
                         self.metrics.record_miss()
                     except Exception as exc:  # noqa: BLE001
@@ -390,11 +377,11 @@ class ThreadSafeIconCache:
                         )
                     return None
                 ttl = (
-                    entry_p.ttl_override
-                    if entry_p.ttl_override is not None
+                    entry.ttl_override
+                    if entry.ttl_override is not None
                     else self._ttl_icon
                 )
-                if not entry_p.is_valid(ttl):
+                if not entry.is_valid(ttl):
                     self._path_cache.pop(k, None)
                     self._path_lru.remove(k)
                     try:
@@ -409,22 +396,22 @@ class ThreadSafeIconCache:
                     logger.debug(
                         "IconCache.metrics.record_hit failed: %s", exc, exc_info=True
                     )
-                return entry_p.path
+                return entry.path
             else:  # qicon
                 self._sync_qicon_structs()
-                entry_i = self._qicon_cache.get(k)
-                if entry_i is None:
+                entry = self._qicon_cache.get(k)
+                if entry is None:
                     try:
                         self.metrics.record_miss()
                     except Exception:  # noqa: BLE001
                         pass
                     return None
-                if entry_i.negative:
+                if entry.negative:
                     base_ttl = self._ttl_negative
                 else:
                     base_ttl = self._ttl_abs if theme == "__abs__" else self._ttl_icon
-                ttl = entry_i.ttl_override if entry_i.ttl_override is not None else base_ttl
-                if not entry_i.is_valid(ttl):
+                ttl = entry.ttl_override if entry.ttl_override is not None else base_ttl
+                if not entry.is_valid(ttl):
                     self._qicon_cache.pop(k, None)
                     self._qicon_lru.remove(k)
                     try:
@@ -439,7 +426,7 @@ class ThreadSafeIconCache:
                     logger.debug(
                         "IconCache.metrics.record_hit failed: %s", exc, exc_info=True
                     )
-                return entry_i.icon
+                return entry.icon
 
     def set(
         self,
@@ -454,35 +441,35 @@ class ThreadSafeIconCache:
             if prefix == "path":
                 self._sync_path_structs()
                 k = self._key(icon_name, theme)
-                should_evict_p, old_key_p = self._path_lru.evict_if_needed(
+                should_evict, old_key = self._path_lru.evict_if_needed(
                     self._path_cache, k
                 )
-                if should_evict_p and old_key_p:
-                    self._path_cache.pop(old_key_p, None)
-                entry_p = PathCacheEntry(
+                if should_evict and old_key:
+                    self._path_cache.pop(old_key, None)
+                entry = PathCacheEntry(
                     path=value if isinstance(value, (str, type(None))) else None,
                     timestamp=time.time(),
                     ttl_override=ttl,
                 )
-                self._path_cache[k] = entry_p
+                self._path_cache[k] = entry
                 self._path_lru.access(k)
             else:
                 self._sync_qicon_structs()
                 k = self._key(icon_name, theme)
-                should_evict_q, old_key_q = self._qicon_lru.evict_if_needed(
+                should_evict, old_key = self._qicon_lru.evict_if_needed(
                     self._qicon_cache, k
                 )
-                if should_evict_q and old_key_q:
-                    self._qicon_cache.pop(old_key_q, None)
+                if should_evict and old_key:
+                    self._qicon_cache.pop(old_key, None)
                 negative = value is None
-                icon_val: QIcon = value if isinstance(value, QIcon) else QIcon()
-                entry_i = IconCacheEntry(
+                icon_val: Optional[QIcon] = value if isinstance(value, QIcon) else None
+                entry = IconCacheEntry(
                     icon=icon_val,
                     timestamp=time.time(),
                     negative=negative,
                     ttl_override=ttl,
                 )
-                self._qicon_cache[k] = entry_i
+                self._qicon_cache[k] = entry
                 self._qicon_lru.access(k)
 
     def invalidate(self, key: Optional[str] = None) -> None:

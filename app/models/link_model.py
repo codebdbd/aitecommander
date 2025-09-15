@@ -33,7 +33,7 @@ class LinkModel(DatabaseBase):
     для удобной работы с ссылками.
     """
 
-    def __init__(self, connection_manager: Any) -> None:
+    def __init__(self, connection_manager):
         """Инициализирует LinkModel с менеджером соединений."""
         super().__init__(connection_manager)
 
@@ -99,9 +99,10 @@ class LinkModel(DatabaseBase):
                     f"SELECT {', '.join(use_fields)}" if use_fields else "SELECT *"
                 )
 
-            rows = self.fetch_all(
+            rows = self._execute_with_error_handling(
                 f"{select_clause} FROM link WHERE category_id=? ORDER BY position ASC",
                 (category_id,),
+                fetch_method="all",
             )
             return [dict(row) for row in rows]
         except Exception as e:
@@ -116,16 +117,12 @@ class LinkModel(DatabaseBase):
     def count_links_by_category(self, category_id: int) -> int:
         """Возвращает количество ссылок для указанной категории (эффективный подсчет)."""
         try:
-            result = self.fetch_one(
+            result = self._execute_with_error_handling(
                 "SELECT COUNT(*) AS cnt FROM link WHERE category_id=?",
                 (category_id,),
+                fetch_method="one",
             )
-            if result is None:
-                return 0
-            try:
-                return int(dict(result).get("cnt", 0))
-            except Exception:
-                return 0
+            return int(result["cnt"]) if result else 0
         except Exception as e:
             logger.error(
                 "Ошибка подсчета ссылок для категории %s: %s",
@@ -155,9 +152,10 @@ class LinkModel(DatabaseBase):
             for i in range(0, len(ids), CHUNK):
                 chunk = ids[i : i + CHUNK]
                 placeholders = ",".join(["?"] * len(chunk))
-                rows = self.fetch_all(
+                rows = self._execute_with_error_handling(
                     f"SELECT category_id AS category_id, COUNT(*) AS cnt FROM link WHERE category_id IN ({placeholders}) GROUP BY category_id",
                     tuple(chunk),
+                    fetch_method="all",
                 )
                 for r in rows or []:
                     try:
@@ -230,22 +228,18 @@ class LinkModel(DatabaseBase):
                 update_placeholders = ", ".join([f"{f}=?" for f in update_fields])
                 update_values = [data[f] for f in update_fields]
 
-                cursor = self.exec_query(
+                cursor = self._execute_with_error_handling(
                     f"UPDATE link SET {update_placeholders} WHERE id=?",
                     tuple(update_values + [data["id"]]),
                 )
 
                 # Если запись не была обновлена, вставляем новую с указанным ID
-                try:
-                    affected = int(getattr(cursor, "rowcount", 0) or 0)
-                except Exception:
-                    affected = 0
-                if affected == 0:
+                if cursor.rowcount == 0:
                     insert_fields = all_possible_fields
                     insert_placeholders = ", ".join(["?"] * len(insert_fields))
                     insert_values = [data[f] for f in insert_fields]
 
-                    self.exec_query(
+                    self._execute_with_error_handling(
                         f"INSERT INTO link ({', '.join(insert_fields)}) VALUES ({insert_placeholders})",
                         tuple(insert_values),
                     )
@@ -264,33 +258,26 @@ class LinkModel(DatabaseBase):
 
                 # Тихая обработка дубликатов по требованию:
                 # Дубликат = совпадают Имя (name), Путь (url) и Аргумент (args) в рамках категории
-                cat_val = data.get("category_id")
-                name_val = str(data.get("name", "") or "")
-                url_val = str(data.get("url", "") or "")
-                args_val = str(data.get("args", "") or "")
                 existing = self.get_link_by_name_url_args(
-                    int(cat_val) if isinstance(cat_val, int) else 0,
-                    name_val,
-                    url_val,
-                    args_val,
+                    data["category_id"],
+                    data.get("name", ""),
+                    data.get("url", ""),
+                    data.get("args", ""),
                 )
                 if existing:
                     # Молча возвращаем существующий ID без ошибок/предупреждений
-                    try:
-                        return int(existing.get("id"))  # type: ignore[arg-type]
-                    except Exception:
-                        return int(existing["id"]) if "id" in existing else 0
+                    return existing.get("id")
 
                 columns = [f for f in all_possible_fields if f != "id"]
                 placeholders = ", ".join(["?"] * len(columns))
                 values = [data[c] for c in columns]
 
-                cursor = self.exec_query(
+                cursor = self._execute_with_error_handling(
                     f"INSERT INTO link ({', '.join(columns)}) VALUES ({placeholders})",
                     tuple(values),
                 )
 
-                new_id = int(getattr(cursor, "lastrowid", 0) or 0)
+                new_id = cursor.lastrowid
                 logger.info(
                     "Добавлена новая ссылка: %s, browser_key=%s",
                     data.get("name", "Без названия"),
@@ -310,15 +297,13 @@ class LinkModel(DatabaseBase):
                 name = link.get("name", "")
                 url = link.get("url", "")
                 args = link.get("args", "")
-                row = self.fetch_one(
+                row = self._execute_with_error_handling(
                     "SELECT id FROM link WHERE category_id=? AND name=? AND url=? AND args=?",
                     (cat_id, name, url, args),
+                    fetch_method="one",
                 )
-                if row is not None:
-                    try:
-                        return int(dict(row).get("id", 0))
-                    except Exception:
-                        return 0
+                if row:
+                    return int(dict(row)["id"])  # sqlite3.Row -> dict for stable key access
             except Exception as ee:
                 logger.debug(
                     "upsert_link: failed to recover existing row after IntegrityError: %s",
@@ -335,17 +320,18 @@ class LinkModel(DatabaseBase):
         args: str = "",
         link_type: str = "web",
         name: str = "",
-    ) -> Optional[Dict[str, Any]]:
+    ):
         """Находит ссылку по уникальным полям (category_id, url, args, type, name).
 
         Примечание: одинаковые URL считаются дубликатами только если совпадают также args, type и имя ссылки.
         """
         try:
-            row = self.fetch_one(
+            row = self._execute_with_error_handling(
                 "SELECT * FROM link WHERE category_id=? AND url=? AND args=? AND type=? AND name=?",
                 (category_id, url, args, link_type, name),
+                fetch_method="one",
             )
-            if row is not None:
+            if row:
                 return dict(row)
             return None
         except Exception as e:
@@ -363,11 +349,12 @@ class LinkModel(DatabaseBase):
         тип (type) игнорируется для этой проверки.
         """
         try:
-            row = self.fetch_one(
+            row = self._execute_with_error_handling(
                 "SELECT * FROM link WHERE category_id=? AND name=? AND url=? AND args=?",
                 (category_id, name, url, args),
+                fetch_method="one",
             )
-            if row is not None:
+            if row:
                 return dict(row)
             return None
         except Exception as e:
@@ -379,17 +366,18 @@ class LinkModel(DatabaseBase):
     def get_all_links(self) -> List[Dict[str, Any]]:
         """Возвращает все ссылки из базы данных в виде списка словарей."""
         try:
-            rows = self.fetch_all(
+            rows = self._execute_with_error_handling(
                 "SELECT id, category_id, name, url, type, notes, "
                 "is_favorite, last_used, icon_path, args, browser_key, position "
                 "FROM link ORDER BY position ASC",
+                fetch_method="all",
             )
             return [dict(row) for row in rows]
         except Exception as e:
             logger.error("Ошибка получения всех ссылок: %s", e, exc_info=True)
             raise
 
-    def delete_link(self, link_id: int) -> None:
+    def delete_link(self, link_id: int):
         """Удаляет ссылку по её ID."""
         try:
             self._execute_with_error_handling(
@@ -401,7 +389,7 @@ class LinkModel(DatabaseBase):
             logger.error("Ошибка удаления ссылки: %s", e, exc_info=True)
             raise DatabaseError(f"Не удалось удалить ссылку: {e}")
 
-    def update_link_last_used(self, link_id: int) -> None:
+    def update_link_last_used(self, link_id: int):
         """Обновляет время последнего использования для ссылки."""
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self._execute_with_error_handling(
@@ -410,17 +398,13 @@ class LinkModel(DatabaseBase):
 
     def count_favorites(self) -> int:
         """Возвращает количество избранных ссылок."""
-        row = self.fetch_one(
+        row = self._execute_with_error_handling(
             "SELECT COUNT(*) AS cnt FROM link WHERE is_favorite=1",
+            fetch_method="one",
         )
-        if row is None:
-            return 0
-        try:
-            return int(dict(row).get("cnt", 0))
-        except Exception:
-            return 0
+        return int(row["cnt"]) if row else 0
 
-    def clear_favorites(self) -> None:
+    def clear_favorites(self):
         """Сбрасывает признак избранного у всех ссылок."""
         try:
             self._execute_with_error_handling(
@@ -432,14 +416,14 @@ class LinkModel(DatabaseBase):
             logger.error("Ошибка очистки избранного: %s", e)
             raise DatabaseError(f"Не удалось очистить избранное: {e}")
 
-    def search_links(self, query: str) -> List[Dict[str, Any]]:
+    def search_links(self, query: str):
         """Ищет ссылки по всему дереву, где имя, URL или заметки содержат подстроку запроса."""
         if not query:
             return []
 
         search_term = f"%{query}%"
         try:
-            rows = self.fetch_all(
+            rows = self._execute_with_error_handling(
                 "SELECT l.*, cat.name as category_name, sect.name as section_name, sph.name as sphere_name "
                 "FROM link l "
                 "JOIN category cat ON l.category_id = cat.id "
@@ -451,6 +435,7 @@ class LinkModel(DatabaseBase):
                 "OR l.args LIKE ? COLLATE NOCASE "
                 "ORDER BY l.name COLLATE NOCASE",
                 (search_term, search_term, search_term, search_term),
+                fetch_method="all",
             )
             return [dict(row) for row in rows]
         except Exception as e:
@@ -463,9 +448,10 @@ class LinkModel(DatabaseBase):
         Пример pattern: '--profile-directory=%'
         """
         try:
-            rows = self.fetch_all(
+            rows = self._execute_with_error_handling(
                 "SELECT * FROM link WHERE type = 'web' AND args LIKE ?",
                 (pattern,),
+                fetch_method="all",
             )
             return [dict(row) for row in rows] if rows else []
         except Exception as e:
@@ -501,12 +487,13 @@ class LinkModel(DatabaseBase):
     def get_recent_links(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Получить недавние ссылки."""
         try:
-            rows = self.fetch_all(
+            rows = self._execute_with_error_handling(
                 """SELECT * FROM link 
                    WHERE last_used IS NOT NULL 
                    ORDER BY last_used DESC 
                    LIMIT ?""",
                 (limit,),
+                fetch_method="all",
             )
             return [dict(row) for row in rows]
         except Exception as e:
@@ -516,9 +503,10 @@ class LinkModel(DatabaseBase):
     def get_favorite_links(self) -> List[Dict[str, Any]]:
         """Получить избранные ссылки."""
         try:
-            rows = self.fetch_all(
+            rows = self._execute_with_error_handling(
                 "SELECT * FROM link WHERE is_favorite=? ORDER BY position",
                 (1,),
+                fetch_method="all",
             )
             return [dict(row) for row in rows]
         except Exception as e:
@@ -528,10 +516,10 @@ class LinkModel(DatabaseBase):
     def get_link_by_id(self, link_id: int) -> Optional[Dict[str, Any]]:
         """Получить ссылку по ID."""
         try:
-            row = self.fetch_one(
-                "SELECT * FROM link WHERE id = ?", (link_id,)
+            row = self._execute_with_error_handling(
+                "SELECT * FROM link WHERE id = ?", (link_id,), fetch_method="one"
             )
-            return dict(row) if row is not None else None
+            return dict(row) if row else None
         except Exception as e:
             logger.error("Ошибка получения ссылки %s: %s", link_id, e, exc_info=True)
             raise
@@ -596,16 +584,12 @@ class LinkModel(DatabaseBase):
     def get_next_position(self, category_id: int) -> int:
         """Получить следующую позицию для новой ссылки в категории."""
         try:
-            result = self.fetch_one(
+            result = self._execute_with_error_handling(
                 "SELECT COALESCE(MAX(position), 0) + 1 AS next_pos FROM link WHERE category_id = ?",
                 (category_id,),
+                fetch_method="one",
             )
-            if result is None:
-                return 1
-            try:
-                return int(dict(result).get("next_pos", 1))
-            except Exception:
-                return 1
+            return int(result["next_pos"]) if result else 1
         except Exception as e:
             logger.error(
                 "Ошибка получения следующей позиции для категории %s: %s",
@@ -673,9 +657,7 @@ class LinkModel(DatabaseBase):
             raw.clear()
             raw.update(data)
 
-            cid_obj = data.get("category_id")
-            if isinstance(cid_obj, int):
-                by_cat.setdefault(int(cid_obj), []).append(raw)
+            by_cat.setdefault(int(data["category_id"]), []).append(raw)
         return by_cat
 
     def _fetch_existing_maps(
@@ -690,44 +672,32 @@ class LinkModel(DatabaseBase):
         Возвращает кортеж (existing_by_key, existing_by_id, max_pos).
         key = (name, url, args)
         """
-        rows = self.fetch_all(
+        rows = self._execute_with_error_handling(
             "SELECT id, name, url, args, position FROM link WHERE category_id=?",
             (category_id,),
+            fetch_method="all",
         )
 
         existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
         existing_by_id: Dict[int, Dict[str, Any]] = {}
         max_pos = -1
-        for r in rows or []:
-            try:
-                rid = int(r["id"])  # sqlite3.Row supports key access
-                d = dict(r)
-                rname = d.get("name")
-                rurl = d.get("url")
-                rargs = d.get("args")
-                rpos_val = d.get("position")
-            except Exception:
-                # Если структура строки неожиданна, пропускаем её
-                continue
-
-            name_s = rname or ""
-            url_s = rurl or ""
-            args_s = rargs or ""
-            try:
-                pos_i = int(rpos_val) if rpos_val is not None else -1
-            except Exception:
-                pos_i = -1
-
-            existing_by_id[rid] = {
-                "id": rid,
-                "name": name_s,
-                "url": url_s,
-                "args": args_s,
-                "position": pos_i,
+        for rid, rname, rurl, rargs, rpos in rows:
+            existing_by_id[int(rid)] = {
+                "id": int(rid),
+                "name": rname or "",
+                "url": rurl or "",
+                "args": rargs or "",
+                "position": rpos if rpos is not None else -1,
             }
-            existing_by_key[(name_s, url_s, args_s)] = existing_by_id[rid]
-            if pos_i > max_pos:
-                max_pos = pos_i
+            existing_by_key[(rname or "", rurl or "", rargs or "")] = existing_by_id[
+                int(rid)
+            ]
+            if rpos is not None:
+                try:
+                    if int(rpos) > max_pos:
+                        max_pos = int(rpos)
+                except Exception:
+                    pass
         return existing_by_key, existing_by_id, max_pos
 
     def _assign_positions_for_items(
@@ -903,7 +873,7 @@ class LinkModel(DatabaseBase):
         for rec in inserts_no_id:
             params = tuple(rec.get(c) for c in columns)
             try:
-                cur = self.exec_query(insert_sql, params)
+                cur = self._execute_with_error_handling(insert_sql, params)
                 try:
                     new_id = int(getattr(cur, "lastrowid", 0) or 0)
                 except Exception:
@@ -922,7 +892,7 @@ class LinkModel(DatabaseBase):
                             "position": rec.get("position", 0),
                         }
             except sqlite3.IntegrityError:
-                row = self.fetch_one(
+                row = self._execute_with_error_handling(
                     "SELECT id FROM link WHERE category_id=? AND name=? AND url=? AND args=?",
                     (
                         rec.get("category_id"),
@@ -930,14 +900,10 @@ class LinkModel(DatabaseBase):
                         rec.get("url", ""),
                         rec.get("args", ""),
                     ),
+                    fetch_method="one",
                 )
-                if row is not None:
-                    try:
-                        rid = int(dict(row).get("id", 0))
-                    except Exception:
-                        rid = 0
-                    if rid:
-                        rec["id"] = rid
+                if row:
+                    rec["id"] = row[0] if isinstance(row, tuple) else row["id"]
 
     def _upsert_links_no_tx(self, links_data: List[Dict[str, Any]]) -> List[int]:
         """Внутренний хелпер: апсерт ссылок без открытия транзакции и без commit().

@@ -49,6 +49,8 @@ def is_name_length_ok(name: str, max_len: int = 255) -> bool:
 
 def has_no_forbidden_chars(name: str, forbidden: str = '\\/:*?"<>|') -> bool:
     """Имя не содержит запрещённых символов для Windows-путей и файлов."""
+    if not isinstance(name, str):
+        return False
     return not any(ch in name for ch in forbidden)
 
 

@@ -1,10 +1,10 @@
 # app/views/dialogs/database_dialogs.py
 
 from pathlib import Path
-from typing import Optional, cast
+from typing import Optional
 
 from PyQt6.QtCore import QObject
-from PyQt6.QtWidgets import QFileDialog, QMessageBox, QWidget
+from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
 
 class DatabaseDialogs(QObject):
@@ -12,7 +12,7 @@ class DatabaseDialogs(QObject):
 
     def confirm_clear_favorites(self) -> bool:
         """Диалог подтверждения очистки избранного."""
-        parent = cast(QWidget | None, self.parent())
+        parent = self.parent()
         box = QMessageBox(parent)
         box.setIcon(QMessageBox.Icon.Warning)
         box.setWindowTitle("Очистить избранное")
@@ -28,7 +28,7 @@ class DatabaseDialogs(QObject):
 
     def confirm_database_restore(self, backup_name: str) -> bool:
         """Диалог подтверждения восстановления базы данных."""
-        parent = cast(QWidget | None, self.parent())
+        parent = self.parent()
         box = QMessageBox(parent)
         box.setIcon(QMessageBox.Icon.Question)
         box.setWindowTitle("Восстановление базы данных")
@@ -45,9 +45,8 @@ class DatabaseDialogs(QObject):
 
     def get_restore_file(self) -> Optional[Path]:
         """Показать диалог выбора файла для восстановления БД."""
-        parent = cast(QWidget | None, self.parent())
         file_path, _ = QFileDialog.getOpenFileName(
-            parent,
+            self.parent(),
             "Выберите файл резервной копии для восстановления",
             "",
             "SQLite DB (*.db);;Все файлы (*)",
@@ -56,9 +55,8 @@ class DatabaseDialogs(QObject):
 
     def get_connect_file(self) -> Optional[Path]:
         """Показать диалог выбора файла БД для подключения."""
-        parent = cast(QWidget | None, self.parent())
         file_path, _ = QFileDialog.getOpenFileName(
-            parent,
+            self.parent(),
             "Выберите файл базы данных для подключения",
             "",
             "SQLite DB (*.db);;Все файлы (*)",
@@ -67,9 +65,8 @@ class DatabaseDialogs(QObject):
 
     def get_save_location(self, default_name: str) -> Optional[Path]:
         """Показать диалог выбора места сохранения копии БД."""
-        parent = cast(QWidget | None, self.parent())
         save_path, _ = QFileDialog.getSaveFileName(
-            parent,
+            self.parent(),
             "Сохранить копию базы данных",
             default_name,
             "SQLite DB (*.db);;Все файлы (*)",
@@ -80,9 +77,8 @@ class DatabaseDialogs(QObject):
         self, default_name: str = "icons.zip"
     ) -> Optional[Path]:
         """Показать диалог выбора места сохранения архива иконок."""
-        parent = cast(QWidget | None, self.parent())
         save_path, _ = QFileDialog.getSaveFileName(
-            parent,
+            self.parent(),
             "Сохранить архив иконок",
             default_name,
             "ZIP архив (*.zip);;Все файлы (*)",
@@ -91,9 +87,8 @@ class DatabaseDialogs(QObject):
 
     def get_icons_archive_to_load(self) -> Optional[Path]:
         """Показать диалог выбора архива иконок для загрузки."""
-        parent = cast(QWidget | None, self.parent())
         file_path, _ = QFileDialog.getOpenFileName(
-            parent,
+            self.parent(),
             "Выберите архив иконок для вставки",
             "",
             "ZIP архив (*.zip);;Все файлы (*)",

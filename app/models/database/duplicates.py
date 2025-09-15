@@ -7,21 +7,15 @@ duplicates.py — диагностика и устранение регистр�
 from __future__ import annotations
 
 import sqlite3
-from typing import Any, Dict, List
+from typing import Dict, List
 
 
-def detect_case_insensitive_duplicates(
-    connection: sqlite3.Connection, lock: Any
-) -> Dict[str, List[Dict[str, Any]]]:
+def detect_case_insensitive_duplicates(connection: sqlite3.Connection, lock) -> dict:
     """Ищет case-insensitive дубликаты имён для sphere/section/category.
 
     Возвращает dict с ключами 'sphere', 'section', 'category'. Значения — список групп.
     """
-    result: Dict[str, List[Dict[str, Any]]] = {
-        "sphere": [],
-        "section": [],
-        "category": [],
-    }
+    result = {"sphere": [], "section": [], "category": []}
     with lock:
         # Сферы: глобальная область
         rows = connection.execute(
@@ -66,11 +60,8 @@ def detect_case_insensitive_duplicates(
 
 
 def resolve_case_insensitive_duplicates(
-    connection: sqlite3.Connection,
-    lock: Any,
-    dups: Dict[str, Any],
-    strategy: str = "rename",
-) -> Dict[str, int]:
+    connection: sqlite3.Connection, lock, dups: dict, strategy: str = "rename"
+) -> dict:
     """Разрешает case-insensitive дубликаты по заданной стратегии.
 
     strategy:
@@ -82,7 +73,7 @@ def resolve_case_insensitive_duplicates(
     if strategy not in {"rename", "remove"}:
         raise ValueError("Недопустимая стратегия: 'rename' или 'remove'")
 
-    report: Dict[str, int] = {"sphere": 0, "section": 0, "category": 0}
+    report = {"sphere": 0, "section": 0, "category": 0}
 
     with lock:
         with connection:
@@ -92,7 +83,7 @@ def resolve_case_insensitive_duplicates(
                 return (dict(row)["name"] if row else "")
 
             # Обработчик группы
-            def process_group(table: str, ids: List[int]) -> int:
+            def process_group(table: str, ids: List[int]):
                 ids_sorted = sorted(int(i) for i in ids)
                 _keep = ids_sorted[0]
                 to_change = ids_sorted[1:]
@@ -119,7 +110,7 @@ def resolve_case_insensitive_duplicates(
     return report
 
 
-def create_nocase_unique_indexes(connection: sqlite3.Connection, lock: Any) -> None:
+def create_nocase_unique_indexes(connection: sqlite3.Connection, lock) -> None:
     """Создаёт (если отсутствуют) уникальные индексы с COLLATE NOCASE."""
     with lock:
         connection.execute(

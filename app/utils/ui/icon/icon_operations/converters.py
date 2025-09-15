@@ -278,7 +278,7 @@ def convert_icon_to_png_128(src_path: str, dst_path: str, size: int = 128) -> bo
             # Записываем данные в файл
             logger.debug("Writing image data to %s", dst_path)
             with open(dst_path, "wb") as out:
-                out.write(buffer.data().data())
+                out.write(bytes(buffer.data()))
             logger.debug("Successfully converted SVG to PNG: %s", dst_path)
             return True
 

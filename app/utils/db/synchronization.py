@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
 from threading import Lock, RLock
-from typing import Any, Callable, Dict, Optional, Set, Iterator, ContextManager
+from typing import Callable, Dict, Optional, Set
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class LockStats:
 class EnhancedLock:
     """Улучшенная блокировка с таймаутами и мониторингом."""
 
-    def __init__(self, name: str, lock_type: LockType, reentrant: bool = True) -> None:
+    def __init__(self, name: str, lock_type: LockType, reentrant: bool = True):
         self.name = name
         self.lock_type = lock_type
         self._lock = RLock() if reentrant else Lock()
@@ -157,7 +157,7 @@ class EnhancedLock:
 class LockManager:
     """Менеджер блокировок с защитой от deadlock."""
 
-    def __init__(self) -> None:
+    def __init__(self):
         # Порядок захвата блокировок для предотвращения deadlock
         self._lock_order = [LockType.DATABASE, LockType.TASKS, LockType.UI_STATE]
         self._locks: Dict[str, EnhancedLock] = {}
@@ -181,7 +181,7 @@ class LockManager:
         return self._locks.get(name)
 
     @contextmanager
-    def acquire_lock(self, name: str, timeout: float = 5.0) -> Iterator[None]:
+    def acquire_lock(self, name: str, timeout: float = 5.0):
         """
         Контекстный менеджер для безопасного захвата блокировки.
 
@@ -267,7 +267,7 @@ class SignalGuard:
     одного и того же слота во время его выполнения.
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         self._active_calls: Dict[int, Set[str]] = {}
         self._lock = threading.RLock()
         self._call_counts: Dict[str, int] = {}
@@ -388,14 +388,14 @@ tasks_lock = enhanced_tasks_lock._lock
 
 
 @contextmanager
-def safe_db_lock(timeout: float = 5.0) -> Iterator[None]:
+def safe_db_lock(timeout: float = 5.0):
     """Безопасный захват блокировки базы данных с таймаутом."""
     with _lock_manager.acquire_lock("database", timeout):
         yield
 
 
 @contextmanager
-def safe_tasks_lock(timeout: float = 2.0) -> Iterator[None]:
+def safe_tasks_lock(timeout: float = 2.0):
     """Безопасный захват блокировки задач с таймаутом."""
     with _lock_manager.acquire_lock("tasks", timeout):
         yield
@@ -416,7 +416,7 @@ def log_lock_stats() -> None:
 
 
 @contextmanager
-def debug_lock(lock: ContextManager[Any], operation_name: str) -> Iterator[None]:
+def debug_lock(lock, operation_name: str):
     """Контекстный менеджер с логированием блокировок для отладки."""
     thread_id = threading.get_ident()
     logger.debug("[DEBUG_LOCK] Захват %s потоком %s", operation_name, thread_id)
@@ -447,7 +447,7 @@ def debug_lock(lock: ContextManager[Any], operation_name: str) -> Iterator[None]
 # ====================
 
 
-def signal_guard(slot_name: Optional[str] = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def signal_guard(slot_name: str = None):
     """
     Декоратор для защиты слотов от циклических вызовов.
 
@@ -461,19 +461,21 @@ def signal_guard(slot_name: Optional[str] = None) -> Callable[[Callable[..., Any
             pass
     """
 
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        computed_slot_name = slot_name or f"{func.__qualname__}"
+    def decorator(func: Callable) -> Callable:
+        nonlocal slot_name
+        if slot_name is None:
+            slot_name = f"{func.__qualname__}"
 
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            if not _global_guard.enter_slot(computed_slot_name):
+        def wrapper(*args, **kwargs):
+            if not _global_guard.enter_slot(slot_name):
                 # Рекурсия предотвращена
                 return None
 
             try:
                 return func(*args, **kwargs)
             finally:
-                _global_guard.exit_slot(computed_slot_name)
+                _global_guard.exit_slot(slot_name)
 
         return wrapper
 
@@ -492,11 +494,11 @@ class GuardedSlotMixin:
     Предоставляет удобные методы для работы с SignalGuard.
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._signal_guard = get_signal_guard()
 
-    def guarded_slot(self, slot_name: str, slot_func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    def guarded_slot(self, slot_name: str, slot_func: Callable, *args, **kwargs):
         """
         Выполняет слот с защитой от рекурсии.
 
@@ -526,7 +528,7 @@ class GuardedSlotMixin:
 # ====================
 
 
-def log_signal_guard_stats() -> None:
+def log_signal_guard_stats():
     """Логирует статистику использования SignalGuard."""
     guard = get_signal_guard()
     active_slots = guard.get_active_slots()
@@ -539,7 +541,7 @@ def log_signal_guard_stats() -> None:
         logger.info("[SignalGuard] Нет активных слотов")
 
 
-def emergency_reset_signal_guard() -> None:
+def emergency_reset_signal_guard():
     """Экстренный сброс SignalGuard (использовать только в критических случаях)."""
     logger.warning("[SignalGuard] ЭКСТРЕННЫЙ СБРОС - все активные слоты будут сброшены")
     get_signal_guard().reset()

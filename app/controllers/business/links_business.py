@@ -1,7 +1,7 @@
 # app/controllers/links_business.py
 
 import logging
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
@@ -29,7 +29,7 @@ class LinksBusinessLogic(QObject):
     link_updated: pyqtSignal = pyqtSignal(dict)  # Dict - обновленная ссылка
     error_occurred: pyqtSignal = pyqtSignal(str)  # str - сообщение об ошибке
 
-    def __init__(self, db: Database, logger: Optional[logging.Logger] = None) -> None:
+    def __init__(self, db: Database, logger=None):
         super().__init__()
         self.db = db
         # Используем унифицированную LinkModel напрямую из database
@@ -38,12 +38,12 @@ class LinksBusinessLogic(QObject):
         self.links = LinksService(db)
         # Единый глобальный планировщик задач
         self.scheduler = get_task_scheduler()
-        self.pending_tasks: Set[int] = set()
+        self.pending_tasks = set()
         self.task_counter = 0
         self.logger = logger or logging.getLogger(self.__class__.__name__)
         # worker-сигналы не требуются: используем собственные сигналы класса + run_db
 
-    def shutdown(self, timeout: int = 2000) -> None:
+    def shutdown(self, timeout: int = 2000):
         """Корректное завершение работы."""
         try:
             # Ждём завершения задач через единый пул
@@ -54,7 +54,7 @@ class LinksBusinessLogic(QObject):
                 "Error during LinksBusinessLogic shutdown: %s", e, exc_info=True
             )
 
-    def load_links(self, category_id: int) -> None:
+    def load_links(self, category_id: int):
         """Загрузить ссылки для категории."""
         self.task_counter += 1
         task_id = self.task_counter
@@ -66,7 +66,7 @@ class LinksBusinessLogic(QObject):
             "Loading links for category %s, task_id=%s", category_id, task_id
         )
 
-        def _fetch() -> List[Dict]:
+        def _fetch():
             rows = self.db.links.get_links(category_id)
             return rows or []
 
@@ -94,7 +94,7 @@ class LinksBusinessLogic(QObject):
                 raise
             return []
 
-    def search_links(self, query: str) -> None:
+    def search_links(self, query: str):
         """Поиск ссылок по запросу."""
         q = (query or "").strip()
         # Пустой запрос теперь означает "показать все" в режиме поиска
@@ -119,7 +119,7 @@ class LinksBusinessLogic(QObject):
             on_error=lambda e: self._on_worker_error(str(e)),
         )
 
-    def update_link_order(self, link_ids: List[int]) -> None:
+    def update_link_order(self, link_ids: list):
         """Обновить порядок ссылок."""
         if not link_ids:
             return
@@ -134,10 +134,10 @@ class LinksBusinessLogic(QObject):
             if not handle_db_error(e, self):
                 raise
 
-    def count_favorites(self, link: Optional[Dict] = None) -> None:
+    def count_favorites(self, link: Optional[Dict] = None):
         """Подсчитать количество избранных ссылок."""
 
-        def _count() -> int:
+        def _count():
             return self.db.links.count_favorites()
 
         run_db(
@@ -150,7 +150,7 @@ class LinksBusinessLogic(QObject):
             on_error=lambda e: self._on_worker_error(str(e)),
         )
 
-    def delete_link(self, link_id: int) -> None:
+    def delete_link(self, link_id: int):
         """Удалить ссылку."""
         if not self._validate_link_id(link_id):
             return
@@ -184,9 +184,8 @@ class LinksBusinessLogic(QObject):
         ):
             raise ValueError("Invalid link data provided")
 
-        result: int = 0
         try:
-            result = int(self.links.create_or_update_link(link_data))
+            result = self.links.create_or_update_link(link_data)
             # Гарантируем, что в link_data есть актуальный id (для новых ссылок)
             if result and not link_data.get("id"):
                 link_data["id"] = result
@@ -210,9 +209,8 @@ class LinksBusinessLogic(QObject):
             )
             if not handle_db_error(e, self):
                 raise
-        return result
 
-    def update_link_last_used(self, link_id: int) -> None:
+    def update_link_last_used(self, link_id: int):
         """Обновить время последнего использования ссылки."""
         if not self._validate_link_id(link_id):
             return
@@ -231,7 +229,7 @@ class LinksBusinessLogic(QObject):
                 # Не прерываем выполнение для этой операции
                 pass
 
-    def toggle_favorite(self, link: Dict) -> None:
+    def toggle_favorite(self, link: Dict):
         """Переключить статус избранного для ссылки."""
         # Для переключения избранного достаточно валидного словаря и корректного id
         if (
@@ -371,6 +369,10 @@ class LinksBusinessLogic(QObject):
         Returns:
             ID созданной ссылки или None при ошибке
         """
+        # Строгая валидация для импорта
+        if not isinstance(link_data, dict):
+            self.logger.warning("Invalid link data for import: %s", link_data)
+            return None
         # Ленивая загрузка валидатора, чтобы избежать циклических импортов при старте
         from app.utils.validators.link_validators import validate_link_form_data
 
@@ -405,7 +407,6 @@ class LinksBusinessLogic(QObject):
                 raise
             return None
 
-
     # Приватные методы для валидации и вспомогательных операций
 
     def _validate_link_id(self, link_id: int) -> bool:
@@ -425,24 +426,24 @@ class LinksBusinessLogic(QObject):
 
     # Слоты для обработки результатов воркеров
 
-    def _on_links_loaded(self, links: List[Dict], category_id: int, task_id: int) -> None:
+    def _on_links_loaded(self, links: List[Dict], category_id: int, task_id: int):
         """Обработка загруженных ссылок."""
         with tasks_lock:
             if task_id in self.pending_tasks:
                 self.pending_tasks.remove(task_id)
                 self.links_loaded.emit(links, category_id, task_id)
 
-    def _on_search_finished(self, search_results: List[Dict]) -> None:
+    def _on_search_finished(self, search_results: List[Dict]):
         """Обработка результатов поиска."""
         self.search_results_ready.emit(search_results)
 
     def _on_favorites_counted(
         self, fav_count: int, links: List[Dict], link: Optional[Dict]
-    ) -> None:
+    ):
         """Обработка подсчета избранного."""
         self.favorites_counted.emit(fav_count, links, link)
 
-    def _on_worker_error(self, error_msg: str) -> None:
+    def _on_worker_error(self, error_msg: str):
         """Обработка ошибок воркеров."""
         self.logger.error("Worker error: %s", error_msg)
         self.error_occurred.emit(str(error_msg))

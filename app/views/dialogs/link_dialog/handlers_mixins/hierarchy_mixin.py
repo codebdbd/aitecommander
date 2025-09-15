@@ -2,27 +2,13 @@
 Миксин для обновления иерархии (разделы и категории) в LinkDialogHandlers.
 """
 
-from typing import Any, Protocol
+from typing import Any
 
 from ..icon_utils import make_icon
 
 
-class _HasDialog(Protocol):
-    dialog: Any
-
-
-class _HierarchyProtocol(Protocol):
-    """Протокол для самих методов миксина, чтобы избежать attr-defined."""
-    dialog: Any
-    def _get_sphere_cb(self) -> Any: ...
-    def _get_section_cb(self) -> Any: ...
-    def _get_category_cb(self) -> Any: ...
-    def _add_with_optional_icon(self, combo: Any, name: str, item_id: Any, icon_path_val: str) -> None: ...
-    def _extract_icon_path(self, item: Any) -> str: ...
-
-
 class HierarchyMixin:
-    def _get_sphere_cb(self: _HierarchyProtocol) -> Any:
+    def _get_sphere_cb(self) -> Any:
         """Возвращает комбобокс сфер.
 
         Выделено в отдельный метод для устранения дублирования вызовов
@@ -30,15 +16,15 @@ class HierarchyMixin:
         """
         return self.dialog._get_sphere_cb()
 
-    def _get_section_cb(self: _HierarchyProtocol) -> Any:
+    def _get_section_cb(self) -> Any:
         """Возвращает комбобокс разделов."""
         return self.dialog._get_section_cb()
 
-    def _get_category_cb(self: _HierarchyProtocol) -> Any:
+    def _get_category_cb(self) -> Any:
         """Возвращает комбобокс категорий."""
         return self.dialog._get_category_cb()
 
-    def _update_sections(self: _HierarchyProtocol) -> None:
+    def _update_sections(self) -> None:
         """Обновляет список разделов."""
         sphere_cb = self._get_sphere_cb()
         section_cb = self._get_section_cb()
@@ -56,7 +42,7 @@ class HierarchyMixin:
 
         self._update_categories()
 
-    def _update_categories(self: _HierarchyProtocol) -> None:
+    def _update_categories(self) -> None:
         """Обновляет список категорий."""
         section_cb = self._get_section_cb()
         category_cb = self._get_category_cb()
@@ -75,7 +61,7 @@ class HierarchyMixin:
                 )
 
     def _add_with_optional_icon(
-        self: _HierarchyProtocol, combo: Any, name: str, item_id: Any, icon_path_val: str
+        self, combo: Any, name: str, item_id: Any, icon_path_val: str
     ) -> None:
         """Добавляет элемент в комбобокс с иконкой, если она валидна, иначе без иконки.
 
@@ -89,7 +75,7 @@ class HierarchyMixin:
         else:
             combo.addItem(name, item_id)
 
-    def _extract_icon_path(self: _HierarchyProtocol, item: Any) -> str:
+    def _extract_icon_path(self, item: Any) -> str:
         """Извлекает icon_path из словаря-подобного объекта безопасно.
 
         Возвращает пустую строку, если ключ отсутствует или объект не словарь.

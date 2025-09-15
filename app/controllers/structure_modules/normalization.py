@@ -3,7 +3,7 @@
 """Модуль для нормализации данных из базы данных."""
 
 import logging
-from typing import Any, Dict, List, Optional, Protocol, Union, runtime_checkable
+from typing import Any, Dict, List, Protocol, Union, runtime_checkable
 
 # Модульный логгер
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class RowLike(Protocol):
 SupportedRowType = Union[Dict[str, Any], RowLike, tuple, None]
 
 
-def normalize_row(row: Any, logger: Optional[logging.Logger] = None) -> Dict[str, Any]:
+def normalize_row(row: Any, logger: logging.Logger = None) -> Dict[str, Any]:
     """Безопасно нормализует строку БД в словарь.
 
     Поддерживает:
@@ -50,19 +50,15 @@ def normalize_row(row: Any, logger: Optional[logging.Logger] = None) -> Dict[str
     # Проверка на namedtuple (более надежный способ)
     if isinstance(row, tuple) and hasattr(row, "_fields"):
         try:
-            asdict = getattr(row, "_asdict", None)
-            if callable(asdict):
-                return asdict()
-        except Exception as e:
+            return row._asdict()
+        except AttributeError as e:
             active_logger.warning("Ошибка при вызове _asdict() для namedtuple: %s", e)
-        # Fallback к ручному созданию словаря
-        try:
-            fields = getattr(row, "_fields", None)
-            if fields is not None:
-                return dict(zip(fields, row))
-        except Exception as fallback_e:
-            active_logger.error("Не удалось обработать namedtuple: %s", fallback_e)
-        return {}
+            # Fallback к ручному созданию словаря
+            try:
+                return dict(zip(row._fields, row))
+            except (AttributeError, TypeError) as fallback_e:
+                active_logger.error("Не удалось обработать namedtuple: %s", fallback_e)
+                return {}
 
     # sqlite3.Row или другие объекты с keys() и поддержкой итерации
     if hasattr(row, "keys"):
@@ -112,7 +108,7 @@ def normalize_row(row: Any, logger: Optional[logging.Logger] = None) -> Dict[str
     return {}
 
 
-def normalize_rows(rows: Any, logger: Optional[logging.Logger] = None) -> List[Dict[str, Any]]:
+def normalize_rows(rows: Any, logger: logging.Logger = None) -> List[Dict[str, Any]]:
     """Нормализует список строк БД в список словарей.
 
     Args:
@@ -144,7 +140,7 @@ def normalize_rows(rows: Any, logger: Optional[logging.Logger] = None) -> List[D
 
 
 def validate_normalized_data(
-    data: Any, required_keys: Optional[List[str]] = None
+    data: Union[Dict[str, Any], List[Dict[str, Any]]], required_keys: List[str] = None
 ) -> bool:
     """Валидирует нормализованные данные.
 
@@ -159,7 +155,8 @@ def validate_normalized_data(
         required_keys = []
 
     def _validate_dict(d: Dict[str, Any]) -> bool:
-        # d всегда словарь по месту вызова
+        if not isinstance(d, dict):
+            return False
         return all(key in d for key in required_keys)
 
     if isinstance(data, dict):

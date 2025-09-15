@@ -3,8 +3,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from PyQt6.QtGui import QIcon, QClipboard
-from typing import cast
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
 LinkData = Union[Dict[str, Any], List[Dict[str, Any]]]
@@ -59,14 +58,14 @@ def copy_link_to_clipboard(link_or_links: LinkData) -> bool:
     Возвращает True при успехе, False при ошибке. Перед копированием удаляет несерилизуемые
     поля (QIcon, приватные ключи с подчеркиванием и т.п.).
     """
-    app = cast(QApplication | None, QApplication.instance())
+    app = QApplication.instance()
     if app is None:
         logger.error(
             "QApplication is not initialized; clipboard operations are unavailable"
         )
         return False
 
-    clipboard = cast(QClipboard, app.clipboard())
+    clipboard = app.clipboard()
     try:
         sanitized = _sanitize_for_clipboard(link_or_links)
         clipboard.setText(json.dumps(sanitized, ensure_ascii=False))
@@ -88,14 +87,14 @@ def get_link_from_clipboard() -> Optional[LinkData]:
       - dict или list[dict] при успешном чтении
       - None при ошибке, пустом буфере, отсутствии QApplication или неверном формате
     """
-    app = cast(QApplication | None, QApplication.instance())
+    app = QApplication.instance()
     if app is None:
         logger.error(
             "QApplication is not initialized; clipboard operations are unavailable"
         )
         return None
 
-    clipboard = cast(QClipboard, app.clipboard())
+    clipboard = app.clipboard()
     try:
         text = clipboard.text()
         if not text:

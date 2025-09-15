@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from app.models.db import Database
 import functools
-from typing import Any, Callable, Optional, TypeVar, ParamSpec, Protocol, ContextManager, Concatenate
 
 
 class UnitOfWork:
@@ -13,7 +12,7 @@ class UnitOfWork:
 
     def __init__(self, db: Database):
         self.db = db
-        self._tx_ctx: Optional[ContextManager[Any]] = None
+        self._tx_ctx = None  # type: Optional[object]
         # Короткие алиасы на репозитории (без дублирования кода); безопасны для тестовых DB
         self.spheres = getattr(db, "spheres", None)
         self.sections = getattr(db, "sections", None)
@@ -26,25 +25,14 @@ class UnitOfWork:
         self._tx_ctx.__enter__()
         return self
 
-    def __exit__(self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: Any) -> None:
+    def __exit__(self, exc_type, exc, tb) -> None:
         # Прокси к Database.transaction().__exit__
         assert self._tx_ctx is not None
         self._tx_ctx.__exit__(exc_type, exc, tb)
         self._tx_ctx = None
 
 
-P = ParamSpec("P")
-T = TypeVar("T")
-
-
-class HasDB(Protocol):
-    db: Database
-
-
-S = TypeVar("S", bound=HasDB)
-
-
-def unit_of_work(func: Callable[Concatenate[S, P], T]) -> Callable[Concatenate[S, P], T]:
+def unit_of_work(func):
     """Декоратор для оборачивания метода сервиса в транзакцию UnitOfWork(self.db).
 
     Используется только там, где нет внутреннего управления транзакциями в репозитории/модели,
@@ -52,7 +40,7 @@ def unit_of_work(func: Callable[Concatenate[S, P], T]) -> Callable[Concatenate[S
     """
 
     @functools.wraps(func)
-    def _wrapped(self: S, *args: P.args, **kwargs: P.kwargs) -> T:
+    def _wrapped(self, *args, **kwargs):
         with UnitOfWork(self.db):
             return func(self, *args, **kwargs)
 

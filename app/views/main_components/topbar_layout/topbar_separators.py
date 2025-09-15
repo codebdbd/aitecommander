@@ -57,23 +57,20 @@ def update_separators_visibility(
     i = 0
     while i < count:
         it = top_bar.itemAt(i)
-        if it is None:
-            i += 1
-            continue
         w = it.widget()
         if _is_vertical_separator(w):
             left_widget: Optional[QWidget] = None
             j = i - 1
             while j >= 0 and not left_widget:
                 prev_it = top_bar.itemAt(j)
-                if prev_it is not None and prev_it.widget():
+                if prev_it.widget():
                     left_widget = prev_it.widget()
                 j -= 1
             right_widget: Optional[QWidget] = None
             j = i + 1
             while j < count and not right_widget:
                 next_it = top_bar.itemAt(j)
-                if next_it is not None and next_it.widget():
+                if next_it.widget():
                     right_widget = next_it.widget()
                 j += 1
             show_sep = logical_visible_panel(left_widget) and (
@@ -81,8 +78,7 @@ def update_separators_visibility(
                 or (search_exists and isinstance(right_widget, QLineEdit))
             )
             try:
-                if isinstance(w, QWidget):
-                    w.setVisible(show_sep)
+                w.setVisible(show_sep)
             except Exception:
                 pass
             # Размеры спейсеров по бокам разделителя (безопасный доступ)

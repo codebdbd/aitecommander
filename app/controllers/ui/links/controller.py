@@ -28,7 +28,12 @@ class LinksUIController(QObject):
         links_table_controller=None,
     ):
         super().__init__()
-        # table_widget и business_logic заданы как обязательные типами
+        if table_widget is None:
+            logger.error("LinksUIController: table_widget is required")
+            raise ValueError("LinksUIController: table_widget is required")
+        if business_logic is None:
+            logger.error("LinksUIController: business_logic is required")
+            raise ValueError("LinksUIController: business_logic is required")
         if links_table_controller is None:
             logger.error("LinksUIController: links_table_controller is required")
             raise ValueError("LinksUIController: links_table_controller is required")
@@ -165,7 +170,7 @@ class LinksUIController(QObject):
         """Получить номера выделенных строк через общую утилиту."""
         return get_selected_rows_util(self.table)
 
-    def quick_add_link(self, link_type: str, category_id: Optional[int] = None):
+    def quick_add_link(self, link_type: str, category_id: int = None):
         """Быстрое добавление ссылки."""
         self.link_ops.quick_add_link(link_type, category_id)
 
@@ -190,7 +195,7 @@ class LinksUIController(QObject):
         logger.info("open_link called with link: %s", link)
         self.link_ops._open_link(link)
 
-    def toggle_favorite(self, link: Optional[Dict] = None) -> None:
+    def toggle_favorite(self, link: Dict = None) -> None:
         """Переключить статус избранного."""
         self.link_ops._toggle_fav(link)
 

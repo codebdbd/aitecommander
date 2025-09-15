@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class CategoryModel(DatabaseBase):
     """Модель для работы с категориями."""
 
-    def __init__(self, database: Any) -> None:
+    def __init__(self, database):
         """Инициализация модели категорий."""
         super().__init__(database)
 
@@ -39,42 +39,15 @@ class CategoryModel(DatabaseBase):
             WHERE section_id IN ({placeholders}) 
             ORDER BY section_id, position
         """
-        rows = self.fetch_all(query, tuple(section_ids))
-        return [dict(r) for r in rows] if rows else []
+        rows = self._execute_with_error_handling(query, section_ids, fetch_method="all")
+        return [dict(row) for row in rows] if rows else []
 
     def get_category_by_id(self, category_id: int) -> Optional[Dict[str, Any]]:
         """Возвращает категорию по её ID в формате dict."""
-        row = self.fetch_one("SELECT * FROM category WHERE id= ?", (category_id,))
-        return dict(row) if row else None
-
-    def get_categories_bulk(self, ids: List[int]) -> List[Dict[str, Any]]:
-        """Возвращает несколько категорий по списку ID одним запросом.
-
-        Возвращает список dict с полями таблицы `category` (включая `icon_path`).
-        Порядок не гарантируется.
-        """
-        if not ids:
-            return []
-        # Оставляем только валидные положительные целые ID (исключая bool) и удаляем дубликаты
-        valid_ids = [int(x) for x in ids if isinstance(x, int) and not isinstance(x, bool) and x > 0]
-        if not valid_ids:
-            return []
-        placeholders = ",".join(["?"] * len(valid_ids))
-        rows = self.fetch_all(
-            f"SELECT * FROM category WHERE id IN ({placeholders})",
-            tuple(valid_ids),
+        row = self._execute_with_error_handling(
+            "SELECT * FROM category WHERE id= ?", (category_id,), fetch_method="one"
         )
-        try:
-            return [dict(r) for r in rows] if rows else []
-        except Exception:
-            # На случай нестандартного курсора в тестах
-            result: List[Dict[str, Any]] = []
-            for r in rows or []:
-                try:
-                    result.append(dict(r))
-                except Exception:
-                    continue
-            return result
+        return dict(row) if row else None
 
     def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, int]]:
         """Получить иерархию категории (сфера -> раздел -> категория).
@@ -85,12 +58,13 @@ class CategoryModel(DatabaseBase):
         Returns:
             Dict с sphere_id, section_id, category_id или None при ошибке
         """
-        result = self.fetch_one(
+        result = self._execute_with_error_handling(
             """SELECT s.sphere_id, c.section_id 
                FROM category c 
                JOIN section s ON c.section_id = s.id 
                WHERE c.id = ?""",
             (category_id,),
+            fetch_method="one",
         )
 
         if result:
@@ -121,11 +95,12 @@ class CategoryModel(DatabaseBase):
         data["name"] = name_norm
 
         # Проверяем, существует ли уже категория с таким именем в этом разделе
-        dup = self.fetch_one(
+        cursor = self._execute_with_error_handling(
             "SELECT id FROM category WHERE section_id = ? AND name = ? COLLATE NOCASE",
             (data["section_id"], data["name"]),
+            fetch_method="one",
         )
-        if dup is not None:
+        if cursor is not None:
             # Категория с таким именем уже существует в этом разделе
             logger.warning(
                 "Категория '%s' уже существует в разделе %s",
@@ -135,12 +110,12 @@ class CategoryModel(DatabaseBase):
             return None
 
         position = self._get_next_position("category", "section_id", data["section_id"])
-        cursor = self.exec_query(
+        cursor = self._execute_with_error_handling(
             "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
             (data["name"], data["section_id"], data.get("icon_path", ""), position),
         )
         logger.info("Добавлена новая категория: %s", data["name"])
-        return int(getattr(cursor, "lastrowid", 0) or 0)
+        return cursor.lastrowid
 
     def insert_categories_bulk(
         self, items: List[Dict[str, Any]]
@@ -169,10 +144,13 @@ class CategoryModel(DatabaseBase):
         # Группируем по section_id для расчёта позиций
         by_section: Dict[int, List[Dict[str, Any]]] = {}
         for it in items:
-            sec_val = it.get("section_id")
-            if not isinstance(sec_val, int) or sec_val <= 0:
-                raise ValidationError("Некорректный section_id в одном из элементов пакета")
-            by_section.setdefault(int(sec_val), []).append(it)
+            try:
+                sid = int(it.get("section_id"))
+            except Exception:
+                raise ValidationError(
+                    "Некорректный section_id в одном из элементов пакета"
+                )
+            by_section.setdefault(sid, []).append(it)
 
         # Формируем батч вставки
         batched_params: List[tuple] = []
@@ -188,8 +166,10 @@ class CategoryModel(DatabaseBase):
                         f"FROM category WHERE section_id IN ({placeholders}) "
                         f"GROUP BY section_id"
                     )
-                    rows = self.fetch_all(query, tuple(section_ids))
-                    for row in rows:
+                    rows = self._execute_with_error_handling(
+                        query, tuple(section_ids), fetch_method="all"
+                    )
+                    for row in rows or []:
                         max_pos_map[row["section_id"]] = row["max_pos"]
 
                 # Единая предзагрузка существующих имён для всех затронутых разделов одним запросом
@@ -200,15 +180,21 @@ class CategoryModel(DatabaseBase):
                         f"SELECT section_id, LOWER(name) AS lname FROM category "
                         f"WHERE section_id IN ({placeholders})"
                     )
-                    rows = self.fetch_all(query_names, tuple(section_ids))
-                    for r in rows:
-                        rv = r["section_id"]
-                        if not isinstance(rv, int):
+                    rows = self._execute_with_error_handling(
+                        query_names, tuple(section_ids), fetch_method="all"
+                    )
+                    for r in rows or []:
+                        sid = (
+                            int(r["section_id"])
+                            if r["section_id"] is not None
+                            else None
+                        )
+                        if sid is None:
                             continue
                         nm = str(r["lname"]).strip().lower()
                         if not nm:
                             continue
-                        existing_names_by_section.setdefault(int(rv), set()).add(nm)
+                        existing_names_by_section.setdefault(sid, set()).add(nm)
 
                 # Повторно обойдём сгруппированные элементы для формирования батча, используя предзагруженные имена
                 for section_id, group in by_section.items():
@@ -250,12 +236,12 @@ class CategoryModel(DatabaseBase):
                 seen = set()
                 for section_id, group in by_section.items():
                     for g in group:
-                        raw_name = g.get("name")
-                        if raw_name is None:
+                        nm = g.get("name")
+                        if nm is None:
                             continue
                         # Поиск должен использовать канонизированное имя (без пробелов по краям),
                         # так как мы именно его сохраняем в БД.
-                        nm_canon = str(raw_name).strip()
+                        nm_canon = str(nm).strip()
                         key = (section_id, nm_canon)
                         if key in seen:
                             continue
@@ -275,13 +261,15 @@ class CategoryModel(DatabaseBase):
                     "FROM category WHERE (section_id, name) IN (" + placeholders + ") "
                     "ORDER BY section_id, position"
                 )
-                rows = self.fetch_all(query, tuple(flat_params))
-                return [dict(r) for r in rows]
+                rows = self._execute_with_error_handling(
+                    query, tuple(flat_params), fetch_method="all"
+                )
+                return [dict(r) for r in (rows or [])]
         except Exception:
             # Инициируем откат и пробрасываем далее
             raise
 
-    def update_category(self, category_id: int, data: Dict[str, Any]) -> None:
+    def update_category(self, category_id: int, data: Dict[str, Any]):
         """Обновляет существующую категорию."""
         return self._update_entity(
             "category",
@@ -290,7 +278,7 @@ class CategoryModel(DatabaseBase):
             ["name", "section_id", "icon_path", "position"],
         )
 
-    def delete_category(self, category_id: int) -> None:
+    def delete_category(self, category_id: int):
         """Удаляет категорию по её ID вместе со всеми её ссылками (атомарно)."""
         with self.transaction():
             # Сначала удаляем все ссылки категории
@@ -330,11 +318,12 @@ class CategoryModel(DatabaseBase):
         for i in range(0, len(unique_ids), CHUNK):
             chunk = unique_ids[i : i + CHUNK]
             placeholders = ",".join(["?"] * len(chunk))
-            rows = self.fetch_all(
+            rows = self._execute_with_error_handling(
                 f"SELECT DISTINCT section_id FROM category WHERE id IN ({placeholders})",
                 tuple(chunk),
+                fetch_method="all",
             )
-            affected_sections.extend(int(r["section_id"]) for r in rows)
+            affected_sections.extend(int(r["section_id"]) for r in (rows or []))
 
         deleted_categories = 0
         with self.transaction():
@@ -342,29 +331,27 @@ class CategoryModel(DatabaseBase):
             for i in range(0, len(unique_ids), CHUNK):
                 chunk = unique_ids[i : i + CHUNK]
                 placeholders = ",".join(["?"] * len(chunk))
-                # Удаляем ссылки для категорий чанка. Результат курсора не используется,
-                # поэтому используем низкоуровневый вызов с обработкой ошибок без требования
-                # реального sqlite3.Cursor (важно для тестов со стабами).
+                # Удаляем ссылки для категорий чанка
                 self._execute_with_error_handling(
                     f"DELETE FROM link WHERE category_id IN ({placeholders})",
                     tuple(chunk),
                 )
                 # Предварительно считаем количество записей категорий в чанке,
                 # чтобы иметь точную величину на случай отсутствия cursor.rowcount
-                pre_count_row = self.fetch_one(
+                pre_count_row = self._execute_with_error_handling(
                     f"SELECT COUNT(*) as cnt FROM category WHERE id IN ({placeholders})",
                     tuple(chunk),
+                    fetch_method="one",
                 )
                 if pre_count_row is None:
                     pre_count = 0
                 else:
                     try:
-                        pre_count = int(dict(pre_count_row).get("cnt", 0))
+                        pre_count = int(pre_count_row["cnt"])  # sqlite3.Row индексируется по ключу
                     except Exception:
                         pre_count = 0
 
-                # Удаляем сами категории. Используем низкоуровневое выполнение, чтобы в тестах
-                # можно было вернуть стаб-курсор без реального соединения; rowcount может отсутствовать.
+                # Удаляем сами категории
                 cursor = self._execute_with_error_handling(
                     f"DELETE FROM category WHERE id IN ({placeholders})",
                     tuple(chunk),
@@ -437,9 +424,10 @@ class CategoryModel(DatabaseBase):
 
         # Получаем данные категорий (id, name, section_id, position), фильтруем существующие
         placeholders = ",".join(["?"] * len(unique_ids))
-        rows = self.fetch_all(
+        rows = self._execute_with_error_handling(
             f"SELECT id, name, section_id, position FROM category WHERE id IN ({placeholders})",
             tuple(unique_ids),
+            fetch_method="all",
         )
         if not rows:
             return []
@@ -451,12 +439,13 @@ class CategoryModel(DatabaseBase):
         ordered_existing_ids = [cid for cid in unique_ids if cid in data_by_id]
 
         # Имена, уже занятые в целевом разделе
-        existing_names_rows = self.fetch_all(
+        existing_names_rows = self._execute_with_error_handling(
             "SELECT LOWER(name) AS name FROM category WHERE section_id = ?",
             (target_section_id,),
+            fetch_method="all",
         )
         existing_names = {
-            str(r["name"]).strip().lower() for r in existing_names_rows
+            str(r["name"]).strip().lower() for r in (existing_names_rows or [])
         }
 
         # Отфильтруем по дубликатам имён (в целевом разделе)
@@ -526,9 +515,10 @@ class CategoryModel(DatabaseBase):
         Выполняется без собственного begin/commit, предполагая внешний контекст транзакции.
         """
         # Получаем id категорий в нужном порядке
-        rows = self.fetch_all(
+        rows = self._execute_with_error_handling(
             "SELECT id FROM category WHERE section_id = ? ORDER BY position, id",
             (section_id,),
+            fetch_method="all",
         )
         ids_in_order = [int(r["id"]) for r in (rows or [])]
         if not ids_in_order:
@@ -553,7 +543,7 @@ class CategoryModel(DatabaseBase):
         if "id" in data and data["id"]:
             # Выполняем атомарно под транзакцией и единым механизмом блокировки
             with self.transaction():
-                cursor = self.exec_query(
+                cursor = self._execute_with_error_handling(
                     "UPDATE category SET name=?, section_id=?, icon_path=?, position=? WHERE id= ?",
                     (
                         data["name"],
@@ -565,7 +555,7 @@ class CategoryModel(DatabaseBase):
                 )
                 if int(getattr(cursor, "rowcount", 0) or 0) == 0:
                     # Записи не было, делаем вставку с нужным id
-                    self.exec_query(
+                    self._execute_with_error_handling(
                         "INSERT INTO category (id, name, section_id, icon_path, position) VALUES (?, ?, ?, ?, ?)",
                         (
                             data["id"],
@@ -584,14 +574,16 @@ class CategoryModel(DatabaseBase):
                 )
             return category_id
 
-    def get_first_category_id(self) -> Optional[int]:
+    def get_first_category_id(self):
         """Возвращает первую категорию в системе."""
-        result = self.fetch_one("SELECT id FROM category ORDER BY id LIMIT 1")
-        return int(dict(result).get("id", 0)) if result else None
+        result = self._execute_with_error_handling(
+            "SELECT id FROM category ORDER BY id LIMIT 1", fetch_method="one"
+        )
+        return result["id"] if result else None
 
     def has_duplicate_category(
         self, section_id: int, category_name: str, exclude_id: Optional[int] = None
-    ) -> bool:
+    ):
         """Проверяет наличие дубликата категории в разделе."""
         # Проверка на дубликат без учета регистра
         query = (
@@ -602,17 +594,11 @@ class CategoryModel(DatabaseBase):
             category_name = str(category_name).strip()
         except Exception:
             category_name = str(category_name)
-        params: tuple[Any, ...] = (section_id, category_name)
+        params = [section_id, category_name]
 
         if exclude_id is not None:
             query += " AND id != ?"
-            params = (section_id, category_name, exclude_id)
+            params.append(exclude_id)
 
-        result = self.fetch_one(query, params)
-        if not result:
-            return False
-        try:
-            cnt = int(dict(result).get("count", 0))
-        except Exception:
-            cnt = 0
-        return cnt > 0
+        result = self._execute_with_error_handling(query, params, fetch_method="one")
+        return result["count"] > 0

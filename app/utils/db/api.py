@@ -33,7 +33,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import Callable, Optional, Protocol, TypeVar, cast
+from typing import Callable, Optional, Protocol, TypeVar
 
 from PyQt6.QtCore import QThreadPool
 
@@ -60,11 +60,8 @@ class _TaskHandleImpl:
         self._task.cancel()
 
 
-ProgressReporter = Callable[[int], None]
-
-
 def run_db(
-    func: Callable[..., T],
+    func: Callable[[], T],
     *,
     use_lock: bool = True,
     description: Optional[str] = None,
@@ -110,19 +107,26 @@ def run_db(
 
     expects_reporter = _expects_reporter(func)
 
-    func_with_reporter = cast(Callable[[ProgressReporter], T], func)
-    func_noargs = cast(Callable[[], T], func)
-
-    def _wrapped(report_progress: ProgressReporter | None = None) -> T:
+    if expects_reporter:
         if use_lock:
-            with db_lock:
-                if expects_reporter and report_progress is not None:
-                    return func_with_reporter(report_progress)
-                return func_noargs()
+
+            def _wrapped(report_progress: Callable[[int], None]) -> T:
+                with db_lock:
+                    return func(report_progress)  # type: ignore[misc]
         else:
-            if expects_reporter and report_progress is not None:
-                return func_with_reporter(report_progress)
-            return func_noargs()
+
+            def _wrapped(report_progress: Callable[[int], None]) -> T:
+                return func(report_progress)  # type: ignore[misc]
+    else:
+        if use_lock:
+
+            def _wrapped() -> T:
+                with db_lock:
+                    return func()
+        else:
+
+            def _wrapped() -> T:
+                return func()
 
     task = DatabaseTask[T](
         _wrapped, description=description, reporter=(on_progress or (lambda *_: None))

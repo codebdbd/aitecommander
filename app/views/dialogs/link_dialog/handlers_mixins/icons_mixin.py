@@ -2,19 +2,13 @@
 Миксин для выбора и установки пользовательской иконки в LinkDialogHandlers.
 """
 
-from typing import Any, Protocol
-
 from PyQt6.QtGui import QIcon
 
 from app.utils.ui.icon.selection import choose_icon_and_copy
 
 
-class _HasDialog(Protocol):
-    dialog: Any
-
-
 class IconsMixin:
-    def _on_choose_icon(self: _HasDialog) -> None:
+    def _on_choose_icon(self) -> None:
         """Обработчик выбора иконки."""
         user_icons_dir = self.dialog.get_user_icons_dir()
         # Фильтр формируется динамически на основе app_config.get_supported_icon_formats()

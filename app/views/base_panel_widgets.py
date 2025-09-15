@@ -33,7 +33,7 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         """Sets panel data - to be implemented by subclasses."""
         raise NotImplementedError("Subclasses must implement set_data")
 
-    def update(self) -> None:  # type: ignore[override]
+    def update(self) -> None:
         """Requests data update from external sources."""
         # Base implementation does nothing to avoid circular refresh paths
         return

@@ -3,7 +3,7 @@
 import logging
 
 try:
-    import lxml  # type: ignore[import-untyped]  # noqa: F401
+    import lxml  # noqa: F401
 
     BS_PARSER = "lxml"
 except Exception:

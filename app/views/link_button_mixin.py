@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Protocol, runtime_checkable
+from typing import Any, Dict
 
 from PyQt6.QtCore import QSize
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
@@ -24,20 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class LinkButtonMixin:
-    @runtime_checkable
-    class _HasDefaultIconPath(Protocol):
-        def _get_default_icon_path(self) -> "Any":
-            ...
-
-    @runtime_checkable
-    class _SupportsIconOps(Protocol):
-        def _get_default_icon_path(self) -> "Any":
-            ...
-
-        def _find_icon(self, icon_path: str) -> str:
-            ...
-
-    def _find_icon(self: _HasDefaultIconPath, icon_path: str) -> str:
+    def _find_icon(self, icon_path: str) -> str:
         """Возвращает путь к иконке через общий резолвер с fallback."""
         if not icon_path:
             return str(self._get_default_icon_path())
@@ -53,7 +40,7 @@ class LinkButtonMixin:
             )
             return str(self._get_default_icon_path())
 
-    def _create_link_button(self: _SupportsIconOps, link_data: Dict[str, Any]) -> QToolButton:
+    def _create_link_button(self, link_data: Dict[str, Any]) -> QToolButton:
         """Создаёт кнопку ссылки с иконкой, синхронизированной с таблицей."""
         button = QToolButton()
 

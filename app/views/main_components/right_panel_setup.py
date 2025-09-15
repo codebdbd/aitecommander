@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, cast
-from app.views.main_components.types import WindowUISetupProtocol
+from typing import Any
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
@@ -24,7 +23,7 @@ logger = logging.getLogger(__name__)
 class RightPanelBuilder:
     """Builds the right panel using existing WindowUISetup helpers (no behavior change)."""
 
-    def __init__(self, ui: WindowUISetupProtocol) -> None:
+    def __init__(self, ui: Any) -> None:
         # ui is WindowUISetup; typed as Any to avoid circular imports
         self.ui = ui
         self.window = ui.window
@@ -46,18 +45,18 @@ class RightPanelBuilder:
         right_panel = QWidget()
 
         # Плитки категорий — создаём с валидной иерархией родителей
-        cast(Any, self.window).tiles_scroll = QScrollArea(parent=right_panel)
-        cast(Any, self.window).tiles_scroll.setWidgetResizable(True)
-        cast(Any, self.window).tiles = CategoryTiles(parent=cast(Any, self.window).tiles_scroll)
+        self.window.tiles_scroll = QScrollArea(parent=right_panel)
+        self.window.tiles_scroll.setWidgetResizable(True)
+        self.window.tiles = CategoryTiles(parent=self.window.tiles_scroll)
 
         # Подключение к UIStateManager
-        cast(Any, self.window).tiles.category_selected.connect(
+        self.window.tiles.category_selected.connect(
             lambda cat_id: self.window.ui_state.load_category(
                 cat_id, source="CategoryTiles"
             )
         )
 
-        cast(Any, self.window).tiles_scroll.setWidget(cast(Any, self.window).tiles)
+        self.window.tiles_scroll.setWidget(self.window.tiles)
 
         tiles_wrapper = QWidget(parent=right_panel)
         tiles_layout = QVBoxLayout(tiles_wrapper)
@@ -66,21 +65,21 @@ class RightPanelBuilder:
         tiles_layout.addWidget(self.window.tiles_scroll)
 
         # Таблица
-        cast(Any, self.window).table = LinksTableView(self.window)
+        self.window.table = LinksTableView(self.window)
 
         # Обертка для таблицы
         table_wrapper = QWidget(parent=right_panel)
         table_layout = QVBoxLayout(table_wrapper)
         table_layout.setContentsMargins(*app_config.ui.get_layout_margins("table"))
         table_layout.setSpacing(app_config.ui.get_table_layout_spacing())
-        table_layout.addWidget(cast(Any, self.window).table)
+        table_layout.addWidget(self.window.table)
 
         # Стек
-        cast(Any, self.window).stack = QStackedLayout()
-        cast(Any, self.window).stack.addWidget(tiles_wrapper)
+        self.window.stack = QStackedLayout()
+        self.window.stack.addWidget(tiles_wrapper)
         # Совместимость с существующим API: либо сам виджет таблицы, либо её контейнер
-        cast(Any, self.window).table_container = table_wrapper
-        cast(Any, self.window).stack.addWidget(table_wrapper)
+        self.window.table_container = table_wrapper
+        self.window.stack.addWidget(table_wrapper)
 
         # Контейнер правой панели
         right_layout = QVBoxLayout(right_panel)
@@ -88,27 +87,27 @@ class RightPanelBuilder:
         # Строго используем UIConfig API (релиз): метод гарантирован
         spacing = int(app_config.ui.get_right_layout_spacing())
         right_layout.setSpacing(spacing)
-        right_layout.addLayout(cast(Any, self.window).stack)
+        right_layout.addLayout(self.window.stack)
 
         # Сплиттер
-        cast(Any, self.window).splitter = self._create_splitter()
-        cast(Any, self.window).splitter.addWidget(cast(Any, self.window).left_panel)
-        cast(Any, self.window).splitter.addWidget(right_panel)
+        self.window.splitter = self._create_splitter()
+        self.window.splitter.addWidget(self.window.left_panel)
+        self.window.splitter.addWidget(right_panel)
         try:
-            cast(Any, self.window).splitter.setCollapsible(0, True)
+            self.window.splitter.setCollapsible(0, True)
         except (RuntimeError, TypeError):
             logger.debug(
                 "RightPanel: failed to set splitter collapsible(0, True)", exc_info=True
             )
 
         stretch_factors = app_config.ui.get_splitter_stretch_factors()
-        cast(Any, self.window).splitter.setStretchFactor(0, stretch_factors[0])
-        cast(Any, self.window).splitter.setStretchFactor(1, stretch_factors[1])
-        mid.addWidget(cast(Any, self.window).splitter)
+        self.window.splitter.setStretchFactor(0, stretch_factors[0])
+        self.window.splitter.setStretchFactor(1, stretch_factors[1])
+        mid.addWidget(self.window.splitter)
 
         splitter_sizes = app_config.ui.get_splitter_sizes()
-        cast(Any, self.window).splitter.setSizes(splitter_sizes)
-        cast(Any, self.window)._first_structure_load = True
+        self.window.splitter.setSizes(splitter_sizes)
+        self.window._first_structure_load = True
 
         # Автоскрытие дерева
         self.ui._setup_auto_hide_tree_filter(splitter_sizes)

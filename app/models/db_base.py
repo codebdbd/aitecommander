@@ -2,7 +2,7 @@ import logging
 import sqlite3
 import threading
 from contextlib import contextmanager
-from typing import Any, Dict, List, Union, Optional, Iterator
+from typing import Any, Dict, List, Union
 
 from app.utils.db.synchronization import db_lock
 
@@ -28,14 +28,14 @@ class ValidationError(DatabaseError):
 class DatabaseBase:
     """Базовый класс для моделей БД с единым доступом к соединению и операциям."""
 
-    def __init__(self, connection_manager: Any) -> None:
+    def __init__(self, connection_manager):
         """Инициализирует базовый класс с менеджером соединения (Database)."""
         self.connection_manager = connection_manager
         # Счётчик для генерации уникальных имён SAVEPOINT в рамках процесса/потока
         self._savepoint_counter = 0
 
     @property
-    def connection(self) -> sqlite3.Connection:
+    def connection(self):
         """Возвращает активное соединение SQLite через менеджер."""
         return self.connection_manager.connection
 
@@ -58,7 +58,7 @@ class DatabaseBase:
             raise DatabaseError(f"Ошибка rollback: {e}")
 
     @contextmanager
-    def transaction(self) -> Iterator[None]:
+    def transaction(self):
         """Контекстный менеджер транзакции с автоматическим commit/rollback.
 
         Теперь глобальная блокировка `db_lock` удерживается на ПРОТЯЖЕНИИ
@@ -103,7 +103,7 @@ class DatabaseBase:
 
     def _validate_required_fields(
         self, data: Dict[str, Any], required_fields: List[str], entity_name: str = ""
-    ) -> None:
+    ):
         """Валидирует обязательные поля"""
         # Отложенный импорт для предотвращения циклических импортов
         from app.utils.validators import validate_required_fields
@@ -114,26 +114,23 @@ class DatabaseBase:
             )
 
     def _get_next_position(
-        self, table_name: str, parent_field: Optional[str] = None, parent_id: Optional[int] = None
+        self, table_name: str, parent_field: str = None, parent_id: int = None
     ) -> int:
         """Получает следующую позицию для элемента в таблице."""
         try:
             if parent_field and parent_id is not None:
-                row = self.fetch_one(
+                row = self._execute_with_error_handling(
                     f"SELECT MAX(position) AS max_pos FROM {table_name} WHERE {parent_field} = ?",
                     (parent_id,),
+                    fetch_method="one",
                 )
             else:
-                row = self.fetch_one(
+                row = self._execute_with_error_handling(
                     f"SELECT MAX(position) AS max_pos FROM {table_name}",
+                    fetch_method="one",
                 )
 
-            if row is None:
-                max_pos: Optional[int] = None
-            else:
-                d = dict(row)
-                val = d.get("max_pos")
-                max_pos = int(val) if val is not None else None
+            max_pos = None if row is None else dict(row).get("max_pos")
             return (max_pos + 1) if max_pos is not None else 0
         except Exception as e:
             logger.error("Ошибка получения позиции для таблицы %s: %s", table_name, e)
@@ -141,7 +138,7 @@ class DatabaseBase:
             raise DatabaseError(f"Не удалось вычислить позицию для {table_name}: {e}")
 
     def _execute_with_error_handling(
-        self, query: str, params: tuple = (), fetch_method: Optional[str] = None
+        self, query: str, params: tuple = (), fetch_method: str = None
     ) -> Union[sqlite3.Cursor, sqlite3.Row, List[sqlite3.Row], None]:
         """Выполняет SQL-запрос с обработкой ошибок и блокировкой."""
         try:
@@ -157,7 +154,7 @@ class DatabaseBase:
             return cursor.fetchall()
         return cursor
 
-    def _execute_many_with_error_handling(self, query: str, seq_of_params: List[tuple]) -> sqlite3.Cursor:
+    def _execute_many_with_error_handling(self, query: str, seq_of_params: List[tuple]):
         """
         Выполняет SQL-запрос executemany с обработкой ошибок и блокировкой.
 
@@ -178,40 +175,13 @@ class DatabaseBase:
             )
             raise DatabaseError(f"Ошибка базы данных (executemany): {e}")
 
-    # === Typed helpers to avoid Union return types ===
-    def fetch_one(self, query: str, params: tuple = ()) -> Optional[Union[sqlite3.Row, Dict[str, Any]]]:
-        """Execute query and return a single row (or None)."""
-        row = self._execute_with_error_handling(query, params, fetch_method="one")
-        # Принимаем также dict из тестовых стабов
-        if row is None:
-            return None
-        if isinstance(row, sqlite3.Row):
-            return row
-        if isinstance(row, dict):
-            return row
-        return None
-
-    def fetch_all(self, query: str, params: tuple = ()) -> List[sqlite3.Row]:
-        """Execute query and return all rows as a list (possibly empty)."""
-        rows = self._execute_with_error_handling(query, params, fetch_method="all")
-        return rows if isinstance(rows, list) else []
-
-    def exec_query(self, query: str, params: tuple = ()) -> sqlite3.Cursor:
-        """Execute non-select (or caller-inspected) query and return a cursor."""
-        cur = self._execute_with_error_handling(query, params)
-        if not isinstance(cur, sqlite3.Cursor):
-            # Fallback: ensure we always return a cursor
-            with db_lock:
-                return self.connection.execute(query, params)
-        return cur
-
     def _update_entity(
         self,
         table_name: str,
         entity_id: int,
         data: Dict[str, Any],
         valid_keys: List[str],
-    ) -> None:
+    ):
         """Универсальный метод обновления сущности."""
         fields = []
         params = []
