@@ -58,25 +58,23 @@ class TreeManagement:
             except Exception:
                 logger.debug("TreeManagement._on_structure_loaded: patch path failed", exc_info=True)
             return
-        # Высокоуровневая последовательность: готовим снапшот и иконки асинхронно, применяем в GUI
+        # Новый порядок: применяем снапшот немедленно, иконки обновляем отдельно асинхронно
         state = self._save_view_state()
         snapshot = self._prepare_snapshot(sections_data)
 
-        def _apply_with_icons(prepared_snapshot):
-            self._apply_snapshot(prepared_snapshot)
-            self._restore_state(state)
-            self._ensure_selection(state)
-            self._notify_selection_handler()
+        # Применение структуры и восстановление UI сразу
+        self._apply_snapshot(snapshot)
+        self._restore_state(state)
+        self._ensure_selection(state)
+        self._notify_selection_handler()
 
+        # Асинхронная установка иконок без блокировки UI
         try:
             ih = getattr(self.controller, "icon_handler", None)
-            if ih and hasattr(ih, "prepare_snapshot_async"):
-                ih.prepare_snapshot_async(snapshot, _apply_with_icons)
-            else:
-                # Fallback: применяем без подготовки иконок
-                _apply_with_icons(snapshot)
+            if ih and hasattr(ih, "reload_icons"):
+                ih.reload_icons()
         except Exception:
-            _apply_with_icons(snapshot)
+            logger.debug("TreeManagement._on_structure_loaded: schedule icon reload failed", exc_info=True)
 
 
     def _save_view_state(self):
