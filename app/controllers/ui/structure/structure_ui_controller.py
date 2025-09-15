@@ -49,11 +49,12 @@ class StructureUIController(QObject):
         self._connect_model_icon_reload_signals()
 
     def _connect_model_icon_reload_signals(self) -> None:
-        """Подключаемся к сигналам модели, чтобы перезаполнить иконки после стабилизации дерева.
+        """Подключение служебных сигналов модели.
 
-        Коалесцируем множественные события в один вызов через QTimer.singleShot(0, ...).
-        Это гарантирует, что иконки выставляются только после того, как модель завершила
-        reset/insert/layout операции.
+        Важно: перезагрузка иконок после modelReset больше не выполняется — иконки
+        предразрешаются и устанавливаются заранее в снапшоте (см. TreeManagement._on_structure_loaded),
+        чтобы избежать заметного дергания UI. Здесь оставляем только переподключение
+        selectionModel после modelReset.
         """
         try:
             model = self.tree.model()
@@ -62,21 +63,7 @@ class StructureUIController(QObject):
         if not model:
             return
 
-        self._icons_reload_pending = False
-
-        def _schedule_reload():
-            if getattr(self, "_icons_reload_pending", False):
-                return
-            self._icons_reload_pending = True
-            from PyQt6.QtCore import QTimer
-
-            def _do_reload():
-                try:
-                    self.icon_handler.reload_icons()
-                finally:
-                    self._icons_reload_pending = False
-
-            QTimer.singleShot(0, _do_reload)
+        # Иконки не перезагружаем постфактум: предустанавливаются в снапшоте
 
         # После modelReset у QTreeView меняется selectionModel. Переподключаем currentChanged.
         def _schedule_selection_reconnect():
@@ -120,12 +107,7 @@ class StructureUIController(QObject):
                     "Failed to schedule selection reconnect after modelReset", exc_info=True
                 )
 
-        # Подписываемся ТОЛЬКО на modelReset, чтобы выполнять один проход
-        # после полной сборки снапшота и не дергать перерисовку на каждом rowsInserted/layoutChanged
-        try:
-            model.modelReset.connect(_schedule_reload)
-        except Exception:
-            pass
+        # Больше не подписываемся на post-reset перезагрузку иконок
         # Переподключение selectionModel после сброса модели
         try:
             model.modelReset.connect(_schedule_selection_reconnect)
