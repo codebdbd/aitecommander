@@ -571,8 +571,12 @@ class StructureTreeModel(QAbstractItemModel):
                 parent_index = self.createIndex(section_row, 0, section_node)
                 self.beginRemoveRows(parent_index, crow, crow)
                 section_node.children.pop(crow)
-                if cnode.id in self._category_by_id:
-                    del self._category_by_id[cnode.id]
+                # Удаляем из мапы только если запись указывает на удаляемый объект
+                try:
+                    if isinstance(cnode.id, int) and self._category_by_id.get(cnode.id) is cnode:
+                        del self._category_by_id[cnode.id]
+                except Exception:
+                    pass
                 self.endRemoveRows()
 
         # Вставка/обновление категорий в порядке

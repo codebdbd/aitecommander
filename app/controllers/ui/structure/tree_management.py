@@ -249,18 +249,36 @@ class TreeManagement:
         cat_inserts = inserts.get("categories") or {}
         try:
             for sid, items in (cat_inserts.items() if hasattr(cat_inserts, "items") else []):
+                # Собираем пары (row, cat) и сортируем по row; -1 трактуем как append
+                pairs = []
                 for cat in list(items or []):
                     try:
                         _rv = cat.get("row") if isinstance(cat, dict) else None
                         row = _rv if isinstance(_rv, int) else -1
-                        model.insert_categories(int(sid), row, [cat])
                     except Exception:
-                        logger.debug(
-                            "patch: insert_categories failed for section %s, category %s",
-                            sid,
-                            getattr(cat, "get", lambda *_: None)("id") if isinstance(cat, dict) else None,
-                            exc_info=True,
-                        )
+                        row = -1
+                    pairs.append((row, cat))
+
+                if not pairs:
+                    continue
+
+                def _row_key(rc):
+                    r, _ = rc
+                    return r if isinstance(r, int) and r >= 0 else 10**9
+
+                pairs.sort(key=_row_key)
+                ordered_cats = [c for (_r, c) in pairs]
+                # first_row: минимальный неотрицательный, иначе -1 (append)
+                nonneg = [r for (r, _c) in pairs if isinstance(r, int) and r >= 0]
+                first_row = min(nonneg) if nonneg else -1
+                try:
+                    model.insert_categories(int(sid), first_row, ordered_cats)
+                except Exception:
+                    logger.debug(
+                        "patch: insert_categories batch failed for section %s",
+                        sid,
+                        exc_info=True,
+                    )
         except Exception:
             logger.debug("patch: iter cat inserts failed", exc_info=True)
 

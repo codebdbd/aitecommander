@@ -1,6 +1,6 @@
 # app/controllers/structure/icon_handling.py
 
-from PyQt6.QtCore import Qt, QModelIndex, QTimer
+from PyQt6.QtCore import Qt, QModelIndex, QTimer, QMetaObject
 from PyQt6.QtGui import QIcon
 
 from concurrent.futures import ThreadPoolExecutor
@@ -99,12 +99,16 @@ class IconHandling:
         try:
             QTimer.singleShot(0, self.tree, fn)
         except TypeError:
-            # Совместимость с тестовыми подменами QTimer
-            # Выполним сразу синхронно, чтобы тесты, ожидающие немедленное применение, прошли
             try:
-                QTimer.singleShot(0, fn)
+                # Предпочтительно — поставить в очередь на выполнение в GUI-потоке
+                QMetaObject.invokeMethod(self.tree, fn, Qt.ConnectionType.QueuedConnection)  # type: ignore[arg-type]
             except Exception:
-                fn()
+                # Совместимость: если invokeMethod недоступен, используем простой singleShot без receiver
+                try:
+                    QTimer.singleShot(0, fn)
+                except Exception:
+                    # Последний резерв — лучше не выполнять в рабочем потоке; просто логика ниже не будет вызвана
+                    pass
 
     def prepare_snapshot_async(self, data: list[dict] | None, on_ready) -> None:
         """Готовит иконки для снапшота в пуле потоков и вызывает on_ready(prepared) в GUI-потоке.
