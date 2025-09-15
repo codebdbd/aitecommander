@@ -1,6 +1,6 @@
 # app/controllers/structure/icon_handling.py
 
-from PyQt6.QtCore import Qt, QModelIndex, QTimer, QMetaObject
+from PyQt6.QtCore import Qt, QModelIndex, QTimer, QThread
 from PyQt6.QtGui import QIcon
 
 from concurrent.futures import ThreadPoolExecutor
@@ -92,23 +92,16 @@ class IconHandling:
     def _schedule_on_gui(self, fn) -> None:
         """Планирует выполнение fn в GUI-потоке дерева.
 
-        В продакшене используем перегрузку QTimer.singleShot(ms, receiver, fn),
-        но в тестах QTimer может быть замокан без такой перегрузки — поддержим
-        совместимость через fallback на QTimer.singleShot(ms, fn).
+        Используем перегрузку QTimer.singleShot(ms, receiver, fn), которая гарантирует
+        запуск в потоке объекта receiver (tree). Если уже на GUI-потоке — вызываем напрямую.
         """
         try:
-            QTimer.singleShot(0, self.tree, fn)
-        except TypeError:
-            try:
-                # Предпочтительно — поставить в очередь на выполнение в GUI-потоке
-                QMetaObject.invokeMethod(self.tree, fn, Qt.ConnectionType.QueuedConnection)  # type: ignore[arg-type]
-            except Exception:
-                # Совместимость: если invokeMethod недоступен, используем простой singleShot без receiver
-                try:
-                    QTimer.singleShot(0, fn)
-                except Exception:
-                    # Последний резерв — лучше не выполнять в рабочем потоке; просто логика ниже не будет вызвана
-                    pass
+            if QThread.currentThread() is self.tree.thread():
+                fn()
+            else:
+                QTimer.singleShot(0, self.tree, fn)
+        except Exception:
+            logger.debug("IconHandling._schedule_on_gui failed", exc_info=True)
 
     def prepare_snapshot_async(self, data: list[dict] | None, on_ready) -> None:
         """Готовит иконки для снапшота в пуле потоков и вызывает on_ready(prepared) в GUI-потоке.
@@ -360,6 +353,10 @@ class IconHandling:
                 if not model_local:
                     self._apply_stack = None
                     return
+                # Гарантируем выполнение на GUI-потоке перед созданием QIcon
+                if QThread.currentThread() is not self.tree.thread():
+                    self._schedule_on_gui(_apply_chunk)
+                    return
                 if self._apply_stack is None:
                     _init_traversal(model_local)
 
@@ -523,11 +520,11 @@ class IconHandling:
 
 
 def prepare_icons_snapshot(data: list[dict]) -> list[dict]:
-    """Преобразует поля icon_path в QIcon для разделов и категорий.
+    """Готовит снапшот: резолвит icon_path, но НЕ создаёт QIcon в рабочем потоке.
 
-    Использует `resolve_icon_for_link` для выбора корректного пути к иконке
-    и `create_icon_from_path` для создания QIcon. Неизвестные/ошибочные пути
-    превращаются в пустой `QIcon()`.
+    Примечание: создание QIcon должно выполняться только в GUI-потоке.
+    Здесь мы лишь обновляем корректные пути и устанавливаем пустые QIcon(),
+    чтобы последующее применение иконок выполнялось на GUI-потоке.
     """
     result: list[dict] = []
     for s in data or []:
@@ -552,11 +549,10 @@ def prepare_icons_snapshot(data: list[dict]) -> list[dict]:
 
 
 def _add_icon(item: dict, item_type: str) -> dict:
-    """Возвращает копию item с добавленным ключом 'icon' на основе icon_path.
+    """Возвращает копию item с обновлённым icon_path и пустым 'icon'.
 
-    Единообразная обработка ошибок:
-    - ожидаемые файловые/значимые ошибки логируются как warning, 'icon' = пустой QIcon
-    - неожиданные исключения логируются через logger.exception, 'icon' = пустой QIcon
+    Создание QIcon здесь запрещено (возможен рабочий поток). Только резолв пути,
+    затем выставляем out["icon"] = QIcon() — реальные иконки установятся позже на GUI-потоке.
     """
     try:
         out = dict(item)
@@ -581,21 +577,6 @@ def _add_icon(item: dict, item_type: str) -> dict:
             path,
         )
         resolved = None
-    try:
-        out["icon"] = create_icon_from_path(resolved) if resolved else QIcon()
-    except (OSError, FileNotFoundError, PermissionError, ValueError) as e:
-        logger.warning(
-            "_add_icon: filesystem/value error creating QIcon for %s (resolved=%r): %s",
-            item_type,
-            resolved,
-            e,
-        )
-        out["icon"] = QIcon()
-    except Exception:
-        logger.exception(
-            "_add_icon: unexpected error creating QIcon for %s (resolved=%r)",
-            item_type,
-            resolved,
-        )
-        out["icon"] = QIcon()
+    # Не создаём QIcon здесь, оставляем пустой — применится позже в GUI-потоке
+    out["icon"] = QIcon()
     return out
