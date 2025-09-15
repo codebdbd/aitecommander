@@ -28,6 +28,9 @@ class IconHandling:
         self._icon_task_token = 0
         self._icon_future = None
         self._icon_lock = threading.RLock()
+        # Карта последних применённых путей иконок, чтобы избегать лишних setData и загрузок
+        # Ключ: (item_type, int item_id) → str resolved_path
+        self._last_icon_paths: dict[tuple[str, int], str] = {}
 
     def _get_icon_for_item(self, item_type: str, icon_name: str) -> QIcon:
         # Централизованный резолвер: учитывает и заданный icon_name, и тип
@@ -250,12 +253,26 @@ class IconHandling:
                         path = sec_icon_path.get(int(item_id), "")
                     elif item_type == "category":
                         path = cat_icon_path.get(int(item_id), "")
+                    # Пропускаем, если путь не изменился (избегаем лишних dataChanged и загрузок)
+                    try:
+                        key = (str(item_type), int(item_id)) if isinstance(item_id, int) else None
+                    except Exception:
+                        key = None
+                    if key is not None:
+                        prev_path = self._last_icon_paths.get(key, None)
+                        if prev_path == (path or ""):
+                            # Ничего не меняем
+                            continue
                     try:
                         icon = create_icon_from_path(path) if path else QIcon()
                         model_local.setData(idx, icon, Qt.ItemDataRole.DecorationRole)
+                        if key is not None:
+                            self._last_icon_paths[key] = path or ""
                     except Exception:
                         try:
                             model_local.setData(idx, QIcon(), Qt.ItemDataRole.DecorationRole)
+                            if key is not None:
+                                self._last_icon_paths[key] = path or ""
                         except Exception:
                             pass
             except Exception:

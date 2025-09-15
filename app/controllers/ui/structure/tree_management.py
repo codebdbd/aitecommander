@@ -83,6 +83,24 @@ class TreeManagement:
             logger.exception(
                 "TreeManagement._on_structure_loaded: ошибка сортировки разделов"
             )
+        # Сортировка категорий каждого раздела по имени (case-insensitive)
+        try:
+            if isinstance(data, list):
+                for s in data:
+                    try:
+                        cats = s.get("categories") or []
+                        if isinstance(cats, list) and cats:
+                            s["categories"] = sorted(
+                                cats, key=lambda c: (c.get("name") or "").lower()
+                            )
+                    except Exception:
+                        # Не блокируем подготовку, просто продолжаем
+                        continue
+        except Exception:
+            logger.debug(
+                "TreeManagement._on_structure_loaded: ошибка сортировки категорий",
+                exc_info=True,
+            )
         # Подготовка иконок
         try:
             if isinstance(data, list):
@@ -479,13 +497,10 @@ class TreeManagement:
         if not model:
             return
 
-        # Сохраняем состояние вида (развороты, позиция скролла, выделение)
-        try:
-            state = self.tree.saveState()
-        except Exception:
-            state = None
+        # 1) Сохранить состояние
+        state = self._save_view_state()
 
-        # Вызываем сортировку модели напрямую под подавлением сигналов/перерисовок
+        # 2) Сортировка под подавлением перерисовок и сигналов
         try:
             with suspend_updates(self.tree):
                 with block_tree_signals(self.tree):
@@ -493,27 +508,12 @@ class TreeManagement:
         except Exception:
             logger.debug("TreeManagement._sort_tree: model.sort failed", exc_info=True)
 
-        # Восстановление состояния дерева после сортировки
+        # 3) Восстановить состояние
         if state:
-            try:
-                with suspend_updates(self.tree):
-                    with block_tree_signals(self.tree):
-                        self.tree.restoreState(state)
-            except Exception:
-                logger.debug("TreeManagement._sort_tree: restoreState failed", exc_info=True)
+            self._restore_view_state(state)
 
-        # Ручное уведомление обработчика выбора после сортировки/восстановления состояния
-        try:
-            from PyQt6.QtCore import QModelIndex as _QI
-            cur = self.tree.currentIndex()
-            prev = _QI()
-            if hasattr(self.controller, "selection_handler") and cur is not None:
-                self.controller.selection_handler._on_current_changed(cur, prev)
-        except Exception:
-            logger.debug(
-                "TreeManagement._sort_tree: manual currentChanged notify failed",
-                exc_info=True,
-            )
+        # 4) Уведомить обработчик выбора
+        self._notify_selection_handler()
 
     def on_structure_item_changed(
         self, item_type: str, item_id: int, data: dict

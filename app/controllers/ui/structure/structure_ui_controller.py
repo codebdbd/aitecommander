@@ -52,8 +52,11 @@ class StructureUIController(QObject):
         """Подключения после modelReset.
 
         Иконки обычно заполняются при построении снапшота, однако для надёжности
-        (и смены темы/нестандартных случаев) выполняем коалесцированную перезагрузку
-        иконок после modelReset. Также переподключаем selectionModel.
+        (и смены темы/нестандартных случаев) можем выполнять коалесцированную перезагрузку
+        иконок после modelReset. Однако если снапшот уже содержит иконки, дополнительный
+        перезапуск фоновой загрузки не нужен — это даёт лишнюю визуальную задержку.
+        При смене темы следует вызывать self.icon_handler.reload_icons() из соответствующих обработчиков напрямую.
+        Также переподключаем selectionModel.
         """
         try:
             model = self.tree.model()
@@ -62,9 +65,16 @@ class StructureUIController(QObject):
         if not model:
             return
 
-        # Коалесцированная перезагрузка иконок после стабилизации модели
+        # Коалесцированная перезагрузка иконок после стабилизации модели (по необходимости)
         def _schedule_reload():
             from PyQt6.QtCore import QTimer
+
+            # Если снапшот уже содержит иконки — пропускаем лишнюю перезагрузку
+            try:
+                if self._snapshot_has_icons():
+                    return
+            except Exception:
+                pass
 
             def _do_reload():
                 try:
@@ -127,6 +137,55 @@ class StructureUIController(QObject):
             model.modelReset.connect(_schedule_selection_reconnect)
         except Exception:
             pass
+
+    def _snapshot_has_icons(self) -> bool:
+        """Грубая проверка: возвращает True, если в текущей модели уже проставлены иконки.
+
+        Достаточно, чтобы у части узлов роль DecorationRole была не None.
+        Этого хватает, чтобы избежать повторной (отложенной) перезагрузки иконок после modelReset.
+        """
+        try:
+            model = self.tree.model()
+        except Exception:
+            model = None
+        if not model:
+            return False
+        try:
+            top_rows = min(10, model.rowCount())
+        except Exception:
+            top_rows = 0
+        for r in range(top_rows):
+            try:
+                idx = model.index(r, 0)
+            except Exception:
+                continue
+            if not idx or not idx.isValid():
+                continue
+            try:
+                icon = model.data(idx, Qt.ItemDataRole.DecorationRole)
+                if icon is not None:
+                    return True
+            except Exception:
+                pass
+            # Проверим пару первых детей (категории)
+            try:
+                child_rows = min(5, model.rowCount(idx))
+            except Exception:
+                child_rows = 0
+            for cr in range(child_rows):
+                try:
+                    cidx = model.index(cr, 0, idx)
+                except Exception:
+                    continue
+                if not cidx or not cidx.isValid():
+                    continue
+                try:
+                    cicon = model.data(cidx, Qt.ItemDataRole.DecorationRole)
+                    if cicon is not None:
+                        return True
+                except Exception:
+                    pass
+        return False
 
     def _setup_tree(self) -> None:
         self.tree.setHeaderHidden(True)
