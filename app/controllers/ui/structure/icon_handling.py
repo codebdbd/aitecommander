@@ -5,9 +5,12 @@ from PyQt6.QtGui import QIcon
 
 from concurrent.futures import ThreadPoolExecutor
 import threading
+import logging
 
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
+
+logger = logging.getLogger(__name__)
 
 
 class IconHandling:
@@ -206,3 +209,133 @@ class IconHandling:
         except Exception:
             # В случае любой ошибки не прерываем UI
             pass
+
+    def close(self) -> None:
+        """Завершает пул потоков и отменяет незавершённые задачи.
+
+        Вызывать при закрытии контроллера/приложения, чтобы не оставлять висящие потоки.
+        Безопасен при повторных вызовах и в присутствии нескольких инстансов: используется
+        общий пул на уровне класса и он будет корректно погашен один раз.
+        """
+        try:
+            with self._icon_lock:
+                # Попытаемся отменить висящую задачу
+                fut = getattr(self, "_icon_future", None)
+                try:
+                    if fut is not None:
+                        fut.cancel()
+                except Exception:
+                    pass
+
+                # Завершаем общий пул потоков
+                exec_ = getattr(IconHandling, "_shared_executor", None)
+                if exec_ is not None:
+                    try:
+                        # Пытаемся использовать cancel_futures=True, если поддерживается
+                        exec_.shutdown(wait=False, cancel_futures=True)  # type: ignore[call-arg]
+                    except TypeError:
+                        exec_.shutdown(wait=False)
+                    except Exception:
+                        pass
+                    finally:
+                        IconHandling._shared_executor = None
+                # Обнулим ссылку инстанса
+                self._executor = None
+        except Exception:
+            # Закрытие не должно ронять приложение
+            pass
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
+def prepare_icons_snapshot(data: list[dict]) -> list[dict]:
+    """Преобразует поля icon_path в QIcon для разделов и категорий.
+
+    Использует `resolve_icon_for_link` для выбора корректного пути к иконке
+    и `create_icon_from_path` для создания QIcon. Неизвестные/ошибочные пути
+    превращаются в пустой `QIcon()`.
+    """
+    result: list[dict] = []
+    for s in data or []:
+        try:
+            sd = dict(s)
+        except Exception:
+            logger.exception(
+                "prepare_icons_snapshot: не удалось привести элемент раздела к dict: %r",
+                s,
+            )
+            result.append(s)
+            continue
+
+        path = sd.get("icon_path") or ""
+        try:
+            resolved = resolve_icon_for_link({"type": "section", "icon_path": path})
+        except Exception:
+            # Неожиданная ошибка при разрешении иконки — логируем, используем пустую
+            logger.exception(
+                "prepare_icons_snapshot: ошибка resolve_icon_for_link для section, path=%r",
+                path,
+            )
+            resolved = None
+        try:
+            sd["icon"] = create_icon_from_path(resolved) if resolved else QIcon()
+        except (OSError, FileNotFoundError, PermissionError) as e:
+            logger.warning(
+                "prepare_icons_snapshot: файловая ошибка при создании иконки section: %s (path=%r)",
+                e,
+                resolved,
+            )
+            sd["icon"] = QIcon()
+        except Exception:
+            logger.exception(
+                "prepare_icons_snapshot: неожиданная ошибка создания QIcon для section (path=%r)",
+                resolved,
+            )
+            sd["icon"] = QIcon()
+
+        cats = sd.get("categories") or []
+        new_cats: list[dict] = []
+        for c in cats:
+            try:
+                cd = dict(c)
+            except Exception:
+                logger.exception(
+                    "prepare_icons_snapshot: не удалось привести элемент категории к dict: %r",
+                    c,
+                )
+                new_cats.append(c)
+                continue
+
+            cpath = cd.get("icon_path") or ""
+            try:
+                cresolved = resolve_icon_for_link({"type": "category", "icon_path": cpath})
+            except Exception:
+                logger.exception(
+                    "prepare_icons_snapshot: ошибка resolve_icon_for_link для category, path=%r",
+                    cpath,
+                )
+                cresolved = None
+            try:
+                cd["icon"] = create_icon_from_path(cresolved) if cresolved else QIcon()
+            except (OSError, FileNotFoundError, PermissionError) as e:
+                logger.warning(
+                    "prepare_icons_snapshot: файловая ошибка при создании иконки category: %s (path=%r)",
+                    e,
+                    cresolved,
+                )
+                cd["icon"] = QIcon()
+            except Exception:
+                logger.exception(
+                    "prepare_icons_snapshot: неожиданная ошибка создания QIcon для category (path=%r)",
+                    cresolved,
+                )
+                cd["icon"] = QIcon()
+            new_cats.append(cd)
+
+        sd["categories"] = new_cats
+        result.append(sd)
+    return result

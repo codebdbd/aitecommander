@@ -9,10 +9,8 @@ from app.controllers.ui.state.task_scheduler import (
     schedule_selection_restore,
 )
 from app.utils.ui.qt.roles import get_tree_tuple
-from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
-from PyQt6.QtGui import QIcon
 from app.utils.ui.updates import suspend_updates
+from app.controllers.ui.structure.icon_handling import prepare_icons_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -52,101 +50,12 @@ class TreeManagement:
     def _on_structure_loaded(self, sections_data: list | dict, *args) -> None:
         # Поддержка инкрементальных патчей: если передан dict с ключом 'op' == 'patch',
         # применяем изменения через инкрементальные методы модели без полной перезагрузки.
-        try:
-            if isinstance(sections_data, dict) and sections_data.get("op") == "patch":
-                patch = sections_data
-                model = self.model
-                if not model:
-                    return
-                with suspend_updates(self.tree):
-                    # Подавляем сигналы на время массовых операций
-                    try:
-                        tree_blocker = QSignalBlocker(self.tree)
-                        try:
-                            sel_model = self.tree.selectionModel()
-                        except Exception:
-                            sel_model = None
-                        sel_blocker = QSignalBlocker(sel_model) if sel_model else None
-                    except Exception:
-                        tree_blocker = None
-                        sel_blocker = None
-                    try:
-                        # Удаления
-                        removes = patch.get("remove") or {}
-                        secs_to_remove = list(removes.get("sections") or [])
-                        cats_to_remove = list(removes.get("categories") or [])
-                        if secs_to_remove:
-                            try:
-                                model.remove_sections([int(x) for x in secs_to_remove])
-                            except Exception:
-                                logger.debug("patch: remove_sections failed", exc_info=True)
-                        if cats_to_remove:
-                            try:
-                                model.remove_categories([int(x) for x in cats_to_remove])
-                            except Exception:
-                                logger.debug("patch: remove_categories failed", exc_info=True)
-
-                        # Вставки
-                        inserts = patch.get("insert") or {}
-                        sec_inserts = list(inserts.get("sections") or [])
-                        if sec_inserts:
-                            try:
-                                # Ожидается список dict с ключами данных раздела; допустим доп. ключ 'row'
-                                # Вставляем пачкой; если есть row у первых элементов, берём его, иначе append
-                                row = -1
-                                if sec_inserts and isinstance(sec_inserts[0], dict):
-                                    _rv = sec_inserts[0].get("row")
-                                    row = _rv if isinstance(_rv, int) else -1
-                                model.insert_sections(row, sec_inserts)
-                            except Exception:
-                                logger.debug("patch: insert_sections failed", exc_info=True)
-
-                        cat_inserts = inserts.get("categories") or {}
-                        # Ожидаемый формат: { section_id: [ {data...}, ... ] }
-                        try:
-                            for sid, items in (cat_inserts.items() if hasattr(cat_inserts, "items") else []):
-                                try:
-                                    row = -1
-                                    if items and isinstance(items[0], dict):
-                                        _rv = items[0].get("row")
-                                        row = _rv if isinstance(_rv, int) else -1
-                                    model.insert_categories(int(sid), row, list(items or []))
-                                except Exception:
-                                    logger.debug("patch: insert_categories for section %s failed", sid, exc_info=True)
-                        except Exception:
-                            logger.debug("patch: iter cat inserts failed", exc_info=True)
-
-                        # Обновления
-                        updates = patch.get("update") or {}
-                        try:
-                            for sec in list(updates.get("sections") or []):
-                                try:
-                                    model.update_item("section", int(sec.get("id")), sec)
-                                except Exception:
-                                    logger.debug("patch: update section failed", exc_info=True)
-                            for cat in list(updates.get("categories") or []):
-                                try:
-                                    model.update_item("category", int(cat.get("id")), cat)
-                                except Exception:
-                                    logger.debug("patch: update category failed", exc_info=True)
-                        except Exception:
-                            logger.debug("patch: apply updates failed", exc_info=True)
-                    finally:
-                        sel_blocker = None
-                        tree_blocker = None
-
-                # После патча вручную уведомим обработчик выбора (сигналы были подавлены)
-                try:
-                    from PyQt6.QtCore import QModelIndex as _QI
-                    cur = self.tree.currentIndex()
-                    prev = _QI()
-                    if hasattr(self.controller, "selection_handler") and cur is not None:
-                        self.controller.selection_handler._on_current_changed(cur, prev)
-                except Exception:
-                    logger.debug("TreeManagement._on_structure_loaded(patch): manual notify failed", exc_info=True)
-                return
-        except Exception:
-            logger.debug("TreeManagement._on_structure_loaded: patch path failed", exc_info=True)
+        if isinstance(sections_data, dict) and sections_data.get("op") == "patch":
+            try:
+                self._apply_patch(sections_data)
+            except Exception:
+                logger.debug("TreeManagement._on_structure_loaded: patch path failed", exc_info=True)
+            return
         # Сохраняем состояние вида (развороты, позиция скролла, выделение)
         try:
             state = self.tree.saveState()
@@ -165,43 +74,163 @@ class TreeManagement:
 
         # Преобразуем icon_path → QIcon непосредственно в данных снапшота,
         # используя resolve_icon_for_link для типовых фолбэков (section/category).
-        def _prepare_icons(data: list[dict]) -> list[dict]:
-            result: list[dict] = []
-            for s in data or []:
-                try:
-                    sd = dict(s)
-                    path = sd.get("icon_path") or ""
-                    try:
-                        resolved = resolve_icon_for_link({"type": "section", "icon_path": path})
-                    except Exception:
-                        resolved = None
-                    sd["icon"] = create_icon_from_path(resolved) if resolved else QIcon()
-                    cats = sd.get("categories") or []
-                    new_cats: list[dict] = []
-                    for c in cats:
-                        try:
-                            cd = dict(c)
-                            cpath = cd.get("icon_path") or ""
-                            try:
-                                cresolved = resolve_icon_for_link({"type": "category", "icon_path": cpath})
-                            except Exception:
-                                cresolved = None
-                            cd["icon"] = create_icon_from_path(cresolved) if cresolved else QIcon()
-                            new_cats.append(cd)
-                        except Exception:
-                            new_cats.append(c)
-                    sd["categories"] = new_cats
-                    result.append(sd)
-                except Exception:
-                    result.append(s)
-            return result
-
         try:
-            sections_data = _prepare_icons(sections_data)
+            if isinstance(sections_data, list):
+                sections_data = prepare_icons_snapshot(sections_data)
         except Exception:
             logger.debug("TreeManagement._on_structure_loaded: prepare icons failed", exc_info=True)
 
-        # Обновляем модель (предпочтительно инкрементально через update_snapshot) под подавлением перерисовок и сигналов
+        # Обновляем модель с подавлением перерисовок и сигналов
+        self._update_model_snapshot(sections_data)
+
+        # Если структура пуста (нет ни одного раздела) — очистим плитки категорий
+        try:
+            if not sections_data:
+                self.tiles_controller.clear()
+        except Exception:
+            logger.exception(
+                "TreeManagement._on_structure_loaded: ошибка очистки плиток при пустой структуре"
+            )
+
+        # Восстанавливаем состояние вида (развороты, позиция скролла, выделение)
+        if state:
+            self._restore_view_state(state)
+
+        # Если восстановления состояния не было или оно пустое — выберем первый элемент
+        # Либо если флаг подавления восстановления категории был активен — выбираем первый доступный элемент.
+        try:
+            sb = getattr(self.controller, "business", None) or getattr(
+                self.controller, "structure_business", None
+            )
+        except Exception:
+            sb = None
+        if not state or (sb and getattr(sb, "_suppress_category_restore_once", False)):
+            # Сброс флага на всякий случай, если не сбросили выше
+            if sb and getattr(sb, "_suppress_category_restore_once", False):
+                try:
+                    setattr(sb, "_suppress_category_restore_once", False)
+                except Exception:
+                    pass
+            self.controller.selection_handler._select_first_item_if_needed()
+
+        # После стабилизации модели и восстановления состояния — вручную уведомим обработчик выбора,
+        # так как сигналы selectionModel были заблокированы во время set_snapshot/restoreState
+        self._notify_selection_handler()
+
+        # Гарантированно сбросим одноразовый флаг подавления восстановления категории,
+        # если он по какой-то причине остался установлен после обработки выше.
+        try:
+            sb = getattr(self.controller, "business", None) or getattr(
+                self.controller, "structure_business", None
+            )
+            if sb and getattr(sb, "_suppress_category_restore_once", False):
+                setattr(sb, "_suppress_category_restore_once", False)
+        except Exception:
+            pass
+
+        # Иконки теперь обновляются событием modelReset в StructureUIController;
+        # здесь дополнительных вызовов не делаем, чтобы избежать двойной работы.
+
+        # После первой загрузки структуры обновляем отображение главного окна
+        if hasattr(self.controller, "main") and getattr(
+            self.controller.main, "_first_structure_load", False
+        ):
+            self.controller.main._first_structure_load = False
+            with suspend_updates(self.tree):
+                self.tree.updateGeometry()
+                self.tree.update()
+
+    def _apply_patch(self, patch: dict) -> None:
+        """Применяет инкрементальные изменения к модели на основе словаря patch.
+
+        Подавляет обновления UI и сигналы на время массовых операций. По завершении
+        вручную уведомляет обработчик выбора, так как сигналы были заблокированы.
+        """
+        model = self.model
+        if not model:
+            return
+        with suspend_updates(self.tree):
+            # Подавляем сигналы на время массовых операций
+            try:
+                tree_blocker = QSignalBlocker(self.tree)
+                try:
+                    sel_model = self.tree.selectionModel()
+                except Exception:
+                    sel_model = None
+                sel_blocker = QSignalBlocker(sel_model) if sel_model else None
+            except Exception:
+                tree_blocker = None
+                sel_blocker = None
+            try:
+                # Удаления
+                removes = patch.get("remove") or {}
+                secs_to_remove = list(removes.get("sections") or [])
+                cats_to_remove = list(removes.get("categories") or [])
+                if secs_to_remove:
+                    try:
+                        model.remove_sections([int(x) for x in secs_to_remove])
+                    except Exception:
+                        logger.debug("patch: remove_sections failed", exc_info=True)
+                if cats_to_remove:
+                    try:
+                        model.remove_categories([int(x) for x in cats_to_remove])
+                    except Exception:
+                        logger.debug("patch: remove_categories failed", exc_info=True)
+
+                # Вставки
+                inserts = patch.get("insert") or {}
+                sec_inserts = list(inserts.get("sections") or [])
+                if sec_inserts:
+                    try:
+                        # Ожидается список dict с ключами данных раздела; допустим доп. ключ 'row'
+                        # Вставляем пачкой; если есть row у первых элементов, берём его, иначе append
+                        row = -1
+                        if sec_inserts and isinstance(sec_inserts[0], dict):
+                            _rv = sec_inserts[0].get("row")
+                            row = _rv if isinstance(_rv, int) else -1
+                        model.insert_sections(row, sec_inserts)
+                    except Exception:
+                        logger.debug("patch: insert_sections failed", exc_info=True)
+
+                cat_inserts = inserts.get("categories") or {}
+                # Ожидаемый формат: { section_id: [ {data...}, ... ] }
+                try:
+                    for sid, items in (cat_inserts.items() if hasattr(cat_inserts, "items") else []):
+                        try:
+                            row = -1
+                            if items and isinstance(items[0], dict):
+                                _rv = items[0].get("row")
+                                row = _rv if isinstance(_rv, int) else -1
+                            model.insert_categories(int(sid), row, list(items or []))
+                        except Exception:
+                            logger.debug("patch: insert_categories for section %s failed", sid, exc_info=True)
+                except Exception:
+                    logger.debug("patch: iter cat inserts failed", exc_info=True)
+
+                # Обновления
+                updates = patch.get("update") or {}
+                try:
+                    for sec in list(updates.get("sections") or []):
+                        try:
+                            model.update_item("section", int(sec.get("id")), sec)
+                        except Exception:
+                            logger.debug("patch: update section failed", exc_info=True)
+                    for cat in list(updates.get("categories") or []):
+                        try:
+                            model.update_item("category", int(cat.get("id")), cat)
+                        except Exception:
+                            logger.debug("patch: update category failed", exc_info=True)
+                except Exception:
+                    logger.debug("patch: apply updates failed", exc_info=True)
+            finally:
+                sel_blocker = None
+                tree_blocker = None
+
+        # После патча вручную уведомим обработчик выбора (сигналы были подавлены)
+        self._notify_selection_handler()
+
+    def _update_model_snapshot(self, sections_data: list | dict) -> None:
+        """Обновляет снапшот модели с подавлением перерисовок и сигналов."""
         model = self.tree.model()
         if model and (hasattr(model, "update_snapshot") or hasattr(model, "set_snapshot")):
             with suspend_updates(self.tree):
@@ -227,72 +256,46 @@ class TreeManagement:
                     sel_blocker = None
                     blocker = None
 
-        # Если структура пуста (нет ни одного раздела) — очистим плитки категорий
+    def _restore_view_state(self, state) -> None:
+        """Восстанавливает состояние дерева и обрабатывает одноразовый флаг подавления восстановления категории."""
         try:
-            if not sections_data:
-                self.tiles_controller.clear()
-        except Exception:
-            logger.exception(
-                "TreeManagement._on_structure_loaded: ошибка очистки плиток при пустой структуре"
-            )
-
-        # Восстанавливаем состояние вида (развороты, позиция скролла, выделение)
-        if state:
-            try:
-                with suspend_updates(self.tree):
-                    # Подготовим блокировку сигналов как у дерева, так и у selectionModel
+            with suspend_updates(self.tree):
+                # Подготовим блокировку сигналов как у дерева, так и у selectionModel
+                try:
+                    sel_model = self.tree.selectionModel()
+                except Exception:
+                    sel_model = None
+                tree_blocker = QSignalBlocker(self.tree)
+                sel_blocker = QSignalBlocker(sel_model) if sel_model else None
+                try:
+                    self.tree.restoreState(state)
+                    # Особый случай: если бизнес-слой просил не восстанавливать выделение категории,
+                    # не оставляем восстановленное выделение — очистим его здесь, под блокировкой сигналов
                     try:
-                        sel_model = self.tree.selectionModel()
+                        sb = getattr(self.controller, "business", None) or getattr(
+                            self.controller, "structure_business", None
+                        )
                     except Exception:
-                        sel_model = None
-                    tree_blocker = QSignalBlocker(self.tree)
-                    sel_blocker = QSignalBlocker(sel_model) if sel_model else None
-                    try:
-                        self.tree.restoreState(state)
-                        # Особый случай: если бизнес-слой просил не восстанавливать выделение категории,
-                        # не оставляем восстановленное выделение — очистим его здесь, под блокировкой сигналов
-                        try:
-                            sb = getattr(self.controller, "business", None) or getattr(
-                                self.controller, "structure_business", None
-                            )
-                        except Exception:
-                            sb = None
-                        if sb and getattr(sb, "_suppress_category_restore_once", False):
-                            if sel_model:
-                                try:
-                                    sel_model.clearSelection()
-                                except Exception:
-                                    pass
+                        sb = None
+                    if sb and getattr(sb, "_suppress_category_restore_once", False):
+                        if sel_model:
                             try:
-                                setattr(sb, "_suppress_category_restore_once", False)
+                                sel_model.clearSelection()
                             except Exception:
                                 pass
-                    finally:
-                        # Явное «освобождение» блокировщиков
-                        sel_blocker = None
-                        tree_blocker = None
-            except Exception:
-                logger.debug("TreeManagement._on_structure_loaded: restoreState failed", exc_info=True)
-
-        # Если восстановления состояния не было или оно пустое — выберем первый элемент
-        # Либо если флаг подавления восстановления категории был активен — выбираем первый доступный элемент.
-        try:
-            sb = getattr(self.controller, "business", None) or getattr(
-                self.controller, "structure_business", None
-            )
+                        try:
+                            setattr(sb, "_suppress_category_restore_once", False)
+                        except Exception:
+                            pass
+                finally:
+                    # Явное «освобождение» блокировщиков
+                    sel_blocker = None
+                    tree_blocker = None
         except Exception:
-            sb = None
-        if not state or (sb and getattr(sb, "_suppress_category_restore_once", False)):
-            # Сброс флага на всякий случай, если не сбросили выше
-            if sb and getattr(sb, "_suppress_category_restore_once", False):
-                try:
-                    setattr(sb, "_suppress_category_restore_once", False)
-                except Exception:
-                    pass
-            self.controller.selection_handler._select_first_item_if_needed()
+            logger.debug("TreeManagement._on_structure_loaded: restoreState failed", exc_info=True)
 
-        # После стабилизации модели и восстановления состояния — вручную уведомим обработчик выбора,
-        # так как сигналы selectionModel были заблокированы во время set_snapshot/restoreState
+    def _notify_selection_handler(self) -> None:
+        """Ручное уведомление обработчика выбора о текущем элементе (currentChanged)."""
         try:
             from PyQt6.QtCore import QModelIndex as _QI
             cur = self.tree.currentIndex()
@@ -304,29 +307,6 @@ class TreeManagement:
                 "TreeManagement._on_structure_loaded: manual currentChanged notify failed",
                 exc_info=True,
             )
-
-        # Гарантированно сбросим одноразовый флаг подавления восстановления категории,
-        # если он по какой-то причине остался установлен после обработки выше.
-        try:
-            sb = getattr(self.controller, "business", None) or getattr(
-                self.controller, "structure_business", None
-            )
-            if sb and getattr(sb, "_suppress_category_restore_once", False):
-                setattr(sb, "_suppress_category_restore_once", False)
-        except Exception:
-            pass
-
-        # Иконки теперь обновляются событием modelReset в StructureUIController;
-        # здесь дополнительных вызовов не делаем, чтобы избежать двойной работы.
-
-        # После первой загрузки структуры обновляем отображение главного окна
-        if hasattr(self.controller, "main") and getattr(
-            self.controller.main, "_first_structure_load", False
-        ):
-            self.controller.main._first_structure_load = False
-            with suspend_updates(self.tree):
-                self.tree.updateGeometry()
-                self.tree.update()
 
     def _on_item_added(self, item_type: str, parent_id: int, data: dict) -> None:
         # Инкрементальная вставка через модель
