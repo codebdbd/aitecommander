@@ -43,6 +43,56 @@ def _get_lock_backend() -> str:
     return "auto"
 
 
+# --- Централизованные помощники по обработке ошибок shelve/блокировок ---
+def _is_portalocker_lock_exception(exc: Exception) -> bool:
+    """True если exc является исключением блокировок portalocker."""
+    try:  # noqa: SIM105
+        from portalocker import exceptions as _pl_exc  # type: ignore
+
+        return isinstance(exc, getattr(_pl_exc, "LockException", tuple()))
+    except Exception:
+        return False
+
+
+def _is_filelock_timeout(exc: Exception) -> bool:
+    """True если exc является таймаутом блокировки filelock."""
+    try:  # noqa: SIM105
+        from filelock import Timeout as FileLockTimeout  # type: ignore
+
+        return isinstance(exc, FileLockTimeout)
+    except Exception:
+        return False
+
+
+def _is_known_cache_io_error(exc: Exception) -> bool:
+    """Распознаёт ожидаемые ошибки работы с файловым кэшем.
+
+    Сюда относятся системные ошибки ввода-вывода и ошибки shelve/блокировок.
+    """
+    if isinstance(exc, (OSError, shelve.Error)):
+        return True
+    if _is_portalocker_lock_exception(exc) or _is_filelock_timeout(exc):
+        return True
+    return False
+
+
+def _safe_try(action: str, func, default=None):
+    """Выполняет func(), обрабатывая ожидаемые ошибки как warning, а неожиданные — пробрасывает.
+
+    - action: человекочитаемое описание операции (для логов)
+    - func: нулеаргументная функция/лямбда для выполнения
+    - default: возвращаемое значение при ожидаемой ошибке
+    """
+    try:
+        return func()
+    except Exception as exc:  # noqa: BLE001
+        if _is_known_cache_io_error(exc):
+            logger.warning("favicon_cache: %s failed: %s", action, exc)
+            return default
+        logger.exception("favicon_cache: unexpected error during %s", action)
+        raise
+
+
 @contextmanager
 def _file_lock(lock_path: str, *, timeout: float = 5.0, poll_interval: float = 0.05):
     """Кроссплатформенная файловая блокировка без активного ожидания.
@@ -174,27 +224,19 @@ class FaviconCache(BaseCache):
         if self._db_path_str and self._db_path_str != current_path:
             self._close_db()
         if self._db is None:
-            try:
-                # Ensure directory exists before opening
-                try:
-                    icon_path_service.ensure_user_icons_dir()
-                except Exception:
-                    pass
-                self._db = shelve.open(current_path)
-                self._db_path_str = current_path
-            except Exception as exc:  # noqa: BLE001
-                self._db = None
-                self._db_path_str = current_path
-                logger.debug("favicon_cache: failed to open db: %s", exc, exc_info=True)
+            # Ensure directory exists before opening
+            _safe_try("ensure_user_icons_dir()", lambda: icon_path_service.ensure_user_icons_dir(), default=None)
+            def _do_open():
+                return shelve.open(current_path)
+            db = _safe_try(f"open db {current_path}", _do_open, default=None)
+            self._db = db if db is not None else None
+            self._db_path_str = current_path
 
     def _close_db(self) -> None:
         db = self._db
         self._db = None
         if db is not None:
-            try:
-                db.close()
-            except Exception as exc:  # noqa: BLE001
-                logger.debug("favicon_cache: failed to close db: %s", exc, exc_info=True)
+            _safe_try("close db", lambda: db.close(), default=None)
 
     def _safe_shutdown(self) -> None:  # pragma: no cover - atexit path
         try:
@@ -376,67 +418,45 @@ class FaviconCache(BaseCache):
                     ttl = self._compute_effective_ttl(item)
                     if ttl <= 0 or (self._now() - ts) >= ttl:
                         # Удаляем протухшую запись, чтобы база не разрасталась
-                        try:
-                            del db[key]
-                            # удаляем из индекса
-                            try:
-                                idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
-                                if key in idx:
-                                    idx.pop(key, None)
-                                    db["__ts_index__"] = idx
-                                    try:
-                                        sync = getattr(db, "sync", None)
-                                        if callable(sync):
-                                            sync()
-                                    except Exception:
-                                        pass
-                            except Exception:
-                                pass
-                        except Exception as exc:
-                            logger.debug(
-                                "favicon_cache: failed to delete expired key '%s' in get(): %s",
-                                key,
-                                exc,
-                                exc_info=True,
-                            )
+                        _safe_try("delete expired key (persistent)", lambda: db.__delitem__(key), default=None)
+                        # удаляем из индекса
+                        def _update_idx_del():
+                            idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                            if key in idx:
+                                idx.pop(key, None)
+                                db["__ts_index__"] = idx
+                                sync = getattr(db, "sync", None)
+                                if callable(sync):
+                                    sync()
+                        _safe_try("update __ts_index__ after expired delete (persistent)", _update_idx_del, default=None)
                         return None
                     return item
                 else:
                     # Непостоянный режим: открываем/закрываем на каждую операцию (поведение как прежде)
-                    try:
-                        icon_path_service.ensure_user_icons_dir()
-                    except Exception:
-                        pass
-                    with closing(shelve.open(current_path)) as db2:
+                    _safe_try("ensure_user_icons_dir()", lambda: icon_path_service.ensure_user_icons_dir(), default=None)
+                    # Открываем shelve с явной обработкой ошибок
+                    db2 = _safe_try(f"open db {current_path}", lambda: shelve.open(current_path), default=None)
+                    if db2 is None:
+                        return None
+                    with closing(db2):
                         item = db2.get(key)
                         if not item:
                             return None
                         ts = float(item.get("timestamp", 0.0))
                         ttl = self._compute_effective_ttl(item)
                         if ttl <= 0 or (self._now() - ts) >= ttl:
-                            try:
-                                del db2[key]
-                                # удалить из индекса
-                                try:
-                                    idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
-                                    if key in idx:
-                                        idx.pop(key, None)
-                                        db2["__ts_index__"] = idx
-                                        try:
-                                            sync = getattr(db2, "sync", None)
-                                            if callable(sync):
-                                                sync()
-                                        except Exception:
-                                            pass
-                                except Exception:
-                                    pass
-                            except Exception as exc:
-                                logger.debug(
-                                    "favicon_cache: failed to delete expired key '%s' in get(): %s",
-                                    key,
-                                    exc,
-                                    exc_info=True,
-                                )
+                            # Удаляем протухшую запись с безопасной обработкой ошибок
+                            _safe_try("delete expired key", lambda: db2.__delitem__(key), default=None)
+                            # удалить из индекса
+                            def _update_idx_del():
+                                idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
+                                if key in idx:
+                                    idx.pop(key, None)
+                                    db2["__ts_index__"] = idx
+                                    sync = getattr(db2, "sync", None)
+                                    if callable(sync):
+                                        sync()
+                            _safe_try("update __ts_index__ after expired delete", _update_idx_del, default=None)
                             return None
                         return item
 
@@ -464,23 +484,17 @@ class FaviconCache(BaseCache):
                         to_store["ttl"] = float(ttl)
                     db[key] = to_store
                     # Обновляем индекс времени: перемещаем ключ в конец как самый новый
-                    try:
+                    def _update_idx_persistent():
                         idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
                         if key in idx:
                             idx.pop(key, None)
                         idx[key] = float(to_store.get("timestamp", ts_now))
                         db["__ts_index__"] = idx
-                    except Exception:
-                        pass
+                    _safe_try("update __ts_index__ on set (persistent)", _update_idx_persistent, default=None)
                     logger.debug("[cache] SAVE %s", key)
-                    try:
-                        sync = getattr(db, "sync", None)
-                        if callable(sync):
-                            sync()
-                    except Exception:
-                        pass
+                    _safe_try("sync after set (persistent)", lambda: getattr(db, "sync", lambda: None)(), default=None)
                     # Мгновенное ограничение размера через индекс (без полной сортировки)
-                    try:
+                    def _enforce_size_limit_persistent():
                         max_size = self._get_max_size()
                         idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
                         # Удалим фантомные ключи, которых нет в БД
@@ -494,56 +508,37 @@ class FaviconCache(BaseCache):
                             except ValueError:
                                 break
                             idx.pop(oldest_key, None)
-                            try:
-                                if oldest_key in db:
-                                    del db[oldest_key]
-                            except Exception:
-                                pass
+                            _safe_try("delete oldest key during size enforcement (persistent)",
+                                      lambda k=oldest_key: db.__delitem__(k), default=None)
                         db["__ts_index__"] = idx
                         # Фоллбек: если индекс пуст/неполон и лимит не соблюден — разовый лёгкий проход по БД
-                        try:
+                        def _fallback_sweep_persistent():
                             non_service = [k for k in db.keys() if not k.startswith("__")]
                             if len(non_service) > max_size:
                                 items: list[tuple[str, float]] = []
                                 for k in non_service:
-                                    try:
-                                        it = db.get(k)
-                                        ts = float(it.get("timestamp", 0.0)) if isinstance(it, dict) else 0.0
-                                    except Exception:
-                                        ts = 0.0
+                                    it = db.get(k)
+                                    ts = float(it.get("timestamp", 0.0)) if isinstance(it, dict) else 0.0
                                     items.append((k, ts))
                                 items.sort(key=lambda x: x[1])
                                 for k, _ in items[: len(non_service) - max_size]:
-                                    try:
-                                        if k in db:
-                                            del db[k]
-                                        if k in idx:
-                                            idx.pop(k, None)
-                                    except Exception:
-                                        pass
+                                    _safe_try("delete overflow key during fallback sweep (persistent)",
+                                              lambda kk=k: db.__delitem__(kk), default=None)
+                                    if k in idx:
+                                        idx.pop(k, None)
                                 db["__ts_index__"] = idx
-                        except Exception:
-                            pass
-                        try:
-                            sync = getattr(db, "sync", None)
-                            if callable(sync):
-                                sync()
-                        except Exception:
-                            pass
-                    except Exception:
-                        pass
+                        _safe_try("fallback sweep for size enforcement (persistent)", _fallback_sweep_persistent, default=None)
+                        _safe_try("sync after size enforcement (persistent)", lambda: getattr(db, "sync", lambda: None)(), default=None)
+                    _safe_try("enforce size limit on set (persistent)", _enforce_size_limit_persistent, default=None)
                     # Установим маркер последней очистки (для тестов и отложенной периодической очистки)
-                    try:
-                        db["__last_cleanup_ts__"] = ts_now
-                    except Exception:
-                        pass
+                    _safe_try("set __last_cleanup_ts__ (persistent)", lambda: db.__setitem__("__last_cleanup_ts__", ts_now), default=None)
                 else:
                     # Непостоянный режим: открываем/закрываем на каждую операцию (поведение как прежде)
-                    try:
-                        icon_path_service.ensure_user_icons_dir()
-                    except Exception:
-                        pass
-                    with closing(shelve.open(current_path)) as db2:
+                    _safe_try("ensure_user_icons_dir()", lambda: icon_path_service.ensure_user_icons_dir(), default=None)
+                    db2 = _safe_try(f"open db {current_path}", lambda: shelve.open(current_path), default=None)
+                    if db2 is None:
+                        return
+                    with closing(db2):
                         # Предочистку перед записью не выполняем; ограничение размера делаем индексом ниже
                         if isinstance(value, dict):
                             to_store = dict(value)
@@ -555,17 +550,16 @@ class FaviconCache(BaseCache):
                             to_store["ttl"] = float(ttl)
                         db2[key] = to_store
                         # Обновляем индекс времени в непостоянном режиме
-                        try:
+                        def _update_idx_set():
                             idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
                             if key in idx:
                                 idx.pop(key, None)
                             idx[key] = float(to_store.get("timestamp", ts_now))
                             db2["__ts_index__"] = idx
-                        except Exception:
-                            pass
+                        _safe_try("update __ts_index__ on set", _update_idx_set, default=None)
                         logger.debug("[cache] SAVE %s", key)
                         # Мгновенное ограничение размера через индекс (без полной сортировки)
-                        try:
+                        def _enforce_size_limit():
                             max_size = self._get_max_size()
                             idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
                             # Удалим фантомные ключи, которых нет в БД
@@ -579,38 +573,27 @@ class FaviconCache(BaseCache):
                                 except ValueError:
                                     break
                                 idx.pop(oldest_key, None)
-                                try:
-                                    if oldest_key in db2:
-                                        del db2[oldest_key]
-                                except Exception:
-                                    pass
+                                _safe_try("delete oldest key during size enforcement",
+                                          lambda k=oldest_key: db2.__delitem__(k), default=None)
                             db2["__ts_index__"] = idx
                             # Фоллбек: если индекс пуст/неполон и лимит не соблюден — разовый лёгкий проход по БД
-                            try:
+                            def _fallback_sweep():
                                 non_service = [k for k in db2.keys() if not k.startswith("__")]
                                 if len(non_service) > max_size:
                                     items: list[tuple[str, float]] = []
                                     for k in non_service:
-                                        try:
-                                            it = db2.get(k)
-                                            ts = float(it.get("timestamp", 0.0)) if isinstance(it, dict) else 0.0
-                                        except Exception:
-                                            ts = 0.0
+                                        it = db2.get(k)
+                                        ts = float(it.get("timestamp", 0.0)) if isinstance(it, dict) else 0.0
                                         items.append((k, ts))
                                     items.sort(key=lambda x: x[1])
                                     for k, _ in items[: len(non_service) - max_size]:
-                                        try:
-                                            if k in db2:
-                                                del db2[k]
-                                            if k in idx:
-                                                idx.pop(k, None)
-                                        except Exception:
-                                            pass
+                                        _safe_try("delete overflow key during fallback sweep",
+                                                  lambda kk=k: db2.__delitem__(kk), default=None)
+                                        if k in idx:
+                                            idx.pop(k, None)
                                     db2["__ts_index__"] = idx
-                            except Exception:
-                                pass
-                        except Exception:
-                            pass
+                            _safe_try("fallback sweep for size enforcement", _fallback_sweep, default=None)
+                        _safe_try("enforce size limit on set", _enforce_size_limit, default=None)
                         # Установим маркер последней очистки (для тестов и отложенной периодической очистки)
                         try:
                             db2["__last_cleanup_ts__"] = ts_now
@@ -653,14 +636,8 @@ class FaviconCache(BaseCache):
                         for suffix in ("", ".bak", ".dat", ".dir"):
                             p = f"{base}{suffix}"
                             if os.path.exists(p):
-                                os.remove(p)
+                                _safe_try(f"remove file {p}", lambda path=p: os.remove(path), default=None)
                         logger.debug("[cache] CLEAR ALL")
-                    except Exception as exc:  # noqa: BLE001
-                        logger.debug(
-                            "favicon_cache: failed to clear db files: %s",
-                            exc,
-                            exc_info=True,
-                        )
                     finally:
                         if self._persistent_enabled:
                             self._open_db()
@@ -673,54 +650,31 @@ class FaviconCache(BaseCache):
                     if db is None:
                         return
                     if key in db:
-                        try:
-                            del db[key]
+                        _safe_try("invalidate key (persistent)", lambda: db.__delitem__(key), default=None)
+                        logger.debug("[cache] INVALIDATE %s", key)
+                        # убрать из индекса
+                        def _update_idx():
+                            idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                            if key in idx:
+                                idx.pop(key, None)
+                                db["__ts_index__"] = idx
+                        _safe_try("update __ts_index__ on invalidate", _update_idx, default=None)
+                        _safe_try("sync on invalidate", lambda: getattr(db, "sync", lambda: None)(), default=None)
+                else:
+                    _safe_try("ensure_user_icons_dir()", lambda: icon_path_service.ensure_user_icons_dir(), default=None)
+                    db2 = _safe_try(f"open db {current_path}", lambda: shelve.open(current_path), default=None)
+                    if db2 is None:
+                        return
+                    with closing(db2):
+                        if key in db2:
+                            _safe_try("invalidate key (non-persistent)", lambda: db2.__delitem__(key), default=None)
                             logger.debug("[cache] INVALIDATE %s", key)
-                            # убрать из индекса
-                            try:
-                                idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                            def _update_idx2():
+                                idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
                                 if key in idx:
                                     idx.pop(key, None)
-                                    db["__ts_index__"] = idx
-                            except Exception:
-                                pass
-                            try:
-                                sync = getattr(db, "sync", None)
-                                if callable(sync):
-                                    sync()
-                            except Exception:
-                                pass
-                        except Exception as exc:
-                            logger.debug(
-                                "favicon_cache: failed to invalidate key '%s': %s",
-                                key,
-                                exc,
-                                exc_info=True,
-                            )
-                else:
-                    try:
-                        icon_path_service.ensure_user_icons_dir()
-                    except Exception:
-                        pass
-                    with closing(shelve.open(current_path)) as db2:
-                        if key in db2:
-                            try:
-                                del db2[key]
-                                logger.debug("[cache] INVALIDATE %s", key)
-                                try:
-                                    idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
-                                    if key in idx:
-                                        idx.pop(key, None)
-                                        db2["__ts_index__"] = idx
-                                except Exception:
-                                    pass
-                            except Exception as exc:
-                                logger.debug(
-                                    "favicon_cache: failed to invalidate key '%s': %s",
-                                    key,
-                                    exc,
-                                    exc_info=True,
-                                )
+                                    db2["__ts_index__"] = idx
+                            _safe_try("update __ts_index__ on invalidate (non-persistent)", _update_idx2, default=None)
 
 
 # Глобальный экземпляр

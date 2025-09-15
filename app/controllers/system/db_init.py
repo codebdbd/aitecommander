@@ -60,13 +60,10 @@ class DatabaseInitializer:
         Returns:
             bool: True при успехе, False при ошибке
         """
-        try:
-            self.database.prepare_dirs()
-            self.database.initialize_or_migrate()
-            return True
-        except Exception:
-            # Не выбрасываем исключение, чтобы результат обработался в on_finished(res)
-            return False
+        # Позволяем исключениям всплывать, чтобы run_db передал их в on_error
+        self.database.prepare_dirs()
+        self.database.initialize_or_migrate()
+        return True
 
     def _on_db_init_finished(
         self, result: bool, on_success: Optional[Callable] = None
@@ -123,9 +120,22 @@ class DatabaseInitializer:
         """
         logger.error("Ошибка инициализации БД в фоне: %s", error, exc_info=True)
 
+        # Обновить статус и разблокировать UI перед показом критического сообщения
         self._update_status_message("Ошибка инициализации БД")
         self._update_statusbar()
         self._set_ui_enabled(True)
+
+        # Показать пользователю подробную причину ошибки и завершить приложение
+        try:
+            # Включаем текст исключения в сообщение для быстрой диагностики
+            err_text = f"Произошла ошибка при инициализации базы данных:\n{type(error).__name__}: {error}\nПриложение будет закрыто."
+            self._show_critical_error("Ошибка инициализации БД", err_text)
+        except Exception:
+            # Даже если показ диалога не удался, продолжаем завершение
+            logger.debug("Не удалось показать подробности ошибки инициализации БД", exc_info=True)
+
+        # Завершаем приложение после критической ошибки
+        self._quit_application()
 
         # Вызвать колбэк ошибки
         if on_error:

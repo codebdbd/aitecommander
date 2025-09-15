@@ -5,6 +5,7 @@ import logging
 from typing import Dict, List
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QMessageBox
 
 from app.utils.ui.updates import suspend_updates
 
@@ -30,9 +31,10 @@ class PopulationManagerMixin:
             try:
                 sel = self.selectionModel()
                 current_selection = [i.row() for i in sel.selectedRows()] if sel else []
-            except Exception:
-                self.logger.debug(
-                    "populate: failed to capture selection", exc_info=True
+            except (AttributeError, RuntimeError) as e:
+                self.logger.warning(
+                    "[LinksTableView] Не удалось получить текущее выделение (selectionModel): %s",
+                    e,
                 )
                 current_selection = []
             current_scroll_pos = self.verticalScrollBar().value()
@@ -44,9 +46,10 @@ class PopulationManagerMixin:
                     header.sortIndicatorSection(),
                     header.sortIndicatorOrder(),
                 )
-            except Exception:
-                self.logger.debug(
-                    "populate: failed to read sort state; using defaults", exc_info=True
+            except (AttributeError, RuntimeError) as e:
+                self.logger.warning(
+                    "[LinksTableView] Не удалось прочитать состояние сортировки: %s — используем значения по умолчанию",
+                    e,
                 )
                 sort_col, sort_order = -1, Qt.SortOrder.AscendingOrder
 
@@ -65,16 +68,20 @@ class PopulationManagerMixin:
                 try:
                     if hasattr(self, "blockSignals"):
                         self.blockSignals(True)
-                except Exception:
-                    self.logger.debug(
-                        "_restore_ui_state: sortByColumn failed", exc_info=True
+                except (AttributeError, RuntimeError) as e:
+                    self.logger.warning(
+                        "[LinksTableView] Не удалось заблокировать сигналы таблицы: %s",
+                        e,
                     )
                 try:
                     header = self.horizontalHeader()
                     if header is not None and hasattr(header, "blockSignals"):
                         header.blockSignals(True)
-                except Exception:
-                    pass
+                except (AttributeError, RuntimeError) as e:
+                    self.logger.warning(
+                        "[LinksTableView] Не удалось заблокировать сигналы заголовка: %s",
+                        e,
+                    )
                 # Гарантируем корректность кэша перед диффом
                 cache_ok = self.validate_cache_integrity()
                 if not cache_ok:
@@ -132,11 +139,11 @@ class PopulationManagerMixin:
                     removed_ok = False
                     try:
                         removed_ok = bool(self._remove_row(row))
-                    except Exception as e:
-                        self.logger.debug(
-                            "[LinksTableView] _remove_row исключение: %s",
+                    except (ValueError, RuntimeError, AttributeError, TypeError) as e:
+                        self.logger.warning(
+                            "[LinksTableView] Исключение при удалении строки %s: %s",
+                            row,
                             e,
-                            exc_info=True,
                         )
                         removed_ok = False
                     if not removed_ok:
@@ -173,36 +180,41 @@ class PopulationManagerMixin:
                 try:
                     if hasattr(self, "rebuild_cache_from_items"):
                         self.rebuild_cache_from_items()
-                except Exception:
-                    self.logger.debug(
-                        "populate: rebuild_cache_from_items failed after incremental ops",
-                        exc_info=True,
+                except (AttributeError, RuntimeError) as e:
+                    self.logger.warning(
+                        "[LinksTableView] Не удалось перестроить кэш после инкрементальных операций: %s",
+                        e,
                     )
 
-            except Exception as e:
+            except (ValueError, RuntimeError, AttributeError, KeyError, TypeError) as e:
                 self.logger.error(
-                    "[LinksTableView] Ошибка при инкрементальном обновлении: %s",
+                    "[LinksTableView] Ошибка при инкрементальном обновлении (ожидаемая категория): %s",
                     e,
                     exc_info=True,
                 )
-                # В случае ошибки делаем полное обновление
+                # В случае предсказуемой ошибки пробуем безопасное полное обновление
                 self._full_populate(links, mode)
+            except Exception as e:  # Непредвиденные ошибки
+                self._show_unexpected_error("инкрементальное обновление таблицы (populate)", e)
+                return
             finally:
                 # Всегда аккуратно разблокируем сигналы, если методы доступны
                 try:
                     header = self.horizontalHeader()
                     if header is not None and hasattr(header, "blockSignals"):
                         header.blockSignals(False)
-                except Exception:
-                    self.logger.debug(
-                        "populate: failed to unblock header signals", exc_info=True
+                except (AttributeError, RuntimeError) as e:
+                    self.logger.warning(
+                        "[LinksTableView] Не удалось разблокировать сигналы заголовка: %s",
+                        e,
                     )
                 try:
                     if hasattr(self, "blockSignals"):
                         self.blockSignals(False)
-                except Exception:
-                    self.logger.debug(
-                        "populate: failed to unblock table signals", exc_info=True
+                except (AttributeError, RuntimeError) as e:
+                    self.logger.warning(
+                        "[LinksTableView] Не удалось разблокировать сигналы таблицы: %s",
+                        e,
                     )
                 self._restore_ui_state(
                     current_selection, current_scroll_pos, sort_col, sort_order
@@ -211,11 +223,10 @@ class PopulationManagerMixin:
                 try:
                     if hasattr(self, "table_populated"):
                         self.table_populated.emit()
-                except Exception as e:
-                    self.logger.debug(
+                except (AttributeError, RuntimeError) as e:
+                    self.logger.warning(
                         "[LinksTableView] Не удалось эмитить table_populated после populate: %s",
                         e,
-                        exc_info=True,
                     )
 
     def _full_populate(self, links: List[Dict], mode: str):
@@ -231,22 +242,24 @@ class PopulationManagerMixin:
             if hasattr(self, "rebuild_cache_from_items"):
                 self.rebuild_cache_from_items()
 
-        except Exception as e:
+        except (AttributeError, RuntimeError, ValueError, TypeError) as e:
             self.logger.error(
-                "[LinksTableView] Ошибка при полном обновлении таблицы: %s",
+                "[LinksTableView] Ошибка при полном обновлении таблицы (ожидаемая категория): %s",
                 e,
                 exc_info=True,
             )
+        except Exception as e:
+            self._show_unexpected_error("полное обновление таблицы (_full_populate)", e)
+            return
         finally:
             # Сообщаем подписчикам, что таблица полностью обновлена
             try:
                 if hasattr(self, "table_populated"):
                     self.table_populated.emit()
-            except Exception as e:
-                self.logger.debug(
+            except (AttributeError, RuntimeError) as e:
+                self.logger.warning(
                     "[LinksTableView] Не удалось эмитить table_populated после _full_populate: %s",
                     e,
-                    exc_info=True,
                 )
 
     def _restore_ui_state(
@@ -268,15 +281,18 @@ class PopulationManagerMixin:
                 # Для QTableView используем sortByColumn
                 try:
                     self.sortByColumn(sort_col, sort_order)
-                except Exception:
-                    pass
+                except (AttributeError, RuntimeError):
+                    # Некритично — продолжаем без восстановления сортировки
+                    self.logger.warning(
+                        "[LinksTableView] Не удалось восстановить сортировку через sortByColumn"
+                    )
                 # ВАЖНО: после сортировки строки меняют индексы —
                 # нужно синхронизировать кэш _current_links с фактическими элементами,
                 # иначе возможны визуальные дубликаты и неверные обновления строк
                 try:
                     if hasattr(self, "rebuild_cache_from_items"):
                         self.rebuild_cache_from_items()
-                except Exception as e:
+                except (AttributeError, RuntimeError) as e:
                     self.logger.warning(
                         "[LinksTableView] Не удалось перестроить кэш после сортировки: %s",
                         e,
@@ -291,9 +307,63 @@ class PopulationManagerMixin:
 
             self.viewport().update()
 
-        except Exception as e:
+        except (AttributeError, RuntimeError, ValueError, TypeError) as e:
             self.logger.error(
-                "[LinksTableView] Ошибка восстановления UI состояния: %s",
+                "[LinksTableView] Ошибка восстановления UI состояния (ожидаемая категория): %s",
                 e,
+                exc_info=True,
+            )
+        except Exception as e:
+            self._show_unexpected_error("восстановление UI состояния (_restore_ui_state)", e)
+            return
+
+    def _show_unexpected_error(self, context: str, error: Exception) -> None:
+        """Показывает диагностический диалог о непредвиденной ошибке и логирует её.
+
+        В тестовой или headless-среде показ диалога может быть невозможен —
+        в этом случае просто фиксируем предупреждение в логе.
+        """
+        # Полное логирование со стеком
+        self.logger.exception(
+            "[LinksTableView] Непредвиденная ошибка (%s): %s",
+            context,
+            error,
+        )
+        # Пытаемся показать пользователю диалог, только если есть видимое окно-родитель
+        try:
+            parent = None
+            try:
+                # Если объект является виджетом, используем его окно как родителя
+                if hasattr(self, "window") and callable(getattr(self, "window")):
+                    parent = self.window()
+            except (AttributeError, RuntimeError):
+                parent = None
+
+            can_show_dialog = False
+            try:
+                if parent is not None and hasattr(parent, "isVisible") and parent.isVisible():
+                    can_show_dialog = True
+            except Exception:
+                can_show_dialog = False
+
+            if can_show_dialog:
+                QMessageBox.critical(
+                    parent,
+                    "Неожиданная ошибка",
+                    f"Произошла непредвиденная ошибка при операции: {context}.\n\n"
+                    f"Подробности: {error}\n\n"
+                    f"Операция будет отменена.",
+                )
+            else:
+                # В headless/тестовой среде/без видимого окна просто предупреждаем в логе
+                self.logger.warning(
+                    "[LinksTableView] Диалог ошибки не показан (нет видимого окна). Контекст: %s. Ошибка: %s",
+                    context,
+                    error,
+                )
+        except Exception:
+            # В headless/тестовой среде может не получиться показать диалог — это не критично
+            self.logger.warning(
+                "[LinksTableView] Не удалось показать диагностический диалог для непредвиденной ошибки",
                 exc_info=True,
             )

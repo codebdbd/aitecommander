@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable
 
 from PyQt6.QtCore import QThreadPool
 from PyQt6.QtWidgets import QApplication
@@ -71,7 +71,7 @@ class AppShutdownController:
 
     def __init__(self, main_window):
         self.window = main_window
-        self.shutdown_handlers: List[ShutdownHandler] = []
+        self.shutdown_handlers: list[ShutdownHandler] = []
         self.shutdown_in_progress = False
         self._shutdown_lock = threading.RLock()
         self._shutdown_started_ts: float | None = None
@@ -97,32 +97,37 @@ class AppShutdownController:
             logger.info("Starting application shutdown sequence")
             self._execute_shutdown_sequence()
             logger.info("Application shutdown completed successfully")
-
-        except Exception as exc:
-            logger.error("Critical error during shutdown: %s", exc, exc_info=True)
         finally:
             # Безопасный вызов родительского closeEvent (обратная совместимость)
             self._safe_close_event(event)
 
     def _safe_close_event(self, event):
-        """Безопасный вызов родительского closeEvent с fallback."""
-        try:
-            # Пытаемся найти родительский класс с closeEvent
-            for base_class in self.window.__class__.__mro__[1:]:
-                if hasattr(base_class, "closeEvent"):
+        """Безопасный вызов родительского closeEvent с раздельной обработкой ошибок.
+
+        - Если у базового класса отсутствует closeEvent — принимаем событие.
+        - Ошибки вызова base_class.closeEvent логируем как error.
+        - Ошибки event.accept() логируем отдельно.
+        """
+        # Пытаемся найти родительский класс с closeEvent
+        for base_class in self.window.__class__.__mro__[1:]:
+            if hasattr(base_class, "closeEvent"):
+                try:
                     base_class.closeEvent(self.window, event)
                     return
+                except (AttributeError, RuntimeError) as exc:
+                    logger.error("Error in base closeEvent: %s", exc, exc_info=True)
+                    break
+                except Exception:  # неожиданные ошибки — полное логирование
+                    logger.exception("Unexpected error in base closeEvent")
+                    break
 
-            # Если не нашли, просто принимаем событие
+        # Если не нашли подходящий closeEvent или он упал — просто принимаем событие
+        try:
             event.accept()
-
-        except Exception as exc:
-            logger.error("Error in base closeEvent: %s", exc, exc_info=True)
-            # В любом случае принимаем событие, чтобы приложение могло закрыться
-            try:
-                event.accept()
-            except Exception:
-                pass
+        except (AttributeError, RuntimeError) as exc:
+            logger.error("Failed to accept close event: %s", exc, exc_info=True)
+        except Exception:
+            logger.exception("Unexpected error while accepting close event")
 
     def _execute_shutdown_sequence(self):
         """Выполнить последовательность операций shutdown по приоритетам с учетом общего дедлайна."""
@@ -158,16 +163,21 @@ class AppShutdownController:
                     self._execute_handlers_parallel(handlers, remaining_ms=remaining)
                 else:
                     self._execute_handlers_sequential(handlers, remaining_ms=remaining)
-            except Exception as exc:
+            except (ShutdownTimeoutError, AttributeError, RuntimeError) as exc:
                 logger.error(
                     "Error in priority %s: %s", priority.name, exc, exc_info=True
                 )
                 if priority == ShutdownPriority.CRITICAL:
                     raise
+            except Exception:
+                # Непредвиденная ошибка уровня приоритета — логируем полностью и пробрасываем при CRITICAL
+                logger.exception("Unexpected error in shutdown priority %s", priority.name)
+                if priority == ShutdownPriority.CRITICAL:
+                    raise
 
     def _group_handlers_by_priority(
         self,
-    ) -> Dict[ShutdownPriority, List[ShutdownHandler]]:
+    ) -> dict[ShutdownPriority, list[ShutdownHandler]]:
         """Группировка handlers по приоритетам."""
         groups = {}
         for handler in self.shutdown_handlers:
@@ -177,7 +187,7 @@ class AppShutdownController:
         return groups
 
     def _execute_handlers_sequential(
-        self, handlers: List[ShutdownHandler], remaining_ms: int | None = None
+        self, handlers: list[ShutdownHandler], remaining_ms: int | None = None
     ):
         """Последовательное выполнение handlers с учетом общего дедлайна."""
         for handler in handlers:
@@ -193,7 +203,7 @@ class AppShutdownController:
             self._execute_single_handler(handler, override_timeout_ms=eff_timeout)
 
     def _execute_handlers_parallel(
-        self, handlers: List[ShutdownHandler], remaining_ms: int | None = None
+        self, handlers: list[ShutdownHandler], remaining_ms: int | None = None
     ):
         """Параллельное выполнение handlers (для некритичных операций) с учетом общего дедлайна."""
         max_workers = min(len(handlers), 4)
@@ -229,13 +239,26 @@ class AppShutdownController:
                     handler = future_to_handler[future]
                     try:
                         future.result()
-                    except Exception as exc:
+                    except (ShutdownTimeoutError, AttributeError, RuntimeError) as exc:
                         error_msg = f"Parallel handler {handler.name} failed: {exc}"
                         if handler.critical:
                             logger.critical(error_msg, exc_info=True)
                             raise
                         else:
                             logger.error(error_msg, exc_info=True)
+                    except Exception:
+                        # Непредвиденная ошибка из обработчика — логируем полностью
+                        if handler.critical:
+                            logger.exception(
+                                "Parallel handler %s failed with unexpected error (critical)",
+                                handler.name,
+                            )
+                            raise
+                        else:
+                            logger.exception(
+                                "Parallel handler %s failed with unexpected error",
+                                handler.name,
+                            )
 
             except FutureTimeoutError:
                 logger.error("Timeout waiting for parallel handlers completion")
@@ -290,69 +313,99 @@ class AppShutdownController:
 
         err_holder: list[BaseException] = []
 
-        def _runner():
-            try:
-                handler.handler()
-            except BaseException as e:  # noqa: BLE001
-                err_holder.append(e)
-
-        t = threading.Thread(name=f"shutdown:{handler.name}", target=_runner, daemon=True)
+        t = self._create_handler_thread(handler, err_holder)
 
         try:
-            t.start()
-            if eff_timeout_sec is None:
-                t.join()  # без таймаута
-            else:
-                t.join(timeout=eff_timeout_sec)
+            self._start_and_join_thread(t, eff_timeout_sec)
 
             if t.is_alive():
-                msg = (
-                    f"Handler '{handler.name}' timed out after {eff_timeout_sec:.3f}s"
-                )
-                if handler.critical:
-                    logger.critical(msg)
-                    raise ShutdownTimeoutError(msg)
-                else:
-                    logger.error(msg)
-                    return
+                self._handle_timeout(handler, eff_timeout_sec)
+                return
 
             # Поток завершился — проверим, была ли ошибка
             if err_holder:
-                exc = err_holder[0]
-                if handler.critical:
-                    logger.critical(
-                        "Handler '%s' failed: %s", handler.name, exc, exc_info=True
-                    )
-                    raise exc
-                else:
-                    logger.error(
-                        "Handler '%s' failed: %s", handler.name, exc, exc_info=True
-                    )
-                    return
+                self._handle_handler_exception(handler, err_holder[0])
+                return
 
             logger.debug("Handler %s completed successfully", handler.name)
             return
         except ShutdownTimeoutError:
             # Уже залогировано выше, пробрасываем дальше для критичных кейсов
             raise
+        except (AttributeError, RuntimeError) as exc:
+            self._handle_infrastructure_error(handler, exc, unexpected=False)
+            return
         except Exception as exc:
-            # Непредвиденные ошибки инфраструктуры исполнения
+            # Непредвиденная ошибка инфраструктуры исполнения — полное логирование
+            self._handle_infrastructure_error(handler, exc, unexpected=True)
+            return
+
+    @staticmethod
+    def _create_handler_thread(handler: ShutdownHandler, err_holder: list[BaseException]) -> threading.Thread:
+        def _runner():
+            try:
+                handler.handler()
+            except BaseException as e:  # noqa: BLE001
+                err_holder.append(e)
+
+        return threading.Thread(name=f"shutdown:{handler.name}", target=_runner, daemon=True)
+
+    @staticmethod
+    def _start_and_join_thread(t: threading.Thread, timeout_sec: float | None) -> None:
+        t.start()
+        if timeout_sec is None:
+            t.join()
+        else:
+            t.join(timeout=timeout_sec)
+
+    def _handle_timeout(self, handler: ShutdownHandler, timeout_sec: float | None) -> None:
+        msg = (
+            f"Handler '{handler.name}' timed out after {timeout_sec:.3f}s"
+            if timeout_sec is not None
+            else f"Handler '{handler.name}' timed out"
+        )
+        if handler.critical:
+            logger.critical(msg)
+            raise ShutdownTimeoutError(msg)
+        logger.error(msg)
+
+    def _handle_handler_exception(self, handler: ShutdownHandler, exc: BaseException) -> None:
+        if handler.critical:
+            logger.critical("Handler '%s' failed: %s", handler.name, exc, exc_info=True)
+            raise exc
+        logger.error("Handler '%s' failed: %s", handler.name, exc, exc_info=True)
+
+    def _handle_infrastructure_error(
+        self, handler: ShutdownHandler, exc: Exception, *, unexpected: bool
+    ) -> None:
+        if unexpected:
             if handler.critical:
-                logger.critical(
-                    "Execution infrastructure failed for handler '%s': %s",
+                logger.exception(
+                    "Execution infrastructure failed for handler '%s' with unexpected error (critical)",
                     handler.name,
-                    exc,
-                    exc_info=True,
                 )
-                raise
-            else:
-                logger.error(
-                    "Execution infrastructure failed for handler '%s': %s",
-                    handler.name,
-                    exc,
-                    exc_info=True,
-                )
-                return
+                raise exc
+            logger.exception(
+                "Execution infrastructure failed for handler '%s' with unexpected error",
+                handler.name,
+            )
+            return
+
+        # Ожидаемые AttributeError/RuntimeError
+        if handler.critical:
+            logger.critical(
+                "Execution infrastructure failed for handler '%s': %s",
+                handler.name,
+                exc,
+                exc_info=True,
+            )
+            raise exc
+        logger.error(
+            "Execution infrastructure failed for handler '%s': %s",
+            handler.name,
+            exc,
+            exc_info=True,
+        )
 
     def _register_default_handlers(self):
         """Регистрация стандартных handlers (совместимость с оригинальным кодом)."""
@@ -424,7 +477,7 @@ class AppShutdownController:
             logger.debug("Removed shutdown handler: %s", name)
         return removed
 
-    def get_shutdown_handlers(self) -> List[Dict[str, Any]]:
+    def get_shutdown_handlers(self) -> list[dict[str, Any]]:
         """Получить информацию о всех зарегистрированных handlers (для отладки)."""
         return [
             {
@@ -462,24 +515,24 @@ class AppShutdownController:
                     continue
 
                 logger.debug("Shutting down %s", display_name)
-                shutdown_method = getattr(controller, "shutdown")
+                shutdown_method = controller.shutdown
                 if callable(shutdown_method):
                     result = shutdown_method()
                     try:
                         if isinstance(result, bool) and result is False:
                             logger.warning("%s shutdown reported unsuccessful result", display_name)
-                    except Exception:
+                    except (AttributeError, RuntimeError):
                         # Диагностика результата не должна ломать shutdown
                         pass
                 else:
                     logger.warning("%s.shutdown is not callable", display_name)
 
-            except Exception as exc:
+            except (AttributeError, RuntimeError) as exc:
                 logger.error(
                     "Error shutting down %s: %s", display_name, exc, exc_info=True
                 )
 
-    def _wait_for_thread_pools(self):
+    def _wait_for_thread_pools(self):  # noqa: C901 - комплексная обработка пулов и ошибок
         """Ожидание завершения потоков - улучшенная версия оригинала."""
         timeout = app_config.ui.get_thread_pool_shutdown_timeout()
 
@@ -498,15 +551,19 @@ class AppShutdownController:
                     # Пытаемся форсированно завершить
                     try:
                         pool.clear()
-                    except Exception as clear_exc:
+                    except (AttributeError, RuntimeError) as clear_exc:
                         logger.error("Error clearing global thread pool: %s", clear_exc)
-        except Exception as exc:
+                    except Exception:
+                        logger.exception("Unexpected error clearing global thread pool")
+        except (AttributeError, RuntimeError) as exc:
             logger.error("Error waiting for global thread pool: %s", exc, exc_info=True)
+        except Exception:
+            logger.exception("Unexpected error while waiting for global thread pool")
 
         # Локальный thread pool окна
         try:
             if hasattr(self.window, "thread_pool"):
-                local_pool = getattr(self.window, "thread_pool")
+                local_pool = self.window.thread_pool
                 if local_pool and local_pool.activeThreadCount() > 0:
                     logger.debug(
                         "Waiting for %s local threads to finish",
@@ -518,13 +575,17 @@ class AppShutdownController:
                         )
                         try:
                             local_pool.clear()
-                        except Exception as clear_exc:
+                        except (AttributeError, RuntimeError) as clear_exc:
                             logger.error(
                                 "Error clearing local thread pool: %s",
                                 clear_exc,
                             )
-        except Exception as exc:
+                        except Exception:
+                            logger.exception("Unexpected error clearing local thread pool")
+        except (AttributeError, RuntimeError) as exc:
             logger.error("Error waiting for local thread pool: %s", exc, exc_info=True)
+        except Exception:
+            logger.exception("Unexpected error while waiting for local thread pool")
 
     def _backup_database(self):
         """Создание бэкапа БД - улучшенная версия оригинала."""
@@ -533,7 +594,7 @@ class AppShutdownController:
                 logger.debug("No 'db' attribute found on window, skipping backup")
                 return
 
-            db = getattr(self.window, "db")
+            db = self.window.db
             if db is None:
                 logger.debug("Database instance is None, skipping backup")
                 return
@@ -542,7 +603,7 @@ class AppShutdownController:
                 logger.debug("Database has no backup method")
                 return
 
-            backup_method = getattr(db, "backup")
+            backup_method = db.backup
             if not callable(backup_method):
                 logger.debug("Database backup attribute is not callable")
                 return
@@ -551,9 +612,11 @@ class AppShutdownController:
             backup_method()
             logger.info("Database backup completed successfully")
 
-        except Exception as exc:
+        except (AttributeError, RuntimeError) as exc:
             # Для бэкапа ошибка не критична, но логируем
             logger.error("Database backup failed: %s", exc, exc_info=True)
+        except Exception:
+            logger.exception("Database backup failed with unexpected error")
 
 
 # ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
