@@ -1,6 +1,7 @@
 # app/controllers/structure/tree_management.py
 
 import logging
+import copy
 
 from PyQt6.QtCore import QModelIndex, Qt, QSignalBlocker
 
@@ -86,8 +87,18 @@ class TreeManagement:
             return None
 
     def _prepare_snapshot(self, sections_data: list | dict):
-        """Готовит снапшот для модели: сортировка разделов и категорий (без подготовки иконок)."""
-        data = sections_data
+        """Готовит снапшот для модели: сортировка разделов и категорий (без подготовки иконок).
+
+        ВАЖНО: не мутируем входные данные, полученные из бизнес-слоя — работаем на глубокой копии.
+        """
+        try:
+            data = copy.deepcopy(sections_data) if sections_data is not None else []
+        except Exception:
+            # Fallback: создаём новый список без глубокой копии словарей (минимум — не менять исходный list)
+            try:
+                data = list(sections_data or [])
+            except Exception:
+                data = []
         # Сортировка разделов по имени (case-insensitive)
         try:
             data = sorted(data or [], key=lambda s: (s.get("name") or "").lower())

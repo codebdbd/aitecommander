@@ -128,6 +128,14 @@ class IconHandling:
 
         section_ids, category_ids = self._gather_ids(model)
 
+        # Очистим кэш путей иконок от «мертвых» записей (удалённых узлов)
+        try:
+            current_ids = {("section", int(sid)) for sid in section_ids}
+            current_ids.update({("category", int(cid)) for cid in category_ids})
+            self._prune_icon_cache(current_ids)
+        except Exception:
+            logger.debug("IconHandling.reload_icons: prune cache failed", exc_info=True)
+
         # Отменяем предыдущую задачу, если она еще активна, и только потом обновляем токен
         with self._icon_lock:
             try:
@@ -169,6 +177,31 @@ class IconHandling:
         future.add_done_callback(_on_done)
         with self._icon_lock:
             self._icon_future = future
+
+    def _prune_icon_cache(self, current_ids) -> None:
+        """Удаляет из кэша путей иконок записи, которых нет в текущей модели.
+
+        current_ids: set[tuple[str, int]] — множество валидных (type, id) узлов.
+        """
+        try:
+            if not isinstance(self._last_icon_paths, dict):
+                return
+            to_delete = []
+            for key in self._last_icon_paths.keys():
+                try:
+                    if key not in current_ids:
+                        to_delete.append(key)
+                except Exception:
+                    # Некорректный ключ — удалим
+                    to_delete.append(key)
+            if to_delete:
+                for k in to_delete:
+                    try:
+                        self._last_icon_paths.pop(k, None)
+                    except Exception:
+                        pass
+        except Exception:
+            logger.debug("IconHandling._prune_icon_cache failed", exc_info=True)
 
     def _gather_ids(self, model) -> tuple[set[int], set[int]]:
 
@@ -263,20 +296,38 @@ class IconHandling:
                 if not model_local:
                     return
 
-                def _iter(parent_index=None):
-                    if parent_index is None:
-                        parent_index = QModelIndex()
-                    try:
-                        rows = model_local.rowCount(parent_index)
-                    except Exception:
-                        return
-                    for r in range(rows):
-                        idx = model_local.index(r, 0, parent_index)
-                        if idx.isValid():
-                            yield idx
-                            yield from _iter(idx)
+                # Итеративный обход в глубину с ограничением числа шагов
+                MAX_ITERS = 200000
+                iters = 0
+                stack = []
+                # Инициализация: корневой уровень
+                try:
+                    root_parent = QModelIndex()
+                    root_rows = model_local.rowCount(root_parent)
+                except Exception:
+                    root_rows = 0
+                stack.append((root_parent, 0, root_rows))  # (parent, next_row, total_rows)
 
-                for idx in _iter():
+                while stack:
+                    parent, row, total = stack[-1]
+                    if row >= total:
+                        stack.pop()
+                        continue
+                    # Обновляем указатель строки на вершине стека
+                    stack[-1] = (parent, row + 1, total)
+                    try:
+                        idx = model_local.index(row, 0, parent)
+                    except Exception:
+                        continue
+                    if not idx or not idx.isValid():
+                        continue
+
+                    # Обработка текущего индекса
+                    iters += 1
+                    if iters > MAX_ITERS:
+                        logger.warning("IconHandling._apply_resolved_icons: iteration limit reached (%s), aborting traversal", MAX_ITERS)
+                        break
+
                     try:
                         t = get_tree_tuple(idx, 0)
                     except Exception:
@@ -286,35 +337,51 @@ class IconHandling:
                             model_local.setData(idx, QIcon(), Qt.ItemDataRole.DecorationRole)
                         except Exception:
                             pass
-                        continue
-                    item_type, item_id = t
-                    path = ""
-                    if item_type == "section":
-                        path = sec_icon_path.get(int(item_id), "")
-                    elif item_type == "category":
-                        path = cat_icon_path.get(int(item_id), "")
-                    # Пропускаем, если путь не изменился (избегаем лишних dataChanged и загрузок)
-                    try:
-                        key = (str(item_type), int(item_id)) if isinstance(item_id, int) else None
-                    except Exception:
-                        key = None
-                    if key is not None:
-                        prev_path = self._last_icon_paths.get(key, None)
-                        if prev_path == (path or ""):
-                            # Ничего не меняем
-                            continue
-                    try:
-                        icon = create_icon_from_path(path) if path else QIcon()
-                        model_local.setData(idx, icon, Qt.ItemDataRole.DecorationRole)
-                        if key is not None:
-                            self._last_icon_paths[key] = path or ""
-                    except Exception:
+                    else:
+                        item_type, item_id = t
+                        path = ""
+                        if item_type == "section":
+                            path = sec_icon_path.get(int(item_id), "")
+                        elif item_type == "category":
+                            path = cat_icon_path.get(int(item_id), "")
+                        # Пропускаем, если путь не изменился (избегаем лишних dataChanged и загрузок)
                         try:
-                            model_local.setData(idx, QIcon(), Qt.ItemDataRole.DecorationRole)
-                            if key is not None:
-                                self._last_icon_paths[key] = path or ""
+                            key = (str(item_type), int(item_id)) if isinstance(item_id, int) else None
                         except Exception:
-                            pass
+                            key = None
+                        if key is not None:
+                            prev_path = self._last_icon_paths.get(key, None)
+                            if prev_path == (path or ""):
+                                pass
+                            else:
+                                try:
+                                    icon = create_icon_from_path(path) if path else QIcon()
+                                    model_local.setData(idx, icon, Qt.ItemDataRole.DecorationRole)
+                                    if key is not None:
+                                        self._last_icon_paths[key] = path or ""
+                                except Exception:
+                                    try:
+                                        model_local.setData(idx, QIcon(), Qt.ItemDataRole.DecorationRole)
+                                        if key is not None:
+                                            self._last_icon_paths[key] = path or ""
+                                    except Exception:
+                                        pass
+                        else:
+                            try:
+                                icon = create_icon_from_path(path) if path else QIcon()
+                                model_local.setData(idx, icon, Qt.ItemDataRole.DecorationRole)
+                            except Exception:
+                                try:
+                                    model_local.setData(idx, QIcon(), Qt.ItemDataRole.DecorationRole)
+                                except Exception:
+                                    pass
+                    # Подготовим спуск к детям текущего индекса
+                    try:
+                        child_rows = model_local.rowCount(idx)
+                    except Exception:
+                        child_rows = 0
+                    if child_rows and child_rows > 0:
+                        stack.append((idx, 0, child_rows))
             except Exception:
                 # Не роняем GUI поток
                 logger.debug("IconHandling._apply_resolved_icons: apply failed", exc_info=True)
