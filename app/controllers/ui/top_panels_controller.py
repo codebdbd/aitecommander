@@ -200,11 +200,13 @@ class TopPanelsController:
         try:
             if callable(getattr(widget, "set_data", None)):
                 widget.set_data(items)
-            elif callable(getattr(widget, "set_favorites", None)):
-                # legacy fallback для тестовых стабов
-                widget.set_favorites(items)  # type: ignore[attr-defined]
             else:
-                raise AttributeError("favorites widget lacks set_data/set_favorites")
+                # legacy fallback для тестовых стабов
+                legacy_setter = getattr(widget, "set_favorites", None)
+                if callable(legacy_setter):
+                    legacy_setter(items)
+                else:
+                    raise AttributeError("favorites widget lacks set_data/set_favorites")
         except (TypeError, ValueError):
             logger.error(
                 "TopPanelsController.refresh_favorites: widget set_favorites signature error",
@@ -252,11 +254,13 @@ class TopPanelsController:
         try:
             if callable(getattr(widget, "set_data", None)):
                 widget.set_data(items)
-            elif callable(getattr(widget, "set_recent_links", None)):
-                # legacy fallback для тестовых стабов
-                widget.set_recent_links(items)  # type: ignore[attr-defined]
             else:
-                raise AttributeError("recent widget lacks set_data/set_recent_links")
+                # legacy fallback для тестовых стабов
+                legacy_setter = getattr(widget, "set_recent_links", None)
+                if callable(legacy_setter):
+                    legacy_setter(items)
+                else:
+                    raise AttributeError("recent widget lacks set_data/set_recent_links")
         except (TypeError, ValueError):
             logger.error(
                 "TopPanelsController.refresh_recent: widget set_recent_links signature error",

@@ -49,11 +49,11 @@ class StructureUIController(QObject):
         self._connect_model_icon_reload_signals()
 
     def _connect_model_icon_reload_signals(self) -> None:
-        """Подключаемся к сигналам модели, чтобы перезаполнить иконки после стабилизации дерева.
+        """Подключения после modelReset.
 
-        Коалесцируем множественные события в один вызов через QTimer.singleShot(0, ...).
-        Это гарантирует, что иконки выставляются только после того, как модель завершила
-        reset/insert/layout операции.
+        Иконки обычно заполняются при построении снапшота, однако для надёжности
+        (и смены темы/нестандартных случаев) выполняем коалесцированную перезагрузку
+        иконок после modelReset. Также переподключаем selectionModel.
         """
         try:
             model = self.tree.model()
@@ -62,19 +62,15 @@ class StructureUIController(QObject):
         if not model:
             return
 
-        self._icons_reload_pending = False
-
+        # Коалесцированная перезагрузка иконок после стабилизации модели
         def _schedule_reload():
-            if getattr(self, "_icons_reload_pending", False):
-                return
-            self._icons_reload_pending = True
             from PyQt6.QtCore import QTimer
 
             def _do_reload():
                 try:
                     self.icon_handler.reload_icons()
-                finally:
-                    self._icons_reload_pending = False
+                except Exception:
+                    pass
 
             QTimer.singleShot(0, _do_reload)
 
@@ -120,12 +116,12 @@ class StructureUIController(QObject):
                     "Failed to schedule selection reconnect after modelReset", exc_info=True
                 )
 
-        # Подписываемся ТОЛЬКО на modelReset, чтобы выполнять один проход
-        # после полной сборки снапшота и не дергать перерисовку на каждом rowsInserted/layoutChanged
+        # Перезагрузка иконок после полной стабилизации модели
         try:
             model.modelReset.connect(_schedule_reload)
         except Exception:
             pass
+
         # Переподключение selectionModel после сброса модели
         try:
             model.modelReset.connect(_schedule_selection_reconnect)

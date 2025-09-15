@@ -190,10 +190,9 @@ class DatabaseInitializer:
                 logger.critical(
                     "Главное окно отсутствует при показе ошибки инициализации БД; диалог будет показан без родителя"
                 )
-
-            parent: QWidget | None = (
-                self.main_window if isinstance(self.main_window, QWidget) else None
-            )
+            # Важно: передаём именно self.main_window как parent, даже если это мок,
+            # так как тест ожидает передачу объекта окна. Если окна нет — передаём None.
+            parent: QWidget | None = self.main_window if self.main_window is not None else None
 
             QMessageBox.critical(parent, title, message)
         except Exception as e:

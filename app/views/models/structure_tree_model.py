@@ -91,9 +91,23 @@ class StructureTreeModel(QAbstractItemModel):
 
     # --- Данные/роли ---
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:  # noqa: N802
+        # Поддержка QPersistentModelIndex: приводим к QModelIndex при необходимости
+        try:
+            if not isinstance(index, QModelIndex):
+                index = QModelIndex(index)
+        except Exception:
+            pass
         if not index.isValid():
             return None
-        node: TreeNode = index.internalPointer()
+        try:
+            node: TreeNode = index.internalPointer()
+        except Exception:
+            # На случай если объект не предоставляет internalPointer напрямую
+            try:
+                conv = QModelIndex(index)
+                node = conv.internalPointer()
+            except Exception:
+                return None
         if role == Qt.ItemDataRole.DisplayRole:
             return node.name
         if role == Qt.ItemDataRole.DecorationRole:
@@ -422,6 +436,216 @@ class StructureTreeModel(QAbstractItemModel):
                     self._category_by_id[cat_node.id] = cat_node
 
         self.endResetModel()
+
+    def _create_section_node(self, s: Dict[str, Any]) -> TreeNode:
+        sec_node = TreeNode(
+            type="section",
+            id=(s.get("id") if isinstance(s.get("id"), int) else None),
+            name=str(s.get("name", "")),
+            parent=self._root,
+            icon=s.get("icon") if isinstance(s.get("icon"), QIcon) or s.get("icon") is None else None,
+            payload=s,
+        )
+        if isinstance(sec_node.id, int):
+            self._section_by_id[sec_node.id] = sec_node
+        for c in s.get("categories") or []:
+            cid = c.get("id")
+            cat_node = TreeNode(
+                type="category",
+                id=(cid if isinstance(cid, int) else None),
+                name=str(c.get("name", "")),
+                parent=sec_node,
+                icon=(c.get("icon") if isinstance(c.get("icon"), QIcon) else None),
+                payload=c,
+            )
+            sec_node.children.append(cat_node)
+            if isinstance(cat_node.id, int):
+                self._category_by_id[cat_node.id] = cat_node
+        return sec_node
+
+    def update_snapshot(self, sections: List[Dict[str, Any]]) -> None:
+        """Инкрементально обновляет модель по новому снапшоту без full reset.
+
+        Выполняет удаления отсутствующих узлов, вставки новых и dataChanged для обновлений.
+        Перестановка существующих секций реализована через remove+insert для минимальной поддержки порядка.
+        Перестановка категорий внутри раздела пока не поддерживает move и выполняется через insert в
+        заданные позиции при необходимости, а отсутствующие удаляются.
+        """
+        # Карта новых секций по id и желаемый порядок
+        new_sections = sections or []
+        new_sec_ids: List[int] = []
+        new_sec_by_id: Dict[int, Dict[str, Any]] = {}
+        for s in new_sections:
+            sid = s.get("id")
+            if isinstance(sid, int):
+                new_sec_ids.append(sid)
+                new_sec_by_id[sid] = s
+
+        # 1) Удаление секций, которых больше нет
+        for row in range(len(self._root.children) - 1, -1, -1):
+            node = self._root.children[row]
+            if node.type == "section" and isinstance(node.id, int) and node.id not in new_sec_by_id:
+                # Удаляем все категории из мапы
+                for child in node.children:
+                    if isinstance(child.id, int) and child.id in self._category_by_id:
+                        del self._category_by_id[child.id]
+                self.beginRemoveRows(QModelIndex(), row, row)
+                self._root.children.pop(row)
+                if node.id in self._section_by_id:
+                    del self._section_by_id[node.id]
+                self.endRemoveRows()
+
+        # 2) Вставка/обновление секций по новому порядку
+        # Помощник для родительского индекса корня
+        root_index = QModelIndex()
+        i = 0
+        while i < len(new_sec_ids):
+            sid = new_sec_ids[i]
+            desired_data = new_sec_by_id[sid]
+            existing = self._section_by_id.get(sid)
+            if existing is None:
+                # Вставка новой секции на позицию i
+                self.beginInsertRows(root_index, i, i)
+                node = self._create_section_node(desired_data)
+                node.parent = self._root
+                self._root.children.insert(i, node)
+                self.endInsertRows()
+            else:
+                # Убедимся, что узел на позиции i соответствует sid; иначе переставим
+                current_row = existing.row()
+                if current_row != i and current_row >= 0:
+                    # remove+insert для минимальной поддержки порядка
+                    self.beginRemoveRows(root_index, current_row, current_row)
+                    self._root.children.pop(current_row)
+                    self.endRemoveRows()
+                    self.beginInsertRows(root_index, i, i)
+                    self._root.children.insert(i, existing)
+                    self.endInsertRows()
+                # Обновление имени/иконки секции
+                changed = False
+                try:
+                    new_name = str(desired_data.get("name", existing.name))
+                    if existing.name != new_name:
+                        existing.name = new_name
+                        changed = True
+                except Exception:
+                    pass
+                try:
+                    new_icon = desired_data.get("icon")
+                    if isinstance(new_icon, QIcon) or new_icon is None:
+                        if existing.icon != new_icon:
+                            existing.icon = new_icon
+                            changed = True
+                except Exception:
+                    pass
+                if changed:
+                    idx = self.createIndex(i, 0, existing)
+                    self.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.DecorationRole])
+
+                # Обработка категорий внутри секции
+                new_cats = desired_data.get("categories") or []
+                new_cat_ids: List[int] = []
+                new_cat_by_id: Dict[int, Dict[str, Any]] = {}
+                for c in new_cats:
+                    cid = c.get("id")
+                    if isinstance(cid, int):
+                        new_cat_ids.append(cid)
+                        new_cat_by_id[cid] = c
+
+                # Удаление отсутствующих категорий
+                for crow in range(len(existing.children) - 1, -1, -1):
+                    cnode = existing.children[crow]
+                    if cnode.type == "category" and isinstance(cnode.id, int) and cnode.id not in new_cat_by_id:
+                        parent_index = self.createIndex(i, 0, existing)
+                        self.beginRemoveRows(parent_index, crow, crow)
+                        existing.children.pop(crow)
+                        if cnode.id in self._category_by_id:
+                            del self._category_by_id[cnode.id]
+                        self.endRemoveRows()
+
+                # Вставка/обновление категорий в порядке
+                j = 0
+                while j < len(new_cat_ids):
+                    cid = new_cat_ids[j]
+                    c_existing = self._category_by_id.get(cid)
+                    parent_index = self.createIndex(i, 0, existing)
+                    if c_existing is None or c_existing.parent is not existing:
+                        # новая категория
+                        self.beginInsertRows(parent_index, j, j)
+                        cdata = new_cat_by_id[cid]
+                        cnode = TreeNode(
+                            type="category",
+                            id=cid,
+                            name=str(cdata.get("name", "")),
+                            parent=existing,
+                            icon=(cdata.get("icon") if isinstance(cdata.get("icon"), QIcon) else None),
+                            payload=cdata,
+                        )
+                        existing.children.insert(j, cnode)
+                        self._category_by_id[cid] = cnode
+                        self.endInsertRows()
+                    else:
+                        # Убедимся, что на позиции j нужный узел; иначе переставим
+                        cur_row = c_existing.row()
+                        if cur_row != j and cur_row >= 0 and c_existing.parent is existing:
+                            self.beginRemoveRows(parent_index, cur_row, cur_row)
+                            existing.children.pop(cur_row)
+                            self.endRemoveRows()
+                            self.beginInsertRows(parent_index, j, j)
+                            existing.children.insert(j, c_existing)
+                            self.endInsertRows()
+                        # Обновление имени/иконки
+                        cdata = new_cat_by_id[cid]
+                        c_changed = False
+                        try:
+                            new_name = str(cdata.get("name", c_existing.name))
+                            if c_existing.name != new_name:
+                                c_existing.name = new_name
+                                c_changed = True
+                        except Exception:
+                            pass
+                        try:
+                            new_icon = cdata.get("icon")
+                            if isinstance(new_icon, QIcon) or new_icon is None:
+                                if c_existing.icon != new_icon:
+                                    c_existing.icon = new_icon
+                                    c_changed = True
+                        except Exception:
+                            pass
+                        if c_changed:
+                            cidx = self.createIndex(j, 0, c_existing)
+                            self.dataChanged.emit(cidx, cidx, [Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.DecorationRole])
+                    j += 1
+            i += 1
+
+    # --- Сортировка ---
+    def sort(  # noqa: N802
+        self, column: int, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder
+    ) -> None:
+        """Сортирует разделы и категории по имени без реконструкции снапшота.
+
+        - Сортируется только колонка 0 (имена)
+        - Секции (`self._root.children`) и категории внутри каждой секции
+        - Используются сигналы `layoutAboutToBeChanged`/`layoutChanged` для уведомления представлений
+        """
+        if column != 0:
+            return
+        try:
+            self.layoutAboutToBeChanged.emit()
+            reverse = order == Qt.SortOrder.DescendingOrder
+            # Секции
+            try:
+                self._root.children.sort(key=lambda n: (n.name or "").lower(), reverse=reverse)
+            except Exception:
+                pass
+            # Категории в каждой секции
+            for sec in self._root.children:
+                try:
+                    sec.children.sort(key=lambda n: (n.name or "").lower(), reverse=reverse)
+                except Exception:
+                    continue
+        finally:
+            self.layoutChanged.emit()
 
     # --- Поиск индексов ---
     def index_for(self, item_type: str, item_id: int) -> QModelIndex:
