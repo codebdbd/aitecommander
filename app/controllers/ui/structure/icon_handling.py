@@ -1,6 +1,6 @@
 # app/controllers/structure/icon_handling.py
 
-from PyQt6.QtCore import Qt, QModelIndex, QTimer, QThread
+from PyQt6.QtCore import Qt, QModelIndex, QTimer
 from PyQt6.QtGui import QIcon
 
 from concurrent.futures import ThreadPoolExecutor
@@ -92,43 +92,15 @@ class IconHandling:
     def _schedule_on_gui(self, fn) -> None:
         """Планирует выполнение fn в GUI-потоке дерева.
 
-        Предпочтительно используем перегрузку QTimer.singleShot(ms, receiver, fn)
-        для запуска в потоке объекта tree. Поддерживаем тестовые моки без такой
-        перегрузки через fallback на QTimer.singleShot(ms, fn). Если доступен метод
-        thread() у дерева и мы уже на GUI-потоке — вызываем напрямую.
+        В продакшене используем перегрузку QTimer.singleShot(ms, receiver, fn),
+        но в тестах QTimer может быть замокан без такой перегрузки — поддержим
+        совместимость через fallback на QTimer.singleShot(ms, fn).
         """
         try:
-            # Пытаемся определить GUI-поток дерева, если доступен
-            tree_thread_getter = getattr(self.tree, "thread", None)
-            if callable(tree_thread_getter):
-                try:
-                    if QThread.currentThread() is tree_thread_getter():
-                        fn()
-                        return
-                except Exception:
-                    pass
-            # Пробуем перегрузку с receiver
-            try:
-                QTimer.singleShot(0, self.tree, fn)
-                return
-            except TypeError:
-                # В тестах может быть только singleShot(ms, fn)
-                pass
-            except Exception:
-                pass
-            # Fallback: без receiver
-            try:
-                QTimer.singleShot(0, fn)
-                return
-            except Exception:
-                pass
-            # Последний резерв: прямой вызов (риски на не-GUI поток берём на себя)
-            try:
-                fn()
-            except Exception:
-                logger.debug("IconHandling._schedule_on_gui: direct call failed", exc_info=True)
-        except Exception:
-            logger.debug("IconHandling._schedule_on_gui failed", exc_info=True)
+            QTimer.singleShot(0, self.tree, fn)
+        except TypeError:
+            # Совместимость с тестовыми подменами QTimer
+            QTimer.singleShot(0, fn)
 
     def prepare_snapshot_async(self, data: list[dict] | None, on_ready) -> None:
         """Готовит иконки для снапшота в пуле потоков и вызывает on_ready(prepared) в GUI-потоке.
@@ -165,9 +137,7 @@ class IconHandling:
         2) Отправить фоновую задачу на извлечение данных и резолв путей (_fetch_and_resolve)
         3) Применить результат на GUI-потоке (_apply_resolved_icons)
         """
-        # Поддержка как метода model(), так и атрибута model
-        _macc = getattr(self.tree, "model", None)
-        model = _macc() if callable(_macc) else _macc
+        model = getattr(self.tree, "model", lambda: None)()
         if not model:
             return
 
@@ -354,7 +324,7 @@ class IconHandling:
         self, token_local: int, sec_icon_path: dict[int, str], cat_icon_path: dict[int, str]
     ) -> None:
 
-        CHUNK_STEPS = 1000
+        CHUNK_STEPS = 2000
         TOTAL_MAX_STEPS = 1000000
 
         def _init_traversal(model_local):
@@ -374,26 +344,14 @@ class IconHandling:
 
         def _apply_chunk():
             try:
-                # Сброс при смене токена: прерываем только если токен уже установлен и отличается
-                if self._apply_token is not None and self._apply_token != int(token_local):
+                # Сброс при смене токена
+                if self._apply_token != int(token_local):
                     self._apply_stack = None
                     return
-                # Поддержка как метода model(), так и атрибута model
-                _macc = getattr(self.tree, "model", None)
-                model_local = _macc() if callable(_macc) else _macc
+                model_local = getattr(self.tree, "model", lambda: None)()
                 if not model_local:
                     self._apply_stack = None
                     return
-                # Гарантируем выполнение на GUI-потоке перед созданием QIcon, если можем это проверить
-                try:
-                    tree_thread_getter = getattr(self.tree, "thread", None)
-                    if callable(tree_thread_getter):
-                        if QThread.currentThread() is not tree_thread_getter():
-                            self._schedule_on_gui(_apply_chunk)
-                            return
-                except Exception:
-                    # Если не удалось проверить поток — продолжаем (в тестах create_icon_from_path безопасен)
-                    pass
                 if self._apply_stack is None:
                     _init_traversal(model_local)
 
@@ -435,12 +393,6 @@ class IconHandling:
                             path = sec_icon_path.get(int(item_id), "")
                         elif item_type == "category":
                             path = cat_icon_path.get(int(item_id), "")
-                        # Если путь пуст — попробуем получить дефолтный путь от резолвера
-                        if not path:
-                            try:
-                                path = resolve_icon_for_link({"type": str(item_type), "icon_path": ""}) or ""
-                            except Exception:
-                                path = ""
                         # Пропуск, если путь не изменился
                         try:
                             key = (str(item_type), int(item_id)) if isinstance(item_id, int) else None
@@ -563,11 +515,11 @@ class IconHandling:
 
 
 def prepare_icons_snapshot(data: list[dict]) -> list[dict]:
-    """Готовит снапшот: резолвит icon_path, но НЕ создаёт QIcon в рабочем потоке.
+    """Преобразует поля icon_path в QIcon для разделов и категорий.
 
-    Примечание: создание QIcon должно выполняться только в GUI-потоке.
-    Здесь мы лишь обновляем корректные пути и устанавливаем пустые QIcon(),
-    чтобы последующее применение иконок выполнялось на GUI-потоке.
+    Использует `resolve_icon_for_link` для выбора корректного пути к иконке
+    и `create_icon_from_path` для создания QIcon. Неизвестные/ошибочные пути
+    превращаются в пустой `QIcon()`.
     """
     result: list[dict] = []
     for s in data or []:
@@ -592,10 +544,11 @@ def prepare_icons_snapshot(data: list[dict]) -> list[dict]:
 
 
 def _add_icon(item: dict, item_type: str) -> dict:
-    """Возвращает копию item с обновлённым icon_path и пустым 'icon'.
+    """Возвращает копию item с добавленным ключом 'icon' на основе icon_path.
 
-    Создание QIcon здесь запрещено (возможен рабочий поток). Только резолв пути,
-    затем выставляем out["icon"] = QIcon() — реальные иконки установятся позже на GUI-потоке.
+    Единообразная обработка ошибок:
+    - ожидаемые файловые/значимые ошибки логируются как warning, 'icon' = пустой QIcon
+    - неожиданные исключения логируются через logger.exception, 'icon' = пустой QIcon
     """
     try:
         out = dict(item)
@@ -620,12 +573,21 @@ def _add_icon(item: dict, item_type: str) -> dict:
             path,
         )
         resolved = None
-    # Сохраняем резолвнутый путь обратно в элемент — это позволит reload_icons
-    # позже создать корректный QIcon по пути
     try:
-        out["icon_path"] = resolved or ""
+        out["icon"] = create_icon_from_path(resolved) if resolved else QIcon()
+    except (OSError, FileNotFoundError, PermissionError, ValueError) as e:
+        logger.warning(
+            "_add_icon: filesystem/value error creating QIcon for %s (resolved=%r): %s",
+            item_type,
+            resolved,
+            e,
+        )
+        out["icon"] = QIcon()
     except Exception:
-        pass
-    # Не создаём QIcon здесь, оставляем пустой — применится позже в GUI-потоке
-    out["icon"] = QIcon()
+        logger.exception(
+            "_add_icon: unexpected error creating QIcon for %s (resolved=%r)",
+            item_type,
+            resolved,
+        )
+        out["icon"] = QIcon()
     return out

@@ -163,7 +163,7 @@ class StructureUIController(QObject):
                 continue
             try:
                 icon = model.data(idx, Qt.ItemDataRole.DecorationRole)
-                if isinstance(icon, QIcon) and not icon.isNull():
+                if icon is not None:
                     return True
             except Exception:
                 pass
@@ -181,7 +181,7 @@ class StructureUIController(QObject):
                     continue
                 try:
                     cicon = model.data(cidx, Qt.ItemDataRole.DecorationRole)
-                    if isinstance(cicon, QIcon) and not cicon.isNull():
+                    if cicon is not None:
                         return True
                 except Exception:
                     pass

@@ -58,23 +58,25 @@ class TreeManagement:
             except Exception:
                 logger.debug("TreeManagement._on_structure_loaded: patch path failed", exc_info=True)
             return
-        # Новый порядок: применяем снапшот немедленно, иконки обновляем отдельно асинхронно
+        # Высокоуровневая последовательность: готовим снапшот и иконки асинхронно, применяем в GUI
         state = self._save_view_state()
         snapshot = self._prepare_snapshot(sections_data)
 
-        # Применение структуры и восстановление UI сразу
-        self._apply_snapshot(snapshot)
-        self._restore_state(state)
-        self._ensure_selection(state)
-        self._notify_selection_handler()
+        def _apply_with_icons(prepared_snapshot):
+            self._apply_snapshot(prepared_snapshot)
+            self._restore_state(state)
+            self._ensure_selection(state)
+            self._notify_selection_handler()
 
-        # Асинхронная установка иконок без блокировки UI
         try:
             ih = getattr(self.controller, "icon_handler", None)
-            if ih and hasattr(ih, "reload_icons"):
-                ih.reload_icons()
+            if ih and hasattr(ih, "prepare_snapshot_async"):
+                ih.prepare_snapshot_async(snapshot, _apply_with_icons)
+            else:
+                # Fallback: применяем без подготовки иконок
+                _apply_with_icons(snapshot)
         except Exception:
-            logger.debug("TreeManagement._on_structure_loaded: schedule icon reload failed", exc_info=True)
+            _apply_with_icons(snapshot)
 
 
     def _save_view_state(self):
@@ -247,36 +249,18 @@ class TreeManagement:
         cat_inserts = inserts.get("categories") or {}
         try:
             for sid, items in (cat_inserts.items() if hasattr(cat_inserts, "items") else []):
-                # Собираем пары (row, cat) и сортируем по row; -1 трактуем как append
-                pairs = []
                 for cat in list(items or []):
                     try:
                         _rv = cat.get("row") if isinstance(cat, dict) else None
                         row = _rv if isinstance(_rv, int) else -1
+                        model.insert_categories(int(sid), row, [cat])
                     except Exception:
-                        row = -1
-                    pairs.append((row, cat))
-
-                if not pairs:
-                    continue
-
-                def _row_key(rc):
-                    r, _ = rc
-                    return r if isinstance(r, int) and r >= 0 else 10**9
-
-                pairs.sort(key=_row_key)
-                ordered_cats = [c for (_r, c) in pairs]
-                # first_row: минимальный неотрицательный, иначе -1 (append)
-                nonneg = [r for (r, _c) in pairs if isinstance(r, int) and r >= 0]
-                first_row = min(nonneg) if nonneg else -1
-                try:
-                    model.insert_categories(int(sid), first_row, ordered_cats)
-                except Exception:
-                    logger.debug(
-                        "patch: insert_categories batch failed for section %s",
-                        sid,
-                        exc_info=True,
-                    )
+                        logger.debug(
+                            "patch: insert_categories failed for section %s, category %s",
+                            sid,
+                            getattr(cat, "get", lambda *_: None)("id") if isinstance(cat, dict) else None,
+                            exc_info=True,
+                        )
         except Exception:
             logger.debug("patch: iter cat inserts failed", exc_info=True)
 
