@@ -1,15 +1,11 @@
 import logging
 import sqlite3
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from app.utils.db.migrations import MigrationRunner
 from app.utils.db.synchronization import db_lock
 
 from .db_base import DatabaseError
-
-if TYPE_CHECKING:  # избегаем импортов во время выполнения
-    from .db import Database
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +13,7 @@ SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
 
-def init_schema(db: "Database") -> None:
+def init_schema(db) -> None:
     """[DEPRECATED] Инициализация схемы напрямую из schema.sql.
 
     Оставлено для обратной совместимости; используйте систему миграций.
@@ -33,7 +29,7 @@ def init_schema(db: "Database") -> None:
         raise DatabaseError(f"Не удалось инициализировать схему базы данных: {e}")
 
 
-def run_migrations(db: "Database") -> None:
+def run_migrations(db) -> None:
     """[DEPRECATED] Ручной запуск миграций. Оставлено для совместимости."""
     try:
         runner = MigrationRunner(db.connection, MIGRATIONS_DIR)

@@ -3,11 +3,10 @@ import fnmatch
 import os
 import stat
 from typing import Optional
-from re import Pattern
 
 
 def check_file_content(
-    config: dict, filepath: str, content_regex: Optional[Pattern[str]]
+    config: dict, filepath: str, content_regex: Optional[object]
 ) -> bool:
     """Проверка содержимого файла согласно config.
     content_regex: скомпилированный regex или None, если нужен простой поиск подстроки.
@@ -35,8 +34,8 @@ def matches_criteria(
     config: dict,
     filepath: str,
     filename: str,
-    name_regex: Optional[Pattern[str]],
-    content_regex: Optional[Pattern[str]],
+    name_regex: Optional[object],
+    content_regex: Optional[object],
 ) -> bool:
     """Проверяет файл по всем критериям из config.
     Совмещает ранее дублируемую логику из FileSearchDialog и FileSearchWorker.

@@ -49,10 +49,7 @@ class IntegrityService:
                 stats["current_sphere_sections"] = len(current_sections)
                 current_categories = 0
                 for section in current_sections:
-                    sec_id = section.get("id")
-                    if sec_id is None:
-                        continue
-                    categories = get_categories(sec_id) or []
+                    categories = get_categories(section.get("id")) or []
                     current_categories += len(categories)
                 stats["current_sphere_categories"] = current_categories
 

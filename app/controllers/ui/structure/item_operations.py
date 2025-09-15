@@ -1,7 +1,6 @@
 # app/controllers/structure/item_operations.py
 
 import logging
-from typing import Optional
 
 # Используем строковые литералы "section" и "category"
 from app.controllers.ui.dialogs import DialogManager
@@ -450,7 +449,7 @@ class ItemOperations:
         if item:
             self.delete_item(item)
 
-    def _get_selected_section_id(self) -> Optional[int]:
+    def _get_selected_section_id(self) -> int:
         # Ветка для QTreeView
         try:
             cur = (
@@ -473,8 +472,6 @@ class ItemOperations:
         except (AttributeError, RuntimeError) as e:
             logger.debug("[ItemOperations._get_selected_section_id] failed: %s", e)
             return None
-        # Если индекс недоступен или невалиден
-        return None
 
     def _has_any_items_in_tree(self) -> bool:
         """Возвращает True, если в дереве (QTreeView) есть хотя бы один элемент."""

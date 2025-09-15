@@ -14,12 +14,7 @@ class PathConfig(BaseConfig):
     def get_base_path(self) -> Path:
         """Базовый путь приложения (учитывает PyInstaller)."""
         if getattr(sys, "frozen", False):
-            base = getattr(sys, "_MEIPASS", None)
-            try:
-                return Path(str(base))
-            except Exception:
-                # Fallback на директорию проекта, если PyInstaller переменная недоступна
-                return Path(__file__).parent.parent
+            return Path(sys._MEIPASS)
         else:
             return Path(__file__).parent.parent
 
@@ -41,12 +36,10 @@ class PathConfig(BaseConfig):
         """
         org_name = self.get("app.org_name", "Codebdbd")
         app_name = self.get("app.name", "Aite Commander")
-        appdata_env = os.getenv("APPDATA")
-        if appdata_env:
-            root = Path(appdata_env)
-        else:
-            root = Path.home() / "AppData" / "Roaming"
-        return root / org_name / app_name / sub
+        appdata = os.getenv("APPDATA")
+        if not appdata:
+            appdata = Path.home() / "AppData" / "Roaming"
+        return Path(appdata) / org_name / app_name / sub
 
     def get_db_path(self) -> Path:
         """Путь к файлу базы данных в %APPDATA%/Org/App/links.db."""

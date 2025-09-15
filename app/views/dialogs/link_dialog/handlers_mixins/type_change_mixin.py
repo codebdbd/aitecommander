@@ -3,7 +3,6 @@
 """
 
 import logging
-from typing import Any, Protocol
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QTimer
@@ -16,12 +15,8 @@ from app.utils.ui.icon.ui_helpers import set_icon_to_button
 logger = logging.getLogger(__name__)
 
 
-class _HasDialog(Protocol):
-    dialog: Any
-
-
 class TypeChangeMixin:
-    def on_type_changed(self: _HasDialog, link_type) -> None:
+    def on_type_changed(self, link_type) -> None:
         """Обработчик изменения типа ссылки."""
         lt = LinkType.from_value(link_type)
         self.dialog.link_type = lt
@@ -75,7 +70,7 @@ class TypeChangeMixin:
             # Не падаем из-за эффекта: это только визуальная синхронизация
             pass
 
-    def _update_ui_state(self: _HasDialog) -> None:
+    def _update_ui_state(self) -> None:
         """Обновляет состояние UI в зависимости от типа ссылки."""
         lt = LinkType.from_value(self.dialog.link_type)
         is_web = lt == LinkType.WEB
@@ -131,7 +126,7 @@ class TypeChangeMixin:
         except Exception:
             _apply_focus()
 
-    def set_link_type(self: _HasDialog, link_type) -> None:
+    def set_link_type(self, link_type) -> None:
         """Программно выбрать тип ссылки и обновить UI."""
         # Безопасно получаем список доступных типов из диалога
         try:

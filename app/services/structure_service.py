@@ -46,21 +46,6 @@ class StructureService:
         # Используем существующую агрегирующую реализацию
         return self.db.get_full_structure()
 
-    # --- Bulk fetch by IDs ---
-    def get_sections_bulk(self, ids: List[int]) -> List[Dict[str, Any]]:
-        """Возвращает несколько разделов по списку ID одним запросом."""
-        try:
-            return self.db.sections.get_sections_bulk(ids or [])
-        except Exception:
-            return []
-
-    def get_categories_bulk(self, ids: List[int]) -> List[Dict[str, Any]]:
-        """Возвращает несколько категорий по списку ID одним запросом."""
-        try:
-            return self.db.categories.get_categories_bulk(ids or [])
-        except Exception:
-            return []
-
     # --- Статистика/подсчёты ---
     def count_nested_objects_for_section(self, section_id: int) -> Tuple[int, int]:
         return self._model.count_nested_objects_for_section(section_id)

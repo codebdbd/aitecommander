@@ -355,18 +355,8 @@ class MainWindow(QMainWindow):
 
         with suspend_updates(self.left_panel):
             self.left_panel.setProperty("sphere", str(sphere_id))
-            # Достаточно единичного polish для применения QSS по изменённому свойству.
-            # Полный цикл unpolish→polish дорог и может вызывать мерцание.
-            try:
-                self.left_panel.style().polish(self.left_panel)
-            except Exception:
-                # В редких случаях стиль может отсутствовать/не поддерживать polish
-                logger.debug("_update_left_panel_style: polish failed", exc_info=True)
-            # Лёгкое обновление без переполирования
-            try:
-                self.left_panel.update()
-            except Exception:
-                logger.debug("_update_left_panel_style: update failed", exc_info=True)
+            self.left_panel.style().unpolish(self.left_panel)
+            self.left_panel.style().polish(self.left_panel)
 
     def on_search(self, text: str) -> None:
         # Сохраняем последний ввод, чтобы при поздней инициализации не потерять запрос

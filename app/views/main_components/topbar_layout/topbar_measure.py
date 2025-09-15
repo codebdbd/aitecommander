@@ -5,7 +5,7 @@ from typing import List, Optional
 from PyQt6.QtWidgets import QLayout, QLineEdit, QToolButton, QWidget
 
 try:  # pragma: no cover - optional in tests without sip
-    from sip import isdeleted as _sip_isdeleted  # type: ignore[import-not-found]
+    from sip import isdeleted as _sip_isdeleted
 except Exception:  # pragma: no cover
 
     def _sip_isdeleted(_obj) -> bool:
@@ -34,10 +34,7 @@ def iter_buttons(panel_widget: Optional[QWidget], name: str) -> List[QToolButton
     ordered: List[QToolButton] = []
     if lay:
         for i in range(lay.count()):
-            it = lay.itemAt(i)
-            if it is None:
-                continue
-            w = it.widget()
+            w = lay.itemAt(i).widget()
             if isinstance(w, QToolButton) and w.objectName() == name:
                 ordered.append(w)
     # Дополнить findChildren
@@ -194,10 +191,8 @@ def total_width_for(
     items: List[int] = []
     for i in range(top_bar.count()):
         it = top_bar.itemAt(i)
-        if it is None:
-            continue
         w = it.widget()
-        if w is not None:
+        if w:
             if w is search:
                 # Используем явный min_search_width, чтобы поведение совпадало с менеджером
                 items.append(int(min_search_width))

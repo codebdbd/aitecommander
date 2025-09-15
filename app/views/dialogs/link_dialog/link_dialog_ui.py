@@ -224,36 +224,29 @@ class LinkDialogUI:
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
         ok_btn = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
-        if ok_btn is not None:
-            ok_btn.setText("Сохранить")
+        ok_btn.setText("Сохранить")
         # Убираем системный пунктирный фокус: запретим default/autoDefault и автофокус
         try:
-            if ok_btn is not None:
-                ok_btn.setAutoDefault(False)
-                ok_btn.setDefault(False)
-                ok_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+            ok_btn.setAutoDefault(False)
+            ok_btn.setDefault(False)
+            ok_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         except (AttributeError, RuntimeError) as e:
             logger.warning("Ошибка настройки фокуса для OK кнопки: %s", e)
-        if ok_btn is not None:
-            ok_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
+        ok_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
 
         cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
-        if cancel_btn is not None:
-            cancel_btn.setText("Отмена")
+        cancel_btn.setText("Отмена")
         try:
-            if cancel_btn is not None:
-                cancel_btn.setAutoDefault(False)
-                cancel_btn.setDefault(False)
-                cancel_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+            cancel_btn.setAutoDefault(False)
+            cancel_btn.setDefault(False)
+            cancel_btn.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         except (AttributeError, RuntimeError) as e:
             logger.warning("Ошибка настройки фокуса для Cancel кнопки: %s", e)
-        if cancel_btn is not None:
-            cancel_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
+        cancel_btn.setFixedWidth(app_config.ui.get_fixed_button_width())
 
         container.addWidget(self.button_box)
         self.widgets["button_box"] = self.button_box
-        if ok_btn is not None:
-            self.widgets["ok_btn"] = ok_btn
+        self.widgets["ok_btn"] = ok_btn
 
     def get_widget(self, name: str) -> QWidget | None:
         """Получить виджет по имени."""
@@ -267,8 +260,7 @@ class LinkDialogUI:
             ok_btn = self.widgets.get("ok_btn") or self.button_box.button(
                 QDialogButtonBox.StandardButton.Ok
             )
-            if ok_btn is not None:
-                ok_btn.setEnabled(url_ok and name_ok)
+            ok_btn.setEnabled(url_ok and name_ok)
         except (AttributeError, RuntimeError) as e:
             logger.warning("Ошибка обновления состояния кнопки сохранения: %s", e)
 

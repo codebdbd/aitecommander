@@ -1,9 +1,9 @@
 # app/views/effects/neon_effect.py
 from __future__ import annotations
 
-from typing import Optional, cast
+from typing import Optional
 
-from PyQt6.QtCore import QEvent, QObject, QChildEvent
+from PyQt6.QtCore import QEvent, QObject
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -51,9 +51,7 @@ class NeonEventFilter(QObject):
         self._y = y_offset
         self._outline_only = outline_only
 
-    def eventFilter(self, watched: QObject | None, event: QEvent | None) -> bool:
-        if watched is None or event is None:
-            return False
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         et = event.type()
 
         # Интересуют кнопки, поля ввода и представления списков/таблиц
@@ -98,8 +96,7 @@ class NeonEventFilter(QObject):
         # на добавленных дочерних виджетов подходящих типов
         if et == QEvent.Type.ChildAdded:
             try:
-                ce = cast(QChildEvent, event)
-                child = ce.child()
+                child = event.child()
                 if isinstance(child, QWidget):
                     self._attach_to_tree(child)
             except Exception:

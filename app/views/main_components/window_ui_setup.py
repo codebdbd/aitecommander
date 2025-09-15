@@ -7,9 +7,9 @@ import os
 import sys
 import time
 from functools import partial
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
-from PyQt6.QtCore import QEvent, QObject, QTimer
+from PyQt6.QtCore import QEvent, QObject, QSize, QTimer
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QFrame,
@@ -60,7 +60,6 @@ class _AutoHideTreeFilter(QObject):
         )
         self._is_collapsed = False
         self._saved_splitter_sizes = None
-        self._saved_collapsible0: Optional[bool] = None
         self._prev_stack_index = None
         self._logger = logger_
 
@@ -93,12 +92,6 @@ class _AutoHideTreeFilter(QObject):
 
                 if splitter is not None:
                     try:
-                        # Сохраняем исходное состояние collapsible для левой панели (index=0)
-                        try:
-                            self._saved_collapsible0 = bool(splitter.isCollapsible(0))
-                        except Exception:
-                            # Если метод недоступен/ломается — считаем, что ранее было False
-                            self._saved_collapsible0 = False
                         splitter.setCollapsible(0, True)
                         splitter.setSizes([0, max(1, w)])
                     except (RuntimeError, TypeError):
@@ -156,15 +149,6 @@ class _AutoHideTreeFilter(QObject):
                     else:
                         sizes = [int(x) for x in self.default_sizes]
                         splitter.setSizes(sizes)
-                    # Восстанавливаем исходное значение collapsible(0), если удавалось сохранить
-                    try:
-                        if self._saved_collapsible0 is not None:
-                            splitter.setCollapsible(0, bool(self._saved_collapsible0))
-                    except Exception:
-                        self._logger.debug(
-                            "AutoHideTree: failed to restore splitter collapsible state",
-                            exc_info=True,
-                        )
                 except (RuntimeError, TypeError, ValueError):
                     self._logger.debug(
                         "AutoHideTree: failed to restore splitter sizes", exc_info=True
@@ -195,9 +179,6 @@ class _AutoHideTreeFilter(QObject):
                     )
 
             self._is_collapsed = False
-            # После восстановления состояния сбрасываем сохранённые значения
-            self._saved_splitter_sizes = None
-            self._saved_collapsible0 = None
 
     def eventFilter(self, obj, event):
         if obj is self.window and event.type() == QEvent.Type.Resize:
@@ -215,7 +196,7 @@ class WindowUISetup:
         self.theme_ctrl = window_initializer.theme_ctrl
 
         # main_layout будет установлен позже
-        self.main_layout: QVBoxLayout | None = None
+        self.main_layout = None
 
     def setup_basic_attributes(self) -> None:
         """Настройка базовых атрибутов окна."""
@@ -254,19 +235,11 @@ class WindowUISetup:
         self.main_layout.setSpacing(app_config.ui.get_main_layout_spacing())
         # Убираем зазор между QMenuBar и верхним разделителем: верхний margin = 0
         try:
-            ml = self.main_layout
-            if ml is None:
-                raise RuntimeError("main_layout is None")
-            left, _top, r, b = ml.getContentsMargins()
+            left, _top, r, b = self.main_layout.getContentsMargins()
         except Exception:
             left, _top, r, b = (0, 0, 0, 0)
         try:
-            ml = self.main_layout
-            if ml is not None:
-                left_i = int(left or 0)
-                r_i = int(r or 0)
-                b_i = int(b or 0)
-                ml.setContentsMargins(left_i, 0, r_i, b_i)
+            self.main_layout.setContentsMargins(left, 0, r, b)
         except Exception:
             logger.debug(
                 "WindowUISetup: failed to force top margin=0 for main_layout",
@@ -277,15 +250,13 @@ class WindowUISetup:
         """Настройка верхней панели."""
         from .top_bar_setup import TopBarBuilder
 
-        TopBarBuilder(cast(Any, self)).build()
+        TopBarBuilder(self).build()
 
     def _add_top_separator(self, container_parent: QWidget) -> None:
         """Добавляет верхний горизонтальный разделитель в основной layout."""
         h_line_top = QWidget(container_parent)
         h_line_top.setProperty("class", "separator")
-        ml = self.main_layout
-        if ml is not None:
-            ml.addWidget(h_line_top)
+        self.main_layout.addWidget(h_line_top)
 
     def _build_top_bar_widgets_with_metrics(self, top_bar: QHBoxLayout) -> None:
         """Строит виджеты верхней панели и логирует длительность."""
@@ -341,6 +312,7 @@ class WindowUISetup:
             if not mgr:
                 return
             if hasattr(self.window, "shown"):
+                # type: ignore[attr-defined]
                 # Пересчитать и показать атомарно: сначала adjust, затем показать хост
                 self.window.shown.connect(
                     partial(self._post_shown_adjust_and_show_host, mgr)
@@ -355,7 +327,7 @@ class WindowUISetup:
                 "TopPanel: failed to schedule post-shown topbar adjusts", exc_info=True
             )
 
-    def _post_shown_adjust_and_show_host(self, mgr: TopBarLayoutManager) -> None:
+    def _post_shown_adjust_and_show_host(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
         """В первый тик после shown: adjust и показать host атомарно."""
         try:
             from functools import partial
@@ -366,7 +338,7 @@ class WindowUISetup:
                 "TopPanel: failed in _post_shown_adjust_and_show_host", exc_info=True
             )
 
-    def _post_shown_second_adjust(self, mgr: TopBarLayoutManager) -> None:
+    def _post_shown_second_adjust(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
         """Во второй тик после shown: повторный adjust для устойчивости."""
         try:
             # Завершим прогрев и покажем топ-бар только после «боевого» adjust
@@ -374,7 +346,7 @@ class WindowUISetup:
         except Exception:
             logger.debug("TopPanel: failed in _post_shown_second_adjust", exc_info=True)
 
-    def _fallback_schedule_adjusts(self, mgr: TopBarLayoutManager) -> None:
+    def _fallback_schedule_adjusts(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
         """Фолбэк при отсутствии сигнала shown: два последовательных планирования."""
         try:
             from functools import partial
@@ -386,7 +358,7 @@ class WindowUISetup:
                 "TopPanel: failed in _fallback_schedule_adjusts", exc_info=True
             )
 
-    def _invoke_adjust_and_show_host(self, mgr: TopBarLayoutManager) -> None:
+    def _invoke_adjust_and_show_host(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
         """Выполняет пересчёт лэйаута и показывает host-виджет безопасно."""
         try:
             mgr.adjust()
@@ -396,22 +368,20 @@ class WindowUISetup:
                 exc_info=True,
             )
 
-    def _invoke_adjust(self, mgr: TopBarLayoutManager) -> None:
+    def _invoke_adjust(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
         """Безопасно вызывает mgr.adjust()."""
         try:
             mgr.adjust()
         except Exception:
             logger.debug("TopPanel: adjust() failed in _invoke_adjust", exc_info=True)
 
-    def _finalize_topbar_show(self, mgr: TopBarLayoutManager) -> None:
+    def _finalize_topbar_show(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
         """Сбрасывает warmup, выполняет боевой adjust, затем показывает host и делает финальный adjust."""
-        # Импортируем лениво с безопасным fallback и корректной типизацией
-        suspend_updates: Any | None = None
         try:
-            from app.utils.ui.updates import suspend_updates as _suspend_updates
-            suspend_updates = _suspend_updates
+            # Импортируем лениво, чтобы избежать циклов
+            from app.utils.ui.updates import suspend_updates
         except Exception:
-            suspend_updates = None
+            suspend_updates = None  # type: ignore
 
         try:
             if suspend_updates is not None:
@@ -707,8 +677,6 @@ class WindowUISetup:
             search_index = -1
             for i in range(count):
                 it = top_bar.itemAt(i)
-                if it is None:
-                    continue
                 w = it.widget()
                 if w is search_widget:
                     search_index = i
@@ -743,9 +711,7 @@ class WindowUISetup:
         )
         h_line_top = QWidget(container_parent)
         h_line_top.setProperty("class", "separator")
-        ml = self.main_layout
-        if ml is not None:
-            ml.addWidget(h_line_top)
+        self.main_layout.addWidget(h_line_top)
 
         mid = QHBoxLayout()
         mid.setContentsMargins(*app_config.ui.get_layout_margins("mid"))
@@ -756,16 +722,12 @@ class WindowUISetup:
         # Правая панель с плитками и таблицей
         self.setup_right_panel(mid)
 
-        ml = self.main_layout
-        if ml is not None:
-            ml.addLayout(mid)
+        self.main_layout.addLayout(mid)
 
         # Разделитель после основного содержимого
         h_line_2 = QWidget(container_parent)
         h_line_2.setProperty("class", "separator")
-        ml = self.main_layout
-        if ml is not None:
-            ml.addWidget(h_line_2)
+        self.main_layout.addWidget(h_line_2)
 
     def setup_left_panel(self, mid: QHBoxLayout) -> None:
         """Настройка левой панели."""
@@ -781,9 +743,19 @@ class WindowUISetup:
 
         # Дерево структуры: используем QTreeView + QAbstractItemModel
         self.window.tree = StructureTreeView()
+        self.window.tree.setHeaderHidden(True)
         # Пустая модель, будет заполняться контроллерами позже
         self.window.tree_model = StructureTreeModel(self.window.tree)
         self.window.tree.setModel(self.window.tree_model)
+
+        # Конфиг гарантирует list[int] -> берём ширину, ограничиваем высотой строки
+        tree_icon_size = app_config.ui.get_tree_icon_size()
+        row_h = app_config.ui.get_row_height()
+        base_icon = int(tree_icon_size[0])
+        eff_icon = max(
+            0, min(base_icon, max(0, int(row_h) - 8))
+        )  # 4px сверху + 4px снизу
+        self.window.tree.setIconSize(QSize(eff_icon, eff_icon))
 
         # Размер шрифта для дерева устанавливается централизованно через MainWindow.apply_font_size_to_content()
         left_layout.addWidget(self.window.tree)
@@ -811,7 +783,7 @@ class WindowUISetup:
         """Настройка правой панели."""
         from .right_panel_setup import RightPanelBuilder
 
-        RightPanelBuilder(cast(Any, self)).build(mid)
+        RightPanelBuilder(self).build(mid)
 
     def _setup_auto_hide_tree_filter(self, splitter_sizes: list[int]) -> None:
         """Инициализирует и запускает фильтр авто‑скрытия дерева для узких окон."""
@@ -830,6 +802,7 @@ class WindowUISetup:
             # Применим после показа окна, чтобы корректно получить ширину и не уйти в ложное сужение
             try:
                 if hasattr(self.window, "shown"):
+                    # type: ignore[attr-defined]
                     self.window.shown.connect(self.window._auto_hide_tree_filter._apply)
                 else:
                     QTimer.singleShot(0, self.window._auto_hide_tree_filter._apply)
@@ -845,7 +818,7 @@ class WindowUISetup:
         """Настройка нижней панели."""
         from .bottom_panel_setup import BottomPanelBuilder
 
-        BottomPanelBuilder(cast(Any, self)).build()
+        BottomPanelBuilder(self).build()
 
     def setup_status_bar(self) -> None:
         """Настройка статус-бара."""

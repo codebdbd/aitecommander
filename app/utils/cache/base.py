@@ -162,6 +162,8 @@ class InMemoryCache(BaseCache):
             now = time.time()
             # Собираем список, чтобы не модифицировать dict во время итерации
             for k, rec in list(self._store.items()):
+                if rec is None:
+                    continue
                 try:
                     ttl = rec.ttl if rec.ttl is not None else self._default_ttl
                     if ttl is None:
@@ -186,6 +188,8 @@ class InMemoryCache(BaseCache):
                 removed = 0
                 # Лёгкая оптимизация: если мало ключей, просто пройдёмся
                 for k, rec in list(self._store.items()):
+                    if rec is None:
+                        continue
                     ttl = rec.ttl if rec.ttl is not None else self._default_ttl
                     if ttl is None:
                         continue

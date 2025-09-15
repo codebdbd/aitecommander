@@ -36,15 +36,6 @@ def perform_backup(db_path: str, backups_dir: Path, max_backups: int) -> Path:
                     break
                 suffix += 1
         dst = backups_dir / candidate
-        # Дополнительная страховка от коллизий/гонок: гарантируем несуществующий путь
-        if dst.exists():
-            suffix = 1
-            while True:
-                alt = backups_dir / f"{base_name}_{suffix:02d}.db"
-                if not alt.exists():
-                    dst = alt
-                    break
-                suffix += 1
 
         with sqlite3.connect(db_path) as src, sqlite3.connect(dst) as dest:
             src.backup(dest)

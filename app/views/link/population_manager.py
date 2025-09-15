@@ -2,71 +2,30 @@
 # Содержит методы массового обновления данных таблицы
 
 import logging
-from typing import Any, Dict, List, Protocol, Optional, Iterable, Tuple, Callable, cast
+from typing import Dict, List
 
 from PyQt6.QtCore import Qt
 
 from app.utils.ui.updates import suspend_updates
 
 
-class _PopulationProtocol(Protocol):
-    """Ожидаемые методы/атрибуты вида для массового обновления таблицы.
-
-    Протокол покрывает только используемые в этом миксине части интерфейса.
-    """
-    # Логгер
-    logger: logging.Logger
-    # Режимы и внутреннее состояние
-    _current_mode: str
-    _sort_col: int
-    _sort_order: Qt.SortOrder
-    # Кэш текущих ссылок (row -> link dict)
-    _current_links: Dict[int, Dict]
-    # Методы вида и модели
-    def selectionModel(self) -> Any: ...
-    def verticalScrollBar(self) -> Any: ...
-    def horizontalHeader(self) -> Any: ...
-    def model(self) -> Any: ...
-    def get_link_at(self, row: int) -> Dict | None: ...
-    def validate_cache_integrity(self) -> bool: ...
-    def rebuild_cache_from_items(self) -> None: ...
-    def _remove_row(self, row: int) -> bool: ...
-    def _links_equal(self, a: Dict, b: Dict, mode: str) -> bool: ...
-    def _update_row(self, row: int, data: Dict, mode: str) -> None: ...
-    def _add_row(self, row: int, data: Dict, mode: str) -> None: ...
-    def sortByColumn(self, column: int, order: Qt.SortOrder) -> None: ...
-    def viewport(self) -> Any: ...
-    # Дополнительные приватные помощники, используемые внутри миксина
-    def _full_populate(self, links: List[Dict], mode: str) -> None: ...
-    def _restore_ui_state(
-        self,
-        selection: List[int],
-        scroll_pos: int,
-        sort_col: int,
-        sort_order: Qt.SortOrder,
-    ) -> None: ...
-    def _get_current_link_ids(self) -> set[str]: ...
-    def _get_new_link_ids(self, new_links: List[Dict]) -> set[str]: ...
-    def _create_link_id_to_data_map(self, links: List[Dict]) -> Dict[str, Dict]: ...
-    # Сигнал может отсутствовать в заглушках, поэтому hasattr-проверки в коде
-    # def table_populated(self) -> Any: ...
-
-
 class PopulationManagerMixin:
     # Модульный логгер
     logger = logging.getLogger(__name__)
-    # Текущий режим для устранения has-type mypy
-    _current_mode: str = "normal"
 
     """Миксин для заполнения и обновления таблицы ссылок."""
 
-    def populate(self: _PopulationProtocol, links: List[Dict], mode: str = "normal"):
+    def populate(self, links: List[Dict], mode: str = "normal"):
         """Заполняет таблицу данными ссылок с инкрементальным обновлением."""
-        # links уже типизирован как List[Dict]; дополнительная проверка не требуется
+        if not isinstance(links, list):
+            self.logger.warning(
+                "[LinksTableView] Ожидался список ссылок, получен %s",
+                type(links),
+            )
+            return
 
         # Оптимизация: отключаем обновление UI при массовых изменениях
-        # Аннотация self как Any для строгой совместимости с типом SupportsUpdates из утилиты
-        with suspend_updates(cast(Any, self)):
+        with suspend_updates(self):
             # Сохраняем состояние UI
             try:
                 sel = self.selectionModel()
@@ -191,18 +150,7 @@ class PopulationManagerMixin:
                         continue
 
                     link_id = current_link.get("id")
-                    # Приводим ключ к str для безопасного доступа к карте ссылок
-                    key: Optional[str]
-                    if isinstance(link_id, str):
-                        key = link_id
-                    elif link_id is None:
-                        key = None
-                    else:
-                        try:
-                            key = str(link_id)
-                        except Exception:
-                            key = None
-                    new_link = new_link_map.get(key) if key is not None else None
+                    new_link = new_link_map.get(link_id)
 
                     if new_link and not self._links_equal(current_link, new_link, mode):
                         self._update_row(row, new_link, mode)
@@ -270,7 +218,7 @@ class PopulationManagerMixin:
                         exc_info=True,
                     )
 
-    def _full_populate(self: _PopulationProtocol, links: List[Dict], mode: str):
+    def _full_populate(self, links: List[Dict], mode: str):
         """Выполняет полное обновление таблицы через модель."""
         try:
             # Обновляем режим
@@ -302,12 +250,12 @@ class PopulationManagerMixin:
                 )
 
     def _restore_ui_state(
-        self: _PopulationProtocol,
+        self,
         selection: List[int],
         scroll_pos: int,
         sort_col: int,
         sort_order: Qt.SortOrder,
-    ) -> None:
+    ):
         # Обновляем состояние сортировки
         self._sort_col = sort_col
         self._sort_order = sort_order

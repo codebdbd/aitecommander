@@ -1,6 +1,5 @@
 # app/controllers/bootstrap.py
 from dataclasses import dataclass
-from typing import Any
 
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.business.links_business import LinksBusinessLogic
@@ -26,7 +25,7 @@ class ControllersFacade:
     app_shutdown: AppShutdownController
 
 
-def build_controllers(window: Any) -> ControllersFacade:
+def build_controllers(window) -> ControllersFacade:
     """
     Создаёт и возвращает фасад контроллеров/бизнес-логики для главного окна.
     Ожидает, что у окна есть: db, tree, table, undo_stack.
@@ -60,7 +59,7 @@ def build_controllers(window: Any) -> ControllersFacade:
     )
 
 
-def create_main_window(settings: Any, theme_ctrl: Any, db: Any) -> Any:
+def create_main_window(settings, theme_ctrl, db):
     """
     Создаёт главное окно без передачи Database в конструктор и запускает инициализацию UI.
 

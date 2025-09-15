@@ -21,10 +21,7 @@ class SaveSectionCmd(BaseCommand):
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
-        db = self.db
-        if db is None:
-            raise ValueError("SaveSectionCmd requires a Database instance")
-        self.structure_service = StructureService(db)
+        self.structure_service = StructureService(self.db)
         self.new_data = dict(new_data) if new_data else {}
         self.old_data = dict(old_data) if old_data else None
         self.is_new = not bool(self.new_data.get("id"))
@@ -128,17 +125,11 @@ class DeleteSectionCmd(BaseCommand):
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
-        db = self.db
-        if db is None:
-            raise ValueError("DeleteSectionCmd requires a Database instance")
-        self.structure_service = StructureService(db)
+        self.structure_service = StructureService(self.db)
         self.section = dict(section_data) if section_data else {}
         # Бэкап полного дерева раздела
-        _sid = self.section.get("id")
-        self._backup_tree = (
-            self.structure_service.export_section_tree(_sid)
-            if isinstance(_sid, int)
-            else {"section": {"id": None}, "categories": []}
+        self._backup_tree = self.structure_service.export_section_tree(
+            self.section.get("id")
         )
 
     def redo(self):
@@ -227,10 +218,7 @@ class SaveCategoryCmd(BaseCommand):
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
-        db = self.db
-        if db is None:
-            raise ValueError("SaveCategoryCmd requires a Database instance")
-        self.structure_service = StructureService(db)
+        self.structure_service = StructureService(self.db)
         self.new_data = dict(new_data) if new_data else {}
         self.old_data = dict(old_data) if old_data else None
         self.is_new = not bool(self.new_data.get("id"))
@@ -361,19 +349,13 @@ class DeleteCategoryCmd(BaseCommand):
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
-        db = self.db
-        if db is None:
-            raise ValueError("DeleteCategoryCmd requires a Database instance")
-        self.structure_service = StructureService(db)
+        self.structure_service = StructureService(self.db)
         self.category = dict(category_data) if category_data else {}
         self.skip_reload = bool(skip_reload)
         self.lightweight_reload = bool(lightweight_reload)
         # Бэкап поддерева категории
-        _cid = self.category.get("id")
-        self._backup_tree = (
-            self.structure_service.export_category_tree(_cid)
-            if isinstance(_cid, int)
-            else {"category": {"id": None}}
+        self._backup_tree = self.structure_service.export_category_tree(
+            self.category.get("id")
         )
 
     @log_command
@@ -522,21 +504,13 @@ class DeleteCategoriesBatchCmd(BaseCommand):
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
-        db = self.db
-        if db is None:
-            raise ValueError("DeleteCategoriesBatchCmd requires a Database instance")
-        self.structure_service = StructureService(db)
+        self.structure_service = StructureService(self.db)
         # Сохраним плоский список данных категорий и их бэкапы для undo
         self.categories = [dict(c) for c in (categories_data or [])]
         self._backups = []
         for cat in self.categories:
             try:
-                _cid = cat.get("id")
-                backup = (
-                    self.structure_service.export_category_tree(_cid)
-                    if isinstance(_cid, int)
-                    else None
-                )
+                backup = self.structure_service.export_category_tree(cat.get("id"))
             except Exception as exc:
                 logger.warning(
                     "DeleteCategoriesBatchCmd.__init__: export backup failed: %s", exc

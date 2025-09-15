@@ -2,7 +2,6 @@ import logging
 from typing import Optional
 from urllib.parse import quote_plus
 
-from typing import cast
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import QApplication, QMessageBox
@@ -22,7 +21,7 @@ def _open_url(url: str) -> bool:
 
 def _clipboard_copy(text: str) -> None:
     try:
-        app = cast(QApplication | None, QApplication.instance())
+        app = QApplication.instance()
         if app is None:
             logger.warning("ShareService: QApplication.instance() is None; cannot copy to clipboard")
             return

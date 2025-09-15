@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, MutableSet, Callable, cast
+from typing import Optional, MutableSet, Callable
 import logging
 
 from PyQt6.QtWidgets import QLayout, QLineEdit, QWidget
@@ -33,7 +33,7 @@ def _dbg_log(msg: str, *args, exc: bool = False) -> None:
             logger.debug(msg, *args)
 
 try:  # pragma: no cover - optional in tests without sip
-    from sip import isdeleted as _sip_isdeleted  # type: ignore[import-not-found]
+    from sip import isdeleted as _sip_isdeleted
 except ImportError:  # pragma: no cover
 
     def _sip_isdeleted(_obj) -> bool:
@@ -126,9 +126,9 @@ def apply_counts(
 
     Менеджер устанавливает _last_applied самостоятельно.
     """
-    recent = cast(Optional[QWidget], safe_get(window, "recent_links_widget"))
-    fav = cast(Optional[QWidget], safe_get(window, "fav_widget"))
-    quick = cast(Optional[QWidget], safe_get(window, "quick_add_widget"))
+    recent = safe_get(window, "recent_links_widget")
+    fav = safe_get(window, "fav_widget")
+    quick = safe_get(window, "quick_add_widget")
     set_visible_count(recent, "recentButton", c_r)
     set_visible_count(fav, "favoriteButton", c_f)
     set_visible_count(quick, "quickButton", c_q)
@@ -154,8 +154,6 @@ def clamp_search_width_to_remaining_space(
         count = 0
     for i in range(count):
         it = top_bar.itemAt(i)
-        if it is None:
-            continue
         w = it.widget()
         if w is None:
             sp = it.spacerItem()
@@ -184,8 +182,6 @@ def clamp_search_width_to_remaining_space(
     visible_widgets = []
     for i in range(count):
         it = top_bar.itemAt(i)
-        if it is None:
-            continue
         w = it.widget()
         if w is not None and w is not search and w.isVisible():
             visible_widgets.append(w)
@@ -260,24 +256,19 @@ def enforce_stretches(top_bar: QLayout, search: Optional[QLineEdit]) -> None:
     for i in range(count):
         try:
             it = top_bar.itemAt(i)
-            if it is None:
-                w = None
-            else:
-                w = it.widget()
+            w = it.widget()
         except Exception:
             _dbg_log("TopBar utils: failed to read itemAt(%d).widget()", i, exc=True)
             w = None
         if isinstance(search, QLineEdit) and w is search:
             search_index = i
         try:
-            from typing import Any as _Any
-            cast(_Any, top_bar).setStretch(i, 0)
+            top_bar.setStretch(i, 0)
         except Exception:
             _dbg_log("TopBar utils: top_bar.setStretch(%d, 0) failed", i, exc=True)
     if search_index >= 0:
         try:
-            from typing import Any as _Any
-            cast(_Any, top_bar).setStretch(search_index, 1)
+            top_bar.setStretch(search_index, 1)
         except Exception:
             pass
 
@@ -316,8 +307,6 @@ def zero_all_spacers(top_bar: QLayout) -> None:
         count = top_bar.count()
         for i in range(count):
             it = top_bar.itemAt(i)
-            if it is None:
-                continue
             sp = it.spacerItem()
             if sp is not None:
                 sp.changeSize(0, 0)

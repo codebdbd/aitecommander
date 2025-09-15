@@ -2,24 +2,9 @@
 # Содержит методы работы с кэшем, валидации и сравнения данных
 
 import logging
-from typing import Any, Dict, List, Optional, Set, Protocol, cast
+from typing import Dict, List, Optional, Set
 
 from PyQt6.QtCore import Qt
-
-
-class _DataProtocol(Protocol):
-    """Протокол ожидаемых атрибутов/методов у вида для работы с данными.
-
-    Используется только теми частями, которые задействованы в миксине.
-    """
-    logger: logging.Logger
-    _current_links: Dict[int, Dict]
-    def model(self) -> Any: ...
-    def get_link_at(self, row: int) -> Optional[Dict]: ...
-    def selectRow(self, row: int) -> None: ...
-    def setCurrentIndex(self, index: Any) -> None: ...
-    def scrollTo(self, index: Any) -> None: ...
-    def find_row_by_link_id(self, link_id: int) -> Optional[int]: ...
 
 
 class DataManagementMixin:
@@ -27,7 +12,7 @@ class DataManagementMixin:
 
     logger = logging.getLogger(__name__)
 
-    def validate_cache_integrity(self: _DataProtocol) -> bool:
+    def validate_cache_integrity(self) -> bool:
         """Проверяет целостность кэша ссылок."""
         try:
             model = getattr(self, "model", lambda: None)()
@@ -59,7 +44,7 @@ class DataManagementMixin:
             )
             return False
 
-    def _links_equal(self: _DataProtocol, link1: Dict, link2: Dict, mode: str) -> bool:
+    def _links_equal(self, link1: Dict, link2: Dict, mode: str) -> bool:
         """Сравнивает две ссылки на предмет равенства для текущего режима."""
         # Оптимизация: быстрая проверка на идентичность объектов
         if link1 is link2:
@@ -86,34 +71,22 @@ class DataManagementMixin:
         # Оптимизация: используем all() для более быстрой проверки
         return all(link1.get(field) == link2.get(field) for field in basic_fields)
 
-    def _get_current_link_ids(self: _DataProtocol) -> Set:
-        """Возвращает множество ID текущих ссылок на основе фактических элементов таблицы (не кэша).
-
-        Поддерживает как строковые, так и целочисленные ID.
-        """
-        ids: Set = set()
+    def _get_current_link_ids(self) -> Set[str]:
+        """Возвращает множество ID текущих ссылок на основе фактических элементов таблицы (не кэша)."""
+        ids: Set[str] = set()
         model = getattr(self, "model", lambda: None)()
         total = model.rowCount() if model is not None else 0
         for row in range(total):
             link_data = self.get_link_at(row)
             if link_data and "id" in link_data:
-                val = link_data.get("id")
-                if isinstance(val, (int, str)):
-                    ids.add(val)
+                ids.add(link_data["id"])
         return ids
 
-    def _get_new_link_ids(self: _DataProtocol, new_links: List[Dict]) -> Set:
-        """Возвращает множество ID новых ссылок (int или str)."""
-        ids: Set = set()
-        for link in new_links:
-            if not link:
-                continue
-            val = link.get("id")
-            if isinstance(val, (int, str)):
-                ids.add(val)
-        return ids
+    def _get_new_link_ids(self, new_links: List[Dict]) -> Set[str]:
+        """Возвращает множество ID новых ссылок."""
+        return {link.get("id") for link in new_links if link and "id" in link}
 
-    def rebuild_cache_from_items(self: _DataProtocol) -> None:
+    def rebuild_cache_from_items(self) -> None:
         """Полностью перестраивает кэш _current_links по текущему состоянию таблицы."""
         try:
             self._current_links.clear()
@@ -129,18 +102,11 @@ class DataManagementMixin:
                 e,
             )
 
-    def _create_link_id_to_data_map(self: _DataProtocol, links: List[Dict]) -> Dict:
-        """Создает маппинг ID -> данные ссылки. Поддерживает int и str ID."""
-        result: Dict = {}
-        for link in links:
-            if not link or "id" not in link:
-                continue
-            lid = link.get("id")
-            if isinstance(lid, (int, str)):
-                result[lid] = link
-        return result
+    def _create_link_id_to_data_map(self, links: List[Dict]) -> Dict[str, Dict]:
+        """Создает маппинг ID -> данные ссылки."""
+        return {link.get("id"): link for link in links if link and "id" in link}
 
-    def get_link_at(self: _DataProtocol, row: int) -> Optional[Dict]:
+    def get_link_at(self, row: int) -> Optional[Dict]:
         """Возвращает данные ссылки для строки через модель (UserRole)."""
         try:
             model = getattr(self, "model", lambda: None)()
@@ -159,7 +125,7 @@ class DataManagementMixin:
             )
             return None
 
-    def find_row_by_link_id(self: _DataProtocol, link_id: int) -> Optional[int]:
+    def find_row_by_link_id(self, link_id: int) -> Optional[int]:
         """Находит строку таблицы по ID ссылки."""
         try:
             model = getattr(self, "model", lambda: None)()
@@ -176,7 +142,7 @@ class DataManagementMixin:
             )
             return None
 
-    def focus_on_link_id(self: _DataProtocol, link_id: int) -> bool:
+    def focus_on_link_id(self, link_id: int) -> bool:
         """Устанавливает фокус на ссылку по ID."""
         try:
             row = self.find_row_by_link_id(link_id)

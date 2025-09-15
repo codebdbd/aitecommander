@@ -32,9 +32,9 @@ class MenuController:
 
     def create_main_menu(self) -> QMenuBar:
         """Создаёт главное меню."""
-        builder = self._main_menu_builder or MainMenuBuilder(self.main_window)
-        self._main_menu_builder = builder
-        return builder.build()
+        if not self._main_menu_builder:
+            self._main_menu_builder = MainMenuBuilder(self.main_window)
+        return self._main_menu_builder.build()
 
     def create_structure_context_menu(
         self,
@@ -45,11 +45,11 @@ class MenuController:
         sort_tree_cb: Callable,
     ) -> QMenu:
         """Создаёт контекстное меню для дерева структуры."""
-        builder = self._structure_menu_builder or StructureMenuBuilder(
-            tree_widget, self.main_window
-        )
-        self._structure_menu_builder = builder
-        return builder.build(
+        if not self._structure_menu_builder:
+            self._structure_menu_builder = StructureMenuBuilder(
+                tree_widget, self.main_window
+            )
+        return self._structure_menu_builder.build(
             item, delete_item_cb, add_new_section_cb, sort_tree_cb
         )
 
@@ -57,11 +57,9 @@ class MenuController:
         self, table_widget: QWidget, idx: QModelIndex, paste_link_cb: Callable
     ) -> QMenu:
         """Создаёт контекстное меню для таблицы ссылок."""
-        builder = self._links_menu_builder or LinksMenuBuilder(
-            table_widget, self.main_window
-        )
-        self._links_menu_builder = builder
-        return builder.build(idx, paste_link_cb)
+        if not self._links_menu_builder:
+            self._links_menu_builder = LinksMenuBuilder(table_widget, self.main_window)
+        return self._links_menu_builder.build(idx, paste_link_cb)
 
     def create_category_tile_context_menu(
         self,
@@ -72,11 +70,11 @@ class MenuController:
         add_cb: Callable,
     ) -> Tuple[QMenu, QAction, QAction, QAction]:
         """Создаёт контекстное меню для плитки категории."""
-        builder = self._category_menu_builder or CategoryMenuBuilder(
-            list_widget, self.main_window
-        )
-        self._category_menu_builder = builder
-        return builder.build(item_id, edit_cb, delete_cb, add_cb)
+        if not self._category_menu_builder:
+            self._category_menu_builder = CategoryMenuBuilder(
+                list_widget, self.main_window
+            )
+        return self._category_menu_builder.build(item_id, edit_cb, delete_cb, add_cb)
 
     def clear_cache(self):
         """Очищает кеш строителей меню (например, при смене темы)."""

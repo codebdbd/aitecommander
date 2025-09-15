@@ -28,17 +28,17 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
             self.set_links(links)
 
     # --- Обязательные методы ---
-    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # type: ignore[override]
         if parent.isValid():
             return 0
         return len(self._links)
 
-    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
+    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:  # type: ignore[override]
         if parent.isValid():
             return 0
         return len(self._headers)
 
-    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
+    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:  # type: ignore[override]
         if not index.isValid():
             return QVariant()
         row = index.row()
@@ -107,7 +107,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
         section: int,
         orientation: Qt.Orientation,
         role: int = Qt.ItemDataRole.DisplayRole,
-    ) -> Any:
+    ) -> Any:  # type: ignore[override]
         if (
             orientation == Qt.Orientation.Horizontal
             and role == Qt.ItemDataRole.DisplayRole
@@ -116,21 +116,20 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
                 return self._headers[section]
         return super().headerData(section, orientation, role)
 
-    def flags(self, index: QModelIndex) -> Qt.ItemFlag:
+    def flags(self, index: QModelIndex) -> Qt.ItemFlags:  # type: ignore[override]
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
         # По умолчанию таблица не редактируема через делегаты
-        flags = (
+        return (
             Qt.ItemFlag.ItemIsSelectable
             | Qt.ItemFlag.ItemIsEnabled
             | Qt.ItemFlag.ItemIsDragEnabled
             | Qt.ItemFlag.ItemIsDropEnabled
         )
-        return flags
 
     def setData(
         self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole
-    ) -> bool:
+    ) -> bool:  # type: ignore[override]
         """Обновляет данные модели программно.
 
         Разрешаем обновлять поля ссылки по колонкам:
@@ -186,11 +185,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
 
         return False
 
-    def supportedDropActions(self) -> Qt.DropAction:
+    def supportedDropActions(self) -> Qt.DropActions:  # type: ignore[override]
         # Поддерживаем только перемещение строк
         return Qt.DropAction.MoveAction
 
-    def supportedDragActions(self) -> Qt.DropAction:
+    def supportedDragActions(self) -> Qt.DropActions:  # type: ignore[override]
         return Qt.DropAction.MoveAction
 
     # --- Мутации данных ---
@@ -314,18 +313,18 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
         remaining: List[Dict[str, Any]] = [
             item for i, item in enumerate(self._links) if i not in src_set
         ]
-        moved_segment: List[Dict[str, Any]] = [self._links[i] for i in src]
+        segment: List[Dict[str, Any]] = [self._links[i] for i in src]
         insert_at = max(0, min(target_row, len(remaining)))
         self.layoutAboutToBeChanged.emit()
         try:
-            self._links = remaining[:insert_at] + moved_segment + remaining[insert_at:]
+            self._links = remaining[:insert_at] + segment + remaining[insert_at:]
         finally:
             self.layoutChanged.emit()
 
     # --- Сортировка ---
     def sort(
         self, column: int, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder
-    ) -> None:
+    ) -> None:  # type: ignore[override]
         """Сортировка данных модели по клику в заголовке QTableView.
 
         Поддерживаются колонки:
@@ -347,7 +346,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
                 return -inf
             # Already numeric
             try:
-                return float(v)
+                return float(v)  # type: ignore[arg-type]
             except Exception:
                 pass
             # ISO datetime string
@@ -375,12 +374,10 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
                 return str(link.get("notes", "")).casefold()
             # Неизвестная колонка — сортируем по стабильному индексу id, иначе по позиции
             lid = link.get("id")
-            if isinstance(lid, (int, str)):
-                try:
-                    return int(lid)
-                except Exception:
-                    return self._links.index(link)
-            return self._links.index(link)
+            try:
+                return int(lid)
+            except Exception:
+                return self._links.index(link)
 
         reverse = order == Qt.SortOrder.DescendingOrder
         self.layoutAboutToBeChanged.emit()

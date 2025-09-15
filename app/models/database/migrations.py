@@ -6,9 +6,8 @@ migrations.py — инициализация/миграции БД через Mi
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
-from typing import Any, Type
+from typing import Any
 
 
 def initialize_or_migrate(
@@ -16,9 +15,9 @@ def initialize_or_migrate(
     db: Any,
     migrations_dir: Path,
     db_path: Path,
-    db_lock: Any,
-    logger: logging.Logger,
-    MigrationRunnerClass: Type[Any],
+    db_lock,
+    logger,
+    MigrationRunnerClass,
 ) -> None:
     """Запускает миграции и инициализирует дефолтные данные для новой БД.
 

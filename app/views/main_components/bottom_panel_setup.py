@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, cast
-from app.views.main_components.types import WindowUISetupProtocol
+from typing import Any
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QWidget
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 class BottomPanelBuilder:
     """Собирает нижнюю панель, используя существующее поведение WindowUISetup (без изменений)."""
 
-    def __init__(self, ui: WindowUISetupProtocol) -> None:
+    def __init__(self, ui: Any) -> None:
         # ui is WindowUISetup; typed as Any to avoid circular imports
         self.ui = ui
         self.window = ui.window
@@ -41,7 +40,7 @@ class BottomPanelBuilder:
         # Шрифт нижней панели задаётся централизованно через ui.fonts.bottom_bar_button_px (ThemeController)
 
         # Кнопка переключения сфер (будет создана после инициализации контроллеров)
-        cast(Any, self.window).switch_sphere_button = None
+        self.window.switch_sphere_button = None
 
         # Дополнительные кнопки из конфигурации
         bottom_actions = app_config.ui.get_bottom_actions()
@@ -91,16 +90,15 @@ class BottomPanelBuilder:
                     exc_info=True,
                 )
 
-        win_any = cast(Any, self.window)
         container_parent = (
             getattr(self.main_layout, "parentWidget", lambda: None)()
-            or win_any.centralWidget()
+            or self.window.centralWidget()
         )
         bottom_bar_container = QWidget(container_parent)
         bottom_bar_container.setObjectName("bottomBarContainer")
         bottom_bar_container.setLayout(bottom_layout)
         # Сохраняем виджет как атрибут окна для последующей настройки фокуса
-        cast(Any, self.window).bottom_bar_container = bottom_bar_container
+        self.window.bottom_bar_container = bottom_bar_container
         # Явная политика: по горизонтали расширяется/сжимается, по вертикали фиксированная
         try:
             bottom_bar_container.setSizePolicy(

@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple, cast
+from typing import Any, Dict, Optional, Tuple
 
 from PyQt6.QtCore import QModelIndex, Qt
 
@@ -11,8 +11,6 @@ def get_tree_tuple(index: QModelIndex, column: int = 0) -> Optional[Tuple[str, i
         if not isinstance(index, QModelIndex) or not index.isValid():
             return None
         model = index.model()
-        if model is None:
-            return None
         data = model.data(index, Qt.ItemDataRole.UserRole)
         if isinstance(data, (tuple, list)) and len(data) == 2:
             type_val, id_val = data
@@ -31,10 +29,7 @@ def get_index_int(index) -> Optional[int]:
     try:
         if not index or not index.isValid():
             return None
-        model = index.model()
-        if model is None:
-            return None
-        val = model.data(index, Qt.ItemDataRole.UserRole)
+        val = index.model().data(index, Qt.ItemDataRole.UserRole)
         if val is None:
             return None
         return int(val)
@@ -47,10 +42,7 @@ def get_index_dict(index) -> Optional[Dict[str, Any]]:
     try:
         if not index or not index.isValid():
             return None
-        model = index.model()
-        if model is None:
-            return None
-        data = model.data(index, Qt.ItemDataRole.UserRole)
+        data = index.model().data(index, Qt.ItemDataRole.UserRole)
         return data if isinstance(data, dict) else None
     except Exception:
         return None
@@ -66,9 +58,9 @@ def set_index_data(
         if not index or not index.isValid():
             return False
         model = index.model()
-        if model is None or not hasattr(model, "setData"):
+        if not hasattr(model, "setData"):
             return False
-        return bool(cast(Any, model).setData(index, value, role))
+        return bool(model.setData(index, value, role))
     except Exception:
         return False
 
@@ -80,11 +72,12 @@ def set_tree_tuple(index: QModelIndex, value: Tuple[str, int]) -> bool:
     try:
         if not index or not index.isValid():
             return False
-        t, i = value
-        model = index.model()
-        if model is None or not hasattr(model, "setData"):
+        if not (isinstance(value, (tuple, list)) and len(value) == 2):
             return False
-        return bool(cast(Any, model).setData(index, (t, i), Qt.ItemDataRole.UserRole))
+        t, i = value
+        if not (isinstance(t, str) and isinstance(i, int)):
+            return False
+        return bool(index.model().setData(index, (t, i), Qt.ItemDataRole.UserRole))
     except Exception:
         return False
 

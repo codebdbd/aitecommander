@@ -14,9 +14,9 @@ from urllib3.util.retry import Retry
 from .constants import TIMEOUT, USER_AGENT, logger
 
 try:
-    import cloudscraper
+    import cloudscraper  # type: ignore
 except ImportError:  # pragma: no cover - optional dependency
-    cloudscraper = None
+    cloudscraper = None  # type: ignore
     logger.debug("cloudscraper not installed; fallback will be disabled")
 
 # Lazy, shared cloudscraper instance
@@ -104,7 +104,7 @@ def get_session() -> requests.Session:
         setattr(_tls, "session", s)
         # Mark retries not configured yet; will be configured once by http_request on first use
         try:
-            setattr(s, "_retry_installed", False)
+            setattr(s, "_retry_installed", False)  # type: ignore[attr-defined]
         except Exception:
             pass
         # Add a simple response hook for debug logging of responses
@@ -198,7 +198,7 @@ def http_request(
             if not bool(getattr(sess, "_retry_installed", False)):
                 _configure_session_retries(sess, config=config)
                 try:
-                    setattr(sess, "_retry_installed", True)
+                    setattr(sess, "_retry_installed", True)  # type: ignore[attr-defined]
                 except Exception:
                     pass
         except Exception:

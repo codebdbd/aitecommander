@@ -3,8 +3,7 @@
 import logging
 from typing import Callable, Optional
 
-from PyQt6.QtWidgets import QApplication, QMessageBox, QWidget
-from typing import Any, cast
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from app.models.db import Database
 from app.utils.db.api import run_db
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 class DatabaseInitializer:
     """Класс для управления инициализацией базы данных."""
 
-    def __init__(self, database: Database, main_window: object | None = None):
+    def __init__(self, database: Database, main_window=None):
         """
         Инициализирует DatabaseInitializer.
 
@@ -169,12 +168,8 @@ class DatabaseInitializer:
     def _set_ui_enabled(self, enabled: bool) -> None:
         """Включает/отключает UI."""
         try:
-            mw = self.main_window
-            if mw is not None and hasattr(mw, "setEnabled"):
-                # Используем getattr, чтобы удовлетворить mypy для object
-                setter = getattr(mw, "setEnabled", None)
-                if callable(setter):
-                    setter(enabled)
+            if self.main_window:
+                self.main_window.setEnabled(enabled)
         except Exception as e:
             logger.warning(
                 "[DatabaseInitializer] Не удалось %sключить UI: %s",
@@ -190,11 +185,12 @@ class DatabaseInitializer:
                 logger.critical(
                     "Главное окно отсутствует при показе ошибки инициализации БД; диалог будет показан без родителя"
                 )
-            # Важно: передаём именно self.main_window как parent, даже если это мок,
-            # так как тест ожидает передачу объекта окна. Если окна нет — передаём None.
-            parent: QWidget | None = self.main_window if self.main_window is not None else None
 
-            QMessageBox.critical(parent, title, message)
+            QMessageBox.critical(
+                self.main_window if self.main_window is not None else None,
+                title,
+                message,
+            )
         except Exception as e:
             logger.error(
                 "[DatabaseInitializer] Не удалось показать критический диалог '%s': %s",

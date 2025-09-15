@@ -418,11 +418,9 @@ class StructureBusinessLogic(QObject):
             if not isinstance(delay_ms, int) or delay_ms < 0:
                 delay_ms = 200
             # Перезапускаем одиночный таймер: несколько вызовов сольются в один
-            t = self._structure_reload_timer
-            if t is not None and t.isActive():
-                t.stop()
-            if t is not None:
-                t.start(delay_ms)
+            if self._structure_reload_timer.isActive():
+                self._structure_reload_timer.stop()
+            self._structure_reload_timer.start(delay_ms)
         except Exception as e:
             self.logger.warning(
                 "_schedule_structure_reload: failed to schedule: %s", e, exc_info=True
@@ -469,7 +467,7 @@ class StructureBusinessLogic(QObject):
                             return
 
             # 2) Если в payload нет категорий — прогреем кэш асинхронно в следующий тик
-            def _deferred_warmup() -> None:
+            def _deferred_warmup():
                 try:
                     _ = self.utility_service.get_target_section_id(
                         current_sphere_id=sphere_id,
@@ -508,16 +506,7 @@ class StructureBusinessLogic(QObject):
                             continue
                         delay = max(0, int(idx) * delay_step_ms)
 
-                        # Предварительно приводим значения к int для корректной типизации дефолтов
-                        sid_i = int(sid)
-                        token_i = int(planned_token)
-                        psid_i = int(planned_sphere)
-
-                        def _preload_one(
-                            section_id: int = sid_i,
-                            token: int = token_i,
-                            psid: int = psid_i,
-                        ) -> None:
+                        def _preload_one(section_id: int = sid, token: int = planned_token, psid: int = planned_sphere):
                             try:
                                 # Отбрасываем устаревшие задачи при смене сферы
                                 if int(getattr(self, "_switch_token", 0)) != int(token):
@@ -634,19 +623,6 @@ class StructureBusinessLogic(QObject):
         categories = self.structure_service.get_categories(section_id)
         self.cache_manager.set(cache_key, categories)
         return categories or []
-
-    # --- Bulk методы для батч-выборок по ID (для оптимизаций UI, например, иконок) ---
-    def get_sections_bulk(self, ids: List[int]) -> List[Dict[str, Any]]:
-        try:
-            return self.structure_service.get_sections_bulk(ids or [])
-        except Exception:
-            return []
-
-    def get_categories_bulk(self, ids: List[int]) -> List[Dict[str, Any]]:
-        try:
-            return self.structure_service.get_categories_bulk(ids or [])
-        except Exception:
-            return []
 
     def get_links(self, category_id: int) -> List[Dict[str, Any]]:
         """Получает ссылки для категории (совместимость со старым интерфейсом)."""

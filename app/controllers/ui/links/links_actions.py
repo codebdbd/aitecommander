@@ -102,12 +102,11 @@ class LinksActions:
         """
         if not link:
             return False
-        name_any = link.get("name")
-        url_any = link.get("url") or link.get("href")
-        if not isinstance(url_any, str) or not url_any:
+        name = link.get("name")
+        url = link.get("url") or link.get("href")
+        if not url:
             return False
-        name_s = str(name_any or "")
-        return bool(handler(name_s, url_any))
+        return bool(handler(name, url))
 
     # --- Соцсети: X(Twitter), Facebook, LinkedIn ---
     def share_via_x(self, link: Dict) -> bool:

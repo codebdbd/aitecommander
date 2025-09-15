@@ -150,11 +150,6 @@ class TaskScheduler(QObject):
         """Общая логика постановки операции в очередь и старта таймера.
         Вызывается либо из того же потока, либо через queued-сигнал.
         """
-        # Нормализуем значения, чтобы удовлетворить строгой типизации mypy
-        if delay is None:
-            delay = self._default_delays[task_type]
-        if operation_id is None:
-            operation_id = f"{task_type.value}_{id(operation)}"
         # Проверяем, есть ли уже операция с таким ID
         if operation_id in self._pending_operations[task_type]:
             if not replace_existing:
@@ -213,7 +208,7 @@ class TaskScheduler(QObject):
         # Очищаем выполненные операции
         operations.clear()
 
-    def cancel_operation(self, operation_id: str, task_type: Optional[TaskType] = None) -> bool:
+    def cancel_operation(self, operation_id: str, task_type: TaskType = None) -> bool:
         """
         Отменяет запланированную операцию.
 
@@ -253,7 +248,7 @@ class TaskScheduler(QObject):
         return self.thread_pool
 
     def schedule_focus_operation(
-        self, widget_focus_func: Callable, widget_name: Optional[str] = None
+        self, widget_focus_func: Callable, widget_name: str = None
     ) -> str:
         """Удобный метод для планирования операций установки фокуса."""
         operation_id = f"focus_{widget_name or id(widget_focus_func)}"
@@ -265,7 +260,7 @@ class TaskScheduler(QObject):
         )
 
     def schedule_selection_restore(
-        self, restore_func: Callable, item_id: Optional[Any] = None
+        self, restore_func: Callable, item_id: Any = None
     ) -> str:
         """Удобный метод для планирования восстановления выделения."""
         operation_id = f"selection_{item_id or id(restore_func)}"
@@ -277,7 +272,7 @@ class TaskScheduler(QObject):
         )
 
     def schedule_layout_operation(
-        self, layout_func: Callable, layout_name: Optional[str] = None
+        self, layout_func: Callable, layout_name: str = None
     ) -> str:
         """Удобный метод для планирования операций с layout."""
         operation_id = f"layout_{layout_name or id(layout_func)}"
@@ -288,7 +283,7 @@ class TaskScheduler(QObject):
             replace_existing=True,
         )
 
-    def get_pending_operations_count(self, task_type: Optional[TaskType] = None) -> int:
+    def get_pending_operations_count(self, task_type: TaskType = None) -> int:
         """Возвращает количество ожидающих операций."""
         if task_type:
             return len(self._pending_operations[task_type])
@@ -322,17 +317,17 @@ def get_task_scheduler() -> TaskScheduler:
     return _task_scheduler_instance
 
 
-def schedule_focus(widget_focus_func: Callable, widget_name: Optional[str] = None) -> str:
+def schedule_focus(widget_focus_func: Callable, widget_name: str = None) -> str:
     """Глобальная функция для планирования установки фокуса."""
     return get_task_scheduler().schedule_focus_operation(widget_focus_func, widget_name)
 
 
-def schedule_selection_restore(restore_func: Callable, item_id: Optional[Any] = None) -> str:
+def schedule_selection_restore(restore_func: Callable, item_id: Any = None) -> str:
     """Глобальная функция для планирования восстановления выделения."""
     return get_task_scheduler().schedule_selection_restore(restore_func, item_id)
 
 
-def schedule_layout(layout_func: Callable, layout_name: Optional[str] = None) -> str:
+def schedule_layout(layout_func: Callable, layout_name: str = None) -> str:
     """Глобальная функция для планирования операций с layout."""
     return get_task_scheduler().schedule_layout_operation(layout_func, layout_name)
 

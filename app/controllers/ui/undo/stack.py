@@ -7,7 +7,6 @@ from __future__ import annotations
 import logging
 from contextlib import contextmanager
 from typing import Iterator, Optional
-from PyQt6.QtCore import QObject
 
 from PyQt6.QtGui import QUndoStack
 
@@ -21,7 +20,7 @@ class UndoManager:
     а также контекст-менеджер macro(name).
     """
 
-    def __init__(self, parent: Optional[QObject] = None) -> None:
+    def __init__(self, parent: Optional[object] = None) -> None:
         self.stack = QUndoStack(parent)
 
     def push(self, cmd) -> None:

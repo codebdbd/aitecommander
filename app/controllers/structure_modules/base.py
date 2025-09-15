@@ -338,14 +338,7 @@ class BaseOperations:
             signal_parent_or_id = data_copy[config.parent_field]
         else:
             signal_type = SignalType.ITEM_UPDATED
-            # Для обновления ожидаем корректный item_id
-            if item_id is None:
-                raise StructureOperationError(
-                    "Отсутствует идентификатор элемента для обновления",
-                    "upsert",
-                    config.item_type.value,
-                )
-            signal_parent_or_id = item_id
+            signal_parent_or_id = item_id  # type: ignore[arg-type]
 
         emit_signal(signal_type, item_type.value, signal_parent_or_id, data_copy)
 

@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Protocol
+from typing import Dict
 
 # Модуль для операций со строками таблицы ссылок
 # Содержит методы добавления, обновления и удаления строк
@@ -7,24 +7,10 @@ from typing import Any, Dict, Protocol
 logger = logging.getLogger(__name__)
 
 
-class _RowOpsProtocol(Protocol):
-    """Ожидаемые методы/атрибуты для операций со строками.
-
-    Протокол покрывает только то, что реально используется.
-    """
-    def model(self) -> Any: ...
-    def get_link_at(self, row: int) -> Dict | None: ...
-    def rebuild_cache_from_items(self) -> None: ...
-    def _update_row(self, row: int, link: Dict, mode: str) -> bool: ...
-    def _add_row(self, row: int, link: Dict, mode: str) -> bool: ...
-    def _remove_row(self, row: int) -> bool: ...
-    _current_links: Dict[int, Dict]
-
-
 class RowOperationsMixin:
     """Миксин для операций со строками таблицы ссылок."""
 
-    def update_link_by_id(self: _RowOpsProtocol, link: dict, mode: str = "normal") -> bool:
+    def update_link_by_id(self, link: dict, mode: str = "normal"):
         """
         Обновляет строку таблицы по id ссылки, если она есть.
         """
@@ -96,7 +82,7 @@ class RowOperationsMixin:
             )
             return False
 
-    def _update_row(self: _RowOpsProtocol, row: int, link: Dict, mode: str) -> bool:
+    def _update_row(self, row: int, link: Dict, mode: str):
         """Обновляет существующую строку новыми данными через модель."""
         try:
             # Проверка входных параметров
@@ -163,7 +149,7 @@ class RowOperationsMixin:
             )
             return False
 
-    def _add_row(self: _RowOpsProtocol, row: int, link: Dict, mode: str) -> bool:
+    def _add_row(self, row: int, link: Dict, mode: str):
         """Добавляет новую строку через модель."""
         try:
             # Проверка входных параметров
@@ -223,7 +209,7 @@ class RowOperationsMixin:
             )
             return False
 
-    def _remove_row(self: _RowOpsProtocol, row: int) -> bool:
+    def _remove_row(self, row: int) -> bool:
         """Удаляет строку через модель. Возвращает True при успехе, иначе False."""
         try:
             # Проверка входных параметров
