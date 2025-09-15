@@ -57,13 +57,25 @@ class TreeManagement:
             except Exception:
                 logger.debug("TreeManagement._on_structure_loaded: patch path failed", exc_info=True)
             return
-        # Высокоуровневая последовательность без лишних try/except
+        # Высокоуровневая последовательность: готовим снапшот и иконки асинхронно, применяем в GUI
         state = self._save_view_state()
         snapshot = self._prepare_snapshot(sections_data)
-        self._apply_snapshot(snapshot)
-        self._restore_state(state)
-        self._ensure_selection(state)
-        self._notify_selection_handler()
+
+        def _apply_with_icons(prepared_snapshot):
+            self._apply_snapshot(prepared_snapshot)
+            self._restore_state(state)
+            self._ensure_selection(state)
+            self._notify_selection_handler()
+
+        try:
+            ih = getattr(self.controller, "icon_handler", None)
+            if ih and hasattr(ih, "prepare_snapshot_async"):
+                ih.prepare_snapshot_async(snapshot, _apply_with_icons)
+            else:
+                # Fallback: применяем без подготовки иконок
+                _apply_with_icons(snapshot)
+        except Exception:
+            _apply_with_icons(snapshot)
 
 
     def _save_view_state(self):
@@ -74,7 +86,7 @@ class TreeManagement:
             return None
 
     def _prepare_snapshot(self, sections_data: list | dict):
-        """Готовит снапшот для модели: сортировка разделов и подготовка иконок."""
+        """Готовит снапшот для модели: сортировка разделов и категорий (без подготовки иконок)."""
         data = sections_data
         # Сортировка разделов по имени (case-insensitive)
         try:
@@ -100,14 +112,6 @@ class TreeManagement:
             logger.debug(
                 "TreeManagement._on_structure_loaded: ошибка сортировки категорий",
                 exc_info=True,
-            )
-        # Подготовка иконок
-        try:
-            if isinstance(data, list):
-                data = prepare_icons_snapshot(data)
-        except Exception:
-            logger.debug(
-                "TreeManagement._on_structure_loaded: prepare icons failed", exc_info=True
             )
         return data
 

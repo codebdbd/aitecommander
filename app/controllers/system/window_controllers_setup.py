@@ -702,6 +702,17 @@ def _connect_structure_signals(
     except (AttributeError, TypeError) as e:
         logger.error("Failed to connect sphere button update: %s", e)
     structure_business.active_sphere_changed.connect(window._update_left_panel_style)
+    # Подавим опоздавшие результаты поиска в таблицу после смены сферы
+    try:
+        ltc = getattr(window, "links_table_controller", None)
+        if ltc is not None and hasattr(ltc, "suppress_search_for"):
+            structure_business.active_sphere_changed.connect(
+                lambda *_: ltc.suppress_search_for(1200)
+            )
+    except Exception:
+        logger.debug(
+            "Failed to wire search suppression to active_sphere_changed", exc_info=True
+        )
     # Явный контроллер верхних панелей
     top_ctrl = top_panels_controller
 
