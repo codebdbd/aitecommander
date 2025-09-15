@@ -409,69 +409,81 @@ class MoveOperationsHandler(TreeHandlerBase):
         """Обновляет интерфейс после перемещения."""
         main_win = self.tree_widget.window()
 
-        # После перемещения, если текущая сфера не соответствует целевой — переключаем
-        if hasattr(main_win, "structure_business") and main_win.structure_business:
-            try:
-                sc = getattr(main_win, "spheres_controller", None)
-                if sc and hasattr(sc, "switch_sphere"):
-                    sc.switch_sphere(main_win.structure_business.current_sphere_id)
-            except Exception:
-                pass
+        # 1) Переключить сферу при наличии бизнес-логики
+        self._switch_sphere_if_needed(main_win)
 
-        # Полная перезагрузка дерева больше не требуется — модель обновляется инкрементально
+        # 2) Принудительно обновить плитки категорий на основе текущего выбора
+        section_id = self._current_section_id_from_tree_selection()
+        if (
+            isinstance(section_id, int)
+            and hasattr(main_win, "structure_business")
+            and main_win.structure_business
+        ):
+            self._emit_section_selected_with_suppression(main_win, section_id)
 
-        # Дополнительно: принудительно обновим плитки категорий, переустановив текущий раздел
+    # --- Helpers ----------------------------------------------------------
+
+    def _switch_sphere_if_needed(self, main_win) -> None:
+        """Переключает текущую сферу, если это необходимо и доступно."""
+        try:
+            sb = getattr(main_win, "structure_business", None)
+            if not sb:
+                return
+            sc = getattr(main_win, "spheres_controller", None)
+            if sc and hasattr(sc, "switch_sphere"):
+                sc.switch_sphere(sb.current_sphere_id)
+        except (AttributeError, RuntimeError, TypeError) as e:
+            logger.exception("_switch_sphere_if_needed: ошибка переключения сферы: %s", e)
+
+    def _current_section_id_from_tree_selection(self) -> int | None:
+        """Определяет section_id из текущего выделения дерева.
+
+        Возвращает section_id или None, если вычислить не удалось.
+        """
         try:
             tw = self.tree_widget
-            section_id = None
-            # QTreeView (используем QModelIndex)
-            if hasattr(tw, "currentIndex"):
-                index = tw.currentIndex()
-                if index and index.isValid():
-                    t = get_tree_tuple(index, 0)
-                    if t:
-                        typ, id_ = t
-                        if typ == "section" and isinstance(id_, int):
-                            section_id = id_
-                        elif typ == "category":
-                            parent_index = index.parent()
-                            if parent_index and parent_index.isValid():
-                                pt = get_tree_tuple(parent_index, 0)
-                                if pt and pt[0] == "section" and isinstance(pt[1], int):
-                                    section_id = pt[1]
-            if (
-                section_id
-                and hasattr(main_win, "structure_business")
-                and main_win.structure_business
-            ):
-                # Это приведет к загрузке актуальных категорий и вызову switch_to_category_tiles()
-                # Подавляем лавину selection-событий на время этого выбора
-                struct = getattr(main_win, "structure", None)
-                selection = getattr(struct, "selection_handler", None)
-                tree = getattr(struct, "tree", None)
-                try:
-                    if selection is not None:
-                        try:
-                            selection.begin_suppress_selection()
-                        except Exception:
-                            pass
-                    if tree is not None:
-                        try:
-                            tree.blockSignals(True)
-                        except Exception:
-                            pass
-                    main_win.structure_business.section_selected.emit(section_id)
-                finally:
-                    if tree is not None:
-                        try:
-                            tree.blockSignals(False)
-                        except Exception:
-                            pass
-                    if selection is not None:
-                        try:
-                            selection.end_suppress_selection()
-                        except Exception:
-                            pass
-        except Exception:
-            # Не прерываем UI-поток из-за вспомогательного обновления плиток
-            pass
+            if not hasattr(tw, "currentIndex"):
+                return None
+            index = tw.currentIndex()
+            if not (index and index.isValid()):
+                return None
+            t = get_tree_tuple(index, 0)
+            if not t:
+                return None
+            typ, id_ = t
+            if typ == "section" and isinstance(id_, int):
+                return int(id_)
+            if typ == "category":
+                parent_index = index.parent()
+                if parent_index and parent_index.isValid():
+                    pt = get_tree_tuple(parent_index, 0)
+                    if pt and pt[0] == "section" and isinstance(pt[1], int):
+                        return int(pt[1])
+        except (AttributeError, RuntimeError, TypeError) as e:
+            logger.exception("_current_section_id_from_tree_selection: ошибка вычисления: %s", e)
+        return None
+
+    def _emit_section_selected_with_suppression(self, main_win, section_id: int) -> None:
+        """Эмитит сигнал выбора раздела с временным подавлением selection/дерево сигналов."""
+        struct = getattr(main_win, "structure", None)
+        selection = getattr(struct, "selection_handler", None)
+        tree = getattr(struct, "tree", None)
+        try:
+            if selection is not None and hasattr(selection, "begin_suppress_selection"):
+                selection.begin_suppress_selection()
+            if tree is not None and hasattr(tree, "blockSignals"):
+                tree.blockSignals(True)
+            main_win.structure_business.section_selected.emit(int(section_id))
+        except Exception as e:
+            logger.exception("_emit_section_selected_with_suppression: ошибка эмита: %s", e)
+        finally:
+            try:
+                if tree is not None and hasattr(tree, "blockSignals"):
+                    tree.blockSignals(False)
+            except Exception as e:
+                logger.exception("_emit_section_selected_with_suppression: unblockSignals: %s", e)
+            try:
+                if selection is not None and hasattr(selection, "end_suppress_selection"):
+                    selection.end_suppress_selection()
+            except Exception as e:
+                logger.exception("_emit_section_selected_with_suppression: end_suppress_selection: %s", e)

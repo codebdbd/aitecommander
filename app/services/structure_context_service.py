@@ -6,9 +6,10 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Optional, Iterable, cast
 
 from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QClipboard
 
 from app.services.links_service import LinksService
 from app.services.structure_service import StructureService
@@ -29,7 +30,7 @@ class StructureContextService:
         self._ls = LinksService(db)
 
     # --- Qt helpers ---
-    def _get_qapp(self):
+    def _get_qapp(self) -> Optional[QApplication]:
         """Безопасно получает экземпляр QApplication или None."""
         try:
             return QApplication.instance()
@@ -42,7 +43,10 @@ class StructureContextService:
             app = self._get_qapp()
             if not app:
                 return False
-            md = app.clipboard().mimeData()
+            cb: QClipboard | None = app.clipboard()
+            if cb is None:
+                return False
+            md = cb.mimeData()
             return bool(md and md.hasText() and md.text())
         except RuntimeError as e:
             logger.error("clipboard_has_text failed: %s: %s", type(e).__name__, e)
@@ -55,7 +59,10 @@ class StructureContextService:
             app = self._get_qapp()
             if not app:
                 return None
-            txt = app.clipboard().text()
+            cb: QClipboard | None = app.clipboard()
+            if cb is None:
+                return None
+            txt = cb.text()
             return json.loads(txt) if txt else None
         except (json.JSONDecodeError, RuntimeError, TypeError) as e:
             logger.warning(
@@ -98,7 +105,10 @@ class StructureContextService:
                 return
             tree = self._ss.export_category_tree(int(cat_id))
             payload = {"type": "category_tree", "tree": tree}
-            app.clipboard().setText(json.dumps(payload, ensure_ascii=False))
+            cb: QClipboard | None = app.clipboard()
+            if cb is None:
+                return
+            cb.setText(json.dumps(payload, ensure_ascii=False))
         except (ValueError, TypeError, RuntimeError):
             logger.exception(
                 "copy_category_tree_to_clipboard failed for cat_id=%s", cat_id
@@ -122,7 +132,10 @@ class StructureContextService:
             if not trees:
                 return
             payload = {"type": "category_trees", "trees": trees}
-            app.clipboard().setText(json.dumps(payload, ensure_ascii=False))
+            cb: QClipboard | None = app.clipboard()
+            if cb is None:
+                return
+            cb.setText(json.dumps(payload, ensure_ascii=False))
         except (RuntimeError, TypeError):
             logger.exception("copy_categories_to_clipboard failed")
 
@@ -135,7 +148,8 @@ class StructureContextService:
             if payload.get("type") == "category_tree" and isinstance(
                 payload.get("tree"), dict
             ):
-                return [payload.get("tree")]  # type: ignore[return-value]
+                tree = cast(dict, payload.get("tree"))
+                return [tree]
             if payload.get("type") == "category" and payload.get("id"):
                 return [self._ss.export_category_tree(int(payload["id"]))]
             if payload.get("type") == "category_trees" and isinstance(
@@ -210,7 +224,7 @@ class StructureContextService:
         Возвращает список словарей для batch-создания. Исключает поля id/section_id из исходных данных.
         """
 
-        def gen():
+        def gen() -> Iterable[dict]:
             sid = int(section_id)
             for tree in trees:
                 src_cat = dict((tree or {}).get("category", {}))
@@ -246,7 +260,11 @@ class StructureContextService:
             if not cat_row:
                 continue
             created_categories_out.append(dict(cat_row))
-            new_cat_id = int(cat_row.get("id"))
+            cid_val = cat_row.get("id")
+            if cid_val is None:
+                # Нечего сопоставлять — пропускаем
+                continue
+            new_cat_id = int(cid_val)
 
             for link in src_links:
                 src = dict(link or {})

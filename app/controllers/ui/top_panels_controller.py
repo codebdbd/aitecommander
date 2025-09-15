@@ -179,7 +179,7 @@ class TopPanelsController:
     def refresh_favorites(self) -> None:
         widget = self.fav_widget
         # 1) Загрузка данных из бизнес-слоя
-        items: list = []
+        items: list[dict] = []
         try:
             items = self.links_business.get_favorite_links()
         except (TypeError, ValueError):
@@ -199,7 +199,7 @@ class TopPanelsController:
         # 2) Обновление виджета
         try:
             if callable(getattr(widget, "set_data", None)):
-                widget.set_data(items)  # type: ignore[call-arg]
+                widget.set_data(items)
             elif callable(getattr(widget, "set_favorites", None)):
                 # legacy fallback для тестовых стабов
                 widget.set_favorites(items)  # type: ignore[attr-defined]
@@ -223,7 +223,7 @@ class TopPanelsController:
         limit = 10
         try:
             if isinstance(widget, RecentsPanelWithLimit) or hasattr(widget, "get_limit"):
-                val = widget.get_limit()  # type: ignore[attr-defined]
+                val = widget.get_limit()
                 if isinstance(val, int) and val > 0:
                     limit = val
         except (TypeError, ValueError):
@@ -231,7 +231,7 @@ class TopPanelsController:
             pass
 
         # 1) Загрузка данных из бизнес-слоя
-        items: list = []
+        items: list[dict] = []
         try:
             items = self.links_business.get_recent_links(limit)
         except (TypeError, ValueError):
@@ -251,7 +251,7 @@ class TopPanelsController:
         # 2) Обновление виджета
         try:
             if callable(getattr(widget, "set_data", None)):
-                widget.set_data(items)  # type: ignore[call-arg]
+                widget.set_data(items)
             elif callable(getattr(widget, "set_recent_links", None)):
                 # legacy fallback для тестовых стабов
                 widget.set_recent_links(items)  # type: ignore[attr-defined]

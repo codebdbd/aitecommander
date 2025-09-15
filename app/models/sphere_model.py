@@ -17,18 +17,16 @@ class SphereModel(DatabaseBase):
 
     def get_spheres(self) -> list[dict[str, Any]]:
         """Возвращает список всех сфер в формате dict."""
-        rows = self._execute_with_error_handling(
-            "SELECT id, name, position, icon_path FROM sphere ORDER BY position",
-            fetch_method="all",
+        rows = self.fetch_all(
+            "SELECT id, name, position, icon_path FROM sphere ORDER BY position"
         )
-        return [dict(row) for row in rows] if rows else []
+        return [dict(r) for r in rows] if rows else []
 
     def get_sphere_by_id(self, sphere_id: int) -> dict[str, Any] | None:
         """Возвращает сферу по её ID в формате dict."""
-        row = self._execute_with_error_handling(
+        row = self.fetch_one(
             "SELECT id, name, position, icon_path FROM sphere WHERE id = ?",
             (sphere_id,),
-            fetch_method="one",
         )
         return dict(row) if row else None
 
@@ -37,14 +35,14 @@ class SphereModel(DatabaseBase):
         self._validate_required_fields(data, ["name"], "сферы")
 
         position = self._get_next_position("sphere")
-        cursor = self._execute_with_error_handling(
+        cursor = self.exec_query(
             "INSERT INTO sphere (name, icon_path, position) VALUES (?, ?, ?)",
             (data["name"], data.get("icon_path", ""), position),
         )
         logger.info("Добавлена новая сфера: %s", data["name"])
-        return cursor.lastrowid
+        return int(getattr(cursor, "lastrowid", 0) or 0)
 
-    def update_sphere(self, sphere_id: int, data: Dict[str, Any]):
+    def update_sphere(self, sphere_id: int, data: Dict[str, Any]) -> None:
         """Обновляет существующую сферу."""
         valid_keys = ["name", "icon_path", "position"]
         self._update_entity("sphere", sphere_id, data, valid_keys)
@@ -59,14 +57,18 @@ class SphereModel(DatabaseBase):
 
     def get_sphere_name(self, sphere_id: int) -> str:
         """Возвращает имя сферы по её ID."""
-        row = self._execute_with_error_handling(
+        row = self.fetch_one(
             "SELECT name FROM sphere WHERE id=?",
             (sphere_id,),
-            fetch_method="one"
         )
-        return dict(row)["name"] if row else ""
+        if not row:
+            return ""
+        try:
+            return str(dict(row).get("name", ""))
+        except Exception:
+            return ""
 
-    def initialize_default_spheres(self):
+    def initialize_default_spheres(self) -> None:
         """Инициализирует начальные данные для таблицы sphere, если она пуста.
 
         Включает добавление совместимой колонки icon_path (если её нет) и

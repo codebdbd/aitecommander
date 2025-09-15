@@ -119,7 +119,7 @@ def resolve_case_insensitive_duplicates(
     return report
 
 
-def create_nocase_unique_indexes(connection: sqlite3.Connection, lock) -> None:
+def create_nocase_unique_indexes(connection: sqlite3.Connection, lock: Any) -> None:
     """Создаёт (если отсутствуют) уникальные индексы с COLLATE NOCASE."""
     with lock:
         connection.execute(

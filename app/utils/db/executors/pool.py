@@ -27,5 +27,10 @@ def get_thread_pool() -> QThreadPool:
     По умолчанию — глобальный пул Qt.
     """
     # Явная ветвление, чтобы mypy видел, что мы всегда возвращаем QThreadPool
-    pool = _CUSTOM_POOL if _CUSTOM_POOL is not None else QThreadPool.globalInstance()
+    if _CUSTOM_POOL is not None:
+        return _CUSTOM_POOL
+    pool = QThreadPool.globalInstance()
+    if pool is None:
+        # Fallback: создаём отдельный пул, если глобальный недоступен
+        pool = QThreadPool()
     return pool

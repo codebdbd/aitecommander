@@ -5,7 +5,7 @@
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from .limits_config import LimitsConfig
 from .path_config import PathConfig
@@ -17,11 +17,14 @@ from .utils import get_by_path
 class AppConfig:
     """Управление конфигурацией приложения из JSON файла."""
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: Optional[Union[str, Path]] = None):
         """Инициализация загрузчика конфигурации."""
+        cfg_path: Path
         if config_path is None:
-            config_path = Path(__file__).parent / "app_config.json"
-        self._config_path = Path(config_path)
+            cfg_path = Path(__file__).parent / "app_config.json"
+        else:
+            cfg_path = Path(config_path)
+        self._config_path = cfg_path
         self._config = self._load_config()
 
         # Инициализация специализированных конфигураций

@@ -3,13 +3,13 @@
 
 import logging
 import sqlite3
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-try:
-    from app.models.db import DatabaseError
-except ImportError:
-
-    class DatabaseError(Exception):
+if TYPE_CHECKING:
+    from app.models.db import DatabaseError as _DatabaseError
+else:
+    # Во время выполнения используем общий базовый тип для isinstance-проверок
+    class _DatabaseError(Exception):
         pass
 
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class DatabaseErrorHandler:
     """Централизованный обработчик ошибок базы данных"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.user_messages = {
             "section_duplicate": "Раздел с таким именем уже существует в выбранной сфере.",
             "category_duplicate": "Категория с таким именем уже существует в выбранном разделе.",
@@ -44,7 +44,7 @@ class DatabaseErrorHandler:
         error_msg = str(error).lower()
         if isinstance(error, sqlite3.IntegrityError):
             return self._handle_sqlite_integrity_error(error_msg, context)
-        elif isinstance(error, DatabaseError):
+        elif isinstance(error, _DatabaseError):
             return self._handle_database_error(error_msg, context)
         else:
             self._show_error("Ошибка базы данных", str(error), context)
@@ -114,14 +114,14 @@ class DatabaseErrorHandler:
         )
         return False
 
-    def _show_info(self, title: str, message: str, context: Any):
+    def _show_info(self, title: str, message: str, context: Any) -> None:
         """Показать информационное сообщение"""
         # Локальный импорт, чтобы избежать ранних кольцевых импортов
         from app.controllers.ui.dialogs.dialog_manager import DialogManager
 
         DialogManager.show_info(parent=None, message=message, title=title, silent=True)
 
-    def _show_error(self, title: str, message: str, context: Any):
+    def _show_error(self, title: str, message: str, context: Any) -> None:
         """Показать сообщение об ошибке"""
         if context and hasattr(context, "show_error"):
             context.show_error(title, message)

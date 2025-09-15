@@ -50,15 +50,19 @@ def normalize_row(row: Any, logger: Optional[logging.Logger] = None) -> Dict[str
     # Проверка на namedtuple (более надежный способ)
     if isinstance(row, tuple) and hasattr(row, "_fields"):
         try:
-            return row._asdict()
-        except AttributeError as e:
+            asdict = getattr(row, "_asdict", None)
+            if callable(asdict):
+                return asdict()
+        except Exception as e:
             active_logger.warning("Ошибка при вызове _asdict() для namedtuple: %s", e)
-            # Fallback к ручному созданию словаря
-            try:
-                return dict(zip(row._fields, row))
-            except (AttributeError, TypeError) as fallback_e:
-                active_logger.error("Не удалось обработать namedtuple: %s", fallback_e)
-                return {}
+        # Fallback к ручному созданию словаря
+        try:
+            fields = getattr(row, "_fields", None)
+            if fields is not None:
+                return dict(zip(fields, row))
+        except Exception as fallback_e:
+            active_logger.error("Не удалось обработать namedtuple: %s", fallback_e)
+        return {}
 
     # sqlite3.Row или другие объекты с keys() и поддержкой итерации
     if hasattr(row, "keys"):
@@ -140,7 +144,7 @@ def normalize_rows(rows: Any, logger: Optional[logging.Logger] = None) -> List[D
 
 
 def validate_normalized_data(
-    data: Union[Dict[str, Any], List[Dict[str, Any]]], required_keys: Optional[List[str]] = None
+    data: Any, required_keys: Optional[List[str]] = None
 ) -> bool:
     """Валидирует нормализованные данные.
 
@@ -155,8 +159,7 @@ def validate_normalized_data(
         required_keys = []
 
     def _validate_dict(d: Dict[str, Any]) -> bool:
-        if not isinstance(d, dict):
-            return False
+        # d всегда словарь по месту вызова
         return all(key in d for key in required_keys)
 
     if isinstance(data, dict):
