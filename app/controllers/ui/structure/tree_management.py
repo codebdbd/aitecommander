@@ -94,9 +94,29 @@ class TreeManagement:
         try:
             data = copy.deepcopy(sections_data) if sections_data is not None else []
         except Exception:
-            # Fallback: создаём новый список без глубокой копии словарей (минимум — не менять исходный list)
+            # Fallback: создаём новый список с копиями словарей и вложенных категорий
+            data = []
             try:
-                data = list(sections_data or [])
+                for s in list(sections_data or []):
+                    # Копия раздела
+                    try:
+                        s_copy = dict(s) if isinstance(s, dict) else s
+                    except Exception:
+                        s_copy = s
+                    # Копия списка категорий (каждая категория — копия словаря)
+                    cats = []
+                    try:
+                        raw_cats = s.get("categories") if isinstance(s, dict) else []
+                        for c in list(raw_cats or []):
+                            try:
+                                cats.append(dict(c) if isinstance(c, dict) else c)
+                            except Exception:
+                                cats.append(c)
+                    except Exception:
+                        cats = []
+                    if isinstance(s_copy, dict):
+                        s_copy["categories"] = cats
+                    data.append(s_copy)
             except Exception:
                 data = []
         # Сортировка разделов по имени (case-insensitive)
@@ -217,29 +237,30 @@ class TreeManagement:
         # Разделы
         sec_inserts = list(inserts.get("sections") or [])
         if sec_inserts:
-            try:
-                row = -1
-                if sec_inserts and isinstance(sec_inserts[0], dict):
-                    _rv = sec_inserts[0].get("row")
+            for sec in list(sec_inserts):
+                try:
+                    _rv = sec.get("row") if isinstance(sec, dict) else None
                     row = _rv if isinstance(_rv, int) else -1
-                model.insert_sections(row, sec_inserts)
-            except Exception:
-                logger.debug("patch: insert_sections failed", exc_info=True)
+                    model.insert_sections(row, [sec])
+                except Exception:
+                    logger.debug("patch: insert_sections failed for section %s", getattr(sec, "get", lambda *_: None)("id") if isinstance(sec, dict) else None, exc_info=True)
 
         # Категории: { section_id: [ {data...}, ... ] }
         cat_inserts = inserts.get("categories") or {}
         try:
             for sid, items in (cat_inserts.items() if hasattr(cat_inserts, "items") else []):
-                try:
-                    row = -1
-                    if items and isinstance(items[0], dict):
-                        _rv = items[0].get("row")
+                for cat in list(items or []):
+                    try:
+                        _rv = cat.get("row") if isinstance(cat, dict) else None
                         row = _rv if isinstance(_rv, int) else -1
-                    model.insert_categories(int(sid), row, list(items or []))
-                except Exception:
-                    logger.debug(
-                        "patch: insert_categories for section %s failed", sid, exc_info=True
-                    )
+                        model.insert_categories(int(sid), row, [cat])
+                    except Exception:
+                        logger.debug(
+                            "patch: insert_categories failed for section %s, category %s",
+                            sid,
+                            getattr(cat, "get", lambda *_: None)("id") if isinstance(cat, dict) else None,
+                            exc_info=True,
+                        )
         except Exception:
             logger.debug("patch: iter cat inserts failed", exc_info=True)
 

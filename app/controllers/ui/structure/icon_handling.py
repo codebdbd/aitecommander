@@ -20,10 +20,21 @@ class IconHandling:
         self.tree = controller.tree
         self.business = controller.business
         # Асинхронная загрузка иконок: пул потоков + токены для дедупликации
-        self._executor = getattr(IconHandling, "_shared_executor", None)
-        if self._executor is None:
-            # Небольшой пул, IO-bound операции
-            IconHandling._shared_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="icons")
+        if not hasattr(IconHandling, "_shared_executor"):
+            IconHandling._shared_executor = None
+        if not hasattr(IconHandling, "_IconHandling__executor_refcount"):
+            IconHandling.__executor_refcount = 0  # type: ignore[attr-defined]
+        if not hasattr(IconHandling, "_IconHandling__executor_lock"):
+            IconHandling.__executor_lock = threading.RLock()  # type: ignore[attr-defined]
+
+        with IconHandling.__executor_lock:  # type: ignore[attr-defined]
+            if IconHandling._shared_executor is None:
+                # Небольшой пул, IO-bound операции
+                IconHandling._shared_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="icons")
+                IconHandling.__executor_refcount = 1  # type: ignore[attr-defined]
+            else:
+                # Увеличиваем счётчик ссылок
+                IconHandling.__executor_refcount = int(IconHandling.__executor_refcount) + 1  # type: ignore[attr-defined]
             self._executor = IconHandling._shared_executor
         self._icon_task_token = 0
         self._icon_future = None
@@ -31,6 +42,10 @@ class IconHandling:
         # Карта последних применённых путей иконок, чтобы избегать лишних setData и загрузок
         # Ключ: (item_type, int item_id) → str resolved_path
         self._last_icon_paths: dict[tuple[str, int], str] = {}
+        # Состояние итеративного обхода для порционного применения иконок
+        self._apply_stack = None  # type: list | None
+        self._apply_token = None  # type: int | None
+        self._apply_total_steps = 0
 
     def _get_icon_for_item(self, item_type: str, icon_name: str) -> QIcon:
         # Централизованный резолвер: учитывает и заданный icon_name, и тип
@@ -85,7 +100,11 @@ class IconHandling:
             QTimer.singleShot(0, self.tree, fn)
         except TypeError:
             # Совместимость с тестовыми подменами QTimer
-            QTimer.singleShot(0, fn)
+            # Выполним сразу синхронно, чтобы тесты, ожидающие немедленное применение, прошли
+            try:
+                QTimer.singleShot(0, fn)
+            except Exception:
+                fn()
 
     def prepare_snapshot_async(self, data: list[dict] | None, on_ready) -> None:
         """Готовит иконки для снапшота в пуле потоков и вызывает on_ready(prepared) в GUI-потоке.
@@ -204,35 +223,54 @@ class IconHandling:
             logger.debug("IconHandling._prune_icon_cache failed", exc_info=True)
 
     def _gather_ids(self, model) -> tuple[set[int], set[int]]:
-
         section_ids: set[int] = set()
         category_ids: set[int] = set()
 
-        def _iter(parent_index=None):
-            if parent_index is None:
-                parent_index = QModelIndex()
+        # Итеративный обход дерева с явным стеком: (parent, next_row, total_rows)
+        try:
+            root_parent = QModelIndex()
             try:
-                rows = model.rowCount(parent_index)
+                root_rows = model.rowCount(root_parent)
             except Exception:
-                return
-            for r in range(rows):
-                idx = model.index(r, 0, parent_index)
-                if idx.isValid():
-                    yield idx
-                    yield from _iter(idx)
+                root_rows = 0
+            stack: list[tuple[QModelIndex, int, int]] = [(root_parent, 0, int(root_rows))]
 
-        for idx in _iter():
-            try:
-                t = get_tree_tuple(idx, 0)
-            except Exception:
-                t = None
-            if not t:
-                continue
-            it, item_id = t
-            if it == "section" and isinstance(item_id, int):
-                section_ids.add(item_id)
-            elif it == "category" and isinstance(item_id, int):
-                category_ids.add(item_id)
+            while stack:
+                parent, row, total = stack[-1]
+                if row >= total:
+                    stack.pop()
+                    continue
+                # продвинем указатель строки на вершине стека
+                stack[-1] = (parent, row + 1, total)
+                try:
+                    idx = model.index(row, 0, parent)
+                except Exception:
+                    continue
+                if not idx or not idx.isValid():
+                    continue
+
+                # Соберём ID
+                try:
+                    t = get_tree_tuple(idx, 0)
+                except Exception:
+                    t = None
+                if t:
+                    it, item_id = t
+                    if it == "section" and isinstance(item_id, int):
+                        section_ids.add(item_id)
+                    elif it == "category" and isinstance(item_id, int):
+                        category_ids.add(item_id)
+
+                # Спуск к детям
+                try:
+                    child_rows = model.rowCount(idx)
+                except Exception:
+                    child_rows = 0
+                if child_rows and child_rows > 0:
+                    stack.append((idx, 0, int(child_rows)))
+        except Exception:
+            # Логируем как debug, чтобы не шуметь в проде
+            logger.debug("IconHandling._gather_ids: traversal failed", exc_info=True)
 
         return section_ids, category_ids
 
@@ -290,44 +328,59 @@ class IconHandling:
         self, token_local: int, sec_icon_path: dict[int, str], cat_icon_path: dict[int, str]
     ) -> None:
 
-        def _apply():
-            try:
-                model_local = getattr(self.tree, "model", lambda: None)()
-                if not model_local:
-                    return
+        CHUNK_STEPS = 2000
+        TOTAL_MAX_STEPS = 1000000
 
-                # Итеративный обход в глубину с ограничением числа шагов
-                MAX_ITERS = 200000
-                iters = 0
-                stack = []
-                # Инициализация: корневой уровень
+        def _init_traversal(model_local):
+            try:
+                root_parent = QModelIndex()
                 try:
-                    root_parent = QModelIndex()
                     root_rows = model_local.rowCount(root_parent)
                 except Exception:
                     root_rows = 0
-                stack.append((root_parent, 0, root_rows))  # (parent, next_row, total_rows)
+                self._apply_stack = [(root_parent, 0, int(root_rows))]
+                self._apply_total_steps = 0
+                self._apply_token = int(token_local)
+            except Exception:
+                self._apply_stack = []
+                self._apply_total_steps = 0
+                self._apply_token = int(token_local)
 
-                while stack:
-                    parent, row, total = stack[-1]
+        def _apply_chunk():
+            try:
+                # Сброс при смене токена: прерываем только если токен уже установлен и отличается
+                if self._apply_token is not None and self._apply_token != int(token_local):
+                    self._apply_stack = None
+                    return
+                model_local = getattr(self.tree, "model", lambda: None)()
+                if not model_local:
+                    self._apply_stack = None
+                    return
+                if self._apply_stack is None:
+                    _init_traversal(model_local)
+
+                steps = 0
+                while self._apply_stack and steps < CHUNK_STEPS:
+                    parent, row, total = self._apply_stack[-1]
                     if row >= total:
-                        stack.pop()
+                        self._apply_stack.pop()
                         continue
-                    # Обновляем указатель строки на вершине стека
-                    stack[-1] = (parent, row + 1, total)
+                    # продвигаем указатель строки на вершине стека
+                    self._apply_stack[-1] = (parent, row + 1, total)
                     try:
                         idx = model_local.index(row, 0, parent)
                     except Exception:
-                        continue
-                    if not idx or not idx.isValid():
+                        idx = None
+                    if not idx or not getattr(idx, "isValid", lambda: False)():
+                        steps += 1
+                        self._apply_total_steps += 1
+                        if self._apply_total_steps > TOTAL_MAX_STEPS:
+                            logger.warning("IconHandling._apply_resolved_icons: total iteration limit reached (%s), aborting", TOTAL_MAX_STEPS)
+                            self._apply_stack = None
+                            break
                         continue
 
                     # Обработка текущего индекса
-                    iters += 1
-                    if iters > MAX_ITERS:
-                        logger.warning("IconHandling._apply_resolved_icons: iteration limit reached (%s), aborting traversal", MAX_ITERS)
-                        break
-
                     try:
                         t = get_tree_tuple(idx, 0)
                     except Exception:
@@ -344,26 +397,22 @@ class IconHandling:
                             path = sec_icon_path.get(int(item_id), "")
                         elif item_type == "category":
                             path = cat_icon_path.get(int(item_id), "")
-                        # Пропускаем, если путь не изменился (избегаем лишних dataChanged и загрузок)
+                        # Пропуск, если путь не изменился
                         try:
                             key = (str(item_type), int(item_id)) if isinstance(item_id, int) else None
                         except Exception:
                             key = None
                         if key is not None:
                             prev_path = self._last_icon_paths.get(key, None)
-                            if prev_path == (path or ""):
-                                pass
-                            else:
+                            if prev_path != (path or ""):
                                 try:
                                     icon = create_icon_from_path(path) if path else QIcon()
                                     model_local.setData(idx, icon, Qt.ItemDataRole.DecorationRole)
-                                    if key is not None:
-                                        self._last_icon_paths[key] = path or ""
+                                    self._last_icon_paths[key] = path or ""
                                 except Exception:
                                     try:
                                         model_local.setData(idx, QIcon(), Qt.ItemDataRole.DecorationRole)
-                                        if key is not None:
-                                            self._last_icon_paths[key] = path or ""
+                                        self._last_icon_paths[key] = path or ""
                                     except Exception:
                                         pass
                         else:
@@ -375,51 +424,89 @@ class IconHandling:
                                     model_local.setData(idx, QIcon(), Qt.ItemDataRole.DecorationRole)
                                 except Exception:
                                     pass
-                    # Подготовим спуск к детям текущего индекса
+
+                    # Спуск к детям
                     try:
                         child_rows = model_local.rowCount(idx)
                     except Exception:
                         child_rows = 0
                     if child_rows and child_rows > 0:
-                        stack.append((idx, 0, child_rows))
-            except Exception:
-                # Не роняем GUI поток
-                logger.debug("IconHandling._apply_resolved_icons: apply failed", exc_info=True)
+                        self._apply_stack.append((idx, 0, int(child_rows)))
 
-        # Гарантируем выполнение в GUI-потоке дерева
-        self._schedule_on_gui(_apply)
+                    steps += 1
+                    self._apply_total_steps += 1
+                    if self._apply_total_steps > TOTAL_MAX_STEPS:
+                        logger.warning("IconHandling._apply_resolved_icons: total iteration limit reached (%s), aborting", TOTAL_MAX_STEPS)
+                        self._apply_stack = None
+                        break
+
+                # Планирование следующего чанка или завершение
+                if self._apply_stack:
+                    self._schedule_on_gui(_apply_chunk)
+                else:
+                    # Завершено — очистим состояние
+                    self._apply_stack = None
+                    self._apply_token = None
+                    self._apply_total_steps = 0
+            except Exception:
+                logger.debug("IconHandling._apply_resolved_icons: apply chunk failed", exc_info=True)
+
+        # Стартуем выполнение первой порции на GUI-потоке
+        self._schedule_on_gui(_apply_chunk)
 
     def close(self) -> None:
         """Завершает пул потоков и отменяет незавершённые задачи.
 
         Вызывать при закрытии контроллера/приложения, чтобы не оставлять висящие потоки.
-        Безопасен при повторных вызовах и в присутствии нескольких инстансов: используется
-        общий пул на уровне класса и он будет корректно погашен один раз.
+        Используется общий пул на уровне класса; введён счётчик ссылок, чтобы
+        не завершать пул, пока он используется другими инстансами.
         """
         try:
+            # Отменим локальную задачу (если есть)
             with self._icon_lock:
-                # Попытаемся отменить висящую задачу
                 fut = getattr(self, "_icon_future", None)
                 try:
                     if fut is not None:
                         fut.cancel()
                 except Exception:
                     pass
+                self._icon_future = None
 
-                # Завершаем общий пул потоков
-                exec_ = getattr(IconHandling, "_shared_executor", None)
-                if exec_ is not None:
-                    try:
-                        # Пытаемся использовать cancel_futures=True, если поддерживается
-                        exec_.shutdown(wait=False, cancel_futures=True)  # type: ignore[call-arg]
-                    except TypeError:
-                        exec_.shutdown(wait=False)
-                    except Exception:
-                        pass
-                    finally:
-                        IconHandling._shared_executor = None
-                # Обнулим ссылку инстанса
-                self._executor = None
+            # Уменьшаем ссылку на общий пул и завершаем его только при нуле
+            if hasattr(IconHandling, "_IconHandling__executor_lock"):
+                lock = IconHandling.__executor_lock  # type: ignore[attr-defined]
+            else:
+                # На всякий случай создадим
+                IconHandling.__executor_lock = threading.RLock()  # type: ignore[attr-defined]
+                lock = IconHandling.__executor_lock  # type: ignore[attr-defined]
+
+            with lock:
+                # Если общий пул не инициализирован — нечего делать
+                if not hasattr(IconHandling, "_shared_executor"):
+                    return
+                # Инициализация refcount по умолчанию, если отсутствует
+                if not hasattr(IconHandling, "_IconHandling__executor_refcount"):
+                    IconHandling.__executor_refcount = 0  # type: ignore[attr-defined]
+
+                # Декремент счётчика, не уходя ниже нуля
+                try:
+                    IconHandling.__executor_refcount = max(0, int(IconHandling.__executor_refcount) - 1)  # type: ignore[attr-defined]
+                except Exception:
+                    IconHandling.__executor_refcount = 0  # type: ignore[attr-defined]
+
+                if int(IconHandling.__executor_refcount) == 0:  # type: ignore[attr-defined]
+                    exec_ = IconHandling._shared_executor
+                    IconHandling._shared_executor = None
+                    if exec_ is not None:
+                        try:
+                            exec_.shutdown(wait=False, cancel_futures=True)  # type: ignore[call-arg]
+                        except TypeError:
+                            exec_.shutdown(wait=False)
+                        except Exception:
+                            pass
+
+            # Обнулим ссылку инстанса
+            self._executor = None
         except Exception:
             # Закрытие не должно ронять приложение
             pass
