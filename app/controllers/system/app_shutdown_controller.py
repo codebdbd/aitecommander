@@ -449,6 +449,7 @@ class AppShutdownController:
             ("links", "Links controller"),
             ("links_business", "Links business controller"),
             ("tiles", "Tiles controller"),
+            ("structure", "Structure controller"),
         ]
 
         for attr_name, display_name in controllers_to_shutdown:

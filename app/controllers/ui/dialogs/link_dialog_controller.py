@@ -181,7 +181,7 @@ class LinkDialogController:
 
         # Разделяем профили по браузерам (используем единый менеджер на контроллер)
         manager = self.profile_manager
-        profiles_by_browser = {}
+        profiles_by_browser: Dict[str, List[Dict[str, Any]]] = {}
 
         for profile in selected_profiles:
             # Определяем browser_key для каждого профиля
@@ -292,8 +292,8 @@ class LinkDialogController:
     def _get_user_args_if_modified(
         self,
         form_data: Dict[str, Any],
-        existing_link: Dict,
-        selected_profiles: List[Dict],
+        existing_link: Optional[Dict[str, Any]],
+        selected_profiles: List[Dict[str, Any]],
         browser_key: str,
     ) -> Optional[str]:
         """

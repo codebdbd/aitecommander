@@ -272,3 +272,20 @@ class StructureUIController(QObject):
             return self.business.get_first_category_id()
         except Exception:
             return None
+
+    def shutdown(self) -> None:
+        """Завершает ресурсы контроллера (например, пул иконок).
+
+        Вызывается централизованным контроллером завершения приложения.
+        Повторные вызовы безопасны.
+        """
+        try:
+            ih = getattr(self, "icon_handler", None)
+            if ih is not None and hasattr(ih, "close"):
+                ih.close()
+        except Exception:
+            # Проблемы закрытия не должны прерывать общий shutdown
+            import logging
+            logging.getLogger(__name__).debug(
+                "StructureUIController.shutdown: icon_handler.close failed", exc_info=True
+            )

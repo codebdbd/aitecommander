@@ -128,7 +128,10 @@ class DeleteSectionCmd(BaseCommand):
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
-        self.structure_service = StructureService(self.db)
+        db = self.db
+        if db is None:
+            raise ValueError("DeleteSectionCmd requires a Database instance")
+        self.structure_service = StructureService(db)
         self.section = dict(section_data) if section_data else {}
         # Бэкап полного дерева раздела
         _sid = self.section.get("id")
@@ -224,7 +227,10 @@ class SaveCategoryCmd(BaseCommand):
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
-        self.structure_service = StructureService(self.db)
+        db = self.db
+        if db is None:
+            raise ValueError("SaveCategoryCmd requires a Database instance")
+        self.structure_service = StructureService(db)
         self.new_data = dict(new_data) if new_data else {}
         self.old_data = dict(old_data) if old_data else None
         self.is_new = not bool(self.new_data.get("id"))
@@ -355,7 +361,10 @@ class DeleteCategoryCmd(BaseCommand):
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
-        self.structure_service = StructureService(self.db)
+        db = self.db
+        if db is None:
+            raise ValueError("DeleteCategoryCmd requires a Database instance")
+        self.structure_service = StructureService(db)
         self.category = dict(category_data) if category_data else {}
         self.skip_reload = bool(skip_reload)
         self.lightweight_reload = bool(lightweight_reload)
@@ -513,7 +522,10 @@ class DeleteCategoriesBatchCmd(BaseCommand):
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
-        self.structure_service = StructureService(self.db)
+        db = self.db
+        if db is None:
+            raise ValueError("DeleteCategoriesBatchCmd requires a Database instance")
+        self.structure_service = StructureService(db)
         # Сохраним плоский список данных категорий и их бэкапы для undo
         self.categories = [dict(c) for c in (categories_data or [])]
         self._backups = []
