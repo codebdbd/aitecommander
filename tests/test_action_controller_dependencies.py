@@ -39,7 +39,7 @@ class MWBase:
 def test_ctor_raises_when_missing_dependencies():
     mw = MWBase()
     # удалим по очереди атрибуты и проверим, что конструктор валидирует
-    for attr in ("tree", "links_actions", "table"):
+    for attr in ("tree", "links_actions", "table", "stack", "tiles"):
         mw2 = MWBase()
         delattr(mw2, attr)
         with pytest.raises(ValueError):

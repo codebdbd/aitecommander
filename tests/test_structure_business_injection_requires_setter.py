@@ -201,6 +201,7 @@ def test_setup_raises_if_structure_business_lacks_setter(monkeypatch):
         tiles=Tiles(),
         tree=SimpleNamespace(),
         table=SimpleNamespace(selectionModel=lambda: None),
+        stack=SimpleNamespace(currentIndex=lambda: -1),
         undo_stack=None,
         fav_widget=object(),
         recent_links_widget=object(),
