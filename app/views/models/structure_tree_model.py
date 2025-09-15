@@ -91,21 +91,24 @@ class StructureTreeModel(QAbstractItemModel):
 
     # --- Данные/роли ---
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:  # noqa: N802
-        # Поддержка QPersistentModelIndex: приводим к QModelIndex при необходимости
-        try:
-            if not isinstance(index, QModelIndex):
-                index = QModelIndex(index)
-        except Exception:
-            pass
         if not index.isValid():
             return None
+        # Пытаемся получить узел из internalPointer; при сбое восстанавливаем по (parent,row)
+        node: TreeNode
         try:
-            node: TreeNode = index.internalPointer()
+            node = index.internalPointer()  # type: ignore[assignment]
+            if not isinstance(node, TreeNode):
+                raise TypeError("invalid internalPointer type")
         except Exception:
-            # На случай если объект не предоставляет internalPointer напрямую
+            # Fallback: извлечь родителя и вычислить узел по индексу строки
             try:
-                conv = QModelIndex(index)
-                node = conv.internalPointer()
+                parent_idx = index.parent()
+            except Exception:
+                parent_idx = QModelIndex()
+            parent_node = self._node_from_index(parent_idx)
+            try:
+                row = index.row()
+                node = parent_node.children[row]
             except Exception:
                 return None
         if role == Qt.ItemDataRole.DisplayRole:
@@ -471,7 +474,6 @@ class StructureTreeModel(QAbstractItemModel):
         Перестановка категорий внутри раздела пока не поддерживает move и выполняется через insert в
         заданные позиции при необходимости, а отсутствующие удаляются.
         """
-        # Карта новых секций по id и желаемый порядок
         new_sections = sections or []
         new_sec_ids: List[int] = []
         new_sec_by_id: Dict[int, Dict[str, Any]] = {}
@@ -481,7 +483,12 @@ class StructureTreeModel(QAbstractItemModel):
                 new_sec_ids.append(sid)
                 new_sec_by_id[sid] = s
 
-        # 1) Удаление секций, которых больше нет
+        # 1) Удаление отсутствующих секций
+        self._remove_absent_sections(new_sec_by_id)
+        # 2) Вставка/обновление секций и их категорий
+        self._upsert_sections(new_sec_ids, new_sec_by_id)
+
+    def _remove_absent_sections(self, new_sec_by_id: Dict[int, Dict[str, Any]]) -> None:
         for row in range(len(self._root.children) - 1, -1, -1):
             node = self._root.children[row]
             if node.type == "section" and isinstance(node.id, int) and node.id not in new_sec_by_id:
@@ -495,8 +502,7 @@ class StructureTreeModel(QAbstractItemModel):
                     del self._section_by_id[node.id]
                 self.endRemoveRows()
 
-        # 2) Вставка/обновление секций по новому порядку
-        # Помощник для родительского индекса корня
+    def _upsert_sections(self, new_sec_ids: List[int], new_sec_by_id: Dict[int, Dict[str, Any]]) -> None:
         root_index = QModelIndex()
         i = 0
         while i < len(new_sec_ids):
@@ -542,81 +548,84 @@ class StructureTreeModel(QAbstractItemModel):
                     idx = self.createIndex(i, 0, existing)
                     self.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.DecorationRole])
 
-                # Обработка категорий внутри секции
-                new_cats = desired_data.get("categories") or []
-                new_cat_ids: List[int] = []
-                new_cat_by_id: Dict[int, Dict[str, Any]] = {}
-                for c in new_cats:
-                    cid = c.get("id")
-                    if isinstance(cid, int):
-                        new_cat_ids.append(cid)
-                        new_cat_by_id[cid] = c
-
-                # Удаление отсутствующих категорий
-                for crow in range(len(existing.children) - 1, -1, -1):
-                    cnode = existing.children[crow]
-                    if cnode.type == "category" and isinstance(cnode.id, int) and cnode.id not in new_cat_by_id:
-                        parent_index = self.createIndex(i, 0, existing)
-                        self.beginRemoveRows(parent_index, crow, crow)
-                        existing.children.pop(crow)
-                        if cnode.id in self._category_by_id:
-                            del self._category_by_id[cnode.id]
-                        self.endRemoveRows()
-
-                # Вставка/обновление категорий в порядке
-                j = 0
-                while j < len(new_cat_ids):
-                    cid = new_cat_ids[j]
-                    c_existing = self._category_by_id.get(cid)
-                    parent_index = self.createIndex(i, 0, existing)
-                    if c_existing is None or c_existing.parent is not existing:
-                        # новая категория
-                        self.beginInsertRows(parent_index, j, j)
-                        cdata = new_cat_by_id[cid]
-                        cnode = TreeNode(
-                            type="category",
-                            id=cid,
-                            name=str(cdata.get("name", "")),
-                            parent=existing,
-                            icon=(cdata.get("icon") if isinstance(cdata.get("icon"), QIcon) else None),
-                            payload=cdata,
-                        )
-                        existing.children.insert(j, cnode)
-                        self._category_by_id[cid] = cnode
-                        self.endInsertRows()
-                    else:
-                        # Убедимся, что на позиции j нужный узел; иначе переставим
-                        cur_row = c_existing.row()
-                        if cur_row != j and cur_row >= 0 and c_existing.parent is existing:
-                            self.beginRemoveRows(parent_index, cur_row, cur_row)
-                            existing.children.pop(cur_row)
-                            self.endRemoveRows()
-                            self.beginInsertRows(parent_index, j, j)
-                            existing.children.insert(j, c_existing)
-                            self.endInsertRows()
-                        # Обновление имени/иконки
-                        cdata = new_cat_by_id[cid]
-                        c_changed = False
-                        try:
-                            new_name = str(cdata.get("name", c_existing.name))
-                            if c_existing.name != new_name:
-                                c_existing.name = new_name
-                                c_changed = True
-                        except Exception:
-                            pass
-                        try:
-                            new_icon = cdata.get("icon")
-                            if isinstance(new_icon, QIcon) or new_icon is None:
-                                if c_existing.icon != new_icon:
-                                    c_existing.icon = new_icon
-                                    c_changed = True
-                        except Exception:
-                            pass
-                        if c_changed:
-                            cidx = self.createIndex(j, 0, c_existing)
-                            self.dataChanged.emit(cidx, cidx, [Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.DecorationRole])
-                    j += 1
+                # Синхронизация категорий
+                self._sync_categories(existing, i, desired_data)
             i += 1
+
+    def _sync_categories(self, section_node: TreeNode, section_row: int, desired_data: Dict[str, Any]) -> None:
+        new_cats = desired_data.get("categories") or []
+        new_cat_ids: List[int] = []
+        new_cat_by_id: Dict[int, Dict[str, Any]] = {}
+        for c in new_cats:
+            cid = c.get("id")
+            if isinstance(cid, int):
+                new_cat_ids.append(cid)
+                new_cat_by_id[cid] = c
+
+        # Удаление отсутствующих категорий
+        for crow in range(len(section_node.children) - 1, -1, -1):
+            cnode = section_node.children[crow]
+            if cnode.type == "category" and isinstance(cnode.id, int) and cnode.id not in new_cat_by_id:
+                parent_index = self.createIndex(section_row, 0, section_node)
+                self.beginRemoveRows(parent_index, crow, crow)
+                section_node.children.pop(crow)
+                if cnode.id in self._category_by_id:
+                    del self._category_by_id[cnode.id]
+                self.endRemoveRows()
+
+        # Вставка/обновление категорий в порядке
+        j = 0
+        while j < len(new_cat_ids):
+            cid = new_cat_ids[j]
+            c_existing = self._category_by_id.get(cid)
+            parent_index = self.createIndex(section_row, 0, section_node)
+            if c_existing is None or c_existing.parent is not section_node:
+                # новая категория
+                self.beginInsertRows(parent_index, j, j)
+                cdata = new_cat_by_id[cid]
+                cnode = TreeNode(
+                    type="category",
+                    id=cid,
+                    name=str(cdata.get("name", "")),
+                    parent=section_node,
+                    icon=(cdata.get("icon") if isinstance(cdata.get("icon"), QIcon) else None),
+                    payload=cdata,
+                )
+                section_node.children.insert(j, cnode)
+                self._category_by_id[cid] = cnode
+                self.endInsertRows()
+            else:
+                # Убедимся, что на позиции j нужный узел; иначе переставим
+                cur_row = c_existing.row()
+                if cur_row != j and cur_row >= 0 and c_existing.parent is section_node:
+                    self.beginRemoveRows(parent_index, cur_row, cur_row)
+                    section_node.children.pop(cur_row)
+                    self.endRemoveRows()
+                    self.beginInsertRows(parent_index, j, j)
+                    section_node.children.insert(j, c_existing)
+                    self.endInsertRows()
+                # Обновление имени/иконки
+                cdata = new_cat_by_id[cid]
+                c_changed = False
+                try:
+                    new_name = str(cdata.get("name", c_existing.name))
+                    if c_existing.name != new_name:
+                        c_existing.name = new_name
+                        c_changed = True
+                except Exception:
+                    pass
+                try:
+                    new_icon = cdata.get("icon")
+                    if isinstance(new_icon, QIcon) or new_icon is None:
+                        if c_existing.icon != new_icon:
+                            c_existing.icon = new_icon
+                            c_changed = True
+                except Exception:
+                    pass
+                if c_changed:
+                    cidx = self.createIndex(j, 0, c_existing)
+                    self.dataChanged.emit(cidx, cidx, [Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.DecorationRole])
+            j += 1
 
     # --- Сортировка ---
     def sort(  # noqa: N802

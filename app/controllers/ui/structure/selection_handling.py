@@ -134,6 +134,41 @@ class SelectionHandling:
                 "SelectionHandling._select_first_item_if_needed failed", exc_info=True
             )
 
+    def ensure_selection_after_load(self, state) -> None:
+        """Гарантирует корректное выделение после загрузки структуры.
+
+        Если состояние отсутствует или бизнес-слой просил подавить восстановление
+        категории — выбираем первый элемент. Также аккуратно сбрасываем одноразовый флаг
+        business._suppress_category_restore_once, если он был установлен.
+        """
+        try:
+            sb = self.business
+        except Exception:
+            sb = None
+
+        flag = False
+        try:
+            flag = bool(sb and getattr(sb, "_suppress_category_restore_once", False))
+        except Exception:
+            flag = False
+
+        if not state or flag:
+            # Сброс флага, если он был активен
+            if flag:
+                try:
+                    setattr(sb, "_suppress_category_restore_once", False)
+                except Exception:
+                    pass
+            # Выбор первого доступного элемента
+            self._select_first_item_if_needed()
+        else:
+            # На всякий случай сбрасываем флаг, если остался установлен
+            try:
+                if sb and getattr(sb, "_suppress_category_restore_once", False):
+                    setattr(sb, "_suppress_category_restore_once", False)
+            except Exception:
+                pass
+
     @signal_guard()
     def _on_current_changed(self, current: QModelIndex, _prev: QModelIndex) -> None:
         # Глобальное подавление во время пакетных операций

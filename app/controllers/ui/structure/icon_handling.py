@@ -1,6 +1,6 @@
 # app/controllers/structure/icon_handling.py
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QModelIndex, QTimer
 from PyQt6.QtGui import QIcon
 
 from concurrent.futures import ThreadPoolExecutor
@@ -9,6 +9,7 @@ import logging
 
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
+from app.utils.ui.qt.roles import get_tree_tuple
 
 logger = logging.getLogger(__name__)
 
@@ -35,180 +36,218 @@ class IconHandling:
                 {"type": item_type, "icon_path": icon_name or ""}
             )
             if resolved:
-                return create_icon_from_path(resolved)
+                try:
+                    return create_icon_from_path(resolved)
+                except (OSError, FileNotFoundError, PermissionError, ValueError) as e:
+                    logger.warning(
+                        "_get_icon_for_item: filesystem/value error creating icon for %s (path=%r): %s",
+                        item_type,
+                        resolved,
+                        e,
+                    )
+                except Exception:
+                    # Неожиданная ошибка при создании QIcon
+                    logger.exception(
+                        "_get_icon_for_item: unexpected error creating QIcon for %s (path=%r)",
+                        item_type,
+                        resolved,
+                    )
+        except (OSError, FileNotFoundError, PermissionError, ValueError) as e:
+            # Ожидаемые ошибки при резолве — логируем и возвращаем пустую иконку
+            logger.warning(
+                "_get_icon_for_item: filesystem/value error resolving icon for %s (name=%r): %s",
+                item_type,
+                icon_name,
+                e,
+            )
         except Exception:
-            pass
+            # Неожиданная ошибка при резолве — логируем стек
+            logger.exception(
+                "_get_icon_for_item: unexpected error resolving icon for %s (name=%r)",
+                item_type,
+                icon_name,
+            )
         # Пустая иконка, если ничего не найдено
         return QIcon()
+
 
     def reload_icons(self) -> None:
         """Асинхронно переустанавливает иконки для всех элементов дерева.
 
-        1) В GUI-потоке собираем списки ID секций и категорий.
-        2) В бэкграунд-потоке подтягиваем данные и резолвим icon_path → путь (resolve_icon_for_link).
-        3) В GUI-потоке создаём QIcon и применяем к модели одним проходом.
-        Повторные запросы дедуплицируются: применяется только результат с последним токеном.
+        Оркестрация:
+        1) Собрать ID секций и категорий (_gather_ids)
+        2) Отправить фоновую задачу на извлечение данных и резолв путей (_fetch_and_resolve)
+        3) Применить результат на GUI-потоке (_apply_resolved_icons)
         """
-        try:
-            model = getattr(self.tree, "model", lambda: None)()
-            if not model:
+        model = getattr(self.tree, "model", lambda: None)()
+        if not model:
+            return
+
+        section_ids, category_ids = self._gather_ids(model)
+
+        # Обновляем токен и захватываем локально
+        with self._icon_lock:
+            self._icon_task_token += 1
+            token = self._icon_task_token
+
+        # Запускаем фоновую задачу
+        future = self._executor.submit(self._fetch_and_resolve, token, section_ids, category_ids)
+
+        def _on_done(fut):
+            try:
+                result = fut.result()
+            except Exception:
+                result = None
+            if not result:
                 return
+            token_local, sec_icon_path, cat_icon_path = result
+            if token_local != self._icon_task_token:
+                return
+            self._apply_resolved_icons(token_local, sec_icon_path, cat_icon_path)
 
-            from PyQt6.QtCore import QModelIndex, QTimer
-            from app.utils.ui.qt.roles import get_tree_tuple
+        future.add_done_callback(_on_done)
+        with self._icon_lock:
+            self._icon_future = future
 
-            # Сбор ID в GUI-потоке
-            section_ids: set[int] = set()
-            category_ids: set[int] = set()
+    def _gather_ids(self, model) -> tuple[set[int], set[int]]:
 
-            def iter_indexes(parent_index=None):
-                if parent_index is None:
-                    parent_index = QModelIndex()
+        section_ids: set[int] = set()
+        category_ids: set[int] = set()
+
+        def _iter(parent_index=None):
+            if parent_index is None:
+                parent_index = QModelIndex()
+            try:
                 rows = model.rowCount(parent_index)
-                for r in range(rows):
-                    idx = model.index(r, 0, parent_index)
-                    if idx.isValid():
-                        yield idx
-                        yield from iter_indexes(idx)
+            except Exception:
+                return
+            for r in range(rows):
+                idx = model.index(r, 0, parent_index)
+                if idx.isValid():
+                    yield idx
+                    yield from _iter(idx)
 
-            for idx in iter_indexes():
+        for idx in _iter():
+            try:
                 t = get_tree_tuple(idx, 0)
-                if not t:
-                    continue
-                it, item_id = t
-                if it == "section" and isinstance(item_id, int):
-                    section_ids.add(item_id)
-                elif it == "category" and isinstance(item_id, int):
-                    category_ids.add(item_id)
+            except Exception:
+                t = None
+            if not t:
+                continue
+            it, item_id = t
+            if it == "section" and isinstance(item_id, int):
+                section_ids.add(item_id)
+            elif it == "category" and isinstance(item_id, int):
+                category_ids.add(item_id)
 
-            # Обновляем токен и захватываем локально
-            with self._icon_lock:
-                self._icon_task_token += 1
-                token = self._icon_task_token
+        return section_ids, category_ids
 
-            # Бэкграунд-задача: получить данные и зарезолвить пути иконок
-            def _worker(token_local: int, sec_ids: set[int], cat_ids: set[int]):
-                try:
-                    # Быстрые выходы при устаревании
-                    if token_local != self._icon_task_token:
-                        return None
-                    sec_by_id: dict[int, dict] = {}
-                    cat_by_id: dict[int, dict] = {}
-                    try:
-                        if hasattr(self.business, "get_sections_bulk"):
-                            for row in self.business.get_sections_bulk(list(sec_ids)) or []:
-                                try:
-                                    sid = int(row.get("id"))
-                                    sec_by_id[sid] = row
-                                except Exception:
-                                    continue
-                        if token_local != self._icon_task_token:
-                            return None
-                        if hasattr(self.business, "get_categories_bulk"):
-                            for row in self.business.get_categories_bulk(list(cat_ids)) or []:
-                                try:
-                                    cid = int(row.get("id"))
-                                    cat_by_id[cid] = row
-                                except Exception:
-                                    continue
-                    except Exception:
-                        sec_by_id, cat_by_id = {}, {}
-
-                    # Резолвим иконки в пути (IO-bound), без создания QIcon в фоне
-                    sec_icon_path: dict[int, str] = {}
-                    for sid, row in sec_by_id.items():
-                        if token_local != self._icon_task_token:
-                            return None
+    def _fetch_and_resolve(self, token_local: int, sec_ids: set[int], cat_ids: set[int]):
+        try:
+            # Считаем устаревшим только когда локальный токен меньше текущего (есть более новая задача)
+            if token_local < getattr(self, "_icon_task_token", 0):
+                return None
+            sec_by_id: dict[int, dict] = {}
+            cat_by_id: dict[int, dict] = {}
+            try:
+                if hasattr(self.business, "get_sections_bulk"):
+                    for row in self.business.get_sections_bulk(list(sec_ids)) or []:
                         try:
-                            p = row.get("icon_path") or ""
-                            resolved = resolve_icon_for_link({"type": "section", "icon_path": p})
-                            sec_icon_path[sid] = resolved or ""
+                            sid = int(row.get("id"))
+                            sec_by_id[sid] = row
                         except Exception:
-                            sec_icon_path[sid] = ""
-                    cat_icon_path: dict[int, str] = {}
-                    for cid, row in cat_by_id.items():
-                        if token_local != self._icon_task_token:
-                            return None
+                            continue
+                if hasattr(self.business, "get_categories_bulk"):
+                    for row in self.business.get_categories_bulk(list(cat_ids)) or []:
                         try:
-                            p = row.get("icon_path") or ""
-                            resolved = resolve_icon_for_link({"type": "category", "icon_path": p})
-                            cat_icon_path[cid] = resolved or ""
+                            cid = int(row.get("id"))
+                            cat_by_id[cid] = row
                         except Exception:
-                            cat_icon_path[cid] = ""
-                    return (token_local, sec_icon_path, cat_icon_path)
-                except Exception:
+                            continue
+            except Exception:
+                sec_by_id, cat_by_id = {}, {}
+
+            # Резолв путей (без создания QIcon)
+            sec_icon_path: dict[int, str] = {}
+            for sid, row in sec_by_id.items():
+                if token_local < getattr(self, "_icon_task_token", 0):
                     return None
-
-            future = self._executor.submit(_worker, token, section_ids, category_ids)
-
-            def _on_done(fut):
                 try:
-                    result = fut.result()
+                    p = row.get("icon_path") or ""
+                    resolved = resolve_icon_for_link({"type": "section", "icon_path": p})
+                    sec_icon_path[sid] = resolved or ""
                 except Exception:
-                    result = None
-                if not result:
-                    return
-                token_local, sec_icon_path, cat_icon_path = result
-                # Пропускаем устаревший результат
-                if token_local != self._icon_task_token:
-                    return
-
-                def _apply():
-                    try:
-                        model_local = getattr(self.tree, "model", lambda: None)()
-                        if not model_local:
-                            return
-                        from PyQt6.QtCore import QModelIndex
-                        from app.utils.ui.qt.roles import get_tree_tuple
-
-                        def iter_indexes_apply(parent_index=None):
-                            if parent_index is None:
-                                parent_index = QModelIndex()
-                            rows = model_local.rowCount(parent_index)
-                            for r in range(rows):
-                                idx = model_local.index(r, 0, parent_index)
-                                if idx.isValid():
-                                    yield idx
-                                    yield from iter_indexes_apply(idx)
-
-                        for idx in iter_indexes_apply():
-                            t = get_tree_tuple(idx, 0)
-                            if not t:
-                                try:
-                                    model_local.setData(idx, QIcon(), Qt.ItemDataRole.DecorationRole)
-                                except Exception:
-                                    pass
-                                continue
-                            item_type, item_id = t
-                            path = ""
-                            if item_type == "section":
-                                path = sec_icon_path.get(int(item_id), "")
-                            elif item_type == "category":
-                                path = cat_icon_path.get(int(item_id), "")
-                            try:
-                                icon = create_icon_from_path(path) if path else QIcon()
-                                model_local.setData(idx, icon, Qt.ItemDataRole.DecorationRole)
-                            except Exception:
-                                try:
-                                    model_local.setData(idx, QIcon(), Qt.ItemDataRole.DecorationRole)
-                                except Exception:
-                                    pass
-                    except Exception:
-                        pass
-
-                # Применяем на GUI-потоке
+                    sec_icon_path[sid] = ""
+            cat_icon_path: dict[int, str] = {}
+            for cid, row in cat_by_id.items():
+                if token_local < getattr(self, "_icon_task_token", 0):
+                    return None
                 try:
-                    from PyQt6.QtCore import QTimer
-                    QTimer.singleShot(0, _apply)
+                    p = row.get("icon_path") or ""
+                    resolved = resolve_icon_for_link({"type": "category", "icon_path": p})
+                    cat_icon_path[cid] = resolved or ""
                 except Exception:
-                    _apply()
-
-            future.add_done_callback(_on_done)
-            with self._icon_lock:
-                self._icon_future = future
+                    cat_icon_path[cid] = ""
+            return (token_local, sec_icon_path, cat_icon_path)
         except Exception:
-            # В случае любой ошибки не прерываем UI
-            pass
+            return None
+
+    def _apply_resolved_icons(
+        self, token_local: int, sec_icon_path: dict[int, str], cat_icon_path: dict[int, str]
+    ) -> None:
+
+        def _apply():
+            try:
+                model_local = getattr(self.tree, "model", lambda: None)()
+                if not model_local:
+                    return
+
+                def _iter(parent_index=None):
+                    if parent_index is None:
+                        parent_index = QModelIndex()
+                    try:
+                        rows = model_local.rowCount(parent_index)
+                    except Exception:
+                        return
+                    for r in range(rows):
+                        idx = model_local.index(r, 0, parent_index)
+                        if idx.isValid():
+                            yield idx
+                            yield from _iter(idx)
+
+                for idx in _iter():
+                    try:
+                        t = get_tree_tuple(idx, 0)
+                    except Exception:
+                        t = None
+                    if not t:
+                        try:
+                            model_local.setData(idx, QIcon(), Qt.ItemDataRole.DecorationRole)
+                        except Exception:
+                            pass
+                        continue
+                    item_type, item_id = t
+                    path = ""
+                    if item_type == "section":
+                        path = sec_icon_path.get(int(item_id), "")
+                    elif item_type == "category":
+                        path = cat_icon_path.get(int(item_id), "")
+                    try:
+                        icon = create_icon_from_path(path) if path else QIcon()
+                        model_local.setData(idx, icon, Qt.ItemDataRole.DecorationRole)
+                    except Exception:
+                        try:
+                            model_local.setData(idx, QIcon(), Qt.ItemDataRole.DecorationRole)
+                        except Exception:
+                            pass
+            except Exception:
+                # Не роняем GUI поток
+                logger.debug("IconHandling._apply_resolved_icons: apply failed", exc_info=True)
+
+        try:
+            QTimer.singleShot(0, _apply)
+        except Exception:
+            _apply()
 
     def close(self) -> None:
         """Завершает пул потоков и отменяет незавершённые задачи.
@@ -261,81 +300,71 @@ def prepare_icons_snapshot(data: list[dict]) -> list[dict]:
     """
     result: list[dict] = []
     for s in data or []:
+        # Раздел
         try:
-            sd = dict(s)
+            sd = _add_icon(s, "section")
         except Exception:
-            logger.exception(
-                "prepare_icons_snapshot: не удалось привести элемент раздела к dict: %r",
-                s,
-            )
-            result.append(s)
-            continue
-
-        path = sd.get("icon_path") or ""
-        try:
-            resolved = resolve_icon_for_link({"type": "section", "icon_path": path})
-        except Exception:
-            # Неожиданная ошибка при разрешении иконки — логируем, используем пустую
-            logger.exception(
-                "prepare_icons_snapshot: ошибка resolve_icon_for_link для section, path=%r",
-                path,
-            )
-            resolved = None
-        try:
-            sd["icon"] = create_icon_from_path(resolved) if resolved else QIcon()
-        except (OSError, FileNotFoundError, PermissionError) as e:
-            logger.warning(
-                "prepare_icons_snapshot: файловая ошибка при создании иконки section: %s (path=%r)",
-                e,
-                resolved,
-            )
-            sd["icon"] = QIcon()
-        except Exception:
-            logger.exception(
-                "prepare_icons_snapshot: неожиданная ошибка создания QIcon для section (path=%r)",
-                resolved,
-            )
-            sd["icon"] = QIcon()
-
+            logger.debug("prepare_icons_snapshot: _add_icon failed for section; keep original", exc_info=True)
+            sd = s
+        # Категории
         cats = sd.get("categories") or []
         new_cats: list[dict] = []
         for c in cats:
             try:
-                cd = dict(c)
+                new_cats.append(_add_icon(c, "category"))
             except Exception:
-                logger.exception(
-                    "prepare_icons_snapshot: не удалось привести элемент категории к dict: %r",
-                    c,
-                )
+                # На всякий случай, но _add_icon сам логирует все неожиданности
                 new_cats.append(c)
-                continue
-
-            cpath = cd.get("icon_path") or ""
-            try:
-                cresolved = resolve_icon_for_link({"type": "category", "icon_path": cpath})
-            except Exception:
-                logger.exception(
-                    "prepare_icons_snapshot: ошибка resolve_icon_for_link для category, path=%r",
-                    cpath,
-                )
-                cresolved = None
-            try:
-                cd["icon"] = create_icon_from_path(cresolved) if cresolved else QIcon()
-            except (OSError, FileNotFoundError, PermissionError) as e:
-                logger.warning(
-                    "prepare_icons_snapshot: файловая ошибка при создании иконки category: %s (path=%r)",
-                    e,
-                    cresolved,
-                )
-                cd["icon"] = QIcon()
-            except Exception:
-                logger.exception(
-                    "prepare_icons_snapshot: неожиданная ошибка создания QIcon для category (path=%r)",
-                    cresolved,
-                )
-                cd["icon"] = QIcon()
-            new_cats.append(cd)
-
         sd["categories"] = new_cats
         result.append(sd)
     return result
+
+
+def _add_icon(item: dict, item_type: str) -> dict:
+    """Возвращает копию item с добавленным ключом 'icon' на основе icon_path.
+
+    Единообразная обработка ошибок:
+    - ожидаемые файловые/значимые ошибки логируются как warning, 'icon' = пустой QIcon
+    - неожиданные исключения логируются через logger.exception, 'icon' = пустой QIcon
+    """
+    try:
+        out = dict(item)
+    except Exception:
+        logger.exception("_add_icon: failed to copy item for %s: %r", item_type, item)
+        return item
+    path = out.get("icon_path") or ""
+    try:
+        resolved = resolve_icon_for_link({"type": item_type, "icon_path": path})
+    except (OSError, FileNotFoundError, PermissionError, ValueError) as e:
+        logger.warning(
+            "_add_icon: filesystem/value error resolving icon for %s (icon_path=%r): %s",
+            item_type,
+            path,
+            e,
+        )
+        resolved = None
+    except Exception:
+        logger.exception(
+            "_add_icon: unexpected error resolving icon for %s (icon_path=%r)",
+            item_type,
+            path,
+        )
+        resolved = None
+    try:
+        out["icon"] = create_icon_from_path(resolved) if resolved else QIcon()
+    except (OSError, FileNotFoundError, PermissionError, ValueError) as e:
+        logger.warning(
+            "_add_icon: filesystem/value error creating QIcon for %s (resolved=%r): %s",
+            item_type,
+            resolved,
+            e,
+        )
+        out["icon"] = QIcon()
+    except Exception:
+        logger.exception(
+            "_add_icon: unexpected error creating QIcon for %s (resolved=%r)",
+            item_type,
+            resolved,
+        )
+        out["icon"] = QIcon()
+    return out
