@@ -30,6 +30,8 @@ from app.controllers.structure_services.validation import ValidationService
 from app.models.db import Database
 from app.models.structure_model import StructureModel
 from app.services.structure_service import StructureService
+from app.controllers.business.structure_cache import StructureCache
+from app.controllers.business.structure_signals import StructureSignalsManager
 
 
 class StructureBusinessLogic(QObject):
@@ -78,6 +80,12 @@ class StructureBusinessLogic(QObject):
 
         # Кэш-менеджер
         self.cache_manager = CacheManager(self.logger)
+        # Фасад кэша для централизованного управления
+        self.cache = StructureCache(
+            cache_manager=self.cache_manager,
+            get_current_sphere_id=self.get_current_sphere_id,
+            logger=self.logger,
+        )
 
         # Сервисы
         self.export_service = ExportService()
@@ -93,10 +101,8 @@ class StructureBusinessLogic(QObject):
         self._async_handlers = AsyncSignalHandlers(self)
         self.async_operations.connect_signal_handlers(self._async_handlers)
 
-        # Таймер для дебаунса перезагрузки структуры при изменениях ссылок
-        self._structure_reload_timer: Optional[QTimer] = QTimer(self)
-        self._structure_reload_timer.setSingleShot(True)
-        self._structure_reload_timer.timeout.connect(self._perform_structure_reload)
+        # Менеджер сигналов/дебаунса перезагрузки структуры
+        self._signals = StructureSignalsManager(self, self.logger)
 
         # Режим батч-обновлений: коалесцирует множественные item_updated(category)
         self._batch_mode: bool = False
@@ -108,32 +114,8 @@ class StructureBusinessLogic(QObject):
         # Инициализация
         self._initialize_system()
 
-        # Подключаем внутренние обработчики к бизнес-сигналам, чтобы
-        # изменения, пришедшие не через воркеры, тоже приводили к
-        # инвалидизации кэша и асинхронной перезагрузке UI
-        try:
-            self.item_added.connect(self._on_item_added)
-            self.item_updated.connect(self._on_item_updated)
-            self.item_deleted.connect(self._on_item_deleted)
-            # Подключаем обработчик нового батч-сигнала
-            self.items_batch_deleted.connect(self._on_items_batch_deleted)
-            # Прогрев кэша "первой категории" после загрузки структуры (per-sphere)
-            try:
-                self.structure_loaded.connect(self._on_structure_loaded_warm_cache)
-            except (AttributeError, RuntimeError) as e:
-                # Если сигнал недоступен — прогрев необязателен, фиксируем в debug
-                self.logger.debug(
-                    "Не удалось подключить прогрев кэша к сигналу structure_loaded: %s",
-                    e,
-                    exc_info=True,
-                )
-            self.logger.info("[BL] Handlers connected for business id=%s", id(self))
-        except Exception:
-            # Защита от ошибок подключения сигналов, не ломаем инициализацию
-            self.logger.warning(
-                "Не удалось подключить внутренние обработчики бизнес-сигналов",
-                exc_info=True,
-            )
+        # Подключение обработчиков вынесено в менеджер сигналов
+        self._signals.connect()
 
     def set_top_panels_controller(self, top_panels_controller: Any) -> None:
         """Внедрить TopPanelsController и распространить зависимость во все уровни.
@@ -312,10 +294,14 @@ class StructureBusinessLogic(QObject):
             self._invalidate_structure_cache()
             # Коалесцируем перезагрузку структуры, чтобы избежать дублей
             self._schedule_structure_reload(0)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, RuntimeError) as e:
             self.logger.error(
                 "Ошибка в обработчике _on_item_added: %s", e, exc_info=True
             )
+        except Exception:
+            # Неожиданная программная ошибка — не скрываем
+            self.logger.exception("_on_item_added: unexpected error")
+            raise
 
     def _on_item_updated(
         self, item_type: str, item_id: int, item_data: Dict[str, Any]
@@ -358,22 +344,21 @@ class StructureBusinessLogic(QObject):
             self._invalidate_structure_cache()
             # Коалесцируем перезагрузку структуры, чтобы избежать дублей
             self._schedule_structure_reload(0)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, RuntimeError) as e:
             self.logger.error(
                 "Ошибка в обработчике _on_item_updated: %s", e, exc_info=True
             )
+        except Exception:
+            self.logger.exception("_on_item_updated: unexpected error")
+            raise
 
     # =============================================================================
     # BATСH-РЕЖИМ ДЛЯ КОНСОЛИДАЦИИ МНОЖЕСТВЕННЫХ ОБНОВЛЕНИЙ
     # =============================================================================
     def begin_batch(self) -> None:
         """Включает батч-режим: пер-item обновления коалесцируются."""
-        try:
-            self._batch_mode = True
-            self._batch_touched_sections.clear()
-        except Exception:
-            # Даже при ошибке не падаем
-            self._batch_mode = True
+        self._batch_mode = True
+        self._batch_touched_sections.clear()
 
     def end_batch(self) -> None:
         """Завершает батч-режим: выполняет одну консолидацию загрузок/перезагрузки."""
@@ -413,28 +398,16 @@ class StructureBusinessLogic(QObject):
             )
 
     def _schedule_structure_reload(self, delay_ms: int = 200) -> None:
-        """Планирует отложенную перезагрузку структуры (дебаунсирует частые события)."""
-        try:
-            if not isinstance(delay_ms, int) or delay_ms < 0:
-                delay_ms = 200
-            # Перезапускаем одиночный таймер: несколько вызовов сольются в один
-            if self._structure_reload_timer.isActive():
-                self._structure_reload_timer.stop()
-            self._structure_reload_timer.start(delay_ms)
-        except Exception as e:
-            self.logger.warning(
-                "_schedule_structure_reload: failed to schedule: %s", e, exc_info=True
-            )
+        """Планирует отложенную перезагрузку структуры (делегировано менеджеру сигналов)."""
+        self._signals.schedule_structure_reload(delay_ms)
 
     def _perform_structure_reload(self) -> None:
-        """Выполняет фактическую перезагрузку структуры текущей сферы."""
+        """Фактическая перезагрузка структуры делегирована менеджеру сигналов."""
+        # Сохраняем метод для совместимости/тестов
         try:
-            self._invalidate_structure_cache()
-            sphere_id = self.current_sphere_id
-            if isinstance(sphere_id, int) and sphere_id > 0:
-                self.async_operations.load_structure_async(sphere_id)
+            getattr(self._signals, "_perform_structure_reload")()
         except Exception as e:
-            self.logger.error("_perform_structure_reload: %s", e, exc_info=True)
+            self.logger.error("_perform_structure_reload (delegate) failed: %s", e, exc_info=True)
 
     # -------------------------------------------------------------------------
     # Вспомогательные обработчики
@@ -545,10 +518,13 @@ class StructureBusinessLogic(QObject):
             # Для остальных типов: инвалидируем и планируем общую перезагрузку структуры
             self._invalidate_structure_cache()
             self._schedule_structure_reload(0)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, RuntimeError) as e:
             self.logger.error(
                 "Ошибка в обработчике _on_item_deleted: %s", e, exc_info=True
             )
+        except Exception:
+            self.logger.exception("_on_item_deleted: unexpected error")
+            raise
 
     def _on_items_batch_deleted(self, item_type: str, ids: list) -> None:
         """Батч-удаление элементов: одна инвалидизация и одна перезагрузка.
@@ -568,10 +544,13 @@ class StructureBusinessLogic(QObject):
             # Для категорий/разделов: немедленная консолидация
             self._invalidate_structure_cache()
             self._schedule_structure_reload(0)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, RuntimeError) as e:
             self.logger.error(
                 "Ошибка в обработчике _on_items_batch_deleted: %s", e, exc_info=True
             )
+        except Exception:
+            self.logger.exception("_on_items_batch_deleted: unexpected error")
+            raise
 
     @handle_exceptions()
     def select_section(self, section_id: int) -> None:
@@ -1044,21 +1023,12 @@ class StructureBusinessLogic(QObject):
     # =============================================================================
 
     def _invalidate_structure_cache(self) -> None:
-        """Инвалидирует кэш структуры."""
-        if self.current_sphere_id:
-            # Инвалидируем кэш структуры и разделов для текущей сферы
-            self.cache_manager.invalidate(f"structure_{self.current_sphere_id}")
-            self.cache_manager.invalidate(f"sections_{self.current_sphere_id}")
-            # Пер-сферный ключ для первой категории (унифицированный формат)
-            self.cache_manager.invalidate(f"first_category_id:{self.current_sphere_id}")
+        """Инвалидирует кэш структуры (делегировано StructureCache)."""
+        self.cache.invalidate_structure()
 
     def _invalidate_categories_cache(self, section_id: Optional[int]) -> None:
-        """Инвалидирует кэш категорий для раздела."""
-        if section_id:
-            self.cache_manager.invalidate(f"categories_{section_id}")
-
-        # Также инвалидируем структуру, так как она содержит категории
-        self._invalidate_structure_cache()
+        """Инвалидирует кэш категорий для раздела (делегировано StructureCache)."""
+        self.cache.invalidate_categories(section_id)
 
     # =============================================================================
     # ВНУТРЕННИЕ МЕТОДЫ - ОБРАБОТКА ОШИБОК
@@ -1091,5 +1061,7 @@ class StructureBusinessLogic(QObject):
 
     def clear_all_cache(self) -> None:
         """Полностью очищает весь кэш."""
-        self.cache_manager.invalidate()
-        self.logger.info("Кэш полностью очищен")
+        try:
+            self.cache.clear_all()
+        finally:
+            self.logger.info("Кэш полностью очищен")

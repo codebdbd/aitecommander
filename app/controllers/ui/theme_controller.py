@@ -144,21 +144,31 @@ class ThemeController:
         """Проверяет, является ли текущая тема тёмной."""
         try:
             current_theme = self.settings.get_theme()
-            if not current_theme:
-                logger.warning(
-                    "Текущая тема не установлена, используется светлая тема по умолчанию"
-                )
-                return False
-            # Нормализуем имя и пытаемся найти конфиг
-            norm = self._normalize_theme_input(current_theme)
-            theme_config = self._get_theme_by_name(norm)
-            if theme_config:
-                return theme_config.get("is_dark", False)
-            # Если тема не найдена в конфигурации, определяем по нормализованному имени
-            return norm == "dark"
-        except Exception as exc:
-            logger.error("Ошибка при определении темной темы: %s", exc, exc_info=True)
+        except AttributeError as exc:
+            # Ожидаемый случай: у settings нет метода get_theme — по умолчанию светлая тема
+            logger.error("ThemeController: settings не содержит get_theme: %s", exc)
             return False
+        except Exception as exc:
+            # Неожиданная ошибка чтения настроек — логируем и пробрасываем дальше
+            logger.error(
+                "ThemeController: неожиданная ошибка при чтении get_theme: %s",
+                exc,
+                exc_info=True,
+            )
+            raise
+
+        if not current_theme:
+            logger.warning(
+                "Текущая тема не установлена, используется светлая тема по умолчанию"
+            )
+            return False
+        # Нормализуем имя и пытаемся найти конфиг
+        norm = self._normalize_theme_input(current_theme)
+        theme_config = self._get_theme_by_name(norm)
+        if theme_config:
+            return theme_config.get("is_dark", False)
+        # Если тема не найдена в конфигурации, определяем по нормализованному имени
+        return norm == "dark"
 
     def _get_theme_by_name(self, name: str) -> Optional[Dict[str, Any]]:
         """Получает словарь темы по имени (без учета регистра)."""
