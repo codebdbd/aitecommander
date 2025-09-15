@@ -85,8 +85,17 @@ class IconHandling:
 
         section_ids, category_ids = self._gather_ids(model)
 
-        # Обновляем токен и захватываем локально
+        # Отменяем предыдущую задачу, если она еще активна, и только потом обновляем токен
         with self._icon_lock:
+            try:
+                if self._icon_future is not None and not self._icon_future.done():
+                    self._icon_future.cancel()
+            except Exception:
+                pass
+            finally:
+                # Сбрасываем ссылку — новая задача будет назначена ниже
+                self._icon_future = None
+            # Обновляем токен после отмены предыдущей задачи
             self._icon_task_token += 1
             token = self._icon_task_token
 
@@ -95,6 +104,8 @@ class IconHandling:
 
         def _on_done(fut):
             try:
+                if fut.cancelled():
+                    return
                 result = fut.result()
             except Exception:
                 result = None
@@ -104,6 +115,13 @@ class IconHandling:
             if token_local != self._icon_task_token:
                 return
             self._apply_resolved_icons(token_local, sec_icon_path, cat_icon_path)
+            # Очистим ссылку на future, только если это именно текущая задача
+            try:
+                with self._icon_lock:
+                    if self._icon_future is fut:
+                        self._icon_future = None
+            except Exception:
+                pass
 
         future.add_done_callback(_on_done)
         with self._icon_lock:

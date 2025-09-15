@@ -113,7 +113,7 @@ def update_status_bar(window) -> None:
             )
 
         # Путь в дереве + активная сфера (QTreeView-only)
-        parts = []
+        parts: list[str] = []
         tree = getattr(window, "tree", None)
         try:
             if tree is not None:

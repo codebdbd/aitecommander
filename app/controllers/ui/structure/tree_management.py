@@ -10,6 +10,7 @@ from app.controllers.ui.state.task_scheduler import (
 )
 from app.utils.ui.qt.roles import get_tree_tuple
 from app.utils.ui.updates import suspend_updates
+from app.utils.ui.qt.signal_blockers import block_tree_signals
 from app.controllers.ui.structure.icon_handling import prepare_icons_snapshot
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,7 @@ class TreeManagement:
         self._restore_state(state)
         self._ensure_selection(state)
         self._notify_selection_handler()
+
 
     def _save_view_state(self):
         """Сохраняет состояние дерева (развороты, скролл, выделение)."""
@@ -141,123 +143,109 @@ class TreeManagement:
             return
         with suspend_updates(self.tree):
             # Подавляем сигналы на время массовых операций
-            try:
-                tree_blocker = QSignalBlocker(self.tree)
-                try:
-                    sel_model = self.tree.selectionModel()
-                except Exception:
-                    sel_model = None
-                sel_blocker = QSignalBlocker(sel_model) if sel_model else None
-            except Exception:
-                tree_blocker = None
-                sel_blocker = None
-            try:
-                # Удаления
-                removes = patch.get("remove") or {}
-                secs_to_remove = list(removes.get("sections") or [])
-                cats_to_remove = list(removes.get("categories") or [])
-                if secs_to_remove:
-                    try:
-                        model.remove_sections([int(x) for x in secs_to_remove])
-                    except Exception:
-                        logger.debug("patch: remove_sections failed", exc_info=True)
-                if cats_to_remove:
-                    try:
-                        model.remove_categories([int(x) for x in cats_to_remove])
-                    except Exception:
-                        logger.debug("patch: remove_categories failed", exc_info=True)
-
-                # Вставки
-                inserts = patch.get("insert") or {}
-                sec_inserts = list(inserts.get("sections") or [])
-                if sec_inserts:
-                    try:
-                        # Ожидается список dict с ключами данных раздела; допустим доп. ключ 'row'
-                        # Вставляем пачкой; если есть row у первых элементов, берём его, иначе append
-                        row = -1
-                        if sec_inserts and isinstance(sec_inserts[0], dict):
-                            _rv = sec_inserts[0].get("row")
-                            row = _rv if isinstance(_rv, int) else -1
-                        model.insert_sections(row, sec_inserts)
-                    except Exception:
-                        logger.debug("patch: insert_sections failed", exc_info=True)
-
-                cat_inserts = inserts.get("categories") or {}
-                # Ожидаемый формат: { section_id: [ {data...}, ... ] }
-                try:
-                    for sid, items in (cat_inserts.items() if hasattr(cat_inserts, "items") else []):
-                        try:
-                            row = -1
-                            if items and isinstance(items[0], dict):
-                                _rv = items[0].get("row")
-                                row = _rv if isinstance(_rv, int) else -1
-                            model.insert_categories(int(sid), row, list(items or []))
-                        except Exception:
-                            logger.debug("patch: insert_categories for section %s failed", sid, exc_info=True)
-                except Exception:
-                    logger.debug("patch: iter cat inserts failed", exc_info=True)
-
-                # Обновления
-                updates = patch.get("update") or {}
-                try:
-                    for sec in list(updates.get("sections") or []):
-                        try:
-                            model.update_item("section", int(sec.get("id")), sec)
-                        except Exception:
-                            logger.debug("patch: update section failed", exc_info=True)
-                    for cat in list(updates.get("categories") or []):
-                        try:
-                            model.update_item("category", int(cat.get("id")), cat)
-                        except Exception:
-                            logger.debug("patch: update category failed", exc_info=True)
-                except Exception:
-                    logger.debug("patch: apply updates failed", exc_info=True)
-            finally:
-                sel_blocker = None
-                tree_blocker = None
+            with block_tree_signals(self.tree):
+                # Операции патча: удаление, вставка, обновление
+                self._patch_remove(patch)
+                self._patch_insert(patch)
+                self._patch_update(patch)
 
         # После патча вручную уведомим обработчик выбора (сигналы были подавлены)
         self._notify_selection_handler()
+
+    def _patch_remove(self, patch: dict) -> None:
+        """Удаляет разделы и категории согласно секции 'remove' в patch."""
+        model = self.model
+        if not model:
+            return
+        try:
+            removes = patch.get("remove") or {}
+            secs_to_remove = list(removes.get("sections") or [])
+            cats_to_remove = list(removes.get("categories") or [])
+            if secs_to_remove:
+                try:
+                    model.remove_sections([int(x) for x in secs_to_remove])
+                except Exception:
+                    logger.debug("patch: remove_sections failed", exc_info=True)
+            if cats_to_remove:
+                try:
+                    model.remove_categories([int(x) for x in cats_to_remove])
+                except Exception:
+                    logger.debug("patch: remove_categories failed", exc_info=True)
+        except Exception:
+            logger.debug("patch: remove phase failed", exc_info=True)
+
+    def _patch_insert(self, patch: dict) -> None:
+        """Вставляет разделы и категории согласно секции 'insert' в patch."""
+        model = self.model
+        if not model:
+            return
+        inserts = patch.get("insert") or {}
+
+        # Разделы
+        sec_inserts = list(inserts.get("sections") or [])
+        if sec_inserts:
+            try:
+                row = -1
+                if sec_inserts and isinstance(sec_inserts[0], dict):
+                    _rv = sec_inserts[0].get("row")
+                    row = _rv if isinstance(_rv, int) else -1
+                model.insert_sections(row, sec_inserts)
+            except Exception:
+                logger.debug("patch: insert_sections failed", exc_info=True)
+
+        # Категории: { section_id: [ {data...}, ... ] }
+        cat_inserts = inserts.get("categories") or {}
+        try:
+            for sid, items in (cat_inserts.items() if hasattr(cat_inserts, "items") else []):
+                try:
+                    row = -1
+                    if items and isinstance(items[0], dict):
+                        _rv = items[0].get("row")
+                        row = _rv if isinstance(_rv, int) else -1
+                    model.insert_categories(int(sid), row, list(items or []))
+                except Exception:
+                    logger.debug(
+                        "patch: insert_categories for section %s failed", sid, exc_info=True
+                    )
+        except Exception:
+            logger.debug("patch: iter cat inserts failed", exc_info=True)
+
+    def _patch_update(self, patch: dict) -> None:
+        """Обновляет разделы и категории согласно секции 'update' в patch."""
+        model = self.model
+        if not model:
+            return
+        updates = patch.get("update") or {}
+        try:
+            for sec in list(updates.get("sections") or []):
+                try:
+                    model.update_item("section", int(sec.get("id")), sec)
+                except Exception:
+                    logger.debug("patch: update section failed", exc_info=True)
+            for cat in list(updates.get("categories") or []):
+                try:
+                    model.update_item("category", int(cat.get("id")), cat)
+                except Exception:
+                    logger.debug("patch: update category failed", exc_info=True)
+        except Exception:
+            logger.debug("patch: apply updates failed", exc_info=True)
 
     def _update_model_snapshot(self, sections_data: list | dict) -> None:
         """Обновляет снапшот модели с подавлением перерисовок и сигналов."""
         model = self.tree.model()
         if model and (hasattr(model, "update_snapshot") or hasattr(model, "set_snapshot")):
             with suspend_updates(self.tree):
-                # Блокируем сигналы вида дерева на время массовой перестройки модели
-                try:
-                    blocker = QSignalBlocker(self.tree)
-                    # Дополнительно блокируем сигналы selectionModel, чтобы не стреляли currentChanged и др.
-                    try:
-                        sel_model = self.tree.selectionModel()
-                    except Exception:
-                        sel_model = None
-                    sel_blocker = QSignalBlocker(sel_model) if sel_model else None
-                except Exception:
-                    blocker = None  # на всякий случай в тестовой среде без Qt
-                    sel_blocker = None
-                try:
+                with block_tree_signals(self.tree):
                     if hasattr(model, "update_snapshot"):
                         model.update_snapshot(sections_data or [])
                     else:
                         model.set_snapshot(sections_data or [])
-                finally:
-                    # Явное удаление блокировщика сигналов (если он был создан)
-                    sel_blocker = None
-                    blocker = None
 
     def _restore_view_state(self, state) -> None:
         """Восстанавливает состояние дерева и обрабатывает одноразовый флаг подавления восстановления категории."""
         try:
             with suspend_updates(self.tree):
-                # Подготовим блокировку сигналов как у дерева, так и у selectionModel
-                try:
-                    sel_model = self.tree.selectionModel()
-                except Exception:
-                    sel_model = None
-                tree_blocker = QSignalBlocker(self.tree)
-                sel_blocker = QSignalBlocker(sel_model) if sel_model else None
-                try:
+                with block_tree_signals(self.tree):
                     self.tree.restoreState(state)
                     # Особый случай: если бизнес-слой просил не восстанавливать выделение категории,
                     # не оставляем восстановленное выделение — очистим его здесь, под блокировкой сигналов
@@ -268,6 +256,10 @@ class TreeManagement:
                     except Exception:
                         sb = None
                     if sb and getattr(sb, "_suppress_category_restore_once", False):
+                        try:
+                            sel_model = self.tree.selectionModel()
+                        except Exception:
+                            sel_model = None
                         if sel_model:
                             try:
                                 sel_model.clearSelection()
@@ -277,10 +269,6 @@ class TreeManagement:
                             setattr(sb, "_suppress_category_restore_once", False)
                         except Exception:
                             pass
-                finally:
-                    # Явное «освобождение» блокировщиков
-                    sel_blocker = None
-                    tree_blocker = None
         except Exception:
             logger.debug("TreeManagement._on_structure_loaded: restoreState failed", exc_info=True)
 
@@ -500,21 +488,8 @@ class TreeManagement:
         # Вызываем сортировку модели напрямую под подавлением сигналов/перерисовок
         try:
             with suspend_updates(self.tree):
-                try:
-                    tree_blocker = QSignalBlocker(self.tree)
-                    try:
-                        sel_model = self.tree.selectionModel()
-                    except Exception:
-                        sel_model = None
-                    sel_blocker = QSignalBlocker(sel_model) if sel_model else None
-                except Exception:
-                    tree_blocker = None
-                    sel_blocker = None
-                try:
+                with block_tree_signals(self.tree):
                     model.sort(0, Qt.SortOrder.AscendingOrder)
-                finally:
-                    sel_blocker = None
-                    tree_blocker = None
         except Exception:
             logger.debug("TreeManagement._sort_tree: model.sort failed", exc_info=True)
 
@@ -522,21 +497,8 @@ class TreeManagement:
         if state:
             try:
                 with suspend_updates(self.tree):
-                    try:
-                        tree_blocker = QSignalBlocker(self.tree)
-                        try:
-                            sel_model = self.tree.selectionModel()
-                        except Exception:
-                            sel_model = None
-                        sel_blocker = QSignalBlocker(sel_model) if sel_model else None
-                    except Exception:
-                        tree_blocker = None
-                        sel_blocker = None
-                    try:
+                    with block_tree_signals(self.tree):
                         self.tree.restoreState(state)
-                    finally:
-                        sel_blocker = None
-                        tree_blocker = None
             except Exception:
                 logger.debug("TreeManagement._sort_tree: restoreState failed", exc_info=True)
 
