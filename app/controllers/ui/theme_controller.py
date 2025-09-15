@@ -468,12 +468,14 @@ class ThemeController:
                 logger.warning(
                     "Ошибка перезагрузки иконок структуры: %s", exc, exc_info=True
                 )
-            try:
-                self.top_panels_controller.refresh_all()
-            except Exception as exc:
-                logger.warning(
-                    "Ошибка обновления верхних панелей: %s", exc, exc_info=True
-                )
+            tpc = getattr(self, "top_panels_controller", None)
+            if tpc:
+                try:
+                    tpc.refresh_all()
+                except Exception as exc:
+                    logger.warning(
+                        "Ошибка обновления верхних панелей: %s", exc, exc_info=True
+                    )
             # Диагностика размеров шапки отключена как шумная
             return
 
@@ -504,13 +506,15 @@ class ThemeController:
                         "Ошибка перезагрузки иконок структуры: %s", exc, exc_info=True
                     )
 
-                # Обновление верхних панелей — прямая зависимость из конструктора
-                try:
-                    self.top_panels_controller.refresh_all()
-                except Exception as exc:
-                    logger.warning(
-                        "Ошибка обновления верхних панелей: %s", exc, exc_info=True
-                    )
+                # Обновление верхних панелей — выполняем только если контроллер внедрён
+                tpc = getattr(self, "top_panels_controller", None)
+                if tpc:
+                    try:
+                        tpc.refresh_all()
+                    except Exception as exc:
+                        logger.warning(
+                            "Ошибка обновления верхних панелей: %s", exc, exc_info=True
+                        )
                 # Диагностика размеров шапки отключена как шумная
         except Exception as exc:
             logger.warning(
@@ -518,6 +522,32 @@ class ThemeController:
                 exc,
                 exc_info=True,
             )
+            # Фолбэк: выполним операции без приостановки перерисовки
+            try:
+                menu_ctrl = getattr(mw, "menu_controller", None)
+                if menu_ctrl:
+                    menu_ctrl.rebuild_after_theme_change()
+            except Exception as exc2:
+                logger.warning(
+                    "Ошибка пересборки меню после смены темы: %s", exc2, exc_info=True
+                )
+            try:
+                structure = getattr(mw, "structure", None)
+                if structure and hasattr(structure, "reload_icons"):
+                    structure.reload_icons()
+            except Exception as exc2:
+                logger.warning(
+                    "Ошибка перезагрузки иконок структуры: %s", exc2, exc_info=True
+                )
+            # Обновление верхних панелей — выполняем только если контроллер внедрён
+            tpc = getattr(self, "top_panels_controller", None)
+            if tpc:
+                try:
+                    tpc.refresh_all()
+                except Exception as exc2:
+                    logger.warning(
+                        "Ошибка обновления верхних панелей: %s", exc2, exc_info=True
+                    )
 
         # Не переустанавливаем размеры шрифтов при смене темы.
         # Базовый размер приложения и точечные размеры для меню/меню-бара управляются отдельно,

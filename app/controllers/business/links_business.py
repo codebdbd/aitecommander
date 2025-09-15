@@ -43,16 +43,28 @@ class LinksBusinessLogic(QObject):
         self.logger = logger or logging.getLogger(self.__class__.__name__)
         # worker-сигналы не требуются: используем собственные сигналы класса + run_db
 
-    def shutdown(self, timeout: int = 2000):
-        """Корректное завершение работы."""
+    def shutdown(self, timeout: int = 2000) -> bool:
+        """Корректное завершение работы.
+
+        Returns:
+            bool: True — успешное завершение; False — если произошла ожидаемая ошибка
+            среды (RuntimeError/TimeoutError). Неожиданные исключения пробрасываются.
+        """
         try:
             # Ждём завершения задач через единый пул
             self.scheduler.get_thread_pool().waitForDone(timeout)
             self.logger.debug("LinksBusinessLogic shutdown completed")
-        except Exception as e:
+            return True
+        except (RuntimeError, TimeoutError) as e:
+            # Ожидаемые ошибки среды — логируем и возвращаем False
             self.logger.error(
-                "Error during LinksBusinessLogic shutdown: %s", e, exc_info=True
+                "Error during LinksBusinessLogic shutdown (expected): %s", e, exc_info=True
             )
+            return False
+        except Exception:
+            # Неожиданные ошибки — не скрываем
+            self.logger.exception("Unexpected error during LinksBusinessLogic shutdown")
+            raise
 
     def load_links(self, category_id: int):
         """Загрузить ссылки для категории."""
@@ -165,8 +177,17 @@ class LinksBusinessLogic(QObject):
             if not handle_db_error(e, self):
                 raise
 
-    def save_link(self, link_data: Dict) -> int:
-        """Сохранить ссылку."""
+    def save_link(self, link_data: Dict) -> Optional[int]:
+        """Сохранить ссылку.
+
+        Returns:
+            Optional[int]:
+            - ID ссылки (int) при успешном сохранении или обновлении;
+            - None — если произошла обработанная ошибка БД (ошибка залогирована и
+              передана в `handle_db_error`, который её обработал), т.е. операция
+              не удалась, но исключение не проброшено;
+              при неожиданных/необработанных ошибках метод поднимет исключение.
+        """
         # Строгая валидация через общий валидатор + проверка category_id
         if not isinstance(link_data, dict):
             raise ValueError("Invalid link data provided: not a dict")
@@ -208,7 +229,10 @@ class LinksBusinessLogic(QObject):
                 exc_info=True,
             )
             if not handle_db_error(e, self):
+                # Необработанная ошибка — эскалируем
                 raise
+            # Обработанная ошибка БД — возвращаем None явно
+            return None
 
     def update_link_last_used(self, link_id: int):
         """Обновить время последнего использования ссылки."""

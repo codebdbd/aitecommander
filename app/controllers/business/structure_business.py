@@ -167,34 +167,43 @@ class StructureBusinessLogic(QObject):
         Явно сохраняем ссылку и прокидываем её в AsyncOperations и AsyncSignalHandlers,
         чтобы обработчики сигналов вызывали методы контроллера напрямую без getattr.
         """
-        try:
-            # Локальная ссылка в бизнес-логике (может использоваться UI/другими службами)
-            setattr(self, "top_panels_controller", top_panels_controller)
-        except AttributeError as e:
-            self.logger.warning(
-                "Failed to set top_panels_controller on StructureBusinessLogic: %s",
-                e,
-                exc_info=True,
-            )
-        try:
-            # Прямая ссылка для асинхронного слоя
-            if hasattr(self, "async_operations") and self.async_operations:
-                self.async_operations.top_panels = top_panels_controller
-        except AttributeError as e:
-            self.logger.warning(
-                "Failed to inject TopPanelsController into AsyncOperations: %s",
-                e,
-                exc_info=True,
-            )
-        try:
-            # И немедленно для уже подключённых обработчиков сигналов
-            if hasattr(self, "_async_handlers") and self._async_handlers:
-                self._async_handlers.top_panels = top_panels_controller
-        except AttributeError as e:
-            self.logger.warning(
-                "Failed to inject TopPanelsController into AsyncSignalHandlers: %s",
-                e,
-                exc_info=True,
+        if top_panels_controller is None:
+            raise ValueError("TopPanelsController must not be None")
+
+        issues: list[str] = []
+
+        # 1) Локальная ссылка в бизнес-логике
+        setattr(self, "top_panels_controller", top_panels_controller)
+
+        # 2) Прямая ссылка для асинхронного слоя
+        if not hasattr(self, "async_operations") or not getattr(self, "async_operations"):
+            issues.append("async_operations is missing or not initialized")
+        else:
+            target = getattr(self, "async_operations")
+            if not hasattr(target, "top_panels"):
+                issues.append("AsyncOperations has no attribute 'top_panels'")
+            else:
+                try:
+                    setattr(target, "top_panels", top_panels_controller)
+                except (AttributeError, RuntimeError, TypeError) as e:
+                    issues.append(f"AsyncOperations injection failed: {e}")
+
+        # 3) Для уже подключённых обработчиков сигналов
+        if not hasattr(self, "_async_handlers") or not getattr(self, "_async_handlers"):
+            issues.append("AsyncSignalHandlers is missing or not initialized")
+        else:
+            target = getattr(self, "_async_handlers")
+            if not hasattr(target, "top_panels"):
+                issues.append("AsyncSignalHandlers has no attribute 'top_panels'")
+            else:
+                try:
+                    setattr(target, "top_panels", top_panels_controller)
+                except (AttributeError, RuntimeError, TypeError) as e:
+                    issues.append(f"AsyncSignalHandlers injection failed: {e}")
+
+        if issues:
+            raise ValueError(
+                "Failed to inject TopPanelsController: " + "; ".join(issues)
             )
 
     def _initialize_system(self) -> None:
