@@ -30,22 +30,41 @@ class StructureSignalsManager(QObject):
     # ------- Публичный API -------
     def connect(self) -> None:
         """Подключает обработчики к сигналам владельца."""
-        try:
-            self.owner.item_added.connect(self._on_item_added)
-            self.owner.item_updated.connect(self._on_item_updated)
-            self.owner.item_deleted.connect(self._on_item_deleted)
-            self.owner.items_batch_deleted.connect(self._on_items_batch_deleted)
+        # Подключаем обязательные сигналы по одному, чтобы не прерывать остальные
+        for attr_name, handler in (
+            ("item_added", self._on_item_added),
+            ("item_updated", self._on_item_updated),
+            ("item_deleted", self._on_item_deleted),
+            ("items_batch_deleted", self._on_items_batch_deleted),
+        ):
             try:
-                self.owner.structure_loaded.connect(self._on_structure_loaded_warm_cache)
+                getattr(self.owner, attr_name).connect(handler)
             except (AttributeError, RuntimeError) as e:
+                # Ожидаемые ошибки наличия/доступности сигнала — логируем и продолжаем
                 self.logger.debug(
-                    "Не удалось подключить прогрев кэша к structure_loaded: %s", e, exc_info=True
+                    "connect: failed (expected) to attach '%s': %s", attr_name, e, exc_info=True
                 )
-            self.logger.info("[Signals] Handlers connected for business id=%s", id(self.owner))
-        except Exception:
-            self.logger.warning(
-                "Не удалось подключить обработчики бизнес-сигналов", exc_info=True
+                continue
+            except Exception as e:  # noqa: BLE001 — намеренно пробрасываем неожиданное
+                self.logger.exception(
+                    "connect: unexpected error attaching '%s': %s", attr_name, e
+                )
+                raise
+
+        # Опциональный сигнал для прогрева кэша
+        try:
+            self.owner.structure_loaded.connect(self._on_structure_loaded_warm_cache)
+        except (AttributeError, RuntimeError) as e:
+            self.logger.debug(
+                "Не удалось подключить прогрев кэша к structure_loaded: %s", e, exc_info=True
             )
+        except Exception as e:  # noqa: BLE001
+            self.logger.exception(
+                "connect: unexpected error attaching 'structure_loaded': %s", e
+            )
+            raise
+
+        self.logger.info("[Signals] Handlers connected for business id=%s", id(self.owner))
 
     def schedule_structure_reload(self, delay_ms: int = 200) -> None:
         try:

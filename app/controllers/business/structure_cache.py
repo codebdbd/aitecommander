@@ -27,14 +27,37 @@ class StructureCache:
     # Публичные методы для использования из Business-слоя
     def invalidate_structure(self) -> None:
         """Инвалидирует кэш структуры и разделов для текущей сферы."""
-        try:
-            sphere_id = self._get_current_sphere_id()
-            if sphere_id:
-                self._cache.invalidate(f"structure_{sphere_id}")
-                self._cache.invalidate(f"sections_{sphere_id}")
-                self._cache.invalidate(f"first_category_id:{sphere_id}")
-        except Exception as e:
-            self._logger.debug("StructureCache.invalidate_structure failed: %s", e, exc_info=True)
+        sphere_id = self._get_current_sphere_id()
+        if not sphere_id:
+            return
+
+        keys = (
+            f"structure_{sphere_id}",
+            f"sections_{sphere_id}",
+            f"first_category_id:{sphere_id}",
+        )
+
+        for key in keys:
+            try:
+                self._cache.invalidate(key)
+            except (AttributeError, RuntimeError) as e:
+                # Ожидаемые ошибки работы с кэшем глушим по-ключу, чтобы не ломать бизнес-поток,
+                # но оставляем диагностическое сообщение.
+                self._logger.debug(
+                    "StructureCache.invalidate_structure failed (expected): %s (key=%s)",
+                    e,
+                    key,
+                    exc_info=True,
+                )
+                continue
+            except Exception as e:  # noqa: BLE001 - здесь намеренно повторно пробрасываем
+                # Неожиданные ошибки логируем и пробрасываем выше для корректной диагностики.
+                self._logger.exception(
+                    "StructureCache.invalidate_structure unexpected error for key '%s': %s",
+                    key,
+                    e,
+                )
+                raise
 
     def invalidate_categories(self, section_id: Optional[int]) -> None:
         """Инвалидирует кэш категорий раздела и связанную структуру."""
@@ -55,5 +78,12 @@ class StructureCache:
     def clear_all(self) -> None:
         try:
             self._cache.invalidate()
-        except Exception as e:
-            self._logger.debug("StructureCache.clear_all failed: %s", e, exc_info=True)
+        except (AttributeError, RuntimeError) as e:
+            self._logger.debug(
+                "StructureCache.clear_all failed (expected): %s", e, exc_info=True
+            )
+        except Exception as e:  # noqa: BLE001
+            self._logger.exception(
+                "StructureCache.clear_all unexpected error: %s", e
+            )
+            raise

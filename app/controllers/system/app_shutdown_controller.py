@@ -464,7 +464,13 @@ class AppShutdownController:
                 logger.debug("Shutting down %s", display_name)
                 shutdown_method = getattr(controller, "shutdown")
                 if callable(shutdown_method):
-                    shutdown_method()
+                    result = shutdown_method()
+                    try:
+                        if isinstance(result, bool) and result is False:
+                            logger.warning("%s shutdown reported unsuccessful result", display_name)
+                    except Exception:
+                        # Диагностика результата не должна ломать shutdown
+                        pass
                 else:
                     logger.warning("%s.shutdown is not callable", display_name)
 
