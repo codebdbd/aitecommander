@@ -219,16 +219,27 @@ class TopPanelsController:
 
     def refresh_recent(self) -> None:
         widget = self.recent_links_widget
-        # Определяем лимит: современный протокол или мягкий fallback по hasattr
+        # Определяем лимит: современный протокол или мягкий fallback с проверкой callable
         limit = 10
         try:
-            if isinstance(widget, RecentsPanelWithLimit) or hasattr(widget, "get_limit"):
-                val = widget.get_limit()  # type: ignore[attr-defined]
+            get_limit_fn = getattr(widget, "get_limit", None)
+            if isinstance(widget, RecentsPanelWithLimit) or callable(get_limit_fn):
+                val = get_limit_fn()  # type: ignore[operator]
                 if isinstance(val, int) and val > 0:
                     limit = val
+                else:
+                    logger.warning(
+                        "TopPanelsController.refresh_recent: invalid get_limit() value: %s; using default=%s",
+                        val,
+                        limit,
+                    )
         except (TypeError, ValueError):
-            # некорректное значение лимита — оставляем default
-            pass
+            # Некорректная реализация get_limit — оставляем default, фиксируем предупреждение
+            logger.warning(
+                "TopPanelsController.refresh_recent: get_limit() raised TypeError/ValueError; using default=%s",
+                limit,
+                exc_info=True,
+            )
 
         # 1) Загрузка данных из бизнес-слоя
         items: list = []

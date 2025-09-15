@@ -18,7 +18,7 @@ class ActionController:
         self.main_window = main_window
         # Явные зависимости: проверяем наличие ключевых атрибутов UI
         missing = []
-        for attr in ("tree", "links_actions", "table"):
+        for attr in ("tree", "links_actions", "table", "stack", "tiles"):
             if not hasattr(self.main_window, attr):
                 missing.append(attr)
         if missing:

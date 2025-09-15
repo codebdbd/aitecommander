@@ -61,12 +61,37 @@ class StructureCache:
 
     def invalidate_categories(self, section_id: Optional[int]) -> None:
         """Инвалидирует кэш категорий раздела и связанную структуру."""
+        # 1) Инвалидируем кэш категорий раздела (если задан section_id)
+        if section_id:
+            key = f"categories_{section_id}"
+            try:
+                self._cache.invalidate(key)
+            except (AttributeError, RuntimeError) as e:
+                # Ожидаемые ошибки среды кэша — логируем и продолжаем
+                self._logger.debug(
+                    "StructureCache.invalidate_categories failed (expected): %s (key=%s)",
+                    e,
+                    key,
+                    exc_info=True,
+                )
+            except Exception as e:  # noqa: BLE001 — намеренно пробрасываем неожиданные
+                self._logger.exception(
+                    "StructureCache.invalidate_categories unexpected error for key '%s': %s",
+                    key,
+                    e,
+                )
+                raise
+
+        # 2) Структура зависит от категорий — инвалидируем всегда
         try:
-            if section_id:
-                self._cache.invalidate(f"categories_{section_id}")
-        finally:
-            # Структура зависит от категорий — инвалидируем всегда
             self.invalidate_structure()
+        except Exception:
+            # invalidate_structure уже дифференцирует ожидаемые/неожиданные по ключам и
+            # может пробрасывать только неожиданные — здесь лишь фиксируем контекст
+            self._logger.exception(
+                "StructureCache.invalidate_categories: unexpected error while invalidating structure"
+            )
+            raise
 
     # Утилиты прямого доступа (на случай тестов/расширений)
     def get(self, key: str):  # type: ignore[no-untyped-def]

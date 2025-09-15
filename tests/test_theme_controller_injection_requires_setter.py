@@ -135,6 +135,7 @@ def test_theme_controller_without_setter_raises_setup_error():
         tiles=object(),
         tree=object(),
         table=object(),
+        stack=SimpleNamespace(currentIndex=lambda: -1),
         undo_stack=object(),
         fav_widget=Fav(),
         recent_links_widget=Rec(),

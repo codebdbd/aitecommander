@@ -276,14 +276,19 @@ class LinksBusinessLogic(QObject):
 
         try:
             result = self.save_link(link_data)
-            self.logger.info(
-                "Favorite status updated successfully, result ID: %s", result
-            )
-
-            # Сигнал link_updated уже эмитится внутри save_link; не дублируем
-
-            # Обновляем счетчик избранного
-            self.count_favorites(link_data)
+            # Пересчитываем избранное только при успешном сохранении
+            if isinstance(result, int) and result > 0:
+                self.logger.info(
+                    "Favorite status updated successfully, result ID: %s", result
+                )
+                # Сигнал link_updated уже эмитится внутри save_link; не дублируем
+                self.count_favorites(link_data)
+            else:
+                # save_link вернул None или некорректный ID — не пересчитываем
+                self.logger.warning(
+                    "toggle_favorite: save_link did not return a valid ID; skipping favorites recount"
+                )
+                return
 
         except Exception as e:
             self.logger.error("Ошибка при сохранении избранного: %s", e, exc_info=True)

@@ -70,6 +70,13 @@ class ThemeController:
         """
         if top_panels_controller is None:
             raise ValueError("TopPanelsController must be provided to ThemeController")
+        # Валидируем минимальный интерфейс
+        if not hasattr(top_panels_controller, "refresh_all") or not callable(
+            getattr(top_panels_controller, "refresh_all", None)
+        ):
+            raise TypeError(
+                "TopPanelsController must implement callable refresh_all()"
+            )
         self.top_panels_controller = top_panels_controller
 
     def _normalize_theme_input(self, name: Optional[str]) -> str:
@@ -470,11 +477,17 @@ class ThemeController:
                 )
             tpc = getattr(self, "top_panels_controller", None)
             if tpc:
-                try:
-                    tpc.refresh_all()
-                except Exception as exc:
+                refresh = getattr(tpc, "refresh_all", None)
+                if callable(refresh):
+                    try:
+                        refresh()
+                    except Exception as exc:
+                        logger.warning(
+                            "Ошибка обновления верхних панелей: %s", exc, exc_info=True
+                        )
+                else:
                     logger.warning(
-                        "Ошибка обновления верхних панелей: %s", exc, exc_info=True
+                        "TopPanelsController has no callable refresh_all(); skipping panels refresh"
                     )
             # Диагностика размеров шапки отключена как шумная
             return
@@ -509,11 +522,17 @@ class ThemeController:
                 # Обновление верхних панелей — выполняем только если контроллер внедрён
                 tpc = getattr(self, "top_panels_controller", None)
                 if tpc:
-                    try:
-                        tpc.refresh_all()
-                    except Exception as exc:
+                    refresh = getattr(tpc, "refresh_all", None)
+                    if callable(refresh):
+                        try:
+                            refresh()
+                        except Exception as exc:
+                            logger.warning(
+                                "Ошибка обновления верхних панелей: %s", exc, exc_info=True
+                            )
+                    else:
                         logger.warning(
-                            "Ошибка обновления верхних панелей: %s", exc, exc_info=True
+                            "TopPanelsController has no callable refresh_all(); skipping panels refresh"
                         )
                 # Диагностика размеров шапки отключена как шумная
         except Exception as exc:
@@ -542,11 +561,17 @@ class ThemeController:
             # Обновление верхних панелей — выполняем только если контроллер внедрён
             tpc = getattr(self, "top_panels_controller", None)
             if tpc:
-                try:
-                    tpc.refresh_all()
-                except Exception as exc2:
+                refresh = getattr(tpc, "refresh_all", None)
+                if callable(refresh):
+                    try:
+                        refresh()
+                    except Exception as exc2:
+                        logger.warning(
+                            "Ошибка обновления верхних панелей: %s", exc2, exc_info=True
+                        )
+                else:
                     logger.warning(
-                        "Ошибка обновления верхних панелей: %s", exc2, exc_info=True
+                        "TopPanelsController has no callable refresh_all(); skipping panels refresh"
                     )
 
         # Не переустанавливаем размеры шрифтов при смене темы.
