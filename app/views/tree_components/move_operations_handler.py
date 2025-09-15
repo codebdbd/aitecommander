@@ -410,24 +410,44 @@ class MoveOperationsHandler(TreeHandlerBase):
         main_win = self.tree_widget.window()
 
         # После перемещения, если текущая сфера не соответствует целевой — переключаем
-        if hasattr(main_win, "structure_business") and main_win.structure_business:
-            try:
-                sc = getattr(main_win, "spheres_controller", None)
-                if sc and hasattr(sc, "switch_sphere"):
-                    sc.switch_sphere(main_win.structure_business.current_sphere_id)
-            except Exception:
-                pass
+        self._maybe_switch_sphere(main_win)
 
         # Полная перезагрузка дерева больше не требуется — модель обновляется инкрементально
 
         # Дополнительно: принудительно обновим плитки категорий, переустановив текущий раздел
+        section_id = self._determine_current_section_id()
+        if (
+            section_id is not None
+            and hasattr(main_win, "structure_business")
+            and main_win.structure_business
+        ):
+            self._refresh_category_tiles(main_win, int(section_id))
+
+    def _maybe_switch_sphere(self, main_win) -> None:
+        """Переключает сферу при наличии контроллера сфер и бизнес-логики.
+
+        Перехватывает только ожидаемые ошибки отсутствия атрибутов/уничтоженных объектов.
+        """
+        if not (hasattr(main_win, "structure_business") and main_win.structure_business):
+            return
+        try:
+            sc = getattr(main_win, "spheres_controller", None)
+            if sc and hasattr(sc, "switch_sphere"):
+                sc.switch_sphere(main_win.structure_business.current_sphere_id)
+        except (AttributeError, RuntimeError):
+            logger.exception("Не удалось переключить сферу после перемещения")
+
+    def _determine_current_section_id(self) -> int | None:
+        """Определяет текущий section_id по текущему индексу дерева.
+
+        Возвращает section_id или None, если определить не удалось.
+        """
         try:
             tw = self.tree_widget
             section_id = None
-            # QTreeView (используем QModelIndex)
             if hasattr(tw, "currentIndex"):
                 index = tw.currentIndex()
-                if index and index.isValid():
+                if index and getattr(index, "isValid", lambda: False)():
                     t = get_tree_tuple(index, 0)
                     if t:
                         typ, id_ = t
@@ -435,43 +455,49 @@ class MoveOperationsHandler(TreeHandlerBase):
                             section_id = id_
                         elif typ == "category":
                             parent_index = index.parent()
-                            if parent_index and parent_index.isValid():
+                            if parent_index and getattr(parent_index, "isValid", lambda: False)():
                                 pt = get_tree_tuple(parent_index, 0)
                                 if pt and pt[0] == "section" and isinstance(pt[1], int):
                                     section_id = pt[1]
-            if (
-                section_id
-                and hasattr(main_win, "structure_business")
-                and main_win.structure_business
-            ):
-                # Это приведет к загрузке актуальных категорий и вызову switch_to_category_tiles()
-                # Подавляем лавину selection-событий на время этого выбора
-                struct = getattr(main_win, "structure", None)
-                selection = getattr(struct, "selection_handler", None)
-                tree = getattr(struct, "tree", None)
+            return section_id if isinstance(section_id, int) else None
+        except (AttributeError, RuntimeError):
+            logger.exception("Не удалось определить текущий раздел после перемещения")
+            return None
+
+    def _refresh_category_tiles(self, main_win, section_id: int) -> None:
+        """Обновляет плитки категорий для указанного раздела с безопасным подавлением сигналов."""
+        try:
+            struct = getattr(main_win, "structure", None)
+            selection = getattr(struct, "selection_handler", None)
+            tree = getattr(struct, "tree", None)
+
+            # Подавляем лавину selection-событий на время этого выбора
+            try:
+                if selection is not None and hasattr(selection, "begin_suppress_selection"):
+                    selection.begin_suppress_selection()
+            except (AttributeError, RuntimeError):
+                logger.exception("Ошибка начала подавления selection-событий")
+            try:
+                if tree is not None and hasattr(tree, "blockSignals"):
+                    tree.blockSignals(True)
+            except (AttributeError, RuntimeError):
+                logger.exception("Ошибка блокировки сигналов дерева")
+
+            try:
+                main_win.structure_business.section_selected.emit(section_id)
+            except (AttributeError, RuntimeError):
+                logger.exception("Не удалось эмитировать событие выбора раздела")
+            finally:
                 try:
-                    if selection is not None:
-                        try:
-                            selection.begin_suppress_selection()
-                        except Exception:
-                            pass
-                    if tree is not None:
-                        try:
-                            tree.blockSignals(True)
-                        except Exception:
-                            pass
-                    main_win.structure_business.section_selected.emit(section_id)
-                finally:
-                    if tree is not None:
-                        try:
-                            tree.blockSignals(False)
-                        except Exception:
-                            pass
-                    if selection is not None:
-                        try:
-                            selection.end_suppress_selection()
-                        except Exception:
-                            pass
-        except Exception:
-            # Не прерываем UI-поток из-за вспомогательного обновления плиток
-            pass
+                    if tree is not None and hasattr(tree, "blockSignals"):
+                        tree.blockSignals(False)
+                except (AttributeError, RuntimeError):
+                    logger.exception("Ошибка разблокировки сигналов дерева")
+                try:
+                    if selection is not None and hasattr(selection, "end_suppress_selection"):
+                        selection.end_suppress_selection()
+                except (AttributeError, RuntimeError):
+                    logger.exception("Ошибка завершения подавления selection-событий")
+        except (AttributeError, RuntimeError):
+            # Не прерываем UI-поток из-за вспомогательного обновления, но логируем проблему
+            logger.exception("Сбой при обновлении плиток категорий после перемещения")

@@ -355,7 +355,9 @@ class MainWindow(QMainWindow):
 
         with suspend_updates(self.left_panel):
             self.left_panel.setProperty("sphere", str(sphere_id))
-            self.left_panel.style().unpolish(self.left_panel)
+            # Достаточно одного повторного polish после изменения динамического свойства.
+            # Вызов unpolish дорогостоящ и может приводить к мерцанию.
+            # Если стиль не опирается на предыдущее состояние, дополнительный update не требуется.
             self.left_panel.style().polish(self.left_panel)
 
     def on_search(self, text: str) -> None:
