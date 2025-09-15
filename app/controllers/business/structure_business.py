@@ -635,6 +635,19 @@ class StructureBusinessLogic(QObject):
         self.cache_manager.set(cache_key, categories)
         return categories or []
 
+    # --- Bulk методы для батч-выборок по ID (для оптимизаций UI, например, иконок) ---
+    def get_sections_bulk(self, ids: List[int]) -> List[Dict[str, Any]]:
+        try:
+            return self.structure_service.get_sections_bulk(ids or [])
+        except Exception:
+            return []
+
+    def get_categories_bulk(self, ids: List[int]) -> List[Dict[str, Any]]:
+        try:
+            return self.structure_service.get_categories_bulk(ids or [])
+        except Exception:
+            return []
+
     def get_links(self, category_id: int) -> List[Dict[str, Any]]:
         """Получает ссылки для категории (совместимость со старым интерфейсом)."""
         # Делегируем в UtilityService, который обращается к модели.

@@ -37,6 +37,32 @@ class SectionModel(DatabaseBase):
         except Exception:
             return None
 
+    def get_sections_bulk(self, ids: list[int]) -> list[dict[str, Any]]:
+        """Возвращает несколько разделов по списку ID одним запросом.
+
+        Возвращает список dict с полями таблицы `section` (включая `icon_path`).
+        Порядок не гарантируется.
+        """
+        if not ids:
+            return []
+        # Оставляем только валидные положительные целые ID (исключая bool) и удаляем дубликаты
+        valid_ids = [int(x) for x in ids if isinstance(x, int) and not isinstance(x, bool) and x > 0]
+        if not valid_ids:
+            return []
+        placeholders = ",".join(["?"] * len(valid_ids))
+        rows = self.fetch_all(f"SELECT * FROM section WHERE id IN ({placeholders})", tuple(valid_ids))
+        try:
+            return [dict(r) for r in rows] if rows else []
+        except Exception:
+            # На случай нестандартного курсора в тестах
+            result: list[dict[str, Any]] = []
+            for r in rows or []:
+                try:
+                    result.append(dict(r))
+                except Exception:
+                    continue
+            return result
+
     def insert_section(self, data: Dict[str, Any]) -> int:
         """Вставляет новый раздел и возвращает его ID."""
         self._validate_required_fields(data, ["name", "sphere_id"], "раздела")

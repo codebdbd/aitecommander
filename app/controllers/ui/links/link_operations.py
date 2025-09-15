@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Optional
 
 from PyQt6.QtWidgets import QDialog
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class LinksUILinkOperations(BaseLinksUIComponent):
     """Операции с ссылками для LinksUIController."""
 
-    def quick_add_link(self, link_type: str, category_id: int = None):
+    def quick_add_link(self, link_type: str, category_id: Optional[int] = None):
         """Быстрое добавление ссылки."""
         try:
             cat_id = self._validate_category_exists(category_id)
@@ -151,7 +151,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             except Exception as e:
                 logger.debug("Failed to emit signals after opening link: %s", e)
 
-    def _toggle_fav(self, link: Dict = None):
+    def _toggle_fav(self, link: Optional[Dict] = None):
         """Переключить статус избранного."""
         if not link:
             selected_links = self.controller.get_selected_links()

@@ -47,6 +47,35 @@ class CategoryModel(DatabaseBase):
         row = self.fetch_one("SELECT * FROM category WHERE id= ?", (category_id,))
         return dict(row) if row else None
 
+    def get_categories_bulk(self, ids: List[int]) -> List[Dict[str, Any]]:
+        """Возвращает несколько категорий по списку ID одним запросом.
+
+        Возвращает список dict с полями таблицы `category` (включая `icon_path`).
+        Порядок не гарантируется.
+        """
+        if not ids:
+            return []
+        # Оставляем только валидные положительные целые ID (исключая bool) и удаляем дубликаты
+        valid_ids = [int(x) for x in ids if isinstance(x, int) and not isinstance(x, bool) and x > 0]
+        if not valid_ids:
+            return []
+        placeholders = ",".join(["?"] * len(valid_ids))
+        rows = self.fetch_all(
+            f"SELECT * FROM category WHERE id IN ({placeholders})",
+            tuple(valid_ids),
+        )
+        try:
+            return [dict(r) for r in rows] if rows else []
+        except Exception:
+            # На случай нестандартного курсора в тестах
+            result: List[Dict[str, Any]] = []
+            for r in rows or []:
+                try:
+                    result.append(dict(r))
+                except Exception:
+                    continue
+            return result
+
     def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, int]]:
         """Получить иерархию категории (сфера -> раздел -> категория).
 

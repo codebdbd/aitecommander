@@ -2,13 +2,17 @@
 
 import logging
 
-from PyQt6.QtCore import QModelIndex, Qt
+from PyQt6.QtCore import QModelIndex, Qt, QSignalBlocker
 
 from app.controllers.ui.state.task_scheduler import (
     schedule_focus,
     schedule_selection_restore,
 )
 from app.utils.ui.qt.roles import get_tree_tuple
+from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
+from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
+from PyQt6.QtGui import QIcon
+from app.utils.ui.updates import suspend_updates
 
 logger = logging.getLogger(__name__)
 
@@ -45,14 +49,109 @@ class TreeManagement:
                     f"TreeManagement requires a model providing methods: {', '.join(required_methods)}"
                 )
 
-    def _on_structure_loaded(self, sections_data: list) -> None:
-        # Сохраняем текущее выделение и состояние разворота до перезагрузки модели
-        cur_index = self.tree.currentIndex()
-        current_selection = (
-            get_tree_tuple(cur_index, 0) if cur_index and cur_index.isValid() else None
-        )
+    def _on_structure_loaded(self, sections_data: list | dict, *args) -> None:
+        # Поддержка инкрементальных патчей: если передан dict с ключом 'op' == 'patch',
+        # применяем изменения через инкрементальные методы модели без полной перезагрузки.
+        try:
+            if isinstance(sections_data, dict) and sections_data.get("op") == "patch":
+                patch = sections_data
+                model = self.model
+                if not model:
+                    return
+                with suspend_updates(self.tree):
+                    # Подавляем сигналы на время массовых операций
+                    try:
+                        tree_blocker = QSignalBlocker(self.tree)
+                        try:
+                            sel_model = self.tree.selectionModel()
+                        except Exception:
+                            sel_model = None
+                        sel_blocker = QSignalBlocker(sel_model) if sel_model else None
+                    except Exception:
+                        tree_blocker = None
+                        sel_blocker = None
+                    try:
+                        # Удаления
+                        removes = patch.get("remove") or {}
+                        secs_to_remove = list(removes.get("sections") or [])
+                        cats_to_remove = list(removes.get("categories") or [])
+                        if secs_to_remove:
+                            try:
+                                model.remove_sections([int(x) for x in secs_to_remove])
+                            except Exception:
+                                logger.debug("patch: remove_sections failed", exc_info=True)
+                        if cats_to_remove:
+                            try:
+                                model.remove_categories([int(x) for x in cats_to_remove])
+                            except Exception:
+                                logger.debug("patch: remove_categories failed", exc_info=True)
 
-        expanded_state = self._save_expanded_state_model()
+                        # Вставки
+                        inserts = patch.get("insert") or {}
+                        sec_inserts = list(inserts.get("sections") or [])
+                        if sec_inserts:
+                            try:
+                                # Ожидается список dict с ключами данных раздела; допустим доп. ключ 'row'
+                                # Вставляем пачкой; если есть row у первых элементов, берём его, иначе append
+                                row = -1
+                                if sec_inserts and isinstance(sec_inserts[0], dict):
+                                    _rv = sec_inserts[0].get("row")
+                                    row = _rv if isinstance(_rv, int) else -1
+                                model.insert_sections(row, sec_inserts)
+                            except Exception:
+                                logger.debug("patch: insert_sections failed", exc_info=True)
+
+                        cat_inserts = inserts.get("categories") or {}
+                        # Ожидаемый формат: { section_id: [ {data...}, ... ] }
+                        try:
+                            for sid, items in (cat_inserts.items() if hasattr(cat_inserts, "items") else []):
+                                try:
+                                    row = -1
+                                    if items and isinstance(items[0], dict):
+                                        _rv = items[0].get("row")
+                                        row = _rv if isinstance(_rv, int) else -1
+                                    model.insert_categories(int(sid), row, list(items or []))
+                                except Exception:
+                                    logger.debug("patch: insert_categories for section %s failed", sid, exc_info=True)
+                        except Exception:
+                            logger.debug("patch: iter cat inserts failed", exc_info=True)
+
+                        # Обновления
+                        updates = patch.get("update") or {}
+                        try:
+                            for sec in list(updates.get("sections") or []):
+                                try:
+                                    model.update_item("section", int(sec.get("id")), sec)
+                                except Exception:
+                                    logger.debug("patch: update section failed", exc_info=True)
+                            for cat in list(updates.get("categories") or []):
+                                try:
+                                    model.update_item("category", int(cat.get("id")), cat)
+                                except Exception:
+                                    logger.debug("patch: update category failed", exc_info=True)
+                        except Exception:
+                            logger.debug("patch: apply updates failed", exc_info=True)
+                    finally:
+                        sel_blocker = None
+                        tree_blocker = None
+
+                # После патча вручную уведомим обработчик выбора (сигналы были подавлены)
+                try:
+                    from PyQt6.QtCore import QModelIndex as _QI
+                    cur = self.tree.currentIndex()
+                    prev = _QI()
+                    if hasattr(self.controller, "selection_handler") and cur is not None:
+                        self.controller.selection_handler._on_current_changed(cur, prev)
+                except Exception:
+                    logger.debug("TreeManagement._on_structure_loaded(patch): manual notify failed", exc_info=True)
+                return
+        except Exception:
+            logger.debug("TreeManagement._on_structure_loaded: patch path failed", exc_info=True)
+        # Сохраняем состояние вида (развороты, позиция скролла, выделение)
+        try:
+            state = self.tree.saveState()
+        except Exception:
+            state = None
 
         # Сортируем разделы по имени (без учета регистра) перед передачей в модель
         try:
@@ -64,10 +163,69 @@ class TreeManagement:
                 "TreeManagement._on_structure_loaded: ошибка сортировки разделов"
             )
 
-        # Обновляем модель одним снимком
+        # Преобразуем icon_path → QIcon непосредственно в данных снапшота,
+        # используя resolve_icon_for_link для типовых фолбэков (section/category).
+        def _prepare_icons(data: list[dict]) -> list[dict]:
+            result: list[dict] = []
+            for s in data or []:
+                try:
+                    sd = dict(s)
+                    path = sd.get("icon_path") or ""
+                    try:
+                        resolved = resolve_icon_for_link({"type": "section", "icon_path": path})
+                    except Exception:
+                        resolved = None
+                    sd["icon"] = create_icon_from_path(resolved) if resolved else QIcon()
+                    cats = sd.get("categories") or []
+                    new_cats: list[dict] = []
+                    for c in cats:
+                        try:
+                            cd = dict(c)
+                            cpath = cd.get("icon_path") or ""
+                            try:
+                                cresolved = resolve_icon_for_link({"type": "category", "icon_path": cpath})
+                            except Exception:
+                                cresolved = None
+                            cd["icon"] = create_icon_from_path(cresolved) if cresolved else QIcon()
+                            new_cats.append(cd)
+                        except Exception:
+                            new_cats.append(c)
+                    sd["categories"] = new_cats
+                    result.append(sd)
+                except Exception:
+                    result.append(s)
+            return result
+
+        try:
+            sections_data = _prepare_icons(sections_data)
+        except Exception:
+            logger.debug("TreeManagement._on_structure_loaded: prepare icons failed", exc_info=True)
+
+        # Обновляем модель (предпочтительно инкрементально через update_snapshot) под подавлением перерисовок и сигналов
         model = self.tree.model()
-        if model and hasattr(model, "set_snapshot"):
-            model.set_snapshot(sections_data or [])
+        if model and (hasattr(model, "update_snapshot") or hasattr(model, "set_snapshot")):
+            with suspend_updates(self.tree):
+                # Блокируем сигналы вида дерева на время массовой перестройки модели
+                try:
+                    blocker = QSignalBlocker(self.tree)
+                    # Дополнительно блокируем сигналы selectionModel, чтобы не стреляли currentChanged и др.
+                    try:
+                        sel_model = self.tree.selectionModel()
+                    except Exception:
+                        sel_model = None
+                    sel_blocker = QSignalBlocker(sel_model) if sel_model else None
+                except Exception:
+                    blocker = None  # на всякий случай в тестовой среде без Qt
+                    sel_blocker = None
+                try:
+                    if hasattr(model, "update_snapshot"):
+                        model.update_snapshot(sections_data or [])
+                    else:
+                        model.set_snapshot(sections_data or [])
+                finally:
+                    # Явное удаление блокировщика сигналов (если он был создан)
+                    sel_blocker = None
+                    blocker = None
 
         # Если структура пуста (нет ни одного раздела) — очистим плитки категорий
         try:
@@ -78,36 +236,74 @@ class TreeManagement:
                 "TreeManagement._on_structure_loaded: ошибка очистки плиток при пустой структуре"
             )
 
-        # Восстанавливаем развёрнутость
-        self._restore_expanded_state_model(expanded_state)
-
-        # Восстанавливаем выделение, если оно существовало
-        if current_selection:
-            item_type, item_id = current_selection
-            if item_type in ("section", "category") and isinstance(item_id, int):
-                # Если только что произошло переключение сферы и бизнес-слой
-                # поставил флаг подавления восстановления категории, не
-                # восстанавливаем категорию (избежать тяжёлой загрузки ссылок).
-                if item_type == "category":
+        # Восстанавливаем состояние вида (развороты, позиция скролла, выделение)
+        if state:
+            try:
+                with suspend_updates(self.tree):
+                    # Подготовим блокировку сигналов как у дерева, так и у selectionModel
                     try:
-                        sb = getattr(self.controller, "business", None) or getattr(
-                            self.controller, "structure_business", None
-                        )
+                        sel_model = self.tree.selectionModel()
                     except Exception:
-                        sb = None
-                    if sb and getattr(sb, "_suppress_category_restore_once", False):
+                        sel_model = None
+                    tree_blocker = QSignalBlocker(self.tree)
+                    sel_blocker = QSignalBlocker(sel_model) if sel_model else None
+                    try:
+                        self.tree.restoreState(state)
+                        # Особый случай: если бизнес-слой просил не восстанавливать выделение категории,
+                        # не оставляем восстановленное выделение — очистим его здесь, под блокировкой сигналов
                         try:
-                            setattr(sb, "_suppress_category_restore_once", False)
+                            sb = getattr(self.controller, "business", None) or getattr(
+                                self.controller, "structure_business", None
+                            )
                         except Exception:
-                            pass
-                        # Вместо восстановления категории выберем первый доступный элемент
-                        self.controller.selection_handler._select_first_item_if_needed()
-                        return
-                self.controller.selection_handler._restore_selection_after_load(
-                    item_type, item_id
-                )
-        else:
+                            sb = None
+                        if sb and getattr(sb, "_suppress_category_restore_once", False):
+                            if sel_model:
+                                try:
+                                    sel_model.clearSelection()
+                                except Exception:
+                                    pass
+                            try:
+                                setattr(sb, "_suppress_category_restore_once", False)
+                            except Exception:
+                                pass
+                    finally:
+                        # Явное «освобождение» блокировщиков
+                        sel_blocker = None
+                        tree_blocker = None
+            except Exception:
+                logger.debug("TreeManagement._on_structure_loaded: restoreState failed", exc_info=True)
+
+        # Если восстановления состояния не было или оно пустое — выберем первый элемент
+        # Либо если флаг подавления восстановления категории был активен — выбираем первый доступный элемент.
+        try:
+            sb = getattr(self.controller, "business", None) or getattr(
+                self.controller, "structure_business", None
+            )
+        except Exception:
+            sb = None
+        if not state or (sb and getattr(sb, "_suppress_category_restore_once", False)):
+            # Сброс флага на всякий случай, если не сбросили выше
+            if sb and getattr(sb, "_suppress_category_restore_once", False):
+                try:
+                    setattr(sb, "_suppress_category_restore_once", False)
+                except Exception:
+                    pass
             self.controller.selection_handler._select_first_item_if_needed()
+
+        # После стабилизации модели и восстановления состояния — вручную уведомим обработчик выбора,
+        # так как сигналы selectionModel были заблокированы во время set_snapshot/restoreState
+        try:
+            from PyQt6.QtCore import QModelIndex as _QI
+            cur = self.tree.currentIndex()
+            prev = _QI()
+            if hasattr(self.controller, "selection_handler") and cur is not None:
+                self.controller.selection_handler._on_current_changed(cur, prev)
+        except Exception:
+            logger.debug(
+                "TreeManagement._on_structure_loaded: manual currentChanged notify failed",
+                exc_info=True,
+            )
 
         # Гарантированно сбросим одноразовый флаг подавления восстановления категории,
         # если он по какой-то причине остался установлен после обработки выше.
@@ -128,8 +324,9 @@ class TreeManagement:
             self.controller.main, "_first_structure_load", False
         ):
             self.controller.main._first_structure_load = False
-            self.tree.updateGeometry()
-            self.tree.update()
+            with suspend_updates(self.tree):
+                self.tree.updateGeometry()
+                self.tree.update()
 
     def _on_item_added(self, item_type: str, parent_id: int, data: dict) -> None:
         # Инкрементальная вставка через модель
@@ -139,7 +336,8 @@ class TreeManagement:
         model = self.model
         if item_type == "section":
             # Вставляем раздел в конец (или позицию из data.get('row'))
-            row = int(data.get("row")) if isinstance(data.get("row"), int) else -1
+            _row_val = data.get("row")
+            row = _row_val if isinstance(_row_val, int) else -1
             try:
                 model.insert_sections(row, [data])
             except (ValueError, RuntimeError):
@@ -148,7 +346,8 @@ class TreeManagement:
                 )
                 raise
         elif item_type == "category" and isinstance(parent_id, int):
-            row = int(data.get("row")) if isinstance(data.get("row"), int) else -1
+            _row_val = data.get("row")
+            row = _row_val if isinstance(_row_val, int) else -1
             try:
                 model.insert_categories(parent_id, row, [data])
             except (ValueError, RuntimeError):
@@ -287,38 +486,6 @@ class TreeManagement:
                 yield idx
                 yield from self._iter_indexes(idx)
 
-    def _save_expanded_state_model(self) -> dict:
-        expanded_state = {}
-        try:
-            for idx in self._iter_indexes():
-                # Сохраняем только узлы, у которых есть дети
-                model = self.tree.model()
-                if model and model.rowCount(idx) > 0:
-                    key = get_tree_tuple(idx, 0)
-                    if key:
-                        expanded_state[key] = self.tree.isExpanded(idx)
-        except Exception:
-            logger.exception(
-                "TreeManagement._save_expanded_state_model: ошибка сохранения состояния разворота"
-            )
-        return expanded_state
-
-    def _restore_expanded_state_model(self, expanded_state: dict) -> None:
-        if not expanded_state:
-            return
-        model = self.tree.model()
-        if not model or not hasattr(model, "index_for"):
-            return
-        try:
-            for (typ, id_), state in expanded_state.items():
-                idx = model.index_for(typ, id_)
-                if idx and idx.isValid():
-                    self.tree.setExpanded(idx, bool(state))
-        except Exception:
-            logger.exception(
-                "TreeManagement._restore_expanded_state_model: ошибка восстановления состояния разворота"
-            )
-
     def _find_item_by_id(self, item_type: str, item_id: int):
         """Возвращает QModelIndex элемента по типу ('section'|'category') и id.
 
@@ -354,74 +521,65 @@ class TreeManagement:
         if not model:
             return
 
-        # Сохраняем текущее выделение и развёрнутость
-        cur_index = self.tree.currentIndex()
-        current_selection = (
-            get_tree_tuple(cur_index, 0) if cur_index and cur_index.isValid() else None
-        )
-        expanded_state = self._save_expanded_state_model()
-
+        # Сохраняем состояние вида (развороты, позиция скролла, выделение)
         try:
-            # Собираем текущий снапшот из модели
-            sections_data: list[dict] = []
-            root_rows = model.rowCount(QModelIndex())
-            for r in range(root_rows):
-                s_idx = model.index(r, 0, QModelIndex())
-                if not s_idx or not s_idx.isValid():
-                    continue
-                t = get_tree_tuple(s_idx, 0)
-                if not t or t[0] != "section":
-                    continue
-                s_id = t[1]
-                s_name = model.data(s_idx, Qt.ItemDataRole.DisplayRole) or ""
-                s_icon = model.data(s_idx, Qt.ItemDataRole.DecorationRole)
-
-                # Собираем категории раздела
-                cats: list[dict] = []
-                child_rows = model.rowCount(s_idx)
-                for i in range(child_rows):
-                    c_idx = model.index(i, 0, s_idx)
-                    if not c_idx or not c_idx.isValid():
-                        continue
-                    ct = get_tree_tuple(c_idx, 0)
-                    if not ct or ct[0] != "category":
-                        continue
-                    c_id = ct[1]
-                    c_name = model.data(c_idx, Qt.ItemDataRole.DisplayRole) or ""
-                    c_icon = model.data(c_idx, Qt.ItemDataRole.DecorationRole)
-                    cats.append({"id": c_id, "name": c_name, "icon": c_icon})
-
-                # Сортируем категории по имени без учета регистра
-                try:
-                    cats.sort(key=lambda c: (c.get("name") or "").lower())
-                except Exception:
-                    pass
-
-                sections_data.append(
-                    {
-                        "id": s_id,
-                        "name": s_name,
-                        "icon": s_icon,
-                        "categories": cats,
-                    }
-                )
-
-            # Обновляем модель единым снапшотом
-            if hasattr(model, "set_snapshot"):
-                model.set_snapshot(sections_data)
-
-            # Восстановление разворота и выделения
-            self._restore_expanded_state_model(expanded_state)
-            if current_selection:
-                item_type, item_id = current_selection
-                if item_type in ("section", "category") and isinstance(item_id, int):
-                    self.controller.selection_handler._restore_selection_after_load(
-                        item_type, item_id
-                    )
+            state = self.tree.saveState()
         except Exception:
-            # Безопасный fallback: ничего не делаем, но фиксируем контекст
+            state = None
+
+        # Вызываем сортировку модели напрямую под подавлением сигналов/перерисовок
+        try:
+            with suspend_updates(self.tree):
+                try:
+                    tree_blocker = QSignalBlocker(self.tree)
+                    try:
+                        sel_model = self.tree.selectionModel()
+                    except Exception:
+                        sel_model = None
+                    sel_blocker = QSignalBlocker(sel_model) if sel_model else None
+                except Exception:
+                    tree_blocker = None
+                    sel_blocker = None
+                try:
+                    model.sort(0, Qt.SortOrder.AscendingOrder)
+                finally:
+                    sel_blocker = None
+                    tree_blocker = None
+        except Exception:
+            logger.debug("TreeManagement._sort_tree: model.sort failed", exc_info=True)
+
+        # Восстановление состояния дерева после сортировки
+        if state:
+            try:
+                with suspend_updates(self.tree):
+                    try:
+                        tree_blocker = QSignalBlocker(self.tree)
+                        try:
+                            sel_model = self.tree.selectionModel()
+                        except Exception:
+                            sel_model = None
+                        sel_blocker = QSignalBlocker(sel_model) if sel_model else None
+                    except Exception:
+                        tree_blocker = None
+                        sel_blocker = None
+                    try:
+                        self.tree.restoreState(state)
+                    finally:
+                        sel_blocker = None
+                        tree_blocker = None
+            except Exception:
+                logger.debug("TreeManagement._sort_tree: restoreState failed", exc_info=True)
+
+        # Ручное уведомление обработчика выбора после сортировки/восстановления состояния
+        try:
+            from PyQt6.QtCore import QModelIndex as _QI
+            cur = self.tree.currentIndex()
+            prev = _QI()
+            if hasattr(self.controller, "selection_handler") and cur is not None:
+                self.controller.selection_handler._on_current_changed(cur, prev)
+        except Exception:
             logger.debug(
-                "TreeManagement._sort_tree: snapshot update failed; fallback to no-op",
+                "TreeManagement._sort_tree: manual currentChanged notify failed",
                 exc_info=True,
             )
 
