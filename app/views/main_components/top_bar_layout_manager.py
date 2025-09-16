@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import List, Optional, Tuple
 from weakref import WeakSet
 
 from PyQt6.QtCore import (
-    QEasingCurve,
     QEvent,
     QObject,
     QTimer,
@@ -42,9 +42,6 @@ from app.views.main_components.topbar_layout.topbar_narrow_mode import (
 from app.views.main_components.topbar_layout.topbar_separators import (
     update_separators_visibility as _u_update_separators_visibility,
 )
-from app.views.main_components.topbar_layout.topbar_animations import (
-    apply_with_animation as _u_apply_with_animation,
-)
 from app.views.main_components.topbar_layout.topbar_diagnostics import (
     log_layout_snapshot as _u_log_layout_snapshot,
 )
@@ -63,12 +60,8 @@ from app.views.main_components.topbar_layout.constants import (
     DEFAULT_SPACER_SIZE,
 )
 
-try:
-    from sip import isdeleted as _sip_isdeleted
-except ImportError:  # pragma: no cover
-
-    def _sip_isdeleted(_obj) -> bool:
-        return False
+# Убрана зависимость от sip.isdeleted: вместо проверки "удалённости" виджета
+# повторно и безопасно получаем контейнер по атрибутам окна при каждом запросе.
 
 
 logger = logging.getLogger(__name__)
@@ -97,6 +90,7 @@ class TopBarLayoutManager(QObject):
         self._warmup_adjusts_remaining: int = 2
         self._container_widget: Optional[QWidget] = None
         self._watched_panels: WeakSet[QObject] = WeakSet()
+        self._cfg_cache: dict[str, object] = {}
 
         # Настройки из конфига с fallback
         self._throttle_interval_ms: int = self._get_cfg_int(
@@ -115,8 +109,14 @@ class TopBarLayoutManager(QObject):
         self._min_recent: int = DEFAULT_MIN_RECENT
         self._min_fav: int = DEFAULT_MIN_FAV
         self._min_quick: int = DEFAULT_MIN_QUICK
-        # Узкий режим: фиксированный порог (значение задаётся DEFAULT_NARROW_THRESHOLD) и не переопределяется конфигом
-        self._narrow_threshold: int = DEFAULT_NARROW_THRESHOLD
+        # Узкий режим: порог теперь настраиваемый через конфиг ui.topbar.narrow_threshold
+        # (по умолчанию DEFAULT_NARROW_THRESHOLD)
+        try:
+            self._narrow_threshold: int = int(
+                app_config.get("ui.topbar.narrow_threshold", DEFAULT_NARROW_THRESHOLD)
+            )
+        except (AttributeError, TypeError, ValueError):
+            self._narrow_threshold = DEFAULT_NARROW_THRESHOLD
         self._button_size: int = self._get_cfg_int(
             "ui.top_panel_button_size", DEFAULT_BUTTON_SIZE
         )
@@ -125,18 +125,17 @@ class TopBarLayoutManager(QObject):
         self._throttle_timer = QTimer(self)
         self._throttle_timer.setSingleShot(True)
         self._throttle_timer.timeout.connect(self._run_adjust)
+        # Adaptive throttle (optional via config)
+        self._dynamic_throttle: bool = self._get_cfg_bool("ui.topbar.dynamic_throttle", False)
+        self._last_event_monotonic: float = 0.0
 
-        # Animation settings
-        self._anim_duration_ms: int = 140
-        # PyQt6 requires using the enum under QEasingCurve.Type
-        self._anim_curve = QEasingCurve.Type.OutCubic
+        # Анимация отключена: метод _apply_with_animation и связанные настройки удалены как неиспользуемые
 
         # Подключение к контейнерам
         self._install_event_filters()
 
-        # Инициализационный пересчет после показа окна
-        if hasattr(self.window, "shown"):
-            self.window.shown.connect(self.adjust)
+        # Инициализационный пересчет после показа окна выполняется в WindowUISetup,
+        # чтобы избежать дублирующих вызовов adjust() и гонок таймингов здесь не подписываемся на shown
 
     def _install_event_filters(self) -> None:
         """Устанавливает фильтры событий на релевантные виджеты.
@@ -157,8 +156,16 @@ class TopBarLayoutManager(QObject):
             QEvent.Type.Show,
             QEvent.Type.Hide,
         ):
-            # Используем настраиваемый интервал троттлинга, чтобы уменьшить дребезг пересчётов
-            self._throttle_timer.start(self._throttle_interval_ms)
+            # Используем настраиваемый интервал троттлинга; при dynamic_throttle ускоряемся в бурстах
+            interval = self._throttle_interval_ms
+            if self._dynamic_throttle:
+                now = time.monotonic()
+                dt_ms = int((now - self._last_event_monotonic) * 1000.0) if self._last_event_monotonic else None
+                # Если события идут частым бурстом — реагируем быстрее, чтобы UI не казался «ленивым»
+                if dt_ms is not None and dt_ms <= max(2, interval // 2):
+                    interval = 0
+                self._last_event_monotonic = now
+            self._throttle_timer.start(max(0, int(interval)))
         return super().eventFilter(obj, event)
 
     def _run_adjust(self) -> None:
@@ -215,11 +222,12 @@ class TopBarLayoutManager(QObject):
         return _u_get_top_bar(self.window)
 
     def _get_container_widget(self) -> Optional[QWidget]:
-        if self._container_widget and not _sip_isdeleted(self._container_widget):
-            return self._container_widget
-        self._container_widget = self._safe_get(
-            self.window, "top_bar_host"
-        ) or self._safe_get(self.window, "content_container")
+        # Без проверки через sip.isdeleted: повторно получаем актуальную ссылку
+        container = self._safe_get(self.window, "top_bar_host") or self._safe_get(
+            self.window, "content_container"
+        )
+        # Кэшируем на время жизни, но не полагаемся на кэш при следующем вызове
+        self._container_widget = container if isinstance(container, QWidget) else None
         return self._container_widget
 
     def adjust(self) -> None:
@@ -317,23 +325,7 @@ class TopBarLayoutManager(QObject):
             quick_visible,
         )
 
-    def _apply_with_animation(
-        self, panel: Optional[QWidget], btns: list[QToolButton], target_visible: int
-    ) -> int:
-        """Анимированно применить количество кнопок панели.
 
-        Делегирует в `topbar_layout.topbar_animations.apply_with_animation`.
-        """
-        return _u_apply_with_animation(
-            panel=panel,
-            btns=btns,
-            target_visible=target_visible,
-            anim_duration_ms=self._anim_duration_ms,
-            anim_curve=self._anim_curve,
-            get_container_widget=self._get_container_widget,
-            throttle_timer=self._throttle_timer,
-            panel_width_func=self._panel_width,
-        )
 
     def _zero_all_spacers(self, top_bar: QLayout) -> None:
         """Схлопнуть все spacerItem до нуля.
@@ -549,9 +541,18 @@ class TopBarLayoutManager(QObject):
         self._last_applied = (width, c_r, c_f, c_q)
 
     def _get_cfg_int(self, key: str, default: int) -> int:
+        # Простое кэширование чтений конфига в рамках жизни менеджера
+        if key in self._cfg_cache:
+            try:
+                return int(self._cfg_cache[key])
+            except Exception:
+                del self._cfg_cache[key]
         try:
-            return int(app_config.get(key, default))
+            val = int(app_config.get(key, default))
+            self._cfg_cache[key] = val
+            return val
         except (AttributeError, TypeError, ValueError):
+            self._cfg_cache[key] = default
             return default
 
     # --- Helpers extracted from adjust() ---
@@ -564,14 +565,15 @@ class TopBarLayoutManager(QObject):
         try:
             if hasattr(container, "isVisible") and not container.isVisible():
                 return None
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError):
+            # Непредвидимые ошибки получения видимости контейнера не критичны для продолжения
+            logger.debug("TopBarLM: failed to check container visibility", exc_info=True)
         width = container.width()
         # Учитываем фактическую ширину окна, если доступна
         try:
             win_w = int(getattr(self.window, "width", lambda: width)())
             effective_w = min(width, win_w) if win_w > 0 else width
-        except Exception:
+        except (TypeError, ValueError, RuntimeError, AttributeError):
             effective_w = width
         top_bar = self._get_top_bar()
         if not top_bar:
@@ -581,8 +583,6 @@ class TopBarLayoutManager(QObject):
         fav = self._safe_get(self.window, "fav_widget")
         recent = self._safe_get(self.window, "recent_links_widget")
         search: Optional[QLineEdit] = self._safe_get(self.window, "search")
-        # Установить фильтры событий
-        self._install_event_filters()
         return (container, width, effective_w, top_bar, quick, fav, recent, search)
 
     def _apply_hysteresis(
@@ -644,7 +644,11 @@ class TopBarLayoutManager(QObject):
                         exc_info=True,
                     )
                 return True
-            return True
+            # Не узкий режим: не шорткатим. Возвращаем False, чтобы дать шансу общей ветке
+            # применить состояние и выполнить _finalize_layout единообразно.
+            # Ранее здесь выполнялось локальное применение 0,0,0 и финализация с возвратом True,
+            # что пропускало дальнейшие шаги и могло приводить к расхождениям.
+            return False
         return False
 
     def _apply_layout_state(
@@ -695,8 +699,8 @@ class TopBarLayoutManager(QObject):
                     cnt_fav,
                     cnt_quick,
                 )
-            except Exception:
-                logger.debug("TopBarLM: pre-apply snapshot failed", exc_info=True)
+            except (RuntimeError, AttributeError, TypeError, ValueError):
+                logger.exception("TopBarLM: pre-apply snapshot failed")
             recent_visible = _apply_one(recent, recent_btns, "recentButton", cnt_recent)
             fav_visible = _apply_one(fav, fav_btns, "favoriteButton", cnt_fav)
             quick_visible = _apply_one(quick, quick_btns, "quickButton", cnt_quick)
@@ -705,7 +709,12 @@ class TopBarLayoutManager(QObject):
             try:
                 with suspend_updates(self.window):
                     _batch_apply()
+            except (RuntimeError, AttributeError):
+                # Если при приостановке обновлений произошла ожидаемая ошибка — применяем напрямую
+                _batch_apply()
             except Exception:
+                # Неожиданные исключения — логируем стек и применяем напрямую
+                logger.exception("TopBarLM: unexpected error inside suspend_updates; applying without suspension")
                 _batch_apply()
         else:
             _batch_apply()
@@ -758,11 +767,19 @@ class TopBarLayoutManager(QObject):
                     get_container_widget=self._get_container_widget,
                     min_search_width=self._min_search_width,
                 )
-        except Exception:
-            logger.debug("TopBarLM: failed to clamp search width to remaining space", exc_info=True)
+        except (AttributeError, RuntimeError, TypeError, ValueError):
+            logger.exception("TopBarLM: failed to clamp search width to remaining space")
 
     def _get_cfg_bool(self, key: str, default: bool) -> bool:
+        if key in self._cfg_cache:
+            try:
+                return bool(self._cfg_cache[key])
+            except Exception:
+                del self._cfg_cache[key]
         try:
-            return bool(app_config.get(key, default))
+            val = bool(app_config.get(key, default))
+            self._cfg_cache[key] = val
+            return val
         except (AttributeError, TypeError, ValueError):
+            self._cfg_cache[key] = default
             return default

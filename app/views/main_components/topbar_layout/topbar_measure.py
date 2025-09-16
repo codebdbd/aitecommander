@@ -4,16 +4,14 @@ from typing import List, Optional
 
 from PyQt6.QtWidgets import QLayout, QLineEdit, QToolButton, QWidget
 
-try:  # pragma: no cover - optional in tests without sip
-    from sip import isdeleted as _sip_isdeleted
-except Exception:  # pragma: no cover
-
-    def _sip_isdeleted(_obj) -> bool:
-        return False
-
 
 def _safe_get(obj: Optional[object], name: str) -> Optional[object]:
-    if obj is None or (isinstance(obj, QWidget) and _sip_isdeleted(obj)):
+    """Безопасный getattr без зависимости от sip.isdeleted.
+
+    Если объект удалён, обращение может бросить исключение — мы его перехватываем и
+    возвращаем None. Это поведение согласовано с topbar_layout_utils.safe_get.
+    """
+    if obj is None:
         return None
     try:
         return getattr(obj, name, None)

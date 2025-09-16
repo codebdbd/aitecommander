@@ -35,15 +35,29 @@ def update_separators_visibility(
 
     Логика полностью совпадает с исходной реализацией менеджера.
     """
+    # Кэшируем виджеты панелей, чтобы не вызывать safe_get в каждой проверке
+    try:
+        _recent_widget = safe_get(window, "recent_links_widget")
+    except Exception:
+        _recent_widget = None
+    try:
+        _fav_widget = safe_get(window, "fav_widget")
+    except Exception:
+        _fav_widget = None
+    try:
+        _quick_widget = safe_get(window, "quick_add_widget")
+    except Exception:
+        _quick_widget = None
+
     def logical_visible_panel(w: Optional[QWidget]) -> bool:
         if not w:
             return False
         try:
-            if w is safe_get(window, "recent_links_widget"):
+            if w is _recent_widget:
                 return recent_visible and w.isVisible()
-            if w is safe_get(window, "fav_widget"):
+            if w is _fav_widget:
                 return fav_visible and w.isVisible()
-            if w is safe_get(window, "quick_add_widget"):
+            if w is _quick_widget:
                 return quick_visible and w.isVisible()
         except Exception:
             return False

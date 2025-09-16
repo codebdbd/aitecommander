@@ -135,18 +135,7 @@ class _AutoHideTreeFilter(QObject):
                         )
                 self._is_collapsed = True
 
-            # Независимо от состояния — скрыть панели топ-бара на каждом вызове (на случай добавления новых)
-            for attr in ("quick_add_widget", "fav_widget", "recent_links_widget"):
-                try:
-                    panel = getattr(self.window, attr, None)
-                    if panel is not None:
-                        panel.setVisible(False)
-                except (AttributeError, RuntimeError):
-                    self._logger.debug(
-                        "AutoHideTree: failed to hide top bar panel '%s'",
-                        attr,
-                        exc_info=True,
-                    )
+            # Топ-бар панели больше не скрываем здесь — этим управляет TopBarLayoutManager
 
         elif w > self.threshold and self._is_collapsed:
             # Восстановить размеры сплиттера
@@ -174,18 +163,7 @@ class _AutoHideTreeFilter(QObject):
                         "AutoHideTree: failed to restore splitter sizes", exc_info=True
                     )
 
-            # Показать панели топ-бара обратно
-            for attr in ("quick_add_widget", "fav_widget", "recent_links_widget"):
-                try:
-                    panel = getattr(self.window, attr, None)
-                    if panel is not None:
-                        panel.setVisible(True)
-                except (AttributeError, RuntimeError):
-                    self._logger.debug(
-                        "AutoHideTree: failed to re-show top bar panel '%s'",
-                        attr,
-                        exc_info=True,
-                    )
+            # Топ-бар панели не трогаем — видимостью управляет TopBarLayoutManager
 
             # Восстановить предыдущий вид правой области (если был сохранён)
             if stack is not None and self._prev_stack_index is not None:
@@ -342,6 +320,9 @@ class WindowUISetup:
                 )
                 # Повторный проход через ~1 кадр для страховки
                 self.window.shown.connect(partial(self._post_shown_second_adjust, mgr))
+                # Дополнительная страховка: если по какой-то причине shown не отработал или слушатель не вызвался,
+                # запускаем fallback через небольшой таймаут. Он ничего не сломает, если shown уже всё сделал.
+                QTimer.singleShot(120, partial(self._invoke_adjust_and_show_host, mgr))
             else:
                 # Фолбэк: если сигнала shown нет, пересчитать в следующий тик дважды
                 self._fallback_schedule_adjusts(mgr)
@@ -382,12 +363,69 @@ class WindowUISetup:
             )
 
     def _invoke_adjust_and_show_host(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
-        """Выполняет пересчёт лэйаута и показывает host-виджет безопасно."""
+        """Пересчитать лэйаут и показать host-виджет в fallback-режиме.
+
+        Этот метод служит безопасной альтернативой пути через сигнал window.shown.
+        Выполняем:
+          1) боевой adjust,
+          2) первичный refresh панелей,
+          3) показ top_bar_host,
+          4) финальный adjust,
+          5) повторный запрос обновления recent без дебаунса.
+        """
         try:
-            mgr.adjust()
+            # 1) боевой adjust
+            try:
+                mgr.adjust()
+            except Exception:
+                logger.debug(
+                    "TopPanel: adjust() failed in _invoke_adjust_and_show_host",
+                    exc_info=True,
+                )
+
+            # 2) первичный refresh панелей
+            try:
+                tpc = getattr(self.window, "top_panels_controller", None)
+                if tpc and hasattr(tpc, "refresh_all"):
+                    tpc.refresh_all()
+            except Exception:
+                logger.debug(
+                    "TopPanel: top_panels_controller.refresh_all() failed in fallback",
+                    exc_info=True,
+                )
+
+            # 3) показать host
+            try:
+                if hasattr(self.window, "top_bar_host") and self.window.top_bar_host:
+                    self.window.top_bar_host.setVisible(True)
+            except Exception:
+                logger.debug(
+                    "TopPanel: failed to show top_bar_host in fallback",
+                    exc_info=True,
+                )
+
+            # 4) финальный adjust после показа
+            try:
+                QTimer.singleShot(0, mgr.adjust)
+            except Exception:
+                logger.debug(
+                    "TopPanel: failed to schedule final adjust in fallback",
+                    exc_info=True,
+                )
+
+            # 5) повторный refresh recent без дебаунса после стабилизации
+            try:
+                tpc2 = getattr(self.window, "top_panels_controller", None)
+                if tpc2 and hasattr(tpc2, "request_recents_refresh"):
+                    QTimer.singleShot(50, lambda: tpc2.request_recents_refresh(0))
+            except Exception:
+                logger.debug(
+                    "TopPanel: scheduling recents re-refresh failed in fallback",
+                    exc_info=True,
+                )
         except Exception:
             logger.debug(
-                "TopPanel: adjust() failed in _invoke_adjust_and_show_host",
+                "TopPanel: unexpected error in _invoke_adjust_and_show_host",
                 exc_info=True,
             )
 
@@ -439,6 +477,13 @@ class WindowUISetup:
                     mgr.adjust()
                 except Exception:
                     logger.debug("TopBar: final adjust() failed after host show", exc_info=True)
+                # Дополнительно гарантируем наполнение recent-панели сразу после показа
+                try:
+                    tpc2 = getattr(self.window, "top_panels_controller", None)
+                    if tpc2 and hasattr(tpc2, "request_recents_refresh"):
+                        QTimer.singleShot(50, lambda: tpc2.request_recents_refresh(0))
+                except Exception:
+                    logger.debug("TopBar: scheduling recents re-refresh failed", exc_info=True)
             else:
                 # Fallback без приостановки обновлений
                 try:
@@ -466,6 +511,13 @@ class WindowUISetup:
                     mgr.adjust()
                 except Exception:
                     logger.debug("TopBar: final adjust() failed after host show (no suspend)", exc_info=True)
+                # И для fallback ветки планируем повторный refresh recent
+                try:
+                    tpc2 = getattr(self.window, "top_panels_controller", None)
+                    if tpc2 and hasattr(tpc2, "request_recents_refresh"):
+                        QTimer.singleShot(50, lambda: tpc2.request_recents_refresh(0))
+                except Exception:
+                    logger.debug("TopBar: scheduling recents re-refresh failed (no suspend)", exc_info=True)
         except Exception:
             logger.debug("TopBar: finalize_topbar_show unexpected error", exc_info=True)
 

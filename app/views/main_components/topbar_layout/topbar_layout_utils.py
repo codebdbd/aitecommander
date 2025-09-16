@@ -32,24 +32,18 @@ def _dbg_log(msg: str, *args, exc: bool = False) -> None:
         else:
             logger.debug(msg, *args)
 
-try:  # pragma: no cover - optional in tests without sip
-    from sip import isdeleted as _sip_isdeleted
-except ImportError:  # pragma: no cover
-
-    def _sip_isdeleted(_obj) -> bool:
-        return False
+# Убрана опциональная зависимость от sip.isdeleted: избежим различий окружений PyQt5/PyQt6
 
 
 def safe_get(obj: Optional[object], name: str) -> Optional[object]:
-    """Безопасный getattr с защитой от удалённых Qt-объектов и RuntimeError."""
+    """Безопасный getattr с защитой от исключений RuntimeError/AttributeError.
+
+    Проверка «удалённости» Qt-объектов через sip.isdeleted удалена ради совместимости и
+    предсказуемости поведения в PyQt6. Если объект удалён, getattr, как правило, вызовет
+    исключение — мы его перехватим и вернём None.
+    """
     if obj is None:
         return None
-    try:
-        if isinstance(obj, QWidget) and _sip_isdeleted(obj):
-            return None
-    except Exception:
-        # В редких случаях проверка удалённости может кидать ошибки — игнорируем, но логируем при включенном debug
-        _dbg_log("TopBar utils: _sip_isdeleted check failed for %r", obj, exc=True)
     try:
         return getattr(obj, name, None)
     except Exception:
@@ -96,7 +90,7 @@ def install_topbar_event_filters(
                         widget,
                         exc=True,
                     )
-        if isinstance(window, QWidget) and not _sip_isdeleted(window):
+        if isinstance(window, QWidget):
             try:
                 window.installEventFilter(event_filter_obj)
             except Exception:
@@ -146,12 +140,14 @@ def clamp_search_width_to_remaining_space(
     Поведение эквивалентно блоку в TopBarLayoutManager.adjust().
     """
     # Считаем суммарную ширину уже применённых панелей + разделителей/отступов
+    # За один проход также считаем число видимых виджетов (без поля поиска)
     occupied = 0
     try:
         count = top_bar.count()
     except Exception:
         _dbg_log("TopBar utils: failed to read top_bar.count()", exc=True)
         count = 0
+    visible_count = 0  # количество видимых виджетов (без поиска)
     for i in range(count):
         it = top_bar.itemAt(i)
         w = it.widget()
@@ -166,6 +162,7 @@ def clamp_search_width_to_remaining_space(
         if w is search:
             continue
         if w.isVisible():
+            visible_count += 1
             try:
                 occupied += int(w.width())
             except Exception:
@@ -178,14 +175,8 @@ def clamp_search_width_to_remaining_space(
     except Exception:
         _dbg_log("TopBar utils: failed to read top_bar.spacing()", exc=True)
         spacing = 0
-    # число видимых элементов (без поиска) для корректировки spacing
-    visible_widgets = []
-    for i in range(count):
-        it = top_bar.itemAt(i)
-        w = it.widget()
-        if w is not None and w is not search and w.isVisible():
-            visible_widgets.append(w)
-    occupied += spacing * max(0, len(visible_widgets) - 1)
+    # корректировка spacing по числу видимых элементов (без поиска)
+    occupied += spacing * max(0, visible_count - 1)
     try:
         m = top_bar.contentsMargins()
         occupied += m.left() + m.right()
@@ -289,7 +280,7 @@ def apply_panel_width_bounds(
     try:
         panel.setMinimumWidth(0)
     except Exception:
-        pass
+        _dbg_log("TopBar utils: panel.setMinimumWidth(0) failed for %r", panel, exc=True)
     try:
         max_w = panel_width_func(panel, btns, visible) if visible > 0 else 0
     except Exception:
@@ -298,7 +289,7 @@ def apply_panel_width_bounds(
     try:
         panel.setMaximumWidth(max_w)
     except Exception:
-        pass
+        _dbg_log("TopBar utils: panel.setMaximumWidth(%s) failed for %r", max_w, panel, exc=True)
 
 
 def zero_all_spacers(top_bar: QLayout) -> None:
