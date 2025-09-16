@@ -223,35 +223,21 @@ class TopBarLayoutManager(QObject):
         return self._container_widget
 
     def adjust(self) -> None:
-        container = self._get_container_widget()
-        if not container or container.width() <= 0:
+        pre = self._compute_layout_state()
+        if pre is None:
             return
-        # Не меняем раскладку, пока контейнер верхней панели ещё скрыт — это предотвращает
-        # преждевременное растягивание поиска до показа top_bar_host
-        try:
-            if hasattr(container, "isVisible") and not container.isVisible():
-                return
-        except Exception:
-            pass
-        width = container.width()
-        # Для активации узкого режима учитываем фактическую ширину окна, если доступна
-        try:
-            win_w = int(getattr(self.window, "width", lambda: width)())
-            effective_w = min(width, win_w) if win_w > 0 else width
-        except Exception:
-            effective_w = width
-        top_bar = self._get_top_bar()
-        if not top_bar:
-            return
+        (
+            container,
+            width,
+            effective_w,
+            top_bar,
+            quick,
+            fav,
+            recent,
+            search,
+        ) = pre
 
-        # Получить панели и поиск
-        quick = self._safe_get(self.window, "quick_add_widget")
-        fav = self._safe_get(self.window, "fav_widget")
-        recent = self._safe_get(self.window, "recent_links_widget")
-        search: Optional[QLineEdit] = self._safe_get(self.window, "search")
-
-        self._install_event_filters()  # Убедиться в фильтрах
-
+        # Узкий режим — отдельная ветка
         if effective_w <= self._narrow_threshold:
             logger.debug(
                 "TopBar narrow mode: width=%s <= threshold=%s",
@@ -261,12 +247,12 @@ class TopBarLayoutManager(QObject):
             self._apply_narrow_mode_state(width, top_bar, search)
             return
 
-        # Кэшировать списки кнопок
+        # Кнопки панелей
         quick_btns = self._iter_buttons(quick, "quickButton")
         fav_btns = self._iter_buttons(fav, "favoriteButton")
         recent_btns = self._iter_buttons(recent, "recentButton")
 
-        # Рассчитать видимые количества
+        # Рассчитать целевые количества
         cnt_recent, cnt_fav, cnt_quick = self._compute_visible_counts(
             width,
             top_bar,
@@ -279,144 +265,57 @@ class TopBarLayoutManager(QObject):
             quick_btns,
         )
 
-        # Если расчёт показал, что места нет даже для одной кнопки любой панели (zero-count)
-        if cnt_recent == 0 and cnt_fav == 0 and cnt_quick == 0:
-            # В узком режиме сохраняем прежнее поведение: оставляем только поиск, без отступов
-            if effective_w <= self._narrow_threshold:
-                try:
-                    self._apply_narrow_mode_state(width, top_bar, search)
-                except Exception:
-                    logger.debug(
-                        "TopBarLayoutManager: zero-count narrow-mode handling failed",
-                        exc_info=True,
-                    )
-                return
-            # НЕ узкий режим: ничего не меняем сейчас, чтобы не растянуть поиск «в одинокого»
-            # Следующий корректный adjust с ненулевыми панелями разложит всё и назначит stretch
+        # Обработка zero-count
+        if self._handle_zero_count(width, effective_w, top_bar, search, cnt_recent, cnt_fav, cnt_quick):
             return
 
-        state = (width, cnt_recent, cnt_fav, cnt_quick)
-        if self._last_applied == state:
-            return
+        # Гистерезис (стабилизация)
+        cnt_recent, cnt_fav, cnt_quick = self._apply_hysteresis(
+            width,
+            top_bar,
+            search,
+            recent,
+            fav,
+            quick,
+            recent_btns,
+            fav_btns,
+            quick_btns,
+            cnt_recent,
+            cnt_fav,
+            cnt_quick,
+        )
 
+        # Прогрев: сначала (0,0,0)
         if self._warmup_adjusts_remaining > 0:
             self._apply_counts(width, 0, 0, 0)
             self._warmup_adjusts_remaining -= 1
             self._throttle_timer.start(0)
             return
 
-        # Hysteresis: avoid frequent toggles near boundary
-        prev_counts = self._last_applied
-        if prev_counts is not None:
-            _, pr, pf, pq = prev_counts
-            total_new = self._total_width_for(
-                top_bar, search, recent, fav, quick,
-                recent_btns, fav_btns, quick_btns,
-                cnt_recent, cnt_fav, cnt_quick,
-            )
-            band = max(8, int(self._button_size // 2))
-            if abs(width - total_new) < band:
-                cnt_recent, cnt_fav, cnt_quick = pr, pf, pq
-
-        # Применить пакетно под suspend_updates, чтобы исключить дребезжание лейаута
-        recent_visible = fav_visible = quick_visible = 0
-        try:
-            from app.utils.ui.updates import suspend_updates
-        except Exception:
-            suspend_updates = None
-
-        def _apply_one(panel, btns, btn_name, target):
-            # Determine current count
-            cur = self._current_visible_count(btns)
-            # Shrink: clamp width first, then hide extra buttons
-            if target < cur:
-                self._apply_panel_width_bounds(panel, btns, target)
-                return self._set_visible_count(panel, btn_name, target)
-            # Expand: show buttons first, then expand width
-            else:
-                vis = self._set_visible_count(panel, btn_name, target)
-                self._apply_panel_width_bounds(panel, btns, vis)
-                return vis
-
-        def _batch_apply():
-            nonlocal recent_visible, fav_visible, quick_visible
-            # Diagnostic: log snapshot before applying, to catch pre-apply overflow conditions
-            try:
-                self._log_layout_snapshot(
-                    width,
-                    top_bar,
-                    search,
-                    recent,
-                    fav,
-                    quick,
-                    recent_btns,
-                    fav_btns,
-                    quick_btns,
-                    cnt_recent,
-                    cnt_fav,
-                    cnt_quick,
-                )
-            except Exception:
-                logger.debug("TopBarLM: pre-apply snapshot failed", exc_info=True)
-            recent_visible = _apply_one(recent, recent_btns, "recentButton", cnt_recent)
-            fav_visible = _apply_one(fav, fav_btns, "favoriteButton", cnt_fav)
-            quick_visible = _apply_one(quick, quick_btns, "quickButton", cnt_quick)
-
-        if suspend_updates is not None and isinstance(self.window, QWidget):
-            try:
-                with suspend_updates(self.window):
-                    _batch_apply()
-            except Exception:
-                _batch_apply()
-        else:
-            _batch_apply()
-
-        self._last_applied = (width, recent_visible, fav_visible, quick_visible)
-        if self._log_info:
-            logger.info(
-                "[TopBar] visible: recent=%s, fav=%s, quick=%s; min_search=%s",
-                recent_visible,
-                fav_visible,
-                quick_visible,
-                self._min_search_width,
-            )
-        else:
-            logger.debug(
-                "[TopBar] visible: recent=%s, fav=%s, quick=%s; min_search=%s",
-                recent_visible,
-                fav_visible,
-                quick_visible,
-                self._min_search_width,
-            )
-
-        # В обычном режиме восстанавливаем отступы top_bar из конфига (лево/право)
-        try:
-            side = int(app_config.ui.get_top_bar_widgets_side_spacing())
-        except Exception:
-            side = 8
-        self._set_top_bar_margins(top_bar, side, 0, side, 0)
-        # Гарантируем стабильные stretch-факторы в обычном режиме
-        self._enforce_stretches(top_bar, search)
-        self._update_separators_visibility(
+        # Применить рассчитанные количества пакетно
+        recent_visible, fav_visible, quick_visible = self._apply_layout_state(
+            width,
             top_bar,
-            recent_visible > 0,
-            fav_visible > 0,
-            quick_visible > 0,
-            search is not None,
+            search,
+            recent,
+            fav,
+            quick,
+            recent_btns,
+            fav_btns,
+            quick_btns,
+            cnt_recent,
+            cnt_fav,
+            cnt_quick,
         )
 
-        # Жёстко ограничим максимальную ширину поля поиска оставшимся пространством,
-        # чтобы исключить визуальное «переполнение» и наезд на соседние панели.
-        try:
-            if isinstance(search, QLineEdit):
-                _u_clamp_search_width(
-                    top_bar=top_bar,
-                    search=search,
-                    get_container_widget=self._get_container_widget,
-                    min_search_width=self._min_search_width,
-                )
-        except Exception:
-            logger.debug("TopBarLM: failed to clamp search width to remaining space", exc_info=True)
+        # Финализация оформления и ограничение поиска
+        self._finalize_layout(
+            top_bar,
+            search,
+            recent_visible,
+            fav_visible,
+            quick_visible,
+        )
 
     def _apply_with_animation(
         self, panel: Optional[QWidget], btns: list[QToolButton], target_visible: int
@@ -654,6 +553,213 @@ class TopBarLayoutManager(QObject):
             return int(app_config.get(key, default))
         except (AttributeError, TypeError, ValueError):
             return default
+
+    # --- Helpers extracted from adjust() ---
+
+    def _compute_layout_state(self):
+        container = self._get_container_widget()
+        if not container or container.width() <= 0:
+            return None
+        # Не меняем раскладку, пока контейнер верхней панели ещё скрыт
+        try:
+            if hasattr(container, "isVisible") and not container.isVisible():
+                return None
+        except Exception:
+            pass
+        width = container.width()
+        # Учитываем фактическую ширину окна, если доступна
+        try:
+            win_w = int(getattr(self.window, "width", lambda: width)())
+            effective_w = min(width, win_w) if win_w > 0 else width
+        except Exception:
+            effective_w = width
+        top_bar = self._get_top_bar()
+        if not top_bar:
+            return None
+        # Получить панели и поиск
+        quick = self._safe_get(self.window, "quick_add_widget")
+        fav = self._safe_get(self.window, "fav_widget")
+        recent = self._safe_get(self.window, "recent_links_widget")
+        search: Optional[QLineEdit] = self._safe_get(self.window, "search")
+        # Установить фильтры событий
+        self._install_event_filters()
+        return (container, width, effective_w, top_bar, quick, fav, recent, search)
+
+    def _apply_hysteresis(
+        self,
+        width: int,
+        top_bar,
+        search,
+        recent,
+        fav,
+        quick,
+        recent_btns,
+        fav_btns,
+        quick_btns,
+        cnt_recent: int,
+        cnt_fav: int,
+        cnt_quick: int,
+    ) -> tuple[int, int, int]:
+        state = (width, cnt_recent, cnt_fav, cnt_quick)
+        if self._last_applied == state:
+            return cnt_recent, cnt_fav, cnt_quick
+        prev_counts = self._last_applied
+        if prev_counts is not None:
+            _, pr, pf, pq = prev_counts
+            total_new = self._total_width_for(
+                top_bar,
+                search,
+                recent,
+                fav,
+                quick,
+                recent_btns,
+                fav_btns,
+                quick_btns,
+                cnt_recent,
+                cnt_fav,
+                cnt_quick,
+            )
+            band = max(8, int(self._button_size // 2))
+            if abs(width - total_new) < band:
+                return pr, pf, pq
+        return cnt_recent, cnt_fav, cnt_quick
+
+    def _handle_zero_count(
+        self,
+        width: int,
+        effective_w: int,
+        top_bar,
+        search,
+        cnt_recent: int,
+        cnt_fav: int,
+        cnt_quick: int,
+    ) -> bool:
+        if cnt_recent == 0 and cnt_fav == 0 and cnt_quick == 0:
+            if effective_w <= self._narrow_threshold:
+                try:
+                    self._apply_narrow_mode_state(width, top_bar, search)
+                except Exception:
+                    logger.debug(
+                        "TopBarLayoutManager: zero-count narrow-mode handling failed",
+                        exc_info=True,
+                    )
+                return True
+            return True
+        return False
+
+    def _apply_layout_state(
+        self,
+        width: int,
+        top_bar,
+        search,
+        recent,
+        fav,
+        quick,
+        recent_btns,
+        fav_btns,
+        quick_btns,
+        cnt_recent: int,
+        cnt_fav: int,
+        cnt_quick: int,
+    ) -> tuple[int, int, int]:
+        recent_visible = fav_visible = quick_visible = 0
+        try:
+            from app.utils.ui.updates import suspend_updates
+        except Exception:
+            suspend_updates = None
+
+        def _apply_one(panel, btns, btn_name, target):
+            cur = self._current_visible_count(btns)
+            if target < cur:
+                self._apply_panel_width_bounds(panel, btns, target)
+                return self._set_visible_count(panel, btn_name, target)
+            else:
+                vis = self._set_visible_count(panel, btn_name, target)
+                self._apply_panel_width_bounds(panel, btns, vis)
+                return vis
+
+        def _batch_apply():
+            nonlocal recent_visible, fav_visible, quick_visible
+            try:
+                self._log_layout_snapshot(
+                    width,
+                    top_bar,
+                    search,
+                    recent,
+                    fav,
+                    quick,
+                    recent_btns,
+                    fav_btns,
+                    quick_btns,
+                    cnt_recent,
+                    cnt_fav,
+                    cnt_quick,
+                )
+            except Exception:
+                logger.debug("TopBarLM: pre-apply snapshot failed", exc_info=True)
+            recent_visible = _apply_one(recent, recent_btns, "recentButton", cnt_recent)
+            fav_visible = _apply_one(fav, fav_btns, "favoriteButton", cnt_fav)
+            quick_visible = _apply_one(quick, quick_btns, "quickButton", cnt_quick)
+
+        if suspend_updates is not None and isinstance(self.window, QWidget):
+            try:
+                with suspend_updates(self.window):
+                    _batch_apply()
+            except Exception:
+                _batch_apply()
+        else:
+            _batch_apply()
+
+        self._last_applied = (width, recent_visible, fav_visible, quick_visible)
+        if self._log_info:
+            logger.info(
+                "[TopBar] visible: recent=%s, fav=%s, quick=%s; min_search=%s",
+                recent_visible,
+                fav_visible,
+                quick_visible,
+                self._min_search_width,
+            )
+        else:
+            logger.debug(
+                "[TopBar] visible: recent=%s, fav=%s, quick=%s; min_search=%s",
+                recent_visible,
+                fav_visible,
+                quick_visible,
+                self._min_search_width,
+            )
+        return recent_visible, fav_visible, quick_visible
+
+    def _finalize_layout(
+        self,
+        top_bar,
+        search,
+        recent_visible: int,
+        fav_visible: int,
+        quick_visible: int,
+    ) -> None:
+        try:
+            side = int(app_config.ui.get_top_bar_widgets_side_spacing())
+        except Exception:
+            side = 8
+        self._set_top_bar_margins(top_bar, side, 0, side, 0)
+        self._enforce_stretches(top_bar, search)
+        self._update_separators_visibility(
+            top_bar,
+            recent_visible > 0,
+            fav_visible > 0,
+            quick_visible > 0,
+            search is not None,
+        )
+        try:
+            if isinstance(search, QLineEdit):
+                _u_clamp_search_width(
+                    top_bar=top_bar,
+                    search=search,
+                    get_container_widget=self._get_container_widget,
+                    min_search_width=self._min_search_width,
+                )
+        except Exception:
+            logger.debug("TopBarLM: failed to clamp search width to remaining space", exc_info=True)
 
     def _get_cfg_bool(self, key: str, default: bool) -> bool:
         try:

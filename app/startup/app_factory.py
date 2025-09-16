@@ -16,6 +16,12 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QApplication
 
+# Опционально используем централизованный конфиг, если доступен
+try:
+    from app.config_data import app_config  # type: ignore
+except Exception:  # pragma: no cover
+    app_config = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,13 +32,17 @@ def create_application() -> QApplication:
     Returns:
         QApplication: Настроенный экземпляр приложения
     """
-    # Включаем HiDPI-атрибуты до создания экземпляра приложения
+    # Включаем HiDPI-атрибуты до создания экземпляра приложения (только если доступны в Qt)
     try:
-        QApplication.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling, True)
-        QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
-    except (AttributeError, RuntimeError) as e:
-        # Безопасный фолбэк: атрибуты могут быть недоступны в некоторых окружениях/версиях
-        logger.warning("[app_factory] Не удалось установить HiDPI атрибуты: %s", e)
+        aa_enable = getattr(Qt.ApplicationAttribute, "AA_EnableHighDpiScaling", None)
+        if aa_enable is not None:
+            QApplication.setAttribute(aa_enable, True)
+        aa_pixmaps = getattr(Qt.ApplicationAttribute, "AA_UseHighDpiPixmaps", None)
+        if aa_pixmaps is not None:
+            QApplication.setAttribute(aa_pixmaps, True)
+    except Exception as e:
+        # Не критично: просто зафиксируем в debug, не шумим предупреждениями для Qt6
+        logger.debug("[app_factory] HiDPI attribute setup skipped: %s", e, exc_info=True)
 
     # Создаём экземпляр приложения (тест ожидает прямой вызов конструктора)
     app = QApplication(sys.argv)
@@ -52,26 +62,23 @@ def create_application() -> QApplication:
     # но здесь задаём стартовые значения по умолчанию (конфигурируемые с фолбэком).
     font_family = "Arial"
     font_size = 10
-    # Опционально читаем конфиг, если доступен
+    # Опционально читаем параметры шрифта из app_config, если доступно
     try:
-        from app.config_data.base_config import get_app_config  # type: ignore
-    except ImportError as e:
-        logger.warning("[app_factory] Конфиг не найден: %s — используем дефолтные шрифты", e)
-    else:
-        try:
-            cfg = get_app_config()
-            font_cfg = getattr(cfg, "ui_font", None) or {}
-            font_family = str(font_cfg.get("family", font_family))
-            font_size = int(font_cfg.get("size", font_size))
-        except (AttributeError, KeyError, TypeError, ValueError) as e:
-            logger.warning(
-                "[app_factory] Некорректные параметры ui_font в конфиге: %s — используем дефолты",
-                e,
-            )
-        except Exception as e:
-            # Неожиданная ошибка в конфиге — прерываем запуск явно
-            logger.exception("[app_factory] Неожиданная ошибка при чтении конфига")
-            raise
+        if app_config is not None:
+            # Ожидаем словарь ui_font = {"family": str, "size": int}, если присутствует
+            ui_font = None
+            try:
+                ui_font = app_config.get("ui_font", None)
+            except Exception:
+                ui_font = None
+            if isinstance(ui_font, dict):
+                font_family = str(ui_font.get("family", font_family))
+                try:
+                    font_size = int(ui_font.get("size", font_size))
+                except Exception:
+                    font_size = font_size
+    except Exception as e:
+        logger.debug("[app_factory] app_config ui_font read failed: %s", e, exc_info=True)
 
     try:
         app.setFont(QFont(font_family, font_size))

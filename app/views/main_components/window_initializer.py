@@ -158,7 +158,10 @@ class WindowInitializer:
         self._current_init_step = 0
         self._init_steps_before_db: List[Tuple[str, Callable[[], None]]] = []
         special_hooks_before: Dict[Callable[[], None], Callable[[], None]] = {}
-        for label, method_name, hook_name in BEFORE_DB_STEP_CONFIG:
+        for sc in BEFORE_DB_STEP_CONFIG:
+            label = sc.label
+            method_name = sc.method_name
+            hook_name = sc.post_hook_name
             step_func = getattr(self, method_name, None)
             if not callable(step_func):
                 logger.warning(
@@ -180,7 +183,10 @@ class WindowInitializer:
 
         self._init_steps_after_db: List[Tuple[str, Callable[[], None]]] = []
         self._special_hooks_after: Dict[Callable[[], None], Callable[[], None]] = {}
-        for label, method_name, hook_name in AFTER_DB_STEP_CONFIG:
+        for sc in AFTER_DB_STEP_CONFIG:
+            label = sc.label
+            method_name = sc.method_name
+            hook_name = sc.post_hook_name
             step_func = getattr(self, method_name, None)
             if not callable(step_func):
                 logger.warning(

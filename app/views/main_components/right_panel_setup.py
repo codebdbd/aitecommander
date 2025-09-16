@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data import app_config
+from .protocols import WindowUISetupProtocol
 from app.views.tiles import CategoryTiles
 from app.views.link import LinksTableView
 
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 class RightPanelBuilder:
     """Builds the right panel using existing WindowUISetup helpers (no behavior change)."""
 
-    def __init__(self, ui: Any) -> None:
+    def __init__(self, ui: WindowUISetupProtocol) -> None:
         # ui is WindowUISetup; typed as Any to avoid circular imports
         self.ui = ui
         self.window = ui.window
