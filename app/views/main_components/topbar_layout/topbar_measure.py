@@ -4,19 +4,8 @@ from typing import List, Optional
 
 from PyQt6.QtWidgets import QLayout, QLineEdit, QToolButton, QWidget
 
+from app.views.main_components.topbar_layout.topbar_layout_utils import safe_get
 
-def _safe_get(obj: Optional[object], name: str) -> Optional[object]:
-    """Безопасный getattr без зависимости от sip.isdeleted.
-
-    Если объект удалён, обращение может бросить исключение — мы его перехватываем и
-    возвращаем None. Это поведение согласовано с topbar_layout_utils.safe_get.
-    """
-    if obj is None:
-        return None
-    try:
-        return getattr(obj, name, None)
-    except Exception:
-        return None
 
 
 def iter_buttons(panel_widget: Optional[QWidget], name: str) -> List[QToolButton]:
@@ -27,7 +16,7 @@ def iter_buttons(panel_widget: Optional[QWidget], name: str) -> List[QToolButton
     panel = panel_widget  # alias
     if not isinstance(panel, QWidget):
         return []
-    bg = _safe_get(panel, "bg_frame")
+    bg = safe_get(panel, "bg_frame")
     lay = bg.layout() if isinstance(bg, QWidget) and hasattr(bg, "layout") else None
     ordered: List[QToolButton] = []
     if lay:
@@ -57,7 +46,7 @@ def panel_width(panel: Optional[QWidget], btns: List[QToolButton], count: int, *
     """
     if not isinstance(panel, QWidget) or not btns or count <= 0:
         return 0
-    bg = _safe_get(panel, "bg_frame")
+    bg = safe_get(panel, "bg_frame")
     lay = bg.layout() if isinstance(bg, QWidget) and hasattr(bg, "layout") else None
     spacing = lay.spacing() if lay else 0
     total = 0
@@ -119,23 +108,21 @@ def compute_visible_counts(
 
     max_steps = (cnt_recent - min_recent) + (cnt_fav - min_fav) + (cnt_quick - min_quick)
     steps = 0
-    while (
-        total_width_for_func(
-            top_bar,
-            search,
-            recent,
-            fav,
-            quick,
-            recent_btns,
-            fav_btns,
-            quick_btns,
-            cnt_recent,
-            cnt_fav,
-            cnt_quick,
-        )
-        > width
-        and steps < max_steps
-    ):
+    # Первичный расчёт суммарной ширины для текущих счетчиков
+    total = total_width_for_func(
+        top_bar,
+        search,
+        recent,
+        fav,
+        quick,
+        recent_btns,
+        fav_btns,
+        quick_btns,
+        cnt_recent,
+        cnt_fav,
+        cnt_quick,
+    )
+    while total > width and steps < max_steps:
         steps += 1
         if cnt_recent > min_recent:
             cnt_recent -= 1
@@ -145,9 +132,8 @@ def compute_visible_counts(
             cnt_quick -= 1
         else:
             break
-
-    if (
-        total_width_for_func(
+        # Обновляем total после изменения счетчиков
+        total = total_width_for_func(
             top_bar,
             search,
             recent,
@@ -160,8 +146,8 @@ def compute_visible_counts(
             cnt_fav,
             cnt_quick,
         )
-        > width
-    ):
+
+    if total > width:
         cnt_recent, cnt_fav, cnt_quick = 0, 0, 0
 
     return cnt_recent, cnt_fav, cnt_quick
