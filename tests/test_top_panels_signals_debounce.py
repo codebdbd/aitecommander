@@ -32,6 +32,10 @@ class FavWidgetStub:
     def set_favorites(self, items):
         pass
 
+    # Новый контракт контроллера — set_data(items)
+    def set_data(self, items):
+        self.set_favorites(items)
+
     def clear_favorites(self):
         pass
 
@@ -43,6 +47,10 @@ class RecWidgetStub:
 
     def set_recent_links(self, items):
         pass
+
+    # Новый контракт контроллера — set_data(items)
+    def set_data(self, items):
+        self.set_recent_links(items)
 
 
 class LinksBusinessStub:

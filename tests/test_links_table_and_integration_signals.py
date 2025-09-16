@@ -36,6 +36,9 @@ class FavWidgetMock:
         self.favorites = items
         self.set_calls += 1
 
+    def set_data(self, items):
+        self.set_favorites(items)
+
     def clear_favorites(self):
         self.favorites = []
 
@@ -53,6 +56,9 @@ class RecentWidgetMock:
     def set_recent_links(self, items):
         self.recent = items
         self.set_calls += 1
+
+    def set_data(self, items):
+        self.set_recent_links(items)
 
     def get_limit(self):
         # Совместимость: поддерживаем оба поля, выбирая приоритетно limit

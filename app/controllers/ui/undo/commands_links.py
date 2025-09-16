@@ -166,8 +166,13 @@ class BatchDeleteLinksCmd(BaseCommand):
                         if links_business:
                             try:
                                 links_business.load_links(cat_id)
-                            except Exception:
-                                pass
+                            except Exception as exc:
+                                logger.debug(
+                                    "BatchDeleteLinksCmd.redo: links_business.load_links(%s) failed: %s",
+                                    cat_id,
+                                    exc,
+                                    exc_info=True,
+                                )
         except Exception as exc:
             logger.warning(
                 "BatchDeleteLinksCmd.redo: reload failed: %s",
@@ -208,8 +213,13 @@ class BatchDeleteLinksCmd(BaseCommand):
                     if links_business:
                         try:
                             links_business.load_links(cat_id)
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logger.debug(
+                                "BatchDeleteLinksCmd.undo: links_business.load_links(%s) failed: %s",
+                                cat_id,
+                                exc,
+                                exc_info=True,
+                            )
         except Exception as exc:
             logger.warning(
                 "BatchDeleteLinksCmd.undo: reload failed: %s",
@@ -248,8 +258,13 @@ class DeleteLinkCmd(BaseCommand):
                         if links_business:
                             try:
                                 links_business.load_links(cat_id)
-                            except Exception:
-                                pass
+                            except Exception as exc:
+                                logger.debug(
+                                    "DeleteLinkCmd.redo: links_business.load_links(%s) failed: %s",
+                                    cat_id,
+                                    exc,
+                                    exc_info=True,
+                                )
         except Exception as exc:
             logger.warning(
                 "DeleteLinkCmd.redo: reload failed: %s",
@@ -281,8 +296,13 @@ class DeleteLinkCmd(BaseCommand):
                         if links_business:
                             try:
                                 links_business.load_links(cat_id)
-                            except Exception:
-                                pass
+                            except Exception as exc:
+                                logger.debug(
+                                    "DeleteLinkCmd.undo: links_business.load_links(%s) failed: %s",
+                                    cat_id,
+                                    exc,
+                                    exc_info=True,
+                                )
             except Exception as exc:
                 logger.warning(
                     "DeleteLinkCmd.undo: reload failed: %s",

@@ -44,12 +44,18 @@ def make_ctrl_with_timer(timer):
         def set_favorites(self, *_):
             pass
 
+        def set_data(self, items):
+            self.set_favorites(items)
+
         def clear_favorites(self):
             pass
 
     class Recent:
         def set_recent_links(self, *_):
             pass
+
+        def set_data(self, items):
+            self.set_recent_links(items)
 
     links_business = SimpleNamespace(
         get_favorite_links=lambda: [],

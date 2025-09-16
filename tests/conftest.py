@@ -35,6 +35,9 @@ def fav_widget_stub_min():
         def set_favorites(self, items):
             pass
 
+        def set_data(self, items):
+            self.set_favorites(items)
+
         def clear_favorites(self):
             pass
 
@@ -46,6 +49,9 @@ def rec_widget_stub_min():
     class Rec:
         def set_recent_links(self, items):
             pass
+
+        def set_data(self, items):
+            self.set_recent_links(items)
 
     return Rec()
 
@@ -60,6 +66,9 @@ def fav_widget_stub_with_clear_signals(signal_stub_cls):
 
         def set_favorites(self, items):
             pass
+
+        def set_data(self, items):
+            self.set_favorites(items)
 
         def clear_favorites(self):
             pass
@@ -76,6 +85,9 @@ def rec_widget_stub_with_signals(signal_stub_cls):
 
         def set_recent_links(self, items):
             pass
+
+        def set_data(self, items):
+            self.set_recent_links(items)
 
     return Rec()
 

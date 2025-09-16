@@ -16,6 +16,10 @@ class FavWidgetMock:
         self.favorites = items
         self.set_calls += 1
 
+    # Новый контракт контроллера — set_data(items)
+    def set_data(self, items):
+        self.set_favorites(items)
+
     def clear_favorites(self):
         self.cleared += 1
 
@@ -33,6 +37,10 @@ class RecentWidgetMock:
     def set_recent_links(self, items):
         self.recent = items
         self.set_calls += 1
+
+    # Новый контракт контроллера — set_data(items)
+    def set_data(self, items):
+        self.set_recent_links(items)
 
     def get_limit(self):
         if isinstance(self.limit, int) and self.limit > 0:

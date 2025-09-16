@@ -18,6 +18,11 @@ class FavWidgetMock:
     def set_favorites(self, items):
         self.calls.append(("set_favorites", list(items)))
 
+    # Новый контракт контроллера — set_data(items)
+    # Делегируем на set_favorites, чтобы не менять логику проверок
+    def set_data(self, items):
+        self.set_favorites(items)
+
     def clear_favorites(self):
         self.calls.append("clear_favorites")
 
@@ -29,6 +34,11 @@ class RecentLinksWidgetMock:
 
     def set_recent_links(self, items):
         self.calls.append(("set_recent_links", list(items)))
+
+    # Новый контракт контроллера — set_data(items)
+    # Делегируем на set_recent_links для сохранения проверок
+    def set_data(self, items):
+        self.set_recent_links(items)
 
 
 class LinksBusinessMock:

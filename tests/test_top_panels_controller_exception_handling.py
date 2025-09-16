@@ -13,6 +13,10 @@ class DummyFavWidget:
     def set_favorites(self, items):
         self.items = items
 
+    # Новый контракт контроллера — set_data(items)
+    def set_data(self, items):
+        self.set_favorites(items)
+
     def clear_favorites(self):
         self.items = []
 
@@ -23,6 +27,10 @@ class DummyRecentsWidget:
 
     def set_recent_links(self, items):
         self.items = items
+
+    # Новый контракт контроллера — set_data(items)
+    def set_data(self, items):
+        self.set_recent_links(items)
 
 
 class DummyRecentsWidgetWithLimit(DummyRecentsWidget):

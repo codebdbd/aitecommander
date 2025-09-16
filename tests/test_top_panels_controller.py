@@ -10,8 +10,13 @@ class FavWidgetMock:
     def __init__(self):
         self.calls = []
 
-    def set_favorites(self, items):  # новый основной путь
+    def set_favorites(self, items):  # legacy путь, сохраняем для проверок
         self.calls.append(("set_favorites", items))
+
+    # Новый единый контракт контроллера — set_data(items)
+    # Для обратной совместимости тестовых проверок делегируем на set_favorites
+    def set_data(self, items):
+        self.set_favorites(items)
 
     def clear_favorites(self):
         self.calls.append("clear_favorites")
@@ -21,8 +26,13 @@ class RecentLinksWidgetMock:
     def __init__(self):
         self.calls = []
 
-    def set_recent_links(self, items):  # новый основной путь
+    def set_recent_links(self, items):  # legacy путь, сохраняем для проверок
         self.calls.append(("set_recent_links", items))
+
+    # Новый единый контракт контроллера — set_data(items)
+    # Для обратной совместимости тестовых проверок делегируем на set_recent_links
+    def set_data(self, items):
+        self.set_recent_links(items)
 
 
 class LinksBusinessStub:
