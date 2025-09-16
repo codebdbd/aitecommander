@@ -195,12 +195,12 @@ def clamp_search_width_to_remaining_space(
         if search.maximumWidth() != max_search_w:
             search.setMaximumWidth(max_search_w)
     except Exception:
-        pass
+        _dbg_log("TopBar utils: failed to set search width", exc=True)
     try:
         if search.minimumWidth() != min_search_width:
             search.setMinimumWidth(min_search_width)
     except Exception:
-        pass
+        _dbg_log("TopBar utils: failed to set search width", exc=True)
 
 
 def get_top_bar(window: object) -> Optional[QLayout]:
@@ -302,4 +302,4 @@ def zero_all_spacers(top_bar: QLayout) -> None:
             if sp is not None:
                 sp.changeSize(0, 0)
     except Exception:
-        pass
+        _dbg_log("TopBar utils: zero_all_spacers failed", exc=True)

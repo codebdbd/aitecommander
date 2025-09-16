@@ -38,6 +38,7 @@ from app.views.main_components.topbar_layout.topbar_layout_utils import (
 )
 from app.views.main_components.topbar_layout.topbar_narrow_mode import (
     apply_narrow_mode as _apply_narrow_mode,
+    restore_search_state as _restore_search_state,
 )
 from app.views.main_components.topbar_layout.topbar_separators import (
     update_separators_visibility as _u_update_separators_visibility,
@@ -204,7 +205,7 @@ class TopBarLayoutManager(QObject):
             try:
                 panel_widget.updateGeometry()
             except Exception:
-                pass
+                logger.debug("TopBarLM: updateGeometry failed for %r", panel_widget, exc_info=True)
         return count
 
     def _current_visible_count(self, btns: List[QToolButton]) -> int:
@@ -787,6 +788,11 @@ class TopBarLayoutManager(QObject):
                     get_container_widget=self._get_container_widget,
                     min_search_width=self._min_search_width,
                 )
+                # Восстанавливаем состояние кнопки очистки и действий после выхода из узкого режима
+                try:
+                    _restore_search_state(search)
+                except Exception:
+                    logger.debug("TopBarLM: failed to restore search state after narrow mode", exc_info=True)
         except (AttributeError, RuntimeError, TypeError, ValueError):
             logger.exception("TopBarLM: failed to clamp search width to remaining space")
 
