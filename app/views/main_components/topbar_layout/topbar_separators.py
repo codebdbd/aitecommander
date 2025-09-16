@@ -68,23 +68,24 @@ def update_separators_visibility(
     except Exception:
         return
 
-    last_left_widget: Optional[QWidget] = None  # последний встреченный widget слева (не spacer)
     i = 0
     while i < count:
         it = top_bar.itemAt(i)
         w = it.widget()
         if _is_vertical_separator(w):
-            # Левый сосед берём из сохранённого последнего виджета
-            left_widget: Optional[QWidget] = last_left_widget
-            # Правый сосед находим единственным движением вперёд до первого виджета
+            left_widget: Optional[QWidget] = None
+            j = i - 1
+            while j >= 0 and not left_widget:
+                prev_it = top_bar.itemAt(j)
+                if prev_it.widget():
+                    left_widget = prev_it.widget()
+                j -= 1
             right_widget: Optional[QWidget] = None
             j = i + 1
-            while j < count and right_widget is None:
+            while j < count and not right_widget:
                 next_it = top_bar.itemAt(j)
-                nw = next_it.widget() if next_it is not None else None
-                if nw is not None:
-                    right_widget = nw
-                    break
+                if next_it.widget():
+                    right_widget = next_it.widget()
                 j += 1
             show_sep = logical_visible_panel(left_widget) and (
                 logical_visible_panel(right_widget)
@@ -143,10 +144,6 @@ def update_separators_visibility(
                         QSizePolicy.Policy.Fixed,
                         QSizePolicy.Policy.Fixed,
                     )
-        else:
-            # Обновляем последний левый виджет, если текущий элемент — виджет (не spacer)
-            if w is not None:
-                last_left_widget = w
         i += 1
     try:
         top_bar.invalidate()

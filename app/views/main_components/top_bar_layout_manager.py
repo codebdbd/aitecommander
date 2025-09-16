@@ -130,6 +130,9 @@ class TopBarLayoutManager(QObject):
         self._dynamic_throttle: bool = self._get_cfg_bool("ui.topbar.dynamic_throttle", False)
         self._last_event_monotonic: float = 0.0
 
+        # Флаг активного узкого режима: используем для условного восстановления состояния поиска
+        self._narrow_active: bool = False
+
         # Анимация отключена: метод _apply_with_animation и связанные настройки удалены как неиспользуемые
 
         # Подключение к контейнерам
@@ -549,6 +552,8 @@ class TopBarLayoutManager(QObject):
             enforce_stretches=self._enforce_stretches,
             get_container_widget=self._get_container_widget,
         )
+        # Отмечаем, что мы вошли в узкий режим
+        self._narrow_active = True
 
     def _apply_counts(self, width: int, c_r: int, c_f: int, c_q: int) -> None:
         _u_apply_counts(
@@ -788,12 +793,14 @@ class TopBarLayoutManager(QObject):
                     get_container_widget=self._get_container_widget,
                     min_search_width=self._min_search_width,
                 )
-                # Восстанавливаем состояние кнопки очистки и действий после выхода из узкого режима
+                # Восстанавливаем состояние кнопки очистки и действий только если выходим из узкого режима
                 # Делаем это асинхронно, чтобы избежать re-entrant LayoutRequest/adjust() во время финализации
-                try:
-                    QTimer.singleShot(0, lambda s=search: _restore_search_state(s))
-                except Exception:
-                    logger.debug("TopBarLM: failed to schedule restore of search state after narrow mode", exc_info=True)
+                if self._narrow_active:
+                    try:
+                        QTimer.singleShot(0, lambda s=search: _restore_search_state(s))
+                        self._narrow_active = False
+                    except Exception:
+                        logger.debug("TopBarLM: failed to schedule restore of search state after narrow mode", exc_info=True)
         except (AttributeError, RuntimeError, TypeError, ValueError):
             logger.exception("TopBarLM: failed to clamp search width to remaining space")
 

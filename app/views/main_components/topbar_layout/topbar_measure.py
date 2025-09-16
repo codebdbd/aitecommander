@@ -108,32 +108,8 @@ def compute_visible_counts(
 
     max_steps = (cnt_recent - min_recent) + (cnt_fav - min_fav) + (cnt_quick - min_quick)
     steps = 0
-    # Первичный расчёт суммарной ширины для текущих счетчиков
-    total = total_width_for_func(
-        top_bar,
-        search,
-        recent,
-        fav,
-        quick,
-        recent_btns,
-        fav_btns,
-        quick_btns,
-        cnt_recent,
-        cnt_fav,
-        cnt_quick,
-    )
-    while total > width and steps < max_steps:
-        steps += 1
-        if cnt_recent > min_recent:
-            cnt_recent -= 1
-        elif cnt_fav > min_fav:
-            cnt_fav -= 1
-        elif cnt_quick > min_quick:
-            cnt_quick -= 1
-        else:
-            break
-        # Обновляем total после изменения счетчиков
-        total = total_width_for_func(
+    while (
+        total_width_for_func(
             top_bar,
             search,
             recent,
@@ -146,8 +122,35 @@ def compute_visible_counts(
             cnt_fav,
             cnt_quick,
         )
+        > width
+        and steps < max_steps
+    ):
+        steps += 1
+        if cnt_recent > min_recent:
+            cnt_recent -= 1
+        elif cnt_fav > min_fav:
+            cnt_fav -= 1
+        elif cnt_quick > min_quick:
+            cnt_quick -= 1
+        else:
+            break
 
-    if total > width:
+    if (
+        total_width_for_func(
+            top_bar,
+            search,
+            recent,
+            fav,
+            quick,
+            recent_btns,
+            fav_btns,
+            quick_btns,
+            cnt_recent,
+            cnt_fav,
+            cnt_quick,
+        )
+        > width
+    ):
         cnt_recent, cnt_fav, cnt_quick = 0, 0, 0
 
     return cnt_recent, cnt_fav, cnt_quick
