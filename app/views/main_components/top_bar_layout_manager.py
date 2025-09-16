@@ -295,7 +295,27 @@ class TopBarLayoutManager(QObject):
 
         # Прогрев: сначала (0,0,0)
         if self._warmup_adjusts_remaining > 0:
+            # Применяем нулевые панели и сразу финализируем лэйаут,
+            # чтобы клампинг поиска не растягивал его на весь топбар при старте.
             self._apply_counts(width, 0, 0, 0)
+            try:
+                self._finalize_layout(
+                    top_bar,
+                    search,
+                    0,
+                    0,
+                    0,
+                )
+            except Exception:
+                logger.debug("TopBarLayoutManager: warmup finalize failed", exc_info=True)
+            # Дополнительно: на время прогрева фиксируем максимум поиска в минимуме,
+            # чтобы он не занимал всё пространство до следующего adjust().
+            try:
+                if isinstance(search, QLineEdit):
+                    if search.maximumWidth() != self._min_search_width:
+                        search.setMaximumWidth(self._min_search_width)
+            except Exception:
+                logger.debug("TopBarLayoutManager: failed to pin search width during warmup", exc_info=True)
             self._warmup_adjusts_remaining -= 1
             self._throttle_timer.start(0)
             return
