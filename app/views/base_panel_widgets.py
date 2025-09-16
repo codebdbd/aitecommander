@@ -123,6 +123,15 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
                     self.panel_layout.addStretch()
             except (AttributeError, RuntimeError) as e:
                 logger.warning("Failed to add stretch to layout: %s", e)
+                
+            # Сброс максимальной ширины после заполнения панели
+            try:
+                self.setMaximumWidth(16777215)  # Максимальное значение ширины
+            except Exception:
+                logger.debug(
+                    "BaseTopPanelWidget: setMaximumWidth failed after populate",
+                    exc_info=True,
+                )
         finally:
             self.setUpdatesEnabled(True)
             try:

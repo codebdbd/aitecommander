@@ -314,7 +314,6 @@ class WindowUISetup:
                 return
             if hasattr(self.window, "shown"):
                 # type: ignore[attr-defined]
-                # Пересчитать и показать атомарно: сначала adjust, затем показать хост
                 self.window.shown.connect(
                     partial(self._post_shown_adjust_and_show_host, mgr)
                 )
@@ -439,85 +438,77 @@ class WindowUISetup:
     def _finalize_topbar_show(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
         """Сбрасывает warmup, выполняет боевой adjust, затем показывает host и делает финальный adjust."""
         try:
-            # Импортируем лениво, чтобы избежать циклов
-            from app.utils.ui.updates import suspend_updates
-        except Exception:
-            suspend_updates = None  # type: ignore
-
-        try:
-            if suspend_updates is not None:
-                with suspend_updates(self.window):
-                    # Сбросить прогрев, чтобы следующий adjust был боевым
-                    try:
-                        if hasattr(mgr, "_warmup_adjusts_remaining"):
-                            setattr(mgr, "_warmup_adjusts_remaining", 0)
-                    except Exception:
-                        logger.debug("TopBar: failed to reset warmup flag", exc_info=True)
-                    # Боевой adjust на скрытом host (контейнер уже создан)
-                    try:
-                        mgr.adjust()
-                    except Exception:
-                        logger.debug("TopBar: adjust() failed before host show", exc_info=True)
-                    # Перед показом top_bar_host инициируем первичную загрузку данных панелей,
-                    # чтобы лэйаут пересчитался уже с учётом видимых кнопок
-                    try:
-                        tpc = getattr(self.window, "top_panels_controller", None)
-                        if tpc and hasattr(tpc, "refresh_all"):
-                            tpc.refresh_all()
-                    except Exception:
-                        logger.debug("TopBar: top_panels_controller.refresh_all() failed", exc_info=True)
-                    # Показать host
-                    try:
-                        self.window.top_bar_host.setVisible(True)
-                    except Exception:
-                        logger.debug("TopBar: failed to show top_bar_host in finalize", exc_info=True)
+            # Сбросить прогрев, чтобы следующий adjust был боевым
+            try:
+                if hasattr(mgr, "_warmup_adjusts_remaining"):
+                    setattr(mgr, "_warmup_adjusts_remaining", 0)
+                    logger.info("TopBar: warmup flag reset to 0")
+            except Exception:
+                logger.debug("TopBar: failed to reset warmup flag", exc_info=True)
+            
+            # Выполнить первый боевой adjust до показа
+            try:
+                logger.info("TopBar: performing initial adjust before host show")
+                mgr.adjust()
+                logger.info("TopBar: initial adjust completed")
+            except Exception:
+                logger.debug("TopBar: initial adjust() failed before host show", exc_info=True)
+            
+            # Инициировать первичную загрузку данных панелей
+            try:
+                tpc = getattr(self.window, "top_panels_controller", None)
+                if tpc and hasattr(tpc, "refresh_all"):
+                    logger.info("TopBar: refreshing all panel data")
+                    tpc.refresh_all()
+                    logger.info("TopBar: panel data refresh completed")
+            except Exception:
+                logger.debug("TopBar: top_panels_controller.refresh_all() failed", exc_info=True)
+            
+            # Принудительно сбросить максимальную ширину панелей, чтобы они могли отображаться
+            try:
+                recent_widget = getattr(self.window, "recent_links_widget", None)
+                if recent_widget:
+                    recent_widget.setMaximumWidth(16777215)  # Максимальное значение ширины
+                    recent_widget.setVisible(True)
+                    logger.info("TopBar: recent widget max width reset to 16777215 and set visible")
                 
-                # Финальный adjust вне блока suspend_updates, когда top_bar_host имеет реальную ширину
-                try:
-                    mgr.adjust()
-                except Exception:
-                    logger.debug("TopBar: final adjust() failed after host show", exc_info=True)
-                # Дополнительно гарантируем наполнение recent-панели сразу после показа
-                try:
-                    tpc2 = getattr(self.window, "top_panels_controller", None)
-                    if tpc2 and hasattr(tpc2, "request_recents_refresh"):
-                        QTimer.singleShot(50, lambda: tpc2.request_recents_refresh(0))
-                except Exception:
-                    logger.debug("TopBar: scheduling recents re-refresh failed", exc_info=True)
-            else:
-                # Fallback без приостановки обновлений
-                try:
-                    if hasattr(mgr, "_warmup_adjusts_remaining"):
-                        setattr(mgr, "_warmup_adjusts_remaining", 0)
-                except Exception:
-                    logger.debug("TopBar: failed to reset warmup flag (no suspend)", exc_info=True)
-                try:
-                    mgr.adjust()
-                except Exception:
-                    logger.debug("TopBar: adjust() failed before host show (no suspend)", exc_info=True)
-                # Перед показом инициируем загрузку панелей
-                try:
-                    tpc = getattr(self.window, "top_panels_controller", None)
-                    if tpc and hasattr(tpc, "refresh_all"):
-                        tpc.refresh_all()
-                except Exception:
-                    logger.debug("TopBar: top_panels_controller.refresh_all() failed (no suspend)", exc_info=True)
-                try:
-                    self.window.top_bar_host.setVisible(True)
-                except Exception:
-                    logger.debug("TopBar: failed to show top_bar_host (no suspend)", exc_info=True)
-                # Финальный adjust для fallback ветки
-                try:
-                    mgr.adjust()
-                except Exception:
-                    logger.debug("TopBar: final adjust() failed after host show (no suspend)", exc_info=True)
-                # И для fallback ветки планируем повторный refresh recent
-                try:
-                    tpc2 = getattr(self.window, "top_panels_controller", None)
-                    if tpc2 and hasattr(tpc2, "request_recents_refresh"):
-                        QTimer.singleShot(50, lambda: tpc2.request_recents_refresh(0))
-                except Exception:
-                    logger.debug("TopBar: scheduling recents re-refresh failed (no suspend)", exc_info=True)
+                fav_widget = getattr(self.window, "fav_widget", None)
+                if fav_widget:
+                    fav_widget.setMaximumWidth(16777215)
+                    fav_widget.setVisible(True)
+                    logger.info("TopBar: favorites widget max width reset to 16777215 and set visible")
+                    
+                quick_widget = getattr(self.window, "quick_add_widget", None)
+                if quick_widget:
+                    quick_widget.setMaximumWidth(16777215)
+                    quick_widget.setVisible(True)
+                    logger.info("TopBar: quick add widget max width reset to 16777215 and set visible")
+            except Exception:
+                logger.debug("TopBar: failed to reset panel max widths", exc_info=True)
+            
+            # Показать host
+            try:
+                self.window.top_bar_host.setVisible(True)
+                logger.info("TopBar: top_bar_host set to visible")
+            except Exception:
+                logger.debug("TopBar: failed to show top_bar_host in finalize", exc_info=True)
+            
+            # Выполнить дополнительный adjust после показа
+            try:
+                QTimer.singleShot(0, mgr.adjust)
+                logger.info("TopBar: scheduled post-show adjust")
+            except Exception:
+                logger.debug("TopBar: post-show adjust() failed", exc_info=True)
+            
+            # Планируем повторный refresh recent
+            try:
+                tpc2 = getattr(self.window, "top_panels_controller", None)
+                if tpc2 and hasattr(tpc2, "request_recents_refresh"):
+                    QTimer.singleShot(50, lambda: tpc2.request_recents_refresh(0))
+                    logger.info("TopBar: scheduled recents re-refresh")
+            except Exception:
+                logger.debug("TopBar: scheduling recents re-refresh failed", exc_info=True)
+                
         except Exception:
             logger.debug("TopBar: finalize_topbar_show unexpected error", exc_info=True)
 
