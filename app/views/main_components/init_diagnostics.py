@@ -95,95 +95,10 @@ class DiagnosticsInstaller:
         if getattr(win, "_diag_resize_logger_installed", False):
             return
 
-        class _ResizeLogger(QObject):
-            def __init__(self, parent=None):
-                super().__init__(parent)
-                self._resizes = 0
-                self._moves = 0
-                try:
-                    from app.config_data import app_config as _cfg
+        # Используем выносной класс для логирования ресайзов/перемещений
+        from .resize_logger import ResizeLogger
 
-                    self._max_resizes = int(
-                        getattr(_cfg, "get", lambda *_: 5)(
-                            "diag.resize_log.max_resizes", 5
-                        )
-                    )
-                    self._max_moves = int(
-                        getattr(_cfg, "get", lambda *_: 5)(
-                            "diag.resize_log.max_moves", 5
-                        )
-                    )
-                except Exception:
-                    self._max_resizes = 5
-                    self._max_moves = 5
-                self._owner = parent
-
-            def _maybe_uninstall(self, obj):
-                try:
-                    if (
-                        self._resizes >= self._max_resizes
-                        and self._moves >= self._max_moves
-                    ):
-                        try:
-                            obj.removeEventFilter(self)
-                        except Exception:
-                            logger.debug(
-                                "DiagnosticsInstaller: removeEventFilter failed in _ResizeLogger",
-                                exc_info=True,
-                            )
-                        try:
-                            if (
-                                hasattr(self._owner, "_diag_resize_logger")
-                                and getattr(self._owner, "_diag_resize_logger", None)
-                                is self
-                            ):
-                                setattr(self._owner, "_diag_resize_logger", None)  # type: ignore[attr-defined]
-                                setattr(
-                                    self._owner, "_diag_resize_logger_installed", False
-                                )  # type: ignore[attr-defined]
-                        except Exception:
-                            logger.debug(
-                                "DiagnosticsInstaller: failed to reset _diag_resize_logger flags",
-                                exc_info=True,
-                            )
-                except Exception:
-                    logger.debug(
-                        "DiagnosticsInstaller: _maybe_uninstall failed", exc_info=True
-                    )
-
-            def eventFilter(self, obj, event):
-                et = event.type()
-                try:
-                    if et == QEvent.Type.Resize and self._resizes < self._max_resizes:
-                        self._resizes += 1
-                        try:
-                            sz = getattr(obj, "size", lambda: None)()
-                            size_s = (
-                                f"{sz.width()}x{sz.height()}" if sz is not None else "?"
-                            )
-                        except Exception:
-                            size_s = "?"
-                        logger.info(
-                            "DiagTopLevels: Resize #%s -> %s", self._resizes, size_s
-                        )
-                        self._maybe_uninstall(obj)
-                    elif et == QEvent.Type.Move and self._moves < self._max_moves:
-                        self._moves += 1
-                        try:
-                            pos = getattr(obj, "pos", lambda: None)()
-                            pos_s = f"({pos.x()},{pos.y()})" if pos is not None else "?"
-                        except Exception:
-                            pos_s = "?"
-                        logger.info("DiagTopLevels: Move #%s -> %s", self._moves, pos_s)
-                        self._maybe_uninstall(obj)
-                except Exception:
-                    logger.debug(
-                        "DiagnosticsInstaller: _ResizeLogger.eventFilter failed",
-                        exc_info=True,
-                    )
-                return QObject.eventFilter(self, obj, event)
-
-        rl = _ResizeLogger(win)
+        rl = ResizeLogger(win)
         win.installEventFilter(rl)
         win._diag_resize_logger = rl  # type: ignore[attr-defined]
         win._diag_resize_logger_installed = True  # type: ignore[attr-defined]

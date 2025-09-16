@@ -83,6 +83,15 @@ class StructureSignalsManager(QObject):
             self.logger.exception("schedule_structure_reload: unexpected error")
             raise
 
+    def perform_structure_reload(self) -> None:
+        """Публичная обёртка для перезагрузки структуры.
+
+        Делегирует существующему приватному методу, чтобы внешние потребители
+        (например, StructureBusinessLogic) не зависели от приватного имени.
+        """
+        # Исключения и логирование обрабатываются внутри _perform_structure_reload
+        self._perform_structure_reload()
+
     # ------- Внутреннее -------
     def _perform_structure_reload(self) -> None:
         try:

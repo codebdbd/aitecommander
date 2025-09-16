@@ -16,8 +16,8 @@ from app.controllers.structure_modules import (
     ValidationResult,
     handle_exceptions,
 )
-from app.controllers.structure_modules.async_operations import (
-    AsyncOperations,
+from app.controllers.business.structure_async import (
+    create_async_layer,
     AsyncSignalHandlers,
 )
 from app.controllers.structure_services.exporter import ExportService
@@ -104,7 +104,8 @@ class StructureBusinessLogic(QObject):
         self.utility_service = UtilityService()
 
         # Реальный асинхронный слой для операций структуры (через TaskScheduler)
-        self.async_operations = AsyncOperations(self.db, self.logger)
+        # Конструируем через адаптер, чтобы изолироваться от физического расположения реализаций
+        self.async_operations = create_async_layer(self.db, self.logger)
         self._async_handlers = AsyncSignalHandlers(self)
         self.async_operations.connect_signal_handlers(self._async_handlers)
 
@@ -381,11 +382,11 @@ class StructureBusinessLogic(QObject):
 
     def _perform_structure_reload(self) -> None:
         """Фактическая перезагрузка структуры делегирована менеджеру сигналов."""
-        # Сохраняем метод для совместимости/тестов
+        # Вызываем публичную обёртку менеджера сигналов (без зависимости от приватных имён)
         try:
-            getattr(self._signals, "_perform_structure_reload")()
+            self._signals.perform_structure_reload()
         except Exception as e:
-            self.logger.error("_perform_structure_reload (delegate) failed: %s", e, exc_info=True)
+            self.logger.error("perform_structure_reload (delegate) failed: %s", e, exc_info=True)
 
     
     def _on_structure_loaded_warm_cache(self, _payload: list) -> None:

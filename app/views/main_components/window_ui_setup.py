@@ -433,11 +433,12 @@ class WindowUISetup:
                         self.window.top_bar_host.setVisible(True)
                     except Exception:
                         logger.debug("TopBar: failed to show top_bar_host in finalize", exc_info=True)
-                    # Финальный adjust уже на видимом контейнере
-                    try:
-                        mgr.adjust()
-                    except Exception:
-                        logger.debug("TopBar: final adjust() failed after host show", exc_info=True)
+                
+                # Финальный adjust вне блока suspend_updates, когда top_bar_host имеет реальную ширину
+                try:
+                    mgr.adjust()
+                except Exception:
+                    logger.debug("TopBar: final adjust() failed after host show", exc_info=True)
             else:
                 # Fallback без приостановки обновлений
                 try:
@@ -460,6 +461,7 @@ class WindowUISetup:
                     self.window.top_bar_host.setVisible(True)
                 except Exception:
                     logger.debug("TopBar: failed to show top_bar_host (no suspend)", exc_info=True)
+                # Финальный adjust для fallback ветки
                 try:
                     mgr.adjust()
                 except Exception:
