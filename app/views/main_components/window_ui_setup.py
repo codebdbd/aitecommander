@@ -461,6 +461,8 @@ class WindowUISetup:
                     logger.info("TopBar: refreshing all panel data")
                     tpc.refresh_all()
                     logger.info("TopBar: panel data refresh completed")
+                else:
+                    logger.warning("TopBar: top_panels_controller not ready or refresh_all not available")
             except Exception:
                 logger.debug("TopBar: top_panels_controller.refresh_all() failed", exc_info=True)
             
@@ -506,6 +508,23 @@ class WindowUISetup:
                 if tpc2 and hasattr(tpc2, "request_recents_refresh"):
                     QTimer.singleShot(50, lambda: tpc2.request_recents_refresh(0))
                     logger.info("TopBar: scheduled recents re-refresh")
+                else:
+                    # Дополнительная попытка обновления через более длительный таймер, если контроллер еще не готов
+                    def delayed_refresh():
+                        tpc_delayed = getattr(self.window, "top_panels_controller", None)
+                        if tpc_delayed and hasattr(tpc_delayed, "refresh_all"):
+                            logger.info("TopBar: delayed refresh all panel data")
+                            tpc_delayed.refresh_all()
+                        else:
+                            logger.warning("TopBar: delayed refresh failed, top_panels_controller still not ready")
+                        if tpc_delayed and hasattr(tpc_delayed, "request_recents_refresh"):
+                            logger.info("TopBar: delayed recents refresh")
+                            tpc_delayed.request_recents_refresh(0)
+                        else:
+                            logger.warning("TopBar: delayed recents refresh failed, request_recents_refresh not available")
+
+                    QTimer.singleShot(500, delayed_refresh)
+                    logger.info("TopBar: scheduled delayed refresh after 500ms")
             except Exception:
                 logger.debug("TopBar: scheduling recents re-refresh failed", exc_info=True)
                 
