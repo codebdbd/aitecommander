@@ -789,10 +789,11 @@ class TopBarLayoutManager(QObject):
                     min_search_width=self._min_search_width,
                 )
                 # Восстанавливаем состояние кнопки очистки и действий после выхода из узкого режима
+                # Делаем это асинхронно, чтобы избежать re-entrant LayoutRequest/adjust() во время финализации
                 try:
-                    _restore_search_state(search)
+                    QTimer.singleShot(0, lambda s=search: _restore_search_state(s))
                 except Exception:
-                    logger.debug("TopBarLM: failed to restore search state after narrow mode", exc_info=True)
+                    logger.debug("TopBarLM: failed to schedule restore of search state after narrow mode", exc_info=True)
         except (AttributeError, RuntimeError, TypeError, ValueError):
             logger.exception("TopBarLM: failed to clamp search width to remaining space")
 
