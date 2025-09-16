@@ -42,6 +42,9 @@ class FakeFavWidget:
     def set_favorites(self, items):
         self._items = list(items)
 
+    def set_data(self, items):
+        self.set_favorites(items)
+
     def clear_favorites(self):
         self._items = []
 
@@ -49,6 +52,9 @@ class FakeFavWidget:
 class FakeRecentsWidget:
     def set_recent_links(self, items):
         self._items = list(items)
+
+    def set_data(self, items):
+        self.set_recent_links(items)
 
 
 class FakeLinksBusiness:

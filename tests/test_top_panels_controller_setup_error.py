@@ -11,6 +11,9 @@ class FavWidgetMock:
     def set_favorites(self, items):
         pass
 
+    def set_data(self, items):
+        self.set_favorites(items)
+
     def clear_favorites(self):
         pass
 
@@ -18,6 +21,9 @@ class FavWidgetMock:
 class RecentLinksWidgetMock:
     def set_recent_links(self, items):
         pass
+
+    def set_data(self, items):
+        self.set_recent_links(items)
 
 
 class LinksBusinessStub:

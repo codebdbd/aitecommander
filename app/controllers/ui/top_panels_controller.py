@@ -39,31 +39,25 @@ class TopPanelsController:
             raise ValueError(
                 "TopPanelsController requires fav_widget and recent_links_widget"
             )
-        # Совместимая с legacy-подставными виджетами проверка:
-        # Оба виджета должны уметь либо set_data(), либо legacy set_*().
-        # Наличие clear_favorites() не требуем на этапе инициализации.
-        # Проверка методов данных делается мягко: конкретная ветка в refresh_* отработает fallback
-        has_fav_setter = any(
-            callable(getattr(fav_widget, name, None))
-            for name in ("set_data", "set_favorites")
-        )
-        has_recent_setter = any(
-            callable(getattr(recent_links_widget, name, None))
-            for name in ("set_data", "set_recent_links")
-        )
+        # Строгая проверка современного контракта: оба виджета обязаны предоставлять set_data(items)
+        has_fav_setter = callable(getattr(fav_widget, "set_data", None))
+        has_recent_setter = callable(getattr(recent_links_widget, "set_data", None))
         if not has_fav_setter:
             raise TypeError(
-                "fav_widget must provide set_data(items) or legacy set_favorites(items)"
+                "fav_widget must provide set_data(items)"
             )
         if not has_recent_setter:
             raise TypeError(
-                "recent_links_widget must provide set_data(items) or legacy set_recent_links(items)"
+                "recent_links_widget must provide set_data(items)"
             )
         self.fav_widget = fav_widget
         self.recent_links_widget = recent_links_widget
         if links_business is None:
             raise ValueError("TopPanelsController requires links_business")
         self.links_business = links_business
+
+        # Контракт: виджеты верхних панелей обязаны реализовывать set_data(items).
+        # Поддержка legacy-методов удалена.
 
         self._pending_refresh = False
         self._pending_fav_refresh = False
@@ -198,16 +192,10 @@ class TopPanelsController:
 
         # 2) Обновление виджета
         try:
-            if callable(getattr(widget, "set_data", None)):
-                widget.set_data(items)  # type: ignore[call-arg]
-            elif callable(getattr(widget, "set_favorites", None)):
-                # legacy fallback для тестовых стабов
-                widget.set_favorites(items)  # type: ignore[attr-defined]
-            else:
-                raise AttributeError("favorites widget lacks set_data/set_favorites")
+            widget.set_data(items)  # type: ignore[call-arg]
         except (TypeError, ValueError):
             logger.error(
-                "TopPanelsController.refresh_favorites: widget set_favorites signature error",
+                "TopPanelsController.refresh_favorites: widget set_data signature error",
                 exc_info=True,
             )
         except Exception:
@@ -261,16 +249,10 @@ class TopPanelsController:
 
         # 2) Обновление виджета
         try:
-            if callable(getattr(widget, "set_data", None)):
-                widget.set_data(items)  # type: ignore[call-arg]
-            elif callable(getattr(widget, "set_recent_links", None)):
-                # legacy fallback для тестовых стабов
-                widget.set_recent_links(items)  # type: ignore[attr-defined]
-            else:
-                raise AttributeError("recent widget lacks set_data/set_recent_links")
+            widget.set_data(items)  # type: ignore[call-arg]
         except (TypeError, ValueError):
             logger.error(
-                "TopPanelsController.refresh_recent: widget set_recent_links signature error",
+                "TopPanelsController.refresh_recent: widget set_data signature error",
                 exc_info=True,
             )
         except Exception:

@@ -449,7 +449,11 @@ class DeleteCategoryCmd(BaseCommand):
                 business.item_deleted.emit("category", category_id)
                 # Инкрементальное обновление — без полной перезагрузки
         except Exception as exc:
-            logger.warning("DeleteCategoryCmd.redo: item_deleted emit failed: %s", exc)
+            logger.debug(
+                "DeleteCategoryCmd.redo: item_deleted emit failed: %s",
+                exc,
+                exc_info=True,
+            )
 
     @log_command
     def undo(self):
@@ -461,30 +465,46 @@ class DeleteCategoryCmd(BaseCommand):
                 business = getattr(self.main, "structure_business", None)
                 if business:
                     business.select_category(category_id)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "DeleteCategoryCmd.undo: select_category failed: %s",
+                    exc,
+                    exc_info=True,
+                )
             try:
                 business = getattr(self.main, "structure_business", None)
                 if business:
                     # После восстановления сбрасываем кэш, чтобы обновились иконки восстановленной категории
                     try:
                         clear_icon_cache()
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug(
+                            "DeleteCategoryCmd.undo: clear_icon_cache failed: %s",
+                            exc,
+                            exc_info=True,
+                        )
                     # Проставим флаг '__from_undo__' в данные, чтобы UI не переключал фокус
                     cat_payload = dict(self._backup_tree.get("category") or {})
                     try:
                         cat_payload["__from_undo__"] = True
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug(
+                            "DeleteCategoryCmd.undo: set __from_undo__ flag failed: %s",
+                            exc,
+                            exc_info=True,
+                        )
                     business.item_added.emit(
                         "category",
                         self.category.get("section_id"),
                         cat_payload,
                     )
                     # Инкрементальное обновление — без полной перезагрузки
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug(
+                    "DeleteCategoryCmd.undo: post-restore updates failed: %s",
+                    exc,
+                    exc_info=True,
+                )
             # Полной перезагрузки структуры не требуется: выше отправлены точечные сигналы и выполнены выборы
         except Exception as exc:
             # В случае сбоя восстановления — оставляем как есть

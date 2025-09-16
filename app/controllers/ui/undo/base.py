@@ -38,7 +38,10 @@ class BaseCommand(QUndoCommand):
         except (
             Exception
         ):  # совместимость, если унаследованные классы переопределяют поведение
-            pass
+            logger.debug(
+                "BaseCommand.set_obsolete: underlying setObsolete failed (compat mode)",
+                exc_info=True,
+            )
 
 
 def log_command(fn):
