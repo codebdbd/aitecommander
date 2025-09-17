@@ -1,4 +1,4 @@
-# app/views/main_components/top_bar_setup.py
+# app/views/main_components/topbar_layout/top_bar_setup.py
 from __future__ import annotations
 
 import logging
