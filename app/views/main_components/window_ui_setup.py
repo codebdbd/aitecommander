@@ -27,7 +27,7 @@ from app.controllers.ui.menu_controller import MenuController
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.views.custom_widgets import StructureTreeView
 from app.views.favorites_panel_widget import FavoritesPanelWidget
-from app.views.main_components.top_bar_layout_manager import TopBarLayoutManager
+from app.views.main_components.topbar_layout.topbar_manager import TopBarLayoutManager
 from app.views.models.structure_tree_model import StructureTreeModel
 from app.views.quick_add_panel_widget import QuickAddPanelWidget
 from app.views.recent_panel_widget import RecentPanelWidget
@@ -271,7 +271,7 @@ class WindowUISetup:
 
     def setup_top_panel(self) -> None:
         """Настройка верхней панели."""
-        from .top_bar_setup import TopBarBuilder
+        from .topbar_layout.top_bar_setup import TopBarBuilder
 
         TopBarBuilder(self).build()
 
