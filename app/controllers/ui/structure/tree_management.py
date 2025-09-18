@@ -3,10 +3,6 @@
 import logging
 
 from PyQt6.QtCore import QModelIndex, Qt
-from PyQt6.QtGui import QIcon
-
-from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 
 from app.controllers.ui.state.task_scheduler import (
     schedule_focus,
@@ -66,38 +62,6 @@ class TreeManagement:
         except Exception:
             logger.exception(
                 "TreeManagement._on_structure_loaded: ошибка сортировки разделов"
-            )
-
-        # Предварительно резолвим иконки, чтобы избежать "дёргания" после modelReset
-        try:
-            for s in sections_data or []:
-                try:
-                    icon_path = resolve_icon_for_link(
-                        {"type": "section", "icon_path": (s.get("icon_path") or "")}
-                    )
-                    s["icon"] = create_icon_from_path(icon_path) if icon_path else QIcon()
-                except Exception:
-                    s["icon"] = QIcon()
-
-                # Обработаем иконки категорий раздела
-                try:
-                    cats = s.get("categories") or []
-                    for c in cats:
-                        try:
-                            c_icon_path = resolve_icon_for_link(
-                                {"type": "category", "icon_path": (c.get("icon_path") or "")}
-                            )
-                            c["icon"] = (
-                                create_icon_from_path(c_icon_path) if c_icon_path else QIcon()
-                            )
-                        except Exception:
-                            c["icon"] = QIcon()
-                except Exception:
-                    # Если структура неожиданная, просто продолжаем без иконок категорий
-                    pass
-        except Exception:
-            logger.exception(
-                "TreeManagement._on_structure_loaded: ошибка предзагрузки иконок"
             )
 
         # Обновляем модель одним снимком
@@ -173,15 +137,6 @@ class TreeManagement:
         # ожидаемые ошибки модели (ValueError, RuntimeError) логируем и пробрасываем вверх,
         # неожиданные исключения также не подавляются.
         model = self.model
-        # Подготовим иконку заранее, чтобы избежать последующего пересчёта
-        try:
-            icon_path = (data or {}).get("icon_path") or ""
-            if isinstance(icon_path, str):
-                resolved = resolve_icon_for_link({"type": item_type, "icon_path": icon_path})
-                data["icon"] = create_icon_from_path(resolved) if resolved else QIcon()
-        except Exception:
-            # Безопасно игнорируем: иконка будет пустой
-            data["icon"] = QIcon()
         if item_type == "section":
             # Вставляем раздел в конец (или позицию из data.get('row'))
             row = int(data.get("row")) if isinstance(data.get("row"), int) else -1
@@ -192,12 +147,6 @@ class TreeManagement:
                     "TreeManagement._on_item_added: ошибка инкрементальной вставки section"
                 )
                 raise
-            # Синхронизируем кэш иконок
-            try:
-                if isinstance(data.get("id"), int):
-                    self.icon_handler.set_cached_icon_path("section", int(data["id"]), data.get("icon_path"))
-            except Exception:
-                pass
         elif item_type == "category" and isinstance(parent_id, int):
             row = int(data.get("row")) if isinstance(data.get("row"), int) else -1
             try:
@@ -207,12 +156,6 @@ class TreeManagement:
                     "TreeManagement._on_item_added: ошибка инкрементальной вставки category"
                 )
                 raise
-            # Синхронизируем кэш иконок
-            try:
-                if isinstance(data.get("id"), int):
-                    self.icon_handler.set_cached_icon_path("category", int(data["id"]), data.get("icon_path"))
-            except Exception:
-                pass
             # Обновим плитки выбранного раздела, если это не Undo вставка
             # Флаг '__from_undo__' добавляется отправителем сигнала, чтобы избежать смены фокуса
             if not bool(data.get("__from_undo__")):
@@ -239,36 +182,15 @@ class TreeManagement:
     def _on_item_updated(self, item_type: str, item_id: int, data: dict) -> None:
         # Инкрементальное обновление
         model = self.model
-        # Если менялся путь иконки — выполняем точечное обновление без полного обхода
-        if isinstance(data, dict) and "icon_path" in data:
-            try:
-                self.icon_handler.update_icon_for_item(item_type, int(item_id), data.get("icon_path"))
-            except Exception:
-                # Не прерываем — попытаемся обновить через модель, но без полного обхода
-                pass
-            # Мы уже записали иконку и icon_path через update_icon_for_item → можно выйти
-            # Остальные поля, если есть, обновим отдельно
-            remaining = {k: v for k, v in (data or {}).items() if k not in {"icon", "icon_path"}}
-            if remaining:
-                try:
-                    model.update_item(item_type, item_id, remaining)
-                except (ValueError, RuntimeError):
-                    logger.exception(
-                        "TreeManagement._on_item_updated: ошибка обновления элемента %s #%s (remaining)",
-                        item_type,
-                        item_id,
-                    )
-                    raise
-        else:
-            try:
-                model.update_item(item_type, item_id, data or {})
-            except (ValueError, RuntimeError):
-                logger.exception(
-                    "TreeManagement._on_item_updated: ошибка обновления элемента %s #%s",
-                    item_type,
-                    item_id,
-                )
-                raise
+        try:
+            model.update_item(item_type, item_id, data or {})
+        except (ValueError, RuntimeError):
+            logger.exception(
+                "TreeManagement._on_item_updated: ошибка обновления элемента %s #%s",
+                item_type,
+                item_id,
+            )
+            raise
         # Сохраняем UX восстановления выделения категории
         if item_type == "category" and isinstance(item_id, int):
             schedule_selection_restore(

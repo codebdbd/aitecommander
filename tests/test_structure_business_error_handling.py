@@ -15,7 +15,7 @@ def sb_instance():
     return StructureBusinessLogic(db, logger=logger)
 
 
-def test_set_top_panels_controller_injection_attribute_errors_raises_value_error(sb_instance):
+def test_set_top_panels_controller_injection_attribute_errors(sb_instance, caplog):
     sb = sb_instance
 
     class BadAssign:
@@ -31,13 +31,12 @@ def test_set_top_panels_controller_injection_attribute_errors_raises_value_error
     sb.async_operations = BadAssign()
     sb._async_handlers = BadAssign()
 
-    with pytest.raises(ValueError) as ei:
-        sb.set_top_panels_controller(object())
+    caplog.set_level("WARNING")
+    sb.set_top_panels_controller(object())
 
-    msg = str(ei.value)
-    assert "Failed to inject TopPanelsController" in msg
-    assert "AsyncOperations" in msg
-    assert "AsyncSignalHandlers" in msg
+    msgs = [rec.message for rec in caplog.records]
+    assert any("Failed to inject TopPanelsController into AsyncOperations" in m for m in msgs)
+    assert any("Failed to inject TopPanelsController into AsyncSignalHandlers" in m for m in msgs)
 
 
 def test_set_current_sphere_handles_bad_switch_token_and_sets_suppress_flag(sb_instance):

@@ -23,11 +23,10 @@ from PyQt6.QtWidgets import (
 from app.config_data import app_config
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.controllers.ui.undo.stack import UndoManager
-from app.controllers.ui.menu_controller import MenuController
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.views.custom_widgets import StructureTreeView
 from app.views.favorites_panel_widget import FavoritesPanelWidget
-from app.views.main_components.topbar_layout.topbar_manager import TopBarLayoutManager
+from app.views.main_components.top_bar_layout_manager import TopBarLayoutManager
 from app.views.models.structure_tree_model import StructureTreeModel
 from app.views.quick_add_panel_widget import QuickAddPanelWidget
 from app.views.recent_panel_widget import RecentPanelWidget
@@ -62,8 +61,12 @@ class _AutoHideTreeFilter(QObject):
         self._saved_splitter_sizes = None
         self._prev_stack_index = None
         self._logger = logger_
-        # Сохраняем исходное состояние collapsible(0), чтобы корректно восстановить при расширении окна
-        self._saved_splitter_collapsible0 = None
+        # Источник истины по видимости панелей top-bar — TopBarLayoutManager.
+        # По умолчанию _AutoHideTreeFilter НЕ управляет видимостью top-bar панелей.
+        try:
+            self._manage_topbar_panels = bool(app_config.ui.get_auto_hide_manage_topbar())
+        except Exception:
+            self._manage_topbar_panels = False
 
     def _apply(self):
         w = self.window.width()
@@ -94,15 +97,6 @@ class _AutoHideTreeFilter(QObject):
 
                 if splitter is not None:
                     try:
-                        # Сохраняем исходное состояние collapsible(0) перед принудительным включением
-                        try:
-                            self._saved_splitter_collapsible0 = splitter.isCollapsible(0)
-                        except (AttributeError, RuntimeError):
-                            self._saved_splitter_collapsible0 = None
-                            self._logger.debug(
-                                "AutoHideTree: failed to read splitter collapsible(0)",
-                                exc_info=True,
-                            )
                         splitter.setCollapsible(0, True)
                         splitter.setSizes([0, max(1, w)])
                     except (RuntimeError, TypeError):
@@ -135,18 +129,20 @@ class _AutoHideTreeFilter(QObject):
                         )
                 self._is_collapsed = True
 
-            # Независимо от состояния — скрыть панели топ-бара на каждом вызове (на случай добавления новых)
-            for attr in ("quick_add_widget", "fav_widget", "recent_links_widget"):
-                try:
-                    panel = getattr(self.window, attr, None)
-                    if panel is not None:
-                        panel.setVisible(False)
-                except (AttributeError, RuntimeError):
-                    self._logger.debug(
-                        "AutoHideTree: failed to hide top bar panel '%s'",
-                        attr,
-                        exc_info=True,
-                    )
+            # Управление видимостью панелей top-bar делегируем TopBarLayoutManager.
+            # Оставлено опционально через флаг на случай отладки/совместимости.
+            if self._manage_topbar_panels:
+                for attr in ("quick_add_widget", "fav_widget", "recent_links_widget"):
+                    try:
+                        panel = getattr(self.window, attr, None)
+                        if panel is not None:
+                            panel.setVisible(False)
+                    except (AttributeError, RuntimeError):
+                        self._logger.debug(
+                            "AutoHideTree: failed to hide top bar panel '%s'",
+                            attr,
+                            exc_info=True,
+                        )
 
         elif w > self.threshold and self._is_collapsed:
             # Восстановить размеры сплиттера
@@ -160,32 +156,24 @@ class _AutoHideTreeFilter(QObject):
                     else:
                         sizes = [int(x) for x in self.default_sizes]
                         splitter.setSizes(sizes)
-                    # Восстановить исходный флаг collapsible(0), если он был сохранён
-                    try:
-                        if self._saved_splitter_collapsible0 is not None:
-                            splitter.setCollapsible(0, bool(self._saved_splitter_collapsible0))
-                    except (RuntimeError, TypeError, AttributeError):
-                        self._logger.debug(
-                            "AutoHideTree: failed to restore splitter collapsible(0)",
-                            exc_info=True,
-                        )
                 except (RuntimeError, TypeError, ValueError):
                     self._logger.debug(
                         "AutoHideTree: failed to restore splitter sizes", exc_info=True
                     )
 
-            # Показать панели топ-бара обратно
-            for attr in ("quick_add_widget", "fav_widget", "recent_links_widget"):
-                try:
-                    panel = getattr(self.window, attr, None)
-                    if panel is not None:
-                        panel.setVisible(True)
-                except (AttributeError, RuntimeError):
-                    self._logger.debug(
-                        "AutoHideTree: failed to re-show top bar panel '%s'",
-                        attr,
-                        exc_info=True,
-                    )
+            # Показ панелей top-bar обратно — также в ведении TopBarLayoutManager.
+            if self._manage_topbar_panels:
+                for attr in ("quick_add_widget", "fav_widget", "recent_links_widget"):
+                    try:
+                        panel = getattr(self.window, attr, None)
+                        if panel is not None:
+                            panel.setVisible(True)
+                    except (AttributeError, RuntimeError):
+                        self._logger.debug(
+                            "AutoHideTree: failed to re-show top bar panel '%s'",
+                            attr,
+                            exc_info=True,
+                        )
 
             # Восстановить предыдущий вид правой области (если был сохранён)
             if stack is not None and self._prev_stack_index is not None:
@@ -199,9 +187,6 @@ class _AutoHideTreeFilter(QObject):
                     )
 
             self._is_collapsed = False
-            # Сбрасываем сохранённые значения после восстановления
-            self._saved_splitter_sizes = None
-            self._saved_splitter_collapsible0 = None
 
     def eventFilter(self, obj, event):
         if obj is self.window and event.type() == QEvent.Type.Resize:
@@ -233,6 +218,8 @@ class WindowUISetup:
 
     def setup_menu(self) -> None:
         """Настройка меню."""
+        from app.controllers.ui.menu_controller import MenuController
+
         self.window.menu_controller = MenuController(self.window)
         self.window.setMenuBar(self.window.menu_controller.create_main_menu())
 
@@ -271,7 +258,7 @@ class WindowUISetup:
 
     def setup_top_panel(self) -> None:
         """Настройка верхней панели."""
-        from .topbar_layout.top_bar_setup import TopBarBuilder
+        from .top_bar_setup import TopBarBuilder
 
         TopBarBuilder(self).build()
 
@@ -433,12 +420,11 @@ class WindowUISetup:
                         self.window.top_bar_host.setVisible(True)
                     except Exception:
                         logger.debug("TopBar: failed to show top_bar_host in finalize", exc_info=True)
-                
-                # Финальный adjust вне блока suspend_updates, когда top_bar_host имеет реальную ширину
-                try:
-                    mgr.adjust()
-                except Exception:
-                    logger.debug("TopBar: final adjust() failed after host show", exc_info=True)
+                    # Финальный adjust уже на видимом контейнере
+                    try:
+                        mgr.adjust()
+                    except Exception:
+                        logger.debug("TopBar: final adjust() failed after host show", exc_info=True)
             else:
                 # Fallback без приостановки обновлений
                 try:
@@ -461,7 +447,6 @@ class WindowUISetup:
                     self.window.top_bar_host.setVisible(True)
                 except Exception:
                     logger.debug("TopBar: failed to show top_bar_host (no suspend)", exc_info=True)
-                # Финальный adjust для fallback ветки
                 try:
                     mgr.adjust()
                 except Exception:
@@ -768,9 +753,19 @@ class WindowUISetup:
 
         # Дерево структуры: используем QTreeView + QAbstractItemModel
         self.window.tree = StructureTreeView()
+        self.window.tree.setHeaderHidden(True)
         # Пустая модель, будет заполняться контроллерами позже
         self.window.tree_model = StructureTreeModel(self.window.tree)
         self.window.tree.setModel(self.window.tree_model)
+
+        # Конфиг гарантирует list[int] -> берём ширину, ограничиваем высотой строки
+        tree_icon_size = app_config.ui.get_tree_icon_size()
+        row_h = app_config.ui.get_row_height()
+        base_icon = int(tree_icon_size[0])
+        eff_icon = max(
+            0, min(base_icon, max(0, int(row_h) - 8))
+        )  # 4px сверху + 4px снизу
+        self.window.tree.setIconSize(QSize(eff_icon, eff_icon))
 
         # Размер шрифта для дерева устанавливается централизованно через MainWindow.apply_font_size_to_content()
         left_layout.addWidget(self.window.tree)

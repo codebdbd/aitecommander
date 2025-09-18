@@ -16,64 +16,50 @@ class ActionController:
 
     def __init__(self, main_window: "MainWindow"):
         self.main_window = main_window
-        # Явные зависимости: проверяем наличие ключевых атрибутов UI
-        missing = []
-        for attr in ("tree", "links_actions", "table", "stack", "tiles"):
-            if not hasattr(self.main_window, attr):
-                missing.append(attr)
-        if missing:
-            raise ValueError(
-                f"ActionController: отсутствуют обязательные зависимости в main_window: {', '.join(missing)}"
-            )
 
     # --- Helpers: focus/selection/context ---
     def _has_tree_selection(self) -> bool:
-        tree = self.main_window.tree
-        if not hasattr(tree, "currentIndex"):
-            raise ValueError("ActionController: 'tree' не поддерживает currentIndex()")
-        index = tree.currentIndex()
-        return bool(hasattr(index, "isValid") and index.isValid())
+        try:
+            tree = self.main_window.tree
+            return bool(hasattr(tree, "currentIndex") and tree.currentIndex().isValid())
+        except Exception:
+            return False
 
     def _is_tree_focused(self) -> bool:
-        tree = self.main_window.tree
-        if not hasattr(tree, "hasFocus"):
-            raise ValueError("ActionController: 'tree' не поддерживает hasFocus()")
-        fw = self.main_window.focusWidget()
-        in_tree = tree.hasFocus()
-        if hasattr(tree, "isAncestorOf"):
-            in_tree = in_tree or tree.isAncestorOf(fw)
-        return bool(in_tree)
+        try:
+            tree = self.main_window.tree
+            fw = self.main_window.focusWidget()
+            return bool(tree.hasFocus() or (hasattr(tree, "isAncestorOf") and tree.isAncestorOf(fw)))
+        except Exception:
+            return False
 
     def _table_has_selection(self) -> bool:
-        la = self.main_window.links_actions
-        if not hasattr(la, "get_selected_rows"):
-            raise ValueError("ActionController: 'links_actions' не поддерживает get_selected_rows()")
-        return bool(la.get_selected_rows())
+        try:
+            return bool(self.main_window.links_actions.get_selected_rows())
+        except Exception:
+            return False
 
     def _is_table_focused(self) -> bool:
-        table = self.main_window.table
-        if not hasattr(table, "hasFocus"):
-            raise ValueError("ActionController: 'table' не поддерживает hasFocus()")
-        fw = self.main_window.focusWidget()
-        in_table = table.hasFocus()
-        if hasattr(table, "isAncestorOf"):
-            in_table = in_table or table.isAncestorOf(fw)
-        return bool(in_table)
+        try:
+            table = self.main_window.table
+            fw = self.main_window.focusWidget()
+            return bool(table.hasFocus() or (hasattr(table, "isAncestorOf") and table.isAncestorOf(fw)))
+        except Exception:
+            return False
 
     def _is_table_stack_active(self) -> bool:
         table_stack_index = app_config.ui.get_stack_index_table()
-        stack = getattr(self.main_window, "stack", None)
-        if stack is None:
-            raise ValueError("ActionController: отсутствует зависимость 'stack'")
-        if not hasattr(stack, "currentIndex"):
-            raise ValueError("ActionController: 'stack' не поддерживает currentIndex()")
-        return bool(stack.currentIndex() == table_stack_index)
+        try:
+            stack = getattr(self.main_window, "stack", None)
+            return bool(stack is not None and stack.currentIndex() == table_stack_index)
+        except Exception:
+            return False
 
     def _selected_links(self):
-        la = self.main_window.links_actions
-        if not hasattr(la, "get_selected_links"):
-            raise ValueError("ActionController: 'links_actions' не поддерживает get_selected_links()")
-        return la.get_selected_links()
+        try:
+            return self.main_window.links_actions.get_selected_links()
+        except Exception:
+            return []
 
     def edit_current(self):
         """Определить контекст и выполнить редактирование текущего элемента."""
@@ -170,7 +156,8 @@ class ActionController:
 
     def _get_selected_links(self):
         """Получить список выбранных ссылок через фасад LinksActions."""
-        la = self.main_window.links_actions
-        if not hasattr(la, "get_selected_links"):
-            raise ValueError("ActionController: 'links_actions' не поддерживает get_selected_links()")
-        return la.get_selected_links()
+        try:
+            return self.main_window.links_actions.get_selected_links()
+        except Exception:
+            logger.debug("ActionController: failed to get selected links via facade", exc_info=True)
+            return []

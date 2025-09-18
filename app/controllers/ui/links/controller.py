@@ -84,17 +84,9 @@ class LinksUIController(QObject):
         # ЦЕНТРАЛИЗОВАНО: начальная загрузка категории
         self._reload_current_category()
 
-    def shutdown(self, timeout: int = 2000) -> bool:
-        """Корректное завершение работы.
-
-        Возвращает True при успешном завершении LinksBusinessLogic, False при
-        ожидаемых ошибках среды; неожиданные исключения пробрасываются из business.
-        """
-        res = self.business.shutdown(timeout)
-        if res is False:
-            logger.warning("LinksUIController: business shutdown reported unsuccessful result")
-            return False
-        return True
+    def shutdown(self, timeout: int = 2000):
+        """Корректное завершение работы."""
+        self.business.shutdown(timeout)
 
     def load_category(self, category_id: int):
         """Загрузить ссылки для категории - ТОЛЬКО бизнес-логика.

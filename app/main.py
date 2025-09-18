@@ -158,107 +158,9 @@ class ApplicationInitializer:
                 return False
         return True
 
-def _create_and_log_app():
-    app = create_application()
-    log_system_info()
-    return app
 
-
-def _initialize_all_or_quit(app, initializer: ApplicationInitializer) -> bool:
-    if initializer.initialize_all():
-        return True
-    logger.critical("Не удалось инициализировать приложение")
-    if app:
-        try:
-            app.quit()
-        except Exception:
-            logger.debug("Ошибка при завершении QApplication", exc_info=True)
-    return False
-
-
-def _start_async_tasks(initializer: ApplicationInitializer) -> None:
-    db_initializer = DatabaseInitializer(initializer.database, initializer.main_window)
-    db_initializer.initialize_async()
-
-    profiles_loader = BrowserProfilesLoader(initializer.main_window)
-    profiles_loader.setup_lazy_loading()
-
-    QTimer.singleShot(100, lambda: logger.info("Приложение успешно запущено"))
-
-
-def _app_exec(app) -> int:
-    return app.exec()
-
-
-def _on_keyboard_or_system_exit(e: BaseException, app) -> int:
-    if app:
-        try:
-            app.quit()
-        except Exception:
-            logger.debug("Ошибка при завершении QApplication", exc_info=True)
-    if isinstance(e, KeyboardInterrupt):
-        logger.info("Завершение по KeyboardInterrupt")
-        return 130
-    code = getattr(e, "code", 0) or 0
-    logger.info("Завершение по SystemExit: code=%s", code)
-    return code
-
-
-def _on_expected_init_error(e: Exception, app) -> int:
-    logger.error("Ошибка запуска приложения: %s", e, exc_info=True)
-    if app:
-        try:
-            app.quit()
-        except Exception:
-            logger.debug("Ошибка при завершении QApplication", exc_info=True)
-    return 1
-
-
-def _is_setup_error(err: Exception) -> bool:
-    try:
-        from app.controllers.system.window_controllers_setup import SetupError  # type: ignore
-    except Exception:
-        return False
-    return isinstance(err, SetupError)
-
-
-def _on_unexpected_error(e: Exception, app) -> int:
-    if _is_setup_error(e):
-        logger.error("Ошибка настройки приложения (SetupError): %s", e, exc_info=True)
-        if app:
-            try:
-                app.quit()
-            except Exception:
-                logger.debug("Ошибка при завершении QApplication", exc_info=True)
-        return 1
-    logger.critical("Критическая неожиданная ошибка в main(): %s", e, exc_info=True)
-    return 1
-
-
-def _run_application() -> int:
-    """Запустить приложение и вернуть код выхода."""
-    initializer = ApplicationInitializer()
-    app = None
-    try:
-        app = _create_and_log_app()
-        if not _initialize_all_or_quit(app, initializer):
-            return 1
-        _start_async_tasks(initializer)
-        return _app_exec(app)
-    except (KeyboardInterrupt, SystemExit) as e:
-        return _on_keyboard_or_system_exit(e, app)
-    except (RuntimeError, ValueError) as e:
-        return _on_expected_init_error(e, app)
-    except Exception as e:
-        return _on_unexpected_error(e, app)
-    finally:
-        if initializer:
-            initializer.cleanup()
-        log_shutdown()
-
-
-def main() -> int:
-    """Главная функция приложения: парсинг аргументов и запуск."""
+def main():
+    """Главная функция приложения."""
     # Парсинг аргументов командной строки
     args = parse_arguments()
     log_level = determine_log_level(args)
@@ -266,8 +168,38 @@ def main() -> int:
     # Инициализируем систему логирования
     setup_logging(log_level)
 
-    # Запуск приложения
-    return _run_application()
+    # Инициализируем инициализатор приложения заранее, чтобы cleanup() отработал даже при ранних ошибках
+    initializer = ApplicationInitializer()
+    try:
+        app = create_application()
+        log_system_info()
+
+        if not initializer.initialize_all():
+            logger.critical("Не удалось инициализировать приложение")
+            if app:
+                app.quit()
+            return 1
+
+        # Инициализация БД в фоне
+        db_initializer = DatabaseInitializer(
+            initializer.database, initializer.main_window
+        )
+        db_initializer.initialize_async()
+
+        # Настройка ленивой загрузки профилей браузеров
+        profiles_loader = BrowserProfilesLoader(initializer.main_window)
+        profiles_loader.setup_lazy_loading()
+
+        QTimer.singleShot(100, lambda: logger.info("Приложение успешно запущено"))
+        exit_code = app.exec()
+        return exit_code
+    except Exception as e:
+        logger.critical("Критическая ошибка в main(): %s", e, exc_info=True)
+        return 1
+    finally:
+        if initializer:
+            initializer.cleanup()
+        log_shutdown()
 
 
 if __name__ == "__main__":
