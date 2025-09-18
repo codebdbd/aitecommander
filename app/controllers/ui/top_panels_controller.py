@@ -7,6 +7,9 @@ import os
 
 from PyQt6.QtCore import QObject, QTimer
 
+# Для строгой проверки доступности асинхронного API бизнес-логики
+from app.controllers.business.links_business import LinksBusinessLogic
+
 from app.interfaces import (
     TopPanelDataLike,
     FavoritesPanelWithClear,
@@ -103,6 +106,20 @@ class TopPanelsController:
             self._on_structure_refresh_timeout
         )
 
+        # Подписка на асинхронные сигналы бизнес-слоя (ненастойчиво: в случае ошибки — логируем и продолжаем)
+        try:
+            self.links_business.favorite_links_loaded.connect(
+                self._on_favorite_links_loaded
+            )
+            self.links_business.recent_links_loaded.connect(
+                self._on_recent_links_loaded
+            )
+        except Exception:
+            logger.exception(
+                "TopPanelsController: failed to connect async signals from links_business"
+            )
+            # Не прерываем инициализацию: остаётся возможность использовать синхронные пути/дальнейшие попытки
+
         # Strict-режим: при неожиданных исключениях в refresh_* повторно выбрасывать
         self._strict = str(os.getenv("APP_TOP_PANELS_STRICT", "")).lower() in {
             "1",
@@ -177,8 +194,29 @@ class TopPanelsController:
             raise
 
     def refresh_favorites(self) -> None:
+        """Обновление избранного.
+
+        По умолчанию — асинхронная загрузка через LinksBusinessLogic.load_favorite_links().
+        Если метод/сигнал недоступен (моки в тестах), используем синхронный fallback
+        к get_favorite_links() с прежней обработкой ошибок и обновлением виджета.
+        """
+        # 1) Пытаемся асинхронно (только если это реальный LinksBusinessLogic с сигналами)
+        try:
+            if isinstance(self.links_business, LinksBusinessLogic):
+                # Асинхронный путь доступен и корректен
+                self.links_business.load_favorite_links()
+                return
+        except Exception:
+            # Логируем ошибку вызова async-метода и переходим к синхронному пути
+            logger.exception(
+                "TopPanelsController.refresh_favorites: failed to call load_favorite_links"
+            )
+            if self._strict:
+                # В строгом режиме не выполняем fallback, чтобы выявлять ошибки конфигурации
+                raise
+
+        # 2) Синхронный fallback — поведение как раньше (для тестов и простых окружений)
         widget = self.fav_widget
-        # 1) Загрузка данных из бизнес-слоя
         items: list = []
         try:
             items = self.links_business.get_favorite_links()
@@ -196,12 +234,10 @@ class TopPanelsController:
                 raise
             return
 
-        # 2) Обновление виджета
         try:
             if callable(getattr(widget, "set_data", None)):
                 widget.set_data(items)  # type: ignore[call-arg]
             elif callable(getattr(widget, "set_favorites", None)):
-                # legacy fallback для тестовых стабов
                 widget.set_favorites(items)  # type: ignore[attr-defined]
             else:
                 raise AttributeError("favorites widget lacks set_data/set_favorites")
@@ -218,8 +254,14 @@ class TopPanelsController:
                 raise
 
     def refresh_recent(self) -> None:
+        """Обновление недавних ссылок.
+
+        По умолчанию — асинхронная загрузка через LinksBusinessLogic.load_recent_links(limit).
+        Если метод/сигнал недоступен (моки в тестах), используем синхронный fallback
+        к get_recent_links(limit) с прежней обработкой ошибок и обновлением виджета.
+        """
         widget = self.recent_links_widget
-        # Определяем лимит: современный протокол или мягкий fallback по hasattr
+        # Определяем лимит
         limit = 10
         try:
             if isinstance(widget, RecentsPanelWithLimit) or hasattr(widget, "get_limit"):
@@ -227,10 +269,23 @@ class TopPanelsController:
                 if isinstance(val, int) and val > 0:
                     limit = val
         except (TypeError, ValueError):
-            # некорректное значение лимита — оставляем default
             pass
 
-        # 1) Загрузка данных из бизнес-слоя
+        # 1) Пытаемся асинхронно (только если это реальный LinksBusinessLogic с сигналами)
+        try:
+            if isinstance(self.links_business, LinksBusinessLogic):
+                # Асинхронный путь доступен и корректен
+                self.links_business.load_recent_links(limit)
+                return
+        except Exception:
+            # Логируем ошибку вызова async-метода и переходим к синхронному пути
+            logger.exception(
+                "TopPanelsController.refresh_recent: failed to call load_recent_links"
+            )
+            if self._strict:
+                raise
+
+        # 2) Синхронный fallback — прежняя логика
         items: list = []
         try:
             items = self.links_business.get_recent_links(limit)
@@ -248,12 +303,10 @@ class TopPanelsController:
                 raise
             return
 
-        # 2) Обновление виджета
         try:
             if callable(getattr(widget, "set_data", None)):
                 widget.set_data(items)  # type: ignore[call-arg]
             elif callable(getattr(widget, "set_recent_links", None)):
-                # legacy fallback для тестовых стабов
                 widget.set_recent_links(items)  # type: ignore[attr-defined]
             else:
                 raise AttributeError("recent widget lacks set_data/set_recent_links")
@@ -375,6 +428,51 @@ class TopPanelsController:
                     "TopPanelsController._on_structure_refresh_timeout: timer stop failed",
                     exc_info=False,
                 )
+
+    # --- Обработчики сигналов бизнес-слоя ---
+    def _on_favorite_links_loaded(self, items: list) -> None:
+        widget = self.fav_widget
+        try:
+            if callable(getattr(widget, "set_data", None)):
+                widget.set_data(items)  # type: ignore[call-arg]
+            elif callable(getattr(widget, "set_favorites", None)):
+                # legacy fallback для тестовых стабов
+                widget.set_favorites(items)  # type: ignore[attr-defined]
+            else:
+                raise AttributeError("favorites widget lacks set_data/set_favorites")
+        except (TypeError, ValueError):
+            logger.error(
+                "TopPanelsController._on_favorite_links_loaded: widget signature error",
+                exc_info=True,
+            )
+        except Exception:
+            logger.exception(
+                "TopPanelsController._on_favorite_links_loaded: widget update error"
+            )
+            if self._strict:
+                raise
+
+    def _on_recent_links_loaded(self, items: list) -> None:
+        widget = self.recent_links_widget
+        try:
+            if callable(getattr(widget, "set_data", None)):
+                widget.set_data(items)  # type: ignore[call-arg]
+            elif callable(getattr(widget, "set_recent_links", None)):
+                # legacy fallback для тестовых стабов
+                widget.set_recent_links(items)  # type: ignore[attr-defined]
+            else:
+                raise AttributeError("recent widget lacks set_data/set_recent_links")
+        except (TypeError, ValueError):
+            logger.error(
+                "TopPanelsController._on_recent_links_loaded: widget signature error",
+                exc_info=True,
+            )
+        except Exception:
+            logger.exception(
+                "TopPanelsController._on_recent_links_loaded: widget update error"
+            )
+            if self._strict:
+                raise
 
     def _normalize_delay(self, delay_ms, args, kwargs) -> int:
         """Безопасно привести задержку к int; игнорирует нерелевантные payload сигналов."""

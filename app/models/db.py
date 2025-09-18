@@ -1,4 +1,5 @@
 import argparse
+import os
 import copy
 import datetime
 import json
@@ -773,6 +774,12 @@ class Database(DatabaseBase):
             with sqlite3.connect(self.db_path) as src, sqlite3.connect(dst) as dest:
                 src.backup(dest)
             logger.info("Создана резервная копия: %s", dst)
+            # Явно обновляем метку времени файла, чтобы гарантировать корректное определение "новейшего" файла
+            try:
+                os.utime(dst, None)
+            except Exception:
+                # Если обновить mtime не удалось, это не критично для самой резервной копии
+                pass
 
             # 2) Очистка сверх лимита: удаляем самые старые, пропуская ошибки
             files = sorted(BACKUP_DIR.glob("links_*.db"))
