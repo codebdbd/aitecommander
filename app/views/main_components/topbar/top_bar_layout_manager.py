@@ -77,9 +77,14 @@ class TopBarLayoutManager(QObject):
         self._log_info: bool = self._get_cfg_bool(
             "ui.topbar.log_info", self.DEFAULT_LOG_INFO
         )
-        self._min_search_width: int = self._get_cfg_int(
-            "ui.topbar.min_search_width", self.DEFAULT_MIN_SEARCH_WIDTH
-        )
+        # Минимальная ширина поиска: синхронизируем с UI-строителем через app_config.ui.get_top_panel_search_min_width()
+        # Фолбэк — DEFAULT_MIN_SEARCH_WIDTH, чтобы старт был стабильным даже без конфига
+        try:
+            self._min_search_width: int = int(
+                app_config.ui.get_top_panel_search_min_width()
+            )
+        except Exception:
+            self._min_search_width = int(self.DEFAULT_MIN_SEARCH_WIDTH)
         self._max_recent: int = self.DEFAULT_MAX_RECENT
         self._max_fav: int = self.DEFAULT_MAX_FAV
         self._max_quick: int = self.DEFAULT_MAX_QUICK
@@ -295,8 +300,69 @@ class TopBarLayoutManager(QObject):
                         exc_info=True,
                     )
                 return
-            # НЕ узкий режим: ничего не меняем сейчас, чтобы не растянуть поиск «в одинокого»
-            # Следующий корректный adjust с ненулевыми панелями разложит всё и назначит stretch
+            # НЕ узкий режим: применяем нулевые квоты и корректно ограничиваем поиск
+            try:
+                # 1) Скрыть панели
+                self._apply_counts(width, 0, 0, 0)
+                # 2) Обновить разделители
+                self._update_separators_visibility(
+                    top_bar, False, False, False, bool(search)
+                )
+                # 3) Растяжение только для поиска
+                self._enforce_stretches(top_bar, search)
+                # 4) Ограничить ширину поиска оставшимся пространством с учётом min
+                if isinstance(search, QLineEdit):
+                    occupied = 0
+                    count = top_bar.count()
+                    for i in range(count):
+                        it = top_bar.itemAt(i)
+                        w = it.widget()
+                        if w is None:
+                            sp = it.spacerItem()
+                            if sp:
+                                occupied += max(0, sp.sizeHint().width())
+                            continue
+                        if w is search:
+                            continue
+                        if w.isVisible():
+                            try:
+                                occupied += int(w.width())
+                            except Exception:
+                                occupied += w.sizeHint().width()
+                    spacing = top_bar.spacing() or 0
+                    visible_widgets = [
+                        top_bar.itemAt(i).widget()
+                        for i in range(count)
+                        if top_bar.itemAt(i).widget() is not None and top_bar.itemAt(i).widget() is not search and top_bar.itemAt(i).widget().isVisible()
+                    ]
+                    occupied += spacing * max(0, len(visible_widgets) - 1)
+                    m = top_bar.contentsMargins()
+                    occupied += m.left() + m.right()
+                    host = self._get_container_widget()
+                    container_w = host.width() if isinstance(host, QWidget) else 0
+                    remaining = max(0, container_w - occupied)
+                    min_search_w = int(self._min_search_width)
+                    try:
+                        cur_min = int(search.minimumWidth())
+                        if cur_min > 0:
+                            min_search_w = max(min_search_w, cur_min)
+                    except Exception:
+                        pass
+                    max_search_w = max(min_search_w, remaining)
+                    try:
+                        cur_max = int(search.maximumWidth())
+                    except Exception:
+                        cur_max = -1
+                    # Обновляем максимум только при ощутимом изменении, чтобы снизить дребезг
+                    if cur_max < 0 or abs(cur_max - max_search_w) >= 6:
+                        search.setMaximumWidth(max_search_w)
+                    if search.minimumWidth() != min_search_w:
+                        search.setMinimumWidth(min_search_w)
+            except Exception:
+                logger.debug(
+                    "TopBarLayoutManager: zero-count regular-mode handling failed",
+                    exc_info=True,
+                )
             return
 
         state = (width, cnt_recent, cnt_fav, cnt_quick)
@@ -438,13 +504,27 @@ class TopBarLayoutManager(QObject):
                 host = self._get_container_widget()
                 container_w = host.width() if isinstance(host, QWidget) else 0
                 remaining = max(0, container_w - occupied)
+
+                # Синхронизированная минимальная ширина для поиска: учитываем настройку из app_config и текущее minimumWidth()
+                min_search_w = int(self._min_search_width)
+                try:
+                    cur_min = int(search.minimumWidth())
+                    if cur_min > 0:
+                        min_search_w = max(min_search_w, cur_min)
+                except Exception:
+                    pass
+
                 # Не даём меньше минимальной ширины поиска
-                max_search_w = max(self._min_search_width, remaining)
-                # Применяем ограничения к поиску
-                if search.maximumWidth() != max_search_w:
+                max_search_w = max(min_search_w, remaining)
+                # Применяем ограничения к поиску с порогом изменения
+                try:
+                    cur_max = int(search.maximumWidth())
+                except Exception:
+                    cur_max = -1
+                if cur_max < 0 or abs(cur_max - max_search_w) >= 6:
                     search.setMaximumWidth(max_search_w)
-                if search.minimumWidth() != self._min_search_width:
-                    search.setMinimumWidth(self._min_search_width)
+                if search.minimumWidth() != min_search_w:
+                    search.setMinimumWidth(min_search_w)
         except Exception:
             logger.debug("TopBarLM: failed to clamp search width to remaining space", exc_info=True)
 
@@ -658,12 +738,16 @@ class TopBarLayoutManager(QObject):
                         "TopBarLM: failed to iterate search actions in narrow mode",
                         exc_info=True,
                     )
-            # Нулевые отступы и растяжение поиска
+            # Отступы оставляем как в обычном режиме, чтобы избежать горизонтального скачка при переходе
             try:
-                self._set_top_bar_margins(top_bar, 0, 0, 0, 0)
+                try:
+                    side = int(app_config.ui.get_top_bar_widgets_side_spacing())
+                except Exception:
+                    side = 8
+                self._set_top_bar_margins(top_bar, side, 0, side, 0)
             except Exception:
                 logger.debug(
-                    "TopBarLM: failed to set zero margins on top_bar (narrow mode)",
+                    "TopBarLM: failed to set side margins on top_bar (narrow mode)",
                     exc_info=True,
                 )
             try:
@@ -973,14 +1057,20 @@ class TopBarLayoutManager(QObject):
                     logical_visible_panel(right_widget)
                     or (search_exists and isinstance(right_widget, QLineEdit))
                 )
-                w.setVisible(show_sep)
-                # Размеры спейсеров: при видимом разделителе по 4px с обеих сторон.
-                # При скрытом разделителе оставляем стандартный отступ 4px только перед полем поиска,
-                # а с другой стороны схлопываем до 0, чтобы не было двойного зазора.
+                # Не скрываем разделитель, а переключаем его фиксированную ширину (1px/0px), чтобы избежать скачков
+                try:
+                    w.setVisible(True)
+                    w.setFixedWidth(1 if show_sep else 0)
+                except Exception:
+                    # Best-effort: если не удалось, fallback к старому поведению
+                    try:
+                        w.setVisible(show_sep)
+                    except Exception:
+                        pass
+                # Держим постоянные боковые отступы (спейсеры) по 4px с обеих сторон
                 left_sp = top_bar.itemAt(i - 1).spacerItem() if i - 1 >= 0 else None
                 right_sp = top_bar.itemAt(i + 1).spacerItem() if i + 1 < count else None
-
-                if show_sep:
+                try:
                     if left_sp:
                         left_sp.changeSize(
                             self.DEFAULT_SPACER_SIZE,
@@ -995,23 +1085,8 @@ class TopBarLayoutManager(QObject):
                             QSizePolicy.Policy.Fixed,
                             QSizePolicy.Policy.Fixed,
                         )
-                else:
-                    # Если справа Search (QLineEdit) — оставляем 4px справа, слева 0px.
-                    is_search_right = isinstance(right_widget, QLineEdit)
-                    if left_sp:
-                        left_sp.changeSize(
-                            0 if is_search_right else self.DEFAULT_SPACER_SIZE,
-                            0,
-                            QSizePolicy.Policy.Fixed,
-                            QSizePolicy.Policy.Fixed,
-                        )
-                    if right_sp:
-                        right_sp.changeSize(
-                            self.DEFAULT_SPACER_SIZE if is_search_right else 0,
-                            0,
-                            QSizePolicy.Policy.Fixed,
-                            QSizePolicy.Policy.Fixed,
-                        )
+                except Exception:
+                    logger.debug("TopBarLM: failed to normalize separator spacers", exc_info=True)
             i += 1
         top_bar.invalidate()
 

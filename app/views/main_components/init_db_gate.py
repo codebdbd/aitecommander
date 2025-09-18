@@ -1,8 +1,8 @@
-# app/views/main_components/init_db_gate.py
 from __future__ import annotations
 
 import logging
-from typing import Callable, Optional
+import time
+from typing import Callable, List, Optional
 
 from PyQt6.QtCore import QTimer
 
@@ -15,93 +15,179 @@ class DbReadyGate:
     """Инкапсулирует ожидание готовности БД по признаку разблокировки окна.
 
     Считает БД готовой, когда `window.isEnabled()` возвращает True.
-    Проверка выполняется периодически таймером (100 мс), пока окно заблокировано.
+    Проверка выполняется периодически таймером (по умолчанию 100 мс), пока окно заблокировано.
+    Поддерживает таймаут, конфигурируемый интервал, прямую проверку БД (опционально),
+    метрики ожидания и множественные колбэки.
     """
 
     def __init__(
-        self, window: MainWindowLike, _logger: Optional[logging.Logger] = None
+        self,
+        window: MainWindowLike,
+        poll_interval_ms: int = 100,
+        _logger: Optional[logging.Logger] = None,
     ) -> None:
         self._window = window
         self._logger = _logger or logger
         self._timer: Optional[QTimer] = None
+        self._poll_interval_ms: int = poll_interval_ms
+        self._pending_callbacks: List[Callable[[], None]] = []
+        self._attempts: int = 0
+        self._start_time: Optional[float] = None
+        self._timeout_remaining: Optional[float] = None  # in seconds
 
     def ensure_ready_or_wait(
         self,
         on_ready: Callable[[], None],
         on_waiting: Optional[Callable[[], None]] = None,
+        timeout_ms: Optional[int] = None,
+        db_checker: Optional[Callable[[], bool]] = None,
     ) -> None:
+        """Обеспечивает готовность или ждёт, с опциональными параметрами для таймаута, проверки БД и т.д."""
+        # Начальная проверка готовности (с опциональной прямой проверкой БД)
         try:
-            if hasattr(self._window, "isEnabled") and self._window.isEnabled():
-                on_ready()
+            is_ready = self._is_ready(db_checker)
+            if is_ready:
+                self._execute_callbacks_and_metrics(on_ready)
                 return
         except Exception:
-            # Если проверка упала — логируем и пытаемся продолжить, вызвав on_ready как есть
             self._logger.exception(
-                "DbReadyGate: error checking window.isEnabled, proceeding as ready"
+                "DbReadyGate: ошибка начальной проверки готовности, продолжаем как готовый"
             )
-            on_ready()
+            self._execute_callbacks_and_metrics(on_ready)
             return
 
-        # Если не готово — оповещаем и запускаем таймер
+        # Если не готово — оповещаем
         if on_waiting:
             try:
                 on_waiting()
             except Exception:
                 self._logger.debug(
-                    "DbReadyGate: on_waiting callback raised", exc_info=True
+                    "DbReadyGate: колбэк on_waiting вызвал исключение", exc_info=True
                 )
 
-        # Таймер привязываем к окну, чтобы он уничтожился вместе с окном.
-        # Делаем его одноразовым и вручную перезапускаем до готовности БД.
+        # Добавляем колбэк в очередь (поддержка множественных)
+        self._pending_callbacks.append(on_ready)
+
+        # Инициализируем метрики и таймаут, если это первый вызов
+        if self._start_time is None:
+            self._start_time = time.time()
+            self._attempts = 0
+            if timeout_ms is not None:
+                self._timeout_remaining = timeout_ms / 1000.0  # Convert to seconds
+            else:
+                self._timeout_remaining = None
+
+        # Проверяем, не запущен ли уже таймер
+        if self._timer is not None:
+            self._logger.debug("DbReadyGate: уже опрашиваем; добавляем колбэк в очередь")
+            return
+
+        # Запускаем таймер
         self._timer = QTimer(self._window)
         self._timer.setSingleShot(True)
-        self._timer.timeout.connect(lambda: self._check_and_continue(on_ready))
-        self._timer.start(100)
+        self._timer.timeout.connect(lambda: self._check_and_continue(db_checker))
+        self._timer.start(self._poll_interval_ms)
 
-    def _check_and_continue(self, on_ready: Callable[[], None]) -> None:
-        try:
-            if hasattr(self._window, "isEnabled") and self._window.isEnabled():
-                try:
-                    if self._timer is not None:
-                        self._timer.stop()
-                        self._timer.deleteLater()
-                        self._timer = None
-                except Exception:
-                    self._logger.debug(
-                        "DbReadyGate: failed to stop/delete timer on ready",
-                        exc_info=True,
-                    )
-                on_ready()
-            else:
-                # Не готово — перезапускаем одноразовый таймер для следующей проверки
-                try:
-                    if self._timer is not None:
-                        self._timer.start(100)
-                except Exception:
-                    # В случае ошибки перестрахуемся: удалим таймер, чтобы не протекал
-                    self._logger.debug(
-                        "DbReadyGate: failed to restart timer; will attempt to dispose",
-                        exc_info=True,
-                    )
-                    try:
-                        if self._timer is not None:
-                            self._timer.stop()
-                            self._timer.deleteLater()
-                            self._timer = None
-                    except Exception:
-                        self._logger.debug(
-                            "DbReadyGate: failed to dispose timer after restart failure",
-                            exc_info=True,
-                        )
-        except Exception:
-            self._logger.exception("DbReadyGate: error during readiness check")
-            # При ошибке проверки — безопасно остановим и удалим таймер
+    def _is_ready(self, db_checker: Optional[Callable[[], bool]]) -> bool:
+        """Проверяет готовность: сначала прямая проверка БД (если предоставлена), затем окно."""
+        if db_checker is not None:
             try:
-                if self._timer is not None:
-                    self._timer.stop()
-                    self._timer.deleteLater()
-                    self._timer = None
+                if db_checker():
+                    return True
             except Exception:
-                self._logger.debug(
-                    "DbReadyGate: failed to dispose timer after error", exc_info=True
+                self._logger.debug("DbReadyGate: ошибка в прямой проверке БД, продолжаем с проверкой окна")
+
+        # Проверка окна
+        is_enabled_method = getattr(self._window, "isEnabled", None)
+        if callable(is_enabled_method):
+            return bool(is_enabled_method())
+        return False  # If not callable, assume not ready
+
+    def _check_and_continue(self, db_checker: Optional[Callable[[], bool]]) -> None:
+        self._attempts += 1
+        current_time = time.time()
+
+        # Проверка таймаута
+        if self._timeout_remaining is not None:
+            elapsed = current_time - (self._start_time or current_time)
+            if elapsed >= self._timeout_remaining:
+                self._logger.warning(
+                    f"DbReadyGate: таймаут ожидания ({self._timeout_remaining:.2f}с) после {self._attempts} попыток"
                 )
+                self._dispose_timer()
+                self._execute_callbacks_and_metrics()
+                return
+
+        # Проверка готовности
+        try:
+            is_ready = self._is_ready(db_checker)
+            if is_ready:
+                self._dispose_timer()
+                self._execute_callbacks_and_metrics()
+            else:
+                # Перезапуск таймера
+                try:
+                    if self._timer is not None:
+                        self._timer.start(self._poll_interval_ms)
+                except Exception:
+                    self._logger.debug(
+                        "DbReadyGate: сбой перезапуска таймера; завершаем ожидание",
+                        exc_info=True,
+                    )
+                    self._dispose_timer()
+                    self._execute_callbacks_and_metrics()  # Proceed on failure
+        except Exception:
+            self._logger.exception("DbReadyGate: ошибка во время проверки готовности")
+            self._dispose_timer()
+            self._logger.warning("DbReadyGate: продолжаем как готовый после сбоя проверки")
+            self._execute_callbacks_and_metrics()
+
+    def _execute_callbacks_and_metrics(self, single_callback: Optional[Callable[[], None]] = None) -> None:
+        """Выполняет колбэки (всех или указанный) и логирует метрики."""
+        callbacks_to_execute = [single_callback] if single_callback else self._pending_callbacks
+        for callback in callbacks_to_execute:
+            if callback:
+                try:
+                    callback()
+                except Exception:
+                    self._logger.debug("DbReadyGate: колбэк on_ready вызвал исключение", exc_info=True)
+
+        if self._start_time is not None:
+            wait_time = time.time() - self._start_time
+            self._logger.info(
+                f"DbReadyGate: готовность достигнута за {wait_time:.2f}с ({self._attempts} попыток)"
+            )
+            # Сброс метрик
+            self._start_time = None
+            self._attempts = 0
+            self._timeout_remaining = None
+
+        if not single_callback:
+            self._pending_callbacks.clear()
+
+    def _dispose_timer(self) -> None:
+        """Безопасно останавливает и удаляет таймер."""
+        try:
+            if self._timer is not None:
+                self._timer.stop()
+                self._timer.deleteLater()
+                self._timer = None
+        except Exception:
+            self._logger.debug(
+                "DbReadyGate: сбой удаления таймера", exc_info=True
+            )
+
+    def cancel_wait(self, on_cancel: Optional[Callable[[], None]] = None) -> None:
+        """Отменяет ожидание, выполняя on_cancel колбэк (если предоставлен)."""
+        if self._timer is not None:
+            self._dispose_timer()
+        self._logger.info("DbReadyGate: ожидание отменено")
+        if on_cancel:
+            try:
+                on_cancel()
+            except Exception:
+                self._logger.debug("DbReadyGate: колбэк on_cancel вызвал исключение", exc_info=True)
+        self._pending_callbacks.clear()
+        self._start_time = None
+        self._attempts = 0
+        self._timeout_remaining = None
