@@ -81,7 +81,6 @@ class DummyMainWindow:
         self.tree = DummyTree()
         self.table = DummyTable()
         self.stack = DummyStack(-1)
-        self.tiles = None
         self.links_actions = DummyLinksActions()
         self.structure = DummyStructure()
         self._focused_widget = object()

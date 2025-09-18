@@ -43,28 +43,16 @@ class LinksBusinessLogic(QObject):
         self.logger = logger or logging.getLogger(self.__class__.__name__)
         # worker-сигналы не требуются: используем собственные сигналы класса + run_db
 
-    def shutdown(self, timeout: int = 2000) -> bool:
-        """Корректное завершение работы.
-
-        Returns:
-            bool: True — успешное завершение; False — если произошла ожидаемая ошибка
-            среды (RuntimeError/TimeoutError). Неожиданные исключения пробрасываются.
-        """
+    def shutdown(self, timeout: int = 2000):
+        """Корректное завершение работы."""
         try:
             # Ждём завершения задач через единый пул
             self.scheduler.get_thread_pool().waitForDone(timeout)
             self.logger.debug("LinksBusinessLogic shutdown completed")
-            return True
-        except (RuntimeError, TimeoutError) as e:
-            # Ожидаемые ошибки среды — логируем и возвращаем False
+        except Exception as e:
             self.logger.error(
-                "Error during LinksBusinessLogic shutdown (expected): %s", e, exc_info=True
+                "Error during LinksBusinessLogic shutdown: %s", e, exc_info=True
             )
-            return False
-        except Exception:
-            # Неожиданные ошибки — не скрываем
-            self.logger.exception("Unexpected error during LinksBusinessLogic shutdown")
-            raise
 
     def load_links(self, category_id: int):
         """Загрузить ссылки для категории."""
@@ -88,7 +76,7 @@ class LinksBusinessLogic(QObject):
             on_finished=lambda links: self._on_links_loaded(
                 links, category_id, task_id
             ),
-            on_error=lambda e: self._on_worker_error(str(e), task_id),
+            on_error=lambda e: self._on_worker_error(str(e)),
         )
 
     def get_links(self, category_id: int) -> List[Dict]:
@@ -177,17 +165,8 @@ class LinksBusinessLogic(QObject):
             if not handle_db_error(e, self):
                 raise
 
-    def save_link(self, link_data: Dict) -> Optional[int]:
-        """Сохранить ссылку.
-
-        Returns:
-            Optional[int]:
-            - ID ссылки (int) при успешном сохранении или обновлении;
-            - None — если произошла обработанная ошибка БД (ошибка залогирована и
-              передана в `handle_db_error`, который её обработал), т.е. операция
-              не удалась, но исключение не проброшено;
-              при неожиданных/необработанных ошибках метод поднимет исключение.
-        """
+    def save_link(self, link_data: Dict) -> int:
+        """Сохранить ссылку."""
         # Строгая валидация через общий валидатор + проверка category_id
         if not isinstance(link_data, dict):
             raise ValueError("Invalid link data provided: not a dict")
@@ -229,10 +208,7 @@ class LinksBusinessLogic(QObject):
                 exc_info=True,
             )
             if not handle_db_error(e, self):
-                # Необработанная ошибка — эскалируем
                 raise
-            # Обработанная ошибка БД — возвращаем None явно
-            return None
 
     def update_link_last_used(self, link_id: int):
         """Обновить время последнего использования ссылки."""
@@ -276,19 +252,14 @@ class LinksBusinessLogic(QObject):
 
         try:
             result = self.save_link(link_data)
-            # Пересчитываем избранное только при успешном сохранении
-            if isinstance(result, int) and result > 0:
-                self.logger.info(
-                    "Favorite status updated successfully, result ID: %s", result
-                )
-                # Сигнал link_updated уже эмитится внутри save_link; не дублируем
-                self.count_favorites(link_data)
-            else:
-                # save_link вернул None или некорректный ID — не пересчитываем
-                self.logger.warning(
-                    "toggle_favorite: save_link did not return a valid ID; skipping favorites recount"
-                )
-                return
+            self.logger.info(
+                "Favorite status updated successfully, result ID: %s", result
+            )
+
+            # Сигнал link_updated уже эмитится внутри save_link; не дублируем
+
+            # Обновляем счетчик избранного
+            self.count_favorites(link_data)
 
         except Exception as e:
             self.logger.error("Ошибка при сохранении избранного: %s", e, exc_info=True)
@@ -472,22 +443,7 @@ class LinksBusinessLogic(QObject):
         """Обработка подсчета избранного."""
         self.favorites_counted.emit(fav_count, links, link)
 
-    def _on_worker_error(self, error_msg: str, task_id: Optional[int] = None):
-        """Обработка ошибок воркеров.
-
-        Если передан task_id, удаляем задачу из pending_tasks под tasks_lock,
-        чтобы исключить утечки при ошибках асинхронной загрузки ссылок.
-        """
-        # Сначала очистим учёт задач, если есть task_id
-        if task_id is not None:
-            try:
-                with tasks_lock:
-                    if task_id in self.pending_tasks:
-                        self.pending_tasks.remove(task_id)
-                        self.logger.debug("Removed failed task_id=%s from pending_tasks", task_id)
-            except Exception as e:
-                # Никогда не прерываем обработку ошибки из-за проблем с очисткой
-                self.logger.debug("Failed to cleanup task_id=%s: %s", task_id, e, exc_info=True)
-
+    def _on_worker_error(self, error_msg: str):
+        """Обработка ошибок воркеров."""
         self.logger.error("Worker error: %s", error_msg)
         self.error_occurred.emit(str(error_msg))

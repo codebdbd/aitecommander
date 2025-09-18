@@ -99,11 +99,8 @@ def get_session() -> requests.Session:
                     "Accept-Language": "en-US,en;q=0.9,ru;q=0.8",
                 }
             )
-        except (TypeError, ValueError) as e:
+        except (TypeError, ValueError, RuntimeError) as e:
             logger.warning("failed to update default session headers: %s", e)
-        except Exception as e:
-            # Unexpected errors should be logged with full traceback and we continue without these headers
-            logger.error("unexpected error updating default session headers: %s", e, exc_info=True)
         setattr(_tls, "session", s)
         # Mark retries not configured yet; will be configured once by http_request on first use
         try:
@@ -111,26 +108,20 @@ def get_session() -> requests.Session:
         except Exception:
             pass
         # Add a simple response hook for debug logging of responses
-        def _log_response(resp, *args, **kwargs):
-            try:
-                logger.debug(
-                    "[http][resp] method=%s url=%s status=%s",
-                    getattr(resp.request, "method", ""),
-                    getattr(resp, "url", ""),
-                    getattr(resp, "status_code", None),
-                )
-            except AttributeError:
-                # Handle only attribute access issues gracefully; others should propagate
-                logger.debug("response logging skipped due to missing attributes")
-
-        # Register response hook; only handle expected configuration errors here
         try:
+            def _log_response(resp, *args, **kwargs):
+                try:
+                    logger.debug(
+                        "[http][resp] method=%s url=%s status=%s",
+                        getattr(resp.request, "method", ""),
+                        getattr(resp, "url", ""),
+                        getattr(resp, "status_code", None),
+                    )
+                except Exception:
+                    pass
             s.hooks.setdefault("response", []).append(_log_response)
-        except (TypeError, ValueError) as e:
-            logger.warning("failed to register response hook: %s", e)
-        except Exception as e:
-            # Log unexpected errors with traceback and proceed without hook
-            logger.error("unexpected error registering response hook: %s", e, exc_info=True)
+        except Exception:
+            pass
         # One-time atexit registration
         global _SESSION_CLEANUP_REGISTERED
         if not _SESSION_CLEANUP_REGISTERED:

@@ -145,8 +145,10 @@ class TestDatabaseInitializer(unittest.TestCase):
     def test_do_db_init_failure(self):
         """Тест неуспешной инициализации БД."""
         self.mock_database.prepare_dirs.side_effect = Exception("Test error")
-        with self.assertRaises(Exception):
-            self.db_initializer._do_db_init()
+
+        result = self.db_initializer._do_db_init()
+
+        self.assertFalse(result)
 
     def test_update_status_message(self):
         """Тест обновления сообщения статуса."""

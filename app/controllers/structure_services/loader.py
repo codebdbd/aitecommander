@@ -28,12 +28,7 @@ class LoaderService:
                 section["categories"] = categories
 
             return sections
-        except Exception as e:  # критические ошибки (например, БД)
+        except Exception as e:  # noqa: BLE001
             if logger:
-                try:
-                    logger.error("Ошибка загрузки структуры из БД: %s", e, exc_info=True)
-                except Exception:
-                    # Никогда не ломаем повторное возбуждение из-за логгера
-                    pass
-            # Пробрасываем дальше, чтобы вызывающий код мог обработать/показать ошибку
-            raise
+                logger.error("Ошибка загрузки структуры из БД: %s", e)
+            return []

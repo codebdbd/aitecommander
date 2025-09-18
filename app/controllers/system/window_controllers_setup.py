@@ -248,11 +248,7 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
             raise SetupError(
                 "StructureBusinessLogic must implement set_top_panels_controller"
             )
-        try:
-            structure_business.set_top_panels_controller(window.top_panels_controller)
-        except ValueError as e:
-            logger.error("Failed to inject TopPanelsController into StructureBusinessLogic: %s", e, exc_info=True)
-            raise SetupError("StructureBusinessLogic TopPanelsController injection failed") from e
+        structure_business.set_top_panels_controller(window.top_panels_controller)
         # Также внедряем TopPanelsController в ThemeController, если доступен
         try:
             theme_ctrl = getattr(window, "theme_ctrl", None)

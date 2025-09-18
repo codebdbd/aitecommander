@@ -70,13 +70,6 @@ class ThemeController:
         """
         if top_panels_controller is None:
             raise ValueError("TopPanelsController must be provided to ThemeController")
-        # Валидируем минимальный интерфейс
-        if not hasattr(top_panels_controller, "refresh_all") or not callable(
-            getattr(top_panels_controller, "refresh_all", None)
-        ):
-            raise TypeError(
-                "TopPanelsController must implement callable refresh_all()"
-            )
         self.top_panels_controller = top_panels_controller
 
     def _normalize_theme_input(self, name: Optional[str]) -> str:
@@ -151,31 +144,21 @@ class ThemeController:
         """Проверяет, является ли текущая тема тёмной."""
         try:
             current_theme = self.settings.get_theme()
-        except AttributeError as exc:
-            # Ожидаемый случай: у settings нет метода get_theme — по умолчанию светлая тема
-            logger.error("ThemeController: settings не содержит get_theme: %s", exc)
-            return False
+            if not current_theme:
+                logger.warning(
+                    "Текущая тема не установлена, используется светлая тема по умолчанию"
+                )
+                return False
+            # Нормализуем имя и пытаемся найти конфиг
+            norm = self._normalize_theme_input(current_theme)
+            theme_config = self._get_theme_by_name(norm)
+            if theme_config:
+                return theme_config.get("is_dark", False)
+            # Если тема не найдена в конфигурации, определяем по нормализованному имени
+            return norm == "dark"
         except Exception as exc:
-            # Неожиданная ошибка чтения настроек — логируем и пробрасываем дальше
-            logger.error(
-                "ThemeController: неожиданная ошибка при чтении get_theme: %s",
-                exc,
-                exc_info=True,
-            )
-            raise
-
-        if not current_theme:
-            logger.warning(
-                "Текущая тема не установлена, используется светлая тема по умолчанию"
-            )
+            logger.error("Ошибка при определении темной темы: %s", exc, exc_info=True)
             return False
-        # Нормализуем имя и пытаемся найти конфиг
-        norm = self._normalize_theme_input(current_theme)
-        theme_config = self._get_theme_by_name(norm)
-        if theme_config:
-            return theme_config.get("is_dark", False)
-        # Если тема не найдена в конфигурации, определяем по нормализованному имени
-        return norm == "dark"
 
     def _get_theme_by_name(self, name: str) -> Optional[Dict[str, Any]]:
         """Получает словарь темы по имени (без учета регистра)."""
@@ -475,20 +458,12 @@ class ThemeController:
                 logger.warning(
                     "Ошибка перезагрузки иконок структуры: %s", exc, exc_info=True
                 )
-            tpc = getattr(self, "top_panels_controller", None)
-            if tpc:
-                refresh = getattr(tpc, "refresh_all", None)
-                if callable(refresh):
-                    try:
-                        refresh()
-                    except Exception as exc:
-                        logger.warning(
-                            "Ошибка обновления верхних панелей: %s", exc, exc_info=True
-                        )
-                else:
-                    logger.warning(
-                        "TopPanelsController has no callable refresh_all(); skipping panels refresh"
-                    )
+            try:
+                self.top_panels_controller.refresh_all()
+            except Exception as exc:
+                logger.warning(
+                    "Ошибка обновления верхних панелей: %s", exc, exc_info=True
+                )
             # Диагностика размеров шапки отключена как шумная
             return
 
@@ -519,21 +494,13 @@ class ThemeController:
                         "Ошибка перезагрузки иконок структуры: %s", exc, exc_info=True
                     )
 
-                # Обновление верхних панелей — выполняем только если контроллер внедрён
-                tpc = getattr(self, "top_panels_controller", None)
-                if tpc:
-                    refresh = getattr(tpc, "refresh_all", None)
-                    if callable(refresh):
-                        try:
-                            refresh()
-                        except Exception as exc:
-                            logger.warning(
-                                "Ошибка обновления верхних панелей: %s", exc, exc_info=True
-                            )
-                    else:
-                        logger.warning(
-                            "TopPanelsController has no callable refresh_all(); skipping panels refresh"
-                        )
+                # Обновление верхних панелей — прямая зависимость из конструктора
+                try:
+                    self.top_panels_controller.refresh_all()
+                except Exception as exc:
+                    logger.warning(
+                        "Ошибка обновления верхних панелей: %s", exc, exc_info=True
+                    )
                 # Диагностика размеров шапки отключена как шумная
         except Exception as exc:
             logger.warning(
@@ -541,38 +508,6 @@ class ThemeController:
                 exc,
                 exc_info=True,
             )
-            # Фолбэк: выполним операции без приостановки перерисовки
-            try:
-                menu_ctrl = getattr(mw, "menu_controller", None)
-                if menu_ctrl:
-                    menu_ctrl.rebuild_after_theme_change()
-            except Exception as exc2:
-                logger.warning(
-                    "Ошибка пересборки меню после смены темы: %s", exc2, exc_info=True
-                )
-            try:
-                structure = getattr(mw, "structure", None)
-                if structure and hasattr(structure, "reload_icons"):
-                    structure.reload_icons()
-            except Exception as exc2:
-                logger.warning(
-                    "Ошибка перезагрузки иконок структуры: %s", exc2, exc_info=True
-                )
-            # Обновление верхних панелей — выполняем только если контроллер внедрён
-            tpc = getattr(self, "top_panels_controller", None)
-            if tpc:
-                refresh = getattr(tpc, "refresh_all", None)
-                if callable(refresh):
-                    try:
-                        refresh()
-                    except Exception as exc2:
-                        logger.warning(
-                            "Ошибка обновления верхних панелей: %s", exc2, exc_info=True
-                        )
-                else:
-                    logger.warning(
-                        "TopPanelsController has no callable refresh_all(); skipping panels refresh"
-                    )
 
         # Не переустанавливаем размеры шрифтов при смене темы.
         # Базовый размер приложения и точечные размеры для меню/меню-бара управляются отдельно,

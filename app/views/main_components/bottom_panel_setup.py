@@ -8,7 +8,6 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QWidget
 
 from app.config_data import app_config
-from .protocols import WindowUISetupProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -16,49 +15,11 @@ logger = logging.getLogger(__name__)
 class BottomPanelBuilder:
     """Собирает нижнюю панель, используя существующее поведение WindowUISetup (без изменений)."""
 
-    def __init__(self, ui: WindowUISetupProtocol) -> None:
+    def __init__(self, ui: Any) -> None:
         # ui is WindowUISetup; typed as Any to avoid circular imports
         self.ui = ui
         self.window = ui.window
         self.main_layout = ui.main_layout
-
-    def _create_button(self, text: str, fn_name: str) -> QPushButton | None:
-        """Фабрика создания кнопки нижней панели с подключением обработчика.
-
-        Возвращает None, если обработчик не найден или подключение не удалось.
-        """
-        btn = QPushButton(text)
-        btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        # Разрешаем горизонтальное сжатие ниже sizeHint
-        try:
-            btn.setMinimumWidth(0)
-            btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-        except (RuntimeError, TypeError):
-            logger.debug(
-                "BottomPanel: failed to apply size policy to bottom button '%s'",
-                text,
-                exc_info=True,
-            )
-
-        handler = getattr(self.window, fn_name, None)
-        if not callable(handler):
-            logger.warning(
-                "BottomPanel: click handler '%s' not found for button '%s' — skipping",
-                fn_name,
-                text,
-            )
-            return None
-        try:
-            btn.clicked.connect(handler)
-        except (TypeError, RuntimeError):
-            logger.warning(
-                "BottomPanel: failed to connect handler '%s' for button '%s' — skipping",
-                fn_name,
-                text,
-                exc_info=True,
-            )
-            return None
-        return btn
 
     def build(self) -> None:
         """Собирает и подключает нижнюю панель (полоса действий + разделитель).
@@ -85,8 +46,36 @@ class BottomPanelBuilder:
         bottom_actions = app_config.ui.get_bottom_actions()
         bottom_btns = []
         for text, fn_name in bottom_actions:
-            btn = self._create_button(text, fn_name)
-            if btn is None:
+            btn = QPushButton(text)
+            btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            # Разрешаем горизонтальное сжатие ниже sizeHint
+            try:
+                btn.setMinimumWidth(0)
+                btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+            except (RuntimeError, TypeError):
+                logger.debug(
+                    "BottomPanel: failed to apply size policy to bottom button '%s'",
+                    text,
+                    exc_info=True,
+                )
+            # Обработчик клика и добавление на панель
+            handler = getattr(self.window, fn_name, None)
+            if not callable(handler):
+                logger.warning(
+                    "BottomPanel: click handler '%s' not found for button '%s' — skipping",
+                    fn_name,
+                    text,
+                )
+                continue
+            try:
+                btn.clicked.connect(handler)
+            except (TypeError, RuntimeError):
+                logger.warning(
+                    "BottomPanel: failed to connect handler '%s' for button '%s' — skipping",
+                    fn_name,
+                    text,
+                    exc_info=True,
+                )
                 continue
             bottom_layout.addWidget(btn)
             bottom_btns.append(btn)
@@ -124,4 +113,4 @@ class BottomPanelBuilder:
 
         self.main_layout.addWidget(bottom_bar_container)
 
-
+        # Убираем нижний разделитель: панель примыкает вплотную к содержимому
