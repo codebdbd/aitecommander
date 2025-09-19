@@ -88,10 +88,20 @@ class TopBarLayoutManager(QObject):
         self._max_recent: int = self.DEFAULT_MAX_RECENT
         self._max_fav: int = self.DEFAULT_MAX_FAV
         self._max_quick: int = self.DEFAULT_MAX_QUICK
-        # Минимальные квоты отключены: все панели могут схлопываться до 0
-        self._min_recent: int = 0
-        self._min_fav: int = 0
-        self._min_quick: int = 0
+        # Минимальные квоты: читаем из конфигурации ui.topbar.min_visible с безопасными fallback'ами
+        try:
+            mv = app_config.ui.get("ui.topbar.min_visible", {}) or {}
+        except Exception:
+            mv = {}
+        def _to_nonneg_int(v, default=0):
+            try:
+                iv = int(v)
+                return max(0, iv)
+            except Exception:
+                return int(default)
+        self._min_recent: int = _to_nonneg_int(mv.get("recent", 0))
+        self._min_fav: int = _to_nonneg_int(mv.get("fav", 0))
+        self._min_quick: int = _to_nonneg_int(mv.get("quick", 0))
         # Узкий режим: фиксированный порог (значение задаётся DEFAULT_NARROW_THRESHOLD) и не переопределяется конфигом
         self._narrow_threshold: int = self.DEFAULT_NARROW_THRESHOLD
         self._button_size: int = self._get_cfg_int(
@@ -276,6 +286,10 @@ class TopBarLayoutManager(QObject):
             )
             self._apply_narrow_mode(top_bar, search)
             return
+
+        # Выходим из узкого режима: восстановить поведение поиска (clear-кнопка и встроенные действия)
+        # Важно делать это до дальнейших пересчётов, чтобы repeated adjust() не оставлял поиск в выключенном состоянии
+        self._restore_search_actions(search)
 
         # Кэшировать списки кнопок
         quick_btns = self._iter_buttons(quick, "quickButton")
@@ -751,6 +765,37 @@ class TopBarLayoutManager(QObject):
                 exc_info=True,
             )
 
+    def _restore_search_actions(self, search: Optional[QLineEdit]) -> None:
+        """Восстанавливает clear-кнопку и видимость встроенных действий поиска после выхода из узкого режима.
+        Должно вызываться при любом не-узком состоянии (включая первичный показ окна).
+        """
+        if not isinstance(search, QLineEdit):
+            return
+        try:
+            # Вернуть clear-кнопку
+            if hasattr(search, "setClearButtonEnabled"):
+                search.setClearButtonEnabled(True)
+        except Exception:
+            logger.debug(
+                "TopBarLM: failed to enable clear button on search (restore)",
+                exc_info=True,
+            )
+        # Вернуть видимость встроенных действий
+        try:
+            for act in search.actions():
+                try:
+                    act.setVisible(True)
+                except Exception:
+                    logger.debug(
+                        "TopBarLM: failed to show search action on restore",
+                        exc_info=True,
+                    )
+        except Exception:
+            logger.debug(
+                "TopBarLM: failed to iterate search actions on restore",
+                exc_info=True,
+            )
+
     def _compute_visible_counts(
         self,
         width: int,
@@ -767,15 +812,18 @@ class TopBarLayoutManager(QObject):
         max_fav = min(self._max_fav, len(fav_btns))
         max_quick = min(self._max_quick, len(quick_btns))
 
-        # Минимальные квоты отключены для единообразного поведения
-        min_recent = 0
-        min_fav = 0
-        min_quick = 0
+        # Минимальные квоты из конфигурации (задаются в __init__) с ограничением доступным количеством
+        min_recent = max(0, int(self._min_recent))
+        min_fav = max(0, int(self._min_fav))
+        min_quick = max(0, int(self._min_quick))
+
+        # Не требуем больше, чем реально доступно
+        min_recent = min(min_recent, max_recent)
+        min_fav = min(min_fav, max_fav)
+        min_quick = min(min_quick, max_quick)
 
         cnt_recent, cnt_fav, cnt_quick = max_recent, max_fav, max_quick
-        cnt_recent = max(min_recent, cnt_recent)
-        cnt_fav = max(min_fav, cnt_fav)
-        cnt_quick = max(min_quick, cnt_quick)
+        # cnt_* уже не меньше min_* и не больше max_* благодаря клампам выше
 
         max_steps = (
             (cnt_recent - min_recent) + (cnt_fav - min_fav) + (cnt_quick - min_quick)

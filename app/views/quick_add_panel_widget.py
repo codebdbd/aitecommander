@@ -36,15 +36,35 @@ class QuickAddPanelWidget(BaseTopPanelWidget):
     def _setup_quick_buttons(self) -> None:
         """Creates quick add buttons based on application configuration."""
         quick_types = app_config.settings.get_quick_types()
-        button_size = app_config.ui.get_top_panel_button_size()
-        icon_size = app_config.ui.get_top_panel_icon_size()
+        # Размеры кнопок берём из ui.quick_add_button_size (список [w, h]) с фолбэком на общий
+        try:
+            q_wh = app_config.ui.get_quick_add_button_size()
+            bw = int(q_wh[0]) if isinstance(q_wh, (list, tuple)) and len(q_wh) >= 2 else None
+            bh = int(q_wh[1]) if isinstance(q_wh, (list, tuple)) and len(q_wh) >= 2 else None
+        except Exception:
+            bw = bh = None
+        if not bw or bw <= 0 or not bh or bh <= 0:
+            # Фолбэк: квадратная кнопка по общему размеру
+            fallback_btn = int(app_config.ui.get_top_panel_button_size())
+            bw = bh = max(1, fallback_btn)
+
+        # Размер иконки: базово из общего top_panel_icon_size() с клампом не больше самой кнопки
+        try:
+            icon_wh = app_config.ui.get_top_panel_icon_size()  # [w, h]
+            iw = int(icon_wh[0]) if isinstance(icon_wh, (list, tuple)) and len(icon_wh) >= 2 else bw
+            ih = int(icon_wh[1]) if isinstance(icon_wh, (list, tuple)) and len(icon_wh) >= 2 else bh
+        except Exception:
+            iw, ih = bw, bh
+        # Иконка не должна выходить за пределы кнопки
+        iw = max(1, min(iw, bw))
+        ih = max(1, min(ih, bh))
         quick_type_tooltips = app_config.settings.get_quick_type_tooltips()
 
         for code, icon_name, tooltip in quick_types:
             btn = QToolButton()
             btn.setObjectName("quickButton")
-            btn.setFixedSize(button_size, button_size)
-            btn.setIconSize(QSize(icon_size[0], icon_size[1]))
+            btn.setFixedSize(bw, bh)
+            btn.setIconSize(QSize(iw, ih))
             btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
             # Set icon
