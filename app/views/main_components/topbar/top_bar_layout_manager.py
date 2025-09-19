@@ -321,7 +321,7 @@ class TopBarLayoutManager(QObject):
                 )
                 # 3) Растяжение только для поиска
                 self._enforce_stretches(top_bar, search)
-                # 4) Ограничить ширину поиска: во время warmup НЕ расширяем, держим на минимуме
+                # 4) Ограничить ширину поиска: на первом проходе НЕ расширяем, держим на минимуме
                 if isinstance(search, QLineEdit):
                     try:
                         min_search_w = int(self._min_search_width)
@@ -330,36 +330,8 @@ class TopBarLayoutManager(QObject):
                             min_search_w = max(min_search_w, cur_min)
                     except Exception:
                         min_search_w = int(self._min_search_width)
-                    occupied = 0
-                    count = top_bar.count()
-                    for i in range(count):
-                        it = top_bar.itemAt(i)
-                        w = it.widget()
-                        if w is None:
-                            sp = it.spacerItem()
-                            if sp:
-                                occupied += max(0, sp.sizeHint().width())
-                            continue
-                        if w is search:
-                            continue
-                        if w.isVisible():
-                            try:
-                                occupied += int(w.width())
-                            except Exception:
-                                occupied += w.sizeHint().width()
-                    spacing = top_bar.spacing() or 0
-                    visible_widgets = [
-                        top_bar.itemAt(i).widget()
-                        for i in range(count)
-                        if top_bar.itemAt(i).widget() is not None and top_bar.itemAt(i).widget() is not search and top_bar.itemAt(i).widget().isVisible()
-                    ]
-                    occupied += spacing * max(0, len(visible_widgets) - 1)
-                    m = top_bar.contentsMargins()
-                    occupied += m.left() + m.right()
-                    host = self._get_container_widget()
-                    container_w = host.width() if isinstance(host, QWidget) else 0
-                    remaining = max(0, container_w - occupied)
-                    max_search_w = max(min_search_w, remaining)
+                    # Жёстко фиксируем на минимуме, без расчёта remaining
+                    max_search_w = min_search_w
                     if search.maximumWidth() != max_search_w:
                         search.setMaximumWidth(max_search_w)
                     if search.minimumWidth() != min_search_w:
