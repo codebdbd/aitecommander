@@ -88,9 +88,9 @@ class TopBarLayoutManager(QObject):
         self._max_recent: int = self.DEFAULT_MAX_RECENT
         self._max_fav: int = self.DEFAULT_MAX_FAV
         self._max_quick: int = self.DEFAULT_MAX_QUICK
-        # Минимальные квоты: читаем из конфигурации ui.topbar.min_visible с безопасными fallback'ами
+        # Минимальные квоты: читаем из конфигурации topbar.min_visible с безопасными fallback'ами
         try:
-            mv = app_config.ui.get("ui.topbar.min_visible", {}) or {}
+            mv = app_config.get("topbar.min_visible", {}) or {}
         except Exception:
             mv = {}
         def _to_nonneg_int(v, default=0):
@@ -247,11 +247,26 @@ class TopBarLayoutManager(QObject):
     def adjust(self) -> None:
         container = self._get_container_widget()
         if not container or container.width() <= 0:
+            # Перед ранним выходом зажимаем поле поиска до минимальной ширины,
+            # чтобы оно не растягивалось при нулевой ширине контейнера
+            search = self._safe_get(self.window, "search")
+            if isinstance(search, QLineEdit):
+                try:
+                    search.setMaximumWidth(self._min_search_width)
+                except Exception:
+                    pass
             return
         # Не меняем раскладку, пока контейнер верхней панели ещё скрыт — это предотвращает
         # преждевременное растягивание поиска до показа top_bar_host
         try:
             if hasattr(container, "isVisible") and not container.isVisible():
+                # Также зажимаем поиск при скрытом контейнере
+                search = self._safe_get(self.window, "search")
+                if isinstance(search, QLineEdit):
+                    try:
+                        search.setMaximumWidth(self._min_search_width)
+                    except Exception:
+                        pass
                 return
         except (AttributeError, RuntimeError):
             pass
