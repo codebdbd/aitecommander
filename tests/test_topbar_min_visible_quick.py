@@ -56,8 +56,8 @@ def test_min_visible_quick_respected_when_space_allows(qapp, monkeypatch):
     )
 
     # Подготовим окно и layout top bar
-    window = types.SimpleNamespace()
-    host = QWidget()
+    window = QWidget()
+    host = QWidget(window)
     host.setObjectName("content_container")
     lay = QHBoxLayout(host)
     lay.setContentsMargins(0, 0, 0, 0)
@@ -68,11 +68,11 @@ def test_min_visible_quick_respected_when_space_allows(qapp, monkeypatch):
     window.quick_add_widget = quick
 
     # Пустые панели fav/recent
-    window.fav_widget = QWidget()
-    window.recent_links_widget = QWidget()
+    window.fav_widget = QWidget(window)
+    window.recent_links_widget = QWidget(window)
 
     # Поиск
-    search = QLineEdit()
+    search = QLineEdit(window)
     window.search = search
 
     # Порядок в топбаре: quick | search

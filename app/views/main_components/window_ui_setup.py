@@ -415,16 +415,55 @@ class WindowUISetup:
                             tpc.refresh_all()
                     except Exception:
                         logger.debug("TopBar: top_panels_controller.refresh_all() failed", exc_info=True)
+                    # Перед показом host временно зафиксируем ширину поля поиска,
+                    # чтобы оно не растянулось пока контейнер ещё нулевой ширины
+                    search = getattr(self.window, "search", None)
+                    original_min_width = None
+                    original_max_width = None
+                    if isinstance(search, QLineEdit):
+                        try:
+                            # Сохраняем оригинальные значения
+                            original_min_width = search.minimumWidth()
+                            original_max_width = search.maximumWidth()
+                            # Получаем минимальную ширину из конфига
+                            try:
+                                min_search_w = int(app_config.ui.get_top_panel_search_min_width())
+                            except Exception:
+                                min_search_w = 140  # fallback
+                            # Временно фиксируем поиск на минимальной ширине
+                            search.setMinimumWidth(min_search_w)
+                            search.setMaximumWidth(min_search_w)
+                        except Exception:
+                            logger.debug("TopBar: failed to temporarily fix search width", exc_info=True)
                     # Показать host
                     try:
                         self.window.top_bar_host.setVisible(True)
                     except Exception:
                         logger.debug("TopBar: failed to show top_bar_host in finalize", exc_info=True)
+                    # Проверяем ширину контейнера после показа
+                    host_width_after_show = 0
+                    try:
+                        host_width_after_show = self.window.top_bar_host.width()
+                    except Exception:
+                        pass
                     # Финальный adjust уже на видимом контейнере
                     try:
                         mgr.adjust()
                     except Exception:
                         logger.debug("TopBar: final adjust() failed after host show", exc_info=True)
+                    # Если контейнер всё ещё нулевой ширины, планируем отложенный adjust
+                    if host_width_after_show == 0:
+                        try:
+                            QTimer.singleShot(0, mgr.adjust)
+                        except Exception:
+                            logger.debug("TopBar: failed to schedule deferred adjust", exc_info=True)
+                    # Восстанавливаем оригинальные размеры поиска (если они были изменены)
+                    if isinstance(search, QLineEdit) and original_min_width is not None and original_max_width is not None:
+                        try:
+                            search.setMinimumWidth(original_min_width)
+                            search.setMaximumWidth(original_max_width)
+                        except Exception:
+                            logger.debug("TopBar: failed to restore original search width", exc_info=True)
             else:
                 # Fallback без приостановки обновлений
                 try:
@@ -443,14 +482,49 @@ class WindowUISetup:
                         tpc.refresh_all()
                 except Exception:
                     logger.debug("TopBar: top_panels_controller.refresh_all() failed (no suspend)", exc_info=True)
+                # Перед показом host временно зафиксируем ширину поля поиска
+                search = getattr(self.window, "search", None)
+                original_min_width = None
+                original_max_width = None
+                if isinstance(search, QLineEdit):
+                    try:
+                        original_min_width = search.minimumWidth()
+                        original_max_width = search.maximumWidth()
+                        try:
+                            min_search_w = int(app_config.ui.get_top_panel_search_min_width())
+                        except Exception:
+                            min_search_w = 140
+                        search.setMinimumWidth(min_search_w)
+                        search.setMaximumWidth(min_search_w)
+                    except Exception:
+                        logger.debug("TopBar: failed to temporarily fix search width (no suspend)", exc_info=True)
                 try:
                     self.window.top_bar_host.setVisible(True)
                 except Exception:
                     logger.debug("TopBar: failed to show top_bar_host (no suspend)", exc_info=True)
+                # Проверяем ширину контейнера
+                host_width_after_show = 0
+                try:
+                    host_width_after_show = self.window.top_bar_host.width()
+                except Exception:
+                    pass
                 try:
                     mgr.adjust()
                 except Exception:
                     logger.debug("TopBar: final adjust() failed after host show (no suspend)", exc_info=True)
+                # Отложенный adjust если нужно
+                if host_width_after_show == 0:
+                    try:
+                        QTimer.singleShot(0, mgr.adjust)
+                    except Exception:
+                        logger.debug("TopBar: failed to schedule deferred adjust (no suspend)", exc_info=True)
+                # Восстановление оригинальных размеров
+                if isinstance(search, QLineEdit) and original_min_width is not None and original_max_width is not None:
+                    try:
+                        search.setMinimumWidth(original_min_width)
+                        search.setMaximumWidth(original_max_width)
+                    except Exception:
+                        logger.debug("TopBar: failed to restore original search width (no suspend)", exc_info=True)
         except Exception:
             logger.debug("TopBar: finalize_topbar_show unexpected error", exc_info=True)
 
