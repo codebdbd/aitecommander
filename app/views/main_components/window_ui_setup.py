@@ -26,7 +26,6 @@ from app.controllers.ui.undo.stack import UndoManager
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.views.custom_widgets import StructureTreeView
 from app.views.favorites_panel_widget import FavoritesPanelWidget
-from app.views.main_components.topbar.top_bar_layout_manager import TopBarLayoutManager
 from app.views.models.structure_tree_model import StructureTreeModel
 from app.views.quick_add_panel_widget import QuickAddPanelWidget
 from app.views.recent_panel_widget import RecentPanelWidget
@@ -261,6 +260,9 @@ class WindowUISetup:
         from .topbar.top_bar_setup import TopBarBuilder
 
         TopBarBuilder(self).build()
+        # После сборки топбара создаём и настраиваем менеджер, который выполнит adjust()
+        # и правильно покажет host-виджет после события shown окна
+        self._init_and_schedule_topbar_manager()
 
     def _add_top_separator(self, container_parent: QWidget) -> None:
         """Добавляет верхний горизонтальный разделитель в основной layout."""
@@ -311,12 +313,29 @@ class WindowUISetup:
     def _init_and_schedule_topbar_manager(self) -> None:
         """Создаёт TopBarLayoutManager и планирует post-shown обработчики."""
         try:
-            self.window._topbar_manager = TopBarLayoutManager(self.window)
-        except (RuntimeError, TypeError):
+            # Импортируем новые компоненты
+            from .topbar.top_bar_config import TopBarConfig
+            from .topbar.top_bar_calculator import TopBarLayoutCalculator
+            from .topbar.top_bar_animator import TopBarAnimationManager
+            from .topbar.top_bar_event_handler import TopBarEventHandler
+            from .topbar.top_bar_manager import TopBarLayoutManager
+
+            # Создаем компоненты
+            config = TopBarConfig()
+            calculator = TopBarLayoutCalculator(config)
+            animator = TopBarAnimationManager(config)
+            event_handler = TopBarEventHandler(config)
+
+            # Создаем менеджер
+            self.window._topbar_manager = TopBarLayoutManager(
+                self.window, config, calculator, animator, event_handler
+            )
+        except (RuntimeError, TypeError, ImportError) as e:
             # Не блокируем инициализацию UI при ошибке менеджера
             self.window._topbar_manager = None
-            logger.exception("TopPanel: failed to initialize TopBarLayoutManager")
+            logger.exception("TopPanel: failed to initialize TopBarLayoutManager: %s", e)
             return
+
         try:
             mgr = getattr(self.window, "_topbar_manager", None)
             if not mgr:

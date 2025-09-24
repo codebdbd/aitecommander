@@ -46,7 +46,7 @@ class TopBarLayoutManager(QObject):
     При расширении — в обратном порядке восстанавливаем кнопки до максимумов.
     """
 
-    # Константы по умолчанию
+    # Константы по умолчанию (дублированы из TopBarConfig для совместимости, но предпочтительно использовать TopBarConfig)
     DEFAULT_THROTTLE_MS = 32
     DEFAULT_LOG_INFO = False
     DEFAULT_MIN_SEARCH_WIDTH = 148
@@ -60,9 +60,10 @@ class TopBarLayoutManager(QObject):
     DEFAULT_BUTTON_SIZE = 32
     DEFAULT_SPACER_SIZE = 4
 
-    def __init__(self, window):
+    def __init__(self, window, config=None):
         super().__init__(window)
         self.window: QObject = window
+        self.config = config  # Store config for later use
         self._last_applied: Optional[Tuple[int, int, int, int]] = (
             None  # (width, recent, fav, quick)
         )
@@ -70,7 +71,7 @@ class TopBarLayoutManager(QObject):
         self._container_widget: Optional[QWidget] = None
         self._watched_panels: WeakSet[QObject] = WeakSet()
 
-        # Настройки из конфига с fallback
+        # Настройки из конфига с fallback на DEFAULT
         self._throttle_interval_ms: int = self._get_cfg_int(
             "ui.topbar.throttle_ms", self.DEFAULT_THROTTLE_MS
         )
@@ -102,8 +103,15 @@ class TopBarLayoutManager(QObject):
         self._min_recent: int = _to_nonneg_int(mv.get("recent", 0))
         self._min_fav: int = _to_nonneg_int(mv.get("fav", 0))
         self._min_quick: int = _to_nonneg_int(mv.get("quick", 0))
-        # Узкий режим: фиксированный порог (значение задаётся DEFAULT_NARROW_THRESHOLD) и не переопределяется конфигом
-        self._narrow_threshold: int = self.DEFAULT_NARROW_THRESHOLD
+        # Отладочная информация для проверки чтения конфигурации
+        logger.debug(f"TopBarLayoutManager: min_visible config: recent={self._min_recent}, fav={self._min_fav}, quick={self._min_quick}")
+
+        # Узкий режим: используем конфиг если доступен, иначе fallback на DEFAULT
+        if config and hasattr(config, 'narrow_threshold'):
+            self._narrow_threshold: int = config.narrow_threshold
+        else:
+            self._narrow_threshold: int = self.DEFAULT_NARROW_THRESHOLD
+
         self._button_size: int = self._get_cfg_int(
             "ui.top_panel_button_size", self.DEFAULT_BUTTON_SIZE
         )
@@ -246,6 +254,7 @@ class TopBarLayoutManager(QObject):
 
     def adjust(self) -> None:
         container = self._get_container_widget()
+        logger.debug(f"TopBarLayoutManager.adjust() called: container={container}, width={container.width() if container else 'None'}")
         if not container or container.width() <= 0:
             # Перед ранним выходом зажимаем поле поиска до минимальной ширины,
             # чтобы оно не растягивалось при нулевой ширине контейнера
@@ -277,6 +286,7 @@ class TopBarLayoutManager(QObject):
             effective_w = min(width, win_w) if win_w > 0 else width
         except (AttributeError, RuntimeError, TypeError, ValueError):
             effective_w = width
+        logger.debug(f"TopBarLayoutManager.adjust(): width={width}, effective_w={effective_w}, threshold={self._narrow_threshold}")
         top_bar = self._get_top_bar()
         if not top_bar:
             return
@@ -289,17 +299,25 @@ class TopBarLayoutManager(QObject):
 
         # Фильтры событий устанавливаются один раз в __init__; лишние переустановки не требуются
 
+        logger.debug(f"TopBarLayoutManager.adjust(): checking narrow mode: {effective_w} <= {self._narrow_threshold} = {effective_w <= self._narrow_threshold}")
         if effective_w <= self._narrow_threshold:
             logger.debug(
                 "TopBar narrow mode: width=%s <= threshold=%s",
                 width,
                 self._narrow_threshold,
             )
-            self._apply_counts(width, 0, 0, 0)
+            # В узком режиме соблюдаем минимальные ограничения
+            narrow_recent = max(0, self._min_recent)
+            narrow_fav = max(0, self._min_fav)
+            narrow_quick = max(0, self._min_quick)
+            logger.debug(f"TopBar narrow mode: applying min_visible: recent={narrow_recent}, fav={narrow_fav}, quick={narrow_quick}")
+            self._apply_counts(width, narrow_recent, narrow_fav, narrow_quick)
             self._update_separators_visibility(
-                top_bar, False, False, False, bool(search)
+                top_bar, narrow_recent > 0, narrow_fav > 0, narrow_quick > 0, bool(search)
             )
-            self._apply_narrow_mode(top_bar, search)
+            # Если все минимальные значения равны 0, то применяем полный узкий режим
+            if narrow_recent == 0 and narrow_fav == 0 and narrow_quick == 0:
+                self._apply_narrow_mode(top_bar, search)
             return
 
         # Выходим из узкого режима: восстановить поведение поиска (clear-кнопка и встроенные действия)
@@ -839,6 +857,8 @@ class TopBarLayoutManager(QObject):
 
         cnt_recent, cnt_fav, cnt_quick = max_recent, max_fav, max_quick
         # cnt_* уже не меньше min_* и не больше max_* благодаря клампам выше
+        logger.debug(f"TopBarLayoutManager: _compute_visible_counts start: recent={cnt_recent}, fav={cnt_fav}, quick={cnt_quick}")
+        logger.debug(f"TopBarLayoutManager: min constraints: recent>={min_recent}, fav>={min_fav}, quick>={min_quick}")
 
         max_steps = (
             (cnt_recent - min_recent) + (cnt_fav - min_fav) + (cnt_quick - min_quick)
@@ -871,6 +891,8 @@ class TopBarLayoutManager(QObject):
             else:
                 break
 
+        # Проверяем, не превышает ли итоговая ширина доступное место
+        # НО не обнуляем всё подряд, а соблюдаем минимальные ограничения
         if (
             self._total_width_for(
                 top_bar,
@@ -887,7 +909,11 @@ class TopBarLayoutManager(QObject):
             )
             > width
         ):
-            cnt_recent, cnt_fav, cnt_quick = 0, 0, 0
+            # Принудительно сжимаем до минимальных значений, но не ниже
+            cnt_recent = max(min_recent, 0)
+            cnt_fav = max(min_fav, 0)
+            cnt_quick = max(min_quick, 0)
+            logger.debug(f"TopBarLayoutManager: forced to minimum: recent={cnt_recent}, fav={cnt_fav}, quick={cnt_quick}")
 
         self._log_layout_snapshot(
             width,
@@ -904,6 +930,7 @@ class TopBarLayoutManager(QObject):
             cnt_quick,
         )
 
+        logger.debug(f"TopBarLayoutManager: _compute_visible_counts result: recent={cnt_recent}, fav={cnt_fav}, quick={cnt_quick}")
         return cnt_recent, cnt_fav, cnt_quick
 
     def _log_layout_snapshot(
