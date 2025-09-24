@@ -46,7 +46,7 @@ class TopBarLayoutManager(QObject):
     При расширении — в обратном порядке восстанавливаем кнопки до максимумов.
     """
 
-    # Константы по умолчанию (дублированы из TopBarConfig для совместимости, но предпочтительно использовать TopBarConfig)
+    # Константы по умолчанию
     DEFAULT_THROTTLE_MS = 32
     DEFAULT_LOG_INFO = False
     DEFAULT_MIN_SEARCH_WIDTH = 148
@@ -60,10 +60,9 @@ class TopBarLayoutManager(QObject):
     DEFAULT_BUTTON_SIZE = 32
     DEFAULT_SPACER_SIZE = 4
 
-    def __init__(self, window, config=None):
+    def __init__(self, window):
         super().__init__(window)
         self.window: QObject = window
-        self.config = config  # Store config for later use
         self._last_applied: Optional[Tuple[int, int, int, int]] = (
             None  # (width, recent, fav, quick)
         )
@@ -71,7 +70,7 @@ class TopBarLayoutManager(QObject):
         self._container_widget: Optional[QWidget] = None
         self._watched_panels: WeakSet[QObject] = WeakSet()
 
-        # Настройки из конфига с fallback на DEFAULT
+        # Настройки из конфига с fallback
         self._throttle_interval_ms: int = self._get_cfg_int(
             "ui.topbar.throttle_ms", self.DEFAULT_THROTTLE_MS
         )
@@ -105,13 +104,8 @@ class TopBarLayoutManager(QObject):
         self._min_quick: int = _to_nonneg_int(mv.get("quick", 0))
         # Отладочная информация для проверки чтения конфигурации
         logger.debug(f"TopBarLayoutManager: min_visible config: recent={self._min_recent}, fav={self._min_fav}, quick={self._min_quick}")
-
-        # Узкий режим: используем конфиг если доступен, иначе fallback на DEFAULT
-        if config and hasattr(config, 'narrow_threshold'):
-            self._narrow_threshold: int = config.narrow_threshold
-        else:
-            self._narrow_threshold: int = self.DEFAULT_NARROW_THRESHOLD
-
+        # Узкий режим: фиксированный порог (значение задаётся DEFAULT_NARROW_THRESHOLD) и не переопределяется конфигом
+        self._narrow_threshold: int = self.DEFAULT_NARROW_THRESHOLD
         self._button_size: int = self._get_cfg_int(
             "ui.top_panel_button_size", self.DEFAULT_BUTTON_SIZE
         )

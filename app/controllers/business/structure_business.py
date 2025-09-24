@@ -9,7 +9,7 @@ import logging
 import time
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from PyQt6.QtCore import QObject, QTimer, pyqtSignal
+from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
 from app.controllers.structure_modules import (
     CacheManager,
@@ -40,32 +40,32 @@ class StructureBusinessLogic(QObject):
     но с улучшенной внутренней архитектурой и обработкой ошибок.
     """
 
-    # Основные сигналы (сохранены для совместимости)
-    structure_loaded = pyqtSignal(list)  # List[Dict[str, Any]] - разделы с категориями
-    active_sphere_changed = pyqtSignal(int)  # int - ID новой активной сферы
+    # Основные сигналы (PyQt6 стиль с типизацией)
+    structure_loaded: pyqtSignal = pyqtSignal(list, name='structureLoaded')  # List[Dict[str, Any]] - разделы с категориями
+    active_sphere_changed: pyqtSignal = pyqtSignal(int, name='activeSphereChanged')  # int - ID новой активной сферы
 
     # Сигналы изменения элементов (совместимость)
-    item_added = pyqtSignal(
-        str, int, dict
+    item_added: pyqtSignal = pyqtSignal(
+        str, int, dict, name='itemAdded'
     )  # str, int, Dict - тип элемента, ID родителя, данные
-    item_updated = pyqtSignal(
-        str, int, dict
+    item_updated: pyqtSignal = pyqtSignal(
+        str, int, dict, name='itemUpdated'
     )  # str, int, Dict - тип элемента, ID элемента, данные
-    item_deleted = pyqtSignal(str, int)  # str, int - тип элемента, ID элемента
+    item_deleted: pyqtSignal = pyqtSignal(str, int, name='itemDeleted')  # str, int - тип элемента, ID элемента
     # Новый батч-сигнал: единое событие вместо множества per-item
-    items_batch_deleted = pyqtSignal(str, list)  # str - тип, list[int] - IDs элементов
+    items_batch_deleted: pyqtSignal = pyqtSignal(str, list, name='itemsBatchDeleted')  # str - тип, list[int] - IDs элементов
 
     # Сигналы выбора
-    section_selected = pyqtSignal(int)  # int - ID раздела
-    category_selected = pyqtSignal(int)  # int - ID категории
+    section_selected: pyqtSignal = pyqtSignal(int, name='sectionSelected')  # int - ID раздела
+    category_selected: pyqtSignal = pyqtSignal(int, name='categorySelected')  # int - ID категории
 
     # Служебные сигналы
-    error_occurred = pyqtSignal(str, str)  # str, str - заголовок, сообщение
-    spheres_loaded = pyqtSignal(list)  # List[Dict] - список сфер
+    error_occurred: pyqtSignal = pyqtSignal(str, str, name='errorOccurred')  # str, str - заголовок, сообщение
+    spheres_loaded: pyqtSignal = pyqtSignal(list, name='spheresLoaded')  # List[Dict] - список сфер
 
-    def __init__(self, db: Database, logger: Optional[logging.Logger] = None):
+    def __init__(self, db: Database, parent: QObject = None, logger: Optional[logging.Logger] = None):
         """Инициализация бизнес-логики."""
-        super().__init__()
+        super().__init__(parent)
 
         self.db = db
         self.structure_model = StructureModel(db)
@@ -117,22 +117,22 @@ class StructureBusinessLogic(QObject):
             self.item_deleted.connect(self._on_item_deleted)
             # Подключаем обработчик нового батч-сигнала
             self.items_batch_deleted.connect(self._on_items_batch_deleted)
-            # Прогрев кэша "первой категории" после загрузки структуры (per-sphere)
-            try:
-                self.structure_loaded.connect(self._on_structure_loaded_warm_cache)
-            except (AttributeError, RuntimeError) as e:
-                # Если сигнал недоступен — прогрев необязателен, фиксируем в debug
-                self.logger.debug(
-                    "Не удалось подключить прогрев кэша к сигналу structure_loaded: %s",
-                    e,
-                    exc_info=True,
-                )
             self.logger.info("[BL] Handlers connected for business id=%s", id(self))
-        except Exception:
-            # Защита от ошибок подключения сигналов, не ломаем инициализацию
+        except (AttributeError, RuntimeError) as e:
+            # Ошибки подключения сигналов - не ломаем инициализацию
             self.logger.warning(
-                "Не удалось подключить внутренние обработчики бизнес-сигналов",
-                exc_info=True,
+                "Не удалось подключить внутренние обработчики бизнес-сигналов: %s",
+                e, exc_info=True,
+            )
+        
+        # Прогрев кэша "первой категории" после загрузки структуры (per-sphere)
+        try:
+            self.structure_loaded.connect(self._on_structure_loaded_warm_cache)
+        except (AttributeError, RuntimeError) as e:
+            # Если сигнал недоступен — прогрев необязателен, фиксируем в debug
+            self.logger.debug(
+                "Не удалось подключить прогрев кэша к сигналу structure_loaded: %s",
+                e, exc_info=True,
             )
 
     def set_top_panels_controller(self, top_panels_controller: Any) -> None:
@@ -141,15 +141,8 @@ class StructureBusinessLogic(QObject):
         Явно сохраняем ссылку и прокидываем её в AsyncOperations и AsyncSignalHandlers,
         чтобы обработчики сигналов вызывали методы контроллера напрямую без getattr.
         """
-        try:
-            # Локальная ссылка в бизнес-логике (может использоваться UI/другими службами)
-            setattr(self, "top_panels_controller", top_panels_controller)
-        except AttributeError as e:
-            self.logger.warning(
-                "Failed to set top_panels_controller on StructureBusinessLogic: %s",
-                e,
-                exc_info=True,
-            )
+        # Локальная ссылка в бизнес-логике (может использоваться UI/другими службами)
+        self.top_panels_controller = top_panels_controller
         try:
             # Прямая ссылка для асинхронного слоя
             if hasattr(self, "async_operations") and self.async_operations:
@@ -200,12 +193,12 @@ class StructureBusinessLogic(QObject):
             self.current_sphere_id = sphere_id
             # Обновляем токен переключения сферы для отмены устаревших отложенных задач
             try:
-                self._switch_token = int(getattr(self, "_switch_token", 0)) + 1
-            except (ValueError, TypeError):
+                self._switch_token = getattr(self, "_switch_token", 0) + 1
+            except (ValueError, TypeError, AttributeError):
                 self._switch_token = 1
             # Сообщаем UI-слою, что переключение сферы активно: не восстанавливать
             # автоматически выбор категории (это вызывает тяжёлую загрузку ссылок).
-            setattr(self, "_suppress_category_restore_once", True)
+            self._suppress_category_restore_once = True
 
             # Очищаем кэш при смене сферы
             if old_sphere_id != sphere_id:
@@ -281,6 +274,7 @@ class StructureBusinessLogic(QObject):
     # =============================================================================
     # ВНУТРЕННИЕ ОБРАБОТЧИКИ БИЗНЕС-СИГНАЛОВ (от команд UI и проч.)
     # =============================================================================
+    @pyqtSlot(str, int, dict)
     def _on_item_added(
         self, item_type: str, parent_id: int, item_data: Dict[str, Any]
     ) -> None:
@@ -317,6 +311,7 @@ class StructureBusinessLogic(QObject):
                 "Ошибка в обработчике _on_item_added: %s", e, exc_info=True
             )
 
+    @pyqtSlot(str, int, dict)
     def _on_item_updated(
         self, item_type: str, item_id: int, item_data: Dict[str, Any]
     ) -> None:
@@ -439,6 +434,7 @@ class StructureBusinessLogic(QObject):
     # -------------------------------------------------------------------------
     # Вспомогательные обработчики
     # -------------------------------------------------------------------------
+    @pyqtSlot(list)
     def _on_structure_loaded_warm_cache(self, _payload: list) -> None:
         """Лёгкий прогрев per-sphere кэша первой категории после загрузки структуры.
 
@@ -529,6 +525,7 @@ class StructureBusinessLogic(QObject):
             except Exception:
                 pass
 
+    @pyqtSlot(str, int)
     def _on_item_deleted(self, item_type: str, item_id: int) -> None:
         """Элемент удалён: инвалидируем кэш и запускаем асинхронную перезагрузку.
 
@@ -550,6 +547,7 @@ class StructureBusinessLogic(QObject):
                 "Ошибка в обработчике _on_item_deleted: %s", e, exc_info=True
             )
 
+    @pyqtSlot(str, list)
     def _on_items_batch_deleted(self, item_type: str, ids: list) -> None:
         """Батч-удаление элементов: одна инвалидизация и одна перезагрузка.
 

@@ -142,16 +142,8 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             link_data = link.copy()
             link_data["last_used"] = datetime.now().isoformat()
 
-            # Обновляем время последнего использования ссылки
-            try:
-                link_id = link_data.get("id")
-                if link_id and isinstance(link_id, int):
-                    self.business.update_link_last_used(link_id)
-                else:
-                    # Если нет ID, сохраняем полные данные
-                    self.business.save_link(link_data)
-            except Exception as e:
-                logger.warning("Failed to update link last_used: %s", e)
+            # Асинхронно сохранить в БД (старое поведение)
+            self.business.save_link(link_data)
 
             # Централизованная эмиссия сигналов через LinkOperationsController
             try:
