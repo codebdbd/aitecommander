@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable, Dict, List, Optional
+
+# Модульный логгер для диагностических сообщений
+logger = logging.getLogger(__name__)
 
 
 class SelectionService:
@@ -10,10 +14,14 @@ class SelectionService:
         try:
             spheres = structure_model.get_spheres() or []
             return spheres
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
-                logger.error("Ошибка получения сфер: %s", e)
+                logger.error("Ошибка валидации данных при получении сфер: %s", e)
             return []
+        except Exception as e:
+            if logger:
+                logger.exception("Критическая ошибка получения сфер")
+            raise  # Пробрасываем критические ошибки
 
     def get_sections(
         self, structure_model, sphere_id: int, logger
@@ -21,10 +29,14 @@ class SelectionService:
         try:
             sections = structure_model.get_sections(sphere_id) or []
             return sections
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
-                logger.error("Ошибка получения разделов для сферы %s: %s", sphere_id, e)
+                logger.error("Ошибка валидации данных при получении разделов для сферы %s: %s", sphere_id, e)
             return []
+        except Exception as e:
+            if logger:
+                logger.exception("Критическая ошибка получения разделов для сферы %s", sphere_id)
+            raise  # Пробрасываем критические ошибки
 
     def get_categories(
         self, structure_model, section_id: int, logger
@@ -32,12 +44,18 @@ class SelectionService:
         try:
             categories = structure_model.get_categories(section_id) or []
             return categories
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
                 logger.error(
-                    "Ошибка получения категорий для раздела %s: %s", section_id, e
+                    "Ошибка валидации данных при получении категорий для раздела %s: %s", section_id, e
                 )
             return []
+        except Exception as e:
+            if logger:
+                logger.exception(
+                    "Критическая ошибка получения категорий для раздела %s", section_id
+                )
+            raise  # Пробрасываем критические ошибки
 
     def get_first_category_id(
         self,

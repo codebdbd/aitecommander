@@ -19,10 +19,12 @@ class ImportService:
         """Создает категорию в режиме импорта и возвращает ее ID."""
         try:
             # Пытаемся использовать сервисный слой с транзакцией UnitOfWork
+            service = None
             try:
                 service = StructureService(model.db)
-            except Exception:
-                service = None
+            except (ImportError, AttributeError, RuntimeError) as service_error:
+                if logger:
+                    logger.warning("Не удалось создать StructureService, используем прямую модель: %s", service_error)
 
             if service:
                 category_id = service.create_category(category_data)
@@ -37,7 +39,11 @@ class ImportService:
                     category_data.get("name", "Без названия"),
                 )
             return category_id
+        except (ValueError, KeyError, TypeError) as e:
+            if logger:
+                logger.error("Ошибка валидации данных категории для импорта: %s", e)
+            return None
         except Exception as e:
             if logger:
-                logger.error("Ошибка создания категории для импорта: %s", e)
-            return None
+                logger.exception("Критическая ошибка создания категории для импорта")
+            raise  # Пробрасываем критические ошибки

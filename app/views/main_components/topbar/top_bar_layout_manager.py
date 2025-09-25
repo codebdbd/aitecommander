@@ -129,6 +129,9 @@ class TopBarLayoutManager(QObject):
         if hasattr(self.window, "shown"):
             self.window.shown.connect(self.adjust)
 
+        # Панели, которые считаются фиксированными и не участвуют в расчёте отображаемых кнопок
+        self._fixed_panels: set[str] = set()
+
     def _install_event_filters(self) -> None:
         """Устанавливает фильтры событий на релевантные виджеты."""
         for attr_name in [
@@ -160,6 +163,27 @@ class TopBarLayoutManager(QObject):
     def _run_adjust(self) -> None:
         self.adjust()
 
+    # -------------------- Публичные методы старта --------------------
+    def prepare_initial_layout(self) -> None:
+        """Однократно выполняет подготовку: показывает контейнер, сбрасывает warmup и стартует adjust."""
+        container = self._get_container_widget()
+        if container and hasattr(container, "setVisible"):
+            try:
+                if not container.isVisible():
+                    container.setVisible(True)
+            except Exception:
+                logger.debug("TopBarLM.prepare_initial_layout: unable to show container", exc_info=True)
+        # Сбрасываем прогрев в один проход
+        self._warmup_adjusts_remaining = 0
+        # Выполняем начальный пересчет один раз
+        self.adjust()
+
+    def mark_panel_fixed(self, attr_name: str) -> None:
+        """Позволяет пометить панель как фиксированную (не скрываемые элементы)."""
+        if attr_name:
+            self._fixed_panels.add(attr_name)
+
+    # -------------------- Основной алгоритм --------------------
     def _safe_get(self, obj: Optional[object], name: str) -> Optional[object]:
         if obj is None or (isinstance(obj, QObject) and _sip_isdeleted(obj)):
             return None
@@ -248,31 +272,19 @@ class TopBarLayoutManager(QObject):
 
     def adjust(self) -> None:
         container = self._get_container_widget()
-        logger.debug(f"TopBarLayoutManager.adjust() called: container={container}, width={container.width() if container else 'None'}")
-        if not container or container.width() <= 0:
-            # Перед ранним выходом зажимаем поле поиска до минимальной ширины,
-            # чтобы оно не растягивалось при нулевой ширине контейнера
+        if not container:
+            return
+        width_hint = container.width()
+        if width_hint <= 0 or not container.isVisible():
             search = self._safe_get(self.window, "search")
             if isinstance(search, QLineEdit):
                 try:
                     search.setMaximumWidth(self._min_search_width)
+                    search.setMinimumWidth(self._min_search_width)
                 except Exception:
                     pass
             return
-        # Не меняем раскладку, пока контейнер верхней панели ещё скрыт — это предотвращает
-        # преждевременное растягивание поиска до показа top_bar_host
-        try:
-            if hasattr(container, "isVisible") and not container.isVisible():
-                # Также зажимаем поиск при скрытом контейнере
-                search = self._safe_get(self.window, "search")
-                if isinstance(search, QLineEdit):
-                    try:
-                        search.setMaximumWidth(self._min_search_width)
-                    except Exception:
-                        pass
-                return
-        except (AttributeError, RuntimeError):
-            pass
+
         width = container.width()
         # Для активации узкого режима учитываем фактическую ширину окна, если доступна
         try:
@@ -290,6 +302,25 @@ class TopBarLayoutManager(QObject):
         fav = self._safe_get(self.window, "fav_widget")
         recent = self._safe_get(self.window, "recent_links_widget")
         search: Optional[QLineEdit] = self._safe_get(self.window, "search")
+
+        # Фиксированные панели (если помечены) не подлежат регулировкам
+        panel_map = {
+            "recent_links_widget": recent,
+            "fav_widget": fav,
+            "quick_add_widget": quick,
+        }
+        fixed_panels = {
+            name: panel
+            for name, panel in panel_map.items()
+            if name in self._fixed_panels
+        }
+        if fixed_panels:
+            for panel in fixed_panels.values():
+                if panel and hasattr(panel, "setMaximumWidth"):
+                    try:
+                        panel.setMaximumWidth(panel.sizeHint().width())
+                    except Exception:
+                        pass
 
         # Фильтры событий устанавливаются один раз в __init__; лишние переустановки не требуются
 

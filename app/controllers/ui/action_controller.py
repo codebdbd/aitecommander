@@ -3,6 +3,8 @@
 import logging
 from typing import TYPE_CHECKING
 
+from PyQt6.QtCore import QObject, pyqtSlot
+
 from app.config_data import app_config
 
 if TYPE_CHECKING:
@@ -11,10 +13,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ActionController:
+class ActionController(QObject):
     """Контроллер для обработки пользовательских действий."""
 
     def __init__(self, main_window: "MainWindow"):
+        parent = main_window if isinstance(main_window, QObject) else None
+        super().__init__(parent=parent)
         self.main_window = main_window
 
     # --- Helpers: focus/selection/context ---
@@ -61,7 +65,8 @@ class ActionController:
         except Exception:
             return []
 
-    def edit_current(self):
+    @pyqtSlot()
+    def edit_current(self) -> None:
         """Определить контекст и выполнить редактирование текущего элемента."""
         # Проверяем плитки категорий
         tiles_stack_index = app_config.ui.get_stack_index_tiles()
@@ -101,7 +106,8 @@ class ActionController:
         if self._table_has_selection():
             self._edit_selected_link()
 
-    def delete_current(self):
+    @pyqtSlot()
+    def delete_current(self) -> None:
         """Определить контекст и выполнить удаление текущего элемента."""
         # Проверяем фокус на таблице ссылок
         if self._is_table_focused() and self._table_has_selection():
@@ -130,21 +136,25 @@ class ActionController:
             self.main_window.structure.delete_selected_item()
             self.main_window.update_statusbar()
 
-    def copy_current(self):
+    @pyqtSlot()
+    def copy_current(self) -> None:
         """Копировать выбранные элементы."""
         if bool(self.main_window.links_actions.get_selected_rows()):
             self.main_window.links_actions.copy_selected_links()
 
-    def cut_current(self):
+    @pyqtSlot()
+    def cut_current(self) -> None:
         """Вырезать выбранные элементы."""
         if bool(self.main_window.links_actions.get_selected_rows()):
             self.main_window.links_actions.cut_selected_links()
 
-    def paste_current(self):
+    @pyqtSlot()
+    def paste_current(self) -> None:
         """Вставить элементы."""
         self.main_window.links_actions.paste_links()
 
-    def select_all_current(self):
+    @pyqtSlot()
+    def select_all_current(self) -> None:
         """Выделить все элементы в текущем контексте."""
         if self.main_window.table.hasFocus():
             self.main_window.select_all_links()

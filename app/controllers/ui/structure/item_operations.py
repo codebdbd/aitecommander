@@ -1,30 +1,44 @@
 # app/controllers/structure/item_operations.py
 
 import logging
+from typing import Optional, Sequence
+
+from PyQt6.QtCore import QObject, pyqtSlot
 
 # Используем строковые литералы "section" и "category"
-from app.controllers.ui.dialogs import DialogManager
-from app.controllers.ui.undo.commands_structure import (
-    DeleteCategoriesBatchCmd,
-    DeleteCategoryCmd,
-    DeleteSectionCmd,
-    SaveCategoryCmd,
-    SaveSectionCmd,
-)
+from app.controllers.ui.types import CategoryTilesControllerProtocol
+from app.controllers.ui.structure.item_dialogs_service import ItemDialogService
+from app.controllers.ui.structure.item_deletion_service import ItemDeletionService
 from app.utils.ui.qt.roles import get_tree_tuple
-from app.views.dialogs.entity_dialogs import CategoryDialog, SectionDialog
 
 logger = logging.getLogger(__name__)
 
 
-class ItemOperations:
+class ItemOperations(QObject):
     def __init__(self, controller):
+        parent = controller if isinstance(controller, QObject) else None
+        super().__init__(parent=parent)
         self.controller = controller
         self.tree = controller.tree
         self.business = controller.business
         self.main = controller.main
         self.undo_stack = controller.undo_stack
+        self._dialogs = ItemDialogService(
+            controller=controller,
+            tree=self.tree,
+            business=self.business,
+            main_window=self.main,
+            undo_stack=self.undo_stack,
+        )
+        self._deleter = ItemDeletionService(
+            controller=controller,
+            tree=self.tree,
+            business=self.business,
+            main_window=self.main,
+            undo_stack=self.undo_stack,
+        )
 
+    @pyqtSlot(object)
     def load(self, item_to_select=None) -> None:
         # При загрузке структуры tree_management автоматически сохранит и восстановит выделение
         # если item_to_select не указан, иначе будет восстановлено указанное выделение
@@ -49,6 +63,7 @@ class ItemOperations:
             except Exception as e:
                 logger.debug("[ItemOperations.load] schedule_focus failed: %s", e)
 
+    @pyqtSlot(int)
     def switch_sphere(self, sphere_id: int) -> None:
         """Переключает сферу и перезагружает структуру.
 
@@ -74,344 +89,49 @@ class ItemOperations:
         # который вызовет load_structure_async(). Здесь ничего дополнительно не делаем.
         return
 
+    @pyqtSlot()
     def add_new_section(self) -> None:
-        try:
-            dlg = SectionDialog(
-                self.business,
-                default_sphere_id=self.business.current_sphere_id,
-                parent=self.main,
-            )
-            if dlg.exec() == dlg.DialogCode.Accepted:
-                data = dlg.get_result()
-                cmd = SaveSectionCmd(
-                    new_data=data, old_data=None, main_window=self.main
-                )
-                if cmd:
-                    self.undo_stack.push(cmd)
-        except Exception as e:
-            logger.exception("Ошибка добавления раздела")
-            DialogManager.show_error(
-                self.main,
-                "Ошибка добавления раздела",
-                "Не удалось добавить раздел.",
-                informative_text="Проверьте корректность введённых данных и повторите попытку.",
-                details=str(e),
-            )
+        self._dialogs.add_new_section()
 
+    @pyqtSlot()
     def add_new_category(self) -> None:
-        target_section_id = self._get_selected_section_id()
+        target_section_id = self._dialogs.ensure_section_for_category()
         if target_section_id is None:
-            target_section_id = self.business.get_target_section_id()
-            if target_section_id is None:
-                if self._offer_create_section():
-                    self.add_new_section()
-                return
-        try:
-            dlg = CategoryDialog(self.business, parent=self.main)
-            dlg.set_result({"section_id": target_section_id})
-            if dlg.exec() == dlg.DialogCode.Accepted:
-                data = dlg.get_result()
-                cmd = SaveCategoryCmd(
-                    new_data=data, old_data=None, main_window=self.main
-                )
-                if cmd:
-                    self.undo_stack.push(cmd)
-        except Exception as e:
-            logger.exception("Ошибка добавления категории")
-            DialogManager.show_error(
-                self.main,
-                "Ошибка добавления категории",
-                "Не удалось добавить категорию.",
-                informative_text="Проверьте корректность введённых данных и повторите попытку.",
-                details=str(e),
-            )
-
-    def _offer_create_section(self) -> bool:
-        return DialogManager.ask_confirmation(
-            self.main,
-            "В текущей сфере нет разделов. Создать новый раздел?",
-            "Нет разделов",
-            informative_text="Будет открыт диалог создания раздела.",
-        )
+            return
+        self._dialogs.add_new_category(target_section_id)
 
     def edit_item(self, item) -> None:
-        if not item:
-            return
-        t = get_tree_tuple(item, 0)
-        if not t:
-            return
-        typ, id_ = t
-        if typ == "section":
-            self._edit_section(id_)
-        elif typ == "category":
-            self._edit_category(id_)
+        self._dialogs.edit_item(item)
 
+    @pyqtSlot()
     def edit_selected_item(self) -> None:
-        # QTreeView: используем текущий индекс
-        try:
-            cur = (
-                self.tree.currentIndex() if hasattr(self.tree, "currentIndex") else None
-            )
-            if cur and cur.isValid():
-                self.edit_item(cur)
-                return
-        except (AttributeError, RuntimeError) as e:
-            logger.debug(
-                "[ItemOperations.edit_selected_item] currentIndex failed: %s", e
-            )
+        self._dialogs.edit_selected_item()
 
     def delete_item(self, item) -> None:
-        # Глобальная защита от удалений на время чувствительных операций (например, вставки)
-        try:
-            if hasattr(self.main, "_suppress_deletes") and getattr(
-                self.main, "_suppress_deletes"
-            ):
-                logger.debug(
-                    "[DeleteGuard] delete_item suppressed by _suppress_deletes flag"
-                )
-                return
-        except Exception as e:
-            logger.debug(
-                "[ItemOperations.delete_item] suppress flag check failed: %s", e
-            )
-        if not item:
+        if self._is_delete_suppressed():
             return
-        t = get_tree_tuple(item, 0)
-        if not t:
-            return
-        typ, id_ = t
-        if typ == "section":
-            self._delete_section(id_)
-        elif typ == "category":
-            self._delete_category(id_)
+        self._deleter.delete_item(item)
 
+    @pyqtSlot()
     def delete_selected_item(self) -> None:
-        # Глобальная защита от удалений на время чувствительных операций (например, вставки)
+        if self._is_delete_suppressed():
+            return
+        self._deleter.delete_selected_item()
+
+    def _is_delete_suppressed(self) -> bool:
         try:
             if hasattr(self.main, "_suppress_deletes") and getattr(
                 self.main, "_suppress_deletes"
             ):
                 logger.debug(
-                    "[DeleteGuard] delete_selected_item suppressed by _suppress_deletes flag"
+                    "[DeleteGuard] deletion suppressed by _suppress_deletes flag"
                 )
-                return
-        except Exception as e:
+                return True
+        except Exception as exc:
             logger.debug(
-                "[ItemOperations.delete_selected_item] suppress flag check failed: %s",
-                e,
+                "[ItemOperations._is_delete_suppressed] flag check failed: %s", exc
             )
-        try:
-            # QTreeView: множественное выделение через selectionModel
-            if hasattr(self.tree, "selectionModel") and hasattr(self.tree, "model"):
-                sel_model = self.tree.selectionModel()
-                rows = sel_model.selectedRows(0) if sel_model else []
-                selected = rows or []
-        except (AttributeError, RuntimeError) as e:
-            logger.debug(
-                "[ItemOperations.delete_selected_item] selectionModel failed: %s", e
-            )
-            selected = []
-
-        if selected and len(selected) > 1:
-            logger.debug("[Delete] selected items: %s", len(selected))
-            # Оставляем только категории
-            category_ids = []
-            for it in selected:
-                t = get_tree_tuple(it, 0)
-                if t and t[0] == "category" and isinstance(t[1], int):
-                    category_ids.append(t[1])
-            logger.debug("[Delete] selected category_ids: %s", category_ids)
-
-            if category_ids:
-                # Считаем суммарное количество ссылок
-                try:
-                    counts_map = (
-                        self.business.structure_model.count_links_by_categories(
-                            category_ids
-                        )
-                    )
-                except Exception:
-                    counts_map = {}
-                total_links = sum(int(c) for c in (counts_map or {}).values())
-
-                # Если ссылок нет ни в одной категории — удаляем без подтверждения
-                if total_links == 0:
-                    logger.debug(
-                        "[Delete] batch without confirmation, count=%s",
-                        len(category_ids),
-                    )
-                    try:
-                        cats_data = [
-                            self.business.get_category_data(cid) for cid in category_ids
-                        ]
-                        cats_data = [c for c in cats_data if c]
-                        if cats_data:
-                            cmd = DeleteCategoriesBatchCmd(cats_data, self.main)
-                            self.undo_stack.push(cmd)
-                    except Exception:
-                        logger.exception("Ошибка пакетного удаления категорий")
-                    return
-
-                # Иначе одно подтверждение на все
-                msg = (
-                    f"Будут удалены {len(category_ids)} категори(я/ии/й) "
-                    f"и {total_links} ссыл(ка/ки/ок) в сумме.\n\n"
-                    "Все вложенные ссылки будут удалены безвозвратно!\n\n"
-                    "Вы уверены, что хотите продолжить?"
-                )
-                if DialogManager.ask_confirmation(
-                    self.main, msg, "Подтвердите удаление"
-                ):
-                    logger.debug(
-                        "[Delete] batch with confirmation, count=%s", len(category_ids)
-                    )
-                    try:
-                        cats_data = [
-                            self.business.get_category_data(cid) for cid in category_ids
-                        ]
-                        cats_data = [c for c in cats_data if c]
-                        if cats_data:
-                            cmd = DeleteCategoriesBatchCmd(cats_data, self.main)
-                            self.undo_stack.push(cmd)
-                    except Exception:
-                        logger.exception("Ошибка пакетного удаления категорий")
-                return
-
-        # Fallback: одиночное удаление по текущему элементу/индексу
-        try:
-            cur = (
-                self.tree.currentIndex() if hasattr(self.tree, "currentIndex") else None
-            )
-            if cur and cur.isValid():
-                self.delete_item(cur)
-                return
-        except (AttributeError, RuntimeError) as e:
-            logger.debug(
-                "[ItemOperations.delete_selected_item] currentIndex fallback failed: %s",
-                e,
-            )
-
-    def _edit_section(self, section_id: int) -> None:
-        try:
-            old_data = self.business.get_section_data(section_id)
-            if not old_data:
-                return
-            dlg = SectionDialog(self.business, section_id=section_id, parent=self.main)
-            if dlg.exec() == dlg.DialogCode.Accepted:
-                new_data = dlg.get_result()
-                new_data["id"] = section_id
-                cmd = SaveSectionCmd(
-                    new_data=new_data, old_data=old_data, main_window=self.main
-                )
-                if cmd:
-                    self.undo_stack.push(cmd)
-        except Exception as e:
-            logger.exception("Ошибка редактирования раздела")
-            DialogManager.show_error(
-                self.main,
-                "Ошибка редактирования раздела",
-                "Не удалось редактировать раздел.",
-                informative_text="Попробуйте ещё раз или обратитесь в поддержку.",
-                details=str(e),
-            )
-
-    def _edit_category(self, category_id: int) -> None:
-        try:
-            old_data = self.business.get_category_data(category_id)
-            if not old_data:
-                return
-            dlg = CategoryDialog(
-                self.business, category_id=category_id, parent=self.main
-            )
-            if dlg.exec() == dlg.DialogCode.Accepted:
-                new_data = dlg.get_result()
-                new_data["id"] = category_id
-                if "position" not in new_data and "position" in old_data:
-                    new_data["position"] = old_data["position"]
-                # Не изменяем модель заранее — изменение выполнит команда и сама эмитит сигналы
-                cmd = SaveCategoryCmd(
-                    new_data=new_data,
-                    old_data=old_data,
-                    main_window=self.main,
-                    skip_reload=False,
-                )
-                if cmd:
-                    self.undo_stack.push(cmd)
-        except Exception as e:
-            logger.exception("Ошибка редактирования категории")
-            DialogManager.show_error(
-                self.main,
-                "Ошибка редактирования категории",
-                "Не удалось редактировать категорию.",
-                informative_text="Попробуйте ещё раз или обратитесь в поддержку.",
-                details=str(e),
-            )
-
-    def _delete_section(self, section_id: int) -> None:
-        # Предпросмотр данных и вычисление фактического количества ссылок
-        section_data = self.business.get_section_data(section_id)
-        if not section_data:
-            return
-        try:
-            # Точный подсчет: категории и суммарное число ссылок в разделе
-            cats_count, links_count = (
-                self.business.structure_model.count_nested_objects_for_section(
-                    section_id
-                )
-            )
-        except Exception:
-            # Фолбэк: если подсчет не удался, считаем только категории и предполагаем 0 ссылок
-            categories = self.business.get_categories(section_id) or []
-            cats_count = len(categories)
-            links_count = 0
-
-        # Если в разделе нет ссылок — удаляем без подтверждения (в т.ч. если есть пустые категории)
-        if links_count == 0:
-            cmd = DeleteSectionCmd(section_data, self.main)
-            if cmd:
-                self.undo_stack.push(cmd)
-            return
-
-        # Иначе требуется подтверждение, т.к. будут удалены ссылки
-        if self._confirm_section_deletion(section_data, cats_count, links_count):
-            cmd = DeleteSectionCmd(section_data, self.main)
-            if cmd:
-                self.undo_stack.push(cmd)
-
-    def _delete_category(self, category_id: int) -> None:
-        # Предпросмотр данных и вычисление фактического количества ссылок
-        category_data = self.business.get_category_data(category_id)
-        if not category_data:
-            return
-        try:
-            links_count = int(
-                self.business.structure_model.count_links_by_category(category_id)
-            )
-        except Exception:
-            links_count = 0
-
-        # Если в категории нет ссылок — удаляем без подтверждения (облегчённый режим UI внутри команды)
-        if links_count == 0:
-            cmd = DeleteCategoryCmd(
-                category_data,
-                self.main,
-                skip_reload=False,
-                lightweight_reload=True,
-            )
-            if cmd:
-                self.undo_stack.push(cmd)
-            return
-
-        # Иначе требуется подтверждение, т.к. будут удалены ссылки
-        if self._confirm_category_deletion(category_data, links_count):
-            cmd = DeleteCategoryCmd(
-                category_data,
-                self.main,
-                skip_reload=False,
-                lightweight_reload=True,
-            )
-            if cmd:
-                self.undo_stack.push(cmd)
+        return False
 
     def _confirm_section_deletion(
         self, section_data: dict, cats_count: int, links_count: int
@@ -440,38 +160,12 @@ class ItemOperations:
         )
 
     def handle_edit_category(self, category_id: int) -> None:
-        item = self.controller.tree_manager._find_item_by_id("category", category_id)
-        if item:
-            self.edit_item(item)
+        self._dialogs.handle_edit_category(category_id)
 
     def handle_delete_category(self, category_id: int) -> None:
-        item = self.controller.tree_manager._find_item_by_id("category", category_id)
-        if item:
-            self.delete_item(item)
-
-    def _get_selected_section_id(self) -> int:
-        # Ветка для QTreeView
-        try:
-            cur = (
-                self.tree.currentIndex() if hasattr(self.tree, "currentIndex") else None
-            )
-            if cur and cur.isValid():
-                t = get_tree_tuple(cur, 0)
-                if not t:
-                    return None
-                typ, id_ = t
-                if typ == "section":
-                    return id_
-                if typ == "category":
-                    parent = cur.parent()
-                    if parent and parent.isValid():
-                        pt = get_tree_tuple(parent, 0)
-                        if pt and pt[0] == "section":
-                            return pt[1]
-                return None
-        except (AttributeError, RuntimeError) as e:
-            logger.debug("[ItemOperations._get_selected_section_id] failed: %s", e)
-            return None
+        if self._is_delete_suppressed():
+            return
+        self._deleter.handle_delete_category(category_id)
 
     def _has_any_items_in_tree(self) -> bool:
         """Возвращает True, если в дереве (QTreeView) есть хотя бы один элемент."""

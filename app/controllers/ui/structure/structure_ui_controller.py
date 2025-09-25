@@ -1,5 +1,8 @@
 # app/controllers/structure/structure_ui_controller.py
 
+import logging
+from typing import Optional
+
 from PyQt6.QtCore import (  # Импортируем Qt и QSize из QtCore
     QObject,
     QSize,
@@ -9,6 +12,7 @@ from PyQt6.QtCore import (  # Импортируем Qt и QSize из QtCore
 from PyQt6.QtWidgets import QAbstractItemView, QTreeView
 
 from app.config_data import app_config
+from app.utils.ui.qt.roles import get_tree_tuple
 
 from .icon_handling import IconHandling
 from .item_operations import ItemOperations
@@ -16,6 +20,8 @@ from .selection_handling import SelectionHandling
 from .tree_management import TreeManagement
 
 # Используем строковые литералы "section" и "category"
+
+logger = logging.getLogger(__name__)
 
 
 class StructureUIController(QObject):
@@ -237,7 +243,7 @@ class StructureUIController(QObject):
     ) -> None:
         self.tree_manager.on_structure_item_added(item_type, parent_id, data)
 
-    def get_current_category_id(self):
+    def get_current_category_id(self) -> Optional[int]:
         """Вернуть текущий ID категории на основе активного UI-контекста.
         Предпочтение: плитки -> выбранный элемент дерева -> первая категория из BL.
         """
@@ -255,24 +261,38 @@ class StructureUIController(QObject):
                 if isinstance(current_id, int):
                     return current_id
         except Exception:
-            pass
+            logger.debug("StructureUIController.get_current_category_id: tiles lookup failed", exc_info=True)
 
-        # 2) Текущий элемент в дереве структуры
+        # 2) Попытка получить категорию через TreeManagement (с учётом сохранённого состояния)
+        try:
+            category_id = self.tree_manager.get_current_category_id()
+            if isinstance(category_id, int):
+                return category_id
+        except Exception:
+            logger.debug(
+                "StructureUIController.get_current_category_id: tree manager lookup failed",
+                exc_info=True,
+            )
+
+        # 3) Прямое чтение выделения из дерева как резервный путь
         try:
             index = self.tree.currentIndex()
             if index and index.isValid():
-                from app.utils.ui.qt.roles import get_tree_tuple
-
-                t = get_tree_tuple(index, 0)
-                if t:
-                    item_type, item_id = t
-                    if item_type == "category" and isinstance(item_id, int):
-                        return item_id
+                item_type, item_id = get_tree_tuple(index, 0) or (None, None)
+                if item_type == "category" and isinstance(item_id, int):
+                    return item_id
         except Exception:
-            pass
+            logger.debug(
+                "StructureUIController.get_current_category_id: tree current index lookup failed",
+                exc_info=True,
+            )
 
-        # 3) Fallback: спросить у бизнес-логики первую доступную категорию
+        # 4) Fallback: спросить у бизнес-логики первую доступную категорию
         try:
             return self.business.get_first_category_id()
         except Exception:
+            logger.debug(
+                "StructureUIController.get_current_category_id: business fallback failed",
+                exc_info=True,
+            )
             return None

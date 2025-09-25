@@ -353,7 +353,7 @@ class SearchKeyHandler(BaseKeyHandler):
     def __init__(self, main_window: Any) -> None:
         super().__init__(main_window)
         self._search_text: str = ""
-        self._search_timer: QTimer = QTimer()
+        self._search_timer: QTimer = QTimer(parent=main_window)  # ✅ Исправлено: parent=main_window
         self._search_timer.setSingleShot(True)
         self._search_timer.timeout.connect(self._reset_search)
 
@@ -394,7 +394,7 @@ class KeyboardManager(QObject):
     ENTER_COOLDOWN = 150
 
     def __init__(self, main_window):
-        super().__init__()
+        super().__init__(parent=main_window)  # ✅ Исправлено: добавлен parent
         self.main_window = main_window
         self.shortcuts = []
 

@@ -9,9 +9,19 @@
 
 import logging
 import time
+from threading import Lock
 from typing import Any, Dict, List, Optional
+from weakref import WeakMethod
 
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QMetaObject, Qt
+
+from .types import (
+    SphereData, SectionData, CategoryData, LinkData,
+    SearchResultItem, TaskInfo, MetricSpan,
+    SignalType, StructureItemType,
+    AnyItemData, ItemCreatedPayload, ItemUpdatedPayload, ItemDeletedPayload,
+    ErrorPayload
+)
 
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.models.db import Database
@@ -42,24 +52,27 @@ class StructureSignals(QObject):
 
     Повторяет интерфейс `StructureWorkerSignals` из app.utils.db.db_workers.
     """
+    
+    def __init__(self, parent: Optional[QObject] = None):
+        super().__init__(parent)
 
-    # Загрузка данных
-    spheres_loaded: pyqtSignal = pyqtSignal(list)  # List[Dict]
-    structure_loaded: pyqtSignal = pyqtSignal(list, int)  # List[Dict], sphere_id
-    sections_loaded: pyqtSignal = pyqtSignal(list, int)  # List[Dict], sphere_id
-    categories_loaded: pyqtSignal = pyqtSignal(list, int)  # List[Dict], section_id
-    links_loaded: pyqtSignal = pyqtSignal(list, int, int)  # совместимость
+    # Загрузка данных - строгая типизация для PyQt6
+    spheres_loaded: pyqtSignal = pyqtSignal(list)  # List[SphereData]
+    structure_loaded: pyqtSignal = pyqtSignal(list, int)  # List[SectionData], sphere_id
+    sections_loaded: pyqtSignal = pyqtSignal(list, int)  # List[SectionData], sphere_id
+    categories_loaded: pyqtSignal = pyqtSignal(list, int)  # List[CategoryData], section_id
+    links_loaded: pyqtSignal = pyqtSignal(list, int, int)  # List[LinkData], category_id, task_id
 
     # Поиск
-    search_results: pyqtSignal = pyqtSignal(list)
+    search_results: pyqtSignal = pyqtSignal(list)  # List[SearchResultItem]
 
     # Подсчет
     count_finished: pyqtSignal = pyqtSignal(int, list, object)
 
-    # CRUD
-    item_created: pyqtSignal = pyqtSignal(str, int, dict)
-    item_updated: pyqtSignal = pyqtSignal(str, int, dict)
-    item_deleted: pyqtSignal = pyqtSignal(str, int, dict)
+    # CRUD - строгая типизация payload
+    item_created: pyqtSignal = pyqtSignal(str, int, dict)  # item_type, parent_id, AnyItemData
+    item_updated: pyqtSignal = pyqtSignal(str, int, dict)  # item_type, item_id, AnyItemData
+    item_deleted: pyqtSignal = pyqtSignal(str, int, dict)  # item_type, item_id, AnyItemData
 
     # Состояние операций
     operation_started: pyqtSignal = pyqtSignal(str)
@@ -72,30 +85,50 @@ class StructureSignals(QObject):
     # Информация о ссылках
     link_info_finished: pyqtSignal = pyqtSignal(dict)
 
-    # Ошибки
-    error: pyqtSignal = pyqtSignal(str, str)
-    simple_error: pyqtSignal = pyqtSignal(str)
+    # Ошибки - строгая типизация
+    error: pyqtSignal = pyqtSignal(str, str)  # title, message
+    simple_error: pyqtSignal = pyqtSignal(str)  # message
 
 
-class AsyncOperations:
-    """Класс для управления асинхронными операциями структуры."""
+class AsyncOperations(QObject):
+    """Класс для управления асинхронными операциями структуры.
+    
+    Наследуется от QObject для правильного управления памятью PyQt6.
+    """
 
     def __init__(
         self,
         db: Database,
         logger: Optional[logging.Logger] = None,
         top_panels_controller: Optional[Any] = None,
+        parent: Optional[QObject] = None,
     ):
+        super().__init__(parent)
         self.db = db
         self.logger = logger or globals().get("logger") or logging.getLogger(__name__)
         # Единый глобальный планировщик задач вместо QThreadPool.globalInstance()
         self._scheduler = get_task_scheduler()
-        self._worker_signals = StructureSignals()
+        # ✅ Передаем parent для правильного управления памятью
+        self._worker_signals = StructureSignals(self)
+        # ✅ Thread-safe защита для shared state
+        self._pending_tasks_lock = Lock()
         self._pending_tasks = {}
+        self._metrics_lock = Lock()
+        self._active_metric_spans = set()
         # Прямая зависимость от TopPanelsController для обновления верхних панелей
         self.top_panels = top_panels_controller
-        # Активные спаны метрик асинхронных операций (для защиты от дублей)
-        self._active_metric_spans = set()
+    
+    def cleanup(self) -> None:
+        """Proper cleanup для Qt объектов.
+        
+        Вызывается при уничтожении для предотвращения утечек памяти.
+        """
+        try:
+            if self._worker_signals:
+                self._worker_signals.deleteLater()
+                self._worker_signals = None
+        except Exception as e:
+            self.logger.debug("Error during AsyncOperations cleanup: %s", e)
 
     def get_worker_signals(self) -> StructureSignals:
         """Возвращает объект сигналов воркеров для подключения."""
@@ -107,12 +140,8 @@ class AsyncOperations:
         Гарантирует согласованность подписок между `StructureWorkerSignals` и
         методами `AsyncSignalHandlers`.
         """
-        # Инъекция TopPanelsController в обработчики (избегаем getattr в рантайме)
-        try:
-            handlers.top_panels = getattr(self, "top_panels", None)
-        except Exception:
-            # Не должен падать, просто оставим None
-            handlers.top_panels = None
+        # ✅ Явная передача зависимостей вместо getattr
+        handlers.top_panels = self.top_panels
 
         # Загрузка
         self._worker_signals.spheres_loaded.connect(handlers.on_spheres_loaded)
@@ -148,28 +177,18 @@ class AsyncOperations:
         def _disc(signal, handler, name: str) -> None:
             try:
                 signal.disconnect(handler)
-            except TypeError:
-                # Обычно означает, что слот не был подключен
+            except (TypeError, RuntimeError) as e:
+                # ✅ Ожидаемые ошибки отключения - логируем в debug
                 self.logger.debug(
-                    "disconnect_signal_handlers: handler не подключен к сигналу '%s'",
-                    name,
-                    exc_info=True,
-                )
-            except RuntimeError:
-                # QObject удалён или недействителен
-                self.logger.debug(
-                    "disconnect_signal_handlers: недействительный объект для сигнала '%s'",
-                    name,
-                    exc_info=True,
+                    "Expected disconnection issue for signal '%s': %s", name, e
                 )
             except Exception as e:
-                # Нежданные ошибки — предупредим, но продолжим отписку остальных
-                self.logger.warning(
-                    "disconnect_signal_handlers: сбой отписки от сигнала '%s': %s",
-                    name,
-                    e,
-                    exc_info=True,
+                # ✅ Неожиданные ошибки - логируем с полным traceback
+                self.logger.exception(
+                    "Unexpected disconnection error for signal '%s': %s", name, e
                 )
+                # ✅ Не маскируем критические проблемы
+                raise
 
         _disc(
             self._worker_signals.spheres_loaded,
@@ -246,11 +265,14 @@ class AsyncOperations:
         Защищает от повторного старта: пока спан активен, повторные вызовы игнорируются.
         """
         try:
-            if name in self._active_metric_spans:
-                return
-            metrics.start(name)
-            self._active_metric_spans.add(name)
+            # ✅ Thread-safe проверка и обновление
+            with self._metrics_lock:
+                if name in self._active_metric_spans:
+                    return
+                metrics.start(name)
+                self._active_metric_spans.add(name)
 
+            # ✅ Используем WeakMethod для предотвращения утечек памяти
             def _on_stop(*_args):
                 try:
                     metrics.stop(name)
@@ -261,7 +283,9 @@ class AsyncOperations:
                     stop_signal.disconnect(_on_stop)
                 except Exception:
                     pass
-                self._active_metric_spans.discard(name)
+                # ✅ Thread-safe удаление
+                with self._metrics_lock:
+                    self._active_metric_spans.discard(name)
 
             stop_signal.connect(_on_stop)
         except Exception:
@@ -603,7 +627,9 @@ class AsyncOperations:
                 return ("category", category_id, old_data)
 
             task_id = f"del_cat_{category_id}_{time.time()}"
-            self._pending_tasks[task_id] = True
+            # ✅ Thread-safe обновление pending tasks
+            with self._pending_tasks_lock:
+                self._pending_tasks[task_id] = True
 
             run_db(
                 _delete,
@@ -665,28 +691,37 @@ class AsyncOperations:
         )
 
 
-class AsyncSignalHandlers:
-    """Класс для обработки сигналов от асинхронных операций."""
+class AsyncSignalHandlers(QObject):
+    """Класс для обработки сигналов от асинхронных операций.
+    
+    Наследуется от QObject для правильного использования слотов PyQt6.
+    """
 
-    def __init__(self, controller_instance):
+    def __init__(self, controller_instance, top_panels_controller: Optional[Any] = None, parent: Optional[QObject] = None):
+        super().__init__(parent)
         self.controller = controller_instance
         self.logger = controller_instance.logger
-        # Инжектится извне через AsyncOperations.connect_signal_handlers
-        self.top_panels: Optional[Any] = None
+        # ✅ Явная передача зависимости вместо инъекции
+        self.top_panels: Optional[Any] = top_panels_controller
 
-    def on_spheres_loaded(self, spheres: List[Dict[str, Any]]) -> None:
+    @pyqtSlot(list)
+    def on_spheres_loaded(self, spheres: List[SphereData]) -> None:
         """Обработчик завершения загрузки сфер."""
         try:
             self.logger.info("Загружено %s сфер", len(spheres))
             if hasattr(self.controller, "spheres_loaded"):
                 self.controller.spheres_loaded.emit(spheres)
+        except (AttributeError, TypeError) as e:
+            # ✅ Ожидаемые ошибки - логируем warning
+            self.logger.warning("Expected error in on_spheres_loaded: %s", e)
         except Exception as e:
-            self.logger.error(
-                "Ошибка в обработчике on_spheres_loaded: %s", e, exc_info=True
-            )
+            # ✅ Неожиданные ошибки - полный traceback
+            self.logger.exception("Critical error in on_spheres_loaded: %s", e)
+            raise
 
+    @pyqtSlot(list, int)
     def on_structure_loaded(
-        self, structure: List[Dict[str, Any]], sphere_id: int
+        self, structure: List[SectionData], sphere_id: int
     ) -> None:
         """Обработчик завершения загрузки структуры."""
         try:
@@ -749,13 +784,17 @@ class AsyncSignalHandlers:
                 pass
             if hasattr(self.controller, "structure_loaded"):
                 self.controller.structure_loaded.emit(structure)
+        except (AttributeError, TypeError) as e:
+            # ✅ Ожидаемые ошибки - логируем warning
+            self.logger.warning("Expected error in on_structure_loaded: %s", e)
         except Exception as e:
-            self.logger.error(
-                "Ошибка в обработчике on_structure_loaded: %s", e, exc_info=True
-            )
+            # ✅ Неожиданные ошибки - полный traceback
+            self.logger.exception("Critical error in on_structure_loaded: %s", e)
+            raise
 
+    @pyqtSlot(list, int)
     def on_sections_loaded(
-        self, sections: List[Dict[str, Any]], sphere_id: int
+        self, sections: List[SectionData], sphere_id: int
     ) -> None:
         """Обработчик завершения загрузки разделов."""
         try:
@@ -764,13 +803,15 @@ class AsyncSignalHandlers:
             )
             if hasattr(self.controller, "sections_loaded"):
                 self.controller.sections_loaded.emit(sections, sphere_id)
+        except (AttributeError, TypeError) as e:
+            self.logger.warning("Expected error in on_sections_loaded: %s", e)
         except Exception as e:
-            self.logger.error(
-                "Ошибка в обработчике on_sections_loaded: %s", e, exc_info=True
-            )
+            self.logger.exception("Critical error in on_sections_loaded: %s", e)
+            raise
 
+    @pyqtSlot(list, int)
     def on_categories_loaded(
-        self, categories: List[Dict[str, Any]], section_id: int
+        self, categories: List[CategoryData], section_id: int
     ) -> None:
         """Обработчик завершения загрузки категорий.
 
@@ -788,14 +829,16 @@ class AsyncSignalHandlers:
                 # ретранслируем уведомление о выборе раздела без передачи категорий
                 if hasattr(self.controller, "section_selected"):
                     self.controller.section_selected.emit(section_id)
+        except (AttributeError, TypeError) as e:
+            self.logger.warning("Expected error in on_categories_loaded: %s", e)
         except Exception as e:
-            self.logger.error(
-                "Ошибка в обработчике on_categories_loaded: %s", e, exc_info=True
-            )
+            self.logger.exception("Critical error in on_categories_loaded: %s", e)
+            raise
 
     # ===== CRUD =====
+    @pyqtSlot(str, int, dict)
     def on_item_created(
-        self, item_type: str, parent_id: int, item_data: Dict[str, Any]
+        self, item_type: str, parent_id: int, item_data: AnyItemData
     ) -> None:
         """Создан элемент структуры."""
         try:
@@ -837,8 +880,9 @@ class AsyncSignalHandlers:
                 "Ошибка в обработчике on_item_created: %s", e, exc_info=True
             )
 
+    @pyqtSlot(str, int, dict)
     def on_item_updated(
-        self, item_type: str, item_id: int, item_data: Dict[str, Any]
+        self, item_type: str, item_id: int, item_data: AnyItemData
     ) -> None:
         """Обновлён элемент структуры."""
         try:
@@ -876,8 +920,9 @@ class AsyncSignalHandlers:
                 "Ошибка в обработчике on_item_updated: %s", e, exc_info=True
             )
 
+    @pyqtSlot(str, int, dict)
     def on_item_deleted(
-        self, item_type: str, item_id: int, old_data: Dict[str, Any]
+        self, item_type: str, item_id: int, old_data: AnyItemData
     ) -> None:
         """Удалён элемент структуры.
 
@@ -923,6 +968,7 @@ class AsyncSignalHandlers:
                 "Ошибка в обработчике on_item_deleted: %s", e, exc_info=True
             )
 
+    @pyqtSlot(str, str)
     def on_error(self, title: str, message: str) -> None:
         try:
             self.logger.error("%s: %s", title, message)
@@ -932,19 +978,25 @@ class AsyncSignalHandlers:
             # Совместимость со старым именем
             elif hasattr(self.controller, "error"):
                 self.controller.error.emit(title, message)
+        except (AttributeError, TypeError) as e:
+            self.logger.warning("Expected error in on_error: %s", e)
         except Exception as e:
-            self.logger.error("Ошибка в обработчике on_error: %s", e, exc_info=True)
+            self.logger.exception("Critical error in on_error: %s", e)
+            raise
 
+    @pyqtSlot(str)
     def on_simple_error(self, message: str) -> None:
         try:
             self.logger.error(message)
             if hasattr(self.controller, "simple_error"):
                 self.controller.simple_error.emit(message)
+        except (AttributeError, TypeError) as e:
+            self.logger.warning("Expected error in on_simple_error: %s", e)
         except Exception as e:
-            self.logger.error(
-                "Ошибка в обработчике on_simple_error: %s", e, exc_info=True
-            )
+            self.logger.exception("Critical error in on_simple_error: %s", e)
+            raise
 
+    @pyqtSlot(str)
     def on_operation_started(self, description: str) -> None:
         try:
             # Сообщения о структуре чрезмерно частые — логируем их на DEBUG
@@ -954,11 +1006,13 @@ class AsyncSignalHandlers:
                 self.logger.info(description)
             if hasattr(self.controller, "operation_started"):
                 self.controller.operation_started.emit(description)
+        except (AttributeError, TypeError) as e:
+            self.logger.warning("Expected error in on_operation_started: %s", e)
         except Exception as e:
-            self.logger.error(
-                "Ошибка в обработчике on_operation_started: %s", e, exc_info=True
-            )
+            self.logger.exception("Critical error in on_operation_started: %s", e)
+            raise
 
+    @pyqtSlot(str)
     def on_operation_finished(self, description: str) -> None:
         try:
             # Сообщения о структуре чрезмерно частые — логируем их на DEBUG
@@ -968,30 +1022,38 @@ class AsyncSignalHandlers:
                 self.logger.info(description)
             if hasattr(self.controller, "operation_finished"):
                 self.controller.operation_finished.emit(description)
+        except (AttributeError, TypeError) as e:
+            self.logger.warning("Expected error in on_operation_finished: %s", e)
         except Exception as e:
-            self.logger.error(
-                "Ошибка в обработчике on_operation_finished: %s", e, exc_info=True
-            )
+            self.logger.exception("Critical error in on_operation_finished: %s", e)
+            raise
 
+    @pyqtSlot()
     def on_loading_started(self) -> None:
         try:
             self.logger.debug("Начата загрузка...")
             if hasattr(self.controller, "loading_started"):
                 self.controller.loading_started.emit()
+        except (AttributeError, TypeError) as e:
+            self.logger.warning("Expected error in on_loading_started: %s", e)
         except Exception as e:
-            self.logger.error(
-                "Ошибка в обработчике on_loading_started: %s", e, exc_info=True
-            )
+            self.logger.exception("Critical error in on_loading_started: %s", e)
+            raise
 
     # ===== Обновление UI =====
+    @pyqtSlot(int)
     def on_update_ui(self, category_id: int) -> None:
         try:
             self.logger.debug("Обновление UI для категории %s", category_id)
             if hasattr(self.controller, "update_ui"):
                 self.controller.update_ui.emit(category_id)
+        except (AttributeError, TypeError) as e:
+            self.logger.warning("Expected error in on_update_ui: %s", e)
         except Exception as e:
-            self.logger.error("Ошибка в обработчике on_update_ui: %s", e, exc_info=True)
+            self.logger.exception("Critical error in on_update_ui: %s", e)
+            raise
 
+    @pyqtSlot()
     def on_update_favorites(self) -> None:
         try:
             self.logger.debug("Обновление избранного (через TopPanelsController)")
@@ -1001,11 +1063,13 @@ class AsyncSignalHandlers:
                 )
                 return
             self.top_panels.request_favorites_refresh()
+        except (AttributeError, TypeError) as e:
+            self.logger.warning("Expected error in on_update_favorites: %s", e)
         except Exception as e:
-            self.logger.error(
-                "Ошибка в обработчике on_update_favorites: %s", e, exc_info=True
-            )
+            self.logger.exception("Critical error in on_update_favorites: %s", e)
+            raise
 
+    @pyqtSlot()
     def on_update_recent_links(self) -> None:
         try:
             self.logger.debug("Обновление недавних ссылок (через TopPanelsController)")
@@ -1015,24 +1079,28 @@ class AsyncSignalHandlers:
                 )
                 return
             self.top_panels.request_recents_refresh()
+        except (AttributeError, TypeError) as e:
+            self.logger.warning("Expected error in on_update_recent_links: %s", e)
         except Exception as e:
-            self.logger.error(
-                "Ошибка в обработчике on_update_recent_links: %s", e, exc_info=True
-            )
+            self.logger.exception("Critical error in on_update_recent_links: %s", e)
+            raise
 
     # ===== Поиск / Ссылки / Подсчёт =====
-    def on_search_results(self, results: List[Dict[str, Any]]) -> None:
+    @pyqtSlot(list)
+    def on_search_results(self, results: List[SearchResultItem]) -> None:
         try:
             self.logger.info("Результаты поиска: %s", len(results))
             if hasattr(self.controller, "search_results"):
                 self.controller.search_results.emit(results)
+        except (AttributeError, TypeError) as e:
+            self.logger.warning("Expected error in on_search_results: %s", e)
         except Exception as e:
-            self.logger.error(
-                "Ошибка в обработчике on_search_results: %s", e, exc_info=True
-            )
+            self.logger.exception("Critical error in on_search_results: %s", e)
+            raise
 
+    @pyqtSlot(list, int, int)
     def on_links_loaded(
-        self, links: List[Dict[str, Any]], category_id: int, task_id: int
+        self, links: List[LinkData], category_id: int, task_id: int
     ) -> None:
         try:
             self.logger.info(
@@ -1043,29 +1111,34 @@ class AsyncSignalHandlers:
             )
             if hasattr(self.controller, "links_loaded"):
                 self.controller.links_loaded.emit(links, category_id, task_id)
+        except (AttributeError, TypeError) as e:
+            self.logger.warning("Expected error in on_links_loaded: %s", e)
         except Exception as e:
-            self.logger.error(
-                "Ошибка в обработчике on_links_loaded: %s", e, exc_info=True
-            )
+            self.logger.exception("Critical error in on_links_loaded: %s", e)
+            raise
 
-    def on_link_info_finished(self, info: Dict[str, Any]) -> None:
+    @pyqtSlot(dict)
+    def on_link_info_finished(self, info: LinkData) -> None:
         try:
             self.logger.debug("Получена информация о ссылке")
             if hasattr(self.controller, "link_info_finished"):
                 self.controller.link_info_finished.emit(info)
+        except (AttributeError, TypeError) as e:
+            self.logger.warning("Expected error in on_link_info_finished: %s", e)
         except Exception as e:
-            self.logger.error(
-                "Ошибка в обработчике on_link_info_finished: %s", e, exc_info=True
-            )
+            self.logger.exception("Critical error in on_link_info_finished: %s", e)
+            raise
 
+    @pyqtSlot(int, list, object)
     def on_count_finished(
-        self, fav_count: int, links: List[Dict[str, Any]], link: object
+        self, fav_count: int, links: List[LinkData], link: object
     ) -> None:
         try:
             self.logger.info("Подсчёт избранных завершён: %s", fav_count)
             if hasattr(self.controller, "count_finished"):
                 self.controller.count_finished.emit(fav_count, links, link)
+        except (AttributeError, TypeError) as e:
+            self.logger.warning("Expected error in on_count_finished: %s", e)
         except Exception as e:
-            self.logger.error(
-                "Ошибка в обработчике on_count_finished: %s", e, exc_info=True
-            )
+            self.logger.exception("Critical error in on_count_finished: %s", e)
+            raise

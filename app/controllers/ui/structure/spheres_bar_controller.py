@@ -1,9 +1,11 @@
 # app/controllers/ui/structure/spheres_bar_controller.py
 from __future__ import annotations
 
-from typing import Any, Dict, List
+import logging
+from functools import partial
+from typing import Any, Dict, Iterable, List
 
-from PyQt6.QtCore import QSize
+from PyQt6.QtCore import QObject, QSize, pyqtSlot
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QToolButton
 
@@ -15,7 +17,7 @@ from app.utils.ui.updates import suspend_updates
  
 
 
-class SpheresBarController:
+class SpheresBarController(QObject):
     """Контроллер UI панели сфер.
 
     Перенесено из методов MainWindow:
@@ -26,35 +28,67 @@ class SpheresBarController:
     """
 
     def __init__(self, window: Any):
+        parent = window if isinstance(window, QObject) else None
+        super().__init__(parent=parent)
         self.w = window  # Главное окно (QMainWindow с нужными атрибутами)
 
-        # Не используем неон для кнопок сфер
+        required_attrs = [
+            "structure_business",
+            "structure",
+            "sphere_group",
+            "spheres_bar",
+            "sphere_buttons",
+        ]
+        missing = [name for name in required_attrs if not hasattr(self.w, name)]
+        if missing:
+            raise AttributeError(
+                "SpheresBarController requires window attributes: " + ", ".join(missing)
+            )
 
     def init(self) -> None:
         """Подписка на сигнал загрузки сфер и запуск асинхронной загрузки."""
-        sb = self.w.structure_business
-        sb.spheres_loaded.connect(self.on_spheres_loaded_ui)
+        sb = getattr(self.w, "structure_business", None)
+        if sb is None:
+            raise AttributeError("Window must expose structure_business")
+        try:
+            sb.spheres_loaded.connect(self.on_spheres_loaded_ui)
+        except Exception:
+            logger.exception("SpheresBarController.init: failed to connect spheres_loaded")
+            raise
         sb.load_spheres_async()
 
+    @pyqtSlot(int)
     def switch_sphere(self, sphere_id: int) -> None:
         """Переключить активную сферу через контроллер структуры."""
-        self.w.structure.switch_sphere(sphere_id)
-
-    
+        try:
+            self.w.structure.switch_sphere(sphere_id)
+        except Exception:
+            logger.exception(
+                "SpheresBarController.switch_sphere: structure.switch_sphere failed"
+            )
 
     def _clear_spheres_bar(self) -> None:
         # Очистка группы кнопок
-        for button in list(self.w.sphere_group.buttons()):
-            self.w.sphere_group.removeButton(button)
+        group = getattr(self.w, "sphere_group", None)
+        if group is None:
+            raise AttributeError("Window must expose sphere_group")
+        for button in list(group.buttons()):
+            group.removeButton(button)
         # Очистка лейаута
         s_layout = self.w.spheres_bar.layout()
+        if s_layout is None:
+            raise AttributeError("spheres_bar.layout() must not be None")
         for i in reversed(range(s_layout.count())):
             widget = s_layout.itemAt(i).widget()
             if widget:
                 widget.setParent(None)
                 widget.deleteLater()
-        self.w.sphere_buttons.clear()
-        self.w.sphere_group.setExclusive(True)
+        try:
+            self.w.sphere_buttons.clear()
+        except Exception:
+            logger.exception("SpheresBarController._clear_spheres_bar: cannot clear buttons dict")
+            raise
+        group.setExclusive(True)
 
     def _build_button(self, sphere: Dict[str, Any]) -> QToolButton:
         btn = QToolButton()
@@ -79,12 +113,12 @@ class SpheresBarController:
         # Размер иконки берём из конфигурации UI, отступ 4px задан QSS padding'ом
         try:
             _sz = app_config.get_sphere_button_icon_size()
-            btn.setIconSize(QSize(_sz[0], _sz[1]))
+            btn.setIconSize(QSize(int(_sz[0]), int(_sz[1])))
         except Exception:
             pass
         btn.setToolTip(sphere["name"])
         self.w.sphere_group.addButton(btn, sphere_id)
-        btn.clicked.connect(lambda _=False, sid=sphere_id: self.switch_sphere(sid))
+        btn.clicked.connect(partial(self._on_button_clicked, sphere_id))
         # Убедимся, что на кнопке нет графических эффектов (неон и т.п.)
         try:
             btn.setGraphicsEffect(None)
@@ -93,6 +127,7 @@ class SpheresBarController:
         self.w.sphere_buttons[sphere_id] = btn
         return btn
 
+    @pyqtSlot(list)
     def on_spheres_loaded_ui(self, spheres: List[Dict[str, Any]]):
         """Построение кнопок сфер в панели."""
         with suspend_updates(self.w.spheres_bar):
@@ -105,33 +140,64 @@ class SpheresBarController:
             self.w.spheres_bar.update()
 
         # Устанавливаем визуальное состояние и/или активную сферу
-        if spheres:
-            try:
-                sb = getattr(self.w, "structure_business", None)
-                current_id = getattr(sb, "current_sphere_id", None) if sb else None
-            except Exception:
-                current_id = None
+        if not spheres:
+            return
 
-            if isinstance(current_id, int) and current_id > 0:
-                # Сфера уже выбрана — только обновим кнопку и фокус
-                self.update_active_sphere_button(int(current_id))
-            else:
-                # Текущая сфера не задана — выберем первую и запустим переключение
-                first_id = spheres[0].get("id")
-                if isinstance(first_id, int) and first_id > 0:
-                    self.switch_sphere(int(first_id))
+        try:
+            sb = getattr(self.w, "structure_business", None)
+            current_id = getattr(sb, "current_sphere_id", None) if sb else None
+        except Exception:
+            logger.debug(
+                "SpheresBarController.on_spheres_loaded_ui: failed to read current_sphere_id",
+                exc_info=True,
+            )
+            current_id = None
+
+        if isinstance(current_id, int) and current_id > 0:
+            # Сфера уже выбрана — только обновим кнопку и фокус
+            self.update_active_sphere_button(int(current_id))
+            return
+
+        first_id = spheres[0].get("id")
+        if isinstance(first_id, int) and first_id > 0:
+            self.switch_sphere(int(first_id))
 
     @signal_guard("update_active_sphere_button")
+    @pyqtSlot(int)
     def update_active_sphere_button(self, sphere_id: int):
         """Обновляет состояние кнопок сфер и фокус."""
-        for button in self.w.sphere_buttons.values():
+        buttons = self._iter_sphere_buttons()
+        for button in buttons:
             # Снимаем любые графические эффекты, чтобы неон не оставался на активной кнопке
             try:
                 button.setGraphicsEffect(None)
             except Exception:
-                pass
+                logger.debug(
+                    "SpheresBarController.update_active_sphere_button: setGraphicsEffect(None) failed",
+                    exc_info=True,
+                )
             button.setChecked(False)
+
         button = self.w.sphere_buttons.get(sphere_id)
-        if button:
-            button.setChecked(True)
-            button.setFocus()
+        if not button:
+            logger.debug(
+                "SpheresBarController.update_active_sphere_button: button for %s not found",
+                sphere_id,
+            )
+            return
+
+        button.setChecked(True)
+        button.setFocus()
+
+    @pyqtSlot(int)
+    def _on_button_clicked(self, sphere_id: int) -> None:
+        self.switch_sphere(sphere_id)
+
+    def _iter_sphere_buttons(self) -> Iterable[QToolButton]:
+        try:
+            return list(self.w.sphere_buttons.values())
+        except Exception:
+            logger.exception(
+                "SpheresBarController._iter_sphere_buttons: sphere_buttons is not iterable"
+            )
+            return []

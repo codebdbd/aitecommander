@@ -3,7 +3,8 @@
 """Модульная архитектура для бизнес-логики структуры."""
 
 from .async_operations import AsyncOperations, AsyncSignalHandlers
-from .base import ItemTypes, ItemTypeStr, StructureItemType, ValidationError
+from .base import StructureItemType
+from .validators import ValidationError
 from .cache_manager import CacheManager
 from .category_operations import CategoryOperations
 from .exceptions import handle_exceptions
@@ -21,8 +22,6 @@ __all__ = [
     # Base classes and constants
     "StructureItemType",
     "ValidationError",
-    "ItemTypes",
-    "ItemTypeStr",
     # Exceptions / results
     "handle_exceptions",
     "ValidationResult",
