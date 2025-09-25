@@ -5,15 +5,16 @@ from __future__ import annotations
 import logging
 import os
 
-from PyQt6.QtCore import QObject, QTimer
+from PyQt6.QtCore import QObject, QTimer, pyqtSlot
 
-# Для строгой проверки доступности асинхронного API бизнес-логики
-from app.controllers.business.links_business import LinksBusinessLogic
+from app.interfaces import TopPanelDataLike, FavoritesPanelWithClear, RecentsPanelWithLimit
 
-from app.interfaces import (
-    TopPanelDataLike,
-    FavoritesPanelWithClear,
-    RecentsPanelWithLimit,
+from .types import (
+    LinksBusinessProtocol,
+    SupportsGetLimit,
+    SupportsSetData,
+    SupportsSetFavorites,
+    SupportsSetRecentLinks,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ class SetupError(Exception):
     """Ошибка конфигурации/настройки TopPanelsController."""
 
 
-class TopPanelsController:
+class TopPanelsController(QObject):
     """Контроллер верхних панелей (Избранное/Недавние)."""
 
     def __init__(
@@ -35,30 +36,20 @@ class TopPanelsController:
         *,
         fav_widget: TopPanelDataLike,
         recent_links_widget: TopPanelDataLike,
-        links_business,
+        links_business: LinksBusinessProtocol,
     ):
+        parent_obj = main_window if isinstance(main_window, QObject) else None
+        super().__init__(parent=parent_obj)
         self.main = main_window
         if fav_widget is None or recent_links_widget is None:
             raise ValueError(
                 "TopPanelsController requires fav_widget and recent_links_widget"
             )
-        # Совместимая с legacy-подставными виджетами проверка:
-        # Оба виджета должны уметь либо set_data(), либо legacy set_*().
-        # Наличие clear_favorites() не требуем на этапе инициализации.
-        # Проверка методов данных делается мягко: конкретная ветка в refresh_* отработает fallback
-        has_fav_setter = any(
-            callable(getattr(fav_widget, name, None))
-            for name in ("set_data", "set_favorites")
-        )
-        has_recent_setter = any(
-            callable(getattr(recent_links_widget, name, None))
-            for name in ("set_data", "set_recent_links")
-        )
-        if not has_fav_setter:
+        if not self._supports_favorites_widget(fav_widget):
             raise TypeError(
                 "fav_widget must provide set_data(items) or legacy set_favorites(items)"
             )
-        if not has_recent_setter:
+        if not self._supports_recent_widget(recent_links_widget):
             raise TypeError(
                 "recent_links_widget must provide set_data(items) or legacy set_recent_links(items)"
             )
@@ -66,39 +57,20 @@ class TopPanelsController:
         self.recent_links_widget = recent_links_widget
         if links_business is None:
             raise ValueError("TopPanelsController requires links_business")
-        self.links_business = links_business
+        self.links_business: LinksBusinessProtocol = links_business
 
         self._pending_refresh = False
         self._pending_fav_refresh = False
         self._pending_recent_refresh = False
-        self._refresh_timer = QTimer()
-        self._fav_refresh_timer = QTimer()
-        self._recent_refresh_timer = QTimer()
-        self._structure_refresh_timer = QTimer()
-        # Привязка таймеров к главному окну, если это QObject
-        parent_obj = self.main if isinstance(self.main, QObject) else None
-        if parent_obj is not None:
-            try:
-                self._refresh_timer.setParent(parent_obj)
-                self._fav_refresh_timer.setParent(parent_obj)
-                self._recent_refresh_timer.setParent(parent_obj)
-                self._structure_refresh_timer.setParent(parent_obj)
-            except Exception as e:
-                logger.exception("TopPanelsController: failed to set QTimer parent")
-                raise SetupError("Failed to bind timers to main window") from e
+        self._refresh_timer = QTimer(self)
+        self._fav_refresh_timer = QTimer(self)
+        self._recent_refresh_timer = QTimer(self)
+        self._structure_refresh_timer = QTimer(self)
         self._refresh_timer.setSingleShot(True)
         self._fav_refresh_timer.setSingleShot(True)
         self._recent_refresh_timer.setSingleShot(True)
         self._structure_refresh_timer.setSingleShot(True)
-        try:
-            self._structure_refresh_timer.setInterval(200)
-        except Exception as e:
-            logger.exception(
-                "TopPanelsController: failed to set structure timer interval"
-            )
-            raise SetupError(
-                "Failed to configure structure refresh timer interval"
-            ) from e
+        self._structure_refresh_timer.setInterval(200)
         self._refresh_timer.timeout.connect(self._on_refresh_timeout)
         self._fav_refresh_timer.timeout.connect(self._on_fav_refresh_timeout)
         self._recent_refresh_timer.timeout.connect(self._on_recent_refresh_timeout)
@@ -106,22 +78,10 @@ class TopPanelsController:
             self._on_structure_refresh_timeout
         )
 
-        # Подписка на асинхронные сигналы бизнес-слоя (ненастойчиво: в случае ошибки — логируем и продолжаем)
-        try:
-            self.links_business.favorite_links_loaded.connect(
-                self._on_favorite_links_loaded
-            )
-            self.links_business.recent_links_loaded.connect(
-                self._on_recent_links_loaded
-            )
-        except Exception:
-            logger.exception(
-                "TopPanelsController: failed to connect async signals from links_business"
-            )
-            # Не прерываем инициализацию: остаётся возможность использовать синхронные пути/дальнейшие попытки
+        self._async_supported = self._connect_business_signals()
 
         # Strict-режим: при неожиданных исключениях в refresh_* повторно выбрасывать
-        self._strict = str(os.getenv("APP_TOP_PANELS_STRICT", "")).lower() in {
+        self._strict = str(os.getenv("APP_TOP_PANELS_STRICT", "").lower()) in {
             "1",
             "true",
             "yes",
@@ -201,18 +161,27 @@ class TopPanelsController:
         к get_favorite_links() с прежней обработкой ошибок и обновлением виджета.
         """
         # 1) Пытаемся асинхронно (только если это реальный LinksBusinessLogic с сигналами)
-        try:
-            if isinstance(self.links_business, LinksBusinessLogic):
-                # Асинхронный путь доступен и корректен
+        if self._async_supported and callable(
+            getattr(self.links_business, "load_favorite_links", None)
+        ):
+            try:
                 self.links_business.load_favorite_links()
                 return
-        except Exception:
+            except (TypeError, ValueError) as exc:
+                logger.error(
+                    "TopPanelsController.refresh_favorites: invalid args for async call: %s",
+                    exc,
+                    exc_info=True,
+                )
+            except Exception:
+                logger.exception(
+                    "TopPanelsController.refresh_favorites: failed to call load_favorite_links"
+                )
+                if self._strict:
+                    raise
             # Логируем ошибку вызова async-метода и переходим к синхронному пути
-            logger.exception(
-                "TopPanelsController.refresh_favorites: failed to call load_favorite_links"
-            )
+            # В строгом режиме не выполняем fallback, чтобы выявлять ошибки конфигурации
             if self._strict:
-                # В строгом режиме не выполняем fallback, чтобы выявлять ошибки конфигурации
                 raise
 
         # 2) Синхронный fallback — поведение как раньше (для тестов и простых окружений)
@@ -264,7 +233,7 @@ class TopPanelsController:
         # Определяем лимит
         limit = 10
         try:
-            if isinstance(widget, RecentsPanelWithLimit) or hasattr(widget, "get_limit"):
+            if isinstance(widget, (RecentsPanelWithLimit, SupportsGetLimit)):
                 val = widget.get_limit()  # type: ignore[attr-defined]
                 if isinstance(val, int) and val > 0:
                     limit = val
@@ -273,10 +242,17 @@ class TopPanelsController:
 
         # 1) Пытаемся асинхронно (только если это реальный LinksBusinessLogic с сигналами)
         try:
-            if isinstance(self.links_business, LinksBusinessLogic):
-                # Асинхронный путь доступен и корректен
+            if self._async_supported and callable(
+                getattr(self.links_business, "load_recent_links", None)
+            ):
                 self.links_business.load_recent_links(limit)
                 return
+        except (TypeError, ValueError) as exc:
+            logger.error(
+                "TopPanelsController.refresh_recent: invalid args for async call: %s",
+                exc,
+                exc_info=True,
+            )
         except Exception:
             # Логируем ошибку вызова async-метода и переходим к синхронному пути
             logger.exception(
@@ -374,24 +350,28 @@ class TopPanelsController:
             )
             raise
 
+    @pyqtSlot()
     def _on_refresh_timeout(self) -> None:
         try:
             self.refresh_all()
         finally:
             self._pending_refresh = False
 
+    @pyqtSlot()
     def _on_fav_refresh_timeout(self) -> None:
         try:
             self.refresh_favorites()
         finally:
             self._pending_fav_refresh = False
 
+    @pyqtSlot()
     def _on_recent_refresh_timeout(self) -> None:
         try:
             self.refresh_recent()
         finally:
             self._pending_recent_refresh = False
 
+    @pyqtSlot()
     def _on_structure_refresh_timeout(self) -> None:
         """Единый обработчик таймаута для структурных событий.
 
@@ -430,12 +410,12 @@ class TopPanelsController:
                 )
 
     # --- Обработчики сигналов бизнес-слоя ---
-    def _on_favorite_links_loaded(self, items: list) -> None:
+    def _on_favorite_links_loaded(self, items: list[dict[str, object]] | list) -> None:
         widget = self.fav_widget
         try:
             if callable(getattr(widget, "set_data", None)):
                 widget.set_data(items)  # type: ignore[call-arg]
-            elif callable(getattr(widget, "set_favorites", None)):
+            elif isinstance(widget, SupportsSetFavorites):
                 # legacy fallback для тестовых стабов
                 widget.set_favorites(items)  # type: ignore[attr-defined]
             else:
@@ -452,12 +432,12 @@ class TopPanelsController:
             if self._strict:
                 raise
 
-    def _on_recent_links_loaded(self, items: list) -> None:
+    def _on_recent_links_loaded(self, items: list[dict[str, object]] | list) -> None:
         widget = self.recent_links_widget
         try:
             if callable(getattr(widget, "set_data", None)):
                 widget.set_data(items)  # type: ignore[call-arg]
-            elif callable(getattr(widget, "set_recent_links", None)):
+            elif isinstance(widget, SupportsSetRecentLinks):
                 # legacy fallback для тестовых стабов
                 widget.set_recent_links(items)  # type: ignore[attr-defined]
             else:
@@ -490,3 +470,33 @@ class TopPanelsController:
             return val
         except Exception:
             return _DEFAULT_DEBOUNCE_MS
+
+    def _supports_favorites_widget(self, widget: object) -> bool:
+        return callable(getattr(widget, "set_data", None)) or isinstance(
+            widget, (SupportsSetFavorites, FavoritesPanelWithClear)
+        )
+
+    def _supports_recent_widget(self, widget: object) -> bool:
+        return callable(getattr(widget, "set_data", None)) or isinstance(
+            widget, (SupportsSetRecentLinks, RecentsPanelWithLimit)
+        )
+
+    def _connect_business_signals(self) -> bool:
+        favorite_signal = getattr(self.links_business, "favorite_links_loaded", None)
+        recent_signal = getattr(self.links_business, "recent_links_loaded", None)
+        connected_all = True
+        if hasattr(favorite_signal, "connect"):
+            favorite_signal.connect(self._on_favorite_links_loaded)
+        else:
+            connected_all = False
+            logger.debug(
+                "TopPanelsController: business signal 'favorite_links_loaded' not present; falling back to sync mode"
+            )
+        if hasattr(recent_signal, "connect"):
+            recent_signal.connect(self._on_recent_links_loaded)
+        else:
+            connected_all = False
+            logger.debug(
+                "TopPanelsController: business signal 'recent_links_loaded' not present; falling back to sync mode"
+            )
+        return connected_all

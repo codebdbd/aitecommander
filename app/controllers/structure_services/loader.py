@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, List
+
+# Модульный логгер для диагностических сообщений
+logger = logging.getLogger(__name__)
 
 
 class LoaderService:
@@ -28,7 +32,11 @@ class LoaderService:
                 section["categories"] = categories
 
             return sections
-        except Exception as e:  # noqa: BLE001
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
-                logger.error("Ошибка загрузки структуры из БД: %s", e)
+                logger.error("Ошибка валидации данных при загрузке структуры: %s", e)
             return []
+        except Exception as e:
+            if logger:
+                logger.exception("Критическая ошибка загрузки структуры из БД")
+            raise  # Пробрасываем критические ошибки

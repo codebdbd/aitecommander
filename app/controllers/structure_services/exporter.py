@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import datetime
+import logging
 from typing import Any, Callable, Dict, List, Optional
+
+# Модульный логгер для диагностических сообщений
+logger = logging.getLogger(__name__)
 
 
 class ExportService:
@@ -60,9 +64,9 @@ class ExportService:
 
             return export_data
 
-        except Exception as e:  # noqa: BLE001 – логируем и пробрасываем вверх совместимый ответ
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
-                logger.error("Ошибка экспорта данных структуры: %s", e)
+                logger.error("Ошибка валидации данных при экспорте структуры: %s", e)
             return {
                 "spheres": [],
                 "sections": [],
@@ -71,3 +75,7 @@ class ExportService:
                 "current_sphere_id": None,
                 "error": str(e),
             }
+        except Exception as e:
+            if logger:
+                logger.exception("Критическая ошибка экспорта данных структуры")
+            raise  # Пробрасываем критические ошибки

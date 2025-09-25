@@ -149,7 +149,3 @@ def process_item(
     except Exception as e:
         logger.exception("Ошибка во время операции %s: %s", operation_name, e)
         return False
-
-
-# Внимание: поддерживается только новая сигнатура вызова `process_item(controller, data, item_type, ...)`.
-# Старая форма с передачей `self` первым аргументом удалена для упрощения API и поддержки.

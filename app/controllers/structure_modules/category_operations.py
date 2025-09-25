@@ -3,7 +3,13 @@
 """Модуль для операций с категориями."""
 
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
+from dataclasses import dataclass
+
+from .types import (
+    CategoryData, CategoryCreateData, CategoryUpdateData,
+    StructureItemType, SignalType, CategoryNestedCount
+)
 
 from app.models.structure_model import StructureModel
 from app.services.structure_service import StructureService
@@ -17,6 +23,32 @@ class SignalTypes:
     ITEM_ADDED = "item_added"
     ITEM_DELETED = "item_deleted"
     ITEM_UPDATED = "item_updated"
+
+
+@dataclass
+class CategoryDeletionInfo:
+    """Информация об удалении категории."""
+    
+    success: bool
+    category_data: CategoryData
+    links_count: int
+    
+    @classmethod
+    def create_empty(cls) -> "CategoryDeletionInfo":
+        """Создает пустую информацию об удалении."""
+        empty_category: CategoryData = {  # type: ignore
+            "id": 0,
+            "name": "",
+            "section_id": 0,
+            "description": None,
+            "position": 0,
+            "is_active": False,
+            "color": None,
+            "icon": None,
+            "created_at": None,
+            "updated_at": None
+        }
+        return cls(False, empty_category, 0)
 
 
 class CategoryOperations(BaseOperations):
@@ -41,7 +73,7 @@ class CategoryOperations(BaseOperations):
         except Exception:
             self._structure_service = None
 
-    def create_category(self, data: Dict[str, Any]) -> bool:
+    def create_category(self, data: CategoryCreateData) -> bool:
         """Создает новую категорию."""
         # Делегируем в универсальный метод базового класса
         result = self.create_item(StructureItemType.CATEGORY, data)
@@ -49,7 +81,7 @@ class CategoryOperations(BaseOperations):
             self._cache_manager.invalidate_first_category_cache()
         return result
 
-    def update_category(self, category_id: int, data: Dict[str, Any]) -> bool:
+    def update_category(self, category_id: int, data: CategoryUpdateData) -> bool:
         """Обновляет существующую категорию."""
         # Делегируем в универсальный метод базового класса
         result = self.update_item(StructureItemType.CATEGORY, category_id, data)
@@ -57,8 +89,8 @@ class CategoryOperations(BaseOperations):
             self._cache_manager.invalidate_first_category_cache()
         return result
 
-    def delete_category(self, category_id: int) -> Tuple[bool, Dict[str, Any], int]:
-        """Удаляет категорию. Возвращает (успех, данные_категории, количество_ссылок)."""
+    def delete_category(self, category_id: int) -> CategoryDeletionInfo:
+        """Удаляет категорию. Возвращает информацию об удалении."""
 
         def _delete_category_operation():
             # Получаем данные категории
@@ -66,7 +98,10 @@ class CategoryOperations(BaseOperations):
             if not category_data:
                 error_msg = f"Категория с ID {category_id} не найдена"
                 self.logger.error(error_msg)
-                return False, {}, 0
+                return CategoryDeletionInfo.create_empty()
+            
+            # ✅ Преобразуем в строго типизированные данные
+            typed_category_data: CategoryData = category_data  # type: ignore
 
             # Подсчитываем количество связанных ссылок
             links_count = self._count_category_links(category_id)
@@ -77,21 +112,22 @@ class CategoryOperations(BaseOperations):
                 links_count,
             )
 
-            return True, category_data, links_count
+            return CategoryDeletionInfo(True, typed_category_data, links_count)
 
         return self._execute_with_error_handling(
             _delete_category_operation,
             f"получить данные категории {category_id}",
-            default_return=(False, {}, 0),
+            default_return=CategoryDeletionInfo.create_empty(),
         )
 
     def confirm_delete_category(self, category_id: int) -> bool:
         """Подтверждает и выполняет удаление категории."""
         if not self._structure_service:
+            def _raise_service_error():
+                raise RuntimeError("StructureService недоступен для удаления категории")
+            
             return self._execute_with_error_handling(
-                lambda: (_ for _ in ()).throw(
-                    RuntimeError("StructureService недоступен для удаления категории")
-                ),
+                _raise_service_error,
                 f"удалить категорию {category_id}",
                 default_return=False,
             )

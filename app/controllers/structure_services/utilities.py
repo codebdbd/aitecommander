@@ -21,14 +21,20 @@ class UtilityService:
         try:
             links = model.get_links(category_id)
             return links or []
-        except Exception as e:
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
                 logger.error(
-                    "Ошибка получения ссылок для категории %s: %s",
+                    "Ошибка валидации данных при получении ссылок для категории %s: %s",
                     category_id,
                     e,
                 )
             return []
+        except Exception as e:
+            if logger:
+                logger.exception(
+                    "Критическая ошибка получения ссылок для категории %s", category_id
+                )
+            raise  # Пробрасываем критические ошибки
 
     def get_item_for_editing(
         self,
@@ -46,15 +52,21 @@ class UtilityService:
             if item_type == "category":
                 return get_category_data(item_id)
             return None
-        except Exception as e:
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
                 logger.error(
-                    "Ошибка получения данных элемента %s типа %s: %s",
+                    "Ошибка валидации данных при получении элемента %s типа %s: %s",
                     item_id,
                     item_type,
                     e,
                 )
             return None
+        except Exception as e:
+            if logger:
+                logger.exception(
+                    "Критическая ошибка получения элемента %s типа %s", item_id, item_type
+                )
+            raise  # Пробрасываем критические ошибки
 
     def get_category_hierarchy(
         self,
@@ -140,7 +152,10 @@ class UtilityService:
         cache_get: Callable[[str], Any],
         cache_set: Callable[[str, Any], None],
     ) -> Optional[int]:
-        # Логика идентична get_target_section_id
+        """Алиас для get_target_section_id для обратной совместимости.
+        
+        Использует ту же логику, что и get_target_section_id.
+        """
         return self.get_target_section_id(
             current_sphere_id,
             get_sections,
@@ -202,7 +217,11 @@ class UtilityService:
                 except Exception:
                     pass
             return True
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
+            if logger:
+                logger.error("Ошибка валидации данных при обновлении позиций в %s: %s", table_name, e)
+            return False
         except Exception as e:
             if logger:
-                logger.error("Ошибка обновления позиций в %s: %s", table_name, e)
-            return False
+                logger.exception("Критическая ошибка обновления позиций в %s", table_name)
+            raise  # Пробрасываем критические ошибки

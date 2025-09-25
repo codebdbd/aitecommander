@@ -4,7 +4,12 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
+
+from .types import (
+    SectionData, SectionCreateData, SectionUpdateData,
+    StructureItemType, SignalType, SectionNestedCount
+)
 
 from app.models.structure_model import StructureModel
 from app.services.structure_service import StructureService
@@ -17,14 +22,24 @@ class DeletionInfo:
     """Информация об удалении раздела."""
 
     success: bool
-    section_data: Dict[str, Any]
+    section_data: SectionData
     categories_count: int
     links_count: int
 
     @classmethod
     def create_empty(cls) -> "DeletionInfo":
-        """Создает пустую информацию об удалении."""
-        return cls(False, {}, 0, 0)
+        """Создаёт пустой объект для случаев ошибок."""
+        empty_section: SectionData = {  # type: ignore
+            "id": 0,
+            "name": "",
+            "sphere_id": 0,
+            "description": None,
+            "position": 0,
+            "is_active": False,
+            "created_at": None,
+            "updated_at": None
+        }
+        return cls(False, empty_section, 0, 0)
 
 
 class SectionOperations(BaseOperations):
@@ -58,7 +73,7 @@ class SectionOperations(BaseOperations):
             # Фоллбек на прямую модель (не должен использоваться при нормальной конфигурации)
             self._structure_service = None
 
-    def create_section(self, data: Dict[str, Any]) -> bool:
+    def create_section(self, data: SectionCreateData) -> bool:
         """
         Создает новый раздел.
 
@@ -72,7 +87,7 @@ class SectionOperations(BaseOperations):
         # Делегируем в универсальный метод базового класса
         return self.create_item(StructureItemType.SECTION, data)
 
-    def update_section(self, section_id: int, data: Dict[str, Any]) -> bool:
+    def update_section(self, section_id: int, data: SectionUpdateData) -> bool:
         """
         Обновляет существующий раздел.
 
@@ -87,26 +102,18 @@ class SectionOperations(BaseOperations):
         # Делегируем в универсальный метод базового класса
         return self.update_item(StructureItemType.SECTION, section_id, data)
 
-    def delete_section(self, section_id: int) -> Tuple[bool, Dict[str, Any], int, int]:
-        """
-        Удаляет раздел. Возвращает информацию об удалении.
+    def delete_section(self, section_id: int) -> DeletionInfo:
+        """Удаляет раздел. Возвращает информацию об удалении.
 
         Args:
             section_id: ID раздела для удаления
 
         Returns:
-            Tuple[bool, Dict[str, Any], int, int]:
-            (успех, данные_раздела, количество_категорий, количество_ссылок)
+            DeletionInfo: Информация об удалении (успех, данные, количество категорий, количество ссылок)
         """
         self._log_operation_start(f"подготовка удаления раздела {section_id}")
 
-        deletion_info = self._prepare_section_deletion(section_id)
-        return (
-            deletion_info.success,
-            deletion_info.section_data,
-            deletion_info.categories_count,
-            deletion_info.links_count,
-        )
+        return self._prepare_section_deletion(section_id)
 
     def confirm_delete_section(self, section_id: int) -> bool:
         """
@@ -191,10 +198,11 @@ class SectionOperations(BaseOperations):
     def _execute_section_deletion(self, section_id: int) -> bool:
         """Выполняет фактическое удаление раздела."""
         if not self._structure_service:
+            def _raise_service_error():
+                raise RuntimeError("StructureService недоступен для удаления раздела")
+            
             return self._execute_with_error_handling(
-                lambda: (_ for _ in ()).throw(
-                    RuntimeError("StructureService недоступен для удаления раздела")
-                ),
+                _raise_service_error,
                 f"удалить раздел {section_id}",
                 default_return=False,
             )
@@ -332,7 +340,7 @@ class SectionOperations(BaseOperations):
         )
         return result if result is not None else False
 
-    def _count_nested_objects(self, section_id: int) -> Tuple[int, int]:
+    def _count_nested_objects(self, section_id: int) -> tuple[int, int]:
         """
         Подсчитывает категории и ссылки в разделе.
 
@@ -340,11 +348,11 @@ class SectionOperations(BaseOperations):
             section_id: ID раздела
 
         Returns:
-            Tuple[int, int]: Количество категорий и ссылок
+            tuple[int, int]: Количество категорий и ссылок
         """
         return self.structure_model.count_nested_objects_for_section(section_id)
 
-    def _count_nested_objects_for_section(self, section_id: int) -> Tuple[int, int]:
+    def _count_nested_objects_for_section(self, section_id: int) -> tuple[int, int]:
         """
         Подсчитывает категории и ссылки в разделе через единый интерфейс модели.
 
@@ -354,7 +362,7 @@ class SectionOperations(BaseOperations):
             section_id: ID раздела
 
         Returns:
-            Tuple[int, int]: Количество категорий и ссылок
+            tuple[int, int]: Количество категорий и ссылок
         """
         return self.structure_model.count_nested_objects_for_section(section_id)
 

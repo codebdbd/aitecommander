@@ -4,29 +4,23 @@
 
 import logging
 from enum import Enum
-from typing import Any, Callable, Dict, Optional, Protocol
+from .types import StructureItemType as ImportedStructureItemType
+from typing import Any, Callable, Dict, Optional
+
+from .types import (
+    StructureItemType, SignalType, AnyItemData, AnyCreateData, AnyUpdateData,
+    OperationResult, ItemTypeConfig
+)
+from .validators import validate_and_raise, safe_validate, ValidationError
+from typing import Protocol
 
 logger = logging.getLogger(__name__)
 
 
-class StructureItemType(Enum):
-    """Типы элементов структуры для валидации и CRUD операций."""
+# ✅ Используем импортированный StructureItemType из types.py
+StructureItemType = ImportedStructureItemType
 
-    SECTION = "section"
-    CATEGORY = "category"
-    LINK = "link"  # Добавлен для полноты
-
-
-class ValidationError(Exception):
-    """Исключение для ошибок валидации."""
-
-    def __init__(
-        self, message: str, field: Optional[str] = None, item_type: Optional[str] = None
-    ):
-        super().__init__(message)
-        self.field = field
-        self.item_type = item_type
-        self.message = message
+# ValidationError импортируется из validators.py
 
 
 class StructureOperationError(Exception):
@@ -39,104 +33,8 @@ class StructureOperationError(Exception):
         self.message = message
 
 
-# Типы элементов для сигналов (строковые литералы) - сохраняем для обратной совместимости
-ItemTypeStr = str  # "section" | "category" | "link"
-
-
-class ItemTypes:
-    """Константы типов элементов для использования в сигналах и методах импорта."""
-
-    SECTION = "section"
-    CATEGORY = "category"
-    LINK = "link"
-
-    # Множество всех допустимых типов для валидации
-    ALL = {SECTION, CATEGORY, LINK}
-
-    # Маппинг типов на parent_id поля
-    PARENT_FIELDS: Dict[str, str] = {
-        SECTION: "sphere_id",
-        CATEGORY: "section_id",
-        LINK: "category_id",
-    }
-
-
-class StructureModelProtocol(Protocol):
-    """Протокол для модели структуры."""
-
-    def upsert_section(self, data: Dict[str, Any]) -> int:
-        """Создает или обновляет раздел."""
-        ...
-
-    def upsert_category(self, data: Dict[str, Any]) -> int:
-        """Создает или обновляет категорию."""
-        ...
-
-    def upsert_link(self, data: Dict[str, Any]) -> int:
-        """Создает или обновляет ссылку."""
-        ...
-
-
-class SignalEmitterProtocol(Protocol):
-    """Протокол для эмиттера сигналов."""
-
-    def emit_signal(
-        self, signal_type: str, item_type: str, parent_or_id: int, data: Dict[str, Any]
-    ) -> None:
-        """Эмитирует сигнал."""
-        ...
-
-
-class ItemTypeConfig:
-    """Конфигурация для типа элемента структуры."""
-
-    def __init__(
-        self,
-        item_type: StructureItemType,
-        parent_field: str,
-        ru_name: str,
-        upsert_method_name: str,
-    ):
-        self.item_type = item_type
-        self.parent_field = parent_field
-        self.ru_name = ru_name
-        self.upsert_method_name = upsert_method_name
-
-
-class ItemTypeRegistry:
-    """Реестр конфигураций для типов элементов."""
-
-    _configs = {
-        StructureItemType.SECTION: ItemTypeConfig(
-            StructureItemType.SECTION, "sphere_id", "раздел", "upsert_section"
-        ),
-        StructureItemType.CATEGORY: ItemTypeConfig(
-            StructureItemType.CATEGORY, "section_id", "категория", "upsert_category"
-        ),
-        StructureItemType.LINK: ItemTypeConfig(
-            StructureItemType.LINK, "category_id", "ссылка", "upsert_link"
-        ),
-    }
-
-    @classmethod
-    def get_config(cls, item_type: StructureItemType) -> ItemTypeConfig:
-        """Получает конфигурацию для типа элемента."""
-        if item_type not in cls._configs:
-            raise ValueError(f"Unsupported item_type: {item_type}")
-        return cls._configs[item_type]
-
-    @classmethod
-    def is_supported(cls, item_type: StructureItemType) -> bool:
-        """Проверяет, поддерживается ли тип элемента."""
-        return item_type in cls._configs
-
-
-class SignalType:
-    """Константы типов сигналов."""
-
-    ITEM_ADDED = "item_added"
-    ITEM_UPDATED = "item_updated"
-    ITEM_DELETED = "item_deleted"
+# ✅ Используем импортированный SignalType из types.py
+# SignalType уже импортирован выше
 
 
 class StructureLogger:
@@ -168,7 +66,7 @@ class StructureSignalEmitter:
         self._emit_signal = emit_signal_func
 
     def emit(
-        self, signal_type: str, item_type: str, parent_or_id: int, data: Dict[str, Any]
+        self, signal_type: str, item_type: str, parent_or_id: int, data: AnyItemData
     ) -> None:
         """Эмитирует сигнал."""
         if not self._emit_signal:
@@ -176,9 +74,44 @@ class StructureSignalEmitter:
 
         try:
             self._emit_signal(signal_type, item_type, parent_or_id, data)
-        except Exception as e:
-            # Логируем, но не прерываем выполнение основной операции
+        except (AttributeError, TypeError, ValueError) as e:
+            # ✅ Ожидаемые ошибки - логируем warning
             logger.warning("Ошибка эмиссии сигнала: %s", e)
+        except Exception as e:
+            # ✅ Неожиданные ошибки - полный traceback и проброс
+            logger.exception("Критическая ошибка эмиссии сигнала: %s", e)
+            raise
+
+
+# ItemTypeConfig импортируется из types.py
+
+
+class ItemTypeRegistry:
+    """Реестр конфигураций для типов элементов."""
+
+    _configs = {
+        StructureItemType.SPHERE: ItemTypeConfig(
+            StructureItemType.SPHERE, "parent_id", "сфера", "upsert_sphere"
+        ),
+        StructureItemType.SECTION: ItemTypeConfig(
+            StructureItemType.SECTION, "sphere_id", "раздел", "upsert_section"
+        ),
+        StructureItemType.CATEGORY: ItemTypeConfig(
+            StructureItemType.CATEGORY, "section_id", "категория", "upsert_category"
+        ),
+    }
+
+    @classmethod
+    def get_config(cls, item_type: StructureItemType) -> ItemTypeConfig:
+        """Получает конфигурацию для типа элемента."""
+        if item_type not in cls._configs:
+            raise ValueError(f"Unsupported item_type: {item_type}")
+        return cls._configs[item_type]
+
+    @classmethod
+    def is_supported(cls, item_type: StructureItemType) -> bool:
+        """Проверяет, поддерживается ли тип элемента."""
+        return item_type in cls._configs
 
 
 class BaseOperations:
@@ -192,7 +125,7 @@ class BaseOperations:
 
     def __init__(
         self,
-        structure_model: StructureModelProtocol,
+        structure_model: Any,  # StructureModel из app.models.structure_model
         logger: logging.Logger,
         execute_with_error_handling: Callable,
         emit_signal_func: Optional[
@@ -293,11 +226,22 @@ class BaseOperations:
         is_update: bool,
         item_id: Optional[int],
         emit_signal: Callable[[str, str, int, Dict[str, Any]], None],
-    ) -> bool:
-        """Единый upsert с формированием данных для сигнала и логированием.
+    ) -> Optional[int]:
+        """Универсальный метод для создания/обновления элементов структуры.
 
-        Не выполняет валидацию — предполагается, что она уже была.
+        ✅ Выполняет runtime валидацию данных перед обработкой.
         """
+        # ✅ Runtime валидация входных данных
+        try:
+            validate_and_raise(data, item_type, is_update)
+        except ValidationError as e:
+            logger.error("Validation failed for %s: %s", item_type.value, e.message)
+            raise StructureOperationError(
+                f"Invalid data for {item_type.value}: {e.message}",
+                "validation",
+                item_type.value
+            ) from e
+        
         # Проверка поддержки типа элемента
         if not ItemTypeRegistry.is_supported(item_type):
             raise StructureOperationError(
@@ -306,12 +250,14 @@ class BaseOperations:
 
         config = ItemTypeRegistry.get_config(item_type)
 
-        # Создаем копию данных для избежания мутации исходных данных
-        data_copy = data.copy()
-
-        # Если обновление — проставляем id
+        # ✅ Копируем только при необходимости (оптимизация)
         if is_update and item_id is not None:
+            data_copy = data.copy()
             data_copy["id"] = item_id
+        else:
+            data_copy = data
+
+        # ✅ Оптимизация: id уже установлен выше при копировании
 
         # Выполнение upsert операции
         upsert_method = getattr(self.structure_model, config.upsert_method_name, None)
@@ -333,6 +279,9 @@ class BaseOperations:
 
         # Подготовка данных сигнала
         if not is_update:
+            # ✅ Копируем только если не копировали раньше
+            if data_copy is data:
+                data_copy = data.copy()
             data_copy["id"] = result_id
             signal_type = SignalType.ITEM_ADDED
             signal_parent_or_id = data_copy[config.parent_field]
@@ -340,37 +289,35 @@ class BaseOperations:
             signal_type = SignalType.ITEM_UPDATED
             signal_parent_or_id = item_id  # type: ignore[arg-type]
 
-        emit_signal(signal_type, item_type.value, signal_parent_or_id, data_copy)
+        emit_signal(signal_type.value, item_type.value, signal_parent_or_id, data_copy)
 
-        # Логирование
+        # Логирование с указанием валидации
         operation_name = "обновлен" if is_update else "создан"
-        self.slogger.log_operation(
+        logger.info(
+            "✅ %s %s '%s' (валидация пройдена)",
+            config.ru_name.capitalize(),
             operation_name,
-            item_type.value,
-            data_copy.get("name", "без имени"),
-            config.ru_name,
+            data_copy.get("name", "без имени")
         )
 
-        return True
+        return result_id
 
     def _process_item(
         self,
-        data: Dict[str, Any],
         item_type: StructureItemType,
-        item_id: Optional[int] = None,
+        data: AnyItemData,
+        emit_signal: "StructureSignalEmitter",
         is_update: bool = False,
-        *,
-        require_parent: bool = True,
-    ) -> bool:
+        item_id: Optional[int] = None,
+    ) -> Optional[int]:
         """Универсальный метод для создания/обновления элементов структуры.
 
         Args:
-            data: Данные элемента
-            item_type: Тип элемента структуры
-            item_id: ID элемента для обновления
-            is_update: Флаг обновления
-            require_parent: Требовать наличие родительского идентификатора. По умолчанию True.
-                Отключайте только явно, если операция допускает отсутствие родителя.
+            item_type: тип элемента структуры
+            data: данные элемента
+            emit_signal: эмиттер сигналов
+            is_update: флаг обновления
+            item_id: идентификатор элемента для обновления
         """
 
         def _process_operation():
@@ -379,7 +326,7 @@ class BaseOperations:
                 data=data,
                 is_update=is_update,
                 item_id=item_id,
-                emit_signal=self._emit_signal,
+                emit_signal=emit_signal.emit,
             )
 
         operation_name = "обновления" if is_update else "создания"
@@ -388,18 +335,12 @@ class BaseOperations:
             data,
             item_type,
             operation_name,
-            require_parent=require_parent,
+            require_parent=True,
         )
-        return result if result is not None else False
+        return result if result is not None else None
 
     # === Публичные универсальные CRUD-обёртки ===
-    def create_item(
-        self,
-        item_type: StructureItemType,
-        data: Dict[str, Any],
-        *,
-        require_parent: bool = True,
-    ) -> bool:
+    def create_item(self, item_type: StructureItemType, data: AnyCreateData) -> bool:
         """Создает элемент указанного типа через универсальную логику.
 
         Делегирует в `_process_item`, сохраняя политику валидации, сигналов и логирования.
@@ -412,21 +353,20 @@ class BaseOperations:
         Returns:
             bool: успех операции
         """
-        return self._process_item(
-            data,
+        result = self._process_item(
             item_type,
-            item_id=None,
+            data,
+            self.signal_emitter,
             is_update=False,
-            require_parent=require_parent,
+            item_id=None,
         )
+        return result is not None
 
     def update_item(
         self,
         item_type: StructureItemType,
         item_id: int,
-        data: Dict[str, Any],
-        *,
-        require_parent: bool = True,
+        data: AnyUpdateData,
     ) -> bool:
         """Обновляет элемент указанного типа через универсальную логику.
 
@@ -436,18 +376,18 @@ class BaseOperations:
             item_type: тип элемента структуры
             item_id: идентификатор обновляемого элемента
             data: новые данные элемента
-            require_parent: требовать ли наличие родительского идентификатора
 
         Returns:
             bool: успех операции
         """
-        return self._process_item(
-            data,
+        result = self._process_item(
             item_type,
-            item_id=item_id,
+            data,
+            self.signal_emitter,
             is_update=True,
-            require_parent=require_parent,
+            item_id=item_id,
         )
+        return result is not None
 
     def delete_item(
         self,

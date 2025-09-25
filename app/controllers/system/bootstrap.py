@@ -1,5 +1,6 @@
 # app/controllers/bootstrap.py
 from dataclasses import dataclass
+from typing import Any, Protocol, runtime_checkable
 
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.business.links_business import LinksBusinessLogic
@@ -10,7 +11,21 @@ from app.controllers.ui.dialogs import (
     SystemDialogController,
 )
 from app.controllers.ui.links import LinksUIController
-from app.controllers.ui.structure import StructureUIController
+from app.controllers.ui.structure.structure_ui_controller import StructureUIController
+
+
+# ✅ Добавлен протокол для валидации входных параметров
+@runtime_checkable
+class WindowWithRequiredAttributes(Protocol):
+    """Протокол для окна с обязательными атрибутами.
+    
+    Определяет минимальный интерфейс, который должно предоставлять главное окно
+    для корректной работы контроллеров.
+    """
+    db: Any  # Database instance
+    tree: Any  # QTreeView for structure
+    table: Any  # QTableView for links
+    undo_stack: Any  # QUndoStack for operations
 
 
 @dataclass
@@ -25,11 +40,22 @@ class ControllersFacade:
     app_shutdown: AppShutdownController
 
 
-def build_controllers(window) -> ControllersFacade:
+def build_controllers(window: WindowWithRequiredAttributes) -> ControllersFacade:
     """
     Создаёт и возвращает фасад контроллеров/бизнес-логики для главного окна.
     Ожидает, что у окна есть: db, tree, table, undo_stack.
+    
+    Args:
+        window: Окно с обязательными атрибутами (db, tree, table, undo_stack)
+        
+    Returns:
+        ControllersFacade: Фасад со всеми настроенными контроллерами
+        
+    Raises:
+        AttributeError: Если у окна отсутствуют обязательные атрибуты
     """
+    # ✅ Валидация обязательных атрибутов
+    _validate_window_attributes(window)
     # Бизнес-логика
     structure_business = StructureBusinessLogic(window.db)
     links_business = LinksBusinessLogic(window.db)
@@ -57,6 +83,22 @@ def build_controllers(window) -> ControllersFacade:
         system_dialogs=sys_dialogs,
         app_shutdown=app_shutdown,
     )
+
+
+def _validate_window_attributes(window: Any) -> None:
+    """Валидация обязательных атрибутов окна."""
+    required_attrs = ["db", "tree", "table", "undo_stack"]
+    missing_attrs = []
+    
+    for attr in required_attrs:
+        if not hasattr(window, attr):
+            missing_attrs.append(attr)
+    
+    if missing_attrs:
+        raise AttributeError(
+            f"Window is missing required attributes: {', '.join(missing_attrs)}. "
+            f"Required attributes: {', '.join(required_attrs)}"
+        )
 
 
 def create_main_window(settings, theme_ctrl, db):

@@ -1,15 +1,14 @@
 import logging
-import re
-from collections import OrderedDict
-from pathlib import Path
-from threading import RLock
 from typing import Any, Dict, List, Optional, Tuple
 
-from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
 from app.utils.ui.icon.cache_manager import clear_icon_cache
+from app.services.theme_stylesheet_service import (
+    ThemeStylesheetService,
+    configure_qicon_theme,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,29 +26,17 @@ class ThemeController:
         gui_scheduler: Optional[callable] = None,
         *,
         top_panels_controller: Optional[Any] = None,
+        stylesheet_service: Optional[ThemeStylesheetService] = None,
     ):
         """Инициализация контроллера тем."""
         self.settings = settings
         self.main_window = main_window
         # TopPanelsController может быть внедрён позже через set_top_panels_controller()
         self.top_panels_controller = top_panels_controller
-        self._qss_cache: OrderedDict[str, str] = OrderedDict()
-        self._common_qss: Optional[str] = None
         self._themes: List[Dict[str, Any]] = []
-        # Ограничение размера кэша (конфигурируемое)
-        try:
-            self._max_cache_size = int(getattr(app_config, "qss_cache_size", 10))
-        except Exception:
-            self._max_cache_size = 10
-        # Нормализация: не допускаем отрицательных значений, чтобы избежать некорректной очистки кэша
-        if self._max_cache_size < 0:
-            logger.warning(
-                "ThemeController: отрицательный размер кэша (%s) нормализован до 0",
-                self._max_cache_size,
-            )
-            self._max_cache_size = 0
-        # Блокировка для потокобезопасности работы с кэшем
-        self._cache_lock = RLock()
+        self._stylesheet_service = stylesheet_service or ThemeStylesheetService(
+            app_config
+        )
         # Инъекция зависимостей для тестируемости
         self._stylesheet_applier = stylesheet_applier  # Callable[[str], None]
         self._gui_scheduler = gui_scheduler  # Callable[[Callable[[], None]], None]
@@ -106,39 +93,6 @@ class ThemeController:
                 "is_dark": True,
             },
         ]
-
-    def _is_safe_filename(self, filename: str) -> bool:
-        """Проверяет, является ли имя файла безопасным (предотвращает path traversal)."""
-        # Проверяем, что имя файла не содержит опасных символов
-        if not filename or re.search(r'[<>:"/\\|?*]', filename):
-            return False
-        # Проверяем, что путь не содержит подкаталогов
-        if ".." in filename or "/" in filename or "\\" in filename:
-            return False
-        # Проверяем, что расширение файла .qss
-        if not filename.endswith(".qss"):
-            return False
-        return True
-
-    def _manage_cache_size(self) -> None:
-        """Управляет размером кэша по политике LRU: удаляет самые старые записи."""
-        with self._cache_lock:
-            removed = 0
-            # Быстрый путь: нулевой/отрицательный размер кэша означает «без кэширования»
-            if self._max_cache_size <= 0:
-                if self._qss_cache:
-                    removed = len(self._qss_cache)
-                    self._qss_cache.clear()
-                if removed:
-                    logger.debug("Кэш тем отключён, очищено %d записей", removed)
-                return
-
-            while len(self._qss_cache) > self._max_cache_size:
-                # Удаляем самый старый элемент (LRU)
-                key, _ = self._qss_cache.popitem(last=False)
-                removed += 1
-            if removed:
-                logger.debug("Кэш тем уменьшен по LRU, удалено %d записей", removed)
 
     def is_dark(self) -> bool:
         """Проверяет, является ли текущая тема тёмной."""
@@ -208,105 +162,6 @@ class ThemeController:
             # Возвращаем темы по умолчанию в случае ошибки
             return [("light", "Светлая"), ("dark", "Тёмная")]
 
-    def _load_common_qss(self) -> bool:
-        """Загружает общие QSS стили."""
-        with self._cache_lock:
-            if self._common_qss is not None:
-                return True
-        common_path = app_config.paths.get_qss_dir() / "common.qss"
-        if not common_path.exists():
-            logger.warning("Файл общих стилей не найден: %s", common_path)
-            with self._cache_lock:
-                self._common_qss = ""
-            return False
-        try:
-            with common_path.open("r", encoding="utf-8") as f:
-                content = f.read()
-            with self._cache_lock:
-                self._common_qss = content
-            logger.debug("Загружены общие стили из %s", common_path)
-            return True
-        except UnicodeDecodeError as exc:
-            logger.error("Ошибка декодирования файла общих стилей: %s", exc)
-            with self._cache_lock:
-                self._common_qss = ""
-            return False
-        except PermissionError as exc:
-            logger.error("Ошибка доступа к файлу общих стилей: %s", exc)
-            with self._cache_lock:
-                self._common_qss = ""
-            return False
-        except OSError as exc:
-            logger.error("Ошибка загрузки общих стилей: %s", exc)
-            with self._cache_lock:
-                self._common_qss = ""
-            return False
-        except Exception as exc:
-            logger.error(
-                "Неожиданная ошибка при загрузке общих стилей: %s", exc, exc_info=True
-            )
-            with self._cache_lock:
-                self._common_qss = ""
-            return False
-
-    def _load_theme_qss(self, theme_name: str, theme_path: Path) -> Optional[str]:
-        """Загружает и кэширует QSS темы."""
-        with self._cache_lock:
-            if theme_name in self._qss_cache:
-                # Помечаем как недавно использованную запись (LRU)
-                self._qss_cache.move_to_end(theme_name, last=True)
-                return self._qss_cache[theme_name]
-
-        # Управляем размером кэша
-        self._manage_cache_size()
-
-        if not theme_path.exists():
-            logger.error("Файл темы не найден: %s", theme_path)
-            return None
-        try:
-            with theme_path.open("r", encoding="utf-8") as f:
-                theme_qss = f.read()
-            self._load_common_qss()
-            with self._cache_lock:
-                # Комбинируем общие стили и стили темы
-                combined_qss = f"{self._common_qss}\n{theme_qss}"
-
-                # Добавляем перекрывающий блок QSS с параметрами из конфигурации.
-                # Это гарантирует применение размеров шрифтов меню/меню-бара и размеров иконок/индикаторов,
-                # даже если они захардкожены в файле темы. Поздние правила с одинаковой специфичностью побеждают.
-                try:
-                    overrides = self._build_config_overrides_qss()
-                    if overrides:
-                        combined_qss = f"{combined_qss}\n\n/* ==== AppConfig overrides (auto-generated) ==== */\n{overrides}"
-                except Exception as exc:
-                    # Не валим применение темы из‑за ошибок построения оверрайдов
-                    logger.warning(
-                        "Не удалось построить QSS-оверрайды из конфигурации: %s", exc
-                    )
-                self._qss_cache[theme_name] = combined_qss
-                # Помечаем как недавно использованную и следим за размером
-                self._qss_cache.move_to_end(theme_name, last=True)
-                self._manage_cache_size()
-            logger.debug("Загружена и кэширована тема: %s", theme_name)
-            return combined_qss
-        except UnicodeDecodeError as exc:
-            logger.error("Ошибка декодирования файла темы %s: %s", theme_name, exc)
-            return None
-        except PermissionError as exc:
-            logger.error("Ошибка доступа к файлу темы %s: %s", theme_name, exc)
-            return None
-        except OSError as exc:
-            logger.error("Ошибка загрузки темы %s: %s", theme_name, exc)
-            return None
-        except Exception as exc:
-            logger.error(
-                "Неожиданная ошибка при загрузке темы %s: %s",
-                theme_name,
-                exc,
-                exc_info=True,
-            )
-            return None
-
     def apply(self, name: str) -> bool:
         """Применяет тему по имени и сохраняет в настройки."""
         normalized_name = self._normalize_theme_input(name)
@@ -319,32 +174,6 @@ class ThemeController:
             logger.error("QSS файл не указан для темы: %s", name)
             return False
 
-        # Проверяем, что имя файла безопасно
-        if not self._is_safe_filename(qss_file):
-            logger.error("Небезопасное имя файла темы: %s", qss_file)
-            return False
-
-        theme_path = app_config.paths.get_qss_dir() / qss_file
-
-        # Дополнительная проверка пути
-        try:
-            # Проверяем, что путь находится внутри директории тем
-            qss_dir = app_config.paths.get_qss_dir().resolve()
-            full_path = theme_path.resolve()
-            if not str(full_path).startswith(str(qss_dir)):
-                logger.error(
-                    "Попытка доступа к файлу вне директории тем: %s", theme_path
-                )
-                return False
-        except Exception as exc:
-            logger.error(
-                "Ошибка проверки пути к файлу темы %s: %s",
-                theme_path,
-                exc,
-                exc_info=True,
-            )
-            return False
-
         # Кэшируем и ищем по каноническому имени, чтобы избежать дублей ключей
         canonical_name = theme_config.get("name", normalized_name)
         # ВАЖНО: инвалидируем кэш общих/темовых QSS перед загрузкой,
@@ -352,7 +181,7 @@ class ThemeController:
         # (особенно common.qss) без перезапуска приложения.
         # Это безопасно: кэш восстановится при чтении ниже.
         self.clear_cache()
-        qss_content = self._load_theme_qss(canonical_name, theme_path)
+        qss_content = self._stylesheet_service.load_stylesheet(canonical_name, qss_file)
         if qss_content is None:
             logger.error("Не удалось загрузить QSS для темы: %s", name)
             return False
@@ -372,7 +201,7 @@ class ThemeController:
 
             # Инициализируем тему иконок Qt
             try:
-                self._apply_qt_icon_theme(canonical_name)
+                configure_qicon_theme(canonical_name, app_config)
             except Exception as icon_exc:
                 logger.warning(
                     "Не удалось применить тему иконок Qt: %s", icon_exc, exc_info=True
@@ -390,11 +219,7 @@ class ThemeController:
 
     def clear_cache(self) -> None:
         """Очищает кэш QSS."""
-        with self._cache_lock:
-            cache_size = len(self._qss_cache)
-            self._qss_cache.clear()
-            self._common_qss = None
-        logger.debug("Кэш тем очищен, удалено %d записей", cache_size)
+        self._stylesheet_service.clear_cache()
 
     def apply_and_refresh_ui(self) -> None:
         """Централизованно обновляет UI после применения темы.
@@ -512,8 +337,6 @@ class ThemeController:
         # Не переустанавливаем размеры шрифтов при смене темы.
         # Базовый размер приложения и точечные размеры для меню/меню-бара управляются отдельно,
         # а пользовательские размеры дерева/таблицы не должны затрагиваться темой.
-
-    # Валидатор тем более не требуется, так как темы фиксированы
 
     def _apply_qt_icon_theme(self, theme_name: str) -> None:
         """Устанавливает тему и пути поиска иконок Qt для корректного отображения стандартных иконок.

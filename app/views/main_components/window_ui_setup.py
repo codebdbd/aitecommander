@@ -317,216 +317,72 @@ class WindowUISetup:
             self.window._topbar_manager = None
             logger.exception("TopPanel: failed to initialize TopBarLayoutManager")
             return
+        mgr = getattr(self.window, "_topbar_manager", None)
+        if not mgr:
+            return
         try:
-            mgr = getattr(self.window, "_topbar_manager", None)
-            if not mgr:
-                return
             if hasattr(self.window, "shown"):
-                # type: ignore[attr-defined]
-                # Пересчитать и показать атомарно: сначала adjust, затем показать хост
-                self.window.shown.connect(
-                    partial(self._post_shown_adjust_and_show_host, mgr)
-                )
-                # Повторный проход через ~1 кадр для страховки
-                self.window.shown.connect(partial(self._post_shown_second_adjust, mgr))
+                self.window.shown.connect(partial(self._schedule_topbar_initialization, mgr))
             else:
-                # Фолбэк: если сигнала shown нет, пересчитать в следующий тик дважды
-                self._fallback_schedule_adjusts(mgr)
+                QTimer.singleShot(0, partial(self._schedule_topbar_initialization, mgr))
         except Exception:
             logger.debug(
-                "TopPanel: failed to schedule post-shown topbar adjusts", exc_info=True
+                "TopPanel: failed to schedule topbar initialization", exc_info=True
             )
 
-    def _post_shown_adjust_and_show_host(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
-        """В первый тик после shown: adjust и показать host атомарно."""
+    def _schedule_topbar_initialization(self, mgr: TopBarLayoutManager) -> None:
+        if getattr(self.window, "_topbar_initialized", False):
+            return
+        setattr(self.window, "_topbar_initialized", True)
         try:
-            from functools import partial
-
-            QTimer.singleShot(0, partial(self._invoke_adjust_and_show_host, mgr))
-        except Exception:
-            logger.debug(
-                "TopPanel: failed in _post_shown_adjust_and_show_host", exc_info=True
-            )
-
-    def _post_shown_second_adjust(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
-        """Во второй тик после shown: повторный adjust для устойчивости."""
-        try:
-            # Завершим прогрев и покажем топ-бар только после «боевого» adjust
-            QTimer.singleShot(16, lambda: self._finalize_topbar_show(mgr))
-        except Exception:
-            logger.debug("TopPanel: failed in _post_shown_second_adjust", exc_info=True)
-
-    def _fallback_schedule_adjusts(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
-        """Фолбэк при отсутствии сигнала shown: два последовательных планирования."""
-        try:
-            from functools import partial
-
-            QTimer.singleShot(0, partial(self._invoke_adjust_and_show_host, mgr))
-            QTimer.singleShot(16, partial(self._invoke_adjust, mgr))
-        except Exception:
-            logger.debug(
-                "TopPanel: failed in _fallback_schedule_adjusts", exc_info=True
-            )
-
-    def _invoke_adjust_and_show_host(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
-        """Выполняет пересчёт лэйаута и показывает host-виджет безопасно."""
-        try:
-            mgr.adjust()
-        except Exception:
-            logger.debug(
-                "TopPanel: adjust() failed in _invoke_adjust_and_show_host",
-                exc_info=True,
-            )
-
-    def _invoke_adjust(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
-        """Безопасно вызывает mgr.adjust()."""
-        try:
-            mgr.adjust()
-        except Exception:
-            logger.debug("TopPanel: adjust() failed in _invoke_adjust", exc_info=True)
-
-    def _finalize_topbar_show(self, mgr: TopBarLayoutManager) -> None:  # type: ignore[name-defined]
-        """Сбрасывает warmup, выполняет боевой adjust, затем показывает host и делает финальный adjust."""
-        try:
-            # Импортируем лениво, чтобы избежать циклов
             from app.utils.ui.updates import suspend_updates
         except Exception:
-            suspend_updates = None  # type: ignore
+            suspend_updates = None  # type: ignore[assignment]
 
-        try:
-            if suspend_updates is not None:
+        def _activate() -> None:
+            host = getattr(self.window, "top_bar_host", None)
+            if host and hasattr(host, "setVisible"):
+                try:
+                    if not host.isVisible():
+                        host.setVisible(True)
+                except Exception:
+                    logger.debug("TopPanel: failed to show top_bar_host early", exc_info=True)
+            QTimer.singleShot(0, partial(self._finalize_topbar_startup, mgr))
+
+        if suspend_updates is not None and isinstance(self.window, QWidget):
+            try:
                 with suspend_updates(self.window):
-                    # Сбросить прогрев, чтобы следующий adjust был боевым
-                    try:
-                        if hasattr(mgr, "_warmup_adjusts_remaining"):
-                            setattr(mgr, "_warmup_adjusts_remaining", 0)
-                    except Exception:
-                        logger.debug("TopBar: failed to reset warmup flag", exc_info=True)
-                    # Боевой adjust на скрытом host (контейнер уже создан)
-                    try:
-                        mgr.adjust()
-                    except Exception:
-                        logger.debug("TopBar: adjust() failed before host show", exc_info=True)
-                    # Перед показом top_bar_host инициируем первичную загрузку данных панелей,
-                    # чтобы лэйаут пересчитался уже с учётом видимых кнопок
-                    try:
-                        tpc = getattr(self.window, "top_panels_controller", None)
-                        if tpc and hasattr(tpc, "refresh_all"):
-                            tpc.refresh_all()
-                    except Exception:
-                        logger.debug("TopBar: top_panels_controller.refresh_all() failed", exc_info=True)
-                    # Перед показом host временно зафиксируем ширину поля поиска,
-                    # чтобы оно не растянулось пока контейнер ещё нулевой ширины
-                    search = getattr(self.window, "search", None)
-                    original_min_width = None
-                    original_max_width = None
-                    if isinstance(search, QLineEdit):
-                        try:
-                            # Сохраняем оригинальные значения
-                            original_min_width = search.minimumWidth()
-                            original_max_width = search.maximumWidth()
-                            # Получаем минимальную ширину из конфига
-                            try:
-                                min_search_w = int(app_config.ui.get_top_panel_search_min_width())
-                            except Exception:
-                                min_search_w = 140  # fallback
-                            # Временно фиксируем поиск на минимальной ширине
-                            search.setMinimumWidth(min_search_w)
-                            search.setMaximumWidth(min_search_w)
-                        except Exception:
-                            logger.debug("TopBar: failed to temporarily fix search width", exc_info=True)
-                    # Показать host
-                    try:
-                        self.window.top_bar_host.setVisible(True)
-                    except Exception:
-                        logger.debug("TopBar: failed to show top_bar_host in finalize", exc_info=True)
-                    # Проверяем ширину контейнера после показа
-                    host_width_after_show = 0
-                    try:
-                        host_width_after_show = self.window.top_bar_host.width()
-                    except Exception:
-                        pass
-                    # Финальный adjust уже на видимом контейнере
-                    try:
-                        mgr.adjust()
-                    except Exception:
-                        logger.debug("TopBar: final adjust() failed after host show", exc_info=True)
-                    # Если контейнер всё ещё нулевой ширины, планируем отложенный adjust
-                    if host_width_after_show == 0:
-                        try:
-                            QTimer.singleShot(0, mgr.adjust)
-                        except Exception:
-                            logger.debug("TopBar: failed to schedule deferred adjust", exc_info=True)
-                    # Восстанавливаем оригинальные размеры поиска (если они были изменены)
-                    if isinstance(search, QLineEdit) and original_min_width is not None and original_max_width is not None:
-                        try:
-                            search.setMinimumWidth(original_min_width)
-                            search.setMaximumWidth(original_max_width)
-                        except Exception:
-                            logger.debug("TopBar: failed to restore original search width", exc_info=True)
-            else:
-                # Fallback без приостановки обновлений
-                try:
-                    if hasattr(mgr, "_warmup_adjusts_remaining"):
-                        setattr(mgr, "_warmup_adjusts_remaining", 0)
-                except Exception:
-                    logger.debug("TopBar: failed to reset warmup flag (no suspend)", exc_info=True)
-                try:
-                    mgr.adjust()
-                except Exception:
-                    logger.debug("TopBar: adjust() failed before host show (no suspend)", exc_info=True)
-                # Перед показом инициируем загрузку панелей
-                try:
-                    tpc = getattr(self.window, "top_panels_controller", None)
-                    if tpc and hasattr(tpc, "refresh_all"):
-                        tpc.refresh_all()
-                except Exception:
-                    logger.debug("TopBar: top_panels_controller.refresh_all() failed (no suspend)", exc_info=True)
-                # Перед показом host временно зафиксируем ширину поля поиска
-                search = getattr(self.window, "search", None)
-                original_min_width = None
-                original_max_width = None
-                if isinstance(search, QLineEdit):
-                    try:
-                        original_min_width = search.minimumWidth()
-                        original_max_width = search.maximumWidth()
-                        try:
-                            min_search_w = int(app_config.ui.get_top_panel_search_min_width())
-                        except Exception:
-                            min_search_w = 140
-                        search.setMinimumWidth(min_search_w)
-                        search.setMaximumWidth(min_search_w)
-                    except Exception:
-                        logger.debug("TopBar: failed to temporarily fix search width (no suspend)", exc_info=True)
-                try:
-                    self.window.top_bar_host.setVisible(True)
-                except Exception:
-                    logger.debug("TopBar: failed to show top_bar_host (no suspend)", exc_info=True)
-                # Проверяем ширину контейнера
-                host_width_after_show = 0
-                try:
-                    host_width_after_show = self.window.top_bar_host.width()
-                except Exception:
-                    pass
-                try:
-                    mgr.adjust()
-                except Exception:
-                    logger.debug("TopBar: final adjust() failed after host show (no suspend)", exc_info=True)
-                # Отложенный adjust если нужно
-                if host_width_after_show == 0:
-                    try:
-                        QTimer.singleShot(0, mgr.adjust)
-                    except Exception:
-                        logger.debug("TopBar: failed to schedule deferred adjust (no suspend)", exc_info=True)
-                # Восстановление оригинальных размеров
-                if isinstance(search, QLineEdit) and original_min_width is not None and original_max_width is not None:
-                    try:
-                        search.setMinimumWidth(original_min_width)
-                        search.setMaximumWidth(original_max_width)
-                    except Exception:
-                        logger.debug("TopBar: failed to restore original search width (no suspend)", exc_info=True)
+                    _activate()
+            except Exception:
+                logger.debug(
+                    "TopPanel: suspend_updates failed during initialization", exc_info=True
+                )
+                _activate()
+        else:
+            _activate()
+
+    def _finalize_topbar_startup(self, mgr: TopBarLayoutManager) -> None:
+        try:
+            mgr.prepare_initial_layout()
         except Exception:
-            logger.debug("TopBar: finalize_topbar_show unexpected error", exc_info=True)
+            logger.debug("TopPanel: prepare_initial_layout failed", exc_info=True)
+        self._schedule_top_panels_refresh()
+
+    def _schedule_top_panels_refresh(self) -> None:
+        controller = getattr(self.window, "top_panels_controller", None)
+        if not controller or not hasattr(controller, "refresh_all"):
+            return
+
+        def _refresh() -> None:
+            try:
+                controller.refresh_all()
+            except Exception:
+                logger.warning(
+                    "TopPanel: top_panels_controller.refresh_all() failed",
+                    exc_info=True,
+                )
+
+        QTimer.singleShot(0, _refresh)
 
     def _log_setup_top_panel_total(self, t_total_start: float) -> None:
         """Логирует итоговую длительность настройки верхней панели."""
