@@ -145,9 +145,22 @@ def _setup_ui_adjustments(auto_hide_tree_filter: Any | None, topbar_manager: Any
             raise SetupError("_auto_hide_tree_filter must provide callable _apply()")
     
     if topbar_manager is not None:
-        if not hasattr(topbar_manager, "adjust") or not callable(topbar_manager.adjust):
-            raise SetupError("_topbar_manager must provide callable adjust()")
-        QTimer.singleShot(0, topbar_manager.adjust)
+        # Проверяем наличие нового API, fallback на старый
+        if hasattr(topbar_manager, "request_adjustment") and callable(topbar_manager.request_adjustment):
+            # Используем новый API с батчингом
+            def _request_initial_adjustment():
+                try:
+                    from app.views.main_components.topbar.constants import AdjustmentReason
+                    topbar_manager.request_adjustment(AdjustmentReason.INITIAL_SETUP)
+                except ImportError:
+                    # Fallback если новые константы недоступны
+                    topbar_manager.request_adjustment()
+            QTimer.singleShot(0, _request_initial_adjustment)
+        elif hasattr(topbar_manager, "adjust") and callable(topbar_manager.adjust):
+            # Fallback на старый API для совместимости
+            QTimer.singleShot(0, topbar_manager.adjust)
+        else:
+            raise SetupError("_topbar_manager must provide callable adjust() or request_adjustment()")
 
 
 def setup_signal_connections(
