@@ -1,5 +1,3 @@
-import copy
-import datetime
 import logging
 import sqlite3
 import threading
@@ -17,15 +15,10 @@ from .managers.import_export_manager import ImportExportManager
 from .managers.duplicate_resolver import DuplicateResolver
 from .managers.structure_manager import StructureManager
 from .types.constants import (
-    BACKUP_RETRY_ATTEMPTS,
-    BACKUP_RETRY_DELAY,
-    DEFAULT_MAX_BACKUPS,
-    PERFORMANCE_WARNING_THRESHOLD_MS,
     SQLITE_SAFE_BATCH_SIZE,
     SQLITE_SAFE_SELECT_CHUNK,
 )
 from .base.db_base import DatabaseBase, DatabaseError, ValidationError, db_lock
-from .types.link_type import LinkType
 from .entities.sphere_model import SphereModel
 from .entities.section_model import SectionModel
 from .entities.category_model import CategoryModel

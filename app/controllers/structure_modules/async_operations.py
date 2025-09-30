@@ -11,16 +11,12 @@ import logging
 import time
 from threading import Lock
 from typing import Any, Dict, List, Optional
-from weakref import WeakMethod
 
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QMetaObject, Qt
+from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 
 from .types import (
     SphereData, SectionData, CategoryData, LinkData,
-    SearchResultItem, TaskInfo, MetricSpan,
-    SignalType, StructureItemType,
-    AnyItemData, ItemCreatedPayload, ItemUpdatedPayload, ItemDeletedPayload,
-    ErrorPayload
+    SearchResultItem, AnyItemData
 )
 
 from app.controllers.ui.state.task_scheduler import get_task_scheduler

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import types
 
 from app.controllers.ui.action_controller import ActionController
 from app.config_data import app_config

@@ -3,16 +3,14 @@
 """Базовые классы, енумы и константы для структуры."""
 
 import logging
-from enum import Enum
 from .types import StructureItemType as ImportedStructureItemType
 from typing import Any, Callable, Dict, Optional
 
 from .types import (
     StructureItemType, SignalType, AnyItemData, AnyCreateData, AnyUpdateData,
-    OperationResult, ItemTypeConfig
+    ItemTypeConfig
 )
-from .validators import validate_and_raise, safe_validate, ValidationError
-from typing import Protocol
+from .validators import validate_and_raise, ValidationError
 
 logger = logging.getLogger(__name__)
 

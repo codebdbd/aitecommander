@@ -1,9 +1,7 @@
 """Модуль для импорта/экспорта структуры базы данных."""
-import copy
 import logging
-import sqlite3
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from ..base.db_base import DatabaseError, db_lock
 from ..types.link_type import LinkType

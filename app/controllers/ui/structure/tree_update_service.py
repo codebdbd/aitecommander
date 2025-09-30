@@ -9,7 +9,6 @@ from app.controllers.ui.state.task_scheduler import (
     schedule_focus,
     schedule_selection_restore,
 )
-from app.utils.ui.qt.roles import get_tree_tuple
 
 logger = logging.getLogger(__name__)
 

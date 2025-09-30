@@ -1,7 +1,7 @@
 """Worker для импорта структуры данных в фоновом потоке."""
 import copy
 import logging
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from .base_worker import DatabaseWorker
 from ..types.link_type import LinkType
@@ -160,7 +160,7 @@ class ImportStructureWorker(DatabaseWorker):
                 sphere_map[sp["ref"]] = cursor.lastrowid
                 current += 1
                 if current % 10 == 0:
-                    self.emit_progress(current, total_items, f"Импорт сфер...")
+                    self.emit_progress(current, total_items, "Импорт сфер...")
             
             # Вставка разделов
             self.emit_progress(current, total_items, f"Импорт разделов ({len(sections_items)})...")
@@ -181,7 +181,7 @@ class ImportStructureWorker(DatabaseWorker):
                 section_map[sec["ref"]] = cursor.lastrowid
                 current += 1
                 if current % 10 == 0:
-                    self.emit_progress(current, total_items, f"Импорт разделов...")
+                    self.emit_progress(current, total_items, "Импорт разделов...")
             
             # Вставка категорий
             self.emit_progress(current, total_items, f"Импорт категорий ({len(categories_items)})...")
@@ -202,7 +202,7 @@ class ImportStructureWorker(DatabaseWorker):
                 category_map[cat["ref"]] = cursor.lastrowid
                 current += 1
                 if current % 10 == 0:
-                    self.emit_progress(current, total_items, f"Импорт категорий...")
+                    self.emit_progress(current, total_items, "Импорт категорий...")
             
             # Вставка ссылок
             total_links = len(links_with_id) + len(links_without_id)
@@ -226,7 +226,7 @@ class ImportStructureWorker(DatabaseWorker):
                 )
                 current += 1
                 if current % 20 == 0:
-                    self.emit_progress(current, total_items, f"Импорт ссылок...")
+                    self.emit_progress(current, total_items, "Импорт ссылок...")
             
             connection.commit()
             

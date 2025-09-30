@@ -2,7 +2,7 @@
 import logging
 from typing import Optional
 
-from PyQt6.QtCore import Qt, pyqtSlot
+from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtWidgets import (
     QDialog,
     QLabel,

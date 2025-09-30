@@ -1,9 +1,6 @@
-import builtins
 import types
 import sys
-from contextlib import contextmanager
 
-import pytest
 
 
 def _reload_module():

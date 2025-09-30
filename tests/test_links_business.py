@@ -1,8 +1,7 @@
 """Тесты для бизнес-логики ссылок (LinksBusinessLogic)."""
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch, call
-from PyQt6.QtCore import QObject
+from unittest.mock import Mock, patch
 
 
 @pytest.fixture
@@ -204,7 +203,7 @@ class TestLinksBusinessLogic:
         mock_db.links.create_or_update_link.return_value = 1
         
         updated = []
-        business_logic.link_updated.connect(lambda l: updated.append(l))
+        business_logic.link_updated.connect(lambda link_data: updated.append(link_data))
         
         business_logic.toggle_favorite(link)
         
@@ -223,7 +222,7 @@ class TestLinksBusinessLogic:
         mock_db.links.create_or_update_link.return_value = 123
         
         saved = []
-        business_logic.link_updated.connect(lambda l: saved.append(l))
+        business_logic.link_updated.connect(lambda link_data: saved.append(link_data))
         
         business_logic.save_link_async(link_data)
         

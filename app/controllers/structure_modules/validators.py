@@ -8,15 +8,12 @@
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Union, get_type_hints
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
 
 from .types import (
-    SphereData, SectionData, CategoryData, LinkData,
-    SphereCreateData, SectionCreateData, CategoryCreateData,
-    SphereUpdateData, SectionUpdateData, CategoryUpdateData,
-    StructureItemType, SignalType, ValidationResult
+    StructureItemType, ValidationResult
 )
 
 logger = logging.getLogger(__name__)

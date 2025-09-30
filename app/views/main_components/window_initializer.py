@@ -18,7 +18,7 @@ from app.controllers.system.window_controllers_setup import WindowControllersSet
 from app.utils.metrics.startup_metrics import get_metrics
 from app.utils.ui.updates import suspend_updates
 
-from .constants import StatusMessage, Timeout
+from .constants import StatusMessage
 from .init_db_gate import DbReadyGate
 from .init_diagnostics import DiagnosticsInstaller
 from .init_scheduler import AsyncStepRunner

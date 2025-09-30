@@ -326,18 +326,18 @@ class StructureManager:
                     total_links = len(links_with_id) + len(links_without_id)
                     self.db.operation_progress.emit(operation, len(spheres_items) + len(sections_items) + len(categories_items), total_items or 1, f"Вставка ссылок: {total_links}")
                     # Проставим фактические category_id из карты
-                    for l in links_with_id:
-                        if not l.get("category_id"):
-                            cref = l.get("_category_ref")
+                    for link in links_with_id:
+                        if not link.get("category_id"):
+                            cref = link.get("_category_ref")
                             if cref is not None:
-                                l["category_id"] = category_ref_to_id.get(cref)
-                        l.pop("_category_ref", None)
-                    for l in links_without_id:
-                        if not l.get("category_id"):
-                            cref = l.get("_category_ref")
+                                link["category_id"] = category_ref_to_id.get(cref)
+                        link.pop("_category_ref", None)
+                    for link in links_without_id:
+                        if not link.get("category_id"):
+                            cref = link.get("_category_ref")
                             if cref is not None:
-                                l["category_id"] = category_ref_to_id.get(cref)
-                        l.pop("_category_ref", None)
+                                link["category_id"] = category_ref_to_id.get(cref)
+                        link.pop("_category_ref", None)
 
                     if links_with_id:
                         cols = [
@@ -360,20 +360,20 @@ class StructureManager:
                             sql,
                             [
                                 (
-                                    int(l.get("id")),
-                                    int(l.get("category_id")),
-                                    l.get("name", ""),
-                                    l.get("url", ""),
-                                    l.get("type", "web"),
-                                    l.get("notes", ""),
-                                    int(l.get("is_favorite", 0) or 0),
-                                    l.get("last_used"),
-                                    l.get("icon_path", ""),
-                                    l.get("args", ""),
-                                    l.get("browser_key"),
-                                    int(l.get("position", 0)),
+                                    int(link.get("id")),
+                                    int(link.get("category_id")),
+                                    link.get("name", ""),
+                                    link.get("url", ""),
+                                    link.get("type", "web"),
+                                    link.get("notes", ""),
+                                    int(link.get("is_favorite", 0) or 0),
+                                    link.get("last_used"),
+                                    link.get("icon_path", ""),
+                                    link.get("args", ""),
+                                    link.get("browser_key"),
+                                    int(link.get("position", 0)),
                                 )
-                                for l in links_with_id
+                                for link in links_with_id
                             ],
                         )
 
@@ -394,21 +394,21 @@ class StructureManager:
                         ]
                         placeholders = ", ".join(["?"] * len(cols))
                         sql = f"INSERT INTO link ({', '.join(cols)}) VALUES ({placeholders})"
-                        for l in links_without_id:
+                        for link in links_without_id:
                             self.db.connection.execute(
                                 sql,
                                 (
-                                    int(l.get("category_id")),
-                                    l.get("name", ""),
-                                    l.get("url", ""),
-                                    l.get("type", "web"),
-                                    l.get("notes", ""),
-                                    int(l.get("is_favorite", 0) or 0),
-                                    l.get("last_used"),
-                                    l.get("icon_path", ""),
-                                    l.get("args", ""),
-                                    l.get("browser_key"),
-                                    int(l.get("position", 0)),
+                                    int(link.get("category_id")),
+                                    link.get("name", ""),
+                                    link.get("url", ""),
+                                    link.get("type", "web"),
+                                    link.get("notes", ""),
+                                    int(link.get("is_favorite", 0) or 0),
+                                    link.get("last_used"),
+                                    link.get("icon_path", ""),
+                                    link.get("args", ""),
+                                    link.get("browser_key"),
+                                    int(link.get("position", 0)),
                                 ),
                             )
 

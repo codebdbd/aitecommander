@@ -1,5 +1,3 @@
-import copy
-import sqlite3
 import pytest
 
 from app.models.db import Database

@@ -12,7 +12,6 @@ from app.interfaces import TopPanelDataLike, FavoritesPanelWithClear, RecentsPan
 from .types import (
     LinksBusinessProtocol,
     SupportsGetLimit,
-    SupportsSetData,
     SupportsSetFavorites,
     SupportsSetRecentLinks,
 )

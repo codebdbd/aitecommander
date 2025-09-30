@@ -7,15 +7,13 @@ TopBarLayoutManager с реальными Qt виджетами.
 from __future__ import annotations
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
-from PyQt6.QtCore import QTimer, Qt
+from unittest.mock import patch
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLineEdit, QToolButton, QFrame, QVBoxLayout
 
 from app.views.main_components.topbar.top_bar_layout_manager import (
     TopBarLayoutManager,
     InitializationState,
 )
-from app.views.main_components.topbar.types import TopBarWindow
 
 
 class MockWindow(QWidget):

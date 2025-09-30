@@ -1,7 +1,5 @@
 """Тесты для утилит валидации (app/utils/ui/validators.py)."""
 
-import pytest
-from pathlib import Path
 from app.utils.ui.validators import (
     validate_url,
     validate_file_path,

@@ -408,7 +408,7 @@ class LinksBusinessLogic(QObject):
         run_db(
             lambda: self.links.get_link_by_id(link_id) or {},
             description=f"load_link_by_id({link_id})",
-            on_finished=lambda link: self._cache_links_and_emit(cache_key, link, lambda l: self.link_by_id_loaded.emit(l, link_id)),
+            on_finished=lambda link: self._cache_links_and_emit(cache_key, link, lambda link_data: self.link_by_id_loaded.emit(link_data, link_id)),
             on_error=lambda e: self._on_worker_error(str(e)),
         )
 

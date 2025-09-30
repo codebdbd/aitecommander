@@ -1,6 +1,5 @@
 """Recent links panel widget for top bar."""
 
-import logging
 from typing import Any, Dict, List
 
 from PyQt6.QtWidgets import QToolButton

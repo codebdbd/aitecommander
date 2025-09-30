@@ -12,14 +12,11 @@ from typing import Any, Callable, Optional, Protocol, runtime_checkable, TYPE_CH
 from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal
 
 if TYPE_CHECKING:
-    from app.controllers.ui.undo.stack import UndoManager
+    pass
 from PyQt6.QtWidgets import (
     QButtonGroup,
-    QHBoxLayout,
     QLineEdit,
-    QMainWindow,
     QStackedLayout,
-    QVBoxLayout,
     QWidget,
 )
 

@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from .types import (
     SectionData, SectionCreateData, SectionUpdateData,
-    StructureItemType, SignalType, SectionNestedCount
+    StructureItemType
 )
 
 from app.models import StructureModel

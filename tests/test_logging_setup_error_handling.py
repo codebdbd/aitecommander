@@ -1,7 +1,6 @@
 import importlib
 import os
 
-import pytest
 
 
 def reload_ls():

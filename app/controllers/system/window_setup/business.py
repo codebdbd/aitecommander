@@ -7,7 +7,7 @@ from typing import Any, Dict
 
 from PyQt6.QtWidgets import QApplication
 
-from .types import SetupError, DatabaseProtocol, WindowProtocol, ControllersDict
+from .types import SetupError, DatabaseProtocol, WindowProtocol
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.business.links_business import LinksBusinessLogic
 from app.controllers.system.app_shutdown_controller import AppShutdownController

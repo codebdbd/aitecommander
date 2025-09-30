@@ -1,7 +1,7 @@
 """Тесты для UI компонентов с использованием pytest-qt."""
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import patch
 from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QMessageBox
 from PyQt6.QtCore import Qt, QTimer
 

@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 
 from app.utils.links.parser import icon_downloader as mod
 

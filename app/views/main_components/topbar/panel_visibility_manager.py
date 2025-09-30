@@ -3,13 +3,10 @@ from __future__ import annotations
 import logging
 from functools import wraps
 from typing import Callable, Iterable, List, Optional
-from weakref import WeakMethod
 
 from PyQt6.QtCore import QParallelAnimationGroup, QPropertyAnimation
 from PyQt6.QtWidgets import (
     QGraphicsOpacityEffect,
-    QLayout,
-    QLineEdit,
     QToolButton,
     QWidget,
 )
