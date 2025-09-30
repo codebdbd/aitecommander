@@ -8,7 +8,7 @@ import os
 from PyQt6.QtWidgets import QFileDialog
 
 from app.config_data import app_config
-from app.models.link_type import LinkType
+from app.models import LinkType
 from app.utils.links.link_parser import parse_lnk
 
 logger = logging.getLogger(__name__)

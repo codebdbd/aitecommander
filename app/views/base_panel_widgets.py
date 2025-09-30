@@ -47,13 +47,7 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         try:
             mgr = getattr(self._main_window, "_topbar_manager", None)
             if mgr:
-                # Используем новый API вместо устаревшего adjust()
-                if hasattr(mgr, 'request_adjustment'):
-                    from app.views.main_components.topbar.constants import AdjustmentReason
-                    mgr.request_adjustment(AdjustmentReason.PANEL_CHANGE)
-                else:
-                    # Fallback для старых версий
-                    mgr.adjust()
+                mgr.adjust()
         except Exception:
             logger.debug(
                 "BaseTopPanelWidget: topbar adjust failed", exc_info=True

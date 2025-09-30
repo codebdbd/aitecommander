@@ -95,12 +95,17 @@ class SystemDialogController:
         )
 
         if success:
-            # Создаем резервную копию после большой операции импорта
+            # Создаем резервную копию асинхронно после большой операции импорта
             try:
                 db = getattr(self.database_controller, "db", None)
                 if db is None:
                     raise SetupError("database_controller.db is required for backup")
-                db.backup()
+                
+                # Используем async backup чтобы не блокировать UI
+                db.backup_async(
+                    on_finished=lambda result: logger.info(f"Резервная копия создана: {result.get('backup_filename')}"),
+                    on_error=lambda e, tb: logger.warning(f"Не удалось создать резервную копию: {e}")
+                )
             except SetupError:
                 logger.exception(
                     "SystemDialogController: backup failed due to setup error"
@@ -108,7 +113,7 @@ class SystemDialogController:
                 raise
             except Exception as backup_err:
                 logger.warning(
-                    f"Не удалось создать резервную копию после импорта закладок: {backup_err}"
+                    f"Не удалось запустить резервное копирование: {backup_err}"
                 )
             # Обновить дерево категорий и таблицу ссылок
             if hasattr(self.main_window, "structure_business"):
@@ -145,16 +150,20 @@ class SystemDialogController:
 
     def show_about_dialog(self):
         """Показать диалог О программе."""
+        from PyQt6.QtWidgets import QMessageBox
+        from PyQt6.QtCore import Qt
+        
         title = app_config.get_about_title()
         text = app_config.get_about_text()
-        details = getattr(app_config, "get_version", lambda: None)()
-        DialogManager.show_info(
-            self.main_window,
-            title,
-            text,
-            informative_text="Спасибо, что используете наше приложение!",
-            details=f"Версия: {details}" if details else None,
-        )
+        
+        msg_box = QMessageBox(self.main_window)
+        msg_box.setIcon(QMessageBox.Icon.NoIcon)  # Без иконки = без звука
+        msg_box.setWindowTitle(title)
+        msg_box.setText(text)
+        msg_box.setTextFormat(Qt.TextFormat.PlainText)  # Важно: правильно обрабатывает \n
+        msg_box.setInformativeText("Спасибо, что используете наше приложение!")
+        msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msg_box.exec()
 
     def show_settings_dialog(self):
         """Показать диалог настроек."""

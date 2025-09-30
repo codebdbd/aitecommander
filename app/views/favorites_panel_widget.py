@@ -24,15 +24,7 @@ class FavoritesPanelWidget(BaseTopPanelWidget):
         """Sets favorites data and populates the panel (unified contract)."""
         self._populate_panel(items, self._create_favorite_button)
 
-        # Set visibility based on whether we have items
-        try:
-            self.setVisible(bool(items))
-        except Exception:
-            logging.getLogger(__name__).debug(
-                "FavoritesPanelWidget: setVisible failed", exc_info=True
-            )
-
-        # Sync top bar layout
+        # Visibility is managed by TopBarLayoutManager; just sync layout
         self._sync_topbar_layout()
 
     def clear_favorites(self) -> None:

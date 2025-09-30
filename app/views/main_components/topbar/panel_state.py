@@ -5,12 +5,23 @@ from typing import List, Optional
 
 from PyQt6.QtWidgets import QToolButton, QWidget
 
+from .types import PanelLabel, ButtonObjectName
+
 
 @dataclass(frozen=True)
 class PanelDefinition:
-    label: str
+    """Definition of a topbar panel configuration.
+    
+    Attributes:
+        label: Panel identifier (use PanelLabel enum)
+        attr_name: Attribute name on window object for the panel widget
+        button_object_name: Qt objectName for buttons in this panel (use ButtonObjectName enum)
+        min_attr: Attribute name on manager for minimum visible buttons
+        max_attr: Attribute name on manager for maximum visible buttons
+    """
+    label: str  # Should be PanelLabel value
     attr_name: str
-    button_object_name: str
+    button_object_name: str  # Should be ButtonObjectName value
     min_attr: str
     max_attr: str
 

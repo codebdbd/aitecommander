@@ -4,6 +4,7 @@ import sys
 
 from PyQt6.QtCore import QTimer
 
+from app.config_data import app_config
 from app.controllers.system.bootstrap import create_main_window
 from app.controllers.system.db_init import DatabaseInitializer
 from app.controllers.ui.theme_controller import ThemeController
@@ -190,7 +191,8 @@ def main():
         profiles_loader = BrowserProfilesLoader(initializer.main_window)
         profiles_loader.setup_lazy_loading()
 
-        QTimer.singleShot(100, lambda: logger.info("Приложение успешно запущено"))
+        startup_delay = app_config.get("startup.app_ready_delay_ms", 100)
+        QTimer.singleShot(startup_delay, lambda: logger.info("Приложение успешно запущено"))
         exit_code = app.exec()
         return exit_code
     except Exception as e:

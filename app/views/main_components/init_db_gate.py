@@ -1,3 +1,8 @@
+"""Модуль для ожидания готовности базы данных.
+
+УЛУЧШЕНИЕ: Использует Protocol для типизации и константы вместо магических чисел.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -6,7 +11,8 @@ from typing import Callable, List, Optional
 
 from PyQt6.QtCore import QTimer
 
-from app.interfaces import MainWindowLike
+from .constants import Timeout, StatusMessage
+from .protocols import MainWindowProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -14,16 +20,18 @@ logger = logging.getLogger(__name__)
 class DbReadyGate:
     """Инкапсулирует ожидание готовности БД по признаку разблокировки окна.
 
+    УЛУЧШЕНИЕ: Использует MainWindowProtocol для строгой типизации.
+    
     Считает БД готовой, когда `window.isEnabled()` возвращает True.
-    Проверка выполняется периодически таймером (по умолчанию 100 мс), пока окно заблокировано.
+    Проверка выполняется периодически таймером (из константы Timeout.DB_POLL_INTERVAL).
     Поддерживает таймаут, конфигурируемый интервал, прямую проверку БД (опционально),
     метрики ожидания и множественные колбэки.
     """
 
     def __init__(
         self,
-        window: MainWindowLike,
-        poll_interval_ms: int = 100,
+        window: MainWindowProtocol,
+        poll_interval_ms: int = Timeout.DB_POLL_INTERVAL,
         _logger: Optional[logging.Logger] = None,
     ) -> None:
         self._window = window
@@ -49,9 +57,11 @@ class DbReadyGate:
             if is_ready:
                 self._execute_callbacks_and_metrics(on_ready)
                 return
-        except Exception:
-            self._logger.exception(
-                "DbReadyGate: ошибка начальной проверки готовности, продолжаем как готовый"
+        except (RuntimeError, AttributeError, TypeError) as e:
+            self._logger.warning(
+                "DbReadyGate: ошибка начальной проверки готовности (%s), продолжаем как готовый",
+                e,
+                exc_info=True,
             )
             self._execute_callbacks_and_metrics(on_ready)
             return
@@ -94,8 +104,11 @@ class DbReadyGate:
             try:
                 if db_checker():
                     return True
-            except Exception:
-                self._logger.debug("DbReadyGate: ошибка в прямой проверке БД, продолжаем с проверкой окна")
+            except (RuntimeError, AttributeError, TypeError) as e:
+                self._logger.debug(
+                    "DbReadyGate: ошибка в прямой проверке БД (%s), продолжаем с проверкой окна",
+                    e,
+                )
 
         # Проверка окна
         is_enabled_method = getattr(self._window, "isEnabled", None)
@@ -129,15 +142,20 @@ class DbReadyGate:
                 try:
                     if self._timer is not None:
                         self._timer.start(self._poll_interval_ms)
-                except Exception:
-                    self._logger.debug(
-                        "DbReadyGate: сбой перезапуска таймера; завершаем ожидание",
+                except (RuntimeError, AttributeError) as e:
+                    self._logger.warning(
+                        "DbReadyGate: сбой перезапуска таймера (%s); завершаем ожидание",
+                        e,
                         exc_info=True,
                     )
                     self._dispose_timer()
                     self._execute_callbacks_and_metrics()  # Proceed on failure
-        except Exception:
-            self._logger.exception("DbReadyGate: ошибка во время проверки готовности")
+        except (RuntimeError, AttributeError, TypeError) as e:
+            self._logger.error(
+                "DbReadyGate: ошибка во время проверки готовности: %s",
+                e,
+                exc_info=True,
+            )
             self._dispose_timer()
             self._logger.warning("DbReadyGate: продолжаем как готовый после сбоя проверки")
             self._execute_callbacks_and_metrics()
@@ -149,8 +167,12 @@ class DbReadyGate:
             if callback:
                 try:
                     callback()
-                except Exception:
-                    self._logger.debug("DbReadyGate: колбэк on_ready вызвал исключение", exc_info=True)
+                except (RuntimeError, AttributeError, TypeError, ValueError) as e:
+                    self._logger.warning(
+                        "DbReadyGate: колбэк on_ready вызвал исключение: %s",
+                        e,
+                        exc_info=True,
+                    )
 
         if self._start_time is not None:
             wait_time = time.time() - self._start_time
@@ -172,9 +194,9 @@ class DbReadyGate:
                 self._timer.stop()
                 self._timer.deleteLater()
                 self._timer = None
-        except Exception:
+        except (RuntimeError, AttributeError) as e:
             self._logger.debug(
-                "DbReadyGate: сбой удаления таймера", exc_info=True
+                "DbReadyGate: сбой удаления таймера: %s", e, exc_info=True
             )
 
     def cancel_wait(self, on_cancel: Optional[Callable[[], None]] = None) -> None:
@@ -185,8 +207,12 @@ class DbReadyGate:
         if on_cancel:
             try:
                 on_cancel()
-            except Exception:
-                self._logger.debug("DbReadyGate: колбэк on_cancel вызвал исключение", exc_info=True)
+            except (RuntimeError, AttributeError, TypeError, ValueError) as e:
+                self._logger.warning(
+                    "DbReadyGate: колбэк on_cancel вызвал исключение: %s",
+                    e,
+                    exc_info=True,
+                )
         self._pending_callbacks.clear()
         self._start_time = None
         self._attempts = 0

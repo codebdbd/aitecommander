@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from app.models.structure_model import StructureModel
+from app.models import StructureModel
 
 # Модульный логгер для диагностических сообщений (не навязывает параметр logger)
 logger = logging.getLogger(__name__)

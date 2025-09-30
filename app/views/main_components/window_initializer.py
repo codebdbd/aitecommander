@@ -1,24 +1,36 @@
 # app/views/main_components/window_initializer.py
+"""Инициализатор главного окна.
+
+УЛУЧШЕНИЕ: Использует Protocol для типизации, ResourceManager для управления
+ресурсами и константы вместо магических значений.
+"""
 
 from __future__ import annotations
 
 import logging
 from contextlib import suppress
-from typing import Any, Callable, Dict, List, Tuple, TypeAlias
+from typing import Callable, Dict, List, Tuple, TypeAlias
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from app.controllers.system.window_controllers_setup import WindowControllersSetup
-from app.interfaces import MainWindowLike, SettingsLike
 from app.utils.metrics.startup_metrics import get_metrics
 from app.utils.ui.updates import suspend_updates
 
+from .constants import StatusMessage, Timeout
 from .init_db_gate import DbReadyGate
 from .init_diagnostics import DiagnosticsInstaller
 from .init_scheduler import AsyncStepRunner
 from .init_status import StatusUpdater
 from .init_steps_config import AFTER_DB_STEP_CONFIG, BEFORE_DB_STEP_CONFIG
+from .protocols import (
+    DatabaseProtocol,
+    MainWindowProtocol,
+    SettingsProtocol,
+    ThemeControllerProtocol,
+)
+from .resource_manager import ResourceManager
 from .window_ui_setup import WindowUISetup
 
 logger = logging.getLogger(__name__)
@@ -28,20 +40,23 @@ Step: TypeAlias = tuple[str, Callable[[], None]]
 
 
 class WindowInitializer:
-    """Инициализатор главного окна - извлекает всю логику создания UI из __init__."""
+    """Инициализатор главного окна.
+    
+    УЛУЧШЕНИЕ: Использует строгие Protocol для всех зависимостей
+    и ResourceManager для гарантированной очистки ресурсов.
+    """
 
-    # Конфигурации этапов вынесены в init_steps_config.py (импортируются выше)
-
-    # --- Class-level annotations for static clarity ---
-    window: MainWindowLike
-    db: Any
-    settings: SettingsLike
-    theme_ctrl: Any
+    # --- Строгая типизация через Protocol ---
+    window: MainWindowProtocol
+    db: DatabaseProtocol
+    settings: SettingsProtocol
+    theme_ctrl: ThemeControllerProtocol
 
     ui_setup: WindowUISetup
     controllers_setup: WindowControllersSetup
-    _metrics: Any
+    _metrics: object  # Из startup_metrics
     _status: StatusUpdater
+    _resource_manager: ResourceManager
 
     _current_init_step: int
     _current_db_step: int
@@ -53,31 +68,33 @@ class WindowInitializer:
 
     def __init__(
         self,
-        main_window: MainWindowLike,
-        db: Any,
-        settings: SettingsLike,
-        theme_ctrl: Any,
+        main_window: MainWindowProtocol,
+        db: DatabaseProtocol,
+        settings: SettingsProtocol,
+        theme_ctrl: ThemeControllerProtocol,
     ) -> None:
-        """
-        Инициализация компонента.
+        """Инициализация компонента.
+
+        УЛУЧШЕНИЕ: Все параметры теперь используют Protocol для строгой типизации.
 
         Args:
-            main_window: Ссылка на главное окно (должно поддерживать setUpdatesEnabled)
-            db: База данных (объект БД/фасад; конкретный тип варьируется)
-            settings: Настройки приложения (должны предоставлять get_font_size)
-            theme_ctrl: Контроллер тем (тип зависит от реализации)
+            main_window: Главное окно приложения (MainWindowProtocol)
+            db: База данных (DatabaseProtocol)
+            settings: Настройки приложения (SettingsProtocol)
+            theme_ctrl: Контроллер тем (ThemeControllerProtocol)
         """
         self.window = main_window
         self.db = db
         self.settings = settings
         self.theme_ctrl = theme_ctrl
 
-        # Композиция компонентов (пока сохраняем старую логику для обратной совместимости)
+        # УЛУЧШЕНИЕ: Инициализируем ResourceManager для управления ресурсами
+        self._resource_manager = ResourceManager("WindowInitializer")
+
+        # Композиция компонентов
         self.ui_setup = WindowUISetup(self)
         self.controllers_setup = WindowControllersSetup(self)
-        # Кэшируем инстанс метрик, чтобы не дергать get_metrics() в каждом методе
         self._metrics = get_metrics()
-        # Статус-апдейтер
         self._status = StatusUpdater(self.window, logger)
 
         # --- Инициализация ранее динамических атрибутов ---
@@ -121,6 +138,7 @@ class WindowInitializer:
             self._init_central_widget,
             self._capture_main_layout,
             self._init_top_panel,
+            self._connect_db_signals,  # Подключаем сигналы БД к UI
         )
 
         with suspend_updates(self.window):
@@ -201,6 +219,104 @@ class WindowInitializer:
 
     def _init_top_panel(self) -> None:
         self.ui_setup.setup_top_panel()
+
+    def _connect_db_signals(self) -> None:
+        """Подключает Qt сигналы Database к UI компонентам.
+        
+        УВЕДОМЛЯЕТ UI об изменениях в базе данных без polling.
+        """
+        try:
+            # Проверяем, что у db есть сигналы (QObject)
+            if not hasattr(self.db, 'data_changed'):
+                logger.debug("Database doesn't have Qt signals, skipping signal connection")
+                return
+            
+            # Подключаем сигнал изменения данных
+            self.db.data_changed.connect(self._on_db_data_changed)
+            
+            # Подключаем сигнал загрузки структуры
+            if hasattr(self.db, 'structure_loaded'):
+                self.db.structure_loaded.connect(self._on_db_structure_loaded)
+            
+            # Подключаем сигнал создания бэкапа
+            if hasattr(self.db, 'backup_created'):
+                self.db.backup_created.connect(self._on_db_backup_created)
+            
+            # Подключаем сигнал ошибок
+            if hasattr(self.db, 'error_occurred'):
+                self.db.error_occurred.connect(self._on_db_error)
+            
+            logger.debug("Database signals connected successfully")
+        except Exception as e:
+            logger.warning(
+                "Failed to connect database signals: %s",
+                e,
+                exc_info=True
+            )
+    
+    def _on_db_data_changed(self, table_name: str, operation: str, affected_ids: list) -> None:
+        """Обработчик изменения данных в БД."""
+        try:
+            logger.debug(f"DB data changed: {table_name}, {operation}, ids={affected_ids}")
+            
+            # Если изменились ссылки - обновляем таблицу
+            if table_name == "link":
+                # Таблица ссылок обновится через structure_business
+                if hasattr(self.window, 'reload_current_category'):
+                    self.window.reload_current_category()
+            
+            # Если изменилась структура - обновляем дерево
+            elif table_name in ("sphere", "section", "category"):
+                if hasattr(self.window, 'reload_structure'):
+                    self.window.reload_structure()
+        except Exception as e:
+            logger.warning(
+                "Error handling DB data change: %s",
+                e,
+                exc_info=True
+            )
+    
+    def _on_db_structure_loaded(self) -> None:
+        """Обработчик загрузки структуры."""
+        try:
+            logger.info("Database structure loaded - reloading UI")
+            if hasattr(self.window, 'reload_structure'):
+                self.window.reload_structure()
+        except Exception as e:
+            logger.warning(
+                "Error handling structure loaded: %s",
+                e,
+                exc_info=True
+            )
+    
+    def _on_db_backup_created(self, backup_path: str) -> None:
+        """Обработчик создания резервной копии."""
+        try:
+            logger.info(f"Backup created: {backup_path}")
+            # Показываем уведомление в статус-баре
+            if hasattr(self.window, 'statusBar'):
+                status_bar = self.window.statusBar()
+                if status_bar:
+                    status_bar.showMessage(f"Резервная копия создана: {backup_path}", 5000)
+        except Exception as e:
+            logger.warning(
+                "Error handling backup created: %s",
+                e,
+                exc_info=True
+            )
+    
+    def _on_db_error(self, title: str, message: str) -> None:
+        """Обработчик ошибок БД."""
+        try:
+            logger.error(f"Database error: {title} - {message}")
+            # Показываем диалог ошибки
+            QMessageBox.critical(self.window, title, message)
+        except Exception as e:
+            logger.warning(
+                "Error handling DB error signal: %s",
+                e,
+                exc_info=True
+            )
 
     def _init_main_content(self) -> None:
         self.ui_setup.setup_main_content()
@@ -310,7 +426,7 @@ class WindowInitializer:
             logger.debug("WindowInitializer: failed to flush startup metrics at finalize", exc_info=True)
 
         # Обновляем статус на "Готово" (к этому моменту статус-бар создан)
-        self._status.set_message("Готово")
+        self._status.set_message(StatusMessage.READY)
 
         logger.info(
             "WindowInitializer: асинхронная инициализация завершена успешно"
@@ -383,7 +499,7 @@ class WindowInitializer:
         """Вызывается, когда БД ещё не готова: выставляет флаг ожидания и обновляет статус."""
         try:
             setattr(self, "_waiting_for_db", True)
-            self._status.set_message("Ожидание готовности базы данных...")
+            self._status.set_message(StatusMessage.WAITING_FOR_DB)
         except Exception:
             logger.exception(
                 "WindowInitializer: failed to update waiting-for-DB status"

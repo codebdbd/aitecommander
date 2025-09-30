@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from app.controllers.ui.theme_controller import ThemeController
     from app.controllers.ui.top_panels_controller import TopPanelsController
 
+from app.controllers.ui.window_facade import WindowFacade
 from app.settings import AppSettings
 from app.utils.db.synchronization import signal_guard
 from app.utils.ui.updates import suspend_updates
@@ -45,8 +46,15 @@ logger = logging.getLogger(__name__)
 
 
 class MainWindow(QMainWindow):
+    """Главное окно приложения.
+    
+    Координирует работу контроллеров через WindowFacade.
+    Основная ответственность - UI layout и обработка событий Qt.
+    """
+    
     shown: pyqtSignal = pyqtSignal()
 
+    # Контроллеры (инициализируются в bootstrap)
     structure: "StructureUIController"
     menu_controller: "MenuController"
     action_controller: "ActionController"
@@ -56,48 +64,50 @@ class MainWindow(QMainWindow):
     ui_state: "UIStateManager"
     system_dialogs: object
     theme_ctrl: "ThemeController"
+    
+    # UI компоненты
     table: LinksTableView
     left_panel: QWidget
+    
+    # Undo/Redo
     undo_stack: Optional[QUndoStack]
-    # Типизированные атрибуты действий отмены/повтора, могут быть None до инициализации
     undo_action: Optional[QAction]
     redo_action: Optional[QAction]
+    
+    # Фасад для упрощения делегирования
+    facade: Optional[WindowFacade]
 
     def handle_import_browser_bookmarks(self) -> None:
         self.system_dialogs.handle_import_browser_bookmarks()
 
+    # === Делегирование через фасад ===
+    
     def get_current_category_id(self) -> Optional[int]:
-        """Возвращает ID текущей категории или None до инициализации."""
-        structure = getattr(self, "structure", None)
-        if structure is None:
-            return None
-        return structure.get_current_category_id()
+        """Возвращает ID текущей категории."""
+        return self.facade.get_current_category_id() if self.facade else None
 
     def edit_structure_item(self, item: "StructureItem") -> None:
         """Редактирует элемент структуры."""
         self.structure.edit_item(item)
 
     def add_new_category(self) -> None:
-        """Добавляет новую категорию.
-
-        Ранее публичный метод назывался `show_category_dialog`. Он
-        объединён в этот метод для устранения дублирования.
-        """
-        self.structure.add_new_category()
+        """Добавляет новую категорию."""
+        if self.facade:
+            self.facade.add_new_category()
 
     def reload_structure(self) -> None:
         """Перезагружает структуру."""
-        self.structure.load()
+        if self.facade:
+            self.facade.reload_structure()
 
     def reload_current_category(self) -> None:
-        """Перезагружает текущую категорию через UIStateManager."""
-        category_id = self.get_current_category_id()
-        if category_id:
-            self.ui_state.load_category(category_id, source="reload_current_category")
+        """Перезагружает текущую категорию."""
+        if self.facade:
+            self.facade.reload_current_category()
 
     def get_link_at_row(self, row: int) -> "LinkDict | None":
         """Возвращает ссылку по номеру строки."""
-        return self.links_actions.get_link_at(row)
+        return self.facade.get_link_at_row(row) if self.facade else None
 
     def select_all_links(self) -> None:
         """Выделяет все ссылки."""
@@ -105,15 +115,24 @@ class MainWindow(QMainWindow):
 
     def get_selected_rows(self) -> list[int]:
         """Возвращает номера выбранных строк."""
-        return self.links_actions.get_selected_rows()
+        return self.facade.get_selected_rows() if self.facade else []
 
     def get_available_themes(self) -> list[tuple[str, str]]:
-        """Возвращает список доступных тем."""
-        return self.theme_ctrl.available()
+        """Возвращает список доступных тем.
+        
+        Примечание: Использует theme_ctrl напрямую, т.к. вызывается до инициализации фасада.
+        """
+        # Меню создается рано, до facade, поэтому прямой доступ
+        return self.theme_ctrl.available() if hasattr(self, 'theme_ctrl') else []
 
     def apply_theme(self, theme_name: str) -> None:
-        """Применяет тему."""
-        self.theme_ctrl.apply(theme_name)
+        """Применяет тему.
+        
+        Примечание: Использует theme_ctrl напрямую, т.к. вызывается до инициализации фасада.
+        """
+        # Меню используется рано, до facade, поэтому прямой доступ
+        if hasattr(self, 'theme_ctrl'):
+            self.theme_ctrl.apply(theme_name)
 
     def get_undo_stack(self) -> Optional[QUndoStack]:
         """Возвращает undo stack или None."""
@@ -230,6 +249,7 @@ class MainWindow(QMainWindow):
         # Инициализация перенесена в bootstrap. Здесь только приём базовых зависимостей.
         self.settings = settings
         self.theme_ctrl = theme_ctrl
+        self.facade = None  # Будет установлен в bootstrap после инициализации контроллеров
 
     def _init_spheres_ui(self):
         """Инициализирует UI сфер (асинхронно)."""
@@ -241,41 +261,41 @@ class MainWindow(QMainWindow):
         category_id: int | None = None,
     ) -> bool:
         """Показывает диалог создания/редактирования ссылки."""
-        selected_link_id = link.get("id") if link else None
-
-        result = self.links_actions.show_link_dialog(link, category_id)
+        if not self.facade:
+            return False
+        
+        result = self.facade.show_link_dialog(link, category_id)
         self.update_statusbar()
-
-        if result and selected_link_id:
-            # Планирование восстановления выделения делегировано в LinksActions
-            self.links_actions.schedule_restore_selection(selected_link_id)
-        # Возвращаем результат, чтобы внешние вызовы могли узнать об успешности
-        return bool(result)
+        return result
 
     def show_link_dialog_for_category(
         self, category_id: int | None = None, link: "LinkDict | None" = None
     ) -> bool:
-        """Открывает диалог ссылки для указанной категории (используется плитками категорий)."""
-        return bool(self.show_link_dialog(link=link, category_id=category_id))
+        """Открывает диалог ссылки для указанной категории."""
+        return self.show_link_dialog(link=link, category_id=category_id)
 
     def _get_selected_links(self) -> list["LinkDict"]:
         """Возвращает список выбранных ссылок."""
-        return self.links_actions.get_selected_links()
+        return self.facade.get_selected_links() if self.facade else []
 
     def _edit_selected_link(self) -> bool:
         """Редактирует выбранную ссылку."""
-        return bool(self.links_actions.edit_selected_link())
+        return self.facade.edit_selected_link() if self.facade else False
 
     def edit_current(self) -> None:
         """Редактирует текущий элемент."""
-        self.action_controller.edit_current()
+        if self.facade:
+            self.facade.edit_current()
 
     def delete_current(self) -> None:
-        """Удаляет текущий элемент (ссылку или структурный элемент)."""
-        self.action_controller.delete_current()
+        """Удаляет текущий элемент."""
+        if self.facade:
+            self.facade.delete_current()
 
     def show_section_dialog(self) -> None:
-        self.structure.add_new_section()
+        """Открывает диалог создания раздела."""
+        if self.facade:
+            self.facade.add_new_section()
 
     def update_statusbar(self) -> None:
         _update_status_bar(self)
@@ -283,13 +303,17 @@ class MainWindow(QMainWindow):
     def on_structure_item_added(
         self, item_type: str, parent_id: int, data: dict
     ) -> None:
-        self.structure.on_structure_item_added(item_type, parent_id, data)
+        """Обрабатывает добавление элемента структуры."""
+        if self.facade:
+            self.facade.on_structure_item_added(item_type, parent_id, data)
 
     @signal_guard("on_structure_item_changed")
     def on_structure_item_changed(
         self, item_type: str, item_id: int, data: dict
     ) -> None:
-        self.structure.on_structure_item_changed(item_type, item_id, data)
+        """Обрабатывает изменение элемента структуры."""
+        if self.facade:
+            self.facade.on_structure_item_changed(item_type, item_id, data)
 
     def show_about_dialog(self) -> None:
         self.system_dialogs.show_about_dialog()
@@ -302,7 +326,8 @@ class MainWindow(QMainWindow):
 
     def update_theme(self):
         """Применяет тему и обновляет UI."""
-        self.theme_ctrl.apply_and_refresh_ui()
+        if self.facade:
+            self.facade.update_theme()
 
     def update_widget_font_size(self, widget, size: int) -> None:
         """Унифицированно применяет размер шрифта к переданному виджету.
@@ -408,8 +433,9 @@ class MainWindow(QMainWindow):
         super().showEvent(event)
         if not hasattr(self, "_shown_emitted"):
             self._shown_emitted = True
-            # Эмитим сигнал немедленно, без искусственной задержки
-            self.shown.emit()
+            # Отложенный вызов через очередь событий Qt
+            # Предотвращает блокировку отрисовки окна, если слот выполняет тяжёлую операцию
+            QTimer.singleShot(0, self.shown.emit)
 
     def closeEvent(self, event):
         """Корректно завершает работу и закрывает ресурсы."""

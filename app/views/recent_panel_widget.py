@@ -25,16 +25,7 @@ class RecentPanelWidget(BaseTopPanelWidget):
     def set_data(self, items: List[Dict[str, Any]]) -> None:
         """Sets recent links data and populates the panel (unified contract)."""
         self._populate_panel(items, self._create_recent_button)
-
-        # Set visibility based on whether we have items
-        try:
-            self.setVisible(bool(items))
-        except Exception:
-            logging.getLogger(__name__).debug(
-                "RecentPanelWidget: setVisible failed", exc_info=True
-            )
-
-        # Sync top bar layout
+        # Visibility is managed by TopBarLayoutManager; just sync layout
         self._sync_topbar_layout()
 
     def get_limit(self) -> int:

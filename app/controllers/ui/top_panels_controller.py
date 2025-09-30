@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 
-from PyQt6.QtCore import QObject, QTimer, pyqtSlot
+from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
 from app.interfaces import TopPanelDataLike, FavoritesPanelWithClear, RecentsPanelWithLimit
 
@@ -29,6 +29,9 @@ class SetupError(Exception):
 
 class TopPanelsController(QObject):
     """Контроллер верхних панелей (Избранное/Недавние)."""
+    
+    # ИСПРАВЛЕНИЕ: Сигнал для уведомления о завершении загрузки данных
+    data_loaded = pyqtSignal()
 
     def __init__(
         self,
@@ -89,9 +92,14 @@ class TopPanelsController(QObject):
         }
 
     def refresh_all(self) -> None:
-        """Обновить обе панели: избранное и недавние."""
+        """Обновить обе панели: избранное и недавние.
+        
+        ИСПРАВЛЕНИЕ: Испускает сигнал data_loaded после завершения загрузки.
+        """
         self.refresh_favorites()
         self.refresh_recent()
+        # Испускаем сигнал о завершении загрузки данных
+        self.data_loaded.emit()
 
     def request_refresh(self, delay_ms: int | None = None, *args, **kwargs) -> None:
         """Запросить обновление верхних панелей с дебаунсом."""

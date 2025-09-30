@@ -564,25 +564,25 @@ class LinksBusinessLogic(QObject):
 
     # Слоты для обработки результатов воркеров
 
-    @pyqtSlot(list, int, int)
+    @pyqtSlot(object, int, int)
     def _on_links_loaded(self, links: List[Dict], category_id: int, task_id: int):
         """Обработка загруженных ссылок."""
         with self._tasks_lock:
             if task_id in self.pending_tasks:
                 del self.pending_tasks[task_id]
-                self.links_loaded.emit(links, category_id, task_id)
+                self.links_loaded.emit(links or [], category_id, task_id)
 
-    @pyqtSlot(list)
+    @pyqtSlot(object)
     def _on_search_finished(self, search_results: List[Dict]):
         """Обработка результатов поиска."""
-        self.search_results_ready.emit(search_results)
+        self.search_results_ready.emit(search_results or [])
 
-    @pyqtSlot(int, list, object)
+    @pyqtSlot(int, object, object)
     def _on_favorites_counted(
         self, fav_count: int, links: List[Dict], link: Optional[Dict]
     ):
         """Обработка подсчета избранного."""
-        self.favorites_counted.emit(fav_count, links, link)
+        self.favorites_counted.emit(fav_count, links or [], link)
 
     @pyqtSlot(str)
     def _on_worker_error(self, error_msg: str, task_id: Optional[int] = None):

@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from app.models.db import Database
-from app.models.structure_model import StructureModel
+from app.models import Database, StructureModel
 
 from .uow import unit_of_work
 
@@ -130,10 +129,18 @@ class StructureService:
     # --- Импорт/экспорт ---
     def export_full_structure(self) -> Dict[str, List]:
         return self.db.export_full_structure()
+    
+    def export_full_structure_async(self, on_finished=None, on_error=None, on_progress=None):
+        """Асинхронный экспорт структуры с callbacks."""
+        return self.db.export_full_structure_async(on_finished, on_error, on_progress)
 
     @unit_of_work
     def import_full_structure(self, data: List[Dict[str, Any]]) -> None:
         self.db.import_full_structure(data)
+    
+    def import_full_structure_async(self, data: List[Dict[str, Any]], on_finished=None, on_error=None, on_progress=None):
+        """Асинхронный импорт структуры с callbacks."""
+        return self.db.import_full_structure_async(data, on_finished, on_error, on_progress)
 
     def export_section_tree(self, section_id: int) -> Dict[str, Any]:
         return self.db.export_section_tree(section_id)
