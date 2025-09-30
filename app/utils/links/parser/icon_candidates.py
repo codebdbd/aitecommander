@@ -32,7 +32,6 @@ from dataclasses import dataclass
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
-from requests.exceptions import RequestException
 
 from app.config_data import app_config
 

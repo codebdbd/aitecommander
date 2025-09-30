@@ -1,6 +1,5 @@
 import importlib
 
-import pytest
 
 
 def reload_lp():

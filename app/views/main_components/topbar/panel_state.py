@@ -5,7 +5,6 @@ from typing import List, Optional
 
 from PyQt6.QtWidgets import QToolButton, QWidget
 
-from .types import PanelLabel, ButtonObjectName
 
 
 @dataclass(frozen=True)

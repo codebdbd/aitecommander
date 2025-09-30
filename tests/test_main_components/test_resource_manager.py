@@ -1,7 +1,6 @@
 """Unit tests for ResourceManager."""
 
-import pytest
-from unittest.mock import Mock, call
+from unittest.mock import Mock
 
 from app.views.main_components.resource_manager import ResourceManager, managed_resource
 

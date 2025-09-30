@@ -14,7 +14,8 @@ from app.utils.db.synchronization import signal_guard
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.updates import suspend_updates
- 
+
+logger = logging.getLogger(__name__)
 
 
 class SpheresBarController(QObject):

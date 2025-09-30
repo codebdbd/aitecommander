@@ -1,15 +1,13 @@
 # app/controllers/structure/item_operations.py
 
 import logging
-from typing import Optional, Sequence
 
 from PyQt6.QtCore import QObject, pyqtSlot
 
 # Используем строковые литералы "section" и "category"
-from app.controllers.ui.types import CategoryTilesControllerProtocol
+from app.controllers.ui.dialogs.dialog_manager import DialogManager
 from app.controllers.ui.structure.item_dialogs_service import ItemDialogService
 from app.controllers.ui.structure.item_deletion_service import ItemDeletionService
-from app.utils.ui.qt.roles import get_tree_tuple
 
 logger = logging.getLogger(__name__)
 

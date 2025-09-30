@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from .types import (
     CategoryData, CategoryCreateData, CategoryUpdateData,
-    StructureItemType, SignalType, CategoryNestedCount
+    StructureItemType
 )
 
 from app.models import StructureModel

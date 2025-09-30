@@ -7,10 +7,8 @@ from functools import partial
 from typing import Any, Dict
 
 from PyQt6.QtCore import QTimer, pyqtSlot
-from PyQt6.QtWidgets import QSizePolicy
 
 from .types import SetupError, DatabaseProtocol, WindowProtocol
-from app.config_data import app_config
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.ui.structure.structure_ui_controller import StructureUIController
 from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController

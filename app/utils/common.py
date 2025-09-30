@@ -2,7 +2,7 @@
 Общие утилиты, используемые по всему приложению.
 """
 
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 

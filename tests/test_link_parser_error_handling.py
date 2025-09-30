@@ -1,7 +1,6 @@
 import importlib
 import contextlib
 
-import pytest
 
 
 def reload_lp():

@@ -1,7 +1,7 @@
 """Базовый класс для workers, выполняющих операции БД в фоновом потоке."""
 import logging
 import traceback
-from typing import Any, Optional
+from typing import Any
 
 from PyQt6.QtCore import QObject, QRunnable, pyqtSignal, pyqtSlot
 

@@ -79,7 +79,7 @@ def main():
         
         # Обновляем версию схемы (если нужно)
         if current_version < 5:
-            conn.execute(f"PRAGMA user_version = 5")
+            conn.execute("PRAGMA user_version = 5")
             conn.commit()
             print(f"\n📌 Версия схемы обновлена: {current_version} → 5")
         

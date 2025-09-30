@@ -1,7 +1,5 @@
 import contextlib
-import re
 
-import pytest
 
 from app.models.category_model import CategoryModel
 

@@ -1,9 +1,7 @@
-import os
-import sqlite3
 import copy
 import pytest
 
-from app.models.db import Database, DB_PATH as ORIGINAL_DB_PATH
+from app.models.db import Database
 
 
 @pytest.fixture()

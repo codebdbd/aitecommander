@@ -4,7 +4,7 @@
 Следуйте этому формату при документировании кода.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 
 class LinksBusinessLogic:

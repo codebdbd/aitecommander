@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import re
 from collections import OrderedDict
-from pathlib import Path
 from threading import RLock
 from typing import Optional
 

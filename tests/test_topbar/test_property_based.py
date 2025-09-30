@@ -16,7 +16,7 @@ except ImportError:
     HYPOTHESIS_AVAILABLE = False
     pytest.skip("hypothesis not installed", allow_module_level=True)
 
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLineEdit, QToolButton
 
 from app.views.main_components.topbar.visibility_solver import VisibilitySolver

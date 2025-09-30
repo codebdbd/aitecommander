@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from PyQt6.QtCore import Qt
 
 from .base_component import BaseLinksUIComponent
-from app.utils.common import safe_call, safe_getattr
+from app.utils.common import safe_call
 
 logger = logging.getLogger(__name__)
 

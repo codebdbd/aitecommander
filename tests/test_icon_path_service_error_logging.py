@@ -1,7 +1,6 @@
 import importlib
 from pathlib import Path
 
-import pytest
 
 
 def reload_module():

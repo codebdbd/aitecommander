@@ -6,8 +6,6 @@ from PyQt6.QtCore import QModelIndex, QObject, pyqtSlot
 
 from app.controllers.ui.types import (
     CategoryTilesControllerProtocol,
-    LinksTableControllerProtocol,
-    UIStateManagerProtocol,
 )
 from app.utils.db.synchronization import signal_guard
 from app.utils.ui.qt.roles import get_tree_tuple

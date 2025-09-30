@@ -1,6 +1,5 @@
 """Модуль для обнаружения и разрешения дубликатов в базе данных."""
 import logging
-from typing import Dict, List
 
 from ..base.db_base import db_lock
 

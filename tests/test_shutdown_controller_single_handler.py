@@ -1,5 +1,4 @@
 import time
-import types
 import pytest
 
 from app.controllers.system.app_shutdown_controller import (

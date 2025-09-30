@@ -1,7 +1,5 @@
 import importlib
-import types
 
-import pytest
 
 
 def test_get_session_atexit_register_once(monkeypatch, caplog):

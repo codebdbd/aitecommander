@@ -1,4 +1,3 @@
-import time
 from concurrent.futures import ThreadPoolExecutor
 
 from app.utils.links.parser import icon_downloader as mod

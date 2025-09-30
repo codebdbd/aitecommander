@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 from app.views.main_components.topbar.visibility_solver import VisibilitySolver
 from app.views.main_components.topbar.width_calculator import WidthCalculator

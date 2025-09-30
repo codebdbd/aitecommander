@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import QModelIndex
 
 from app.utils.ui.qt.roles import get_tree_tuple
 

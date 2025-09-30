@@ -11,15 +11,9 @@
 """
 
 import logging
-from typing import Any
 
 from app.controllers.system.window_setup.types import (
     SetupError,
-    DatabaseProtocol,
-    QTableViewProtocol,
-    QUndoStackProtocol,
-    WindowProtocol,
-    ControllersDict,
 )
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.system.window_setup.coordinator import (

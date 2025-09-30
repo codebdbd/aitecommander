@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from PyQt6.QtCore import QObject
 
 from app.controllers.business.links_business import LinksBusinessLogic
-from app.utils.common import safe_call, safe_getattr
+from app.utils.common import safe_call
 from app.utils.ui.qt.roles import get_selected_rows as get_selected_rows_util
 from app.views.link import LinksTableView
 
