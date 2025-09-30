@@ -35,7 +35,7 @@ class UIConfig(BaseConfig):
 
     def get_window_min_width(self) -> int:
         """Получение минимальной ширины окна приложения."""
-        return self.get("ui.window.min_width", 800)
+        return self.get("ui.window.min_width", 280)
 
     def get_window_min_height(self) -> int:
         """Получение минимальной высоты окна приложения."""
@@ -100,15 +100,15 @@ class UIConfig(BaseConfig):
 
     def get_row_height(self) -> int:
         """Получение высоты строки в таблице ссылок."""
-        return self.get("ui.row_height", 30)
+        return self.get("ui.row_height", 32)
 
     def get_col_widths(self) -> list:
         """Получение ширин колонок таблицы."""
-        return self.get("ui.col_widths", [40, 280, 130])
+        return self.get("ui.col_widths", [40, 400, 130])
 
     def get_max_favorites(self) -> int:
         """Получение максимального количества избранных ссылок."""
-        return self.get("ui.max_favorites", 20)
+        return self.get("ui.max_favorites", 10)
 
     def get_fixed_button_width(self) -> int:
         """Получение фиксированной ширины стандартных кнопок."""
@@ -133,11 +133,11 @@ class UIConfig(BaseConfig):
 
     def get_tile_spacing(self) -> int:
         """Получение расстояния между плитками категорий."""
-        return self.get("ui.tile_spacing", 12)
+        return self.get("ui.tile_spacing", 6)
 
     def get_tile_padding(self) -> int:
         """Получение внутренних отступов внутри плитки."""
-        return self.get("ui.tile_padding", 10)
+        return self.get("ui.tile_padding", 6)
 
     def get_tile_icon_text_gap(self) -> int:
         """Получение расстояния между иконкой и текстом на плитке."""
@@ -161,7 +161,7 @@ class UIConfig(BaseConfig):
 
     def get_tile_width(self) -> int:
         """Получение ширины плитки категории."""
-        return self.get("ui.tile_width", 110)
+        return self.get("ui.tile_width", 128)
 
     def get_tile_height(self) -> int:
         """Получение высоты плитки категории."""
@@ -183,15 +183,15 @@ class UIConfig(BaseConfig):
 
     def get_spheres_bar_height(self) -> int:
         """Получение высоты панели сфер."""
-        return self.get("ui.spheres_bar_height", 48)
+        return self.get("ui.spheres_bar_height", 86)
 
     def get_spheres_bar_min_height(self) -> int:
         """Получение минимальной высоты панели сфер."""
-        return self.get("ui.spheres_bar_min_height", 64)
+        return self.get("ui.spheres_bar_min_height", 86)
 
     def get_spheres_bar_spacing(self) -> int:
         """Получение расстояния между элементами на панели сфер."""
-        return self.get("ui.spheres_bar_spacing", 12)
+        return self.get("ui.spheres_bar_spacing", 8)
 
     def get_sphere_button_icon_size(self) -> list[int]:
         """Получение размера иконки кнопки сферы.
@@ -265,12 +265,12 @@ class UIConfig(BaseConfig):
         """
         value = self.get("ui.top_bar_height")
         if value is None:
-            value = self.get("ui.top_panel_container_height", 48)
+            value = self.get("ui.top_panel_container_height", 40)
         return int(value)
 
     def get_top_panel_container_height(self) -> int:
         """Получение высоты контейнера верхней панели."""
-        return self.get("ui.top_panel_container_height", 48)
+        return self.get("ui.top_panel_container_height", 40)
 
     def get_top_panel_search_width(self) -> int:
         """Получение ширины поля поиска в верхней панели."""
@@ -278,7 +278,7 @@ class UIConfig(BaseConfig):
 
     def get_top_panel_search_min_width(self) -> int:
         """Минимальная ширина поля поиска в верхней панели (для сжатия)."""
-        return self.get("ui.top_panel_search_min_width", 140)
+        return self.get("ui.top_panel_search_min_width", 148)
 
     def get_top_panel_search_height(self) -> int:
         """Получение высоты поля поиска в верхней панели."""
@@ -646,3 +646,54 @@ class UIConfig(BaseConfig):
     def get_debug_show_tile_font_sample(self) -> bool:
         """Показывать ли контрольную метку с образцом шрифта плиток (для визуального сравнения)."""
         return self.get("ui.debug_show_tile_font_sample", False)
+
+    # === Auto-hide и TopBar ===
+
+    def get_auto_hide_manage_topbar(self) -> bool:
+        """Управлять ли панелями topbar при автоскрытии дерева.
+        
+        Ключ: ui.auto_hide_manage_topbar. По умолчанию False.
+        """
+        return bool(self.get("ui.auto_hide_manage_topbar", False))
+
+    def get_auto_hide_switch_to_table(self) -> bool:
+        """Переключаться ли на табличный вид при автоскрытии дерева.
+        
+        Ключ: ui.auto_hide_switch_to_table. По умолчанию False.
+        """
+        return bool(self.get("ui.auto_hide_switch_to_table", False))
+
+    def get_topbar_throttle_ms(self) -> int:
+        """Получение интервала throttle для topbar layout в миллисекундах.
+        
+        Ключ: ui.topbar.throttle_ms. По умолчанию 50.
+        """
+        return int(self.get("ui.topbar.throttle_ms", 50))
+
+    def get_topbar_log_info(self) -> bool:
+        """Включить ли INFO логирование для topbar.
+        
+        Ключ: ui.topbar.log_info. По умолчанию False.
+        """
+        return bool(self.get("ui.topbar.log_info", False))
+
+    def get_topbar_min_visible_recent(self) -> int:
+        """Минимальное количество видимых кнопок Recent в topbar.
+        
+        Ключ: ui.topbar.min_visible.recent. По умолчанию 0.
+        """
+        return int(self.get("ui.topbar.min_visible.recent", 0))
+
+    def get_topbar_min_visible_fav(self) -> int:
+        """Минимальное количество видимых кнопок Favorites в topbar.
+        
+        Ключ: ui.topbar.min_visible.fav. По умолчанию 0.
+        """
+        return int(self.get("ui.topbar.min_visible.fav", 0))
+
+    def get_topbar_min_visible_quick(self) -> int:
+        """Минимальное количество видимых кнопок Quick Add в topbar.
+        
+        Ключ: ui.topbar.min_visible.quick. По умолчанию 1.
+        """
+        return int(self.get("ui.topbar.min_visible.quick", 1))

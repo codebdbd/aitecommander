@@ -3,8 +3,16 @@
     "name": "Aite Commander",
     "org_name": "Codebdbd",
     "version": "1.0.0",
-    "about_title": "О программе",
-    "about_text": "Link Manager\nВерсия 1.0\n© MyCompany"
+    "about_title": "Aite Commander",
+    "about_text": "Профессиональный менеджер ссылок\n\nВерсия 1.0.0\n\nОрганизуйте свои ссылки, файлы и приложения\nв удобной структуре с мощным поиском.\n\n© 2025 Codebdbd"
+  },
+  "threading": {
+    "max_db_threads": 4,
+    "comment": "Максимальное количество потоков для асинхронных операций БД"
+  },
+  "startup": {
+    "app_ready_delay_ms": 100,
+    "comment": "Задержка перед сигналом о готовности приложения"
   },
   "ui": {
     "icon_size": 24,
@@ -61,7 +69,7 @@
     "tile_border_radius": 8,
     "tile_border_width": 2,
     "tile_border_margin": 2,
-    "spheres_bar_height":86,
+    "spheres_bar_height": 86,
     "spheres_layout_margins": [8, 8, 8, 8],
     "spheres_bar_margin_left": 8,
     "spheres_bar_margin_right": 8,
@@ -109,7 +117,7 @@
     "top_panel_button_size": 36,
     "top_panel_icon_size": 24,
     "top_panel_search_width": 320,
-    "top_panel_search_min_width": 160,
+    "top_panel_search_min_width": 148,
     "top_panel_search_height": 32,
     "top_bar_margins": [
       0,
@@ -123,8 +131,8 @@
       1
     ],
     "splitter_sizes": [
-      288,
-      744
+      250,
+      750
     ],
     "main_layout_margins": [
       0,
@@ -143,7 +151,7 @@
         ]
       },
       "spacing": {
-        "top_bar": 8,
+        "top_bar": 4,
         "top_bar_buttons": 4,
         "top_bar_widgets_side": 4
       }
@@ -151,7 +159,7 @@
     "window": {
       "width": 1024,
       "height": 768,
-      "min_width": 299,
+      "min_width": 280,
       "min_height": 600
     },
     
@@ -197,14 +205,16 @@
       }
     },
     "topbar": {
-      "throttle_ms": 0,
+      "throttle_ms": 50,
       "log_info": false,
       "min_visible": {
         "recent": 0,
         "fav": 0,
         "quick": 1
       }
-    }
+    },
+    "auto_hide_manage_topbar": false,
+    "auto_hide_switch_to_table": false
   },
   "paths": {
     "link_icons_dir": "resources/link_icons",

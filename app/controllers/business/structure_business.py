@@ -27,8 +27,7 @@ from app.controllers.structure_services.loader import LoaderService
 from app.controllers.structure_services.selection import SelectionService
 from app.controllers.structure_services.utilities import UtilityService
 from app.controllers.structure_services.validation import ValidationService
-from app.models.db import Database
-from app.models.structure_model import StructureModel
+from app.models import Database, StructureModel
 from app.services.structure_service import StructureService
 
 

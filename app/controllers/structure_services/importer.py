@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional
 
-from app.models.structure_model import StructureModel
+from app.models import StructureModel
 from app.services.structure_service import StructureService
 
 

@@ -11,7 +11,7 @@ from .types import (
     StructureItemType, SignalType, SectionNestedCount
 )
 
-from app.models.structure_model import StructureModel
+from app.models import StructureModel
 from app.services.structure_service import StructureService
 
 from .base import BaseOperations, StructureItemType

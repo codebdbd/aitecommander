@@ -1,17 +1,35 @@
 # app/models/__init__.py
 
-from .category_model import CategoryModel
+from .entities import CategoryModel, LinkModel, SectionModel, SphereModel, StructureModel
 from .db import Database
-from .link_model import LinkModel
-from .section_model import SectionModel
-from .sphere_model import SphereModel
-from .structure_model import StructureModel
+
+# Экспортируем базовые классы и типы для удобства
+from .base import DatabaseBase, DatabaseError, ValidationError, db_lock
+from .types import LinkType
+
+# Экспортируем workers для асинхронных операций
+from .workers import DatabaseWorker, WorkerSignals, ImportStructureWorker, ExportStructureWorker, BackupWorker
 
 __all__ = [
+    # Core
     "Database",
+    # Models
     "StructureModel",
     "SphereModel",
     "SectionModel",
     "CategoryModel",
     "LinkModel",
+    # Base
+    "DatabaseBase",
+    "DatabaseError",
+    "ValidationError",
+    "db_lock",
+    # Types
+    "LinkType",
+    # Workers (async operations)
+    "DatabaseWorker",
+    "WorkerSignals",
+    "ImportStructureWorker",
+    "ExportStructureWorker",
+    "BackupWorker",
 ]

@@ -56,6 +56,14 @@ class WindowControllersSetup:
             raise SetupError(
                 "Critical component ControllersSetup failed to initialize"
             ) from e
+        
+        # Инициализируем WindowFacade после создания контроллеров
+        try:
+            self._init_window_facade()
+            logger.info("WindowFacade initialized")
+        except Exception as e:
+            logger.error("Failed to initialize WindowFacade: %s", e)
+            raise SetupError("WindowFacade initialization failed") from e
 
         for name, step in (
             ("UIElementsSetup", setup_ui_elements),
@@ -77,6 +85,33 @@ class WindowControllersSetup:
                 logger.error("%s failed: %s", name, e)
                 raise SetupError(f"{name} failed during window setup") from e
 
+    def _init_window_facade(self) -> None:
+        """Инициализирует WindowFacade для упрощения делегирования."""
+        from app.controllers.ui.window_facade import WindowFacade
+        
+        # Проверяем наличие необходимых контроллеров
+        required_controllers = [
+            'structure', 'links_actions', 'ui_state', 
+            'action_controller', 'theme_ctrl'
+        ]
+        
+        for ctrl_name in required_controllers:
+            if not hasattr(self.window, ctrl_name):
+                raise SetupError(
+                    f"Cannot initialize WindowFacade: missing controller '{ctrl_name}'"
+                )
+        
+        # Создаём фасад
+        self.window.facade = WindowFacade(
+            structure=self.window.structure,
+            links_actions=self.window.links_actions,
+            ui_state=self.window.ui_state,
+            action_controller=self.window.action_controller,
+            theme_ctrl=self.window.theme_ctrl,
+        )
+        
+        logger.debug("WindowFacade created with all controllers")
+    
     def initialize_spheres(self):
         """Инициализация сфер."""
         try:

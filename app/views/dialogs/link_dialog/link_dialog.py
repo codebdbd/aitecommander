@@ -25,7 +25,7 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data import app_config
-from app.models.link_type import LinkType
+from app.models import LinkType
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
