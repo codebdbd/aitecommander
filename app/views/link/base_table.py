@@ -26,9 +26,6 @@ from .item_builders import ItemBuildersMixin
 from .population_manager import PopulationManagerMixin
 from .row_operations import RowOperationsMixin
 
-# Константы для магических чисел
-HOVER_COLOR = "#444444"
-
 # Модульный логгер
 logger = logging.getLogger(__name__)
 
@@ -38,7 +35,7 @@ class TableDelegate(QStyledItemDelegate):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.hovered_row = -1
-        self.hover_color = QColor(HOVER_COLOR)
+        self.hover_color = QColor("#444444")  # Hover цвет для строк таблицы
         # Настройки размеров шрифтов из единого реестра ui.fonts.*
         def _get_px(key: str) -> int | None:
             try:
@@ -395,3 +392,22 @@ class LinksTableView(
             logger.debug(
                 "[SORT] Ошибка перестроения кэша по layoutChanged: %s", e, exc_info=True
             )
+
+    def __del__(self):
+        """Отписываемся от сигналов для предотвращения утечек памяти."""
+        try:
+            if hasattr(self, 'entered'):
+                self.entered.disconnect()
+            if hasattr(self, 'horizontalHeader'):
+                header = self.horizontalHeader()
+                if header:
+                    header.sectionClicked.disconnect()
+            if hasattr(self, 'model'):
+                model = self.model()
+                if model and hasattr(model, 'layoutChanged'):
+                    model.layoutChanged.disconnect()
+            if hasattr(self, 'items_reordered'):
+                self.items_reordered.disconnect()
+        except (RuntimeError, TypeError):
+            # Объект уже удалён или сигнал не подключён
+            pass

@@ -22,6 +22,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+# Константы
+DEFAULT_NEON_COLOR = "#0194F0"  # Цвет неонового свечения по умолчанию
+DEFAULT_BLUR_RADIUS = 18  # Радиус размытия свечения
+
 
 class NeonEventFilter(QObject):
     """
@@ -45,11 +49,12 @@ class NeonEventFilter(QObject):
         outline_only: bool = False,
     ) -> None:
         super().__init__(parent)
-        self._color = color or QColor("#0194F0")
+        self._color = color or QColor(DEFAULT_NEON_COLOR)
         self._blur = blur_radius
         self._x = x_offset
         self._y = y_offset
         self._outline_only = outline_only
+        self._tracked_widgets: list[QWidget] = []  # Трекинг виджетов для очистки
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         et = event.type()
@@ -122,6 +127,7 @@ class NeonEventFilter(QObject):
         )
         if isinstance(w, eligible):
             w.installEventFilter(self)
+            self._tracked_widgets.append(w)  # Добавляем в трекинг
             self._maybe_connect_toggled(w)
             # Синхронизируем эффект с текущим состоянием checked
             if self._is_active_checked_button(w):
@@ -130,6 +136,7 @@ class NeonEventFilter(QObject):
         for child in w.findChildren(QWidget):
             if isinstance(child, eligible):
                 child.installEventFilter(self)
+                self._tracked_widgets.append(child)  # Добавляем в трекинг
                 self._maybe_connect_toggled(child)
                 if self._is_active_checked_button(child):
                     self._apply_effect(child)
@@ -205,3 +212,26 @@ class NeonEventFilter(QObject):
             and getattr(w, "isCheckable", lambda: False)()
             and getattr(w, "isChecked", lambda: False)()
         )
+
+    def cleanup(self) -> None:
+        """Удаляет все event filters и отписывается от сигналов.
+        
+        Вызывайте этот метод перед удалением фильтра для предотвращения утечек памяти.
+        """
+        for widget in self._tracked_widgets:
+            try:
+                widget.removeEventFilter(self)
+                # Отписываемся от toggled если подключены
+                if hasattr(widget, "toggled") and getattr(widget, "_neon_toggled_connected", False):
+                    widget.toggled.disconnect()
+            except (RuntimeError, TypeError):
+                # Виджет уже удалён
+                pass
+        self._tracked_widgets.clear()
+
+    def __del__(self):
+        """Автоматическая очистка при удалении."""
+        try:
+            self.cleanup()
+        except Exception:
+            pass

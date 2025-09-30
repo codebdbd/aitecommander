@@ -1,8 +1,9 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt
+from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt, QVariant
 from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QWidget
 
 from app.utils.ui.icon import resolve_category_icon_path
 from app.utils.ui.icon.cache_manager import get_cached_category_icon
@@ -24,7 +25,7 @@ class CategoriesListModel(QAbstractListModel):
       - ToolTipRole: name (можно расширить)
     """
 
-    def __init__(self, categories: Optional[List[Dict[str, Any]]] = None, parent=None):
+    def __init__(self, categories: Optional[List[Dict[str, Any]]] = None, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._items: List[Dict[str, Any]] = []
         # Кэш строк по id для O(1) поиска: id -> row

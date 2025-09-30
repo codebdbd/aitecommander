@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from PyQt6.QtCore import QEvent, QModelIndex, Qt, pyqtSignal
 from PyQt6.QtGui import QDrag, QDropEvent, QPixmap
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 class BasePanelWidget(QWidget):
     """Базовый виджет панели с цветным QFrame и layout."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.bg_frame = QFrame(self)
         self.panel_layout = QHBoxLayout(self.bg_frame)
@@ -63,7 +63,7 @@ class BaseLinksPanelWidget(BasePanelWidget, LinkButtonMixin):
 
     def __init__(
         self, main_window: Optional[QWidget] = None, links_business: Any = None
-    ):
+    ) -> None:
         """Инициализирует панель ссылок.
 
         Args:
@@ -100,7 +100,7 @@ class BaseLinksPanelWidget(BasePanelWidget, LinkButtonMixin):
             )
             return str(self._get_default_icon_path())
 
-    def _clear_layout(self):
+    def _clear_layout(self) -> None:
         """Безопасно очищает layout от виджетов."""
         while self.panel_layout.count():
             item = self.panel_layout.takeAt(0)
@@ -113,54 +113,81 @@ class BaseLinksPanelWidget(BasePanelWidget, LinkButtonMixin):
         items: List[Dict[str, Any]],
         create_button_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
     ) -> None:
-        """Очищает панель и заполняет кнопками ссылок."""
+        """Очищает панель и заполняет кнопками ссылок батчами для предотвращения блокировки UI."""
+        self._clear_layout()
+        
+        # Сохраняем данные для батчинга
+        self._pending_items = list(items)
+        self._create_button_func = create_button_func
+        
+        # Отключаем обновления до завершения заполнения
         self.setUpdatesEnabled(False)
-        try:
-            self._clear_layout()
+        
+        # Запускаем первый батч
+        self._populate_batch()
 
-            for i, link in enumerate(items):
-                try:
-                    button = create_button_func(link)
-                except Exception:
-                    # Подробная диагностика для упрощения отладки
-                    link_info = {
-                        "index": i,
-                        "id": link.get("id", "Unknown"),
-                        "name": link.get("name", "Unknown"),
-                        "url": link.get("url", "Unknown")[:50]
-                        if link.get("url")
-                        else "Unknown",
-                    }
-                    logger.exception(
-                        "Не удалось создать кнопку для элемента панели %s", link_info
-                    )
-                    continue
-
-                if button is not None:
-                    self.panel_layout.addWidget(button)
-                else:
-                    logging.debug(
-                        "create_button_func вернула None для элемента %d: %s",
-                        i,
-                        link.get("name", "Unknown"),
-                    )
-
+    def _populate_batch(self) -> None:
+        """Обрабатывает один батч элементов (до 50 штук)."""
+        if not hasattr(self, '_pending_items') or not self._pending_items:
+            # Все батчи обработаны
+            self._finish_populate()
+            return
+        
+        BATCH_SIZE = 50  # Обрабатываем по 50 за раз
+        batch = self._pending_items[:BATCH_SIZE]
+        self._pending_items = self._pending_items[BATCH_SIZE:]
+        
+        # Обрабатываем текущий батч
+        for i, link in enumerate(batch):
             try:
-                if self.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Expanding:
-                    self.panel_layout.addStretch()
-            except (AttributeError, RuntimeError) as e:
-                logging.warning("Не удалось добавить stretch в layout: %s", e)
-        finally:
-            self.setUpdatesEnabled(True)
-            try:
-                self.updateGeometry()
+                button = self._create_button_func(link)
             except Exception:
-                logger.debug(
-                    "BaseLinksPanelWidget: updateGeometry failed after populate",
-                    exc_info=True,
+                link_info = {
+                    "id": link.get("id", "Unknown"),
+                    "name": link.get("name", "Unknown"),
+                    "url": link.get("url", "Unknown")[:50] if link.get("url") else "Unknown",
+                }
+                logger.exception(
+                    "Не удалось создать кнопку для элемента панели %s", link_info
                 )
+                continue
+            
+            if button is not None:
+                self.panel_layout.addWidget(button)
+            else:
+                logging.debug(
+                    "create_button_func вернула None для: %s",
+                    link.get("name", "Unknown"),
+                )
+        
+        # Планируем следующий батч через очередь событий Qt
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(0, self._populate_batch)
+    
+    def _finish_populate(self) -> None:
+        """Завершает заполнение панели."""
+        try:
+            if self.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Expanding:
+                self.panel_layout.addStretch()
+        except (AttributeError, RuntimeError) as e:
+            logging.warning("Не удалось добавить stretch в layout: %s", e)
+        
+        # Включаем обновления
+        self.setUpdatesEnabled(True)
+        
+        try:
+            self.updateGeometry()
+        except Exception:
+            logger.debug(
+                "BaseLinksPanelWidget: updateGeometry failed after populate",
+                exc_info=True,
+            )
+        
+        # Очищаем временные данные
+        self._pending_items = []
+        self._create_button_func = None
 
-    def _handle_link_click_base(self, link_info) -> None:
+    def _handle_link_click_base(self, link_info: Any) -> None:
         """Эмитит сигнал `linkClicked` по клику по ссылке."""
         logger.debug("[BaseLinksPanelWidget] link clicked: %s", link_info)
         try:
@@ -200,13 +227,13 @@ class BaseDragDropTableWidget(QTableView):
 
     MIME_TYPE = get_link_mime()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._sorting_enabled_before_drag = True
         self._sorting_disabled_for_drag: bool = False
         self._setup_drag_drop()
 
-    def _setup_drag_drop(self):
+    def _setup_drag_drop(self) -> None:
         """Настраивает параметры drag-and-drop."""
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
@@ -240,7 +267,7 @@ class BaseDragDropTableWidget(QTableView):
         self.setTabKeyNavigation(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
-    def eventFilter(self, obj, event):
+    def eventFilter(self, obj: QWidget, event: QEvent) -> bool:
         """Форсирует обработку DnD-событий, приходящих на viewport()."""
         if obj is self.viewport():
             et = event.type()
@@ -258,11 +285,11 @@ class BaseDragDropTableWidget(QTableView):
                 return event.isAccepted()
         return super().eventFilter(obj, event)
 
-    def mimeTypes(self):
+    def mimeTypes(self) -> List[str]:
         """Возвращает поддерживаемые MIME-типы."""
         return [self.MIME_TYPE]
 
-    def mimeData(self, items):
+    def mimeData(self, items: Iterable[QModelIndex]) -> Optional[QDrag]:
         """Создаёт MIME-данные для перетаскивания.
 
         items может быть списком QModelIndex.
@@ -280,7 +307,7 @@ class BaseDragDropTableWidget(QTableView):
             "Subclasses must implement _extract_item_ids_from_items"
         )
 
-    def startDrag(self, supportedActions):
+    def startDrag(self, supportedActions: Qt.DropAction) -> None:
         """Начинает операцию перетаскивания."""
         sm = self.selectionModel()
         if not sm:
@@ -318,7 +345,7 @@ class BaseDragDropTableWidget(QTableView):
         # - при успешном переносе сортировку оставляем ВЫКЛ, чтобы видно было ручной порядок
         # - при неуспешном переносе возвращаем в исходное состояние
 
-    def dragEnterEvent(self, event):
+    def dragEnterEvent(self, event: QDropEvent) -> None:
         """Обрабатывает начало drag-операции."""
         if not self._sorting_disabled_for_drag:
             self._sorting_disabled_for_drag = self.isSortingEnabled()
@@ -362,7 +389,7 @@ class BaseDragDropTableWidget(QTableView):
             raise
         super().dragEnterEvent(event)
 
-    def dragMoveEvent(self, event):
+    def dragMoveEvent(self, event: QDropEvent) -> None:
         """Поддержка перетаскивания внутри виджета."""
         try:
             if (
@@ -402,14 +429,14 @@ class BaseDragDropTableWidget(QTableView):
             raise
         super().dragMoveEvent(event)
 
-    def dragLeaveEvent(self, event):
+    def dragLeaveEvent(self, event: QEvent) -> None:
         """Обрабатывает выход из drag-зоны."""
         if self._sorting_disabled_for_drag:
             self.setSortingEnabled(True)
             self._sorting_disabled_for_drag = False
         super().dragLeaveEvent(event)
 
-    def dropEvent(self, event: QDropEvent):
+    def dropEvent(self, event: QDropEvent) -> None:
         """Обрабатывает drop для внутреннего перемещения строк."""
         if not self._is_internal_drop(event):
             super().dropEvent(event)
@@ -457,7 +484,7 @@ class BaseDragDropTableWidget(QTableView):
                     pass
             self._sorting_disabled_for_drag = False
 
-    def _is_internal_drop(self, event) -> bool:
+    def _is_internal_drop(self, event: QDropEvent) -> bool:
         """Проверяет, является ли это внутренним перемещением."""
         src = event.source()
         try:
@@ -469,11 +496,11 @@ class BaseDragDropTableWidget(QTableView):
         """Возвращает список выбранных строк."""
         return dnd_get_selected_rows(self)
 
-    def _extract_source_rows_from_mime(self, event) -> List[int]:
+    def _extract_source_rows_from_mime(self, event: QDropEvent) -> List[int]:
         """Извлекает номера строк источника из MIME-данных."""
         return dnd_extract_source_rows(self, event, self.MIME_TYPE)
 
-    def _extract_id_from_index(self, index) -> int:
+    def _extract_id_from_index(self, index: QModelIndex) -> int:
         """Возвращает ID элемента из модели по переданному индексу (UserRole).
 
         Требование: модель в ``UserRole`` первой колонки хранит dict ссылки
@@ -499,7 +526,7 @@ class BaseDragDropTableWidget(QTableView):
             )
             raise ValueError("Cannot extract integer ID from UserRole data") from e
 
-    def _get_drop_positions(self, event) -> tuple:
+    def _get_drop_positions(self, event: QDropEvent) -> Tuple[List[int], int]:
         """Возвращает позиции источника и цели для drop-операции.
 
         Поддерживает двойной способ получения позиции указателя для совместимости:
@@ -559,7 +586,7 @@ class BaseDragDropTableWidget(QTableView):
         logger.debug("[DROP] target_row: %s", target_row)
         return source_rows, target_row
 
-    def _is_valid_internal_drop(self, source_rows: list, target_row: int) -> bool:
+    def _is_valid_internal_drop(self, source_rows: List[int], target_row: int) -> bool:
         """Проверяет валидность внутреннего перемещения (более либерально)."""
         if target_row == -1 or not source_rows:
             return False
@@ -567,11 +594,11 @@ class BaseDragDropTableWidget(QTableView):
         # вставка будет скорректирована в _get_drop_positions
         return True
 
-    def _move_row_visually(self, source_row: int, target_row: int):
+    def _move_row_visually(self, source_row: int, target_row: int) -> None:
         """Визуально перемещает одну строку (переопределяется в наследниках)."""
         raise NotImplementedError("Subclasses must implement _move_row_visually")
 
-    def _move_rows_visually(self, source_rows: list, target_row: int):
+    def _move_rows_visually(self, source_rows: List[int], target_row: int) -> None:
         """Визуально перемещает множество строк (централизовано)."""
         dnd_move_rows_visually(self, source_rows, target_row)
         try:
@@ -588,7 +615,7 @@ class BaseDragDropTableWidget(QTableView):
         """Возвращает ID элементов в текущем порядке (централизовано)."""
         return dnd_get_current_order(self)
 
-    def _create_drag_pixmap(self, items) -> Optional[QPixmap]:
+    def _create_drag_pixmap(self, items: List[QModelIndex]) -> Optional[QPixmap]:
         """Создаёт pixmap предпросмотра для drag-операции."""
         try:
             if items:
