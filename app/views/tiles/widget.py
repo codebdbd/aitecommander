@@ -183,7 +183,7 @@ class CategoryTiles(QWidget):
         else:
             model.set_categories(categories)
 
-    def _on_index_activated(self, index):
+    def _on_index_activated(self, index: QModelIndex) -> None:
         if not index or not index.isValid():
             logger.debug("No index selected")
             self._current_item_id = None
@@ -212,7 +212,7 @@ class CategoryTiles(QWidget):
         if dialog_provider:
             self.dialog_provider = dialog_provider
 
-    def eventFilter(self, obj, event):
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         # Гарантированный перехват QContextMenuEvent из viewport()
         try:
             if obj is self.view.viewport() and event.type() == event.Type.ContextMenu:
@@ -297,14 +297,14 @@ class CategoryTiles(QWidget):
         return int(model.rowCount()) if model else 0
 
     # Устаревший API: эмитим только сигналы
-    def _execute_edit_category(self, category_id: int):
+    def _execute_edit_category(self, category_id: int) -> None:
         logger.debug("Emit editRequested for ID %s", category_id)
         self.editRequested.emit(category_id)
 
-    def _execute_delete_category(self, category_id: int):
+    def _execute_delete_category(self, category_id: int) -> None:
         logger.debug("Emit deleteRequested for ID %s", category_id)
         self.deleteRequested.emit(category_id)
 
-    def _execute_add_link(self, category_id: int):
+    def _execute_add_link(self, category_id: int) -> None:
         logger.debug("Emit addLinkRequested for ID %s", category_id)
         self.addLinkRequested.emit(category_id)

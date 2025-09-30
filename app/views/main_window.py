@@ -5,7 +5,7 @@ import weakref
 from contextlib import suppress
 from typing import TYPE_CHECKING, Optional
 
-from PyQt6.QtCore import QTimer, pyqtSignal
+from PyQt6.QtCore import QEvent, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QKeySequence, QUndoStack
 from PyQt6.QtWidgets import QMainWindow, QWidget
 
@@ -250,8 +250,15 @@ class MainWindow(QMainWindow):
         self.settings = settings
         self.theme_ctrl = theme_ctrl
         self.facade = None  # Будет установлен в bootstrap после инициализации контроллеров
+        
+        # Debounce таймер для поиска
+        self._search_timer = QTimer()
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(300)  # 300ms задержка
+        self._search_timer.timeout.connect(self._execute_search)
+        self._pending_search = ""
 
-    def _init_spheres_ui(self):
+    def _init_spheres_ui(self) -> None:
         """Инициализирует UI сфер (асинхронно)."""
         self.spheres_controller.init()
 
@@ -324,7 +331,7 @@ class MainWindow(QMainWindow):
     def show_file_search_dialog(self) -> None:
         self.system_dialogs.show_file_search_dialog()
 
-    def update_theme(self):
+    def update_theme(self) -> None:
         """Применяет тему и обновляет UI."""
         if self.facade:
             self.facade.update_theme()
@@ -372,7 +379,7 @@ class MainWindow(QMainWindow):
         # Плитки категорий — намеренно НЕ меняем здесь, их шрифт независим
 
     @signal_guard("_update_left_panel_style")
-    def _update_left_panel_style(self, sphere_id: int):
+    def _update_left_panel_style(self, sphere_id: int) -> None:
         """Обновляет стиль левой панели при смене сферы."""
         current_sphere = self.left_panel.property("sphere")
         if current_sphere == str(sphere_id):
@@ -384,51 +391,22 @@ class MainWindow(QMainWindow):
             self.left_panel.style().polish(self.left_panel)
 
     def on_search(self, text: str) -> None:
-        # Сохраняем последний ввод, чтобы при поздней инициализации не потерять запрос
-        self._last_search_text = text
+        """Откладывает выполнение поиска на 300ms (debounce)."""
+        self._pending_search = text
+        self._search_timer.start()  # Перезапускает таймер при каждом вводе
+
+    def _execute_search(self) -> None:
+        """Выполняет поиск после задержки."""
         la = getattr(self, "links_actions", None)
         if la is None:
-            # Отложенная переотправка: дадим системе инициализироваться
-            if not hasattr(self, "_search_retry_attempts"):
-                self._search_retry_attempts = (
-                    SEARCH_RETRY_ATTEMPTS  # ~2 сек при шаге 100 мс
-                )
-            if not getattr(self, "_search_retry_active", False):
-                self._search_retry_active = True
-                logger.debug(
-                    "MainWindow.on_search buffered until links_actions is ready"
-                )
-                QTimer.singleShot(SEARCH_RETRY_INTERVAL_MS, self._retry_forward_search)
+            logger.debug("MainWindow: links_actions ещё не инициализирован")
             return
         try:
-            la.on_search(text)
+            la.on_search(self._pending_search)
         except Exception:
-            logger.exception("MainWindow.on_search failed to delegate to links_actions")
+            logger.exception("MainWindow._execute_search failed")
 
-    def _retry_forward_search(self) -> None:
-        try:
-            la = getattr(self, "links_actions", None)
-            if la is not None:
-                txt = getattr(self, "_last_search_text", "")
-                la.on_search(txt)
-                self._search_retry_active = False
-                return
-            # Ещё не готово — попробуем позже, ограниченное число попыток
-            attempts = getattr(self, "_search_retry_attempts", 0)
-            if attempts <= 0:
-                self._search_retry_active = False
-                logger.debug(
-                    "Search retry limit reached before links_actions initialized"
-                )
-                return
-            self._search_retry_attempts = attempts - 1
-            QTimer.singleShot(SEARCH_RETRY_INTERVAL_MS, self._retry_forward_search)
-        except Exception:
-            # Негативные сценарии не должны ронять UI
-            self._search_retry_active = False
-            logger.exception("Unexpected error in _retry_forward_search")
-
-    def showEvent(self, event):
+    def showEvent(self, event: QEvent) -> None:
         """Эмитит сигнал shown при первом показе окна."""
         super().showEvent(event)
         if not hasattr(self, "_shown_emitted"):
@@ -437,9 +415,18 @@ class MainWindow(QMainWindow):
             # Предотвращает блокировку отрисовки окна, если слот выполняет тяжёлую операцию
             QTimer.singleShot(0, self.shown.emit)
 
-    def closeEvent(self, event):
+    def closeEvent(self, event: QEvent) -> None:
         """Корректно завершает работу и закрывает ресурсы."""
         logger.info("MainWindow.closeEvent: initiating shutdown")
+        
+        # Останавливаем search timer для предотвращения утечек
+        try:
+            if hasattr(self, '_search_timer'):
+                self._search_timer.stop()
+                self._search_timer.deleteLater()
+        except (AttributeError, RuntimeError):
+            pass
+        
         if hasattr(self, "app_shutdown") and self.app_shutdown:
             try:
                 logger.info("MainWindow.closeEvent: delegating to AppShutdownController")

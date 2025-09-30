@@ -1,8 +1,8 @@
 """Recent links panel widget for top bar."""
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from PyQt6.QtWidgets import QToolButton
+from PyQt6.QtWidgets import QToolButton, QWidget
 
 from app.utils.ui.icon.icon_resolver import get_default_icon_path
 from app.views.base_panel_widgets import BaseTopPanelWidget
@@ -13,7 +13,7 @@ RECENT_LINKS_LIMIT = 10
 class RecentPanelWidget(BaseTopPanelWidget):
     """Dedicated widget for recent links panel functionality."""
 
-    def __init__(self, main_window=None):
+    def __init__(self, main_window: Optional[QWidget] = None) -> None:
         super().__init__(main_window)
         self._default_icon_path = get_default_icon_path()
 

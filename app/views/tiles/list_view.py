@@ -1,10 +1,9 @@
-# app/views/tiles/list_view.py
 from __future__ import annotations
 
 import logging
 
-from PyQt6.QtCore import QEvent, Qt, pyqtSignal
-from PyQt6.QtGui import QDrag, QMouseEvent
+from PyQt6.QtCore import QEvent, QObject, Qt, pyqtSignal
+from PyQt6.QtGui import QDrag, QKeyEvent, QMouseEvent, QPixmap
 from PyQt6.QtWidgets import QAbstractItemView, QApplication, QListView
 
 from app.config_data import app_config
@@ -20,7 +19,7 @@ class CategoryListView(QListView):
     # Сигнал активации по клавише Enter/Return
     enterActivated = pyqtSignal(object)
 
-    def mousePressEvent(self, event: QMouseEvent):
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         # Гарантируем установку currentIndex по месту клика (для DnD и контекстного меню)
         try:
             p = event.position().toPoint()
@@ -37,7 +36,7 @@ class CategoryListView(QListView):
             logger.exception("CategoryListView.mousePressEvent: unexpected error")
         super().mousePressEvent(event)
 
-    def startDrag(self, supportedActions):
+    def startDrag(self, supportedActions: Qt.DropAction) -> None:
         index = self.currentIndex()
         if not index or not index.isValid():
             logger.debug("CategoryListView.startDrag: no current index")
@@ -65,7 +64,7 @@ class CategoryListView(QListView):
         result = drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.MoveAction)
         logger.debug("CategoryListView.startDrag: drag result = %s", result)
 
-    def mouseMoveEvent(self, event):
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
         # Явный запуск DnD при достаточном смещении курсора
         try:
             if event.buttons() & Qt.MouseButton.LeftButton:
@@ -87,7 +86,7 @@ class CategoryListView(QListView):
             logger.exception("CategoryListView.mouseMoveEvent: unexpected error")
         super().mouseMoveEvent(event)
 
-    def keyPressEvent(self, event):
+    def keyPressEvent(self, event: QKeyEvent) -> None:
         # Активация плитки по Enter/Return
         try:
             if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
@@ -112,7 +111,7 @@ class CategoryListView(QListView):
             logger.exception("CategoryListView.keyPressEvent: unexpected error")
         super().keyPressEvent(event)
 
-    def contextMenuEvent(self, event):
+    def contextMenuEvent(self, event: QEvent) -> None:
         # Всегда устанавливаем текущий индекс по правому клику и прокидываем сигнал
         try:
             idx = self.indexAt(event.pos())
@@ -142,7 +141,7 @@ class CategoryListView(QListView):
             )
         super().contextMenuEvent(event)
 
-    def eventFilter(self, obj, event):
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         # Гарантированный перехват QContextMenuEvent из viewport()
         try:
             if obj is self.viewport() and event.type() == QEvent.Type.ContextMenu:

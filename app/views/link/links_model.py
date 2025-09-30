@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence
+from functools import lru_cache
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt, QVariant
 from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QWidget
 
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
@@ -18,8 +20,9 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
     """
 
     DEFAULT_HEADERS = ["♥", "Название", "Открывалась", "Заметки"]
+    MAX_ICON_CACHE = 500  # Лимит кэша иконок
 
-    def __init__(self, links: Optional[Sequence[Dict[str, Any]]] = None, parent=None):
+    def __init__(self, links: Optional[Sequence[Dict[str, Any]]] = None, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._headers: List[str] = list(self.DEFAULT_HEADERS)
         self._links: List[Dict[str, Any]] = []
@@ -38,7 +41,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
             return 0
         return len(self._headers)
 
-    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:  # type: ignore[override]
+    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Union[str, int, QIcon, Dict, None]:  # type: ignore[override]
         if not index.isValid():
             return QVariant()
         row = index.row()
@@ -70,17 +73,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
 
         if role == Qt.ItemDataRole.DecorationRole:
             if col == 1:
-                # Иконка ссылки: ленивое разрешение и кэширование в link["_icon"]
-                icon: Optional[QIcon] = link.get("_icon")
-                if isinstance(icon, QIcon) and not icon.isNull():
-                    return icon
+                # Иконка ссылки: используем LRU кэш для предотвращения утечек памяти
                 try:
                     resolved_path = resolve_icon_for_link(link)
                     if resolved_path:
-                        icon = create_icon_from_path(resolved_path)
-                        if isinstance(icon, QIcon) and not icon.isNull():
-                            link["_icon"] = icon
-                            return icon
+                        return self._get_cached_icon(resolved_path)
                 except Exception:
                     pass
 
@@ -206,13 +203,8 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
 
     def set_links(self, links: Sequence[Dict[str, Any]]) -> None:
         self.beginResetModel()
-        # Клонируем и удаляем возможный кеш иконок, чтобы модель сама их пересобрала
-        cleaned: List[Dict[str, Any]] = []
-        for link_item in links:
-            d = dict(link_item)
-            d.pop("_icon", None)
-            cleaned.append(d)
-        self._links = cleaned
+        # Клонируем данные (иконки теперь в LRU кэше, не в словаре)
+        self._links = [dict(link_item) for link_item in links]
         self.endResetModel()
 
     def insert_link(self, pos: int, link: Dict[str, Any]) -> bool:
@@ -237,8 +229,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
         if not (0 <= row < len(self._links)):
             return False
         self._links[row].update(new_data)
-        # Инвалидация кеша иконки — иконка должна пересчитаться при следующем запросе
-        self._links[row].pop("_icon", None)
+        # При изменении данных иконка автоматически обновится через LRU кэш
         top_left = self.index(row, 0)
         bottom_right = self.index(row, len(self._headers) - 1)
         self.dataChanged.emit(top_left, bottom_right, [Qt.ItemDataRole.DecorationRole])
@@ -274,6 +265,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
 
         # Если один непрерывный диапазон — используем атомарный move
         def is_contiguous(rows: List[int]) -> bool:
+            """Проверяет, являются ли строки непрерывным диапазоном."""
             return all(b - a == 1 for a, b in zip(rows, rows[1:]))
 
         if len(src) == 1 or is_contiguous(src):
@@ -362,7 +354,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
             except Exception:
                 return -inf
 
-        def key_for(link: Dict[str, Any]):
+        def key_for(link: Dict[str, Any]) -> Any:
             if column == 0:
                 # Приводим к int для сравнения, чтобы исключить смешение типов
                 return 1 if bool(link.get("is_favorite", False)) else 0
@@ -383,3 +375,21 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
         self.layoutAboutToBeChanged.emit()
         self._links.sort(key=key_for, reverse=reverse)
         self.layoutChanged.emit()
+
+    @lru_cache(maxsize=MAX_ICON_CACHE)
+    def _get_cached_icon(self, icon_path: str) -> Optional[QIcon]:
+        """Получает иконку с LRU кэшированием для предотвращения утечек памяти.
+        
+        Args:
+            icon_path: Путь к файлу иконки
+            
+        Returns:
+            QIcon или None если не удалось загрузить
+        """
+        if not icon_path:
+            return None
+        try:
+            icon = create_icon_from_path(icon_path)
+            return icon if isinstance(icon, QIcon) and not icon.isNull() else None
+        except Exception:
+            return None

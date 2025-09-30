@@ -1,15 +1,15 @@
 """Quick add panel widget for top bar."""
 
 import logging
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
-from PyQt6.QtCore import QSize
-from PyQt6.QtWidgets import QSizePolicy, QToolButton
+from PyQt6.QtCore import pyqtSignal, QSize
+from PyQt6.QtWidgets import QSizePolicy, QToolButton, QWidget
 
 from app.config_data import app_config
+from app.views.base_panel_widgets import BaseTopPanelWidget
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
-from app.views.base_panel_widgets import BaseTopPanelWidget
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class QuickAddPanelWidget(BaseTopPanelWidget):
     """Dedicated widget for quick add panel functionality."""
 
-    def __init__(self, main_window=None, category_provider: Optional[object] = None):
+    def __init__(self, main_window: Optional[QWidget] = None, category_provider: Optional[object] = None) -> None:
         super().__init__(main_window)
         self.category_provider = category_provider
 

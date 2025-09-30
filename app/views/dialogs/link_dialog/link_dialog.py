@@ -504,25 +504,32 @@ class LinkDialog(BaseDialog):
         return f"Профили: {emails[0]}, {emails[1]} и ещё {len(emails) - 2}"
 
     def closeEvent(self, event) -> None:
-        """Обработчик события закрытия окна."""
-        # Если идёт обработка ссылки, попросим подтверждение у пользователя
+        """Обработчик события закрытия окна.
+
+        Если идёт обработка и есть активный worker, предлагаем подтвердить закрытие.
+        Останавливаем таймер, если есть, чтобы не было утечек.
+        Очищаем event filters для предотвращения утечек памяти.
+        """
         if self.handlers._is_processing or self.handlers._active_worker:
-            path_info = self.handlers._last_processed_path or self.link.get("url", "")
-            proceed = self.ask_confirmation(
-                f"Идёт обработка ссылки '{path_info}'. Закрыть окно?",
-                "Подтверждение закрытия",
-            )
-            if not proceed:
+            if not self._show_confirm_close_while_processing():
                 event.ignore()
                 return
-        # Делегируем корректное завершение фоновой обработки централизованному методу
+
+        # Очистка event filters для предотвращения утечек памяти
+        try:
+            if hasattr(self, '_neon_link_filter') and self._neon_link_filter:
+                self._neon_link_filter.cleanup()
+                self._neon_link_filter = None
+        except Exception:
+            pass
+
         self.handlers.cancel_processing()
-        # Уничтожаем таймер, если он ещё жив
         try:
             if getattr(self, "_processing_timer", None):
+                self._processing_timer.stop()
                 self._processing_timer.deleteLater()
         except (AttributeError, RuntimeError) as e:
             logger.debug(
-                "closeEvent: ошибка при deleteLater таймера: %s", e, exc_info=True
+                "LinkDialog: ошибка остановки таймера при закрытии: %s", e
             )
         super().closeEvent(event)
