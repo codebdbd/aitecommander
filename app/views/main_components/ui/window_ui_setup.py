@@ -734,11 +734,12 @@ class WindowUISetup:
         # Настройка иконки
         # Путь к логотипу приложения может отличаться в dev и в сборке (PyInstaller)
         base_dir = os.path.dirname(os.path.abspath(__file__))
+        app_dir = os.path.normpath(os.path.join(base_dir, "..", "..", ".."))
+        views_dir = os.path.normpath(os.path.join(base_dir, "..", ".."))
         candidates = [
-            os.path.normpath(
-                os.path.join(base_dir, "..", "..", "resources", "logo", "logo.png")
-            ),
-            os.path.normpath(os.path.join(base_dir, "resources", "logo", "logo.png")),
+            os.path.join(app_dir, "resources", "logo", "logo.png"),
+            os.path.join(views_dir, "resources", "logo", "logo.png"),
+            os.path.join(app_dir, "logo", "logo.png"),
         ]
         if hasattr(sys, "_MEIPASS"):
             candidates.extend(
@@ -747,6 +748,7 @@ class WindowUISetup:
                         sys._MEIPASS, "app", "views", "resources", "logo", "logo.png"
                     ),
                     os.path.join(sys._MEIPASS, "resources", "logo", "logo.png"),
+                    os.path.join(sys._MEIPASS, "logo", "logo.png"),
                 ]
             )
 
