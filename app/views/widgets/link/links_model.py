@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import QWidget
 
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
-from app.views.link.item_builders import ItemBuildersMixin
+from app.views.widgets.link.item_builders import ItemBuildersMixin
 
 
 class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):

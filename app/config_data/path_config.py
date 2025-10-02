@@ -100,7 +100,7 @@ class PathConfig(BaseConfig):
         # Новый ключ: paths.qss_dir; обратная совместимость: settings.paths.qss
         val = self.get("paths.qss_dir")
         if val is None:
-            val = self.get("settings.paths.qss", "views/resources/qss")
+            val = self.get("settings.paths.qss", "resources/qss")
         return val
 
     def get_qss_dir(self) -> Path:
@@ -108,7 +108,7 @@ class PathConfig(BaseConfig):
         # Новый ключ: paths.qss_dir; обратная совместимость: settings.paths.qss
         rel = self.get("paths.qss_dir")
         if rel is None:
-            rel = self.get("settings.paths.qss", "views/resources/qss")
+            rel = self.get("settings.paths.qss", "resources/qss")
         p = Path(rel)
         return p if p.is_absolute() else self.get_base_path() / p
 

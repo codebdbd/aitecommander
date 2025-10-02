@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import QDialog
 
 from app.controllers.ui.undo.commands_links import SaveLinkCmd
 from app.utils.links.link_utils import LinkInfo, LinkOpener
-from app.views.dialogs.entity_dialogs import NoteDialog
+from app.views.windows.dialogs.entity_dialogs import NoteDialog
 
 from .base_component import BaseLinksUIComponent
 from .exceptions import CategoryNotFoundError, DatabaseError, LinkValidationError
@@ -31,7 +31,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
         from PyQt6.QtWidgets import QDialog
 
         from app.controllers.ui.dialogs import LinkDialogController
-        from app.views.dialogs.link_dialog.link_dialog import LinkDialog
+        from app.views.windows.dialogs.link_dialog.link_dialog import LinkDialog
 
         link_controller = LinkDialogController(self.business.db)
         init_data = link_controller.get_initialization_data(cat_id, None)

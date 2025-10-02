@@ -10,7 +10,7 @@ from PyQt6.QtGui import QAction, QKeySequence, QUndoStack
 from PyQt6.QtWidgets import QMainWindow, QWidget
 
 from app.utils.ui.timings import SEARCH_RETRY_ATTEMPTS, SEARCH_RETRY_INTERVAL_MS
-from app.views.link import LinksTableView
+from app.views.widgets.link import LinksTableView
 
 if TYPE_CHECKING:
     # Узкоспециализированные типы только для статического анализа
@@ -40,7 +40,7 @@ from app.controllers.ui.window_facade import WindowFacade
 from app.settings import AppSettings
 from app.utils.db.synchronization import signal_guard
 from app.utils.ui.updates import suspend_updates
-from app.views.status_bar import update_status_bar as _update_status_bar
+from app.views.widgets.status_bar import update_status_bar as _update_status_bar
 
 logger = logging.getLogger(__name__)
 

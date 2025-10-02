@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # Если зависимость отсутствует или импорт завершается ошибкой, сохраняем
 # исключение и используем дружелюбный запасной механизм при обращении к функционалу.
 try:  # переносим импорт на верхний уровень для явного выражения зависимостей
-    from app.views.dialogs.browser_profile_dialog import (
+    from app.views.windows.dialogs.browser_profile_dialog import (
         BrowserProfileDialog,  # type: ignore
     )
 

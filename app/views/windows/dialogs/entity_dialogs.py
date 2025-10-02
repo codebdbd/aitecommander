@@ -23,7 +23,7 @@ from app.controllers.business import StructureBusinessLogic
 from app.controllers.ui.theme_controller import ThemeController
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
-from app.views.dialogs.link_dialog.icon_utils import make_icon
+from app.views.windows.dialogs.link_dialog.icon_utils import make_icon
 
 from .base_dialog import BaseDialog
 
@@ -499,6 +499,7 @@ class SettingsDialog(BaseDialog):
     def __init__(self, settings, theme_ctrl: ThemeController, parent=None):
         super().__init__(parent)
         self.settings = settings
+        self.theme_ctrl = theme_ctrl  # Сохраняем для переприменения темы
         self.setWindowTitle("Настройки")
         self.resize(400, 200)
         self._init_ui()
@@ -556,15 +557,14 @@ class SettingsDialog(BaseDialog):
             font_size = int(self.font_size_combo.currentText())
             self.settings.set_font_size(font_size)
 
-            parent = self.parent()
-            # Применяем размер шрифта только локально для дерева и таблицы
-            if parent is not None:
-                if hasattr(parent, "tree") and hasattr(parent.tree, "update_font_size"):
-                    parent.tree.update_font_size(font_size)
-                if hasattr(parent, "table") and hasattr(
-                    parent.table, "update_font_size"
-                ):
-                    parent.table.update_font_size(font_size)
+            # Переприменяем текущую тему для глобального применения нового размера шрифта
+            # ThemeStylesheetService теперь читает user font size из settings и генерирует QSS
+            if self.theme_ctrl:
+                current_theme = self.settings.get_theme()
+                if current_theme:
+                    # Очищаем кэш и применяем тему заново
+                    self.theme_ctrl.clear_cache()
+                    self.theme_ctrl.apply(current_theme)
 
             self.accept()
 

@@ -8,7 +8,7 @@ from PyQt6.QtCore import QObject
 from app.controllers.ui.dialogs import DialogManager
 from app.controllers.ui.undo.commands_structure import SaveCategoryCmd, SaveSectionCmd
 from app.utils.ui.qt.roles import get_tree_tuple
-from app.views.dialogs.entity_dialogs import CategoryDialog, SectionDialog
+from app.views.windows.dialogs.entity_dialogs import CategoryDialog, SectionDialog
 
 logger = logging.getLogger(__name__)
 

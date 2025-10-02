@@ -14,7 +14,7 @@ from app.config_data import app_config
 from app.utils.ui.dnd.tree import DragDropHandler
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.path_service import get_current_theme
-from app.views.tree_components.move_operations_handler import MoveOperationsHandler
+from app.views.widgets.tree_components.move_operations_handler import MoveOperationsHandler
 
 # Используем строковые литералы "section" и "category"
 

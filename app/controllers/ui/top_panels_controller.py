@@ -507,3 +507,34 @@ class TopPanelsController(QObject):
                 "TopPanelsController: business signal 'recent_links_loaded' not present; falling back to sync mode"
             )
         return connected_all
+    
+    def cleanup(self) -> None:
+        """Останавливает таймеры и отключает сигналы при уничтожении.
+        
+        ИСПРАВЛЕНИЕ: Предотвращает утечки памяти от активных таймеров.
+        Должно вызываться при закрытии главного окна.
+        """
+        # Останавливаем все таймеры
+        timers = [
+            self._refresh_timer,
+            self._fav_refresh_timer,
+            self._recent_refresh_timer,
+            self._structure_refresh_timer,
+        ]
+        
+        for timer in timers:
+            if timer and timer.isActive():
+                timer.stop()
+        
+        logger.debug("TopPanelsController: all timers stopped")
+        
+        # Отключаем сигналы business logic
+        try:
+            if hasattr(self.links_business, "favorite_links_loaded"):
+                self.links_business.favorite_links_loaded.disconnect(self._on_favorite_links_loaded)
+            if hasattr(self.links_business, "recent_links_loaded"):
+                self.links_business.recent_links_loaded.disconnect(self._on_recent_links_loaded)
+        except TypeError:  # Сигналы уже отключены
+            pass
+        except Exception as e:
+            logger.warning("TopPanelsController cleanup: failed to disconnect signals: %s", e)

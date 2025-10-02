@@ -89,6 +89,10 @@ class TopBarConfigProtocol(Protocol):
             Минимальное количество видимых кнопок (обычно 0)
         """
         ...
+
+    def get_max_visible(self, panel: str) -> int:
+        """Возвращает максимально допустимое количество видимых кнопок для панели."""
+        ...
     
     def get(self, key: str, default: Any = None) -> Any:
         """Универсальный метод получения конфигурации.
@@ -115,6 +119,12 @@ class AppConfigAdapter:
         >>> manager = TopBarLayoutManager(window, config)
     """
     
+    _MAX_VISIBLE_DEFAULTS = {
+        "recent": 10,
+        "fav": 10,
+        "quick": 6,
+    }
+
     def __init__(self, app_config: Any):
         """Инициализирует адаптер.
         
@@ -179,6 +189,15 @@ class AppConfigAdapter:
             return int(mv.get(panel, 0))
         except (KeyError, ValueError, TypeError, AttributeError):
             return 0
+    
+    def get_max_visible(self, panel: str) -> int:
+        """Возвращает максимально допустимое количество видимых кнопок."""
+        default = self._MAX_VISIBLE_DEFAULTS.get(panel, 10)
+        try:
+            mv = self._config.get("topbar.max_visible", {}) or {}
+            return int(mv.get(panel, default))
+        except (KeyError, ValueError, TypeError, AttributeError):
+            return default
     
     def get(self, key: str, default: Any = None) -> Any:
         """Универсальный метод получения конфигурации."""

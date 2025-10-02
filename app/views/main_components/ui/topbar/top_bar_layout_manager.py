@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from contextlib import contextmanager
 from enum import Enum, auto
@@ -16,9 +17,9 @@ from weakref import WeakSet
 from PyQt6.QtCore import QEasingCurve, QEvent, QObject, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QLayout, QLineEdit, QSizePolicy, QWidget
 
-from ..constants import Timeout, Size, PerformanceLimit
-from ..decorators import require_main_thread
-from ..resource_manager import ResourceManager
+from ...common.constants import Timeout, Size, PerformanceLimit
+from ...common.decorators import require_main_thread
+from ...common.resource_manager import ResourceManager
 from .config_protocol import TopBarConfigProtocol, AppConfigAdapter
 from .layout_context import LayoutContext
 from .panel_state import PanelDefinition, PanelState
@@ -27,15 +28,42 @@ from .visibility_solver import VisibilitySolver
 from .width_calculator import WidthCalculator
 from .types import PanelLabel, ButtonObjectName, TopBarWindow
 
-if TYPE_CHECKING:
-    from PyQt6.QtCore import QParallelAnimationGroup
-
+# ИСПРАВЛЕНИЕ: Удален неиспользуемый импорт QParallelAnimationGroup
 try:
     from sip import isdeleted as _sip_isdeleted
-except ImportError:  
-
-    def _sip_isdeleted(_obj) -> bool:
-        return False
+    _SIP_AVAILABLE = True
+except ImportError:
+    _SIP_AVAILABLE = False
+    _SIP_FALLBACK_WARNED = False
+    
+    def _sip_isdeleted(obj) -> bool:
+        """Фальбэк когда sip недоступен.
+        
+        ИСПРАВЛЕНИЕ: Добавлена проверка через RuntimeError вместо простого return False.
+        """
+        global _SIP_FALLBACK_WARNED
+        if not _SIP_FALLBACK_WARNED:
+            import logging as _log
+            _log.getLogger(__name__).warning(
+                "sip.isdeleted() unavailable, using fallback check. "
+                "Install PyQt6 with sip for better deleted object detection."
+            )
+            _SIP_FALLBACK_WARNED = True
+        
+        if obj is None:
+            return True
+        
+        # Пытаемся проверить доступ к объекту
+        try:
+            # Любой доступ к Qt объекту вызовет RuntimeError если он удален
+            _ = obj.parent  # или любой другой атрибут Qt
+            return False
+        except RuntimeError:
+            # "wrapped C/C++ object has been deleted"
+            return True
+        except AttributeError:
+            # Не Qt объект или нет атрибута
+            return False
 
 logger = logging.getLogger(__name__)
 
@@ -137,9 +165,27 @@ class TopBarLayoutManager(QObject):
         self._min_search_width = self._config.get_search_min_width()
         self._narrow_threshold = self.DEFAULT_NARROW_THRESHOLD
 
-        self._max_recent = self.DEFAULT_MAX_RECENT
-        self._max_fav = self.DEFAULT_MAX_FAV
-        self._max_quick = self.DEFAULT_MAX_QUICK
+        self._max_recent = self._validate_config_int(
+            self._config.get_max_visible("recent"),
+            self.DEFAULT_MAX_RECENT,
+            self.MIN_VISIBLE_BUTTONS,
+            self.MAX_VISIBLE_BUTTONS,
+            "topbar.max_visible.recent",
+        )
+        self._max_fav = self._validate_config_int(
+            self._config.get_max_visible("fav"),
+            self.DEFAULT_MAX_FAV,
+            self.MIN_VISIBLE_BUTTONS,
+            self.MAX_VISIBLE_BUTTONS,
+            "topbar.max_visible.fav",
+        )
+        self._max_quick = self._validate_config_int(
+            self._config.get_max_visible("quick"),
+            self.DEFAULT_MAX_QUICK,
+            self.MIN_VISIBLE_BUTTONS,
+            self.MAX_VISIBLE_BUTTONS,
+            "topbar.max_visible.quick",
+        )
 
         # ИСПРАВЛЕНИЕ: Используем DI конфигурацию для min_visible
         self._min_recent = self._validate_config_int(
@@ -206,7 +252,7 @@ class TopBarLayoutManager(QObject):
 
         self._anim_curve = QEasingCurve.Type.OutCubic
         self._anim_duration_ms = 140
-        self._active_groups: List[QParallelAnimationGroup] = []
+        # ИСПРАВЛЕНИЕ: _active_groups удален - анимации управляются в PanelVisibilityManager
         self._animating = False
 
         self._last_applied: Optional[Tuple[int, ...]] = None
@@ -214,6 +260,8 @@ class TopBarLayoutManager(QObject):
         # ИСПРАВЛЕНИЕ: Используем enum вместо разрозненных флагов
         self._init_state = InitializationState.NOT_STARTED
         
+        # ИСПРАВЛЕНИЕ: Используем threading.Lock для thread-safe проверки _adjust_running
+        self._adjust_lock = threading.Lock()
         self._adjust_running = False
         self._narrow_mode_active = False  # Отслеживание состояния узкого режима
         
@@ -240,9 +288,10 @@ class TopBarLayoutManager(QObject):
             if signal is not None:
                 signal.connect(slot)
                 self._signal_connections.append((obj, signal_name, slot))
-                logger.debug(f"TopBarLM: connected signal {signal_name}")
+                # ИСПРАВЛЕНИЕ: Ленивое логирование вместо f-string
+                logger.debug("TopBarLM: connected signal %s", signal_name)
         except (AttributeError, TypeError, RuntimeError) as e:
-            logger.debug(f"TopBarLM: failed to connect signal {signal_name}: {e}")
+            logger.debug("TopBarLM: failed to connect signal %s: %s", signal_name, e)
     
     @contextmanager
     def _measure_operation(self, operation: str, threshold_ms: float):
@@ -269,9 +318,7 @@ class TopBarLayoutManager(QObject):
     def mark_data_ready(self) -> None:
         """Вызывается после загрузки данных в панели.
         
-        ИСПРАВЛЕНИЕ: Использует enum состояний для явного управления переходами.
-        Устанавливает состояние DATA_READY и запускает пересчет layout.
-        Используется для предотвращения race condition при инициализации.
+        ОПТИМИЗАЦИЯ: Плавно показываем панель через анимацию opacity.
         """
         if self._init_state == InitializationState.DATA_READY:
             logger.debug("TopBarLM: data already marked as ready, ignoring duplicate call")
@@ -283,6 +330,15 @@ class TopBarLayoutManager(QObject):
             
         self._init_state = InitializationState.DATA_READY
         logger.debug("TopBarLM: state transition -> DATA_READY")
+        
+        # Мгновенно показываем панель
+        if hasattr(self, '_opacity_effect') and self._opacity_effect:
+            try:
+                self._opacity_effect.setOpacity(1.0)
+                logger.debug("TopBarLM: container opacity set to 1")
+            except Exception as e:
+                logger.debug("TopBarLM: failed to set opacity: %s", e)
+        
         self.adjust()
     
     def _schedule_data_ready_fallback(self) -> None:
@@ -306,24 +362,23 @@ class TopBarLayoutManager(QObject):
     def prepare_initial_layout(self) -> None:
         """Подготавливает начальный layout и переводит в состояние ожидания данных.
         
-        ИСПРАВЛЕНИЕ: Использует enum состояний для явного управления переходами.
+        ОПТИМИЗАЦИЯ: Используем opacity=0 для скрытия панели до загрузки данных.
         """
-        container = self._get_container_widget()
-        if container and hasattr(container, "setVisible"):
-            # ОТКАТ: Оставляем container видимым для совместимости
-            # Скрытие вызывало проблемы с отображением
-            try:
-                if not container.isVisible():
-                    container.setVisible(True)
-                    logger.debug("TopBarLM: container shown")
-            except (RuntimeError, AttributeError) as e:
-                logger.debug(
-                    "TopBarLM.prepare_initial_layout: unable to show container: %s",
-                    e,
-                    exc_info=True,
-                )
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
         
-        # ИСПРАВЛЕНИЕ: Переходим в состояние ожидания данных
+        container = self._get_container_widget()
+        if container:
+            try:
+                # Устанавливаем opacity=0 чтобы скрыть панель до загрузки
+                effect = QGraphicsOpacityEffect(container)
+                effect.setOpacity(0.0)
+                container.setGraphicsEffect(effect)
+                self._opacity_effect = effect  # Сохраняем для mark_data_ready
+                logger.debug("TopBarLM: container opacity set to 0")
+            except Exception as e:
+                logger.debug("TopBarLM: failed to set opacity effect: %s", e)
+        
+        # Переходим в состояние ожидания данных
         if self._init_state == InitializationState.NOT_STARTED:
             self._init_state = InitializationState.WAITING_FOR_DATA
             logger.debug("TopBarLM: state transition -> WAITING_FOR_DATA")
@@ -333,85 +388,108 @@ class TopBarLayoutManager(QObject):
         """Пересчитывает layout верхней панели.
         
         ИСПРАВЛЕНИЕ: Добавлены метрики производительности для мониторинга.
-        ИСПРАВЛЕНИЕ: Thread safety гарантируется декоратором @require_main_thread.
+        ИСПРАВЛЕНИЕ: Thread safety гарантируется декоратором @require_main_thread и threading.Lock.
         """
         
         if self._throttle_timer.isActive():
             return
-        if self._adjust_running:
-            return
         
-        # ИСПРАВЛЕНИЕ: Защита от race condition через проверку состояния
-        # Пропускаем adjust, если еще ожидаем загрузки данных
-        if self._init_state == InitializationState.WAITING_FOR_DATA:
-            logger.debug("TopBarLM: skipping adjust - waiting for data (state=%s)", self._init_state)
-            return
-
-        # ИСПРАВЛЕНИЕ: Измеряем производительность всей операции adjust
-        with self._measure_operation("adjust", self.SLOW_ADJUST_THRESHOLD_MS):
-            container = self._get_container_widget()
-            if not container:
+        # ИСПРАВЛЕНИЕ: Атомарная проверка и установка флага через Lock
+        with self._adjust_lock:
+            if self._adjust_running:
                 return
-            if container.width() <= 0 or not container.isVisible():
-                self._freeze_search_width()
-                return
-
-            top_bar = self._get_top_bar()
-            if not isinstance(top_bar, QLayout):
-                return
-            search_widget = self._safe_get(self.window, "search")
-            search_qt = search_widget if isinstance(search_widget, QLineEdit) else None
-            panel_states = self._collect_panel_states()
-            if not panel_states:
-                return
-
-            width = container.width()
-            effective_width = self._compute_effective_width(width)
-
-            ctx = LayoutContext(
-                container=container,
-                width=width,
-                effective_width=effective_width,
-                min_search_width=self._min_search_width,
-                top_bar=top_bar,
-                search=search_qt,
-                panel_states=tuple(panel_states),
-            )
-
-            if ctx.effective_width <= self._narrow_threshold:
-                counts = {state.definition.label: state.min_visible for state in panel_states}
-                applied = self._apply_counts(ctx, panel_states, counts)
-                self._finalize_regular_layout(ctx, applied)
-                is_narrow = all(value == 0 for value in applied.values())
-                if is_narrow:
-                    self._apply_narrow_mode(ctx.top_bar, ctx.search)
-                # ИСПРАВЛЕНИЕ: Испускаем сигнал об изменении режима
-                if is_narrow != self._narrow_mode_active:
-                    self._narrow_mode_active = is_narrow
-                    self.narrowModeChanged.emit(is_narrow)
-                # ИСПРАВЛЕНИЕ: Испускаем сигнал о пересчете layout
-                self.layoutAdjusted.emit(applied)
-                return
-
             self._adjust_running = True
-            try:
+        
+        # ИСПРАВЛЕНИЕ: Гарантируем сброс флага через try-finally
+        try:
+            # Защита от race condition через проверку состояния
+            # Пропускаем adjust, если еще ожидаем загрузки данных
+            if self._init_state == InitializationState.WAITING_FOR_DATA:
+                logger.debug("TopBarLM: skipping adjust - waiting for data (state=%s)", self._init_state)
+                return
+
+            # ИСПРАВЛЕНИЕ: Измеряем производительность всей операции adjust
+            with self._measure_operation("adjust", self.SLOW_ADJUST_THRESHOLD_MS):
+                container = self._get_container_widget()
+                if not container:
+                    return
+                if container.width() <= 0 or not container.isVisible():
+                    self._freeze_search_width()
+                    return
+
+                top_bar = self._get_top_bar()
+                if not isinstance(top_bar, QLayout):
+                    return
+                search_widget = self._safe_get(self.window, "search")
+                search_qt = search_widget if isinstance(search_widget, QLineEdit) else None
+                panel_states = self._collect_panel_states()
+                if not panel_states:
+                    return
+
+                width = container.width()
+                effective_width = self._compute_effective_width(width)
+
+                ctx = LayoutContext(
+                    container=container,
+                    width=width,
+                    effective_width=effective_width,
+                    min_search_width=self._min_search_width,
+                    top_bar=top_bar,
+                    search=search_qt,
+                    panel_states=tuple(panel_states),
+                )
+
+                if ctx.effective_width <= self._narrow_threshold:
+                    # ОПТИМИЗАЦИЯ: QuickAdd всегда остается видимым
+                    counts = {}
+                    for state in panel_states:
+                        if state.definition.label == "quick":
+                            # QuickAdd не скрываем
+                            counts[state.definition.label] = len(state.buttons)
+                        else:
+                            counts[state.definition.label] = state.min_visible
+                    applied = self._apply_counts(ctx, panel_states, counts)
+                    self._finalize_regular_layout(ctx, applied)
+                    # narrow mode только если ВСЕ панели скрыты (не считая QuickAdd)
+                    is_narrow = all(
+                        value == 0 
+                        for label, value in applied.items() 
+                        if label != "quick"
+                    )
+                    if is_narrow:
+                        self._apply_narrow_mode(ctx.top_bar, ctx.search)
+                    # ИСПРАВЛЕНИЕ: Испускаем сигнал об изменении режима
+                    if is_narrow != self._narrow_mode_active:
+                        self._narrow_mode_active = is_narrow
+                        self.narrowModeChanged.emit(is_narrow)
+                    # ИСПРАВЛЕНИЕ: Испускаем сигнал о пересчете layout
+                    self.layoutAdjusted.emit(applied)
+                    return
+
                 counts = self._visibility_solver.compute_visible_counts(ctx)
                 counts = self._apply_hysteresis(ctx, counts)
+                    
+                # ОПТИМИЗАЦИЯ: Если Favorites меньше 5 кнопок - скрываем полностью
+                if "fav" in counts and 0 < counts["fav"] < 5:
+                    counts["fav"] = 0
+                    
                 applied = self._apply_counts(ctx, panel_states, counts)
                 self._finalize_regular_layout(ctx, applied)
-                
+                    
                 # ИСПРАВЛЕНИЕ: Переходим в состояние LAYOUT_APPLIED после первого успешного adjust
                 if self._init_state == InitializationState.DATA_READY:
                     self._init_state = InitializationState.LAYOUT_APPLIED
                     logger.debug("TopBarLM: state transition -> LAYOUT_APPLIED")
-                
+                    
                 # ИСПРАВЛЕНИЕ: Испускаем сигнал о пересчете layout
                 self.layoutAdjusted.emit(applied)
                 # ИСПРАВЛЕНИЕ: Сбрасываем narrow mode если были видимые панели
                 if self._narrow_mode_active and any(v > 0 for v in applied.values()):
                     self._narrow_mode_active = False
                     self.narrowModeChanged.emit(False)
-            finally:
+        finally:
+            # Гарантированный сброс флага
+            with self._adjust_lock:
                 self._adjust_running = False
     
     def cleanup(self) -> None:
@@ -434,10 +512,11 @@ class TopBarLayoutManager(QObject):
                     if signal is not None:
                         signal.disconnect(slot)
                         if logger.isEnabledFor(logging.DEBUG):
-                            logger.debug(f"TopBarLM: disconnected signal {signal_name}")
+                            # ИСПРАВЛЕНИЕ: Ленивое логирование
+                            logger.debug("TopBarLM: disconnected signal %s", signal_name)
             except (TypeError, RuntimeError, AttributeError) as e:
                 if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug(f"TopBarLM: failed to disconnect {signal_name}: {e}")
+                    logger.debug("TopBarLM: failed to disconnect %s: %s", signal_name, e)
         self._signal_connections.clear()
         
         # Отключаем event filters

@@ -131,8 +131,8 @@
       1
     ],
     "splitter_sizes": [
-      250,
-      750
+      290,
+      710
     ],
     "main_layout_margins": [
       0,
@@ -218,7 +218,7 @@
   },
   "paths": {
     "link_icons_dir": "resources/link_icons",
-    "qss_dir": "views/resources/qss",
+    "qss_dir": "resources/qss",
     "chrome_profiles_dir": "resources/browser_profiles/chrome",
     "firefox_profiles_dir": "resources/browser_profiles/firefox",
     "edge_profiles_dir": "resources/browser_profiles/edge",
@@ -226,7 +226,7 @@
     "vivaldi_profiles_dir": "resources/browser_profiles/vivaldi",
     "opera_profiles_dir": "resources/browser_profiles/opera",
     "yandex_profiles_dir": "resources/browser_profiles/yandex",
-    "ui_icons_dir": "views/resources/ui_icons",
+    "ui_icons_dir": "resources/ui_icons",
     "user_icons_dir": "icons",
     "config_dir": "config",
     "logs_dir": "logs"

@@ -4,7 +4,7 @@ from typing import Callable, Optional
 
 from PyQt6.QtWidgets import QMessageBox, QWidget
 
-from app.views.dialogs.async_operation_dialog import AsyncOperationDialog
+from app.views.windows.dialogs.async_operation_dialog import AsyncOperationDialog
 
 logger = logging.getLogger(__name__)
 

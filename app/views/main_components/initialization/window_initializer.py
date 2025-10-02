@@ -18,20 +18,20 @@ from app.controllers.system.window_controllers_setup import WindowControllersSet
 from app.utils.metrics.startup_metrics import get_metrics
 from app.utils.ui.updates import suspend_updates
 
-from .constants import StatusMessage
+from ..common.constants import StatusMessage
 from .init_db_gate import DbReadyGate
 from .init_diagnostics import DiagnosticsInstaller
 from .init_scheduler import AsyncStepRunner
 from .init_status import StatusUpdater
 from .init_steps_config import AFTER_DB_STEP_CONFIG, BEFORE_DB_STEP_CONFIG
-from .protocols import (
+from ..common.protocols import (
     DatabaseProtocol,
     MainWindowProtocol,
     SettingsProtocol,
     ThemeControllerProtocol,
 )
-from .resource_manager import ResourceManager
-from .window_ui_setup import WindowUISetup
+from ..common.resource_manager import ResourceManager
+from ..ui.window_ui_setup import WindowUISetup
 
 logger = logging.getLogger(__name__)
 
@@ -154,21 +154,8 @@ class WindowInitializer:
                 "WindowInitializer: не удалось подключить слот к сигналу 'shown'"
             )
 
-        # Ранний показ окна: повышает отзывчивость UI, тяжёлые шаги выполнятся асинхронно
-        try:
-            if hasattr(self.window, "show"):
-                # Показываем только если окно ещё не видно
-                is_visible = False
-                try:
-                    is_visible = bool(getattr(self.window, "isVisible", lambda: False)())
-                except Exception:
-                    is_visible = False
-                if not is_visible:
-                    self.window.show()
-        except Exception:
-            logger.exception(
-                "WindowInitializer: ранний показ окна после лёгких шагов не удался"
-            )
+        # Ранний показ окна УБРАН: он вызывал белую вспышку.
+        # Окно будет показано только после полной инициализации UI и применения темы.
 
 
     def _schedule_heavy_steps(self) -> None:

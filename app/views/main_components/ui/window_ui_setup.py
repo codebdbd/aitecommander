@@ -22,13 +22,13 @@ from app.config_data import app_config
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.controllers.ui.undo.stack import UndoManager
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
-from app.views.custom_widgets import StructureTreeView
-from app.views.favorites_panel_widget import FavoritesPanelWidget
-from app.views.main_components.topbar.top_bar_layout_manager import TopBarLayoutManager
+from app.views.widgets.custom_widgets import StructureTreeView
+from app.views.widgets.panels.favorites_panel_widget import FavoritesPanelWidget
+from app.views.main_components.ui.topbar.top_bar_layout_manager import TopBarLayoutManager
 from app.views.models.structure_tree_model import StructureTreeModel
-from app.views.quick_add_panel_widget import QuickAddPanelWidget
-from app.views.recent_panel_widget import RecentPanelWidget
-from app.views.status_bar import setup_status_bar as init_status_bar
+from app.views.widgets.panels.quick_add_panel_widget import QuickAddPanelWidget
+from app.views.widgets.panels.recent_panel_widget import RecentPanelWidget
+from app.views.widgets.status_bar import setup_status_bar as init_status_bar
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class _AutoHideTreeFilter(QObject):
         self._logger = logger_
         try:
             self._manage_topbar_panels = bool(app_config.ui.get_auto_hide_manage_topbar())
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
             self._manage_topbar_panels = False
 
     def _apply(self):
@@ -100,7 +100,7 @@ class _AutoHideTreeFilter(QObject):
 
                 try:
                     switch_to_table = bool(app_config.ui.get_auto_hide_switch_to_table())
-                except Exception:
+                except (AttributeError, TypeError, ValueError):
                     switch_to_table = False
                 if switch_to_table and stack is not None and table is not None:
                     try:
@@ -207,7 +207,7 @@ class WindowUISetup:
         central = QFrame()
         try:
             central.setAutoFillBackground(True)
-        except Exception:
+        except (RuntimeError, AttributeError):
             logger.debug(
                 "WindowUISetup: setAutoFillBackground failed on central frame",
                 exc_info=True,
@@ -222,18 +222,18 @@ class WindowUISetup:
         self.main_layout.setSpacing(app_config.ui.get_main_layout_spacing())
         try:
             left, _top, r, b = self.main_layout.getContentsMargins()
-        except Exception:
+        except (RuntimeError, AttributeError):
             left, _top, r, b = (0, 0, 0, 0)
         try:
             self.main_layout.setContentsMargins(left, 0, r, b)
-        except Exception:
+        except (RuntimeError, AttributeError):
             logger.debug(
                 "WindowUISetup: failed to force top margin=0 for main_layout",
                 exc_info=True,
             )
 
     def setup_top_panel(self) -> None:
-        from .topbar.top_bar_setup import TopBarBuilder
+        from app.views.main_components.ui.topbar.top_bar_setup import TopBarBuilder
 
         TopBarBuilder(self).build()
 
@@ -250,7 +250,7 @@ class WindowUISetup:
             logger.info(
                 "TopPanelMetrics: setup_top_bar_widgets: %.1f ms", t_widgets_dur
             )
-        except Exception:
+        except (ValueError, TypeError):
             logger.debug(
                 "TopPanelMetrics: failed to log setup_top_bar_widgets duration",
                 exc_info=True,
@@ -273,7 +273,7 @@ class WindowUISetup:
             )
         try:
             top_bar_host.setVisible(False)
-        except Exception:
+        except (RuntimeError, AttributeError):
             logger.debug(
                 "TopPanel: failed to initially hide top_bar_host", exc_info=True
             )
@@ -305,7 +305,7 @@ class WindowUISetup:
         setattr(self.window, "_topbar_initialized", True)
         try:
             from app.utils.ui.updates import suspend_updates
-        except Exception:
+        except (ImportError, ModuleNotFoundError):
             suspend_updates = None  # type: ignore[assignment]
 
         def _activate() -> None:
@@ -314,7 +314,7 @@ class WindowUISetup:
                 try:
                     if not host.isVisible():
                         host.setVisible(True)
-                except Exception:
+                except (RuntimeError, AttributeError):
                     logger.debug("TopPanel: failed to show top_bar_host early", exc_info=True)
             QTimer.singleShot(0, partial(self._finalize_topbar_startup, mgr))
 
@@ -322,7 +322,7 @@ class WindowUISetup:
             try:
                 with suspend_updates(self.window):
                     _activate()
-            except Exception:
+            except (RuntimeError, AttributeError, TypeError):
                 logger.debug(
                     "TopPanel: suspend_updates failed during initialization", exc_info=True
                 )
@@ -338,7 +338,7 @@ class WindowUISetup:
         """
         try:
             mgr.prepare_initial_layout()
-        except Exception:
+        except (RuntimeError, AttributeError):
             logger.debug("TopPanel: prepare_initial_layout failed", exc_info=True)
         
         controller = getattr(self.window, "top_panels_controller", None)
@@ -375,7 +375,7 @@ class WindowUISetup:
             if controller and hasattr(controller, "refresh_all"):
                 try:
                     controller.refresh_all()
-                except Exception:
+                except (RuntimeError, AttributeError):
                     logger.warning(
                         "TopPanel: top_panels_controller.refresh_all() failed",
                         exc_info=True,
@@ -391,7 +391,7 @@ class WindowUISetup:
         def _refresh() -> None:
             try:
                 controller.refresh_all()
-            except Exception:
+            except (RuntimeError, AttributeError):
                 logger.warning(
                     "TopPanel: top_panels_controller.refresh_all() failed",
                     exc_info=True,
@@ -403,7 +403,7 @@ class WindowUISetup:
         try:
             t_total_dur = (time.perf_counter() - t_total_start) * 1000.0
             logger.info("TopPanelMetrics: setup_top_panel total: %.1f ms", t_total_dur)
-        except Exception:
+        except (ValueError, TypeError):
             logger.debug(
                 "TopPanelMetrics: failed to log setup_top_panel total", exc_info=True
             )
@@ -682,7 +682,7 @@ class WindowUISetup:
         left_layout.addWidget(self.window.spheres_bar)
 
     def setup_right_panel(self, mid: QHBoxLayout) -> None:
-        from .right_panel_setup import RightPanelBuilder
+        from app.views.main_components.ui.right_panel_setup import RightPanelBuilder
 
         RightPanelBuilder(self).build(mid)
 
@@ -705,7 +705,7 @@ class WindowUISetup:
                     self.window.shown.connect(self.window._auto_hide_tree_filter._apply)
                 else:
                     QTimer.singleShot(0, self.window._auto_hide_tree_filter._apply)
-            except Exception:
+            except (RuntimeError, AttributeError):
                 logger.exception(
                     "RightPanel: failed to schedule AutoHideTree initial apply"
                 )
@@ -713,8 +713,7 @@ class WindowUISetup:
             logger.exception("RightPanel: failed to initialize AutoHideTree filter")
 
     def setup_bottom_panel(self) -> None:
-        from .bottom_panel_setup import BottomPanelBuilder
-
+        from app.views.main_components.ui.bottom_panel_setup import BottomPanelBuilder
         BottomPanelBuilder(self).build()
 
     def setup_status_bar(self) -> None:
@@ -728,7 +727,7 @@ class WindowUISetup:
             min_h = int(app_config.ui.get_window_min_height())
             self.window.setMinimumSize(min_w, min_h)
         except (TypeError, ValueError):
-                logger.warning(
+            logger.warning(
                 "WindowProps: failed to set minimum size from config", exc_info=True
             )
 
@@ -737,7 +736,7 @@ class WindowUISetup:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         candidates = [
             os.path.normpath(
-                os.path.join(base_dir, "..", "resources", "logo", "logo.png")
+                os.path.join(base_dir, "..", "..", "resources", "logo", "logo.png")
             ),
             os.path.normpath(os.path.join(base_dir, "resources", "logo", "logo.png")),
         ]
@@ -756,3 +755,44 @@ class WindowUISetup:
             self.window.setWindowIcon(create_icon_from_path(logo_path))
         else:
             logger.warning("Logo icon not found in expected locations: %s", candidates)
+    
+    def cleanup(self) -> None:
+        """Очищает ресурсы WindowUISetup.
+        
+        ИСПРАВЛЕНИЕ: Добавлена явная очистка event filters для предотвращения утечек памяти.
+        """
+        logger.debug("WindowUISetup: starting cleanup")
+        
+        # Очищаем _AutoHideTreeFilter
+        if hasattr(self.window, '_auto_hide_tree_filter'):
+            try:
+                filter_obj = self.window._auto_hide_tree_filter
+                if filter_obj is not None:
+                    # Отключаем сигнал
+                    if hasattr(self.window, 'shown'):
+                        try:
+                            self.window.shown.disconnect(filter_obj._apply)
+                        except (TypeError, RuntimeError):
+                            pass
+                    
+                    # Удаляем event filter
+                    try:
+                        self.window.removeEventFilter(filter_obj)
+                    except (RuntimeError, AttributeError):
+                        pass
+                    
+                    # Удаляем объект
+                    try:
+                        filter_obj.deleteLater()
+                    except (RuntimeError, AttributeError):
+                        pass
+                    
+                    self.window._auto_hide_tree_filter = None
+                    logger.debug("WindowUISetup: cleaned up _auto_hide_tree_filter")
+            except (RuntimeError, AttributeError) as cleanup_error:
+                logger.warning(
+                    "WindowUISetup: error cleaning up _auto_hide_tree_filter: %s",
+                    cleanup_error,
+                )
+        
+        logger.info("WindowUISetup: cleanup completed")

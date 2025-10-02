@@ -30,7 +30,7 @@ from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
 from app.utils.ui.icon.validation import validate_config_for_icons
-from app.views.effects.neon_effect import NeonEventFilter
+from app.views.common.effects.neon_effect import NeonEventFilter
 
 from ..base_dialog import BaseDialog
 from .link_dialog_handlers import LinkDialogHandlers

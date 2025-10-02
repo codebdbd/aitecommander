@@ -34,7 +34,7 @@ from app.utils.ui.dnd.link import (
 from app.utils.ui.dnd.mime import MimeDataParser, get_link_mime
 from app.utils.ui.dnd.pixmap import create_default_pixmap, create_text_pixmap
 from app.utils.ui.icon.icon_resolver import get_default_icon_path, resolve_icon_path
-from app.views.link_button_mixin import LinkButtonMixin
+from app.views.widgets.link_button_mixin import LinkButtonMixin
 
 logger = logging.getLogger(__name__)
 
@@ -56,88 +56,94 @@ class BasePanelWidget(QWidget):
         main_layout.addWidget(self.bg_frame)
 
 
-class BaseLinksPanelWidget(BasePanelWidget, LinkButtonMixin):
-    """Базовый класс для панелей со ссылками."""
+# DEPRECATED: Backward compatibility wrapper for tests
+# Use BaseTopPanelWidget directly in new code
+from app.views.widgets.base.base_panel_widgets import BaseTopPanelWidget
 
+
+class BaseLinksPanelWidget(BaseTopPanelWidget):
+    """Deprecated: Use BaseTopPanelWidget instead.
+    
+    This class is kept only for backward compatibility with existing tests.
+    All functionality has been unified into BaseTopPanelWidget.
+    
+    Migration guide:
+    - Replace BaseLinksPanelWidget with BaseTopPanelWidget
+    - Use config parameter for dependency injection
+    - Use batch_size parameter for async population
+    """
+    
+    # Backward compatible signal (parent uses actionRequested)
     linkClicked: pyqtSignal = pyqtSignal(object)
 
     def __init__(
-        self, main_window: Optional[QWidget] = None, links_business: Any = None
+        self, 
+        main_window: Optional[QWidget] = None, 
+        links_business: Any = None,
+        batch_size: int = 50
     ) -> None:
-        """Инициализирует панель ссылок.
-
+        """Initialize with backward compatible API.
+        
         Args:
-            main_window: Ссылка на главное окно приложения (если нужна интеграция с UI). Сохраняется в атрибуте `self.main_window`.
-            links_business: Бизнес-логика для операций со ссылками. Сохраняется в атрибуте `self.links_business`.
-
-        Примечания:
-            - Путь к иконке по умолчанию кэшируется в `self._default_icon_path` и вычисляется при первом обращении
-              к `_get_default_icon_path()`.
+            main_window: Reference to main window
+            links_business: Business logic for links (stored for compatibility)
+            batch_size: Batch size for async population (default 50 for tests)
         """
-        super().__init__()
-        self.main_window = main_window
+        # Call unified base with specified batch_size
+        super().__init__(main_window=main_window, config=None, batch_size=batch_size)
+        
+        # Store for backward compatibility with old code/tests
         self.links_business = links_business
-        self._default_icon_path: Optional[Path] = None
-
-    def _find_icon(self, icon_path: str) -> str:
-        """Совместимый с тестами shim: использует resolve_icon_path из этого модуля.
-
-        Логика идентична миксину, но опирается на символ, который тесты патчат:
-        tests/test_base_widgets_exception_handling.py ожидает патч
-        `app.views.base_widgets.resolve_icon_path`.
-        """
-        if not icon_path:
-            return str(self._get_default_icon_path())
-        try:
-            resolved = resolve_icon_path(icon_path)
-            return resolved or str(self._get_default_icon_path())
-        except (OSError, FileNotFoundError, PermissionError) as e:
-            logging.warning("Не удалось разрешить путь к иконке '%s': %s", icon_path, e)
-            return str(self._get_default_icon_path())
-        except Exception as e:
-            logger.exception(
-                "Неожиданная ошибка при разрешении иконки '%s': %s", icon_path, e
-            )
-            return str(self._get_default_icon_path())
-
-    def _clear_layout(self) -> None:
-        """Безопасно очищает layout от виджетов."""
-        while self.panel_layout.count():
-            item = self.panel_layout.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
-
+    
+    # Compatibility property: tests expect 'main_window', parent uses '_main_window'
+    @property
+    def main_window(self):
+        """Backward compatible accessor for main_window."""
+        return self._main_window
+    
+    @main_window.setter
+    def main_window(self, value):
+        """Backward compatible setter for main_window."""
+        self._main_window = value
+    
+    # Compatibility method: tests call _populate_batch(), parent uses _populate_batched()
+    def _populate_batch(self) -> None:
+        """Backward compatible wrapper for _process_batch()."""
+        if not hasattr(self, '_pending_items') or not self._pending_items:
+            self._finish_populate()
+            return
+        
+        # Process one batch using parent's logic
+        self._process_batch()
+    
     def _populate_panel(
         self,
         items: List[Dict[str, Any]],
         create_button_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
     ) -> None:
-        """Очищает панель и заполняет кнопками ссылок батчами для предотвращения блокировки UI."""
+        """Override to maintain backward compatible logging for tests."""
         self._clear_layout()
         
-        # Сохраняем данные для батчинга
-        self._pending_items = list(items)
-        self._create_button_func = create_button_func
-        
-        # Отключаем обновления до завершения заполнения
-        self.setUpdatesEnabled(False)
-        
-        # Запускаем первый батч
-        self._populate_batch()
-
-    def _populate_batch(self) -> None:
-        """Обрабатывает один батч элементов (до 50 штук)."""
-        if not hasattr(self, '_pending_items') or not self._pending_items:
-            # Все батчи обработаны
+        # Use parent's logic for consistency
+        if self._batch_size > 0:
+            self._pending_items = list(items)
+            self._create_button_func = create_button_func
+            self.setUpdatesEnabled(False)
+            self._populate_batch()
+        else:
+            # Синхронный режим - вызываем родительскую логику напрямую
+            super()._populate_panel(items, create_button_func)
+    
+    def _process_batch(self) -> None:
+        """Process one batch with backward compatible logging."""
+        if not self._pending_items:
             self._finish_populate()
             return
         
-        BATCH_SIZE = 50  # Обрабатываем по 50 за раз
+        BATCH_SIZE = 50
         batch = self._pending_items[:BATCH_SIZE]
         self._pending_items = self._pending_items[BATCH_SIZE:]
         
-        # Обрабатываем текущий батч
         for i, link in enumerate(batch):
             try:
                 button = self._create_button_func(link)
@@ -155,24 +161,23 @@ class BaseLinksPanelWidget(BasePanelWidget, LinkButtonMixin):
             if button is not None:
                 self.panel_layout.addWidget(button)
             else:
-                logging.debug(
+                logger.debug(
                     "create_button_func вернула None для: %s",
                     link.get("name", "Unknown"),
                 )
         
-        # Планируем следующий батч через очередь событий Qt
+        # Schedule next batch
         from PyQt6.QtCore import QTimer
         QTimer.singleShot(0, self._populate_batch)
     
     def _finish_populate(self) -> None:
-        """Завершает заполнение панели."""
+        """Finish population with backward compatible logging."""
         try:
             if self.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Expanding:
                 self.panel_layout.addStretch()
         except (AttributeError, RuntimeError) as e:
-            logging.warning("Не удалось добавить stretch в layout: %s", e)
+            logger.warning("Failed to add stretch to layout: %s", e)
         
-        # Включаем обновления
         self.setUpdatesEnabled(True)
         
         try:
@@ -183,12 +188,11 @@ class BaseLinksPanelWidget(BasePanelWidget, LinkButtonMixin):
                 exc_info=True,
             )
         
-        # Очищаем временные данные
         self._pending_items = []
         self._create_button_func = None
-
+    
     def _handle_link_click_base(self, link_info: Any) -> None:
-        """Эмитит сигнал `linkClicked` по клику по ссылке."""
+        """Emit linkClicked signal (backward compatible)."""
         logger.debug("[BaseLinksPanelWidget] link clicked: %s", link_info)
         try:
             self.linkClicked.emit(link_info)
@@ -208,16 +212,26 @@ class BaseLinksPanelWidget(BasePanelWidget, LinkButtonMixin):
                 "Ошибка при эмитировании linkClicked; контекст=%s", link_ctx
             )
             raise
-
-    def _get_default_icon_path(self) -> Path:
-        """Возвращает путь к иконке по умолчанию с кэшированием.
-
-        При первом вызове вычисляет путь и сохраняет его в `self._default_icon_path`.
-        Последующие вызовы возвращают закэшированное значение.
+    
+    def _find_icon(self, icon_path: str) -> str:
+        """Backward compatible shim for tests that patch resolve_icon_path.
+        
+        Tests expect to patch 'app.views.widgets.base.base_widgets.resolve_icon_path'.
+        This method delegates to the parent but uses the local resolve_icon_path import.
         """
-        if self._default_icon_path is None:
-            self._default_icon_path = get_default_icon_path()
-        return self._default_icon_path
+        if not icon_path:
+            return str(self._get_default_icon_path())
+        try:
+            resolved = resolve_icon_path(icon_path)
+            return resolved or str(self._get_default_icon_path())
+        except (OSError, FileNotFoundError, PermissionError) as e:
+            logger.warning("Не удалось разрешить путь к иконке '%s': %s", icon_path, e)
+            return str(self._get_default_icon_path())
+        except Exception as e:
+            logger.exception(
+                "Неожиданная ошибка при разрешении иконки '%s': %s", icon_path, e
+            )
+            return str(self._get_default_icon_path())
 
 
 class BaseDragDropTableWidget(QTableView):

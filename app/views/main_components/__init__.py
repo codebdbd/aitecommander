@@ -10,7 +10,7 @@
 модульности и читаемости кода.
 """
 
-from .constants import (
+from .common.constants import (
     ConfigKey,
     DEFER,
     EventSource,
@@ -24,13 +24,13 @@ from .constants import (
     Timeout,
     WidgetAttribute,
 )
-from .decorators import (
+from .common.decorators import (
     require_main_thread,
     log_if_enabled,
     safe_qt_operation,
     retry_on_failure,
 )
-from .exceptions import (
+from .common.exceptions import (
     MainComponentsError,
     InitializationError,
     DatabaseNotReadyError,
@@ -40,8 +40,8 @@ from .exceptions import (
     WidgetDeletedError,
     ConfigurationError,
 )
-from .helpers import clamp, defer, safe_disconnect, safe_getattr
-from .protocols import (
+from .common.helpers import clamp, defer, safe_disconnect, safe_getattr
+from .common.protocols import (
     DatabaseProtocol,
     MainWindowProtocol,
     ResourceManagerProtocol,
@@ -51,8 +51,8 @@ from .protocols import (
     TopPanelsControllerProtocol,
     UIStateManagerProtocol,
 )
-from .resource_manager import ResourceManager, managed_resource
-from .window_initializer import WindowInitializer
+from .common.resource_manager import ResourceManager, managed_resource
+from .initialization.window_initializer import WindowInitializer
 
 __all__ = [
     # Основные компоненты

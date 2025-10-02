@@ -1,11 +1,12 @@
-"""Recent links panel widget for top bar."""
+"""Recent panel widget for top bar."""
 
 from typing import Any, Dict, List, Optional
 
 from PyQt6.QtWidgets import QToolButton, QWidget
 
 from app.utils.ui.icon.icon_resolver import get_default_icon_path
-from app.views.base_panel_widgets import BaseTopPanelWidget
+from app.views.widgets.base.base_panel_widgets import BaseTopPanelWidget
+from app.views.widgets.protocols import WidgetConfigProtocol
 
 RECENT_LINKS_LIMIT = 10
 
@@ -13,14 +14,25 @@ RECENT_LINKS_LIMIT = 10
 class RecentPanelWidget(BaseTopPanelWidget):
     """Dedicated widget for recent links panel functionality."""
 
-    def __init__(self, main_window: Optional[QWidget] = None) -> None:
-        super().__init__(main_window)
+    def __init__(
+        self, 
+        main_window: Optional[QWidget] = None, 
+        config: Optional[WidgetConfigProtocol] = None,
+        batch_size: int = 0
+    ):
+        """Initialize recent panel.
+        
+        Args:
+            main_window: Reference to main window
+            config: Configuration provider (uses app_config if None)
+            batch_size: Batch size for async population (0 = synchronous)
+        """
+        super().__init__(main_window, config=config, batch_size=batch_size)
         self._default_icon_path = get_default_icon_path()
 
         # Set object names for styling
         self.setObjectName("recentPanel")
         self.bg_frame.setObjectName("recentPanelBg")
-
     def set_data(self, items: List[Dict[str, Any]]) -> None:
         """Sets recent links data and populates the panel (unified contract)."""
         self._populate_panel(items, self._create_recent_button)

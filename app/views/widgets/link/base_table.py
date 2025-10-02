@@ -16,8 +16,8 @@ from PyQt6.QtWidgets import (
 from app.config_data import app_config
 from app.utils.ui.dnd.link import DragDropHandlerMixin
 from app.utils.ui.dnd.mime import get_link_mime
-from app.views.base_widgets import BaseDragDropTableWidget
-from app.views.link.links_model import LinksTableModel
+from app.views.widgets.base.base_widgets import BaseDragDropTableWidget
+from app.views.widgets.link.links_model import LinksTableModel
 
 from .data_management import DataManagementMixin
 

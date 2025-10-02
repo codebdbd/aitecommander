@@ -36,7 +36,7 @@ class ThemeController:
         self.top_panels_controller = top_panels_controller
         self._themes: List[Dict[str, Any]] = []
         self._stylesheet_service = stylesheet_service or ThemeStylesheetService(
-            app_config
+            app_config, settings=settings
         )
         # Инъекция зависимостей для тестируемости
         self._stylesheet_applier = stylesheet_applier  # Callable[[str], None]

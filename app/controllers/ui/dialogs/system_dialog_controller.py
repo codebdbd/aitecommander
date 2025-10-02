@@ -39,7 +39,7 @@ class SystemDialogController:
     def handle_import_browser_bookmarks(self):
         """Импорт закладок браузера."""
         from app.utils.browser.import_browser_html import BrowserBookmarksImporter
-        from app.views.dialogs.import_browser_dialog import ImportBrowserDialog
+        from app.views.windows.dialogs.import_browser_dialog import ImportBrowserDialog
 
         importer = BrowserBookmarksImporter()
 
@@ -167,7 +167,7 @@ class SystemDialogController:
 
     def show_settings_dialog(self):
         """Показать диалог настроек."""
-        from app.views.dialogs.entity_dialogs import SettingsDialog
+        from app.views.windows.dialogs.entity_dialogs import SettingsDialog
 
         dlg = SettingsDialog(
             self.main_window.settings,
@@ -178,7 +178,7 @@ class SystemDialogController:
 
     def show_file_search_dialog(self):
         """Показать диалог поиска файлов."""
-        from app.views.dialogs.file_search_dialog.file_search_dialog import (
+        from app.views.windows.dialogs.file_search_dialog.file_search_dialog import (
             FileSearchDialog,
         )
 

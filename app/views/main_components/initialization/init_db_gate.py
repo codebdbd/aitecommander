@@ -11,8 +11,8 @@ from typing import Callable, List, Optional
 
 from PyQt6.QtCore import QTimer
 
-from .constants import Timeout
-from .protocols import MainWindowProtocol
+from ..common.constants import Timeout
+from ..common.protocols import MainWindowProtocol
 
 logger = logging.getLogger(__name__)
 
