@@ -1,0 +1,421 @@
+/* Light theme specific styles */
+
+QWidget#LeftPanel[sphere="1"] {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0 #F0F0F0, stop: 0.98 #F0F0F0,
+        stop: 0.98 #E0E0E0, stop: 1 #E0E0E0
+    );
+}
+QWidget#LeftPanel[sphere="2"] {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0 #F0F0F0, stop: 0.98 #F0F0F0,
+        stop: 0.98 #D0D0D0, stop: 1 #D0D0D0
+    );
+}
+QWidget#LeftPanel[sphere="3"] {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0 #F0F0F0, stop: 0.98 #F0F0F0,
+        stop: 0.98 #C0C0C0, stop: 1 #C0C0C0
+    );
+}
+QWidget#LeftPanel[sphere="4"] {
+    background: qlineargradient(
+        x1: 0, y1: 0, x2: 0, y2: 1,
+        stop: 0 #F0F0F0, stop: 0.98 #F0F0F0,
+        stop: 0.98 #B0B0B0, stop: 1 #B0B0B0
+    );
+}
+
+QWidget#spheres_bar QToolButton:hover {
+    border: 2px solid #0078d7;
+}
+QWidget#spheres_bar QToolButton:checked {
+    border: 2px solid #E0E0E0;
+}
+
+QWidget#LeftPanel QToolButton:hover {
+    background: #E0E0E0;
+}
+
+QMenu {
+    border: 1px solid #CCCCCC;
+    color: #222222;
+    background-color: #FFFFFF;
+}
+
+QMenu::item {
+    color: #222222;
+}
+
+QMenu::item:selected {
+    background-color: #E0E0E0;
+    color: #222222;
+}
+
+QMenu::item:disabled {
+    color: #A0A0A0;
+    background-color: transparent;
+}
+
+QMenu::separator {
+    background: #E0E0E0;
+}
+
+QMenu::item:hover {
+    background-color: #E0E0E0;
+    color: #222222;
+}
+
+QMenu::item:pressed {
+    background-color: #D0D0D0;
+}
+
+QMenu::indicator:checked {
+    background-color: #0078d7;
+    border: 1px solid #0078d7;
+}
+
+QMenuBar {
+    background-color: #F0F0F0;
+    border-bottom: 1px solid #E0E0E0; /* subtle separator under menu bar */
+    border-top: 1px solid #E0E0E0; /* top separator above main menu */
+}
+
+QMenuBar::item {
+    color: #222222;
+}
+
+QMenuBar::item:selected {
+    background: #E0E0E0;
+    color: #222222;
+}
+
+QMenuBar::item:pressed {
+    background: #D0D0D0;
+}
+
+QMenuBar QMenu {
+    background-color: #FFFFFF;
+    border: 1px solid #E0E0E0;
+}
+
+QWidget {
+    background-color: #FFFFFF;
+    color: #222222;
+}
+
+QPushButton {
+    background-color: #F0F0F0;
+    border: 1px solid #CCCCCC;
+}
+
+QPushButton:hover {
+    background-color: #E0E0E0;
+}
+
+QLineEdit, QTextEdit, QComboBox, QSpinBox {
+    background-color: #F0F0F0;
+    border: 1px solid #CCCCCC;
+}
+
+/* Down arrow icon for comboboxes (light theme) */
+QComboBox::down-arrow {
+    image: url("app/views/resources/ui_icons/light/chevron_down.svg");
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+    margin-top: 1px;
+}
+QDialog QComboBox::down-arrow {
+    image: url("app/views/resources/ui_icons/light/chevron_down.svg");
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+    margin-top: 1px;
+}
+
+/* Поле поиска (QLineEdit#mainSearch) наследует радиус из common.qss */
+
+/* Category Tiles Styles */
+/* Legacy selector kept for backward compatibility */
+QListWidget#categoryTiles {
+    background: transparent;
+    border: none;
+}
+
+QListWidget#categoryTiles::item {
+    /* Базовая прозрачная рамка, как у кнопок сфер и linkTypeBtn */
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: 4px;
+}
+
+/* New QListView-based tiles (IconMode) */
+QListView#categoryTiles {
+    background: transparent;
+    border: none;
+}
+
+QListView#categoryTiles::item {
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: 4px;
+}
+
+/* Hover: синий контур и светло-серый фон, как у сфер */
+QListWidget#categoryTiles::item:hover,
+QListView#categoryTiles::item:hover {
+    background: #E0E0E0;
+    border: 2px solid #0078d7;
+}
+
+/* Selected: как активная кнопка (нейтральная обводка/фон) */
+QListWidget#categoryTiles::item:selected,
+QListView#categoryTiles::item:selected {
+    background: #F0F0F0;
+    border: 2px solid #E0E0E0;
+}
+
+/* Selected + Hover: сохраняем синий контур */
+QListWidget#categoryTiles::item:selected:hover,
+QListView#categoryTiles::item:selected:hover {
+    border: 2px solid #0078d7;
+}
+
+QComboBox QAbstractItemView {
+    border: 1px solid #CCCCCC;
+    background-color: #F0F0F0;
+    selection-background-color: #E0E0E0;
+}
+
+QHeaderView::section {
+    background-color: #F0F0F0;
+    border-right: 1px solid #CCCCCC;
+}
+
+QLabel#pathLabel {
+    color: #555555;
+}
+
+QTableView QTableCornerButton::section,
+QTableView QTableCornerButton::section:first {
+    background-color: #F0F0F0;
+}
+
+QTableView QTableCornerButton::section:alternate {
+    background-color: #E8E8E8;
+}
+
+QTableView {
+    alternate-background-color: #F0F0F0;
+}
+
+QTreeView::item:selected,
+QTableView::item:selected {
+    background-color: #0078d7;
+    color: white;
+}
+
+QTreeView::item:!selected:hover {
+    background-color: #444444;
+}
+
+QTreeView::item:!selected:hover {
+    background-color: #444444;
+}
+
+QToolButton {
+    background-color: #F0F0F0;
+    border-color: #CCCCCC;
+}
+
+QToolButton:hover {
+    background-color: #E0E0E0;
+    border-color: #AAAAAA;
+}
+
+QToolButton:pressed {
+    background-color: #D0D0D0;
+    border-color: #999999;
+}
+
+QToolButton:checked {
+    background-color: #0078d7;
+    border-color: #0078d7;
+}
+
+QWidget[class="separator"] {
+    background-color: #E0E0E0;
+}
+
+QStatusBar {
+    border-color: #E0E0E0;
+}
+
+QWidget#favQuickSeparatorBefore,
+QWidget#favQuickSeparatorAfter {
+    min-width: 1px;
+    max-width: 1px;
+    width: 1px;
+    min-height: 24px;
+    background: #E0E0E0;
+}
+
+QWidget[class="vertical_separator"] {
+    background-color: #E0E0E0;
+}
+
+#spheres_bar {
+    background-color: #F0F0F0;
+}
+
+QScrollBar:vertical {
+    background: #F0F0F0;
+}
+QScrollBar::handle:vertical {
+    background: #D0D0D0;
+}
+QScrollBar::handle:vertical:hover {
+    background: #C0C0C0;
+}
+
+QScrollBar:horizontal {
+    background: #F0F0F0;
+}
+QScrollBar::handle:horizontal {
+    background: #D0D0D0;
+}
+QScrollBar::handle:horizontal:hover {
+    background: #C0C0C0;
+}
+
+/* Dialog inputs: enforce sharp corners */
+QDialog QLineEdit,
+QDialog QTextEdit,
+QDialog QPlainTextEdit,
+QDialog QComboBox,
+QDialog QSpinBox,
+QDialog QDoubleSpinBox,
+QDialog QDateEdit,
+QDialog QTimeEdit {
+    border-radius: 0;
+}
+
+/* Dialog buttons: smoother corners */
+QDialog QPushButton,
+QDialog QToolButton {
+    border-radius: 8px;
+}
+
+/* Dialog buttons: keyboard focus outline (Tab navigation) */
+QDialog QPushButton:focus,
+QDialog QToolButton:focus {
+    border: 1px solid #0078d7;
+    outline: none;
+}
+
+/* Remove system dotted focus frame drawn by Qt */
+QFocusFrame {
+    border: 0px;
+    outline: none;
+    background: transparent;
+}
+
+/* Default buttons: show border only when focused; remove system dotted outline */
+QDialog QPushButton:default:focus,
+QDialog QPushButton:autoDefault:focus {
+    outline: none;
+    border: 1px solid #0078d7;
+}
+
+/* Disabled dialog buttons: gray background, keep existing borders */
+QDialog QPushButton:disabled,
+QDialog QToolButton:disabled {
+    background: #E6E6E6; /* light gray for light theme */
+}
+QDialog QPushButton:disabled:hover,
+QDialog QToolButton:disabled:hover {
+    background: #E6E6E6;
+}
+
+ 
+
+
+/* Dialog checkboxes: match buttons' focus behavior */
+QDialog QCheckBox {
+    /* Base transparent border to avoid layout shift when focus border appears */
+    border: 1px solid transparent;
+    border-radius: 4px;
+    outline: none;
+}
+
+/* Remove dotted outline on indicator as well */
+QDialog QCheckBox::indicator,
+QDialog QCheckBox::indicator:focus {
+    outline: none;
+}
+
+/* Keyboard focus outline (Tab navigation) */
+QDialog QCheckBox:focus {
+    border: 1px solid #0078d7;
+    outline: none;
+}
+
+/* =========================
+   Dialog combobox dropdown (popup list)
+   ========================= */
+QDialog QComboBox QAbstractItemView {
+    outline: none;
+    border: 1px solid #D7D7D7;
+    background: #FFFFFF;
+}
+
+QDialog QComboBox QAbstractItemView::item {
+    min-height: 32px; /* Fallback; main height via ComboRowHeightDelegate */
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+/* Selected same as table/tree selected */
+QDialog QComboBox QAbstractItemView::item:selected {
+    background-color: #0078d7;
+    color: white;
+}
+
+/* Hover — светлая нейтральная подсветка, гармонирующая с темой */
+QDialog QComboBox QAbstractItemView::item:hover {
+    background-color: #EDEDED;
+}
+
+/* Link type buttons (text under icon) — height by content with 8px paddings */
+QDialog QToolButton#linkTypeBtn {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-left: 6px;
+    padding-right: 6px;
+    margin: 0;
+}
+
+/* Match spheres bar behavior for link type buttons (light) */
+QDialog QToolButton#linkTypeBtn {
+    /* Base transparent border to avoid layout shift */
+    border: 2px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+}
+QDialog QToolButton#linkTypeBtn:hover {
+    /* Same hover outline and hover background as spheres */
+    border: 2px solid #0078d7;
+    background: #E0E0E0;
+}
+QDialog QToolButton#linkTypeBtn:checked {
+    /* Active state matches spheres */
+    border: 2px solid #E0E0E0;
+    background: #F0F0F0;
+}
+QDialog QToolButton#linkTypeBtn:checked:hover {
+    border: 2px solid #0078d7;
+}

@@ -13,7 +13,7 @@ from app.controllers.ui.undo.commands_links import (
     SaveLinkCmd,
 )
 from app.controllers.ui.undo.stack import UndoManager
-from app.views.dialogs.link_dialog.link_dialog import LinkDialog
+from app.views.windows.dialogs.link_dialog.link_dialog import LinkDialog
 
 # Константы для макросов отмены/повтора
 MACRO_DELETE_LINKS_TEXT = "Удаление {count} ссылок"

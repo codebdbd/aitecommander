@@ -42,7 +42,7 @@ def handle_errors(func):
         try:
             return func(self, *args, **kwargs)
         except Exception as e:
-            self.logger.error(f"Error in {func.__name__}: {e}", exc_info=True)
+            self.logger.error("Error in %s: %s", func.__name__, e, exc_info=True)
             if not handle_db_error(e, self):
                 raise
     return wrapper
@@ -95,7 +95,7 @@ class LinksBusinessLogic(QObject):
             thread_pool = self.scheduler.get_thread_pool()
             active_threads = thread_pool.activeThreadCount()
             if active_threads > 0:
-                self.logger.debug(f"Waiting for {active_threads} active threads...")
+                self.logger.debug("Waiting for %d active threads...", active_threads)
             thread_pool.waitForDone(timeout)
             self._clear_pending_tasks()
             self._cache.clear()

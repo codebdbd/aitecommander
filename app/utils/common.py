@@ -2,9 +2,12 @@
 Общие утилиты, используемые по всему приложению.
 """
 
+import logging
 from typing import Any, TypeVar
 
 T = TypeVar("T")
+
+logger = logging.getLogger(__name__)
 
 
 def get_value(obj: Any, key: str, default: Any = None) -> Any:
@@ -26,7 +29,10 @@ def get_value(obj: Any, key: str, default: Any = None) -> Any:
         if hasattr(obj, "get"):
             return obj.get(key, default)  # type: ignore[attr-defined]
         return getattr(obj, key, default)
-    except Exception:
+    except (AttributeError, TypeError, KeyError):
+        return default
+    except Exception as unexpected_error:  # pragma: no cover - диагностический сценарий
+        logger.warning("get_value: unexpected error for key %s: %s", key, unexpected_error)
         return default
 
 
@@ -40,7 +46,8 @@ def safe_getattr(obj: Any, attr: str, default: T | None = None) -> T | None:
         return getattr(obj, attr) if obj is not None else default
     except (AttributeError, TypeError):
         return default
-    except Exception:
+    except Exception as unexpected_error:  # pragma: no cover - диагностический сценарий
+        logger.warning("safe_getattr: unexpected error for attr %s: %s", attr, unexpected_error)
         return default
 
 
@@ -63,6 +70,12 @@ def safe_call(
             return result if result is not None else default
     except (AttributeError, TypeError):
         return default
-    except Exception:
+    except Exception as unexpected_error:  # pragma: no cover - диагностический сценарий
+        logger.warning(
+            "safe_call: unexpected error calling %s on %s: %s",
+            method_name,
+            type(obj).__name__ if obj is not None else "<None>",
+            unexpected_error,
+        )
         return default
     return default

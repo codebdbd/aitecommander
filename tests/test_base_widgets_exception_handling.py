@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 from PyQt6.QtWidgets import QApplication, QToolButton
 
-from app.views.base_widgets import BaseLinksPanelWidget
+from app.views.widgets.base.base_widgets import BaseLinksPanelWidget
 
 
 class TestBaseLinksPanelWidgetExceptionHandling(unittest.TestCase):
@@ -21,14 +21,15 @@ class TestBaseLinksPanelWidgetExceptionHandling(unittest.TestCase):
 
     def setUp(self):
         """Настройка для каждого теста."""
-        self.widget = BaseLinksPanelWidget()
+        # Используем синхронный режим для тестов
+        self.widget = BaseLinksPanelWidget(batch_size=0)
 
     def test_find_icon_handles_file_not_found_error(self):
         """Тест обработки FileNotFoundError в _find_icon."""
-        with patch("app.views.base_widgets.resolve_icon_path") as mock_resolve:
+        with patch("app.views.widgets.base.base_widgets.resolve_icon_path") as mock_resolve:
             mock_resolve.side_effect = FileNotFoundError("File not found")
 
-            with patch("app.views.base_widgets.logging.warning") as mock_log:
+            with patch("app.views.widgets.base.base_widgets.logger.warning") as mock_log:
                 result = self.widget._find_icon("/nonexistent/path.png")
 
                 # Проверяем, что вернулся путь по умолчанию
@@ -39,13 +40,12 @@ class TestBaseLinksPanelWidgetExceptionHandling(unittest.TestCase):
                 args = mock_log.call_args[0]
                 self.assertIn("Не удалось разрешить путь к иконке", args[0])
                 self.assertIn("/nonexistent/path.png", args[1])
-
     def test_find_icon_handles_os_error(self):
         """Тест обработки OSError в _find_icon."""
-        with patch("app.views.base_widgets.resolve_icon_path") as mock_resolve:
+        with patch("app.views.widgets.base.base_widgets.resolve_icon_path") as mock_resolve:
             mock_resolve.side_effect = OSError("Permission denied")
 
-            with patch("app.views.base_widgets.logging.warning") as mock_log:
+            with patch("app.views.widgets.base.base_widgets.logger.warning") as mock_log:
                 result = self.widget._find_icon("/restricted/path.png")
 
                 # Проверяем, что вернулся путь по умолчанию
@@ -58,10 +58,10 @@ class TestBaseLinksPanelWidgetExceptionHandling(unittest.TestCase):
 
     def test_find_icon_handles_unexpected_exception(self):
         """Тест обработки неожиданных исключений в _find_icon."""
-        with patch("app.views.base_widgets.resolve_icon_path") as mock_resolve:
+        with patch("app.views.widgets.base.base_widgets.resolve_icon_path") as mock_resolve:
             mock_resolve.side_effect = ValueError("Unexpected error")
 
-            with patch("app.views.base_widgets.logger.exception") as mock_log:
+            with patch("app.views.widgets.base.base_widgets.logger.exception") as mock_log:
                 result = self.widget._find_icon("/some/path.png")
 
                 # Проверяем, что вернулся путь по умолчанию
@@ -99,13 +99,13 @@ class TestBaseLinksPanelWidgetExceptionHandling(unittest.TestCase):
             },
         ]
 
-        with patch("app.views.base_widgets.logger.exception") as mock_exception:
+        with patch("app.views.widgets.base.base_panel_widgets.logger.exception") as mock_exception:
             self.widget._populate_panel(test_items, failing_create_button)
 
             # Проверяем, что было залогировано исключение об ошибке
             mock_exception.assert_called_once()
             args = mock_exception.call_args[0]
-            self.assertIn("Не удалось создать кнопку для элемента панели", args[0])
+            self.assertIn("Failed to create button for panel element", args[0])
 
             # Проверяем, что в логе есть информация о проблемной ссылке
             link_info = args[1]
@@ -121,13 +121,13 @@ class TestBaseLinksPanelWidgetExceptionHandling(unittest.TestCase):
             {"id": "test_link", "name": "Test Link", "url": "http://test.com"}
         ]
 
-        with patch("app.views.base_widgets.logger.exception") as mock_exception:
+        with patch("app.views.widgets.base.base_panel_widgets.logger.exception") as mock_exception:
             self.widget._populate_panel(test_items, failing_create_button)
 
             # Проверяем, что вызывается logging.exception с диагностикой
             mock_exception.assert_called_once()
             args = mock_exception.call_args[0]
-            self.assertIn("Не удалось создать кнопку для элемента панели", args[0])
+            self.assertIn("Failed to create button for panel element", args[0])
 
     def test_populate_panel_logs_none_button_return(self):
         """Тест логирования когда create_button_func возвращает None."""
@@ -137,13 +137,13 @@ class TestBaseLinksPanelWidgetExceptionHandling(unittest.TestCase):
 
         test_items = [{"id": "test_link", "name": "Test Link"}]
 
-        with patch("app.views.base_widgets.logging.debug") as mock_debug:
+        with patch("app.views.widgets.base.base_panel_widgets.logger.debug") as mock_debug:
             self.widget._populate_panel(test_items, none_returning_create_button)
 
             # Проверяем, что залогировано сообщение о None
             mock_debug.assert_called_once()
             args = mock_debug.call_args[0]
-            self.assertIn("create_button_func вернула None", args[0])
+            self.assertIn("create_button_func returned None for element", args[0])
 
     def test_populate_panel_handles_size_policy_error(self):
         """Тест обработки ошибок при работе с sizePolicy."""
@@ -153,17 +153,19 @@ class TestBaseLinksPanelWidgetExceptionHandling(unittest.TestCase):
 
         test_items = [{"id": "test_link", "name": "Test Link"}]
 
-        # Мокаем sizePolicy чтобы выбросить исключение
+        # Мокаем sizePolicy().horizontalPolicy() чтобы выбросить исключение
         with patch.object(self.widget, "sizePolicy") as mock_size_policy:
-            mock_size_policy.side_effect = AttributeError("sizePolicy not available")
+            mock_policy = Mock()
+            mock_policy.horizontalPolicy.side_effect = AttributeError("horizontalPolicy not available")
+            mock_size_policy.return_value = mock_policy
 
-            with patch("app.views.base_widgets.logging.warning") as mock_warning:
+            with patch("app.views.widgets.base.base_widgets.logger.warning") as mock_warning:
                 self.widget._populate_panel(test_items, good_create_button)
 
                 # Проверяем, что ошибка sizePolicy была залогирована
                 mock_warning.assert_called_once()
                 args = mock_warning.call_args[0]
-                self.assertIn("Не удалось добавить stretch в layout", args[0])
+                self.assertIn("Failed to add stretch to layout", args[0])
 
     def test_populate_panel_successful_case(self):
         """Тест успешного выполнения _populate_panel."""

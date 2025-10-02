@@ -170,10 +170,7 @@ def setup_signal_connections(
     _connect_database_signals(window)
     QTimer.singleShot(0, partial(_connect_ui_signals, window))
     
-    try:
-        top_panels_controller.request_refresh()
-    except (AttributeError, TypeError) as e:
-        raise SetupError(f"Failed to request initial top panels refresh: {e}") from e
+    # Refresh вызывается в window_ui_setup._finalize_topbar_startup(), убран дубль
 
 
 def _connect_structure_signals(

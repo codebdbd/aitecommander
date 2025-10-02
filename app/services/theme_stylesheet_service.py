@@ -15,8 +15,9 @@ logger = logging.getLogger(__name__)
 class ThemeStylesheetService:
     """Отвечает за подготовку QSS: чтение файлов, построение override-блоков и LRU-кэш."""
 
-    def __init__(self, app_config, *, max_cache_size: int | None = None):
+    def __init__(self, app_config, *, max_cache_size: int | None = None, settings=None):
         self._app_config = app_config
+        self._settings = settings  # Пользовательские настройки для динамических размеров шрифтов
         self._qss_cache: OrderedDict[str, str] = OrderedDict()
         self._common_qss: Optional[str] = None
         self._cache_lock = RLock()
@@ -227,6 +228,17 @@ class ThemeStylesheetService:
         form_label_px = _get_font_px("form_label_px", None)
         form_field_px = _get_font_px("form_field_px", None)
         link_type_button_px = _get_font_px("link_type_button_px", None)
+
+        # Применяем пользовательский размер шрифта из settings (если есть)
+        # к дереву и таблице, переопределяя статические значения из app_config
+        if self._settings and hasattr(self._settings, 'get_font_size'):
+            try:
+                user_font_size = int(self._settings.get_font_size())
+                if 9 <= user_font_size <= 20:  # Валидный диапазон
+                    tree_px = user_font_size
+                    table_row_px = user_font_size
+            except Exception:
+                pass  # Используем значения по умолчанию
 
         try:
             fonts_units = str(app_config.ui.get("ui.fonts.units", "px")).strip().lower()

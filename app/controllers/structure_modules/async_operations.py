@@ -42,6 +42,9 @@ except Exception:  # надёжный фолбэк: метрики отключ�
 
 logger = logging.getLogger(__name__)
 
+# ИСПРАВЛЕНИЕ: Ограничение на количество pending tasks
+MAX_PENDING_TASKS = 100
+
 
 class StructureSignals(QObject):
     """Сигналы для асинхронных операций со структурой (совместимы с легаси).
@@ -117,15 +120,79 @@ class AsyncOperations(QObject):
     def cleanup(self) -> None:
         """Proper cleanup для Qt объектов.
         
+        ИСПРАВЛЕНИЕ: Отключает все сигналы перед удалением.
         Вызывается при уничтожении для предотвращения утечек памяти.
         """
         try:
             if self._worker_signals:
+                # Отключаем все сигналы
+                signals_to_disconnect = [
+                    'spheres_loaded', 'structure_loaded', 'sections_loaded',
+                    'categories_loaded', 'search_results', 'links_loaded',
+                    'link_info_finished', 'count_finished', 'item_created',
+                    'item_updated', 'item_deleted', 'operation_started',
+                    'operation_finished', 'loading_started', 'update_ui',
+                    'error', 'simple_error'
+                ]
+                
+                for signal_name in signals_to_disconnect:
+                    try:
+                        signal = getattr(self._worker_signals, signal_name, None)
+                        if signal and hasattr(signal, 'disconnect'):
+                            signal.disconnect()
+                    except TypeError:  # Уже отключено
+                        pass
+                
                 self._worker_signals.deleteLater()
                 self._worker_signals = None
+                self.logger.debug("AsyncOperations: all signals disconnected")
         except Exception as e:
             self.logger.debug("Error during AsyncOperations cleanup: %s", e)
+        
+        # Очищаем pending tasks
+        with self._pending_tasks_lock:
+            if self._pending_tasks:
+                self.logger.debug("AsyncOperations: clearing %d pending tasks", len(self._pending_tasks))
+                self._pending_tasks.clear()
+        
+        # Очищаем метрики
+        with self._metrics_lock:
+            if self._active_metric_spans:
+                self.logger.debug("AsyncOperations: clearing %d active metric spans", len(self._active_metric_spans))
+                self._active_metric_spans.clear()
 
+    def _add_pending_task(self, task_id: str, task_data: Any = True) -> bool:
+        """Добавляет pending task с проверкой лимита.
+        
+        ИСПРАВЛЕНИЕ: Ограничивает количество pending tasks для предотвращения
+        неконтролируемого роста памяти.
+        
+        Args:
+            task_id: Уникальный идентификатор задачи
+            task_data: Данные задачи (по умолчанию True)
+            
+        Returns:
+            bool: True если задача добавлена, False если достигнут лимит
+        """
+        with self._pending_tasks_lock:
+            if len(self._pending_tasks) >= MAX_PENDING_TASKS:
+                self.logger.warning(
+                    "Pending tasks limit (%d) reached, dropping oldest task",
+                    MAX_PENDING_TASKS
+                )
+                # Удаляем самую старую задачу (FIFO)
+                if self._pending_tasks:
+                    oldest_key = next(iter(self._pending_tasks))
+                    del self._pending_tasks[oldest_key]
+            
+            self._pending_tasks[task_id] = task_data
+            return True
+    
+    def _remove_pending_task(self, task_id: str) -> None:
+        """Удаляет pending task по ID."""
+        with self._pending_tasks_lock:
+            self._pending_tasks.pop(task_id, None)
+    
     def get_worker_signals(self) -> StructureSignals:
         """Возвращает объект сигналов воркеров для подключения."""
         return self._worker_signals
@@ -623,9 +690,8 @@ class AsyncOperations(QObject):
                 return ("category", category_id, old_data)
 
             task_id = f"del_cat_{category_id}_{time.time()}"
-            # ✅ Thread-safe обновление pending tasks
-            with self._pending_tasks_lock:
-                self._pending_tasks[task_id] = True
+            # ИСПРАВЛЕНИЕ: Используем helper метод с проверкой лимита
+            self._add_pending_task(task_id, True)
 
             run_db(
                 _delete,

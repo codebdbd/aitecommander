@@ -15,7 +15,7 @@ from app.utils.ui.menu_builders import (
 )
 
 if TYPE_CHECKING:
-    from app.views.main_window import MainWindow
+    from app.views.windows.main_window import MainWindow
 
 logger = logging.getLogger(__name__)
 

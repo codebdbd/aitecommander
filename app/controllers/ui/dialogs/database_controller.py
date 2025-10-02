@@ -9,7 +9,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from app.models.db import Database
 from app.utils.db.db_error_handler import handle_db_error
 from app.utils.ui.icon.path_service import icon_path_service
-from app.views.dialogs.database_dialogs import DatabaseDialogs
+from app.views.windows.dialogs.database_dialogs import DatabaseDialogs
 
 
 class DatabaseController(QObject):
@@ -47,7 +47,7 @@ class DatabaseController(QObject):
 
     def handle_restore_database(self):
         """Обработчик восстановления базы данных из резервной копии."""
-        from app.views.dialogs.restore_db_dialog import RestoreDbDialog
+        from app.views.windows.dialogs.restore_db_dialog import RestoreDbDialog
 
         dlg = RestoreDbDialog(parent=self.parent())
         if dlg.exec() == dlg.DialogCode.Accepted:
