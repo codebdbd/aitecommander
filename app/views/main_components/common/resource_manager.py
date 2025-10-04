@@ -1,8 +1,8 @@
-"""Централизованный менеджер ресурсов для безопасной очистки.
+"""Centralized resource manager that ensures safe cleanup.
 
-УЛУЧШЕНИЕ: Добавлен ResourceManager для управления жизненным циклом ресурсов
-и гарантированной очистки. Заменяет ненадежные __del__ методы и предотвращает
-утечки памяти.
+Improvement note: `ResourceManager` governs resource lifecycles and guarantees
+cleanup. It replaces fragile ``__del__`` implementations and prevents memory
+leaks.
 """
 
 from __future__ import annotations
@@ -16,30 +16,31 @@ logger = logging.getLogger(__name__)
 
 
 class ResourceManager:
-    """Менеджер для централизованной очистки ресурсов.
-    
-    УЛУЧШЕНИЕ: Использует weakref.finalize() вместо __del__ для надежной очистки.
-    Поддерживает context manager для автоматической очистки при выходе из scope.
-    
+    """Manager that centralizes resource cleanup.
+
+    Improvement note: uses ``weakref.finalize()`` instead of ``__del__`` for
+    reliable cleanup. Supports context-manager semantics for automatic cleanup
+    when leaving scope.
+
     Example:
         >>> manager = ResourceManager()
         >>> timer = QTimer()
         >>> manager.register_resource(timer, timer.stop, "main_timer")
-        >>> # ... использование ресурсов
-        >>> manager.cleanup_all()  # Очистка всех ресурсов
-        
-        >>> # Или с context manager
+        >>> # ... use resources
+        >>> manager.cleanup_all()  # Clean up all resources
+
+        >>> # Or with the context manager
         >>> with ResourceManager() as manager:
         ...     timer = QTimer()
         ...     manager.register_resource(timer, timer.stop)
-        ...     # Автоматическая очистка при выходе
+        ...     # Automatic cleanup on exit
     """
 
     def __init__(self, name: str = "ResourceManager") -> None:
-        """Инициализирует менеджер ресурсов.
-        
+        """Initialize the resource manager.
+
         Args:
-            name: Имя менеджера для логирования
+            name: Manager identifier used for logging.
         """
         self._name = name
         self._resources: List[Tuple[str, Callable[[], None], Optional[weakref.finalize]]] = []
@@ -53,20 +54,20 @@ class ResourceManager:
         name: str = "",
         use_finalize: bool = True,
     ) -> None:
-        """Регистрирует ресурс для автоматической очистки.
-        
-        УЛУЧШЕНИЕ: Автоматически определяет cleanup метод для Qt объектов.
-        
+        """Register a resource for automatic cleanup.
+
+        Improvement note: automatically detects cleanup methods for Qt objects.
+
         Args:
-            resource: Объект ресурса (для weakref)
-            cleanup_func: Функция очистки (если None, определяется автоматически)
-            name: Имя ресурса для логирования
-            use_finalize: Использовать weakref.finalize для автоочистки
-            
+            resource: Resource object (used for ``weakref`` binding).
+            cleanup_func: Cleanup callable; auto-detected when ``None``.
+            name: Human-readable name for logging.
+            use_finalize: Whether to create a ``weakref.finalize`` helper.
+
         Example:
-            >>> # Автоматическое определение cleanup
-            >>> manager.register_resource(QTimer())  # Вызовет stop()
-            >>> manager.register_resource(QWidget())  # Вызовет deleteLater()
+            >>> # Automatic cleanup detection
+            >>> manager.register_resource(QTimer())  # Calls stop()
+            >>> manager.register_resource(QWidget())  # Calls deleteLater()
         """
         if self._cleaned_up:
             logger.warning(
@@ -76,7 +77,7 @@ class ResourceManager:
             )
             return
 
-        # УЛУЧШЕНИЕ: Автоопределение cleanup функции для Qt объектов
+        # Improvement: auto-detect cleanup function for Qt objects
         if cleanup_func is None:
             cleanup_func = self._auto_detect_cleanup(resource)
             if cleanup_func is None:
@@ -92,7 +93,7 @@ class ResourceManager:
         finalizer = None
         if use_finalize:
             try:
-                # weakref.finalize вызовет cleanup_func когда resource будет удален
+                # weakref.finalize invokes cleanup_func once the resource is deleted
                 finalizer = weakref.finalize(resource, self._safe_cleanup, cleanup_func, resource_name)
                 logger.debug("%s: registered resource '%s' with finalize", self._name, resource_name)
             except TypeError as e:
@@ -106,9 +107,10 @@ class ResourceManager:
         self._resources.append((resource_name, cleanup_func, finalizer))
     
     def _auto_detect_cleanup(self, resource: Any) -> Optional[Callable[[], None]]:
-        """Автоматически определяет cleanup метод для ресурса.
-        
-        УЛУЧШЕНИЕ: Упрощает API - не нужно указывать cleanup_func для Qt объектов.
+        """Automatically detect a cleanup method for the resource.
+
+        Improvement note: makes the API simpler—no need to supply ``cleanup_func``
+        for typical Qt objects.
         """
         # QTimer -> stop()
         if hasattr(resource, 'stop') and callable(getattr(resource, 'stop')):
@@ -125,11 +127,11 @@ class ResourceManager:
         return None
 
     def _safe_cleanup(self, cleanup_func: Callable[[], None], resource_name: str) -> None:
-        """Безопасно вызывает функцию очистки с обработкой ошибок.
-        
+        """Invoke the cleanup function with error handling.
+
         Args:
-            cleanup_func: Функция очистки
-            resource_name: Имя ресурса для логирования
+            cleanup_func: Cleanup callable.
+            resource_name: Resource name used for logging.
         """
         try:
             cleanup_func()
@@ -145,10 +147,10 @@ class ResourceManager:
             self._cleanup_errors.append((resource_name, e))
 
     def cleanup_all(self) -> None:
-        """Очищает все зарегистрированные ресурсы.
-        
-        УЛУЧШЕНИЕ: Гарантирует вызов всех cleanup функций даже при ошибках.
-        Логирует все ошибки очистки для диагностики.
+        """Clean up every registered resource.
+
+        Improvement note: guarantees cleanup invocations even when errors occur
+        and records them for diagnostics.
         """
         if self._cleaned_up:
             logger.debug("%s: cleanup_all called multiple times, ignoring", self._name)
@@ -158,14 +160,14 @@ class ResourceManager:
         self._cleaned_up = True
         self._cleanup_errors.clear()
 
-        # Очищаем в обратном порядке регистрации (LIFO)
+        # Clean resources in reverse registration order (LIFO)
         for resource_name, cleanup_func, finalizer in reversed(self._resources):
-            # Отключаем finalize, так как мы вызываем cleanup вручную
+            # Detach finalize because cleanup is performed manually now
             if finalizer is not None:
                 try:
                     finalizer.detach()
                 except Exception:
-                    pass  # Игнорируем ошибки detach
+                    pass  # Ignore detach errors
 
             self._safe_cleanup(cleanup_func, resource_name)
 
@@ -181,18 +183,18 @@ class ResourceManager:
             logger.info("%s: cleanup completed successfully", self._name)
 
     def is_cleaned_up(self) -> bool:
-        """Проверяет, были ли очищены ресурсы.
-        
+        """Return whether cleanup has already been executed.
+
         Returns:
-            True если cleanup_all() был вызван
+            ``True`` if ``cleanup_all()`` has been called.
         """
         return self._cleaned_up
 
     def get_cleanup_errors(self) -> List[Tuple[str, Exception]]:
-        """Возвращает список ошибок, произошедших при очистке.
-        
+        """Return the list of cleanup errors encountered.
+
         Returns:
-            Список кортежей (resource_name, exception)
+            List of ``(resource_name, exception)`` tuples.
         """
         return self._cleanup_errors.copy()
 
@@ -201,11 +203,11 @@ class ResourceManager:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        """Context manager exit - автоматически очищает ресурсы."""
+        """Context manager exit that performs automatic cleanup."""
         self.cleanup_all()
 
     def __del__(self) -> None:
-        """Деструктор - вызывает cleanup если не был вызван явно."""
+        """Destructor that performs cleanup when it was not invoked explicitly."""
         if not self._cleaned_up:
             logger.debug("%s: cleanup_all not called explicitly, cleaning up in __del__", self._name)
             try:
@@ -221,16 +223,16 @@ def managed_resource(
     cleanup_func: Callable[[], None],
     name: str = "",
 ):
-    """Context manager для одиночного ресурса.
-    
-    УЛУЧШЕНИЕ: Упрощенный API для управления одним ресурсом.
-    
+    """Context manager for a single resource.
+
+    Improvement note: provides a lightweight API for managing one resource.
+
     Example:
         >>> timer = QTimer()
         >>> with managed_resource(timer, timer.stop, "my_timer"):
         ...     timer.start(1000)
-        ...     # ... использование
-        ... # Автоматический вызов timer.stop()
+        ...     # ... use the timer
+        ... # Automatically invokes timer.stop()
     """
     manager = ResourceManager(name=name or "managed_resource")
     manager.register_resource(resource, cleanup_func, name, use_finalize=False)

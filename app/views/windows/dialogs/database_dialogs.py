@@ -3,22 +3,29 @@
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtCore import QObject
+from PyQt6.QtCore import QObject, QCoreApplication
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
 
+_TR_CONTEXT = "DatabaseDialogs"
+
+
+def _tr(text: str, disambiguation: str | None = None) -> str:
+    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
+
+
 class DatabaseDialogs(QObject):
-    """Диалоги для операций с базой данных."""
+    """Dialogs for database operations."""
 
     def confirm_clear_favorites(self) -> bool:
-        """Диалог подтверждения очистки избранного."""
+        """Ask the user to confirm clearing favorites."""
         parent = self.parent()
         box = QMessageBox(parent)
         box.setIcon(QMessageBox.Icon.Warning)
-        box.setWindowTitle("Очистить избранное")
-        box.setText("Вы действительно хотите очистить избранное?")
+        box.setWindowTitle(_tr("Clear favorites"))
+        box.setText(_tr("Do you really want to clear favorites?"))
         box.setInformativeText(
-            "Действие необратимо. Все пометки 'Избранное' будут удалены."
+            _tr("This action cannot be undone. All Favorite marks will be removed.")
         )
         box.setStandardButtons(
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
@@ -27,16 +34,18 @@ class DatabaseDialogs(QObject):
         return box.exec() == QMessageBox.StandardButton.Ok
 
     def confirm_database_restore(self, backup_name: str) -> bool:
-        """Диалог подтверждения восстановления базы данных."""
+        """Ask for confirmation to restore the database."""
         parent = self.parent()
         box = QMessageBox(parent)
         box.setIcon(QMessageBox.Icon.Question)
-        box.setWindowTitle("Восстановление базы данных")
-        box.setText("Восстановить базу данных из выбранной резервной копии?")
+        box.setWindowTitle(_tr("Database restore"))
+        box.setText(_tr("Restore the database from the selected backup?"))
         box.setInformativeText(
-            "Текущая база будет полностью заменена. Рекомендуется сделать бэкап перед восстановлением."
+            _tr(
+                "The current database will be fully replaced. It is recommended to back up before restoring."
+            )
         )
-        box.setDetailedText(f"Файл бэкапа: {backup_name}")
+        box.setDetailedText(_tr("Backup file: {name}").format(name=backup_name))
         box.setStandardButtons(
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
         )
@@ -44,53 +53,53 @@ class DatabaseDialogs(QObject):
         return box.exec() == QMessageBox.StandardButton.Ok
 
     def get_restore_file(self) -> Optional[Path]:
-        """Показать диалог выбора файла для восстановления БД."""
+        """Return the file path for restoring the database."""
         file_path, _ = QFileDialog.getOpenFileName(
             self.parent(),
-            "Выберите файл резервной копии для восстановления",
+            _tr("Select a backup file to restore"),
             "",
-            "SQLite DB (*.db);;Все файлы (*)",
+            _tr("SQLite DB (*.db);;All files (*)"),
         )
         return Path(file_path) if file_path else None
 
     def get_connect_file(self) -> Optional[Path]:
-        """Показать диалог выбора файла БД для подключения."""
+        """Return the database file path to connect to."""
         file_path, _ = QFileDialog.getOpenFileName(
             self.parent(),
-            "Выберите файл базы данных для подключения",
+            _tr("Select a database file to connect"),
             "",
-            "SQLite DB (*.db);;Все файлы (*)",
+            _tr("SQLite DB (*.db);;All files (*)"),
         )
         return Path(file_path) if file_path else None
 
     def get_save_location(self, default_name: str) -> Optional[Path]:
-        """Показать диалог выбора места сохранения копии БД."""
+        """Return the destination path for saving a database copy."""
         save_path, _ = QFileDialog.getSaveFileName(
             self.parent(),
-            "Сохранить копию базы данных",
+            _tr("Save database copy"),
             default_name,
-            "SQLite DB (*.db);;Все файлы (*)",
+            _tr("SQLite DB (*.db);;All files (*)"),
         )
         return Path(save_path) if save_path else None
 
     def get_icons_archive_location(
         self, default_name: str = "icons.zip"
     ) -> Optional[Path]:
-        """Показать диалог выбора места сохранения архива иконок."""
+        """Return the destination path for saving icons archive."""
         save_path, _ = QFileDialog.getSaveFileName(
             self.parent(),
-            "Сохранить архив иконок",
+            _tr("Save icons archive"),
             default_name,
-            "ZIP архив (*.zip);;Все файлы (*)",
+            _tr("ZIP archive (*.zip);;All files (*)"),
         )
         return Path(save_path) if save_path else None
 
     def get_icons_archive_to_load(self) -> Optional[Path]:
-        """Показать диалог выбора архива иконок для загрузки."""
+        """Return the archive path when loading icons."""
         file_path, _ = QFileDialog.getOpenFileName(
             self.parent(),
-            "Выберите архив иконок для вставки",
+            _tr("Select an icons archive to import"),
             "",
-            "ZIP архив (*.zip);;Все файлы (*)",
+            _tr("ZIP archive (*.zip);;All files (*)"),
         )
         return Path(file_path) if file_path else None

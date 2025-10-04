@@ -1,11 +1,10 @@
-"""
-Миксин для асинхронной обработки пути/ссылки в LinkDialogHandlers.
-"""
+"""Mixin handling asynchronous link/path processing in `LinkDialogHandlers`."""
 
 import logging
 from pathlib import Path
 from typing import Any, Dict
 
+from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtGui import QIcon
 
 from app.config_data import app_config
@@ -18,12 +17,18 @@ from app.utils.ui.icon.ui_helpers import set_icon_to_button
 
 logger = logging.getLogger(__name__)
 
+_TR_CONTEXT = "LinkProcessingMixin"
+
+
+def _tr(text: str, disambiguation: str | None = None) -> str:
+    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
+
 
 class LinkProcessingMixin:
     def _on_path_changed(self, text: str) -> None:
-        """Обработчик изменения пути."""
+        """Handle path change events."""
         self.dialog._processing_timer.stop()
-        # Используем настраиваемую задержку дебаунса из диалога (с фолбэком на 300 мс)
+        # Use configurable debounce delay from the dialog (fallback to 300 ms)
         try:
             debounce_ms = getattr(self.dialog, "PATH_DEBOUNCE_MS", 300)
         except (AttributeError, TypeError):
@@ -31,7 +36,7 @@ class LinkProcessingMixin:
         self.dialog._processing_timer.start(int(debounce_ms) if debounce_ms else 300)
 
     def trigger_link_processing(self, path: str) -> None:
-        """Запуск обработки информации о ссылке."""
+        """Start link info processing."""
         if not path or self._is_processing:
             return
 
@@ -41,23 +46,23 @@ class LinkProcessingMixin:
         self._last_processed_path = path
         self._is_processing = True
 
-        # Защита от race condition
+        # Prevent race conditions
         self._worker_task_id += 1
         _task_id = self._worker_task_id
 
-        # Отмена активной задачи
+        # Cancel active job
         if self._active_worker:
             try:
                 self._active_worker.cancel()
             except (AttributeError, RuntimeError) as e:
-                # Логируем ошибку отмены воркера, но продолжаем выполнение
-                logger.debug("Ошибка при отмене воркера: %s", e)
+                # Log cancellation failure but continue
+                logger.debug("Failed to cancel worker: %s", e)
 
         lt = LinkType.from_value(self.dialog.link_type)
         args_val = self.dialog._get_args_le().text().strip()
 
         def _emit_if_current(payload: Dict[str, Any]) -> None:
-            # Эмитим результат только если задача всё ещё актуальна
+            # Emit results only if the task is still current
             if _task_id == self._worker_task_id:
                 self.signals.link_info_finished.emit(payload)
 
@@ -67,7 +72,7 @@ class LinkProcessingMixin:
 
         def _do_work() -> Dict[str, Any]:
             if lt == LinkType.WEB:
-                # Иконку подберём отложенно, чтобы не блокировать UI
+                # Resolve icon asynchronously to avoid blocking the UI
                 info = fetch_web_link_info(
                     path,
                     app_config,
@@ -78,7 +83,7 @@ class LinkProcessingMixin:
                     ),
                 )
                 return {"title": info.get("title"), "icon": info.get("icon")}
-            # Локальные пути
+            # Local paths
             info = parse_local_link(lt.value, path, app_config, args=args_val)
             return info or {"name": "", "icon": ""}
 
@@ -89,16 +94,16 @@ class LinkProcessingMixin:
             on_error=lambda e: _emit_error_if_current(str(e)),
         )
 
-        # Сохраняем handle активного воркера
+        # Track active worker handle
         self._active_worker = handle
 
     def _trigger_link_processing(self) -> None:
-        """Внутренний метод для запуска обработки ссылки из таймера."""
+        """Internal helper to start link processing from timer."""
         url = self.dialog._get_url_le().text().strip()
         self.trigger_link_processing(url)
 
     def _on_link_info_fetched(self, info: Dict) -> None:
-        """Обработка полученной информации о ссылке."""
+        """Handle fetched link information."""
         self._is_processing = False
         self._active_worker = None
 
@@ -111,7 +116,7 @@ class LinkProcessingMixin:
             self.dialog.icon_name = Path(icon_path_str).name
             set_icon_to_button(self.dialog._get_icon_btn(), icon_path_str)
         else:
-            # Фолбек через централизованный резолвер
+            # Fallback using centralized resolver
             try:
                 resolved_icon_path = resolve_icon_for_link(
                     {
@@ -120,7 +125,7 @@ class LinkProcessingMixin:
                     }
                 )
             except (AttributeError, KeyError, ValueError) as e:
-                logger.warning("Ошибка резолвинга иконки для ссылки: %s", e)
+                logger.warning("Failed to resolve icon for link: %s", e)
                 resolved_icon_path = ""
             if resolved_icon_path and Path(resolved_icon_path).exists():
                 set_icon_to_button(self.dialog._get_icon_btn(), resolved_icon_path)
@@ -139,19 +144,12 @@ class LinkProcessingMixin:
         self._is_processing = False
 
     def _on_link_info_error(self, error_message: str) -> None:
-        """Обработка ошибки получения информации.
-
-        Теперь метод не только сбрасывает внутреннее состояние, но и:
-        - логирует ошибку через logger.error с деталями контекста (тип ссылки, последний путь);
-        - уведомляет пользователя через диалоговое окно `show_error(...)` с подробностями.
-
-        :param error_message: Текст ошибки, полученный из фоновой задачи.
-        """
-        # Сброс внутреннего состояния обработки
+        """Handle errors raised while fetching link info."""
+        # Reset internal processing state
         self._is_processing = False
         self._active_worker = None
 
-        # Логирование для диагностики
+        # Diagnostic logging
         try:
             link_type = getattr(self.dialog, "link_type", None) or "<unknown>"
             last_path = self._last_processed_path or (
@@ -162,23 +160,26 @@ class LinkProcessingMixin:
             last_path = ""
 
         logger.error(
-            "Ошибка получения информации о ссылке (type=%s, path=%s): %s",
+            "Failed to obtain link information (type=%s, path=%s): %s",
             link_type,
             last_path,
             error_message,
         )
 
-        # Дружелюбное уведомление пользователя с подробностями для диагностики
+        # User-facing error message with diagnostics details
         try:
             self.dialog.show_error(
-                "Не удалось получить информацию о ссылке.",
-                "Ошибка обработки ссылки",
-                informative_text=(
-                    "Проверьте корректность пути/URL и доступность ресурса."
+                self.dialog.tr("Failed to fetch link information."),
+                self.dialog.tr("Link processing error"),
+                informative_text=self.dialog.tr(
+                    "Verify the path/URL is valid and the resource is reachable."
                 ),
                 details=str(error_message),
                 silent=True,
             )
         except (AttributeError, RuntimeError) as e:
-            # Даже если уведомить пользователя не получилось, зафиксируем это в логах
-            logger.warning("Не удалось показать окно ошибки пользователю: %s", e)
+            # Log inability to show user-facing error dialog
+            logger.warning(
+                "Failed to show error dialog to user: %s",
+                e,
+            )

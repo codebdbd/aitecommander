@@ -1,6 +1,6 @@
 import logging
 
-from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtCore import QCoreApplication, QSize, Qt
 from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -44,21 +44,23 @@ def apply_uniform_height(dialog: QDialog):
                 logger.exception("Failed to set uniform font size for QPushButton")
 
 
-def create_russian_context_menu(widget):
+def _tr(text: str) -> str:
+    return QCoreApplication.translate("BaseDialog", text)
+
+
+def create_context_menu(widget):
     menu = QMenu(widget)
 
-    # Получаем текущую тему для иконок (единый источник)
     theme = get_current_theme()
 
-    # Создаем действия с иконками
     undo_action = menu.addAction(
-        icon_cache.get_icon("undo", theme, "context_menu"), "Отменить"
+        icon_cache.get_icon("undo", theme, "context_menu"), _tr("Undo")
     )
     undo_action.triggered.connect(widget.undo)
     undo_action.setShortcut("Ctrl+Z")
 
     redo_action = menu.addAction(
-        icon_cache.get_icon("redo", theme, "context_menu"), "Повторить"
+        icon_cache.get_icon("redo", theme, "context_menu"), _tr("Redo")
     )
     redo_action.triggered.connect(widget.redo)
     redo_action.setShortcut("Ctrl+Y")
@@ -66,18 +68,17 @@ def create_russian_context_menu(widget):
     menu.addSeparator()
 
     cut_action = menu.addAction(
-        icon_cache.get_icon("cut", theme, "context_menu"), "Вырезать"
+        icon_cache.get_icon("cut", theme, "context_menu"), _tr("Cut")
     )
     cut_action.triggered.connect(widget.cut)
     cut_action.setShortcut("Ctrl+X")
 
     copy_action = menu.addAction(
-        icon_cache.get_icon("copy", theme, "context_menu"), "Копировать"
+        icon_cache.get_icon("copy", theme, "context_menu"), _tr("Copy")
     )
     copy_action.triggered.connect(widget.copy)
     copy_action.setShortcut("Ctrl+C")
 
-    # Добавляем пункт "Вставить" только если в буфере есть текст
     try:
         from PyQt6.QtWidgets import QApplication
 
@@ -88,16 +89,15 @@ def create_russian_context_menu(widget):
             clip_has_text = bool(md and md.hasText() and md.text())
         if clip_has_text:
             paste_action = menu.addAction(
-                icon_cache.get_icon("paste", theme, "context_menu"), "Вставить"
+                icon_cache.get_icon("paste", theme, "context_menu"), _tr("Paste")
             )
             paste_action.triggered.connect(widget.paste)
             paste_action.setShortcut("Ctrl+V")
     except (RuntimeError, AttributeError):
-        # В случае ошибки проверки буфера не добавляем пункт вставки
         logger.exception("Failed to evaluate clipboard state for context menu")
 
     delete_action = menu.addAction(
-        icon_cache.get_icon("delete", theme, "context_menu"), "Удалить"
+        icon_cache.get_icon("delete", theme, "context_menu"), _tr("Delete")
     )
     delete_action.triggered.connect(widget.clear)
     delete_action.setShortcut("Del")
@@ -105,7 +105,7 @@ def create_russian_context_menu(widget):
     menu.addSeparator()
 
     select_all_action = menu.addAction(
-        icon_cache.get_icon("select_all", theme, "context_menu"), "Выделить всё"
+        icon_cache.get_icon("select_all", theme, "context_menu"), _tr("Select All")
     )
     select_all_action.triggered.connect(widget.selectAll)
     select_all_action.setShortcut("Ctrl+A")
@@ -137,9 +137,7 @@ class BaseDialog(QDialog):
         for widget in self.findChildren((QLineEdit, QTextEdit)):
             widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             widget.customContextMenuRequested.connect(
-                lambda pos, w=widget: create_russian_context_menu(w).popup(
-                    w.mapToGlobal(pos)
-                )
+                lambda pos, w=widget: create_context_menu(w).popup(w.mapToGlobal(pos))
             )
 
     def _apply_combo_popup_styles(self):
@@ -181,7 +179,7 @@ class BaseDialog(QDialog):
     def show_info(
         self,
         text: str,
-        title: str = "Информация",
+        title: str | None = None,
         informative_text: str | None = None,
         details: str | None = None,
         silent: bool = False,
@@ -189,7 +187,7 @@ class BaseDialog(QDialog):
         try:
             mb = QMessageBox(self)
             mb.setIcon(QMessageBox.Icon.Information)
-            mb.setWindowTitle(title)
+            mb.setWindowTitle(title or self.tr("Information"))
             mb.setText(text)
             if informative_text:
                 mb.setInformativeText(informative_text)
@@ -204,7 +202,7 @@ class BaseDialog(QDialog):
     def show_warning(
         self,
         text: str,
-        title: str = "Предупреждение",
+        title: str | None = None,
         informative_text: str | None = None,
         details: str | None = None,
         silent: bool = False,
@@ -212,7 +210,7 @@ class BaseDialog(QDialog):
         try:
             mb = QMessageBox(self)
             mb.setIcon(QMessageBox.Icon.Warning)
-            mb.setWindowTitle(title)
+            mb.setWindowTitle(title or self.tr("Warning"))
             mb.setText(text)
             if informative_text:
                 mb.setInformativeText(informative_text)
@@ -227,7 +225,7 @@ class BaseDialog(QDialog):
     def show_error(
         self,
         text: str,
-        title: str = "Ошибка",
+        title: str | None = None,
         informative_text: str | None = None,
         details: str | None = None,
         silent: bool = False,
@@ -235,7 +233,7 @@ class BaseDialog(QDialog):
         try:
             mb = QMessageBox(self)
             mb.setIcon(QMessageBox.Icon.Critical)
-            mb.setWindowTitle(title)
+            mb.setWindowTitle(title or self.tr("Error"))
             mb.setText(text)
             if informative_text:
                 mb.setInformativeText(informative_text)
@@ -250,14 +248,14 @@ class BaseDialog(QDialog):
     def ask_confirmation(
         self,
         text: str,
-        title: str = "Подтверждение",
+        title: str | None = None,
         informative_text: str | None = None,
         details: str | None = None,
     ) -> bool:
         try:
             mb = QMessageBox(self)
             mb.setIcon(QMessageBox.Icon.Question)
-            mb.setWindowTitle(title)
+            mb.setWindowTitle(title or self.tr("Confirmation"))
             mb.setText(text)
             if informative_text:
                 mb.setInformativeText(informative_text)

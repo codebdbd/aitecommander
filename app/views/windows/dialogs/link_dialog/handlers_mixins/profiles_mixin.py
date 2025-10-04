@@ -1,6 +1,4 @@
-"""
-Миксин для работы с выбором браузерных профилей в LinkDialogHandlers.
-"""
+"""Mixin handling browser profile selection inside `LinkDialogHandlers`."""
 
 import logging
 
@@ -8,10 +6,10 @@ from PyQt6.QtWidgets import QDialog
 
 logger = logging.getLogger(__name__)
 
-# Пытаемся импортировать диалог профилей на этапе загрузки модуля.
-# Если зависимость отсутствует или импорт завершается ошибкой, сохраняем
-# исключение и используем дружелюбный запасной механизм при обращении к функционалу.
-try:  # переносим импорт на верхний уровень для явного выражения зависимостей
+# Try importing profile dialog at module load time.
+# If dependency is missing or import fails, store the exception and fall back to a
+# user-friendly mechanism when functionality is invoked.
+try:  # keep import at top level to express dependency explicitly
     from app.views.windows.dialogs.browser_profile_dialog import (
         BrowserProfileDialog,  # type: ignore
     )
@@ -19,30 +17,28 @@ try:  # переносим импорт на верхний уровень дл�
     _BPD_IMPORT_ERROR: Exception | None = None
 except (
     ImportError
-) as _e:  # не прерываем импорт модуля, чтобы остальной функционал был доступен
+) as _e:  # keep module importable so other functionality remains available
     BrowserProfileDialog = None  # type: ignore[assignment]
     _BPD_IMPORT_ERROR = _e
 
 
 class ProfilesMixin:
     def _on_profile(self) -> None:
-        """Обработчик кнопки выбора профиля."""
+        """Handle profile selection button."""
         if BrowserProfileDialog is None:
-            # Логируем первопричину и показываем дружелюбное сообщение пользователю
-            logger.error("BrowserProfileDialog недоступен: %s", _BPD_IMPORT_ERROR)
+            # Log root cause and show friendly message to user
+            logger.error("BrowserProfileDialog unavailable: %s", _BPD_IMPORT_ERROR)
             try:
-                # Показываем понятное сообщение, если у диалога есть такой метод
                 self.dialog.show_warning(
-                    "Модуль выбора профилей недоступен.",
-                    "Профили браузера",
-                    informative_text=(
-                        "Не удалось загрузить диалог выбора профилей браузера."
-                        " Убедитесь, что компонент установлен и доступен."
+                    self.dialog.tr("Profile selection module is unavailable."),
+                    self.dialog.tr("Browser profiles"),
+                    informative_text=self.dialog.tr(
+                        "Failed to load browser profile selection dialog. Ensure the component is installed and accessible."
                     ),
                     details=str(_BPD_IMPORT_ERROR) if _BPD_IMPORT_ERROR else None,
                 )
             except (AttributeError, RuntimeError):
-                # На случай отсутствия show_warning просто тихо выходим
+                # If show_warning is unavailable just exit quietly
                 pass
             return
 
@@ -53,7 +49,7 @@ class ProfilesMixin:
                 f"_on_profile: got {len(self.dialog.selected_profiles) if self.dialog.selected_profiles else 0} selected profiles"
             )
             if self.dialog.selected_profiles:
-                # Сохраняем выбранные профили
+                # Persist selected profiles
                 for i, profile in enumerate(self.dialog.selected_profiles):
                     logger.debug(
                         f"_on_profile: profile {i}: name={profile.get('name')}, browser_key={profile.get('browser_key')}"

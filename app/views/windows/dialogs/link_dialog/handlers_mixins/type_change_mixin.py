@@ -1,6 +1,4 @@
-"""
-Миксин для смены типа ссылки и обновления UI в LinkDialogHandlers.
-"""
+"""Mixin for switching link types and refreshing UI in `LinkDialogHandlers`."""
 
 import logging
 from pathlib import Path
@@ -17,34 +15,34 @@ logger = logging.getLogger(__name__)
 
 class TypeChangeMixin:
     def on_type_changed(self, link_type) -> None:
-        """Обработчик изменения типа ссылки."""
+        """Handle link type change."""
         lt = LinkType.from_value(link_type)
         self.dialog.link_type = lt
 
-        # Очистка полей при смене типа
+        # Clear fields when type changes
         self.dialog.ui.set_widget_value("url_le", "")
         self.dialog.ui.set_widget_value("name_le", "")
         self.dialog.ui.set_widget_value("args_le", "")
 
-        # Сброс состояния обработки ссылок для возможности повторного автозаполнения
+        # Reset processing state so auto-fill can run again
         self._last_processed_path = ""
         self._is_processing = False
 
-        # Отмена активной задачи при смене типа ссылки
+        # Cancel active worker when link type changes
         if self._active_worker:
             try:
                 self._active_worker.cancel()
             except (AttributeError, RuntimeError) as e:
-                logger.debug("Ошибка отмены активного воркера: %s", e)
+                logger.debug("Failed to cancel active worker: %s", e)
             self._active_worker = None
 
-        # Установка иконки по умолчанию через централизованный резолвер
+        # Set default icon via centralized resolver
         try:
             resolved_icon_path = resolve_icon_for_link(
                 {"type": lt.value, "icon_path": ""}
             )
         except (AttributeError, KeyError, ValueError) as e:
-            logger.warning("Ошибка резолвинга иконки для типа %s: %s", link_type, e)
+            logger.warning("Failed to resolve icon for type %s: %s", link_type, e)
             resolved_icon_path = ""
         self.dialog.icon_name = (
             Path(resolved_icon_path).name if resolved_icon_path else ""
@@ -56,7 +54,7 @@ class TypeChangeMixin:
 
         self._update_ui_state()
 
-        # Синхронизация неон-эффекта для плиток типов: убрать остаточное свечение
+        # Sync neon effect for type tiles: remove residual glow
         try:
             filt = getattr(self.dialog, "_neon_link_filter", None)
             type_group = self.dialog.ui.widgets.get("type_group") if hasattr(self.dialog, "ui") else None
@@ -67,11 +65,11 @@ class TypeChangeMixin:
                     else:
                         filt._clear_effect(btn)
         except Exception:
-            # Не падаем из-за эффекта: это только визуальная синхронизация
+            # Do not fail because of visual effect sync
             pass
 
     def _update_ui_state(self) -> None:
-        """Обновляет состояние UI в зависимости от типа ссылки."""
+        """Update UI state according to link type."""
         lt = LinkType.from_value(self.dialog.link_type)
         is_web = lt == LinkType.WEB
         profile_btn = self.dialog._get_profile_btn()
@@ -81,7 +79,7 @@ class TypeChangeMixin:
 
         profile_btn.setVisible(is_web)
 
-        # Кнопка 'Обзор' для определенных типов
+        # "Browse" button is shown only for specific types
         browse_btn.setVisible(
             lt
             in (
@@ -93,7 +91,7 @@ class TypeChangeMixin:
             )
         )
 
-        # Аргументы только для типов, где они предусмотрены
+        # Arguments field only for supported types
         args_supported_types = (
             LinkType.SCRIPT,
             LinkType.WEB,
@@ -103,7 +101,7 @@ class TypeChangeMixin:
         args_le.setVisible(show_args)
         args_label.setVisible(show_args)
 
-        # Фокус в зависимости от типа: WEB -> поле URL, иначе -> кнопка "Обзор…"
+        # Focus depending on type: WEB -> URL field, otherwise -> "Browse" button
         def _apply_focus():
             try:
                 if lt == LinkType.WEB:
@@ -112,8 +110,7 @@ class TypeChangeMixin:
                 else:
                     target = self.dialog._get_browse_btn()
                     target.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
-                # Зафиксируем желаемый фокус на короткое время, чтобы обновления
-                # списков (разделы/категории) не перехватывали его.
+                # Hold preferred focus briefly so hierarchy updates do not steal it
                 try:
                     self.dialog._preferred_focus_widget = target
                     QTimer.singleShot(300, lambda: setattr(self.dialog, "_preferred_focus_widget", None))
@@ -127,8 +124,8 @@ class TypeChangeMixin:
             _apply_focus()
 
     def set_link_type(self, link_type) -> None:
-        """Программно выбрать тип ссылки и обновить UI."""
-        # Безопасно получаем список доступных типов из диалога
+        """Programmatically set link type and update UI."""
+        # Safely obtain available types from dialog
         try:
             link_types = getattr(self.dialog, "link_types", None)
         except (AttributeError, RuntimeError):
@@ -137,7 +134,7 @@ class TypeChangeMixin:
         if not link_types:
             return
 
-        # Нормализуем link_types к множеству кодов типов (строки)
+        # Normalize `link_types` to a set of type codes (strings)
         codes = set()
         try:
             for item in link_types:
@@ -149,14 +146,14 @@ class TypeChangeMixin:
                     if code:
                         codes.add(code)
                 else:
-                    # Строка или произвольный скаляр
+                    # String or scalar
                     codes.add(str(item))
         except (TypeError, ValueError, AttributeError) as e:
-            # В спорных случаях просто выходим тихо, не меняя состояние
-            logger.debug("set_link_type: ошибка нормализации link_types: %s", e)
+            # Fail silently without changing state in ambiguous cases
+            logger.debug("set_link_type: failed to normalize link_types: %s", e)
             return
 
-        # Поддерживаем внешние вызовы как строками, так и Enum
+        # Support external calls using both strings and Enum values
         lt = LinkType.from_value(link_type)
         if lt.value not in codes:
             return
@@ -167,6 +164,6 @@ class TypeChangeMixin:
                 btn.setChecked(True)
                 break
 
-        # Для обратной совместимости вызываем обработчик с исходным значением
-        # (строкой), так как тесты ожидают именно строковый аргумент.
+        # Preserve backward compatibility: call handler with the original value
+        # (string) because tests expect a string argument.
         self.on_type_changed(link_type)

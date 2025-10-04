@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import QMainWindow, QWidget
 
 from app.utils.ui.timings import SEARCH_RETRY_ATTEMPTS, SEARCH_RETRY_INTERVAL_MS
 from app.views.widgets.link import LinksTableView
+from app.ui.retranslatable import ReTranslatable
 
 if TYPE_CHECKING:
     # Узкоспециализированные типы только для статического анализа
@@ -45,7 +46,7 @@ from app.views.widgets.status_bar import update_status_bar as _update_status_bar
 logger = logging.getLogger(__name__)
 
 
-class MainWindow(QMainWindow):
+class MainWindow(QMainWindow, ReTranslatable):
     """Главное окно приложения.
     
     Координирует работу контроллеров через WindowFacade.
@@ -145,15 +146,15 @@ class MainWindow(QMainWindow):
             return None, None
 
         undo_action = us.createUndoAction(self)
-        undo_action.setText("&Отменить")
+        undo_action.setText(self.tr("&Undo"))
         undo_action.setShortcut(QKeySequence.StandardKey.Undo)
 
         redo_action = us.createRedoAction(self)
-        redo_action.setText("&Повторить")
+        redo_action.setText(self.tr("&Redo"))
         redo_action.setShortcut(QKeySequence.StandardKey.Redo)
 
-        us.undoTextChanged.connect(lambda *_: undo_action.setText("&Отменить"))
-        us.redoTextChanged.connect(lambda *_: redo_action.setText("&Повторить"))
+        us.undoTextChanged.connect(lambda *_: undo_action.setText(self.tr("&Undo")))
+        us.redoTextChanged.connect(lambda *_: redo_action.setText(self.tr("&Redo")))
 
         self.undo_action = undo_action
         self.redo_action = redo_action
@@ -250,13 +251,24 @@ class MainWindow(QMainWindow):
         self.settings = settings
         self.theme_ctrl = theme_ctrl
         self.facade = None  # Будет установлен в bootstrap после инициализации контроллеров
-        
+
         # Debounce таймер для поиска
         self._search_timer = QTimer()
         self._search_timer.setSingleShot(True)
         self._search_timer.setInterval(300)  # 300ms задержка
         self._search_timer.timeout.connect(self._execute_search)
         self._pending_search = ""
+
+        ReTranslatable.__init__(self)
+
+    def retranslateUi(self) -> None:
+        undo_action = getattr(self, "undo_action", None)
+        if undo_action is not None:
+            undo_action.setText(self.tr("&Undo"))
+        redo_action = getattr(self, "redo_action", None)
+        if redo_action is not None:
+            redo_action.setText(self.tr("&Redo"))
+
 
     def _init_spheres_ui(self) -> None:
         """Инициализирует UI сфер (асинхронно)."""
@@ -270,7 +282,7 @@ class MainWindow(QMainWindow):
         """Показывает диалог создания/редактирования ссылки."""
         if not self.facade:
             return False
-        
+
         result = self.facade.show_link_dialog(link, category_id)
         self.update_statusbar()
         return result

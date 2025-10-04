@@ -1,8 +1,7 @@
-"""Protocols для строгой типизации компонентов главного окна.
+"""Protocols that provide strict typing for the main-window components.
 
-УЛУЧШЕНИЕ: Добавлены строгие Protocol для замены Any типов и улучшения
-статического анализа кода. Это устраняет использование Any и делает
-код более безопасным и поддерживаемым.
+Improvement note: strict Protocol definitions replace ``Any`` usage and improve
+static analysis, resulting in safer and more maintainable code.
 """
 
 from __future__ import annotations
@@ -23,63 +22,63 @@ from PyQt6.QtWidgets import (
 
 @runtime_checkable
 class SettingsProtocol(Protocol):
-    """Protocol для объекта настроек приложения."""
+    """Protocol describing the application settings object."""
 
     def get_font_size(self) -> int:
-        """Возвращает размер шрифта из настроек."""
+        """Return the font size stored in the settings."""
         ...
 
     def get(self, key: str, default: Any = None) -> Any:
-        """Универсальный метод получения настройки."""
+        """Retrieve a configuration value by key."""
         ...
 
 
 @runtime_checkable
 class DatabaseProtocol(Protocol):
-    """Protocol для объекта базы данных."""
+    """Protocol describing the database abstraction."""
 
     def is_ready(self) -> bool:
-        """Проверяет готовность базы данных."""
+        """Check whether the database is ready."""
         ...
 
     def execute(self, query: str, params: tuple = ()) -> Any:
-        """Выполняет SQL запрос."""
+        """Execute an SQL query."""
         ...
 
 
 @runtime_checkable
 class ThemeControllerProtocol(Protocol):
-    """Protocol для контроллера тем."""
+    """Protocol describing the theme controller."""
 
     def apply_theme(self, theme_name: str) -> None:
-        """Применяет тему к приложению."""
+        """Apply the selected theme to the application."""
         ...
 
     def get_current_theme(self) -> str:
-        """Возвращает имя текущей темы."""
+        """Return the name of the currently active theme."""
         ...
 
     def _log_tables_header_font(self, window: QWidget) -> None:
-        """Логирует информацию о шрифте заголовков таблиц (для диагностики)."""
+        """Log table-header font information for diagnostics."""
         ...
 
 
 @runtime_checkable
 class MainWindowProtocol(Protocol):
-    """Protocol для главного окна приложения.
-    
-    УЛУЧШЕНИЕ: Строгий Protocol заменяет MainWindowLike и Any типы.
-    Определяет все необходимые атрибуты и методы главного окна.
+    """Protocol describing the application main window.
+
+    Improvement note: replaces ``MainWindowLike`` and ``Any`` with strict typing
+    and enumerates all required attributes and methods.
     """
 
-    # Сигналы
+    # Signals
     shown: pyqtSignal
 
-    # Настройки и контроллеры
+    # Settings and controllers
     settings: SettingsProtocol
     theme_ctrl: ThemeControllerProtocol
 
-    # UI компоненты - верхняя панель
+    # UI components — top bar
     top_bar_host: Optional[QWidget]
     content_container: Optional[QWidget]
     quick_add_widget: Optional[QWidget]
@@ -87,7 +86,7 @@ class MainWindowProtocol(Protocol):
     recent_links_widget: Optional[QWidget]
     search: Optional[QLineEdit]
 
-    # UI компоненты - основная область
+    # UI components — main area
     left_panel: Optional[QWidget]
     tree: Optional[QWidget]
     tree_model: Optional[QObject]
@@ -98,135 +97,135 @@ class MainWindowProtocol(Protocol):
     table: Optional[QWidget]
     table_container: Optional[QWidget]
 
-    # UI компоненты - нижняя панель
+    # UI components — bottom bar
     spheres_bar: Optional[QWidget]
     sphere_group: Optional[QButtonGroup]
     sphere_buttons: dict[int, QWidget]
     bottom_bar_container: Optional[QWidget]
     switch_sphere_button: Optional[QWidget]
 
-    # Состояние
+    # State
     current_category_id: Optional[int]
     current_sphere_id: Optional[int]
-    thread_pool: Optional[QThreadPool]  # УЛУЧШЕНИЕ: Конкретный тип вместо Any
-    undo_stack: Optional[Any]  # UndoManager - избегаем циклического импорта
+    thread_pool: Optional[QThreadPool]  # Improvement: explicit type instead of Any
+    undo_stack: Optional[Any]  # UndoManager reference; avoid cyclic import
 
-    # Внутренние флаги
+    # Internal flags
     _first_structure_load: bool
-    _topbar_manager: Optional[Any]  # TopBarLayoutManager - избегаем циклического импорта
+    _topbar_manager: Optional[Any]  # TopBarLayoutManager reference; avoid cyclic import
     _topbar_initialized: bool
-    _auto_hide_tree_filter: Optional[Any]  # _AutoHideTreeFilter - внутренний класс
+    _auto_hide_tree_filter: Optional[Any]  # `_AutoHideTreeFilter` (private helper)
 
-    # Методы QMainWindow
+    # QMainWindow methods
     def show(self) -> None:
-        """Показывает окно."""
+        """Show the window."""
         ...
 
     def close(self) -> bool:
-        """Закрывает окно."""
+        """Close the window."""
         ...
 
     def isVisible(self) -> bool:
-        """Проверяет видимость окна."""
+        """Return whether the window is visible."""
         ...
 
     def isEnabled(self) -> bool:
-        """Проверяет доступность окна."""
+        """Return whether the window is enabled."""
         ...
 
     def width(self) -> int:
-        """Возвращает ширину окна."""
+        """Return the window width."""
         ...
 
     def height(self) -> int:
-        """Возвращает высоту окна."""
+        """Return the window height."""
         ...
 
     def setUpdatesEnabled(self, enable: bool) -> None:
-        """Включает/выключает обновления виджета."""
+        """Enable or disable widget updates."""
         ...
 
     def centralWidget(self) -> Optional[QWidget]:
-        """Возвращает центральный виджет."""
+        """Return the central widget."""
         ...
 
     def setCentralWidget(self, widget: QWidget) -> None:
-        """Устанавливает центральный виджет."""
+        """Assign the central widget."""
         ...
 
     def setMenuBar(self, menubar: QWidget) -> None:
-        """Устанавливает меню бар."""
+        """Install the menu bar."""
         ...
 
     def installEventFilter(self, filter_obj: QObject) -> None:
-        """Устанавливает event filter."""
+        """Install an event filter."""
         ...
 
     def removeEventFilter(self, filter_obj: QObject) -> None:
-        """Удаляет event filter."""
+        """Remove a previously installed event filter."""
         ...
 
-    # Специфичные методы приложения
+    # Application-specific methods
     def apply_font_size_to_content(self, size: int) -> None:
-        """Применяет размер шрифта к содержимому."""
+        """Apply the font size to content widgets."""
         ...
 
     def on_search(self, text: str) -> None:
-        """Обработчик изменения текста поиска."""
+        """Handle search text changes."""
         ...
 
 
 @runtime_checkable
 class UIStateManagerProtocol(Protocol):
-    """Protocol для менеджера состояния UI."""
+    """Protocol describing the UI state manager."""
 
     def load_category(self, category_id: int, source: str = "") -> None:
-        """Загружает категорию."""
+        """Load a category."""
         ...
 
     def get_current_category(self) -> Optional[int]:
-        """Возвращает ID текущей категории."""
+        """Return the current category ID."""
         ...
 
 
 @runtime_checkable
 class StructureBusinessProtocol(Protocol):
-    """Protocol для бизнес-логики структуры."""
+    """Protocol describing the structure business logic layer."""
 
     current_sphere_id: Optional[int]
     structure_loaded: pyqtSignal
     async_operations: Optional[Any]
 
     def load_structure_async(self, sphere_id: int) -> None:
-        """Асинхронно загружает структуру сферы."""
+        """Load the structure for a sphere asynchronously."""
         ...
 
 
 @runtime_checkable
 class TopPanelsControllerProtocol(Protocol):
-    """Protocol для контроллера верхних панелей."""
+    """Protocol describing the top-panel controller."""
 
     data_loaded: pyqtSignal
 
     def refresh_all(self) -> None:
-        """Обновляет все панели."""
+        """Refresh all panels."""
         ...
 
 
 class ResourceManagerProtocol(Protocol):
-    """Protocol для менеджера ресурсов с централизованным cleanup.
-    
-    УЛУЧШЕНИЕ: Новый Protocol для управления жизненным циклом ресурсов.
+    """Protocol describing a resource manager with centralized cleanup.
+
+    Improvement note: adds a dedicated Protocol for resource lifecycle control.
     """
 
     def register_resource(self, resource: Any, cleanup_func: Callable[[], None]) -> None:
-        """Регистрирует ресурс для автоматической очистки."""
+        """Register a resource for automatic cleanup."""
         ...
 
     def cleanup_all(self) -> None:
-        """Очищает все зарегистрированные ресурсы."""
+        """Clean up the registered resources."""
         ...
 
     def is_cleaned_up(self) -> bool:
-        """Проверяет, были ли очищены ресурсы."""
+        """Return whether cleanup has already occurred."""
         ...

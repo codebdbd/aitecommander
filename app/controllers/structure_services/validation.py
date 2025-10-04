@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable, Dict, Optional
 
-from app.controllers.structure_modules.validation_result import ValidationResult
+from app.controllers.structure_modules import ValidationResult
 
 # Модульный логгер для диагностических сообщений
 logger = logging.getLogger(__name__)

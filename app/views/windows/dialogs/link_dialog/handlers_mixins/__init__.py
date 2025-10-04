@@ -1,9 +1,9 @@
-"""Пакет миксинов для LinkDialogHandlers.
+"""Mixins package for `LinkDialogHandlers`.
 
-Предоставляет удобные реэкспорты миксинов для импортов вида:
-    from app.views.dialogs.link_dialog.handlers_mixins import ProfilesMixin
+Provides convenient re-exports for imports like
+`from app.views.windows.dialogs.link_dialog.handlers_mixins import ProfilesMixin`.
 
-__all__ объявлен, чтобы подавить F401 (unused import) и явно задекларировать публичный API пакета.
+`__all__` suppresses F401 (unused import) and explicitly declares the package API.
 """
 
 from .file_dialog_mixin import FileDialogMixin as FileDialogMixin

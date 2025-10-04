@@ -1,7 +1,7 @@
 # app/controllers/links_business.py
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 from functools import wraps, lru_cache
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QMutex
 
@@ -121,29 +121,23 @@ class LinksBusinessLogic(QObject):
             "Loading links for category %s, task_id=%s", category_id, task_id
         )
 
-        def _fetch():
-            rows = self.db.links.get_links(category_id)
-            return rows or []
-
-        run_db(
-            _fetch,
+        self._run_db_task(
+            lambda: self.db.links.get_links(category_id) or [],
             description=f"load_links(category_id={category_id})",
             on_finished=lambda links: self._on_links_loaded(
                 links, category_id, task_id
             ),
-            on_error=lambda e: self._on_worker_error(str(e), task_id=task_id),
+            task_id=task_id,
         )
 
     @handle_errors
     def get_links(self, category_id: int) -> List[Dict]:
         """Синхронно вернуть ссылки для категории (унифицированный метод)."""
         self.logger.warning("Using synchronous get_links; consider using load_links for async operation")
-        cache_key = f"links_{category_id}"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
-        links = self.links.get_links(category_id)
-        self._cache[cache_key] = links
-        return links
+        return self._get_cached(
+            f"links_{category_id}",
+            lambda: self.links.get_links(category_id),
+        )
 
     def search_links(self, query: str):
         """Поиск ссылок по запросу."""
@@ -152,21 +146,19 @@ class LinksBusinessLogic(QObject):
             self.logger.debug(
                 "Searching links: empty query -> return ALL links (global)"
             )
-            run_db(
+            self._run_db_task(
                 lambda: self.db.links.get_all_links() or [],
                 description="search_links(all)",
                 on_finished=self._on_search_finished,
-                on_error=lambda e: self._on_worker_error(str(e)),
             )
             return
 
         self.logger.debug("Searching links for query: %s", q)
 
-        run_db(
+        self._run_db_task(
             lambda: self.db.links.search_links(q) or [],
             description=f"search_links(query={q!r})",
             on_finished=self._on_search_finished,
-            on_error=lambda e: self._on_worker_error(str(e)),
         )
 
     def update_link_order(self, link_ids: list):
@@ -176,11 +168,10 @@ class LinksBusinessLogic(QObject):
 
         self.logger.debug("Updating order for %s links", len(link_ids))
 
-        run_db(
+        self._run_db_task(
             lambda: self.links.reorder(link_ids),
             description="update_link_order",
             on_finished=self._on_reorder_finished,
-            on_error=lambda e: self._on_worker_error(str(e)),
         )
 
     def count_favorites(self, link: Optional[Dict] = None):
@@ -189,13 +180,12 @@ class LinksBusinessLogic(QObject):
         def _count():
             return self.db.links.count_favorites()
 
-        run_db(
+        self._run_db_task(
             _count,
             description="count_favorites()",
             on_finished=lambda fav_count: self._on_favorites_counted(
                 int(fav_count), [], link
             ),
-            on_error=lambda e: self._on_worker_error(str(e)),
         )
 
     def delete_link(self, link_id: int):
@@ -203,11 +193,11 @@ class LinksBusinessLogic(QObject):
         if not self._validate_link_id(link_id):
             return
 
-        run_db(
+        self._run_db_task(
             lambda: self.links.delete_link(link_id),
             description=f"delete_link({link_id})",
             on_finished=lambda _: self._on_delete_finished(link_id),
-            on_error=lambda e: self._on_worker_error(str(e)),
+            task_id=link_id,
         )
 
     @validate_link_form
@@ -233,11 +223,10 @@ class LinksBusinessLogic(QObject):
     @validate_link_form
     def save_link_async(self, link_data: Dict):
         """Асинхронно сохранить ссылку."""
-        run_db(
+        self._run_db_task(
             lambda: self.links.create_or_update_link(link_data),
             description="save_link_async",
             on_finished=lambda result: self._on_link_saved(link_data, result),
-            on_error=lambda e: self._on_worker_error(str(e)),
         )
 
     def _on_link_saved(self, link_data: Dict, result: int):
@@ -252,11 +241,11 @@ class LinksBusinessLogic(QObject):
         if not self._validate_link_id(link_id):
             return
 
-        run_db(
+        self._run_db_task(
             lambda: self.links.update_last_used(link_id),
             description=f"update_link_last_used({link_id})",
             on_finished=lambda _: self._on_last_used_updated(link_id),
-            on_error=lambda e: self._on_worker_error(str(e)),
+            task_id=link_id,
         )
 
     def toggle_favorite(self, link: Dict):
@@ -287,11 +276,11 @@ class LinksBusinessLogic(QObject):
                 result = self.links.create_or_update_link(link_data)
                 return result, link_data
 
-            run_db(
+            self._run_db_task(
                 _toggle,
                 description=f"toggle_favorite({link_id})",
                 on_finished=lambda data: self._on_favorite_toggled(data[0], data[1]),
-                on_error=lambda e: self._on_worker_error(str(e)),
+                task_id=link_id,
             )
         finally:
             self._mutex.unlock()
@@ -311,12 +300,10 @@ class LinksBusinessLogic(QObject):
             self.logger.warning("Invalid limit for recent links: %s", limit)
             return []
 
-        cache_key = f"recent_links_{limit}"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
-        links = self.links.get_recent_links(limit)
-        self._cache[cache_key] = links
-        return links
+        return self._get_cached(
+            f"recent_links_{limit}",
+            lambda: self.links.get_recent_links(limit),
+        )
 
     def load_recent_links(self, limit: int = DEFAULT_RECENT_LIMIT):
         """Асинхронно загрузить недавние ссылки."""
@@ -330,23 +317,20 @@ class LinksBusinessLogic(QObject):
             self.recent_links_loaded.emit(self._cache[cache_key])
             return
 
-        run_db(
+        self._run_db_task(
             lambda: self.links.get_recent_links(limit),
             description="load_recent_links",
             on_finished=lambda links: self._cache_links_and_emit(cache_key, links or [], self.recent_links_loaded.emit),
-            on_error=lambda e: self._on_worker_error(str(e)),
         )
 
     @handle_errors
     def get_favorite_links(self) -> List[Dict]:
         """Получить избранные ссылки."""
         self.logger.warning("Using synchronous get_favorite_links; consider using load_favorite_links for async")
-        cache_key = "favorite_links"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
-        links = self.links.get_favorite_links()
-        self._cache[cache_key] = links
-        return links
+        return self._get_cached(
+            "favorite_links",
+            self.links.get_favorite_links,
+        )
 
     def load_favorite_links(self):
         """Асинхронно загрузить избранные ссылки."""
@@ -355,11 +339,10 @@ class LinksBusinessLogic(QObject):
             self.favorite_links_loaded.emit(self._cache[cache_key])
             return
 
-        run_db(
+        self._run_db_task(
             lambda: self.links.get_favorite_links(),
             description="load_favorite_links",
             on_finished=lambda links: self._cache_links_and_emit(cache_key, links or [], self.favorite_links_loaded.emit),
-            on_error=lambda e: self._on_worker_error(str(e)),
         )
 
     @handle_errors
@@ -373,11 +356,10 @@ class LinksBusinessLogic(QObject):
 
     def clear_favorites_async(self):
         """Асинхронно очистить все избранные ссылки."""
-        run_db(
+        self._run_db_task(
             lambda: self.links.clear_favorites() or True,
             description="clear_favorites_async",
             on_finished=self._on_favorites_cleared,
-            on_error=lambda e: self._on_worker_error(str(e)),
         )
 
     @handle_errors
@@ -387,12 +369,10 @@ class LinksBusinessLogic(QObject):
         if not self._validate_link_id(link_id):
             return None
 
-        cache_key = f"link_{link_id}"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
-        link = self.links.get_link_by_id(link_id)
-        self._cache[cache_key] = link
-        return link
+        return self._get_cached(
+            f"link_{link_id}",
+            lambda: self.links.get_link_by_id(link_id),
+        )
 
     def load_link_by_id(self, link_id: int):
         """Асинхронно получить ссылку по ID."""
@@ -405,11 +385,10 @@ class LinksBusinessLogic(QObject):
             self.link_by_id_loaded.emit(self._cache[cache_key], link_id)
             return
 
-        run_db(
+        self._run_db_task(
             lambda: self.links.get_link_by_id(link_id) or {},
             description=f"load_link_by_id({link_id})",
             on_finished=lambda link: self._cache_links_and_emit(cache_key, link, lambda link_data: self.link_by_id_loaded.emit(link_data, link_id)),
-            on_error=lambda e: self._on_worker_error(str(e)),
         )
 
     @handle_errors
@@ -422,12 +401,10 @@ class LinksBusinessLogic(QObject):
             )
             return 0
 
-        cache_key = f"next_pos_{category_id}"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
-        pos = self.links.get_next_position(category_id)
-        self._cache[cache_key] = pos
-        return pos
+        return self._get_cached(
+            f"next_pos_{category_id}",
+            lambda: self.links.get_next_position(category_id),
+        )
 
     def load_next_position(self, category_id: int):
         """Асинхронно получить следующую позицию."""
@@ -443,11 +420,10 @@ class LinksBusinessLogic(QObject):
             self.next_position_loaded.emit(self._cache[cache_key], category_id)
             return
 
-        run_db(
+        self._run_db_task(
             lambda: self.links.get_next_position(category_id),
             description=f"load_next_position({category_id})",
             on_finished=lambda pos: self._cache_links_and_emit(cache_key, pos, lambda p: self.next_position_loaded.emit(p, category_id)),
-            on_error=lambda e: self._on_worker_error(str(e)),
         )
 
     @handle_errors
@@ -480,11 +456,10 @@ class LinksBusinessLogic(QObject):
                 self.batch_updated.emit(False)
                 return
 
-        run_db(
+        self._run_db_task(
             lambda: self.links.batch_update(links_data),
             description="batch_update_links_async",
             on_finished=self._on_batch_updated,
-            on_error=lambda e: self._on_worker_error(str(e)),
         )
 
     @validate_link_form
@@ -525,6 +500,30 @@ class LinksBusinessLogic(QObject):
     def _get_all_links_safe(self) -> List[Dict]:
         """Безопасное получение всех ссылок для внутреннего использования."""
         return self.links.get_all_links()
+
+    def _get_cached(self, cache_key: str, loader: Callable[[], Any]) -> Any:
+        """Возвращает значение из локального кэша или подгружает его через loader."""
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        value = loader()
+        self._cache[cache_key] = value
+        return value
+
+    def _run_db_task(
+        self,
+        task: Callable[[], Any],
+        description: str,
+        on_finished: Callable[[Any], None],
+        task_id: Optional[Any] = None,
+    ) -> None:
+        """Универсальный обёрточный метод для run_db с централизованной обработкой ошибок."""
+        run_db(
+            task,
+            description=description,
+            on_finished=on_finished,
+            on_error=lambda e: self._on_worker_error(str(e), task_id=task_id),
+        )
 
     def _invalidate_cache(self):
         """Инвалидация кэша после обновлений."""

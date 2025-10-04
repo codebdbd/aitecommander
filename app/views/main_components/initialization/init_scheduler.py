@@ -8,10 +8,10 @@ from PyQt6.QtWidgets import QApplication
 
 
 class AsyncStepRunner:
-    """Универсальный исполнитель последовательности асинхронных шагов.
+    """Universal runner that executes asynchronous initialization steps.
 
-    Выполняет шаги последовательно, между шагами отдаёт цикл событий UI,
-    измеряет длительность шагов и поддерживает post-hooks.
+    Steps are performed sequentially while yielding back to the UI event loop,
+    timing metrics are recorded, and optional post-hooks are supported.
     """
 
     def __init__(
@@ -31,14 +31,14 @@ class AsyncStepRunner:
         on_error: Optional[Callable[[Exception], None]] = None,
         special_hooks: Optional[Dict[Callable[[], None], Callable[[], None]]] = None,
     ) -> None:
-        """Запускает последовательное выполнение переданных шагов.
+        """Run the provided steps sequentially.
 
         Args:
-            steps: Список пар (название шага, функция шага без аргументов)
-            index_getter: Функция, возвращающая текущий индекс шага
-            index_setter: Функция, сохраняющая новый индекс шага
-            on_completed: Коллбек по завершении всех шагов
-            special_hooks: Необязательные хуки (после конкретных функций шагов)
+            steps: List of pairs ``(label, step_func)`` with no-argument callables.
+            index_getter: Function that returns the current step index.
+            index_setter: Function that stores the next step index.
+            on_completed: Callback that runs after all steps finish.
+            special_hooks: Optional callbacks that run after specific steps.
         """
         QTimer.singleShot(
             0,
@@ -47,7 +47,7 @@ class AsyncStepRunner:
             ),
         )
 
-    # Внутренняя рекурсивная функция
+    # Internal recursive helper
     def _execute_next(
         self,
         steps: List[Tuple[str, Callable[[], None]]],
@@ -63,11 +63,11 @@ class AsyncStepRunner:
             return
 
         step_name, step_func = steps[idx]
-        # Обновляем статус-бар (если уже доступен)
+        # Update status (if already available)
         try:
             self._set_status_message(step_name)
         except Exception:
-            # Не мешаем выполнению шагов, но фиксируем сбой обновления статуса
+            # Do not interrupt execution, just log the failure to update status
             import logging as _logging
 
             _logging.getLogger(__name__).debug(
@@ -76,7 +76,7 @@ class AsyncStepRunner:
                 exc_info=True,
             )
 
-        # Выполняем шаг под метриками
+        # Execute the step while recording metrics
         try:
             with self._metrics.time_span(f"heavy:{step_func.__name__}"):
                 step_func()
@@ -89,7 +89,7 @@ class AsyncStepRunner:
             else:
                 raise
 
-        # Спец-хуки после шага
+        # Run special hooks after completing the step
         if special_hooks and step_func in special_hooks:
             try:
                 special_hooks[step_func]()
@@ -99,7 +99,7 @@ class AsyncStepRunner:
                         on_error(e)
                     finally:
                         return
-                # иначе подавляем, чтобы не ломать пайплайн, но логируем
+                # Swallow the exception to keep the pipeline running, but log it
                 import logging as _logging
 
                 _logging.getLogger(__name__).debug(
@@ -108,13 +108,13 @@ class AsyncStepRunner:
                     exc_info=True,
                 )
 
-        # Инкремент индекса и продолжение
+        # Increment the index and continue
         index_setter(idx + 1)
 
-        # Даём UI-потоку обработать события
+        # Let the UI thread process pending events
         QApplication.processEvents()
 
-        # Планируем следующий шаг
+        # Schedule the next step
         QTimer.singleShot(
             0,
             lambda: self._execute_next(

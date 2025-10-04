@@ -11,6 +11,7 @@ from app.controllers.ui.theme_controller import ThemeController
 from app.models.db import Database
 from app.settings import AppSettings
 from app.startup.app_factory import create_application
+from i18n.language_service import LanguageService
 from app.startup.argument_parser import determine_log_level, parse_arguments
 from app.startup.browser_profiles_loader import BrowserProfilesLoader
 from app.startup.logging_setup import log_shutdown, log_system_info, setup_logging
@@ -173,6 +174,7 @@ def main():
     initializer = ApplicationInitializer()
     try:
         app = create_application()
+        LanguageService.instance().install_translator(app)
         log_system_info()
 
         if not initializer.initialize_all():

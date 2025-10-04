@@ -3,9 +3,10 @@ from typing import Any, Dict
 
 
 def get_by_path(config: Dict[str, Any], key_path: str, default: Any = None) -> Any:
-    """Возвращает значение из словаря по пути через точки.
-    Пример: key_path="ui.window.width"
-    Возвращает default при отсутствии ключа или неверной структуре.
+    """Return a nested dictionary value resolved via dotted key path.
+
+    Example: ``key_path="ui.window.width"``. Returns ``default`` when the key is
+    missing or the structure does not match expectations.
     """
     keys = key_path.split(".") if key_path else []
     value: Any = config

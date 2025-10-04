@@ -1,18 +1,17 @@
-"""
-Модуль диалогов приложения.
+"""Application dialogs package.
 
-Содержит все диалоги, организованные по модульному принципу:
-- link_dialog/ - диалог ссылок (разделен на компоненты)
-- base_dialog.py - базовый диалог
-- entity_dialogs.py - диалоги сущностей (Section, Category)
-- system_dialogs.py - системные диалоги
+Collects dialog classes grouped by module:
+- ``link_dialog/`` — link-related dialogs split into components
+- ``base_dialog.py`` — base dialog implementation
+- ``entity_dialogs.py`` — entity dialogs (section, category)
+- ``system_dialogs.py`` — system dialogs
 """
 
-# Базовые диалоги
+# Base dialogs
 from .base_dialog import BaseDialog
 from .browser_profile_dialog import BrowserProfileDialog
 
-# Диалоги сущностей
+# Entity dialogs
 from .entity_dialogs import (
     BaseEntityDialog,
     CategoryDialog,
@@ -23,10 +22,10 @@ from .entity_dialogs import (
 )
 from .file_search_dialog.file_search_dialog import FileSearchDialog
 
-# Системные диалоги
+# System dialogs
 from .import_browser_dialog import ImportBrowserDialog
 
-# Диалог ссылок (модульный)
+# Link dialog (modular)
 from .link_dialog.link_dialog import LinkDialog
 from .restore_db_dialog import RestoreDbDialog
 

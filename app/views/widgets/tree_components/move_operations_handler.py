@@ -93,9 +93,9 @@ class MoveOperationsHandler(TreeHandlerBase):
             )
         else:
             self._show_warning(
-                "История действий недоступна. Перемещение отменено.",
-                "Недоступна история действий",
-                informative_text="Включите поддержку undo/redo или инициализируйте undo_stack в главном окне.",
+                self.tr("Undo history is unavailable. Move canceled."),
+                self.tr("Undo history unavailable"),
+                informative_text=self.tr("Enable undo/redo support or initialize undo_stack in the main window."),
             )
             logger.warning("Undo stack не найден для перемещения категории")
 
@@ -135,9 +135,9 @@ class MoveOperationsHandler(TreeHandlerBase):
             )
         else:
             self._show_warning(
-                "История действий недоступна. Массовое перемещение отменено.",
-                "Недоступна история действий",
-                informative_text="Включите поддержку undo/redo или инициализируйте undo_stack в главном окне.",
+                self.tr("Undo history is unavailable. Batch move canceled."),
+                self.tr("Undo history unavailable"),
+                informative_text=self.tr("Enable undo/redo support or initialize undo_stack in the main window."),
             )
             logger.warning("Undo stack не найден для массового перемещения категорий")
 
@@ -384,9 +384,9 @@ class MoveOperationsHandler(TreeHandlerBase):
 
         if result == "duplicate":
             self._show_info(
-                "Такая категория уже существует в выбранном разделе.",
-                "Дубликат категории",
-                informative_text="Переименуйте категорию или выберите другой раздел.",
+                self.tr("A category with the same name already exists in the selected section."),
+                self.tr("Category duplicate"),
+                informative_text=self.tr("Rename the category or choose another section."),
             )
             return
 
@@ -396,9 +396,9 @@ class MoveOperationsHandler(TreeHandlerBase):
         """Обработчик ошибок базы данных."""
         logger.error("Database operation failed in MoveOperationsHandler: %s", error)
         self._show_error(
-            "Не удалось обновить позиции элементов.",
-            "Ошибка базы данных при перемещении",
-            informative_text="Изменения позиций не были сохранены.",
+            self.tr("Failed to update item positions."),
+            self.tr("Database error during move"),
+            informative_text=self.tr("Position changes were not saved."),
             details=str(error),
         )
 

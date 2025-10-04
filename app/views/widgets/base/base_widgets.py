@@ -686,7 +686,8 @@ class BaseDragDropTableWidget(QTableView):
 
     def _create_multi_row_pixmap(self, count: int) -> QPixmap:
         """Создаёт pixmap для множественного выделения со счётчиком."""
-        text = f"{count} элементов"
+        from PyQt6.QtCore import QCoreApplication
+        text = QCoreApplication.translate("BaseDragDropTable", "%n item selected", None, count)
         return self._create_text_pixmap(text, single_row=False)
 
     def _create_text_pixmap(self, text: str, single_row: bool = True) -> QPixmap:
