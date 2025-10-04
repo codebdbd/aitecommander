@@ -1,7 +1,7 @@
-"""Custom exceptions for main_components package.
+"""Custom exceptions for the `main_components` package.
 
-УЛУЧШЕНИЕ: Конкретные исключения вместо общих RuntimeError/ValueError
-для лучшей обработки ошибок и диагностики.
+Improvement note: concrete exception types replace generic RuntimeError/ValueError
+to improve diagnostics and error handling.
 """
 
 from __future__ import annotations

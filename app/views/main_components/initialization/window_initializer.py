@@ -378,7 +378,7 @@ class WindowInitializer:
                             exc_info=False,
                         )
                     try:
-                        # Запускаем сразу, без лишнего тика event loop, чтобы быстрее показать дерево
+                        # Kick off immediately without an extra event-loop tick to display the tree sooner
                         ao.load_structure_async(int(curr_id))
                         self._metrics.mark("async:load_structure_async started")
                     except Exception:
@@ -439,7 +439,7 @@ class WindowInitializer:
             logger.exception(
                 "WindowInitializer: failed to show window at initialization finale"
             )
-            # Делегируем централизованному обработчику ошибок
+            # Delegate to the centralized error handler
             self._on_init_error(e)
             return
 
@@ -448,11 +448,11 @@ class WindowInitializer:
             self._dump_top_levels("after final window.show")
             QTimer.singleShot(10, lambda: self._dump_top_levels("+10ms after final show"))
             QTimer.singleShot(100, lambda: self._dump_top_levels("+100ms after final show"))
-            # Диагностика шрифта шапки таблицы после полной сборки UI
+            # Diagnose table header font after the UI is fully assembled
             try:
                 tc = getattr(self, "theme_ctrl", None)
                 if tc and hasattr(tc, "_log_tables_header_font"):
-                    # вызвать сразу и повторно через 50 мс на случай отложенного создания таблицы
+                    # Invoke immediately and again after 50 ms in case the table is created lazily
                     QTimer.singleShot(0, lambda: tc._log_tables_header_font(self.window))
                     QTimer.singleShot(50, lambda: tc._log_tables_header_font(self.window))
             except Exception:
@@ -476,7 +476,7 @@ class WindowInitializer:
 
         Either waits for database readiness or proceeds to post-database steps.
         """
-        # Используем ворота готовности БД
+        # Use the database readiness gate
         gate = DbReadyGate(self.window, logger)
         gate.ensure_ready_or_wait(
             on_ready=self._execute_db_dependent_steps,
@@ -573,21 +573,21 @@ class WindowInitializer:
                 "; ".join(win_list),
             )
 
-    # === Слоты ===
+    # === Slots ===
     def _on_window_shown(self) -> None:
         """Update status after the window is shown.
 
         Accounts for deferred creation of the status bar by checking prerequisites.
         """
         try:
-            # Не навязываем сообщение в статус-баре при показе окна
+            # Do not override the status bar message when the window is shown
             pass
         except Exception:
             logger.exception(
                 "WindowInitializer: failed to update status-bar text in _on_window_shown"
             )
 
-    # === Обработчики ошибок ===
+    # === Error handlers ===
     def _handle_deferred_init_error(self, exc: Exception) -> None:
         """Display an error dialog and shut down the app when deferred init fails."""
         try:

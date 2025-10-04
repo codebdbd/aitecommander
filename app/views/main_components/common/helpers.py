@@ -1,6 +1,6 @@
-"""Простые helper функции для упрощения частых операций.
+"""Helper utilities that simplify frequent operations.
 
-УЛУЧШЕНИЕ: Практичные утилиты без излишнего усложнения.
+Improvement note: pragmatic helpers without unnecessary complexity.
 """
 
 from __future__ import annotations
@@ -13,14 +13,14 @@ from .constants import Timeout
 
 
 def defer(callback: callable, delay_ms: int = Timeout.DEFER_OPERATION) -> None:
-    """Отложить выполнение callback на следующий тик event loop.
-    
-    УЛУЧШЕНИЕ: Упрощает частый паттерн QTimer.singleShot(0, callback).
-    
+    """Defer ``callback`` execution until a future event-loop tick.
+
+    Improvement note: wraps the common ``QTimer.singleShot(0, callback)`` pattern.
+
     Args:
-        callback: Функция для вызова
-        delay_ms: Задержка в миллисекундах (по умолчанию 0)
-        
+        callback: Callable to invoke later.
+        delay_ms: Delay in milliseconds (defaults to 0).
+
     Example:
         >>> defer(lambda: print("Deferred"))
         >>> defer(self.update_ui, 100)
@@ -29,18 +29,18 @@ def defer(callback: callable, delay_ms: int = Timeout.DEFER_OPERATION) -> None:
 
 
 def safe_getattr(obj: Any, name: str, default: Any = None) -> Any:
-    """Безопасное получение атрибута с проверкой на deleted Qt объекты.
-    
-    УЛУЧШЕНИЕ: Упрощает частый паттерн проверки deleted objects.
-    
+    """Safely read an attribute while guarding against deleted Qt objects.
+
+    Improvement note: shortens the repetitive deleted-object pattern.
+
     Args:
-        obj: Объект для получения атрибута
-        name: Имя атрибута
-        default: Значение по умолчанию
-        
+        obj: Object that may carry the attribute.
+        name: Attribute name to access.
+        default: Fallback value when attribute is missing or invalid.
+
     Returns:
-        Значение атрибута или default
-        
+        The attribute value or ``default``.
+
     Example:
         >>> widget = safe_getattr(window, "search")
         >>> if widget:
@@ -63,17 +63,17 @@ def safe_getattr(obj: Any, name: str, default: Any = None) -> Any:
 
 
 def safe_disconnect(signal, slot) -> bool:
-    """Безопасное отключение сигнала от слота.
-    
-    УЛУЧШЕНИЕ: Упрощает частый паттерн отключения сигналов.
-    
+    """Safely disconnect a Qt signal from its slot.
+
+    Improvement note: centralizes the usual try/except around Qt's ``disconnect``.
+
     Args:
-        signal: Qt сигнал
-        slot: Слот для отключения
-        
+        signal: Qt signal instance.
+        slot: Slot callable to detach.
+
     Returns:
-        True если отключено успешно, False иначе
-        
+        ``True`` if the disconnect succeeded, otherwise ``False``.
+
     Example:
         >>> safe_disconnect(button.clicked, self.on_click)
     """
@@ -85,16 +85,16 @@ def safe_disconnect(signal, slot) -> bool:
 
 
 def clamp(value: float, min_val: float, max_val: float) -> float:
-    """Ограничить значение в диапазоне [min_val, max_val].
-    
+    """Restrict ``value`` to the inclusive range [``min_val``, ``max_val``].
+
     Args:
-        value: Значение для ограничения
-        min_val: Минимум
-        max_val: Максимум
-        
+        value: Value to clamp.
+        min_val: Lower bound.
+        max_val: Upper bound.
+
     Returns:
-        Ограниченное значение
-        
+        Clamped result that never falls outside the bounds.
+
     Example:
         >>> clamp(150, 100, 200)  # 150
         >>> clamp(50, 100, 200)   # 100

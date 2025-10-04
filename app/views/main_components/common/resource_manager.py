@@ -213,7 +213,7 @@ class ResourceManager:
             try:
                 self.cleanup_all()
             except Exception:
-                # Игнорируем ошибки в деструкторе
+                # Ignore destructor failures; cleanup is best-effort here
                 pass
 
 
