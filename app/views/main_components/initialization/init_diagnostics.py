@@ -11,9 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 class DiagnosticsInstaller:
-    """Устанавливает диагностические фильтры и наблюдатели для UI.
+    """Install diagnostic filters and observers for the UI.
 
-    Использование:
+    Usage:
         DiagnosticsInstaller(window, dump_top_levels_cb).install_all()
     """
 
@@ -86,7 +86,7 @@ class DiagnosticsInstaller:
         except Exception as e:
             raise RuntimeError("qInstallMessageHandler failed") from e
 
-    # (Удалено) Глобальные хуки QWidget.show/setVisible больше не используются.
+    # (Removed) Global QWidget.show/setVisible hooks are no longer used.
 
     def _install_window_resize_logger(self) -> None:
         win = self._window
@@ -195,8 +195,8 @@ class DiagnosticsInstaller:
         if getattr(app, "_diag_top_levels_installed", False):
             return
 
-        # Захватываем колбэк дампа в замыкание, чтобы использовать его внутри watcher,
-        # не обращаясь к несуществующему атрибуту экземпляра внутреннего класса.
+        # Capture the dump callback inside the closure so the watcher can access it
+        # without relying on a missing attribute on the inner class instance.
         dump_cb = self._dump_top_levels
 
         class _TopLevelWatcher(QObject):

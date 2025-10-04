@@ -1,6 +1,6 @@
-"""Decorators for main_components package.
+"""Decorators for the `main_components` package.
 
-УЛУЧШЕНИЕ: Утилиты для упрощения типичных паттернов:
+Improvement note: utilities that streamline common patterns:
 - Thread safety checks
 - Logging guards
 - Error handling
@@ -22,8 +22,8 @@ F = TypeVar('F', bound=Callable[..., Any])
 def require_main_thread(func: F) -> F:
     """Decorator to ensure method is called from main Qt thread.
     
-    ИСПРАВЛЕНИЕ: Добавляет thread safety проверку для методов,
-    которые должны выполняться только в main thread.
+    Improvement note: adds a thread-safety guard for methods that must run on
+    the main thread.
     
     Usage:
         @require_main_thread
@@ -64,8 +64,8 @@ def require_main_thread(func: F) -> F:
 def log_if_enabled(level: int = logging.DEBUG):
     """Decorator to add logging guard for expensive string formatting.
     
-    УЛУЧШЕНИЕ: Добавляет проверку уровня логирования перед
-    выполнением дорогих операций форматирования.
+    Improvement note: checks the logging level before performing expensive
+    string formatting.
     
     Usage:
         @log_if_enabled(logging.DEBUG)
@@ -95,7 +95,8 @@ def log_if_enabled(level: int = logging.DEBUG):
 def safe_qt_operation(default_return: Any = None):
     """Decorator to safely handle deleted Qt objects.
     
-    УЛУЧШЕНИЕ: Автоматически обрабатывает RuntimeError от deleted Qt objects.
+    Improvement note: automatically handles ``RuntimeError`` emitted by deleted
+    Qt objects.
     
     Usage:
         @safe_qt_operation(default_return=0)
@@ -151,7 +152,8 @@ def safe_qt_operation(default_return: Any = None):
 def retry_on_failure(max_attempts: int = 3, exceptions: tuple = (Exception,)):
     """Decorator to retry function on failure.
     
-    УЛУЧШЕНИЕ: Автоматически повторяет операцию при временных сбоях.
+    Improvement note: automatically retries the operation when transient errors
+    occur.
     
     Usage:
         @retry_on_failure(max_attempts=3, exceptions=(RuntimeError,))
