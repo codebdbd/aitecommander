@@ -6,6 +6,7 @@ import subprocess
 import time
 
 from PyQt6.QtCore import (
+    QCoreApplication,
     QAbstractTableModel,
     QDate,
     QModelIndex,
@@ -34,10 +35,27 @@ from .search_worker import FileSearchWorker
 logger = logging.getLogger(__name__)
 
 
-class _SearchResultsModel(QAbstractTableModel):
-    """Модель результатов поиска файлов для QTableView."""
+_MODEL_TR_CONTEXT = "FileSearchResultsModel"
+_DIALOG_TR_CONTEXT = "FileSearchDialog"
 
-    HEADERS = ["Имя", "Путь", "Размер (КБ)", "Изменён", "Содержит"]
+
+def _tr_model(text: str, disambiguation: str | None = None) -> str:
+    return QCoreApplication.translate(_MODEL_TR_CONTEXT, text, disambiguation)
+
+
+def _tr_dialog(text: str, disambiguation: str | None = None) -> str:
+    return QCoreApplication.translate(_DIALOG_TR_CONTEXT, text, disambiguation)
+
+
+class _SearchResultsModel(QAbstractTableModel):
+    """Table model for file search results."""
+    HEADERS = [
+        _tr_model("Name"),
+        _tr_model("Path"),
+        _tr_model("Size (KB)"),
+        _tr_model("Modified"),
+        _tr_model("Contains"),
+    ]
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -58,7 +76,7 @@ class _SearchResultsModel(QAbstractTableModel):
         return None
 
     def flags(self, index):  # noqa: D401
-        # Не редактируемая таблица, только выбор строк
+        # Non-editable table, rows selectable only
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
         return Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled
@@ -75,7 +93,7 @@ class _SearchResultsModel(QAbstractTableModel):
                 return None
         return None
 
-    # Мутации
+    # Mutations
     def clear(self):
         if not self._rows:
             return
@@ -93,52 +111,44 @@ class _SearchResultsModel(QAbstractTableModel):
 
 
 class FileSearchDialog(BaseDialog):
-    """
-    Диалог для расширенного поиска файлов с фильтрами:
-    - Маска (fnmatch)
-    - Регулярные выражения по имени
-    - Размер файла (минимум/максимум, КБ)
-    - Дата модификации (от/до)
-    - Атрибуты (скрытые, только для чтения)
-    - Поиск по содержимому (текст или regex, с учётом регистра)
-    """
+    """Dialog for advanced file search with extensive filtering options."""
 
     files_selected = pyqtSignal(list)
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Расширенный поиск файлов")
+        self.setWindowTitle(self.tr("Advanced file search"))
         self.resize(900, 700)
 
-        # Переменные для контроля поиска
+        # Search control state
         self.search_worker = None
         self.is_searching = False
 
         self._setup_ui()
         self._setup_defaults()
 
-        # ThreadPool для фонового поиска
+        # ThreadPool for running background search workers
         self.threadpool = QThreadPool()
 
     def _setup_ui(self):
-        """Настройка пользовательского интерфейса"""
+        """Configure dialog widgets and layout."""
         layout = QVBoxLayout(self)
 
-        # --- Панель основных фильтров ---
+        # --- Primary filter panel ---
 
-        # Выбор папки
+        # Folder selection
         folder_layout = QHBoxLayout()
-        folder_layout.addWidget(QLabel("Место поиска:"))
+        folder_layout.addWidget(QLabel(self.tr("Search location:")))
         self.root_le = QLineEdit(os.path.expanduser("~"))
         self.root_le.setMinimumWidth(200)
-        browse_btn = QPushButton("Обзор")
+        browse_btn = QPushButton(self.tr("Browse"))
         browse_btn.clicked.connect(self._choose_root)
         folder_layout.addWidget(self.root_le)
         folder_layout.addWidget(browse_btn)
 
-        # Маска и имя файла на отдельной строке, сначала имя, потом маска
+        # File name/regex and mask row
         name_mask_layout = QHBoxLayout()
-        name_mask_layout.addWidget(QLabel("Имя (Regex):"))
+        name_mask_layout.addWidget(QLabel(self.tr("Name (regex):")))
         from PyQt6.QtWidgets import QSizePolicy
 
         self.regex_le = QLineEdit()
@@ -147,12 +157,12 @@ class FileSearchDialog(BaseDialog):
         )
         name_mask_layout.addWidget(self.regex_le)
         name_mask_layout.setStretch(name_mask_layout.count() - 1, 1)
-        name_mask_layout.addWidget(QLabel("Маска:"))
+        name_mask_layout.addWidget(QLabel(self.tr("Pattern:")))
         self.pattern_le = QLineEdit("*.*")
         self.pattern_le.setMaximumWidth(100)
         name_mask_layout.addWidget(self.pattern_le)
 
-        # --- Выпадающий список популярных расширений ---
+        # --- Common extension dropdown ---
         from PyQt6.QtWidgets import QComboBox
 
         self.pattern_combo = QComboBox()
@@ -202,11 +212,11 @@ class FileSearchDialog(BaseDialog):
             "*.torrent",
         ]
         self.pattern_combo.addItems(common_patterns)
-        # Подогнать ширину по содержимому
+        # Fit dropdown width to contents
         font_metrics = self.pattern_combo.fontMetrics()
         max_width = max(font_metrics.horizontalAdvance(ext) for ext in common_patterns)
-        self.pattern_combo.setFixedWidth(max_width + 36)  # +36 для стрелки и отступов
-        self.pattern_combo.setToolTip("Быстрый выбор маски по расширению")
+        self.pattern_combo.setFixedWidth(max_width + 36)  # +36 for arrow and padding
+        self.pattern_combo.setToolTip(self.tr("Quickly apply an extension mask"))
         self.pattern_combo.setCurrentIndex(-1)
 
         def set_pattern_from_combo(idx):
@@ -216,50 +226,50 @@ class FileSearchDialog(BaseDialog):
         self.pattern_combo.currentIndexChanged.connect(set_pattern_from_combo)
         name_mask_layout.addWidget(self.pattern_combo)
 
-        # Содержимое и чекбоксы сразу после маски
-        name_mask_layout.addWidget(QLabel("Содержимое:"))
+        # Content filter and toggles
+        name_mask_layout.addWidget(QLabel(self.tr("Content:")))
         self.content_le = QLineEdit()
         self.content_le.setMinimumWidth(200)
-        self.content_regex_cb = QCheckBox("Regex")
-        self.case_cb = QCheckBox("Учёт регистра")
+        self.content_regex_cb = QCheckBox(self.tr("Regex"))
+        self.case_cb = QCheckBox(self.tr("Case sensitive"))
         name_mask_layout.addWidget(self.content_le)
-        self.search_btn = QPushButton("Поиск")
+        self.search_btn = QPushButton(self.tr("Search"))
         self.search_btn.clicked.connect(self._start_search)
-        self.stop_btn = QPushButton("Стоп")
+        self.stop_btn = QPushButton(self.tr("Stop"))
         self.stop_btn.clicked.connect(self._stop_search)
         self.stop_btn.setEnabled(False)
         name_mask_layout.addWidget(self.search_btn)
         name_mask_layout.addWidget(self.stop_btn)
         name_mask_layout.addStretch()
 
-        # Первая строка: путь
+        # First row: path
         layout.addLayout(folder_layout)
-        # Вторая строка: имя, маска, содержимое, кнопки
+        # Second row: name, pattern, content, actions
         layout.addLayout(name_mask_layout)
 
-        # --- Фильтры размера и даты ---
+        # --- Size and date filters ---
         filter_row1 = QHBoxLayout()
 
-        # Размер файла
+        # File size filter
         size_layout = QHBoxLayout()
-        size_layout.addWidget(QLabel("Размер (КБ):"))
+        size_layout.addWidget(QLabel(self.tr("Size (KB):")))
         from PyQt6.QtGui import QIntValidator
 
         self.size_min_le = QLineEdit()
         self.size_min_le.setValidator(QIntValidator(0, 999999))
-        self.size_min_le.setPlaceholderText("от")
+        self.size_min_le.setPlaceholderText(self.tr("from"))
         self.size_min_le.setMaximumWidth(60)
         size_layout.addWidget(self.size_min_le)
         size_layout.addWidget(QLabel("-"))
         self.size_max_le = QLineEdit()
         self.size_max_le.setValidator(QIntValidator(0, 999999))
-        self.size_max_le.setPlaceholderText("до")
+        self.size_max_le.setPlaceholderText(self.tr("to"))
         self.size_max_le.setMaximumWidth(60)
         size_layout.addWidget(self.size_max_le)
 
-        # Дата модификации
+        # Modified date filter
         date_layout = QHBoxLayout()
-        date_layout.addWidget(QLabel("Дата изм.:"))
+        date_layout.addWidget(QLabel(self.tr("Modified:")))
         self.date_from_de = QDateEdit()
         self.date_from_de.setCalendarPopup(True)
         self.date_from_de.setDate(QDate.currentDate().addYears(-1))
@@ -273,21 +283,21 @@ class FileSearchDialog(BaseDialog):
 
         filter_row1.addLayout(size_layout)
         filter_row1.addLayout(date_layout)
-        # Чекбоксы после даты
-        self.hidden_cb = QCheckBox("Скрытые")
-        self.readonly_cb = QCheckBox("Только для чтения")
+        # Additional toggles
+        self.hidden_cb = QCheckBox(self.tr("Hidden files"))
+        self.readonly_cb = QCheckBox(self.tr("Read-only"))
         filter_row1.addWidget(self.hidden_cb)
         filter_row1.addWidget(self.readonly_cb)
         filter_row1.addWidget(self.content_regex_cb)
         filter_row1.addWidget(self.case_cb)
         filter_row1.addStretch()
 
-        # --- Прогресс бар ---
+        # --- Progress bar ---
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        self.progress_bar.setRange(0, 0)  # Неопределенный прогресс
+        self.progress_bar.setRange(0, 0)  # Indeterminate progress
 
-        # --- Таблица результатов (QTableView + модель) ---
+        # --- Results table (QTableView + model) ---
         self.table = QTableView()
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -295,37 +305,37 @@ class FileSearchDialog(BaseDialog):
         self.model = _SearchResultsModel(self)
         self.table.setModel(self.model)
 
-        # Настройка размеров колонок
+        # Column sizing
         header = self.table.horizontalHeader()
         header.setStretchLastSection(False)
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # Имя
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Путь
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # Name
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Path
         header.setSectionResizeMode(
             2, QHeaderView.ResizeMode.ResizeToContents
-        )  # Размер
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Дата
+        )  # Size
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)  # Date
         header.setSectionResizeMode(
             4, QHeaderView.ResizeMode.ResizeToContents
-        )  # Содержит
+        )  # Contains
 
-        # Двойной клик для открытия в проводнике
+        # Double-click opens file in explorer
         self.table.doubleClicked.connect(self._on_double_click)
 
-        # --- Статус ---
-        self.status_label = QLabel("Готов к поиску")
+        # --- Status ---
+        self.status_label = QLabel(self.tr("Ready to search"))
 
-        # --- Кнопки действий ---
+        # --- Action buttons ---
         btns_layout = QHBoxLayout()
 
-        self.add_link_btn = QPushButton("Добавить как ссылку")
+        self.add_link_btn = QPushButton(self.tr("Add as link"))
         self.add_link_btn.setEnabled(False)
         self.add_link_btn.clicked.connect(self._on_add_link)
 
-        self.open_folder_btn = QPushButton("Открыть в проводнике")
+        self.open_folder_btn = QPushButton(self.tr("Open in file explorer"))
         self.open_folder_btn.setEnabled(False)
         self.open_folder_btn.clicked.connect(self._on_open_folder)
 
-        close_btn = QPushButton("Закрыть")
+        close_btn = QPushButton(self.tr("Close"))
         close_btn.clicked.connect(self.reject)
 
         btns_layout.addWidget(self.status_label)
@@ -334,13 +344,13 @@ class FileSearchDialog(BaseDialog):
         btns_layout.addWidget(self.open_folder_btn)
         btns_layout.addWidget(close_btn)
 
-        # Сборка основного layout
+        # Assemble main layout
         layout.addLayout(filter_row1)
         layout.addWidget(self.progress_bar)
         layout.addWidget(self.table)
         layout.addLayout(btns_layout)
 
-        # Подключение сигналов для обновления кнопок (model-view API)
+        # Connect selection change to button updates
         try:
             self.table.selectionModel().selectionChanged.connect(
                 lambda *_: self._update_buttons()
@@ -349,28 +359,28 @@ class FileSearchDialog(BaseDialog):
             pass
 
     def _update_buttons(self):
-        """Обновление состояния кнопок в зависимости от выбора"""
+        """Enable/disable buttons based on current selection."""
         has_selection = bool(self.table.selectionModel().selectedRows())
         self.add_link_btn.setEnabled(has_selection)
         self.open_folder_btn.setEnabled(has_selection)
 
     def _get_full_file_path(self, row):
-        """Получение полного пути к файлу из указанной строки таблицы"""
+        """Return the full file path for the supplied table row."""
         idx_name = self.model.index(row, 0)
         idx_path = self.model.index(row, 1)
         filename = self.model.data(idx_name, Qt.ItemDataRole.DisplayRole) or ""
         folder_path = self.model.data(idx_path, Qt.ItemDataRole.DisplayRole) or ""
 
-        # Объединяем путь к папке и имя файла
+        # Combine folder path and filename
         full_path = os.path.join(folder_path, filename)
 
-        # Нормализуем путь
+        # Normalize
         full_path = os.path.normpath(full_path)
 
         return full_path
 
     def _on_add_link(self):
-        """Добавить выбранный файл как ссылку"""
+        """Add the selected file as a link."""
         selected_rows = self.table.selectionModel().selectedRows()
         if not selected_rows:
             return
@@ -382,16 +392,16 @@ class FileSearchDialog(BaseDialog):
             else (self.parent().parent() if self.parent() else None)
         )
         if main_window and hasattr(main_window, "show_link_dialog"):
-            # Открываем LinkDialog с уже заполненным путем
+            # Open LinkDialog with pre-filled path
 
-            # Используем фасад ссылочных действий
+            # Prefer links_actions facade when available
             if hasattr(main_window, "links_actions"):
                 main_window.links_actions.show_link_dialog(
                     link={"type": "file", "url": file_path},
                     category_id=getattr(main_window, "current_category_id", None),
                 )
             else:
-                # Fallback: через метод MainWindow
+                # Fallback: call MainWindow directly
                 main_window.show_link_dialog(
                     link={"type": "file", "url": file_path},
                     category_id=getattr(main_window, "current_category_id", None),
@@ -399,7 +409,7 @@ class FileSearchDialog(BaseDialog):
             return
 
     def _on_open_folder(self):
-        """Открыть папку с выбранным файлом в проводнике"""
+        """Open the selected file in the system file explorer."""
         selected_rows = self.table.selectionModel().selectedRows()
         if not selected_rows:
             return
@@ -408,144 +418,149 @@ class FileSearchDialog(BaseDialog):
         self._open_file_in_explorer(file_path)
 
     def _open_file_in_explorer(self, file_path):
-        """Открыть файл в проводнике с выделением"""
+        """Open file explorer highlighting the supplied file."""
         try:
-            logger.info("Открываю в проводнике: %s", file_path)
+            logger.info("Opening in file explorer: %s", file_path)
 
-            # Нормализуем путь
+            # Normalize path before usage
             file_path = os.path.normpath(file_path)
 
             if not os.path.exists(file_path):
-                # ЦЕНТРАЛИЗОВАНО: Использует DialogManager вместо прямого QMessageBox
-                self.show_warning(f"Файл не найден: {file_path}")
+                self.show_warning(
+                    self.tr("File not found: {path}").format(path=file_path)
+                )
                 return
 
             system = platform.system()
 
             if system == "Windows":
-                # Windows: используем explorer с параметром /select
-                # Экранируем путь для корректной работы с пробелами
+                # Windows: explorer with /select flag
                 subprocess.run(["explorer", "/select,", file_path], shell=False)
             elif system == "Darwin":  # macOS
-                # macOS: используем open с параметром -R (reveal)
+                # macOS: use `open -R`
                 subprocess.run(["open", "-R", file_path], check=True)
             elif system == "Linux":
-                # Linux: пробуем различные файловые менеджеры
+                # Linux: attempt several file managers sequentially
                 try:
-                    # Пробуем nautilus (GNOME)
                     subprocess.run(["nautilus", "--select", file_path], check=True)
                 except (subprocess.CalledProcessError, FileNotFoundError):
                     try:
-                        # Пробуем dolphin (KDE)
                         subprocess.run(["dolphin", "--select", file_path], check=True)
                     except (subprocess.CalledProcessError, FileNotFoundError):
                         try:
-                            # Пробуем thunar (XFCE)
                             subprocess.run(
                                 ["thunar", os.path.dirname(file_path)], check=True
                             )
                         except (subprocess.CalledProcessError, FileNotFoundError):
                             try:
-                                # Пробуем pcmanfm (LXDE)
                                 subprocess.run(
                                     ["pcmanfm", os.path.dirname(file_path)], check=True
                                 )
                             except (subprocess.CalledProcessError, FileNotFoundError):
-                                # Если ничего не сработало, открываем папку
                                 folder_path = os.path.dirname(file_path)
                                 subprocess.run(["xdg-open", folder_path], check=True)
             else:
-                # Для других систем открываем папку
                 folder_path = os.path.dirname(file_path)
                 subprocess.run(["xdg-open", folder_path], check=True)
 
         except subprocess.CalledProcessError as e:
-            # ЦЕНТРАЛИЗОВАНО: Использует DialogManager вместо прямого QMessageBox
-            self.show_warning(f"Не удалось открыть файл в проводнике: {str(e)}")
+            self.show_warning(
+                self.tr("Failed to open file in explorer: {error}").format(error=str(e))
+            )
         except Exception as e:
-            # ЦЕНТРАЛИЗОВАНО: Использует DialogManager вместо прямого QMessageBox
-            self.show_warning(f"Произошла ошибка: {str(e)}")
+            self.show_warning(
+                self.tr("Unexpected error: {error}").format(error=str(e))
+            )
 
     def _setup_defaults(self):
-        """Настройка значений по умолчанию"""
+        """Reset default values."""
         self.size_min_le.clear()
         self.size_max_le.clear()
 
     def _choose_root(self):
-        """Выбор корневой папки для поиска"""
+        """Prompt user to select the search root folder."""
         current_path = self.root_le.text().strip()
         if not current_path or not os.path.exists(current_path):
             current_path = os.path.expanduser("~")
 
         path = QFileDialog.getExistingDirectory(
-            self, "Выбрать папку для поиска", current_path
+            self, self.tr("Select folder for search"), current_path
         )
         if path:
             self.root_le.setText(path)
 
     def _validate_inputs(self):
-        """Валидация пользовательских данных"""
+        """Validate user input before starting search."""
         root_path = self.root_le.text().strip()
         if not root_path:
-            # ЦЕНТРАЛИЗОВАНО: Использует DialogManager вместо прямого QMessageBox
-            self.show_warning("Укажите папку для поиска")
+            self.show_warning(self.tr("Specify a folder to search."))
             return False
 
         if not os.path.exists(root_path):
-            # ЦЕНТРАЛИЗОВАНО: Использует DialogManager вместо прямого QMessageBox
-            self.show_warning(f"Папка не существует: {root_path}")
+            self.show_warning(
+                self.tr("The folder does not exist: {path}").format(path=root_path)
+            )
             return False
 
         if not os.path.isdir(root_path):
-            # ЦЕНТРАЛИЗОВАНО: Использует DialogManager вместо прямого QMessageBox
-            self.show_warning(f"Указанный путь не является папкой: {root_path}")
+            self.show_warning(
+                self.tr("The specified path is not a folder: {path}").format(
+                    path=root_path
+                )
+            )
             return False
 
-        # Проверка регулярного выражения
+        # Validate name regular expression if specified
         regex_pattern = self.regex_le.text().strip()
         if regex_pattern:
             try:
                 re.compile(regex_pattern)
             except re.error as e:
-                # ЦЕНТРАЛИЗОВАНО: Использует DialogManager вместо прямого QMessageBox
-                self.show_warning(f"Неверное регулярное выражение для имени: {e}")
+                self.show_warning(
+                    self.tr("Invalid regular expression for name: {error}").format(
+                        error=e
+                    )
+                )
                 return False
 
-        # Проверка регулярного выражения для содержимого
+        # Validate content regular expression when regex mode enabled
         content_pattern = self.content_le.text().strip()
         if content_pattern and self.content_regex_cb.isChecked():
             try:
                 flags = 0 if self.case_cb.isChecked() else re.IGNORECASE
                 re.compile(content_pattern, flags)
             except re.error as e:
-                # ЦЕНТРАЛИЗОВАНО: Использует DialogManager вместо прямого QMessageBox
-                self.show_warning(f"Неверное регулярное выражение для содержимого: {e}")
+                self.show_warning(
+                    self.tr(
+                        "Invalid regular expression for content: {error}"
+                    ).format(error=e)
+                )
                 return False
 
         return True
 
     def _start_search(self):
-        """Запуск поиска файлов"""
+        """Start the search operation."""
         if not self._validate_inputs():
             return
 
         if self.is_searching:
             return
 
-        # Очистка предыдущих результатов
+        # Clear previous results
         self.model.clear()
 
-        # Переключение UI в режим поиска
+        # Switch UI to searching state
         self.is_searching = True
         self.search_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
         self.progress_bar.setVisible(True)
-        self.status_label.setText("Поиск...")
+        self.status_label.setText(self.tr("Searching…"))
 
-        # Создание конфигурации поиска
+        # Build search configuration
         config = self._create_search_config()
 
-        # Создание и запуск worker'а
+        # Create and start worker
         self.search_worker = FileSearchWorker(config)
         self.search_worker.signals.result_found.connect(self._add_result)
         self.search_worker.signals.search_finished.connect(self._on_search_finished)
@@ -554,13 +569,13 @@ class FileSearchDialog(BaseDialog):
         self.threadpool.start(self.search_worker)
 
     def _stop_search(self):
-        """Остановка поиска"""
+        """Stop the ongoing search."""
         if self.search_worker:
             self.search_worker.stop()
         self._on_search_finished()
 
     def _create_search_config(self):
-        """Создание конфигурации поиска"""
+        """Create configuration dictionary for the worker."""
         return {
             "root": self.root_le.text().strip(),
             "pattern": self.pattern_le.text().strip() or "*.*",
@@ -581,7 +596,7 @@ class FileSearchDialog(BaseDialog):
         }
 
     def _add_result(self, file_path: str, _ext: str = ""):
-        """Добавление результата поиска в таблицу"""
+        """Append a search result to the table."""
         try:
             file_stat = os.stat(file_path)
             size_kb = file_stat.st_size // 1024
@@ -589,41 +604,42 @@ class FileSearchDialog(BaseDialog):
                 "%Y-%m-%d %H:%M:%S", time.localtime(file_stat.st_mtime)
             )
 
-            # Проверяем, есть ли поиск по содержимому
+            # Mark content column if content filter is used
             has_content = "✓" if self.content_le.text().strip() else ""
 
-            # Данные строки
+            # Row data
             filename = os.path.basename(file_path)
             folder_path = os.path.dirname(file_path)
             self.model.add_result(filename, folder_path, size_kb, mtime, has_content)
         except OSError as e:
             logger.warning(
-                "Ошибка при получении информации о файле %s: %s",
+                "Failed to gather information for file %s: %s",
                 file_path,
                 e,
                 exc_info=True,
             )
-        # Обновим кнопки в процессе (когда появляются строки)
+        # Refresh buttons when rows appear
         self._update_buttons()
 
     def _on_search_error(self, error_msg: str):
-        """Обработка ошибки поиска"""
+        """Handle errors raised by the worker."""
         self._on_search_finished()
-        # ЦЕНТРАЛИЗОВАНО: Использует DialogManager вместо прямого QMessageBox
-        self.show_error(error_msg, "Ошибка поиска")
+        self.show_error(error_msg, self.tr("Search error"))
 
     def _on_double_click(self, index):
-        """Обработка двойного клика по таблице - открытие в проводнике"""
+        """Open file explorer on double click."""
         if index.isValid():
             file_path = self._get_full_file_path(index.row())
             self._open_file_in_explorer(file_path)
 
     def _on_search_finished(self):
-        """Завершение поиска: восстановить UI, показать итог."""
+        """Revert UI after search completion and show summary."""
         self.is_searching = False
         self.search_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
         self.progress_bar.setVisible(False)
         count = self.model.rowCount()
-        self.status_label.setText(f"Поиск завершен. Найдено файлов: {count}")
+        self.status_label.setText(
+            self.tr("Search finished. Files found: {count}").format(count=count)
+        )
         self._update_buttons()

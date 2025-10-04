@@ -2,7 +2,7 @@ import logging
 import types
 
 from app.controllers.business.structure_business import StructureBusinessLogic
-from app.controllers.structure_modules.cache_manager import CacheManager
+from app.controllers.structure_modules import CacheManager
 from app.controllers.structure_services.utilities import UtilityService
 
 

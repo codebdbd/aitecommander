@@ -27,38 +27,38 @@ logger = logging.getLogger(__name__)
 class BrowserProfileDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Выбор профиля браузера")
+        self.setWindowTitle(self.tr("Select browser profile"))
         self.setMinimumSize(480, 400)
         self.manager = get_profile_manager()
         self.selected_profiles = []
         self.profile_checkboxes = []
         self._setup_ui()
         self._populate_browsers()
-        # Не загружаем все профили сразу, только для выбранного браузера
+        # Do not load every profile immediately; populate on demand for the chosen browser.
         # self._populate_profiles()
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        # 1. Линия: Браузеры + Обновить
+        # 1. Row: browsers + refresh button
         top_layout = QHBoxLayout()
-        top_layout.addWidget(QLabel("Браузеры:"))
+        top_layout.addWidget(QLabel(self.tr("Browsers:")))
         self.browser_combo = QComboBox()
         self.browser_combo.currentIndexChanged.connect(self._populate_profiles)
         top_layout.addWidget(self.browser_combo, 1)
-        self.refresh_btn = QPushButton("Обновить")
+        self.refresh_btn = QPushButton(self.tr("Refresh"))
         self.refresh_btn.clicked.connect(self.refresh_profiles)
         top_layout.addWidget(self.refresh_btn, 0)
         layout.addLayout(top_layout)
 
-        # 2. Линия: строка поиска
+        # 2. Row: search input
         search_layout = QHBoxLayout()
         self.search_line = QLineEdit()
-        self.search_line.setPlaceholderText("Поиск по имени/email…")
+        self.search_line.setPlaceholderText(self.tr("Search by name/email…"))
         self.search_line.textChanged.connect(self._populate_profiles)
         search_layout.addWidget(self.search_line, 1)
         layout.addLayout(search_layout)
 
-        # Список профилей
+        # Profiles list
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.profile_widget = QWidget()
@@ -66,18 +66,18 @@ class BrowserProfileDialog(QDialog):
         self.scroll.setWidget(self.profile_widget)
         layout.addWidget(self.scroll)
 
-        # Кнопки
-        # 4. Нижняя линия: слева выборные кнопки и статус, справа Сохранить/Отмена
+        # Buttons
+        # 4. Bottom row: selection buttons and status on the left, Save/Cancel on the right
         bottom_layout = QHBoxLayout()
         left_bottom = QHBoxLayout()
-        # Кнопки выборных действий слева
-        self.select_all_btn = QPushButton("Добавить все")
+        # Selection helper buttons on the left
+        self.select_all_btn = QPushButton(self.tr("Add all"))
         self.select_all_btn.clicked.connect(self._select_all_profiles)
         left_bottom.addWidget(self.select_all_btn)
-        self.deselect_all_btn = QPushButton("Отменить выделение")
+        self.deselect_all_btn = QPushButton(self.tr("Clear selection"))
         self.deselect_all_btn.clicked.connect(self._deselect_all_profiles)
         left_bottom.addWidget(self.deselect_all_btn)
-        # Индикатор статуса/прогресса
+        # Status/progress indicator
         self.status_label = QLabel("")
         self.status_label.setStyleSheet("color: gray; margin-left: 8px;")
         left_bottom.addWidget(self.status_label, 0)
@@ -86,15 +86,15 @@ class BrowserProfileDialog(QDialog):
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
-        # Локализация подписей
+        # Localize button labels
         ok_btn = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
         cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
         if ok_btn is not None:
-            ok_btn.setText("Сохранить")
-            ok_btn.setEnabled(False)  # по умолчанию неактивна до выбора
+            ok_btn.setText(self.tr("Save"))
+            ok_btn.setEnabled(False)  # disabled until a profile is selected
             self._ok_button = ok_btn
         if cancel_btn is not None:
-            cancel_btn.setText("Отмена")
+            cancel_btn.setText(self.tr("Cancel"))
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
         bottom_layout.addWidget(self.button_box, 0)
@@ -106,7 +106,7 @@ class BrowserProfileDialog(QDialog):
         self.refresh_btn.setEnabled(enabled)
         self.select_all_btn.setEnabled(enabled)
         self.deselect_all_btn.setEnabled(enabled)
-        # Кнопка сохранить зависит от наличия выбора, но при блокировке всего диалога тоже дизейблим
+        # The save button depends on selection, but also disables when the dialog is locked
         if hasattr(self, "_ok_button") and self._ok_button is not None:
             if not enabled:
                 self._ok_button.setEnabled(False)
@@ -118,17 +118,17 @@ class BrowserProfileDialog(QDialog):
         browsers = self.manager.get_supported_browsers()
         for b in browsers:
             self.browser_combo.addItem(b["name"], b["key"])
-        # Выбрать первый браузер по умолчанию
+        # Select the first browser by default
         if self.browser_combo.count() > 0:
             self.browser_combo.setCurrentIndex(0)
 
     def _populate_profiles(self):
-        # Очистка старых виджетов из layout
+        # Remove previous widgets from the layout
         for cb in self.profile_checkboxes:
             cb.deleteLater()
         self.profile_checkboxes.clear()
 
-        # Очищаем все виджеты из layout
+        # Clear all widgets from the layout
         while self.profile_layout.count():
             child = self.profile_layout.takeAt(0)
             if child.widget():
@@ -137,9 +137,9 @@ class BrowserProfileDialog(QDialog):
         browser_key = self.browser_combo.currentData()
         profiles = []
 
-        # Загружаем только профили выбранного браузера из кэша менеджера (без дискового сканирования)
+        # Load profiles for the selected browser from manager cache (no disk scan)
         profiles = self.manager.get_profiles_by_browser(browser_key)
-        # Фильтрация по строке поиска
+        # Filter by search query
         query = (self.search_line.text() or "").strip().lower()
         if query:
 
@@ -158,18 +158,24 @@ class BrowserProfileDialog(QDialog):
         logger.debug("_populate_profiles: browser_key=%s", browser_key)
 
         if not profiles:
-            self.profile_layout.addWidget(QLabel("Профили не найдены"))
+            self.profile_layout.addWidget(QLabel(self.tr("No profiles found")))
             return
 
-        # Создание чекбоксов для профилей
+        # Create checkboxes for every profile
         for profile in profiles:
-            # Для визуальной ясности добавляем имя браузера
+            # Add browser name for clarity
             browser_name = profile.get("browser_name", "")
-            profile_name = profile.get("email", profile.get("name", "Без имени"))
-            text = f"{profile_name} ({browser_name})"
+            profile_name = (
+                profile.get("email")
+                or profile.get("name")
+                or self.tr("Unnamed")
+            )
+            text = self.tr("{profile} ({browser})").format(
+                profile=profile_name, browser=browser_name
+            )
             cb = QCheckBox(text)
             cb.profile_data = profile
-            # Отслеживаем изменения для управления доступностью кнопки "Сохранить"
+            # Track changes for Save button availability
             try:
                 cb.stateChanged.connect(self._update_save_enabled)
             except Exception:
@@ -179,21 +185,21 @@ class BrowserProfileDialog(QDialog):
                 )
             self.profile_layout.addWidget(cb)
             self.profile_checkboxes.append(cb)
-        # Добавляем stretch, чтобы чекбоксы не растягивались по вертикали
+        # Add stretch to prevent vertical stretching
         self.profile_layout.addStretch()
-        # Обновить состояние кнопки "Сохранить" после перестроения списка
+        # Refresh Save button state after rebuilding the list
         self._update_save_enabled()
 
     def refresh_profiles(self):
-        """Ручное обновление всех профилей: асинхронно, с сохранением кэша и обновлением UI."""
+        """Manually refresh profiles asynchronously while updating caches and UI."""
         self._set_controls_enabled(False)
-        self.status_label.setText("Загрузка профилей…")
+        self.status_label.setText(self.tr("Loading profiles…"))
         try:
             async_mgr = _apm.get_async_profile_manager()
 
             def _on_ready(all_profiles: Dict[str, List[Dict]]):
                 try:
-                    # Сохранить профили в персистентный кэш
+                    # Persist profiles in cache
                     cache = _pc.PersistentProfileCache(default_ttl=3600)
                     for key, profiles in (all_profiles or {}).items():
                         try:
@@ -204,7 +210,7 @@ class BrowserProfileDialog(QDialog):
                                 key,
                                 exc_info=True,
                             )
-                    # Обновить кэш синхронного менеджера (единый кэш)
+                    # Update synchronous manager cache (shared cache)
                     mgr = _pm.get_profile_manager()
                     for key, profiles in (all_profiles or {}).items():
                         try:
@@ -215,11 +221,11 @@ class BrowserProfileDialog(QDialog):
                                 key,
                                 exc_info=True,
                             )
-                    # Обновить списки в диалоге
+                    # Rebuild dialog lists
                     self._populate_browsers()
                     self._populate_profiles()
                 finally:
-                    # Отписка и восстановление контролов
+                    # Disconnect signals and restore controls
                     try:
                         async_mgr.all_profiles_ready.disconnect(_on_ready)
                         async_mgr.loading_progress.disconnect(_on_progress)
@@ -232,13 +238,17 @@ class BrowserProfileDialog(QDialog):
                     self._set_controls_enabled(True)
                     self.status_label.setText("")
 
-            # Подписка и запуск загрузки без использования оперативного кэша воркера
+            # Subscribe and start loading without using worker RAM cache
             async_mgr.all_profiles_ready.connect(_on_ready)
 
             def _on_progress(operation: str, current: int, total: int):
-                # operation вида "Загрузка chrome" из менеджера
+                # `operation` is a string like "Loading chrome" from the manager
                 try:
-                    self.status_label.setText(f"{operation} ({current}/{total})…")
+                    self.status_label.setText(
+                        self.tr("{operation} ({current}/{total})…").format(
+                            operation=operation, current=current, total=total
+                        )
+                    )
                 except Exception:
                     logger.debug(
                         "BrowserProfileDialog: failed to update status label on progress",
@@ -246,26 +256,26 @@ class BrowserProfileDialog(QDialog):
                     )
 
             def _on_error(operation: str, message: str):
-                logger.warning("Ошибка во время %s: %s", operation, message)
-                self.status_label.setText("Ошибка загрузки профилей")
+                logger.warning("Error during %s: %s", operation, message)
+                self.status_label.setText(self.tr("Failed to load profiles"))
 
             async_mgr.loading_progress.connect(_on_progress)
             async_mgr.loading_error.connect(_on_error)
             async_mgr.load_all_profiles_async(use_cache=False)
         except Exception as e:
-            logger.warning("Не удалось запустить обновление профилей: %s", e)
+            logger.warning("Failed to start profiles refresh: %s", e)
             self._set_controls_enabled(True)
-            self.status_label.setText("Ошибка запуска загрузки")
+            self.status_label.setText(self.tr("Failed to start loading"))
 
     def accept(self):
-        """Переопределение accept для сохранения выбранных профилей."""
+        """Override ``accept`` to persist the selected profiles."""
         self.selected_profiles = [
             cb.profile_data for cb in self.profile_checkboxes if cb.isChecked()
         ]
         super().accept()
 
     def get_selected_profiles(self) -> List[Dict]:
-        """Возвращает список выбранных профилей."""
+        """Return the list of chosen profiles."""
         selected = self.selected_profiles
 
         logger.debug("get_selected_profiles: returning %s profiles", len(selected))
@@ -280,19 +290,19 @@ class BrowserProfileDialog(QDialog):
         return selected
 
     def _select_all_profiles(self):
-        """Выбрать все профили."""
+        """Select every profile in the list."""
         for cb in self.profile_checkboxes:
             cb.setChecked(True)
         self._update_save_enabled()
 
     def _deselect_all_profiles(self):
-        """Снять выделение со всех профилей."""
+        """Clear selection on every profile."""
         for cb in self.profile_checkboxes:
             cb.setChecked(False)
         self._update_save_enabled()
 
     def _update_save_enabled(self):
-        """Включает кнопку "Сохранить", если выбран хотя бы один профиль."""
+        """Enable the Save button when at least one profile is selected."""
         try:
             any_checked = any(cb.isChecked() for cb in self.profile_checkboxes)
             if hasattr(self, "_ok_button") and self._ok_button is not None:

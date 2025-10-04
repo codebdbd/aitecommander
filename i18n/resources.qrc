@@ -1,0 +1,7 @@
+<!DOCTYPE RCC><RCC version="1.0">
+  <qresource prefix="/i18n">
+    <file>app_en.qm</file>
+    <file>app_ru.qm</file>
+    <file>app_uk.qm</file>
+  </qresource>
+</RCC>

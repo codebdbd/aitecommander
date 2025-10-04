@@ -1,7 +1,7 @@
-"""Константы для компонентов главного окна.
+"""Constants used by the main-window components.
 
-УЛУЧШЕНИЕ: Централизованные константы заменяют магические строки и числа,
-улучшая поддерживаемость и предотвращая опечатки.
+Improvement note: centralized constants replace magic strings and numbers,
+which makes maintenance easier and prevents typos.
 """
 
 from __future__ import annotations
@@ -9,12 +9,12 @@ from __future__ import annotations
 from enum import Enum
 
 
-# === Имена атрибутов виджетов ===
+# === Widget attribute names ===
 
 class WidgetAttribute(str, Enum):
-    """Имена атрибутов виджетов на главном окне."""
-    
-    # Верхняя панель
+    """Attribute names stored on the main window widgets."""
+
+    # Top bar
     TOP_BAR_HOST = "top_bar_host"
     CONTENT_CONTAINER = "content_container"
     QUICK_ADD_WIDGET = "quick_add_widget"
@@ -22,7 +22,7 @@ class WidgetAttribute(str, Enum):
     RECENT_LINKS_WIDGET = "recent_links_widget"
     SEARCH = "search"
     
-    # Основная область
+    # Main area
     LEFT_PANEL = "left_panel"
     TREE = "tree"
     TREE_MODEL = "tree_model"
@@ -33,22 +33,22 @@ class WidgetAttribute(str, Enum):
     TABLE = "table"
     TABLE_CONTAINER = "table_container"
     
-    # Нижняя панель
+    # Bottom bar
     SPHERES_BAR = "spheres_bar"
     SPHERE_GROUP = "sphere_group"
     SPHERE_BUTTONS = "sphere_buttons"
     BOTTOM_BAR_CONTAINER = "bottom_bar_container"
     SWITCH_SPHERE_BUTTON = "switch_sphere_button"
     
-    # Контроллеры
+    # Controllers
     STRUCTURE_BUSINESS = "structure_business"
     TOP_PANELS_CONTROLLER = "top_panels_controller"
     UI_STATE = "ui_state"
 
 
 class ObjectName(str, Enum):
-    """Qt objectName для виджетов."""
-    
+    """Qt ``objectName`` values for widgets."""
+
     TOP_BAR_HOST = "topBarHost"
     MAIN_SEARCH = "mainSearch"
     FAVORITES_WIDGET = "favoritesWidget"
@@ -60,109 +60,109 @@ class ObjectName(str, Enum):
     V_SEPARATOR = "vSeparator"
 
 
-# === Таймауты и интервалы ===
+# === Timeouts and intervals ===
 
 class Timeout(int, Enum):
-    """Таймауты в миллисекундах.
-    
-    ВАЖНО: Значения по умолчанию. Для runtime-конфигурируемых параметров
-    используй app_config.ui.get_topbar_throttle_ms() и другие методы.
-    """
-    
-    # Инициализация
-    DATA_READY_FALLBACK = 500  # Таймаут ожидания загрузки данных
-    DB_POLL_INTERVAL = 100  # Интервал опроса готовности БД
-    
-    # UI обновления (fallback значения, читай из config для customization)
-    THROTTLE_RESIZE = 50  # Throttle для resize событий (см. ui.topbar.throttle_ms)
-    DEFER_OPERATION = 0  # QTimer.singleShot для defer операций
-    TOPBAR_SHOW_DELAY = 10  # Задержка показа topbar после инициализации
-    DIAGNOSTICS_DELAY = 100  # Задержка для диагностики после показа окна
-    
-    # Анимации
-    ANIMATION_DURATION = 140  # Длительность анимаций появления/скрытия
+    """Timeouts expressed in milliseconds.
 
-# Удобные алиасы для частых случаев
+    IMPORTANT: default fallback values. When runtime configuration is available,
+    prefer calls to ``app_config.ui.get_topbar_throttle_ms()`` and similar accessors.
+    """
+
+    # Initialization
+    DATA_READY_FALLBACK = 500  # Wait for data loading to finish
+    DB_POLL_INTERVAL = 100  # Polling interval for database readiness
+
+    # UI updates (fallback values; rely on config for customization)
+    THROTTLE_RESIZE = 50  # Resize throttling interval (see ui.topbar.throttle_ms)
+    DEFER_OPERATION = 0  # QTimer.singleShot for deferred operations
+    TOPBAR_SHOW_DELAY = 10  # Delay before showing the top bar
+    DIAGNOSTICS_DELAY = 100  # Delay before running diagnostics after window show
+
+    # Animations
+    ANIMATION_DURATION = 140  # Duration of show/hide animations
+
+# Handy aliases for frequent usage
 MS_100 = Timeout.DB_POLL_INTERVAL
 MS_50 = Timeout.THROTTLE_RESIZE
 DEFER = Timeout.DEFER_OPERATION
 
 
-# === Размеры и отступы ===
+# === Sizes and padding ===
 
 class Size(int, Enum):
-    """Размеры UI элементов в пикселях.
-    
-    ВАЖНО: Это fallback значения. Для runtime-конфигурируемых параметров
-    читай из app_config.ui:
-    - get_window_min_width(), get_window_min_height()
-    - get_top_panel_search_min_width(), get_spheres_bar_height()
-    - get_top_bar_height(), get_separator_width()
+    """UI element sizes in pixels.
+
+    IMPORTANT: fallback values. For runtime-configurable settings consult
+    ``app_config.ui`` methods such as:
+    - ``get_window_min_width()``, ``get_window_min_height()``
+    - ``get_top_panel_search_min_width()``, ``get_spheres_bar_height()``
+    - ``get_top_bar_height()``, ``get_separator_width()``
     """
-    
-    # Минимальные размеры (для алгоритмов, не меняются в runtime)
+
+    # Minimum sizes (algorithmic constraints, not changed at runtime)
     MIN_PANEL_WIDTH = 50
     MIN_SEARCH_WIDTH = 50
     
-    # Максимальные размеры (Qt ограничения)
+    # Maximum sizes (Qt constraints)
     MAX_WIDGET_WIDTH = 16777215  # Qt QWIDGETSIZE_MAX
     MAX_SEARCH_WIDTH = 800
     MAX_VISIBLE_BUTTONS = 20
     
-    # Пороги для адаптивности (не конфигурируются через JSON)
-    NARROW_MODE_THRESHOLD = 380  # Ширина для переключения в узкий режим
-    HYSTERESIS_THRESHOLD = 8  # Базовый порог для hysteresis
+    # Adaptive thresholds (not configurable via JSON)
+    NARROW_MODE_THRESHOLD = 380  # Width threshold for narrow mode
+    HYSTERESIS_THRESHOLD = 8  # Base hysteresis threshold
 
 
 class Spacing(int, Enum):
-    """Отступы и spacing в пикселях.
-    
-    ВАЖНО: Для UI spacing читай из app_config.ui:
-    - get_top_bar_spacing(), get_top_bar_widgets_side_spacing()
-    - get_main_layout_spacing(), get_bottom_layout_spacing()
+    """Margins and spacing values in pixels.
+
+    IMPORTANT: for UI spacing prefer ``app_config.ui`` helpers:
+    - ``get_top_bar_spacing()``, ``get_top_bar_widgets_side_spacing()``
+    - ``get_main_layout_spacing()``, ``get_bottom_layout_spacing()``
     """
-    
-    # Константы для алгоритмов (не меняются в runtime)
+
+    # Algorithm constants (static at runtime)
     SEPARATOR_SPACING_VISIBLE = 4
     SEPARATOR_SPACING_HIDDEN = 0
 
 
-# === Лимиты производительности ===
+# === Performance limits ===
 
 class PerformanceLimit(int, Enum):
-    """Лимиты для производительности."""
-    
-    CACHE_MAX_SIZE = 100  # Максимальный размер LRU кэша
-    MAX_RESIZE_LOGS = 5  # Максимум логов resize событий
-    MAX_MOVE_LOGS = 5  # Максимум логов move событий
-    
-    # Пороги медленных операций (миллисекунды)
-    SLOW_ADJUST_THRESHOLD = 35  # Порог медленного adjust
-    SLOW_CLAMP_THRESHOLD = 15  # Порог медленного clamp_search_width
+    """Performance-related thresholds."""
+
+    CACHE_MAX_SIZE = 100  # Maximum LRU cache size
+    MAX_RESIZE_LOGS = 5  # Maximum resize log entries
+    MAX_MOVE_LOGS = 5  # Maximum move log entries
+
+    # Slow operation thresholds (milliseconds)
+    SLOW_ADJUST_THRESHOLD = 35  # Threshold for slow adjust
+    SLOW_CLAMP_THRESHOLD = 15  # Threshold for slow clamp_search_width
 
 
-# === Сообщения статус-бара ===
+# === Status bar messages ===
 
 class StatusMessage(str, Enum):
-    """Сообщения для статус-бара."""
-    
-    READY = "Готово"
-    WAITING_FOR_DB = "Ожидание готовности базы данных..."
-    INITIALIZING = "Инициализация..."
-    LOADING = "Загрузка..."
+    """Strings shown in the status bar."""
+
+    READY = "Ready"
+    WAITING_FOR_DB = "Waiting for database to become ready..."
+    INITIALIZING = "Initializing..."
+    LOADING = "Loading..."
 
 
-# === Ключи конфигурации ===
+# === Configuration keys ===
 
 class ConfigKey(str, Enum):
-    """Ключи конфигурации приложения."""
-    
-    # UI конфигурация
+    """Application configuration keys."""
+
+    # UI configuration
     UI_TOPBAR_THROTTLE_MS = "ui.topbar.throttle_ms"
     UI_TOPBAR_LOG_INFO = "ui.topbar.log_info"
     TOPBAR_MIN_VISIBLE = "topbar.min_visible"
     
-    # Диагностика
+    # Diagnostics
     DIAG_RESIZE_LOG_MAX_RESIZES = "diag.resize_log.max_resizes"
     DIAG_RESIZE_LOG_MAX_MOVES = "diag.resize_log.max_moves"
     
@@ -171,11 +171,11 @@ class ConfigKey(str, Enum):
     UI_AUTO_HIDE_SWITCH_TO_TABLE = "ui.auto_hide_switch_to_table"
 
 
-# === Источники событий ===
+# === Event sources ===
 
 class EventSource(str, Enum):
-    """Источники событий для трекинга."""
-    
+    """Event sources tracked by the application."""
+
     CATEGORY_TILES = "CategoryTiles"
     TREE_VIEW = "TreeView"
     SEARCH = "Search"
@@ -183,21 +183,21 @@ class EventSource(str, Enum):
     KEYBOARD = "Keyboard"
 
 
-# === CSS классы ===
+# === CSS classes ===
 
 class CSSClass(str, Enum):
-    """CSS классы для стилизации."""
-    
+    """CSS class names used for styling."""
+
     SEPARATOR = "separator"
     VERTICAL_SEPARATOR = "vertical_separator"
-    LAST_BUTTON = "last"  # Для последней кнопки в панели
+    LAST_BUTTON = "last"  # Applied to the last button in a panel
 
 
-# === Приоритеты логирования ===
+# === Logging tags ===
 
 class LogTag(str, Enum):
-    """Теги для структурированного логирования."""
-    
+    """Tags used for structured logging."""
+
     INIT = "WindowInit"
     TOPBAR = "TopBar"
     TOPBAR_METRICS = "TopPanelMetrics"
@@ -210,12 +210,12 @@ class LogTag(str, Enum):
     RESOURCE_MANAGER = "ResourceManager"
 
 
-# === Метрики ===
+# === Metrics ===
 
 class MetricName(str, Enum):
-    """Имена метрик для мониторинга."""
-    
-    # Инициализация
+    """Metric identifiers for monitoring."""
+
+    # Initialization
     LIGHT_INIT_WINDOW_PROPERTIES = "light:_init_window_properties"
     LIGHT_INIT_BASIC_ATTRIBUTES = "light:_init_basic_attributes"
     LIGHT_INIT_MENU = "light:_init_menu"
@@ -223,14 +223,14 @@ class MetricName(str, Enum):
     LIGHT_CAPTURE_MAIN_LAYOUT = "light:_capture_main_layout"
     LIGHT_INIT_TOP_PANEL = "light:_init_top_panel"
     
-    # Асинхронные операции
+    # Asynchronous operations
     ASYNC_STRUCTURE_LOAD = "async:structure_load"
     ASYNC_LOAD_STRUCTURE_ASYNC_STARTED = "async:load_structure_async started"
     
-    # Финальные операции
+    # Final operations
     FINAL_WINDOW_SHOW = "final:window_show"
     
-    # TopBar операции
+    # Topbar operations
     TOPBAR_ADJUST = "adjust"
     TOPBAR_CLAMP_SEARCH_WIDTH = "clamp_search_width"
     TOPBAR_SETUP_WIDGETS = "setup_top_bar_widgets"

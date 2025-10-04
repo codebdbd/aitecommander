@@ -1,49 +1,49 @@
-"""
-Конфигурация лимитов и ограничений.
-"""
+"""Configuration helpers for application limits and quotas."""
+
+from __future__ import annotations
 
 from .base_config import BaseConfig
 
 
 class LimitsConfig(BaseConfig):
-    """Конфигурация лимитов и ограничений приложения."""
+    """Provide strongly typed accessors for limit-related settings."""
 
-    # === Лимиты размеров файлов ===
+    # === File size limits ===
 
     def get_max_icon_size(self) -> int:
-        """Получение максимального размера файлов иконок."""
+        """Return the maximum allowed icon file size in bytes."""
         return self.get("limits.max_icon_size", 10 * 1024 * 1024)
 
     def get_max_web_icon_size(self) -> int:
-        """Получение максимального размера веб-иконок."""
+        """Return the maximum allowed web icon size in bytes."""
         return self.get("limits.max_web_icon_size", 2 * 1024 * 1024)
 
-    # === Кэширование ===
+    # === Caching ===
 
     def get_icon_cache_size(self) -> int:
-        """Получение размера кэша иконок."""
+        """Return the cache capacity for icons."""
         return self.get("limits.icon_cache_size", 100)
 
     def get_icon_cache_ttl(self) -> int:
-        """Получение времени жизни кэша иконок в секундах.
+        """Return the cache time-to-live for icons in seconds.
 
-        По умолчанию 300 секунд (5 минут). Рекомендуемый диапазон: 300-600 секунд (5-10 минут)
-        для автоматического обновления изменений файлов иконок.
+        Defaults to 300 seconds (5 minutes). Recommended range: 300-600 seconds to
+        refresh icon file updates automatically.
         """
         return self.get("limits.icon_cache_ttl", 300)
 
     def get_negative_cache_ttl(self) -> int:
-        """Получение времени жизни негативного кэша в секундах.
+        """Return the negative cache TTL for missing icons in seconds.
 
-        По умолчанию 30 секунд. Используется для кэширования отсутствующих файлов,
-        чтобы избежать частых проверок файловой системы.
+        Defaults to 30 seconds and helps avoid repeated filesystem lookups for
+        absent files.
         """
         return self.get("limits.negative_cache_ttl", 30)
 
     def get_abs_icon_cache_ttl(self) -> int:
-        """Получение времени жизни кэша иконок по абсолютным путям в секундах.
+        """Return the cache TTL for icons resolved by absolute path in seconds.
 
-        По умолчанию 30 секунд. Используется для кэширования иконок по абсолютным путям,
-        чтобы избежать частых проверок файловой системы при динамическом появлении файлов.
+        Defaults to 30 seconds and prevents frequent filesystem checks when files
+        appear dynamically.
         """
         return self.get("limits.abs_icon_cache_ttl", 30)

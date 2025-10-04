@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from app.controllers.structure_modules.cache_manager import CacheManager
+from app.controllers.structure_modules import CacheManager
 
 
 def test_structure_cache_ttl():

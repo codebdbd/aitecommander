@@ -78,6 +78,10 @@
     "search_placeholder": "Поиск… (Ctrl+F)",
     "central_frame_shape": "StyledPanel",
     "default_icon_size": 24,
+    "application_font": {
+      "family": "Segoe UI",
+      "point_size": 10
+    },
     "bottom_actions": [
       [
         "Добавить раздел (F3)",
@@ -219,6 +223,7 @@
   "paths": {
     "link_icons_dir": "resources/link_icons",
     "qss_dir": "resources/qss",
+    "translations_dir": "resources/translations",
     "chrome_profiles_dir": "resources/browser_profiles/chrome",
     "firefox_profiles_dir": "resources/browser_profiles/firefox",
     "edge_profiles_dir": "resources/browser_profiles/edge",
@@ -340,6 +345,11 @@
         "opera",
         "yandex"
       ]
+    },
+    "i18n": {
+      "preferred_locale": "ru_RU",
+      "fallback_locale": "en_US",
+      "qt_translator_base": "app"
     },
     "browser_config": {
       "windows": {

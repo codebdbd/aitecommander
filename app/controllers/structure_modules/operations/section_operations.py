@@ -6,9 +6,10 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
-from .types import (
-    SectionData, SectionCreateData, SectionUpdateData,
-    StructureItemType
+from ..models.types import (
+    SectionData,
+    SectionCreateData,
+    SectionUpdateData,
 )
 
 from app.models import StructureModel

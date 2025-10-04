@@ -1,52 +1,53 @@
-"""
-Конфигурация настроек приложения.
-"""
+"""Application settings configuration helpers."""
+
+from __future__ import annotations
 
 import platform
+from typing import Any, Dict
 
 from .base_config import BaseConfig
 
 
 class SettingsConfig(BaseConfig):
-    """Конфигурация настроек и параметров приложения."""
+    """Provide typed accessors for application settings and metadata."""
 
-    # === Основные настройки приложения ===
+    # === Core application settings ===
 
     def get_app_name(self) -> str:
-        """Получение названия приложения."""
+        """Return the application name."""
         return self.get("app.name", "Aite Commander")
 
     def get_org_name(self) -> str:
-        """Получение названия организации."""
+        """Return the organization name."""
         return self.get("app.org_name", "Codebdbd")
 
     def get_app_version(self) -> str:
-        """Получение версии приложения."""
-        # Предпочитаем новый ключ: app.version; обратная совместимость: application.version
+        """Return the application version string."""
+        # Prefer the new key ``app.version``; fall back to the legacy ``application.version``
         ver = self.get("app.version")
         if ver is None:
             ver = self.get("application.version", "1.0.0")
         return ver
 
     def is_debug_mode(self) -> bool:
-        """Получение признака режима отладки."""
+        """Return whether debug mode is enabled."""
         return self.get("application.debug", False)
 
     def get_log_level(self) -> str:
-        """Получение уровня логирования."""
+        """Return the logging level name."""
         return self.get("application.log_level", "INFO")
 
     def get_about_title(self) -> str:
-        """Получение заголовка диалога 'О программе'."""
-        # Предпочитаем новый ключ: app.about_title; обратная совместимость: application.about_title
+        """Return the title for the About dialog."""
+        # Prefer the new key ``app.about_title``; fall back to ``application.about_title``
         title = self.get("app.about_title")
         if title is None:
             title = self.get("application.about_title", "О программе")
         return title
 
     def get_about_text(self) -> str:
-        """Получение текста диалога 'О программе'."""
-        # Предпочитаем новый ключ: app.about_text; обратная совместимость: application.about_text
+        """Return the body text for the About dialog."""
+        # Prefer the new key ``app.about_text``; fall back to ``application.about_text``
         text = self.get("app.about_text")
         if text is None:
             text = self.get(
@@ -54,24 +55,24 @@ class SettingsConfig(BaseConfig):
             )
         return text
 
-    # === База данных ===
+    # === Database ===
 
     def get_max_backups(self) -> int:
-        """Получение максимального количества резервных копий базы данных."""
-        # Новый источник: limits.max_backups; обратная совместимость: database.max_backups
+        """Return the maximum number of database backups to retain."""
+        # Prefer ``limits.max_backups``; fall back to ``database.max_backups``
         val = self.get("limits.max_backups")
         if val is None:
             val = self.get("database.max_backups", 10)
         return val
 
     def is_backup_enabled(self) -> bool:
-        """Получение признака включения резервного копирования."""
+        """Return whether automatic backups are enabled."""
         return self.get("database.backup_enabled", True)
 
-    # === Форматы и типы файлов ===
+    # === File formats and types ===
 
-    def get_supported_icon_formats(self) -> list:
-        """Получение списка поддерживаемых форматов файлов иконок."""
+    def get_supported_icon_formats(self) -> list[str]:
+        """Return the list of supported icon file extensions."""
         val = self.get("settings.supported_icon_formats")
         if val is None:
             val = self.get(
@@ -88,19 +89,19 @@ class SettingsConfig(BaseConfig):
                     ".webp",
                 ],
             )
-        return val
+        return list(val)
 
-    def get_valid_themes(self) -> list:
-        """Получение списка допустимых тем оформления."""
+    def get_valid_themes(self) -> list[str]:
+        """Return the list of acceptable UI themes."""
         val = self.get("settings.valid_themes")
         if val is None:
             val = self.get("ui.valid_themes", ["light", "dark"])
-        return val
+        return list(val)
 
-    # === Типы ссылок ===
+    # === Link types ===
 
-    def get_link_types(self) -> list:
-        """Получение справочника поддерживаемых типов ссылок."""
+    def get_link_types(self) -> list[list[Any]]:
+        """Return the list of link type descriptors."""
         val = self.get("settings.link_types")
         if val is None:
             val = self.get(
@@ -114,10 +115,10 @@ class SettingsConfig(BaseConfig):
                     ["folder", "Папка"],
                 ],
             )
-        return val
+        return [list(item) for item in val]
 
     def get_default_icons(self) -> dict:
-        """Получение иконок по умолчанию для различных типов элементов."""
+        """Return the mapping of default icons per entity type."""
         val = self.get("settings.default_icons")
         if val is None:
             val = self.get(
@@ -139,10 +140,10 @@ class SettingsConfig(BaseConfig):
                     "personal": "personal_icon.png",
                 },
             )
-        return val
+        return dict(val)
 
-    def get_quick_types(self) -> list:
-        """Получение списка быстрых типов ссылок."""
+    def get_quick_types(self) -> list[list[Any]]:
+        """Return the list of quick link type descriptors."""
         val = self.get("settings.quick_types")
         if val is None:
             val = self.get(
@@ -155,10 +156,10 @@ class SettingsConfig(BaseConfig):
                     ["chromeapp", "chrome_icon.png", "Chrome App"],
                 ],
             )
-        return val
+        return [list(item) for item in val]
 
-    def get_quick_type_tooltips(self) -> dict:
-        """Получение подсказок для быстрых типов ссылок."""
+    def get_quick_type_tooltips(self) -> Dict[str, str]:
+        """Return tooltips for quick link types keyed by type name."""
         val = self.get("settings.quick_type_tooltips")
         if val is None:
             val = self.get(
@@ -171,10 +172,10 @@ class SettingsConfig(BaseConfig):
                     "chromeapp": "Chrome App",
                 },
             )
-        return val
+        return dict(val)
 
-    def get_default_browse_paths(self) -> dict:
-        """Получение путей по умолчанию для диалогов выбора файлов/папок."""
+    def get_default_browse_paths(self) -> Dict[str, str]:
+        """Return default filesystem locations for browse dialogs."""
         val = self.get("settings.default_browse_paths")
         if val is None:
             val = self.get(
@@ -187,12 +188,12 @@ class SettingsConfig(BaseConfig):
                     "chromeapp": "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Приложения Chrome",
                 },
             )
-        return val
+        return dict(val)
 
-    # === Браузеры ===
+    # === Browser support ===
 
-    def get_browser_profile_settings(self) -> dict:
-        """Получение настроек профилей браузеров."""
+    def get_browser_profile_settings(self) -> Dict[str, Any]:
+        """Return configuration for browser profiles (raw mapping)."""
         val = self.get("settings.browser_profile_settings")
         if val is None:
             val = self.get(
@@ -209,56 +210,57 @@ class SettingsConfig(BaseConfig):
                     ]
                 },
             )
-        return val
+        return dict(val)
 
-    def get_supported_browsers(self) -> list:
-        """Получение списка поддерживаемых браузеров."""
+    def get_supported_browsers(self) -> list[str]:
+        """Return the list of supported browsers identifiers."""
         val = self.get("settings.browser_profile_settings.supported_browsers")
         if val is None:
             val = self.get(
                 "ui.browser_profile_settings.supported_browsers",
                 ["chrome", "firefox", "edge", "brave", "vivaldi", "opera", "yandex"],
             )
-        return val
+        return list(val)
 
-    def get_browser_config(self) -> dict:
-        """Получение конфигурации браузеров для текущей ОС."""
+    def get_browser_config(self) -> Dict[str, Any]:
+        """Return browser launch configuration for the current OS."""
         os_type = "windows" if platform.system() == "Windows" else "other"
         cfg = self.get(f"settings.browser_config.{os_type}")
         if cfg is None:
             cfg = self.get(f"ui.browser_config.{os_type}", {})
-        return cfg
+        return dict(cfg)
 
-    # === MIME типы ===
+    # === MIME types ===
 
-    def get_mime_types(self) -> dict:
-        """Получение MIME-типов приложения."""
+    def get_mime_types(self) -> Dict[str, Any]:
+        """Return the MIME type mapping configured for the app."""
         val = self.get("settings.mime_types")
         if val is None:
             val = self.get("ui.mime_types", {})
-        return val
+        return dict(val)
 
     def get_link_mime_type(self) -> str:
-        """Получение MIME-типа для ссылок."""
+        """Return the MIME type string used for serialized links."""
         val = self.get("settings.mime_types.link")
         if val is None:
             val = self.get("ui.mime_types.link", "application/x-link-id")
         return val
 
     def get_category_mime_type(self) -> str:
-        """Получение MIME-типа для категорий."""
+        """Return the MIME type string used for categories."""
         val = self.get("settings.mime_types.category")
         if val is None:
             val = self.get("ui.mime_types.category", "application/x-category-id")
         return val
 
-    # === Сетевые настройки парсера / внешние сервисы ===
+    # === Parser network settings / external services ===
     @property
     def ENABLE_CLOUDSCRAPER_FALLBACK(self) -> bool:
-        """Глобальный флаг: разрешать ли fallback на cloudscraper в HTTP-клиенте парсера.
+        """Flag enabling cloudscraper fallback in the parser HTTP client.
 
-        Источник: settings.enable_cloudscraper_fallback (bool), по умолчанию True.
-        Доступен как атрибут у app_config благодаря делегированию __getattr__.
+        Source: ``settings.enable_cloudscraper_fallback``; defaults to ``True``.
+        Accessible via ``app_config.ENABLE_CLOUDSCRAPER_FALLBACK`` because of
+        :meth:`AppConfig.__getattr__` delegation.
         """
         try:
             return bool(self.get("settings.enable_cloudscraper_fallback", True))
@@ -267,21 +269,21 @@ class SettingsConfig(BaseConfig):
 
     @property
     def REQUIRE_SUSPEND_UPDATES(self) -> bool:
-        """Требовать ли suspend_updates для пакетных UI-обновлений после смены темы.
+        """Require ``suspend_updates`` for batch UI updates after theme changes.
 
-        Источник: settings.require_suspend_updates (bool), по умолчанию False.
-        Если True и утилита suspend_updates недоступна, ThemeController не будет выполнять
-        массовые обновления (чтобы не вызывать визуальные артефакты), а лишь залогирует проблему.
+        Source: ``settings.require_suspend_updates``; defaults to ``False``. When
+        enabled and ``suspend_updates`` is unavailable, the theme controller logs
+        an issue instead of performing potentially glitchy updates.
         """
         try:
             return bool(self.get("settings.require_suspend_updates", False))
         except Exception:
             return False
 
-    # === Параметры файловой блокировки кэша фавиконок ===
+    # === Favicon cache file locking ===
     @property
     def FAVICON_LOCK_TIMEOUT(self) -> float:
-        """Таймаут межпроцессной блокировки кэша (секунды). По умолчанию 5.0."""
+        """Return the inter-process cache lock timeout in seconds (default 5.0)."""
         try:
             return float(self.get("settings.favicon_lock_timeout", 5.0))
         except Exception:
@@ -289,7 +291,7 @@ class SettingsConfig(BaseConfig):
 
     @property
     def FAVICON_LOCK_BACKEND(self) -> str:
-        """Бэкенд блокировки: 'auto'|'portalocker'|'filelock'. По умолчанию 'auto'."""
+        """Return the lock backend; one of ``auto`` | ``portalocker`` | ``filelock``."""
         try:
             v = self.get("settings.favicon_lock_backend", "auto")
             if not isinstance(v, str):
@@ -301,10 +303,10 @@ class SettingsConfig(BaseConfig):
         except Exception:
             return "auto"
 
-    # === HTTP клиент: параметры ретраев ===
+    # === HTTP client retry parameters ===
     @property
     def HTTP_RETRIES(self) -> int:
-        """Количество повторов HTTP-запроса (Retry.total/connect/read). По умолчанию 2."""
+        """Return the retry count for HTTP requests (default 2)."""
         try:
             v = int(self.get("settings.http_retries", 2))
             return max(0, v)
@@ -313,7 +315,7 @@ class SettingsConfig(BaseConfig):
 
     @property
     def HTTP_RETRY_BACKOFF(self) -> float:
-        """Коэффициент экспоненциального бэкоффа для Retry (сек). По умолчанию 0.5."""
+        """Return the exponential backoff factor for retries in seconds (default 0.5)."""
         try:
             v = float(self.get("settings.http_retry_backoff", 0.5))
             return max(0.0, v)
@@ -321,16 +323,16 @@ class SettingsConfig(BaseConfig):
             return 0.5
 
     @property
-    def HTTP_RETRY_ON_STATUS(self) -> bool:
-        """Включать ли ретраи по статусам 429/5xx (по умолчанию False)."""
+    def FAVICON_CACHE_PERSISTENT(self) -> bool:
+        """Return whether to keep the shelve DB open for persistent favicon cache."""
         try:
-            return bool(self.get("settings.http_retry_on_status", False))
+            return bool(self.get("settings.favicon_cache_persistent", False))
         except Exception:
             return False
 
     @property
     def HTTP_POOL_CONNECTIONS(self) -> int:
-        """Размер пула базовых соединений адаптера (pool_connections). По умолчанию 10."""
+        """Return ``pool_connections`` value for the HTTP adapter (default 10)."""
         try:
             v = int(self.get("settings.http_pool_connections", 10))
             return max(1, v)
@@ -339,16 +341,16 @@ class SettingsConfig(BaseConfig):
 
     @property
     def HTTP_POOL_MAXSIZE(self) -> int:
-        """Максимум соединений в пуле (pool_maxsize). По умолчанию 20."""
+        """Return ``pool_maxsize`` value for the HTTP adapter (default 20)."""
         try:
             v = int(self.get("settings.http_pool_maxsize", 20))
             return max(1, v)
         except Exception:
             return 20
 
-    # === FaviconCache параметры ===
+    # === Favicon cache parameters ===
     def get_favicon_cache_max_size(self) -> int:
-        """Максимальный размер persistent-кэша фавиконок (кол-во записей). По умолчанию 5000."""
+        """Return the persistent favicon cache capacity (default 5000 records)."""
         try:
             v = int(self.get("settings.favicon_cache_max_size", 5000))
             return max(1, v)
@@ -356,17 +358,23 @@ class SettingsConfig(BaseConfig):
             return 5000
 
     def get_favicon_cache_cleanup_interval(self) -> float:
-        """Интервал периодической очистки (сек). По умолчанию 300.0 (5 минут). Минимум 30 секунд."""
+        """Return the periodic cleanup interval in seconds (default 300, minimum 30)."""
         try:
             v = float(self.get("settings.favicon_cache_cleanup_interval", 300.0))
             return max(30.0, v)
         except Exception:
             return 300.0
 
-    @property
-    def FAVICON_CACHE_PERSISTENT(self) -> bool:
-        """Включить постоянное соединение с shelve (держать БД открытой). По умолчанию False."""
-        try:
-            return bool(self.get("settings.favicon_cache_persistent", False))
-        except Exception:
-            return False
+    # === Internationalization ===
+
+    def get_preferred_locale(self) -> str | None:
+        """Return the preferred locale code (e.g., ``ru_RU``) or ``None``."""
+        return self.get("settings.i18n.preferred_locale")
+
+    def get_fallback_locale(self) -> str | None:
+        """Return the fallback locale used when loading translations fails."""
+        return self.get("settings.i18n.fallback_locale")
+
+    def get_qt_translator_base(self) -> str | None:
+        """Return the base name for Qt translation files (``.qm``)."""
+        return self.get("settings.i18n.qt_translator_base")

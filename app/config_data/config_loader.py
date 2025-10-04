@@ -1,7 +1,4 @@
-"""
-Главный загрузчик конфигурации приложения.
-Объединяет все специализированные конфигурационные модули.
-"""
+"""Primary entry point that wires together specialized configuration modules."""
 
 import json
 from pathlib import Path
@@ -15,32 +12,29 @@ from .utils import get_by_path
 
 
 class AppConfig:
-    """Управление конфигурацией приложения из JSON файла."""
+    """Access application configuration backed by a JSON file."""
 
     def __init__(self, config_path: Optional[str] = None):
-        """Инициализация загрузчика конфигурации."""
+        """Initialize the loader and read the configuration payload."""
         if config_path is None:
             config_path = Path(__file__).parent / "app_config.json"
         self._config_path = Path(config_path)
         self._config = self._load_config()
 
-        # Инициализация специализированных конфигураций
+        # Initialize specialized configuration facades
         self.ui = UIConfig(self._config)
         self.paths = PathConfig(self._config)
         self.limits = LimitsConfig(self._config)
         self.settings = SettingsConfig(self._config)
 
     def __getattr__(self, name: str):
-        """Делегирование неизвестных атрибутов к подконфигурациям.
+        """Delegate missing attributes to sub-configurations.
 
-        Порядок: ui -> paths -> limits -> settings.
-        Возвращает найденный атрибут (метод или свойство) соответствующего
-        объекта подконфигурации. Если атрибут не найден ни в одном из них,
-        возбуждается AttributeError как обычно.
-
-        Это позволяет убрать дублирующие геттеры уровня AppConfig, сохраняя
-        обратную совместимость: существующие методы остаются и работают, а
-        новые обращения могут вызываться напрямую через app_config.<method>.
+        Lookup order: UI -> paths -> limits -> settings. Returns the attribute
+        (method or property) of the first configuration object that defines it.
+        Falls back to :class:`AttributeError` when nothing matches. This removes
+        redundant getters while keeping backwards compatibility for legacy code
+        that expects ``app_config.<method>()`` delegates to sub-configs.
         """
         for sub in (self.ui, self.paths, self.limits, self.settings):
             if hasattr(sub, name):
@@ -48,30 +42,30 @@ class AppConfig:
         raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
 
     def __dir__(self):
-        """Расширяет dir() за счет атрибутов подконфигураций для удобства IDE."""
+        """Expose attributes from sub-configurations for improved IDE support."""
         base = set(super().__dir__())
         for sub in (self.ui, self.paths, self.limits, self.settings):
             base.update(dir(sub))
         return sorted(base)
 
     def _load_config(self) -> Dict[str, Any]:
-        """Загрузка конфигурации из JSON файла."""
+        """Load configuration from a JSON file."""
         if not self._config_path.exists():
             raise FileNotFoundError(f"Файл конфигурации не найден: {self._config_path}")
         with open(self._config_path, "r", encoding="utf-8") as f:
             return json.load(f)
 
     def get(self, key_path: str, default: Any = None) -> Any:
-        """Получение значения из конфигурации по пути к ключу."""
+        """Return a value from the raw configuration via dotted key path."""
         return get_by_path(self._config, key_path, default)
 
     def get_full_config(self) -> Dict[str, Any]:
-        """Получение полной конфигурации."""
+        """Return the complete configuration dictionary copy."""
         return self._config.copy()
 
     def get_ui_icons_path(self) -> str:
-        """Возвращает путь к UI-иконкам как строку."""
+        """Return the path to UI icons as a string."""
         return str(self.paths.get_ui_icons_dir())
 
-    # Часть прежних get_* удалена как чистые прокси. Доступ к ним делегируется
-    # через __getattr__ напрямую в ui/paths/limits/settings.
+    # Former get_* proxies were removed. Requests are delegated through
+    # ``__getattr__`` to ``ui``/``paths``/``limits``/``settings`` configurations.

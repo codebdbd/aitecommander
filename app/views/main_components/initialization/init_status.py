@@ -10,11 +10,11 @@ logger = logging.getLogger(__name__)
 
 
 class StatusUpdater:
-    """Безопасное обновление сообщений статуса в главном окне.
+    """Safely update status messages within the main window.
 
-    Использование:
+    Usage:
         status = StatusUpdater(window, logger)
-        status.set_message("Загрузка...")
+        status.set_message("Loading...")
     """
 
     def __init__(
@@ -28,7 +28,7 @@ class StatusUpdater:
             if hasattr(self._window, "message_label") and self._window.message_label:
                 self._window.message_label.setText(message)
         except (AttributeError, RuntimeError) as e:
-            # Нештатная ситуация для ранней фазы — логируем на DEBUG, чтобы не шуметь в релизе
+            # Unexpected state during early initialization — log at DEBUG to avoid noise
             self._logger.debug(
                 "StatusUpdater: failed to update status '%s': %s", message, e
             )

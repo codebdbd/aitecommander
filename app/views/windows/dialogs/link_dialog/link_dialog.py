@@ -1,16 +1,16 @@
 """
-LinkDialog - диалог добавления/редактирования ссылки.
+LinkDialog - dialog for adding/editing a link.
 
-Интерфейсы контроллеров (для статической проверки):
-- DialogControllerProtocol: предоставляет иерархические данные и валидацию/сохранение.
-- LinkDataControllerProtocol: отвечает только за валидацию/сохранение данных формы.
+Controller interfaces (for type checking):
+- DialogControllerProtocol: provides hierarchical data and validation/save methods.
+- LinkDataControllerProtocol: responsible only for validating/saving form data.
 """
 
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Tuple, runtime_checkable
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QCoreApplication, Qt, QTimer
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -38,14 +38,19 @@ from .link_dialog_ui import LinkDialogUI
 
 logger = logging.getLogger(__name__)
 
+_TR_CONTEXT = "LinkDialog"
+
+
+def _tr(text: str, disambiguation: str | None = None, n: int | None = None) -> str:
+    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation, n if n is not None else -1)
+
 
 @runtime_checkable
 class LinkDataControllerProtocol(Protocol):
-    """Протокол контроллера данных ссылки (минимальный контракт).
+    """Protocol describing the minimal link data controller contract.
 
-    Ожидается реализация метода `validate_and_save`, который принимает
-    словарь данных формы и возвращает словарь результата с ключом `is_valid`
-    и необязательным списком `errors`.
+    Implementations must provide `validate_and_save` returning a dict with
+    the key `is_valid` and an optional list `errors`.
     """
 
     def validate_and_save(self, form_data: Dict[str, Any]) -> Dict[str, Any]: ...
@@ -53,11 +58,10 @@ class LinkDataControllerProtocol(Protocol):
 
 @runtime_checkable
 class DialogControllerProtocol(LinkDataControllerProtocol, Protocol):
-    """Протокол диалогового контроллера с иерархическими данными.
+    """Protocol for dialog controllers that supply hierarchical data.
 
-    Требуется предоставление списков разделов и категорий по идентификаторам.
-    Элементы списков должны быть словарями с ключами как минимум `id` и `name`,
-    опционально `icon_path`.
+    Implementations must return lists of sections and categories by IDs.
+    Items must be dictionaries with at least `id` and `name`, optionally `icon_path`.
     """
 
     def get_sections_for_sphere(self, sphere_id: int) -> List[Dict[str, Any]]: ...
@@ -66,70 +70,69 @@ class DialogControllerProtocol(LinkDataControllerProtocol, Protocol):
 
 
 class LinkDialog(BaseDialog):
-    """Диалог добавления/редактирования ссылок с модульной структурой."""
+    """Dialog for adding/editing links with a modular structure."""
 
-    # Настраиваемая задержка дебаунса обработки пути (URL) в миллисекундах.
-    # Используется таймером для отложенного старта парсинга пути при вводе пользователем,
-    # чтобы не триггерить фоновые задачи на каждый символ. Вынесено из "магического"
-    # значения для удобства настройки и тестирования.
+    # Configurable debounce delay for URL/path processing in milliseconds.
+    # Used by a timer to delay background parsing while the user types so that
+    # background tasks are not triggered for every character.
     PATH_DEBOUNCE_MS: int = 300
 
-    # --- Приватные геттеры UI-виджетов для устранения дублирования ---
+    # --- Private UI widget getters to avoid duplication ---
     def _get_sphere_cb(self) -> QComboBox:
-        """Возвращает комбобокс сфер (`QComboBox`)."""
+        """Return the sphere combo box (`QComboBox`)."""
         return self.ui.get_widget("sphere_cb")
 
     def _get_section_cb(self) -> QComboBox:
-        """Возвращает комбобокс разделов (`QComboBox`)."""
+        """Return the section combo box (`QComboBox`)."""
         return self.ui.get_widget("section_cb")
 
     def _get_category_cb(self) -> QComboBox:
-        """Возвращает комбобокс категорий (`QComboBox`)."""
+        """Return the category combo box (`QComboBox`)."""
         return self.ui.get_widget("category_cb")
 
     def _get_icon_btn(self) -> QPushButton:
-        """Возвращает кнопку выбора иконки (`QPushButton`)."""
+        """Return the icon selection button (`QPushButton`)."""
         return self.ui.get_widget("icon_btn")
 
     def _get_type_group(self) -> QButtonGroup:
-        """Возвращает группу переключателей типов ссылки (`QButtonGroup`)."""
+        """Return the group of link type buttons (`QButtonGroup`)."""
         return self.ui.get_widget("type_group")
 
     def _get_profile_btn(self) -> QPushButton:
-        """Возвращает кнопку выбора профиля (`QPushButton`)."""
+        """Return the profile selection button (`QPushButton`)."""
         return self.ui.get_widget("profile_btn")
 
-    # Дополнительные геттеры для унификации доступа к UI
+    # Additional getters for unified UI access
     def _get_url_le(self) -> QLineEdit:
-        """Возвращает поле ввода URL (`QLineEdit`)."""
+        """Return the URL/path line edit (`QLineEdit`)."""
         return self.ui.get_widget("url_le")
 
     def _get_name_le(self) -> QLineEdit:
-        """Возвращает поле ввода названия (`QLineEdit`)."""
+        """Return the name line edit (`QLineEdit`)."""
         return self.ui.get_widget("name_le")
 
     def _get_args_le(self) -> QLineEdit:
-        """Возвращает поле ввода аргументов (`QLineEdit`)."""
+        """Return the arguments line edit (`QLineEdit`)."""
         return self.ui.get_widget("args_le")
 
     def _get_args_label(self) -> QLabel:
-        """Возвращает метку аргументов (`QLabel`)."""
+        """Return the arguments label (`QLabel`)."""
         return self.ui.get_widget("args_label")
 
     def _get_browse_btn(self) -> QPushButton:
-        """Возвращает кнопку "Обзор" (`QPushButton`)."""
+        """Return the "Browse" button (`QPushButton`)."""
         return self.ui.get_widget("browse_btn")
 
     def _get_button_box(self) -> QDialogButtonBox:
-        """Возвращает блок кнопок диалога (`QDialogButtonBox`)."""
+        """Return the dialog button box (`QDialogButtonBox`)."""
         return self.ui.get_widget("button_box")
 
     def _get_fav_chk(self) -> QCheckBox:
-        """Возвращает чекбокс избранного (`QCheckBox`)."""
+        """Return the favorites checkbox (`QCheckBox`)."""
         return self.ui.get_widget("fav_chk")
 
     def _get_notes_te(self) -> QTextEdit:
-        """Возвращает поле заметок (`QTextEdit`)."""
+        """Return the notes text edit (`QTextEdit`)."""
         return self.ui.get_widget("notes_te")
 
     def __init__(
@@ -143,29 +146,28 @@ class LinkDialog(BaseDialog):
     ):
         super().__init__(parent)
 
-        # Обеспечиваем существование директории пользовательских иконок
-        # Перенесено из уровня модуля, чтобы исключить побочные эффекты при импорте
+        # Ensure user icons directory exists (moved from module scope to avoid import side-effects)
         icon_path_service.ensure_user_icons_dir()
 
-        # Получаем типы ссылок из конфигурации
+        # Obtain link types from configuration
         self.link_types = app_config.settings.get_link_types()
 
-        # Инициализация основных свойств
+        # Init core properties
         self._init_core_properties(
             initialization_data, dialog_controller, link, category_id
         )
 
-        # Опциональный контроллер для MVC архитектуры
+        # Optional MVC controller
         self.link_controller = link_controller
 
-        # Инициализация компонентов
+        # Init components
         self._init_components()
 
-        # Проверка конфигурации
+        # Validate configuration
         if not self._validate_configuration():
             return
 
-        # Настройка свойств UI и загрузка данных
+        # Configure UI and load data
         self._setup_ui_properties()
         self._load_initial()
 
@@ -176,7 +178,7 @@ class LinkDialog(BaseDialog):
         link: Optional[Dict],
         category_id: Optional[int],
     ) -> None:
-        """Инициализирует основные свойства диалога."""
+        """Initialise the dialog core properties."""
         self.initialization_data = initialization_data
         self.dialog_controller = dialog_controller
         self.link = link.copy() if link else {}
@@ -186,20 +188,20 @@ class LinkDialog(BaseDialog):
         self.selected_profiles: List[Dict] = []
 
     def _init_components(self) -> None:
-        """Инициализация UI и обработчиков."""
-        # UI компоненты
+        """Initialise UI and handlers."""
+        # UI components
         self.ui = LinkDialogUI(self)
         self.ui.build_ui(self.link_types)
 
-        # Неоновое свечение для кнопок типов ссылок — как у кнопок сфер
+        # Neon glow for type buttons — same behaviour as sphere buttons
         try:
-            # Поведение как у кнопок сфер: реальный неон на hover и у активной
+            # Apply hover and active neon effect similar to sphere buttons
             self._neon_link_filter = NeonEventFilter(
                 color=QColor("#0194F0"), blur_radius=18
             )
             for btn in self._get_type_group().buttons():
                 btn.installEventFilter(self._neon_link_filter)
-                # Подключаем отслеживание toggled и синхронизируем состояние свечения
+                # Track toggled state to sync the glow
                 try:
                     self._neon_link_filter._maybe_connect_toggled(btn)
                     if getattr(btn, "isChecked", lambda: False)():
@@ -209,31 +211,31 @@ class LinkDialog(BaseDialog):
                 except Exception:
                     pass
         except (AttributeError, RuntimeError) as e:
-            # Не блокируем диалог при ошибке эффекта
+            # Do not block the dialog if neon effect fails
             logger.warning(
-                "Ошибка установки neon эффекта на кнопки типов: %s", e, exc_info=True
+                "Failed to install neon effect on link type buttons: %s", e, exc_info=True
             )
 
-        # Обработчики событий
+        # Event handlers
         self.handlers = LinkDialogHandlers(self)
         self.handlers.connect_signals()
 
-        # Устанавливаем защиту от нежелательных перескоков фокуса в блок иерархии
+        # Install focus guard to prevent unwanted focus jumps in the hierarchy block
         try:
             self._install_focus_guard()
         except Exception:
             pass
 
-        # Инициализация воркеров и таймеров
+        # Workers and timers
         self._init_workers_and_timers()
 
     # --- Focus guard -------------------------------------------------------
     def _install_focus_guard(self) -> None:
-        """Устанавливает eventFilter на комбобоксы иерархии, чтобы временно
-        не позволять им перехватывать фокус сразу после смены типа.
+        """Install an event filter on hierarchy combo boxes.
 
-        Использует атрибут `_preferred_focus_widget`, который выставляется
-        в `TypeChangeMixin._update_ui_state()` на 300 мс и затем сбрасывается.
+        Prevents them from stealing focus immediately after type changes by
+        using `_preferred_focus_widget`, set in `TypeChangeMixin._update_ui_state()`
+        for 300 ms and then cleared.
         """
         try:
             for cb in (self._get_sphere_cb(), self._get_section_cb(), self._get_category_cb()):
@@ -245,13 +247,13 @@ class LinkDialog(BaseDialog):
 
     def eventFilter(self, obj, event):
         try:
-            # Если задан желаемый фокус и текущий объект пытается забрать фокус — вернём его обратно
+            # If a preferred focus widget is set and current object tries to grab focus, restore it
             if event and event.type() == event.Type.FocusIn:
                 target = getattr(self, "_preferred_focus_widget", None)
                 if target is not None and obj is not target:
                     try:
                         target.setFocus(Qt.FocusReason.OtherFocusReason)
-                        return True  # Поглотить фокус-событие
+                        return True  # Consume focus event
                     except Exception:
                         pass
         except Exception:
@@ -259,44 +261,46 @@ class LinkDialog(BaseDialog):
         return super().eventFilter(obj, event)
 
     def _init_workers_and_timers(self) -> None:
-        """Инициализирует воркеры и таймеры для обработки ссылок."""
+        """Initialise workers and timers used for link processing."""
         self._processing_timer = QTimer(self)
         self._processing_timer.setSingleShot(True)
         self._processing_timer.timeout.connect(self.handlers._trigger_link_processing)
 
     def _validate_configuration(self) -> bool:
-        """Проверяет конфигурацию диалога."""
+        """Validate dialog configuration."""
         if not validate_config_for_icons(app_config):
             self.show_error(
-                "Некорректная конфигурация иконок.",
-                "Ошибка конфигурации",
-                informative_text=(
-                    "Не задан путь к каталогу иконок. Укажите путь в настройках приложения или конфиге."
+                self.tr("Icon configuration is invalid."),
+                self.tr("Configuration error"),
+                informative_text=self.tr(
+                    "Icons directory is not set. Specify the path in the application settings or config."
                 ),
-                details="Параметр конфигурации для иконок отсутствует или пуст.",
+                details=self.tr("Configuration parameter for icons is missing or empty."),
             )
             self.close()
             return False
         return True
 
     def _setup_ui_properties(self) -> None:
-        """Настраивает свойства UI диалога."""
-        self.setWindowTitle("Редактировать ссылку" if self.link else "Добавить ссылку")
+        """Configure dialog UI properties."""
+        self.setWindowTitle(
+            self.tr("Edit link") if self.link else self.tr("Add link")
+        )
         self.setFixedSize(
             app_config.ui.get_link_dialog_width(),
             app_config.ui.get_link_dialog_height(),
         )
 
     def _load_initial(self) -> None:
-        """Загружает начальные данные в форму."""
+        """Load initial data into the form."""
         logger.debug(
-            "Инициализация формы: link_type=%s, category_id=%s, link_keys=%s",
+            "Form initialization: link_type=%s, category_id=%s, link_keys=%s",
             self.link_type,
             self.initial_category,
             list(self.link.keys()),
         )
 
-        # Установка типа ссылки
+        # Set link type button
         type_group = self._get_type_group()
         _lt = LinkType.from_value(self.link_type)
         for btn in type_group.buttons():
@@ -304,7 +308,7 @@ class LinkDialog(BaseDialog):
                 btn.setChecked(True)
                 break
 
-        # Загрузка данных формы
+        # Prepare form data
         form_data = {
             "url_le": self.link.get("url", ""),
             "name_le": self.link.get("name", ""),
@@ -313,30 +317,30 @@ class LinkDialog(BaseDialog):
             "fav_chk": bool(self.link.get("is_favorite", False)),
         }
 
-        logger.debug("Исходные данные формы: %s", form_data)
+        logger.debug("Initial form data: %s", form_data)
 
         self.ui.set_form_data(form_data)
 
-        logger.debug("Начальные значения установлены в UI; продолжаем установку иконки")
+        logger.debug("Initial values applied to UI; continuing with icon setup")
 
-        # Установка иконки
+        # Set icon
         self._set_initial_icon()
 
-        # Заполнение иерархии
+        # Populate hierarchy
         self._populate_hierarchy()
 
-        # Загрузка мигрированных профилей
+        # Load migrated profiles if present
         if self.link and self.link.get("migrated_profiles"):
             self.selected_profiles = self.link["migrated_profiles"]
             profile_btn = self._get_profile_btn()
             profile_btn.setText(self._format_profile_text(self.selected_profiles))
 
-        # Обновление состояния UI
+        # Update UI state
         self.handlers._update_ui_state()
 
-        # Установка фокуса по типу ссылки:
-        #  - для WEB: фокус на поле URL/Путь
-        #  - для остальных типов: фокус на кнопке "Обзор…"
+        # Set focus depending on link type:
+        #  - WEB: focus URL/path field
+        #  - others: focus "Browse" button
         try:
             lt = LinkType.from_value(self.link_type)
             def _apply_initial_focus():
@@ -352,26 +356,28 @@ class LinkDialog(BaseDialog):
             pass
 
     def _set_initial_icon(self) -> None:
-        """Устанавливает начальную иконку."""
+        """Set initial icon."""
         resolved, exists = self._resolve_and_apply_icon(
             LinkType.from_value(self.link_type).value, self.icon_name
         )
         if not exists:
-            # Сообщаем один раз, что иконка не найдена
+            # Notify once when icon is missing
             self.show_warning(
-                "Иконка по умолчанию не найдена.",
-                "Проблема с иконкой",
-                informative_text="Кнопка будет отображаться без иконки. Укажите корректный путь к иконкам в настройках.",
-                details=f"Ожидался файл: {resolved}",
+                self.tr("Default icon not found."),
+                self.tr("Icon issue"),
+                informative_text=self.tr(
+                    "The button will be shown without an icon. Provide a valid icons path in settings."
+                ),
+                details=self.tr("Expected file: {path}").format(path=resolved),
             )
 
     def _resolve_and_apply_icon(
         self, link_type: str, icon_name: str
     ) -> Tuple[Optional[str], bool]:
-        """Резолвит путь к иконке и применяет её к кнопке, если файл существует.
+        """Resolve and apply an icon to the button if the file exists.
 
-        Возвращает кортеж `(resolved_path, exists)`, где `resolved_path` — строка
-        с путём или None, а `exists` — флаг существования файла.
+        Returns `(resolved_path, exists)` where `resolved_path` is a string path or
+        `None`, and `exists` indicates presence of the file.
         """
         link_dict = {"type": link_type, "icon_path": icon_name}
         resolved = resolve_icon_for_link(link_dict)
@@ -381,55 +387,53 @@ class LinkDialog(BaseDialog):
         return resolved, exists
 
     def set_link_type(self, link_type: str) -> None:
-        """Программно выбрать тип ссылки и обновить UI.
+        """Programmatically select link type and update UI.
 
-        Единая реализация находится в миксине `TypeChangeMixin` (через `LinkDialogHandlers`).
-        Этот метод оставлен как стабильная точка входа для внешнего кода
-        (например, `MainWindow.quick_add_link`) и делегирует выполнение обработчику.
+        Central implementation resides in `TypeChangeMixin` via `LinkDialogHandlers`.
+        Kept as a stable entry point for external callers (e.g., `MainWindow.quick_add_link`).
         """
-        # Делегируем централизованной реализации в обработчиках
         self.handlers.set_link_type(link_type)
 
     def _populate_hierarchy(self) -> None:
-        """Заполняет иерархические списки (сферы/разделы/категории).
+        """Populate hierarchy combo boxes (spheres/sections/categories).
 
-        Разделён на этапы:
-        1) загрузка списка сфер из initialization_data,
-        2) применение начального выбора (по category_hierarchy, если есть),
-        3) делегирование обновления разделов/категорий миксину HierarchyMixin.
+        Steps:
+        1) load spheres from `initialization_data`,
+        2) apply initial selection (from `category_hierarchy`, if present),
+        3) delegate updating sections/categories to `HierarchyMixin`.
         """
-        # 1) Загрузка сфер из initialization_data
+        # 1) Load spheres from initialization_data
         self._populate_spheres()
 
         sphere_cb = self._get_sphere_cb()
         section_cb = self._get_section_cb()
         category_cb = self._get_category_cb()
 
-        # 2) Применение начального выбора (по ссылке/параметрам конструктора)
+        # 2) Apply initial selection (based on link/constructor params)
         cid = self.link.get("category_id") or self.initial_category
         if cid:
             hierarchy = self.initialization_data.get("category_hierarchy") or {}
 
-            # Сначала выставляем сферу (если задана в иерархии)
+            # Set sphere first (if provided)
             self._set_index_by_data(sphere_cb, hierarchy.get("sphere_id"))
 
-            # Обновляем разделы под текущую сферу
+            # Update sections under the current sphere
             self.handlers._update_sections()
 
-            # Устанавливаем раздел, если задан, иначе оставляем текущий (или первый, если ещё не выбран)
+            # Apply section if provided, otherwise keep current (or first)
             section_id = hierarchy.get("section_id")
             if not self._set_index_by_data(section_cb, section_id):
                 self._select_first_if_unset(section_cb)
 
-            # Обновляем категории под текущий раздел
+            # Update categories under the current section
             self.handlers._update_categories()
 
-            # Устанавливаем категорию, если задана, иначе оставляем текущую (или первую, если ещё не выбрана)
+            # Apply category if provided, otherwise keep current (or first)
             category_id = hierarchy.get("category_id")
             if not self._set_index_by_data(category_cb, category_id):
                 self._select_first_if_unset(category_cb)
         else:
-            # Значения по умолчанию: первая сфера/раздел/категория
+            # Defaults: first sphere/section/category
             self._apply_default_hierarchy_selection()
             self.handlers._update_sections()
             if section_cb.count() > 0:
@@ -439,24 +443,22 @@ class LinkDialog(BaseDialog):
                     self._select_first_if_unset(category_cb)
 
     def _populate_spheres(self) -> None:
-        """Заполняет список сфер из initialization_data (без иконок)."""
+        """Populate the sphere list from `initialization_data` (no icons)."""
         sphere_cb = self._get_sphere_cb()
         sphere_cb.clear()
         for sp in self.initialization_data.get("spheres", []):
             sphere_cb.addItem(sp["name"], sp["id"])
 
     def _apply_default_hierarchy_selection(self) -> None:
-        """Устанавливает выбор по умолчанию: первая сфера, первый раздел, первая категория."""
+        """Select the first sphere, section, and category by default."""
         sphere_cb = self._get_sphere_cb()
         if sphere_cb.count() > 0:
             sphere_cb.setCurrentIndex(0)
 
     def _set_index_by_data(self, combo: Any, data_id: Any) -> bool:
-        """Безопасная установка текущего индекса комбобокса по значению data.
+        """Safely set combo box index by item data.
 
-        Возвращает True, если индекс был успешно установлен. Возвращает False,
-        если data_id равен None, совпадение не найдено или в процессе возникло
-        исключение. Состояние комбобокса при этом не изменяется.
+        Returns True when index changed, False if `data_id` is None, not found, or an exception occurs.
         """
         try:
             if data_id is None:
@@ -466,15 +468,14 @@ class LinkDialog(BaseDialog):
                 combo.setCurrentIndex(idx)
                 return True
         except (AttributeError, RuntimeError, TypeError):
-            # В спорных случаях не меняем состояние
+            # Do not change state on errors
             return False
         return False
 
     def _select_first_if_unset(self, combo: Any) -> bool:
-        """Выбирает первый элемент комбобокса, если текущий индекс не установлен.
+        """Select the first combo box item if nothing is currently selected.
 
-        Возвращает True в случае успешного выбора. Возвращает False, если
-        элементов нет, индекс уже установлен или произошло исключение.
+        Returns True on success, False if items are missing, an index already set, or an exception occurs.
         """
         try:
             if combo.count() > 0 and combo.currentIndex() < 0:
@@ -485,37 +486,40 @@ class LinkDialog(BaseDialog):
         return False
 
     def get_ui_icons_dir(self) -> Path:
-        """Получает директорию UI иконок."""
+        """Return the UI icons directory."""
         return icon_path_service.get_ui_icons_dir()
 
     def get_user_icons_dir(self) -> Path:
-        """Получает директорию пользовательских иконок."""
+        """Return the user icons directory."""
         return icon_path_service.get_user_icons_dir()
 
     def _format_profile_text(self, profiles: List[Dict]) -> str:
-        """Форматирует текст для отображения выбранных профилей."""
+        """Format display text for selected profiles."""
         emails = [p.get("email") or p.get("name") for p in profiles]
         if not emails:
-            return "Профиль"
+            return self.tr("Profile")
         elif len(emails) == 1:
-            return f"Профиль: {emails[0]}"
+            return self.tr("Profile: {email}").format(email=emails[0])
         elif len(emails) == 2:
-            return f"Профили: {emails[0]}, {emails[1]}"
-        return f"Профили: {emails[0]}, {emails[1]} и ещё {len(emails) - 2}"
+            return self.tr("Profiles: {first}, {second}").format(
+                first=emails[0], second=emails[1]
+            )
+        return self.tr("Profiles: {first}, {second} and {rest} more").format(
+            first=emails[0], second=emails[1], rest=len(emails) - 2
+        )
 
     def closeEvent(self, event) -> None:
-        """Обработчик события закрытия окна.
+        """Handle dialog close event.
 
-        Если идёт обработка и есть активный worker, предлагаем подтвердить закрытие.
-        Останавливаем таймер, если есть, чтобы не было утечек.
-        Очищаем event filters для предотвращения утечек памяти.
+        If background processing is running, ask for confirmation, stop timers and
+        clean up event filters to avoid leaks.
         """
         if self.handlers._is_processing or self.handlers._active_worker:
             if not self._show_confirm_close_while_processing():
                 event.ignore()
                 return
 
-        # Очистка event filters для предотвращения утечек памяти
+        # Clean event filters to prevent leaks
         try:
             if hasattr(self, '_neon_link_filter') and self._neon_link_filter:
                 self._neon_link_filter.cleanup()
@@ -530,6 +534,6 @@ class LinkDialog(BaseDialog):
                 self._processing_timer.deleteLater()
         except (AttributeError, RuntimeError) as e:
             logger.debug(
-                "LinkDialog: ошибка остановки таймера при закрытии: %s", e
+                "LinkDialog: failed to stop processing timer during close: %s", e
             )
         super().closeEvent(event)

@@ -62,7 +62,7 @@ class _AutoHideTreeFilter(QObject):
         stack = getattr(self.window, "stack", None)
         table = getattr(self.window, "table", None)
         
-        # ИСПРАВЛЕНИЕ: Получаем ширину окна
+        # FIX: obtain current window width
         try:
             w = self.window.width()
         except (AttributeError, RuntimeError):
@@ -331,10 +331,10 @@ class WindowUISetup:
             _activate()
 
     def _finalize_topbar_startup(self, mgr: TopBarLayoutManager) -> None:
-        """Финализирует запуск топбара после показа окна.
-        
-        ИСПРАВЛЕНИЕ: Использует сигнал data_loaded для синхронизации с загрузкой данных,
-        предотвращая race condition при инициализации. Добавлен fallback таймаут.
+        """Finalize topbar initialization after the window becomes visible.
+
+        FIX: rely on the ``data_loaded`` signal to synchronize with data loading,
+        avoiding race conditions during startup. Adds a fallback timeout.
         """
         try:
             mgr.prepare_initial_layout()
@@ -343,18 +343,18 @@ class WindowUISetup:
         
         controller = getattr(self.window, "top_panels_controller", None)
         
-        # ИСПРАВЛЕНИЕ: Планируем fallback таймаут на случай, если данные не загрузятся
+        # FIX: schedule fallback timeout in case data never loads
         try:
             if hasattr(mgr, "_schedule_data_ready_fallback"):
                 mgr._schedule_data_ready_fallback()
         except Exception as e:
             logger.debug(f"TopPanel: failed to schedule data_ready fallback: {e}")
         
-        # ИСПРАВЛЕНИЕ: Оптимизирована инициализация - убраны избыточные adjust
-        # Проверяем наличие нового сигнала data_loaded
+        # FIX: streamline initialization by removing redundant adjustments
+        # Check whether the new ``data_loaded`` signal exists
         if controller and hasattr(controller, "data_loaded"):
             try:
-                # Подключаемся к сигналу загрузки данных (single-shot)
+                # Connect to the data loading signal (single-shot)
                 from PyQt6.QtCore import Qt
                 controller.data_loaded.connect(
                     mgr.mark_data_ready, 
@@ -363,14 +363,14 @@ class WindowUISetup:
                 logger.debug("TopPanel: connected to data_loaded signal")
             except Exception as e:
                 logger.warning(f"TopPanel: failed to connect data_loaded signal: {e}")
-                # ИСПРАВЛЕНИЕ: Fallback - один вызов вместо двух
+                # FIX: fallback path issues a single call instead of two
                 QTimer.singleShot(100, mgr.mark_data_ready)
         else:
-            # ИСПРАВЛЕНИЕ: Fallback для старых версий - один вызов вместо двух
+            # FIX: fallback for older versions — trigger once instead of twice
             logger.debug("TopPanel: data_loaded signal not available, using timer fallback")
             QTimer.singleShot(100, mgr.mark_data_ready)
         
-        # Запускаем загрузку данных
+        # Trigger data refresh
         def _refresh():
             if controller and hasattr(controller, "refresh_all"):
                 try:
@@ -580,7 +580,7 @@ class WindowUISetup:
             logger.warning(
                 "SearchWidget: window.on_search handler not found; textChanged not connected"
             )
-        # Добавляем БЕЗ stretch на этапе сборки (растягивание задаст TopBarLayoutManager после финального adjust)
+        # Add without stretch; `TopBarLayoutManager` applies stretch after the final adjust
         top_bar.addWidget(self.window.search)
         try:
             dur = (time.perf_counter() - t_start) * 1000.0
@@ -632,7 +632,7 @@ class WindowUISetup:
 
         self.setup_left_panel(mid)
 
-        # Правая панель с плитками и таблицей
+        # Right panel containing tiles and table
         self.setup_right_panel(mid)
 
         self.main_layout.addLayout(mid)
@@ -661,7 +661,7 @@ class WindowUISetup:
         base_icon = int(tree_icon_size[0])
         eff_icon = max(
             0, min(base_icon, max(0, int(row_h) - 8))
-        )  # 4px сверху + 4px снизу
+        )  # 4 px top + 4 px bottom
         self.window.tree.setIconSize(QSize(eff_icon, eff_icon))
 
         left_layout.addWidget(self.window.tree)
@@ -675,7 +675,7 @@ class WindowUISetup:
 
         s_layout = QHBoxLayout(self.window.spheres_bar)
         s_layout.setContentsMargins(*app_config.ui.get_spheres_bar_margins())
-        # Расстояние между элементами панели сфер
+        # Spacing between items in the spheres panel
         s_layout.setSpacing(app_config.ui.get_spheres_bar_spacing())
         self.window.sphere_group = QButtonGroup(self.window)
 
@@ -731,8 +731,8 @@ class WindowUISetup:
                 "WindowProps: failed to set minimum size from config", exc_info=True
             )
 
-        # Настройка иконки
-        # Путь к логотипу приложения может отличаться в dev и в сборке (PyInstaller)
+        # Icon setup
+        # Application logo path differs between development and packaged (PyInstaller) builds
         base_dir = os.path.dirname(os.path.abspath(__file__))
         app_dir = os.path.normpath(os.path.join(base_dir, "..", "..", ".."))
         views_dir = os.path.normpath(os.path.join(base_dir, "..", ".."))
@@ -759,31 +759,31 @@ class WindowUISetup:
             logger.warning("Logo icon not found in expected locations: %s", candidates)
     
     def cleanup(self) -> None:
-        """Очищает ресурсы WindowUISetup.
-        
-        ИСПРАВЛЕНИЕ: Добавлена явная очистка event filters для предотвращения утечек памяти.
+        """Clean up `WindowUISetup` resources.
+
+        FIX: explicitly remove event filters to avoid memory leaks.
         """
         logger.debug("WindowUISetup: starting cleanup")
         
-        # Очищаем _AutoHideTreeFilter
+        # Clear `_AutoHideTreeFilter`
         if hasattr(self.window, '_auto_hide_tree_filter'):
             try:
                 filter_obj = self.window._auto_hide_tree_filter
                 if filter_obj is not None:
-                    # Отключаем сигнал
+                    # Disconnect signal
                     if hasattr(self.window, 'shown'):
                         try:
                             self.window.shown.disconnect(filter_obj._apply)
                         except (TypeError, RuntimeError):
                             pass
                     
-                    # Удаляем event filter
+                    # Remove event filter
                     try:
                         self.window.removeEventFilter(filter_obj)
                     except (RuntimeError, AttributeError):
                         pass
                     
-                    # Удаляем объект
+                    # Delete object
                     try:
                         filter_obj.deleteLater()
                     except (RuntimeError, AttributeError):

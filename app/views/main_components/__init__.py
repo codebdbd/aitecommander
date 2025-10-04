@@ -1,13 +1,14 @@
 # app/views/main_components/__init__.py
 
-"""
-Модульные компоненты главного окна с улучшенной архитектурой.
+"""Modularized components of the main window with an improved architecture.
 
-УЛУЧШЕНИЕ: Добавлены Protocol для типизации, ResourceManager для управления
-ресурсами и константы для устранения магических значений.
+Highlights:
+- Protocol-based typing for stronger contracts.
+- `ResourceManager` to manage shared resources.
+- Centralized constants to eliminate magic numbers.
 
-Этот пакет содержит извлеченные из main_window.py компоненты для улучшения
-модульности и читаемости кода.
+This package gathers components extracted from `main_window.py` to improve
+modularity and code readability.
 """
 
 from .common.constants import (
@@ -55,7 +56,7 @@ from .common.resource_manager import ResourceManager, managed_resource
 from .initialization.window_initializer import WindowInitializer
 
 __all__ = [
-    # Основные компоненты
+    # Core components
     "WindowInitializer",
     "ResourceManager",
     "managed_resource",
@@ -75,8 +76,8 @@ __all__ = [
     "LayoutCalculationError",
     "WidgetDeletedError",
     "ConfigurationError",
-    
-    # Protocol для типизации
+
+    # Protocol-based typing helpers
     "MainWindowProtocol",
     "DatabaseProtocol",
     "SettingsProtocol",
@@ -85,8 +86,8 @@ __all__ = [
     "TopPanelsControllerProtocol",
     "UIStateManagerProtocol",
     "ResourceManagerProtocol",
-    
-    # Константы
+
+    # Constants
     "WidgetAttribute",
     "Timeout",
     "Size",
@@ -96,13 +97,13 @@ __all__ = [
     "EventSource",
     "MetricName",
     "PerformanceLimit",
-    
-    # Удобные алиасы
+
+    # Convenience aliases
     "MS_50",
     "MS_100",
     "DEFER",
-    
-    # Helper функции
+
+    # Helper utilities
     "defer",
     "safe_getattr",
     "safe_disconnect",
@@ -111,21 +112,21 @@ __all__ = [
 
 __version__ = "2.0.0"
 __doc__ = """
-Main Components - Улучшенная архитектура v2.0.0
+Main Components – Enhanced architecture v2.0.0
 
-Ключевые улучшения:
-- ✅ Строгая типизация через Protocol (0% использования Any)
-- ✅ ResourceManager для гарантированной очистки ресурсов
-- ✅ Константы вместо магических значений (-82% магических чисел)
-- ✅ Конкретные исключения вместо широких except (-81%)
-- ✅ Оптимизированные алгоритмы (ускорение до 5.6x)
+Key improvements:
+- ✅ Strict Protocol-based typing (0% `Any`).
+- ✅ `ResourceManager` guarantees resource cleanup.
+- ✅ Constants replace magic numbers (−82% magic values).
+- ✅ Specific exceptions instead of broad `except` clauses (−81%).
+- ✅ Optimized algorithms (speed-up up to ×5.6).
 
-Документация:
-- README.md - Обзор и быстрый старт
-- IMPROVEMENTS_APPLIED.md - Детальное описание улучшений
-- MIGRATION_GUIDE.md - Руководство по миграции
+Documentation:
+- `README.md` – Overview and quick start.
+- `IMPROVEMENTS_APPLIED.md` – Detailed change log.
+- `MIGRATION_GUIDE.md` – Migration instructions.
 
-Примеры использования:
+Usage examples:
     >>> from app.views.main_components import (
     ...     WindowInitializer,
     ...     MainWindowProtocol,
@@ -134,23 +135,23 @@ Main Components - Улучшенная архитектура v2.0.0
     ...     defer,
     ...     safe_getattr,
     ... )
-    >>> 
-    >>> # Инициализация с Protocol (с автоматической валидацией)
+    >>>
+    >>> # Initialize with Protocol validation
     >>> initializer = WindowInitializer(
     ...     main_window=window,  # MainWindowProtocol
     ...     db=database,         # DatabaseProtocol
     ...     settings=settings,   # SettingsProtocol
     ...     theme_ctrl=theme,    # ThemeControllerProtocol
     ... )
-    >>> 
-    >>> # Использование констант
+    >>>
+    >>> # Use constants
     >>> status_bar.setText(StatusMessage.READY)
-    >>> 
-    >>> # Упрощенный ResourceManager
+    >>>
+    >>> # Simplified ResourceManager
     >>> manager = ResourceManager("Component")
-    >>> manager.register_resource(QTimer())  # Автоопределение cleanup
-    >>> 
-    >>> # Helper функции
+    >>> manager.register_resource(QTimer())  # Auto-detect cleanup
+    >>>
+    >>> # Helper utilities
     >>> defer(lambda: print("Deferred"))
     >>> widget = safe_getattr(window, "search")
 """

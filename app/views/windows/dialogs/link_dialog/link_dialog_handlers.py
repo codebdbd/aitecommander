@@ -1,6 +1,6 @@
 """
-Обработчики событий для LinkDialog.
-Содержит логику обработки пользовательских действий.
+Event handlers for `LinkDialog`.
+Contains logic for processing user actions.
 """
 
 import logging
@@ -28,60 +28,60 @@ class LinkDialogHandlers(
     ValidationMixin,
     LinkProcessingMixin,
 ):
-    """Обработчики событий для LinkDialog."""
+    """Event handlers orchestrating `LinkDialog` behaviour."""
 
     def __init__(self, dialog):
-        """Инициализация обработчиков."""
+        """Initialise handlers container."""
         self.dialog = dialog
         self._last_processed_path = ""
         self._is_processing = False
         self._worker_task_id = 0
         self._active_worker = None
-        # Локальные сигналы (замена StructureWorkerSignals)
+        # Local signals (replacement for StructureWorkerSignals)
         self.signals = LinkDialogSignals()
-        # Подключаем сигналы
+        # Connect internal signals
         self.signals.link_info_finished.connect(
             lambda info: self._on_link_info_fetched(info)
         )
         self.signals.simple_error.connect(lambda error: self._on_link_info_error(error))
 
     def connect_signals(self) -> None:
-        """Подключение сигналов к слотам."""
-        # Тип ссылки
+        """Wire dialog widgets to handlers."""
+        # Link type selection
         self.dialog.ui.type_group.buttonClicked.connect(
             lambda b: self.on_type_changed(b.property("link_type"))
         )
 
-        # URL изменение
+        # URL change
         url_widget = self.dialog._get_url_le()
         url_widget.textChanged.connect(self._on_path_changed)
-        # Немедленный триггер при завершении редактирования (Enter/потеря фокуса)
+        # Immediate trigger when editing finishes (Enter/focus loss)
         try:
             url_widget.editingFinished.connect(self._trigger_link_processing)
         except (AttributeError, RuntimeError) as e:
             logger.warning(
-                "Ошибка подключения сигнала editingFinished для url_widget: %s",
+                "Failed to connect editingFinished for url_widget: %s",
                 e,
                 exc_info=True,
             )
 
-        # Кнопки
+        # Buttons
         self.dialog._get_browse_btn().clicked.connect(self._on_browse)
         self.dialog._get_profile_btn().clicked.connect(self._on_profile)
         self.dialog._get_icon_btn().clicked.connect(self._on_choose_icon)
 
-        # Иерархия
+        # Hierarchy combo boxes
         self.dialog._get_sphere_cb().currentIndexChanged.connect(self._update_sections)
         self.dialog._get_section_cb().currentIndexChanged.connect(
             self._update_categories
         )
 
-        # Кнопки диалога
+        # Dialog buttons
         self.dialog._get_button_box().accepted.connect(self._on_accept)
         self.dialog._get_button_box().rejected.connect(self.dialog.reject)
 
     def _on_accept(self) -> None:
-        """Обработчик подтверждения диалога (orchestration логика)."""
+        """Confirm handler orchestrating validation and save logic."""
         form_data = self._build_form_data()
         result = self._validate_and_save_data(form_data)
 
@@ -91,14 +91,14 @@ class LinkDialogHandlers(
             self._handle_validation_errors(form_data, result)
 
     def cancel_processing(self) -> None:
-        """Безопасно отменяет все фоновые задачи и таймеры обработки.
+        """Safely cancel all background tasks and timers.
 
-        - Останавливает таймер отложенной обработки пути
-        - Отменяет активного воркера, отписывается от сигналов
-        - Сбрасывает внутренние флаги состояния
-        - Увеличивает идентификатор задачи, предотвращая гонки результатов
+        - Stop the deferred path processing timer
+        - Cancel the active worker and disconnect its signals
+        - Reset internal state flags
+        - Increment task id to avoid stale results
         """
-        # Останов таймера (если он ещё не уничтожен)
+        # Stop timer (if still alive)
         try:
             if getattr(self.dialog, "_processing_timer", None):
                 self.dialog._processing_timer.stop()
@@ -107,10 +107,10 @@ class LinkDialogHandlers(
                 "cancel_processing: failed to stop processing timer", exc_info=True
             )
 
-        # Отмена активного воркера
+        # Cancel active worker
         if self._active_worker:
             try:
-                # Безопасное отключение сигналов воркера, если они есть
+                # Safely disconnect worker signals when present
                 try:
                     self._active_worker.signals.finished.disconnect()
                 except (AttributeError, RuntimeError):
@@ -128,13 +128,13 @@ class LinkDialogHandlers(
                 self._active_worker.cancel()
             except (AttributeError, RuntimeError) as e:
                 logger.debug(
-                    "cancel_processing: ошибка отмены воркера: %s", e, exc_info=True
+                    "cancel_processing: failed to cancel worker: %s", e, exc_info=True
                 )
             finally:
                 self._active_worker = None
 
-        # Сброс состояния и предотвращение гонок результатов
+        # Reset state and prevent stale results
         self._is_processing = False
-        # Сбрасываем последний обработанный путь, чтобы не показывать устаревшие предупреждения при закрытии
+        # Reset last processed path to avoid stale warnings on close
         self._last_processed_path = ""
         self._worker_task_id += 1

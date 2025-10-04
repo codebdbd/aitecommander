@@ -8,9 +8,10 @@ from typing import Optional
 def check_file_content(
     config: dict, filepath: str, content_regex: Optional[object]
 ) -> bool:
-    """Проверка содержимого файла согласно config.
-    content_regex: скомпилированный regex или None, если нужен простой поиск подстроки.
-    Возвращает True, если файл соответствует содержимому.
+    """Check file contents against configuration rules.
+
+    `content_regex` is a compiled regex or ``None`` when a plain substring search is required.
+    Returns ``True`` if the file matches the requested content conditions.
     """
     try:
         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
@@ -37,21 +38,22 @@ def matches_criteria(
     name_regex: Optional[object],
     content_regex: Optional[object],
 ) -> bool:
-    """Проверяет файл по всем критериям из config.
-    Совмещает ранее дублируемую логику из FileSearchDialog и FileSearchWorker.
+    """Validate file against all criteria defined in ``config``.
+
+    Consolidates the logic shared by `FileSearchDialog` and `FileSearchWorker`.
     """
     try:
         file_stat = os.stat(filepath)
 
-        # 1. Маска имени
+        # 1. Filename pattern check
         if not fnmatch.fnmatch(filename, config["pattern"]):
             return False
 
-        # 2. Regex имени
+        # 2. Filename regex check
         if name_regex and not name_regex.search(filename):
             return False
 
-        # 3. Размер (КБ)
+        # 3. File size (KB)
         size_kb = file_stat.st_size // 1024
         size_min = config.get("size_min")
         size_max = config.get("size_max")
@@ -60,12 +62,12 @@ def matches_criteria(
         if size_max is not None and size_kb > size_max:
             return False
 
-        # 4. Дата модификации
+        # 4. Modified date
         mtime = datetime.date.fromtimestamp(file_stat.st_mtime)
         if not (config["date_from"] <= mtime <= config["date_to"]):
             return False
 
-        # 5. Атрибуты
+        # 5. Attributes (hidden/read-only)
         if config.get("hidden"):
             if os.name == "posix" and not filename.startswith("."):
                 return False
@@ -81,7 +83,7 @@ def matches_criteria(
             if os.access(filepath, os.W_OK):
                 return False
 
-        # 6. Содержимое
+        # 6. Content match
         if config.get("content"):
             if not check_file_content(config, filepath, content_regex):
                 return False

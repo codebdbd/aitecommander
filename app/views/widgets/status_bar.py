@@ -1,8 +1,26 @@
 # app/views/status_bar.py
 
+from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QStatusBar, QWidget
 
 from app.config_data import app_config
+from app.views.widgets.language_selector import LanguageSelector
+from i18n.language_service import LanguageService
+from i18n.locale_utils import format_number
+
+
+_TR_CONTEXT = "StatusBar"
+
+
+def _tr(text: str) -> str:
+    return QCoreApplication.translate(_TR_CONTEXT, text)
+
+
+def _arg(template: str, *args: str) -> str:
+    result = template
+    for idx, value in enumerate(args, 1):
+        result = result.replace(f"%{idx}", value)
+    return result
 
 
 def setup_status_bar(window) -> QStatusBar:
@@ -20,20 +38,23 @@ def setup_status_bar(window) -> QStatusBar:
     # Внешние отступы статус-бара: слева/справа 6px
     status.setContentsMargins(6, 0, 6, 0)
 
-    window.db_status_label = QLabel(app_config.ui.get_db_connected_text())
+    window.db_status_label = QLabel()
     window.db_status_label.setObjectName("dbStatusLabel")
-    window.path_label = QLabel("Путь: ")
+    window.path_label = QLabel()
     window.path_label.setObjectName("pathLabel")
     window.path_label.setMinimumWidth(app_config.ui.get_path_label_min_width())
-    window.links_count_label = QLabel(app_config.ui.get_links_count_text())
+    window.links_count_label = QLabel()
     window.links_count_label.setObjectName("linksCountLabel")
-    window.message_label = QLabel(app_config.ui.get_status_ready_text())
+    window.message_label = QLabel()
 
     # Отступы внутри элементов для ровного визуала
     window.message_label.setContentsMargins(6, 0, 12, 0)
     window.path_label.setContentsMargins(0, 0, 12, 0)
     window.db_status_label.setContentsMargins(12, 0, 6, 0)
     window.links_count_label.setContentsMargins(6, 0, 6, 0)
+
+    language_selector = LanguageSelector(status)
+    window.language_selector = language_selector
 
     # Левая область: собственный контейнер с сообщением и путём, без перекрытия
     # Создаём контейнер сразу с родителем статус-бара, чтобы исключить кратковременный top-level показ
@@ -47,6 +68,33 @@ def setup_status_bar(window) -> QStatusBar:
     # Правая область: статус БД, счётчик ссылок
     status.addPermanentWidget(window.db_status_label)
     status.addPermanentWidget(window.links_count_label)
+    status.addPermanentWidget(language_selector)
+
+    def _retranslate_status_bar() -> None:
+        window.message_label.setText(_tr("Ready"))
+        window.path_label.setText(_tr("Path: "))
+        window.db_status_label.setText(_tr("Database: connected"))
+        window.links_count_label.setText(_arg(_tr("Links: %1"), format_number(0)))
+        language_selector.setToolTip(_tr("Switch application language"))
+        language_selector.setAccessibleName(_tr("Language Selector"))
+        update_status_bar(window)
+
+    window._retranslate_status_bar = _retranslate_status_bar  # type: ignore[attr-defined]
+
+    service = LanguageService.instance()
+    service.languageChanged.connect(lambda _code: _retranslate_status_bar())
+
+    if hasattr(window, "destroyed"):
+        # Ensure connection is removed when window is destroyed to avoid dangling references
+        def _cleanup():
+            try:
+                service.languageChanged.disconnect(_retranslate_status_bar)
+            except Exception:
+                pass
+
+        window.destroyed.connect(_cleanup)  # type: ignore[arg-type]
+
+    _retranslate_status_bar()
 
     return status
 
@@ -87,30 +135,36 @@ def update_status_bar(window) -> None:
                     cats = int(window.tiles.get_categories_count())
                 except Exception:
                     cats = 0
-                _set_text_if_changed(window.links_count_label, f"Категорий: {cats}")
+                _set_text_if_changed(
+                    window.links_count_label,
+                    _arg(_tr("Categories: %1"), format_number(cats)),
+                )
             else:
                 links = getattr(window, "links", None)
                 if links is not None:
                     _set_text_if_changed(
-                        window.links_count_label, f"Ссылок: {links.get_row_count()}"
+                        window.links_count_label,
+                        _arg(_tr("Links: %1"), format_number(links.get_row_count())),
                     )
                 else:
-                    _set_text_if_changed(window.links_count_label, "Ссылок: 0")
+                    _set_text_if_changed(
+                        window.links_count_label,
+                        _arg(_tr("Links: %1"), format_number(0)),
+                    )
         except Exception:
             # На случай непредвиденных ошибок — не роняем UI и показываем 0
-            _set_text_if_changed(window.links_count_label, "Ссылок: 0")
+            _set_text_if_changed(
+                window.links_count_label,
+                _arg(_tr("Links: %1"), format_number(0)),
+            )
 
         # Статус БД (через DatabaseController)
         dc = getattr(window, "database_controller", None)
         db = getattr(dc, "db", None)
         if db is not None and getattr(db, "is_connected", lambda: False)():
-            _set_text_if_changed(
-                window.db_status_label, app_config.ui.get_db_connected_text()
-            )
+            _set_text_if_changed(window.db_status_label, _tr("Database: connected"))
         else:
-            _set_text_if_changed(
-                window.db_status_label, app_config.ui.get_db_disconnected_text()
-            )
+            _set_text_if_changed(window.db_status_label, _tr("Database: disconnected"))
 
         # Путь в дереве + активная сфера (QTreeView-only)
         parts = []
@@ -159,14 +213,17 @@ def update_status_bar(window) -> None:
             pass
 
         if parts:
-            _set_text_if_changed(window.path_label, "Путь: " + " > ".join(parts))
+            _set_text_if_changed(
+                window.path_label,
+                _tr("Path: ") + " > ".join(parts),
+            )
         else:
             if hasattr(window, "path_label") and window.path_label:
-                _set_text_if_changed(window.path_label, "Путь: ")
+                _set_text_if_changed(window.path_label, _tr("Path: "))
     except Exception:
         # В случае неожиданных ошибок не роняем UI, просто очищаем путь
         if hasattr(window, "path_label") and window.path_label:
             try:
-                _set_text_if_changed(window.path_label, "Путь: ")
+                _set_text_if_changed(window.path_label, _tr("Path: "))
             except Exception:
                 pass

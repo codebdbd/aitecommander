@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable, Dict, Optional, Protocol, runtime_checkable
 
-from .base import StructureItemType
+from ..models.types import StructureItemType
 
 logger = logging.getLogger(__name__)
 

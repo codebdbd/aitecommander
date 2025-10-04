@@ -2,8 +2,7 @@
 import logging
 from typing import Any, Callable, Dict, Optional
 
-from app.controllers.structure_modules import helpers
-from app.controllers.structure_modules.base import StructureItemType
+from app.controllers.structure_modules import StructureItemType, process_item
 
 
 class FakeController:
@@ -57,7 +56,7 @@ class FakeController:
 def test_update_section_without_parent_fails() -> None:
     ctrl = FakeController()
     data = {"name": "Sec A"}  # нет sphere_id
-    ok = helpers.process_item(
+    ok = process_item(
         ctrl,
         data,
         StructureItemType.SECTION,
@@ -71,7 +70,7 @@ def test_update_section_without_parent_fails() -> None:
 def test_update_category_without_parent_fails() -> None:
     ctrl = FakeController()
     data = {"name": "Cat A"}  # нет section_id
-    ok = helpers.process_item(
+    ok = process_item(
         ctrl,
         data,
         StructureItemType.CATEGORY,
@@ -85,7 +84,7 @@ def test_update_category_without_parent_fails() -> None:
 def test_update_with_parent_succeeds() -> None:
     ctrl = FakeController()
     # Для раздела требуется sphere_id, для категории — section_id
-    sec_ok = helpers.process_item(
+    sec_ok = process_item(
         ctrl,
         {"name": "Sec A", "sphere_id": 10},
         StructureItemType.SECTION,
@@ -93,7 +92,7 @@ def test_update_with_parent_succeeds() -> None:
         is_update=True,
         require_parent=True,
     )
-    cat_ok = helpers.process_item(
+    cat_ok = process_item(
         ctrl,
         {"name": "Cat A", "section_id": 20},
         StructureItemType.CATEGORY,
@@ -107,7 +106,7 @@ def test_update_with_parent_succeeds() -> None:
 def test_update_link_without_parent_fails() -> None:
     ctrl = FakeController()
     data = {"name": "Link A"}  # нет category_id
-    ok = helpers.process_item(
+    ok = process_item(
         ctrl,
         data,
         StructureItemType.LINK,
@@ -121,7 +120,7 @@ def test_update_link_without_parent_fails() -> None:
 def test_update_link_with_parent_succeeds() -> None:
     ctrl = FakeController()
     data = {"name": "Link A", "category_id": 30}
-    ok = helpers.process_item(
+    ok = process_item(
         ctrl,
         data,
         StructureItemType.LINK,

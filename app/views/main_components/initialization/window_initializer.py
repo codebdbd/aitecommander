@@ -1,8 +1,8 @@
 # app/views/main_components/window_initializer.py
-"""Инициализатор главного окна.
+"""Main window initializer.
 
-УЛУЧШЕНИЕ: Использует Protocol для типизации, ResourceManager для управления
-ресурсами и константы вместо магических значений.
+Improvement note: enforces Protocol-based typing, centralizes resource
+management via `ResourceManager`, and replaces magic numbers with constants.
 """
 
 from __future__ import annotations
@@ -40,13 +40,13 @@ Step: TypeAlias = tuple[str, Callable[[], None]]
 
 
 class WindowInitializer:
-    """Инициализатор главного окна.
-    
-    УЛУЧШЕНИЕ: Использует строгие Protocol для всех зависимостей
-    и ResourceManager для гарантированной очистки ресурсов.
+    """Initialize and orchestrate the main window setup.
+
+    Improvement note: uses strict Protocol types for every dependency and
+    `ResourceManager` to guarantee cleanup.
     """
 
-    # --- Строгая типизация через Protocol ---
+    # --- Strict typing via Protocol ---
     window: MainWindowProtocol
     db: DatabaseProtocol
     settings: SettingsProtocol
@@ -54,7 +54,7 @@ class WindowInitializer:
 
     ui_setup: WindowUISetup
     controllers_setup: WindowControllersSetup
-    _metrics: object  # Из startup_metrics
+    _metrics: object  # From startup_metrics
     _status: StatusUpdater
     _resource_manager: ResourceManager
 
@@ -73,56 +73,56 @@ class WindowInitializer:
         settings: SettingsProtocol,
         theme_ctrl: ThemeControllerProtocol,
     ) -> None:
-        """Инициализация компонента.
+        """Component constructor.
 
-        УЛУЧШЕНИЕ: Все параметры теперь используют Protocol для строгой типизации.
+        Improvement note: all parameters now adhere to Protocol-based typing.
 
         Args:
-            main_window: Главное окно приложения (MainWindowProtocol)
-            db: База данных (DatabaseProtocol)
-            settings: Настройки приложения (SettingsProtocol)
-            theme_ctrl: Контроллер тем (ThemeControllerProtocol)
+            main_window: Application main window (`MainWindowProtocol`).
+            db: Database accessor (`DatabaseProtocol`).
+            settings: Application settings (`SettingsProtocol`).
+            theme_ctrl: Theme controller (`ThemeControllerProtocol`).
         """
         self.window = main_window
         self.db = db
         self.settings = settings
         self.theme_ctrl = theme_ctrl
 
-        # УЛУЧШЕНИЕ: Инициализируем ResourceManager для управления ресурсами
+        # Improvement: instantiate ResourceManager to manage resources explicitly
         self._resource_manager = ResourceManager("WindowInitializer")
 
-        # Композиция компонентов
+        # Component composition
         self.ui_setup = WindowUISetup(self)
         self.controllers_setup = WindowControllersSetup(self)
         self._metrics = get_metrics()
         self._status = StatusUpdater(self.window, logger)
 
-        # --- Инициализация ранее динамических атрибутов ---
-        # Индексы прогресса этапов
+        # --- Initialize fields that were previously dynamic ---
+        # Stage progress indices
         self._current_init_step: int = 0
         self._current_db_step: int = 0
-        # Наборы шагов и специальные хуки (заполняются при планировании)
+        # Step collections and special hooks (populated during planning)
         self._init_steps_before_db: list[Step] = []
         self._init_steps_after_db: list[Step] = []
         self._special_hooks_after: dict[Callable[[], None], Callable[[], None]] = {}
-        # Состояния ожидания БД
+        # Database readiness state
         self._db_ready: bool = False
         self._waiting_for_db: bool = False
 
     def initialize_window(self) -> None:
-        """Выполняет полную инициализацию главного окна пошагово."""
+        """Perform full step-by-step initialization of the main window."""
         self._metrics.reset()
         self._install_diagnostics()
         self._run_light_steps()
         self._schedule_heavy_steps()
 
-    # === Оркестровка этапов инициализации (выделено из initialize_window) ===
+    # === Initialization orchestration (extracted from initialize_window) ===
     def _install_diagnostics(self) -> None:
-        """Устанавливает диагностические фильтры и хуки (qt message filter, top-level watcher и т.п.)."""
+        """Install diagnostics (Qt message filter, top-level watcher, and more)."""
         try:
             DiagnosticsInstaller(self.window, self._dump_top_levels).install_all()
         except (RuntimeError, AttributeError, ImportError) as e:
-            # Диагностика не критична для работы приложения — логируем предупреждение и продолжаем
+            # Diagnostics are non-critical — log a warning and continue.
             logger.warning(
                 "Diagnostics: failed to install one or more handlers: %s",
                 e,
@@ -130,7 +130,7 @@ class WindowInitializer:
             )
 
     def _run_light_steps(self) -> None:
-        """Выполняет лёгкие синхронные шаги и подключает сигналы (без показа окна)."""
+        """Run light synchronous steps and wire signals (without showing the window)."""
         light_steps = (
             self._init_window_properties,
             self._init_basic_attributes,
@@ -138,7 +138,7 @@ class WindowInitializer:
             self._init_central_widget,
             self._capture_main_layout,
             self._init_top_panel,
-            self._connect_db_signals,  # Подключаем сигналы БД к UI
+            self._connect_db_signals,  # Connect database signals to UI
         )
 
         with suspend_updates(self.window):
@@ -151,15 +151,15 @@ class WindowInitializer:
                 self.window.shown.connect(self._on_window_shown)
         except (RuntimeError, AttributeError, TypeError):
             logger.exception(
-                "WindowInitializer: не удалось подключить слот к сигналу 'shown'"
+                "WindowInitializer: failed to connect slot to 'shown' signal"
             )
 
-        # Ранний показ окна УБРАН: он вызывал белую вспышку.
-        # Окно будет показано только после полной инициализации UI и применения темы.
+        # Early window show removed because it caused a white flash.
+        # The window displays only after full UI initialization and theme application.
 
 
     def _schedule_heavy_steps(self) -> None:
-        """Разбивает тяжёлые шаги на асинхронные этапы и планирует их выполнение с ожиданием БД."""
+        """Split heavy steps into async phases and schedule them around DB readiness."""
         self._current_init_step = 0
         self._init_steps_before_db: List[Tuple[str, Callable[[], None]]] = []
         special_hooks_before: Dict[Callable[[], None], Callable[[], None]] = {}
@@ -208,28 +208,28 @@ class WindowInitializer:
         self.ui_setup.setup_top_panel()
 
     def _connect_db_signals(self) -> None:
-        """Подключает Qt сигналы Database к UI компонентам.
-        
-        УВЕДОМЛЯЕТ UI об изменениях в базе данных без polling.
+        """Wire Qt database signals to UI components.
+
+        Notifies the UI about database changes without polling.
         """
         try:
-            # Проверяем, что у db есть сигналы (QObject)
+            # Ensure the database exposes Qt signals (QObject-based)
             if not hasattr(self.db, 'data_changed'):
                 logger.debug("Database doesn't have Qt signals, skipping signal connection")
                 return
             
-            # Подключаем сигнал изменения данных
+            # Connect the data-change signal
             self.db.data_changed.connect(self._on_db_data_changed)
             
-            # Подключаем сигнал загрузки структуры
+            # Connect the structure-loaded signal
             if hasattr(self.db, 'structure_loaded'):
                 self.db.structure_loaded.connect(self._on_db_structure_loaded)
             
-            # Подключаем сигнал создания бэкапа
+            # Connect the backup-created signal
             if hasattr(self.db, 'backup_created'):
                 self.db.backup_created.connect(self._on_db_backup_created)
             
-            # Подключаем сигнал ошибок
+            # Connect the error signal
             if hasattr(self.db, 'error_occurred'):
                 self.db.error_occurred.connect(self._on_db_error)
             
@@ -242,17 +242,16 @@ class WindowInitializer:
             )
     
     def _on_db_data_changed(self, table_name: str, operation: str, affected_ids: list) -> None:
-        """Обработчик изменения данных в БД."""
+        """Handle database data changes."""
         try:
-            logger.debug(f"DB data changed: {table_name}, {operation}, ids={affected_ids}")
+            logger.debug(f"Database data changed: {table_name}, {operation}, ids={affected_ids}")
             
-            # Если изменились ссылки - обновляем таблицу
+            # Refresh the UI when specific tables change
             if table_name == "link":
-                # Таблица ссылок обновится через structure_business
+                # The links table refresh occurs through structure_business
                 if hasattr(self.window, 'reload_current_category'):
                     self.window.reload_current_category()
-            
-            # Если изменилась структура - обновляем дерево
+
             elif table_name in ("sphere", "section", "category"):
                 if hasattr(self.window, 'reload_structure'):
                     self.window.reload_structure()
@@ -264,7 +263,7 @@ class WindowInitializer:
             )
     
     def _on_db_structure_loaded(self) -> None:
-        """Обработчик загрузки структуры."""
+        """Handle completion of structure loading."""
         try:
             logger.info("Database structure loaded - reloading UI")
             if hasattr(self.window, 'reload_structure'):
@@ -277,14 +276,14 @@ class WindowInitializer:
             )
     
     def _on_db_backup_created(self, backup_path: str) -> None:
-        """Обработчик создания резервной копии."""
+        """Handle creation of a database backup."""
         try:
             logger.info(f"Backup created: {backup_path}")
-            # Показываем уведомление в статус-баре
+            # Show a notification in the status bar
             if hasattr(self.window, 'statusBar'):
                 status_bar = self.window.statusBar()
                 if status_bar:
-                    status_bar.showMessage(f"Резервная копия создана: {backup_path}", 5000)
+                    status_bar.showMessage(f"Backup created: {backup_path}", 5000)
         except Exception as e:
             logger.warning(
                 "Error handling backup created: %s",
@@ -293,10 +292,10 @@ class WindowInitializer:
             )
     
     def _on_db_error(self, title: str, message: str) -> None:
-        """Обработчик ошибок БД."""
+        """Handle database error notifications."""
         try:
             logger.error(f"Database error: {title} - {message}")
-            # Показываем диалог ошибки
+            # Show an error dialog
             QMessageBox.critical(self.window, title, message)
         except Exception as e:
             logger.warning(
@@ -336,11 +335,11 @@ class WindowInitializer:
 
     def _post_status_bar_init(self) -> None:
         try:
-            # Не изменяем текст статус-бара на этапе инициализации
+            # Leave status-bar text untouched during initialization
             pass
         except Exception:
             logger.exception(
-                "WindowInitializer: ошибка обновления текста статус-бара после инициализации"
+                "WindowInitializer: failed to update status-bar text during post init"
             )
 
     def _post_controllers_init(self) -> None:
@@ -388,7 +387,7 @@ class WindowInitializer:
                         )
         except Exception:
             logger.exception(
-                "WindowInitializer: не удалось запланировать load_structure_async"
+                "WindowInitializer: failed to schedule load_structure_async"
             )
 
     def _execute_db_dependent_steps(self) -> None:
@@ -405,27 +404,27 @@ class WindowInitializer:
         )
 
     def _finalize_initialization(self) -> None:
-        """Завершает асинхронную инициализацию и показывает полностью собранное окно."""
-        # Сводка метрик старта в лог (ошибки здесь не критичны)
+        """Finish async initialization and present the fully assembled window."""
+        # Summarize startup metrics (errors here are non-critical)
         try:
             self._metrics.flush_log(logger)
         except Exception:
             logger.debug("WindowInitializer: failed to flush startup metrics at finalize", exc_info=True)
 
-        # Обновляем статус на "Готово" (к этому моменту статус-бар создан)
+        # Update status to "Ready" (status bar exists by this point)
         self._status.set_message(StatusMessage.READY)
 
         logger.info(
-            "WindowInitializer: асинхронная инициализация завершена успешно"
+            "WindowInitializer: asynchronous initialization completed successfully"
         )
 
-        # Диагностика перед показом окна
+        # Diagnostics prior to showing the window
         try:
             self._dump_top_levels("before final window.show")
         except Exception:
             logger.debug("DiagTopLevels: failed to dump before final show", exc_info=False)
 
-        # Покажем окно только если оно ещё не было показано ранним шагом
+        # Show the window only if it has not been shown earlier
         try:
             if hasattr(self.window, "show"):
                 need_show = True
@@ -438,13 +437,13 @@ class WindowInitializer:
                         self.window.show()
         except Exception as e:
             logger.exception(
-                "WindowInitializer: не удалось показать окно в финале инициализации"
+                "WindowInitializer: failed to show window at initialization finale"
             )
             # Делегируем централизованному обработчику ошибок
             self._on_init_error(e)
             return
 
-        # Пост-диагностика после показа окна
+        # Post-show diagnostics
         try:
             self._dump_top_levels("after final window.show")
             QTimer.singleShot(10, lambda: self._dump_top_levels("+10ms after final show"))
@@ -462,10 +461,9 @@ class WindowInitializer:
             logger.debug("DiagTopLevels: failed post-show dumps (final)", exc_info=False)
 
     def _on_init_error(self, exc: Exception) -> None:
-        """Единая обработка ошибок этапов инициализации.
+        """Unified error handler for initialization stages.
 
-        Выполняет сброс и логирование метрик старта, затем делегирует стандартному
-        обработчику ошибок отложенной инициализации.
+        Flushes and logs startup metrics, then delegates to deferred-init error logic.
         """
         try:
             self._metrics.flush_log(logger)
@@ -474,7 +472,10 @@ class WindowInitializer:
         self._handle_deferred_init_error(exc)
 
     def _on_before_db_steps_completed(self) -> None:
-        """Коллбек завершения этапов до БД. Либо ждёт готовности БД, либо продолжает к этапам после БД."""
+        """Callback for completion of pre-database steps.
+
+        Either waits for database readiness or proceeds to post-database steps.
+        """
         # Используем ворота готовности БД
         gate = DbReadyGate(self.window, logger)
         gate.ensure_ready_or_wait(
@@ -483,17 +484,17 @@ class WindowInitializer:
         )
 
     def _on_waiting_for_db(self) -> None:
-        """Вызывается, когда БД ещё не готова: выставляет флаг ожидания и обновляет статус."""
+        """Handle the waiting-for-database state by updating status and flags."""
         try:
             setattr(self, "_waiting_for_db", True)
             self._status.set_message(StatusMessage.WAITING_FOR_DB)
         except Exception:
             logger.exception(
-                "WindowInitializer: failed to update waiting-for-DB status"
+                "WindowInitializer: failed to update waiting-for-db status"
             )
 
     def _dump_top_levels(self, tag: str) -> None:
-        """Логирует текущее множество top-level виджетов Qt и окон QGuiApplication."""
+        """Log the current set of Qt top-level widgets and QGuiApplication windows."""
         app = QApplication.instance()
         if app is None:
             return
@@ -522,7 +523,7 @@ class WindowInitializer:
                 visible = w.isVisible()
             except Exception:
                 visible = False
-            # Дополнительная диагностика: title и флаги окна
+            # Additional diagnostics: title and window flags
             try:
                 title = getattr(w, "windowTitle", lambda: "")() or ""
             except Exception:
@@ -540,7 +541,7 @@ class WindowInitializer:
             "; ".join(info_list),
         )
 
-        # Диагностика окон уровня QWindow (например, всплывающие тултипы/меню могут быть QWindow)
+        # Inspect QWindow instances (tooltips/menus may be plain QWindow objects)
         try:
             from PyQt6.QtGui import QGuiApplication
 
@@ -574,43 +575,42 @@ class WindowInitializer:
 
     # === Слоты ===
     def _on_window_shown(self) -> None:
-        """Обновляем статус после показа окна.
+        """Update status after the window is shown.
 
-        Учтено, что статус-бар создаётся отложенно: слот безопасно проверяет наличие
-        необходимых элементов перед обновлением текста.
+        Accounts for deferred creation of the status bar by checking prerequisites.
         """
         try:
             # Не навязываем сообщение в статус-баре при показе окна
             pass
         except Exception:
             logger.exception(
-                "WindowInitializer: ошибка обновления текста статус-бара в _on_window_shown"
+                "WindowInitializer: failed to update status-bar text in _on_window_shown"
             )
 
     # === Обработчики ошибок ===
     def _handle_deferred_init_error(self, exc: Exception) -> None:
-        """Показывает диалог ошибки и завершает приложение при сбое отложенной инициализации."""
+        """Display an error dialog and shut down the app when deferred init fails."""
         try:
             parent = self.window if hasattr(self.window, "isVisible") else None
             QMessageBox.critical(
                 parent,
-                "Ошибка инициализации",
-                f"Произошла ошибка при инициализации UI:\n{exc}",
+                "Initialization error",
+                f"An error occurred while initializing the UI:\n{exc}",
             )
         except Exception:
             logger.exception(
-                "WindowInitializer: не удалось показать диалог ошибки инициализации"
+                "WindowInitializer: failed to show initialization error dialog"
             )
         finally:
             try:
-                # Централизуем завершение: закрываем главное окно, чтобы сработал AppShutdownController
+                # Centralize shutdown: close the main window to trigger AppShutdownController
                 if hasattr(self, "window") and hasattr(self.window, "close"):
                     self.window.close()
                     return
             except Exception:
                 logger.debug("WindowInitializer: window.close() failed, falling back to app.quit()", exc_info=True)
 
-            # Fallback: если окна нет, завершаем приложение напрямую
+            # Fallback: if the window is unavailable, quit the app directly
             app = QApplication.instance()
             if app is not None:
                 app.quit()

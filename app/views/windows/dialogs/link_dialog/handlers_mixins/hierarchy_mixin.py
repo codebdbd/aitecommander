@@ -1,6 +1,4 @@
-"""
-Миксин для обновления иерархии (разделы и категории) в LinkDialogHandlers.
-"""
+"""Mixin updating sections/categories hierarchy inside `LinkDialogHandlers`."""
 
 from typing import Any
 
@@ -9,23 +7,23 @@ from ..icon_utils import make_icon
 
 class HierarchyMixin:
     def _get_sphere_cb(self) -> Any:
-        """Возвращает комбобокс сфер.
+        """Return sphere combo box.
 
-        Выделено в отдельный метод для устранения дублирования вызовов
-        `self.dialog.ui.get_widget("sphere_cb")` и повышения читаемости.
+        Kept separate to avoid repetitive `self.dialog.ui.get_widget("sphere_cb")`
+        calls and improve readability.
         """
         return self.dialog._get_sphere_cb()
 
     def _get_section_cb(self) -> Any:
-        """Возвращает комбобокс разделов."""
+        """Return section combo box."""
         return self.dialog._get_section_cb()
 
     def _get_category_cb(self) -> Any:
-        """Возвращает комбобокс категорий."""
+        """Return category combo box."""
         return self.dialog._get_category_cb()
 
     def _update_sections(self) -> None:
-        """Обновляет список разделов."""
+        """Update sections list."""
         sphere_cb = self._get_sphere_cb()
         section_cb = self._get_section_cb()
 
@@ -43,7 +41,7 @@ class HierarchyMixin:
         self._update_categories()
 
     def _update_categories(self) -> None:
-        """Обновляет список категорий."""
+        """Update categories list."""
         section_cb = self._get_section_cb()
         category_cb = self._get_category_cb()
 
@@ -63,11 +61,10 @@ class HierarchyMixin:
     def _add_with_optional_icon(
         self, combo: Any, name: str, item_id: Any, icon_path_val: str
     ) -> None:
-        """Добавляет элемент в комбобокс с иконкой, если она валидна, иначе без иконки.
+        """Add combo box item with icon when valid, otherwise without icon.
 
-        Поведение идентично прежнему коду: сначала пытаемся создать иконку через
-        `make_icon(icon_path_val)`, затем вызываем `addItem(icon, name, id)` или
-        `addItem(name, id)`.
+        Same behaviour as before: try creating icon via `make_icon(icon_path_val)`
+        then call `addItem(icon, name, id)` or fall back to `addItem(name, id)`.
         """
         icon = make_icon(icon_path_val)
         if icon:
@@ -76,10 +73,10 @@ class HierarchyMixin:
             combo.addItem(name, item_id)
 
     def _extract_icon_path(self, item: Any) -> str:
-        """Извлекает icon_path из словаря-подобного объекта безопасно.
+        """Safely extract `icon_path` from dict-like object.
 
-        Возвращает пустую строку, если ключ отсутствует или объект не словарь.
-        Поведение идентично ранее использованной конструкции с hasattr(..., 'keys').
+        Returns empty string when missing or object is not a dict. Mirrors the
+        previous `hasattr(..., "keys")` behaviour.
         """
         try:
             if isinstance(item, dict):

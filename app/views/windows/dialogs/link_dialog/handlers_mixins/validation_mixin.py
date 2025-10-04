@@ -1,16 +1,30 @@
-"""
-Миксин для валидации и обработки ошибок сохранения формы LinkDialog.
-"""
+"""Mixin handling form validation and error reporting for `LinkDialog`."""
 
 import logging
 from typing import Any, Dict, List, Tuple
 
+from PyQt6.QtCore import QCoreApplication
+
 logger = logging.getLogger(__name__)
+
+_TR_CONTEXT = "ValidationMixin"
+
+
+def _tr(text: str, disambiguation: str | None = None) -> str:
+    return QCoreApplication.translate(_TR_CONTEXT, text, disambiguation)
+
+
+# Reusable field labels for messaging/focus handling
+NAME_LABEL = _tr("Name")
+URL_LABEL = _tr("URL")
+LINK_TYPE_LABEL = _tr("Link type")
+CATEGORY_LABEL = _tr("Category")
+ARGS_LABEL = _tr("Arguments")
 
 
 class ValidationMixin:
     def _validate_and_save_data(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Проверяет и сохраняет данные формы."""
+        """Validate and persist form data."""
         if hasattr(self.dialog, "link_controller") and self.dialog.link_controller:
             return self.dialog.link_controller.validate_and_save(form_data)
         else:
@@ -19,8 +33,8 @@ class ValidationMixin:
     def _handle_validation_errors(
         self, form_data: Dict[str, Any], result: Dict[str, Any]
     ) -> None:
-        """Обрабатывает ошибки валидации и показывает соответствующие сообщения."""
-        # Специальный мягкий сценарий: пустая форма (без URL и имени)
+        """Process validation errors and display appropriate messages."""
+        # Soft handling for completely empty form (no URL or name)
         name_empty = not (form_data.get("name") or "").strip()
         url_empty = not (form_data.get("url") or "").strip()
 
@@ -33,26 +47,26 @@ class ValidationMixin:
             self._focus_problematic_field(problems)
 
     def _show_empty_form_message(self) -> None:
-        """Показывает сообщение для пустой формы."""
+        """Show message when form is empty."""
         self.dialog.show_info(
-            "Пусто, как холодильник в конце месяца 🥶 — добавьте хоть адрес или название, и будет что сохранить!",
-            "Подсказка",
-            informative_text="Введите URL или имя и попробуйте снова.",
+            _tr("The form is empty—add at least a URL or a name before saving."),
+            _tr("Hint"),
+            informative_text=_tr("Enter a URL or a name and try again."),
             silent=True,
         )
 
     def _extract_problematic_fields(self, errors: List[str]) -> set:
-        """Извлекает проблемные поля из списка ошибок."""
+        """Extract problematic fields from validation errors."""
         problems = set()
         lower_errors = [e.lower() for e in errors]
         field_map = {
-            "name": "Название",
-            "url": "Адрес",
-            "link_type": "Тип ссылки",
-            "type": "Тип ссылки",
-            "category": "Категория",
-            "category_id": "Категория",
-            "args": "Аргументы",
+            "name": NAME_LABEL,
+            "url": URL_LABEL,
+            "link_type": LINK_TYPE_LABEL,
+            "type": LINK_TYPE_LABEL,
+            "category": CATEGORY_LABEL,
+            "category_id": CATEGORY_LABEL,
+            "args": ARGS_LABEL,
         }
         for key, label in field_map.items():
             if any(key in e for e in lower_errors):
@@ -60,55 +74,58 @@ class ValidationMixin:
         return problems
 
     def _generate_error_messages(self, problems: set) -> Tuple[str, str]:
-        """Генерирует сообщения об ошибках на основе проблемных полей."""
+        """Build primary and informative messages based on problematic fields."""
         hint_map = {
-            "Название": "Укажите понятное название (например, 'Документация API').",
-            "Адрес": "Введите корректный URL вида https://example.com.",
-            "Тип ссылки": "Выберите тип ссылки (веб, файл, папка и т.д.).",
-            "Категория": "Выберите категорию для ссылки.",
-            "Аргументы": "Проверьте аргументы запуска — допустимы только безопасные значения.",
+            NAME_LABEL: _tr("Provide a clear name (for example, 'API documentation')."),
+            URL_LABEL: _tr("Enter a valid URL such as https://example.com."),
+            LINK_TYPE_LABEL: _tr("Choose a link type (web, file, folder, etc.)."),
+            CATEGORY_LABEL: _tr("Select a category for the link."),
+            ARGS_LABEL: _tr("Review launch arguments—only safe values are allowed."),
         }
         hints = [hint_map[p] for p in sorted(problems) if p in hint_map]
-        # Ограничим длину подсказок, чтобы не перегружать окно
+        # Limit total hints to avoid overwhelming the dialog
         short_hints = hints[:2]
 
         if problems:
-            main_msg = f"Заполните/исправьте: {', '.join(sorted(problems))}."
+            main_msg = _tr("Complete or correct: {fields}.").format(
+                fields=", ".join(sorted(problems))
+            )
             extra = (" " + " ".join(short_hints)) if short_hints else ""
             info_msg = (
-                "Проверьте подсказки возле полей."
+                _tr("Check the field hints.")
                 + extra
-                + " Полный список замечаний — в подробностях."
+                + " "
+                + _tr("Full details are available in the More Information section.")
             )
         else:
-            main_msg = "Пожалуйста, проверьте данные перед сохранением."
-            info_msg = "Проверьте выделенные поля и всплывающие подсказки."
+            main_msg = _tr("Please review the data before saving.")
+            info_msg = _tr("Check highlighted fields and tooltip hints.")
 
         return main_msg, info_msg
 
     def _show_validation_error_message(self, errors: List[str], problems: set) -> None:
-        """Показывает сообщение об ошибках валидации."""
+        """Show validation error message to the user."""
         error_text = "\n".join(errors)
         main_msg, info_msg = self._generate_error_messages(problems)
 
         self.dialog.show_info(
             main_msg,
-            "Небольшая подсказка",
+            _tr("Quick hint"),
             informative_text=info_msg,
             details=error_text,
             silent=True,
         )
 
     def _focus_problematic_field(self, problems: set) -> None:
-        """Устанавливает фокус на первое проблемное поле."""
+        """Set focus to the first problematic field if possible."""
         try:
-            if "Адрес" in problems:
+            if URL_LABEL in problems:
                 self.dialog._get_url_le().setFocus()
-            elif "Название" in problems:
+            elif NAME_LABEL in problems:
                 self.dialog._get_name_le().setFocus()
-            elif "Категория" in problems:
+            elif CATEGORY_LABEL in problems:
                 self.dialog._get_category_cb().setFocus()
-            elif "Аргументы" in problems:
+            elif ARGS_LABEL in problems:
                 self.dialog._get_args_le().setFocus()
         except (AttributeError, RuntimeError) as e:
-            logger.warning("Ошибка установки фокуса на проблемное поле: %s", e)
+            logger.warning("Failed to set focus to problematic field: %s", e)
