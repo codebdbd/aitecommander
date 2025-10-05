@@ -7,6 +7,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PyQt6.QtGui import QIcon
 
@@ -16,12 +17,6 @@ from .lock_manager import LockLevel, acquire_cache_lock, acquire_multiple_locks
 from .lru_policy import LRUPolicy
 
 logger = logging.getLogger(__name__)
-
-
-try:
-    from .metrics import CacheMetrics as _ExternalCacheMetrics  # type: ignore
-except Exception:  # noqa: BLE001
-    _ExternalCacheMetrics = None
 
 
 class _FallbackCacheMetrics:
@@ -78,7 +73,24 @@ class _FallbackCacheMetrics:
             }
 
 
-CacheMetrics = _ExternalCacheMetrics or _FallbackCacheMetrics
+try:
+    from .metrics import CacheMetrics as _RuntimeCacheMetrics  # type: ignore
+except Exception:  # noqa: BLE001
+    _RuntimeCacheMetrics = None  # type: ignore[assignment]
+
+if TYPE_CHECKING:
+    # Для статической типизации: mypy увидит корректный класс
+    from .metrics import CacheMetrics as CacheMetrics  # noqa: F401
+else:
+    # Рантайм: используем внешнюю реализацию, если доступна, иначе фолбэк
+    if _RuntimeCacheMetrics is not None:
+        CacheMetrics = _RuntimeCacheMetrics  # type: ignore[assignment]
+    else:
+        class CacheMetrics(_FallbackCacheMetrics):  # type: ignore[misc]
+            pass
+
+
+ 
 
 # --- Типы записей кэша ---
 
@@ -332,7 +344,7 @@ class ThreadSafeIconCache:
         self,
         icon_name: str,
         theme: str,
-        icon: Optional[QIcon],
+        icon: QIcon | None = None,
         *,
         negative: bool = False,
     ) -> None:
@@ -340,7 +352,6 @@ class ThreadSafeIconCache:
         with acquire_cache_lock():
             self._sync_qicon_structs()
             key = self._key(icon_name, theme)
-
             should_evict, old_key = self._qicon_lru.evict_if_needed(
                 self._qicon_cache, key
             )
@@ -666,6 +677,19 @@ def record_not_found() -> None:
     _icon_manager.record_not_found()
 
 
+def get_icon(icon_name: str, theme: str) -> QIcon | None:
+    return _icon_manager.get_icon(icon_name, theme)
+
+
+def set_icon(
+    icon_name: str,
+    theme: str,
+    icon: QIcon | None,
+    *,
+    negative: bool = False,
+) -> None:
+    _icon_manager.set_icon(icon_name, theme, icon, negative=negative)
+
 
 def get_path(icon_name: str, theme: str) -> str | None:
     return _icon_manager.get_path(icon_name, theme)
@@ -677,7 +701,6 @@ def set_path(icon_name: str, theme: str, path: str | None) -> None:
 
 def get(key: str) -> str | QIcon | None:
     return _icon_manager.get(key)
-
 
 def set(
     key: str, value: str | QIcon | None, *, ttl: float | None = None
@@ -696,12 +719,12 @@ def clear() -> None:
 def get_cached_category_icon(path: str) -> QIcon:
     """Получить кэшированную иконку категории из общего кэша без зависимостей от icon_operations."""
     cache_key = f"category::{path}"
-    cached_icon = get_icon(cache_key, "__category__")
+    cached_icon = _icon_manager.get_icon(cache_key, "__category__")
     if cached_icon is not None:
         return cached_icon
 
     # Создаем QIcon напрямую по пути, без вызова create_icon_from_path, чтобы избежать циклов импорта
     icon = QIcon(str(path)) if Path(path).exists() else QIcon()
 
-    set_icon(cache_key, "__category__", icon)
+    _icon_manager.set_icon(cache_key, "__category__", icon)
     return icon

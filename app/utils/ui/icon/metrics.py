@@ -2,7 +2,7 @@
 
 import time
 from collections import deque
-from typing import Dict
+from typing import Any
 
 from .lock_manager import acquire_metrics_lock
 
@@ -65,7 +65,7 @@ class CacheMetrics:
         with acquire_metrics_lock():
             self.not_found += 1
 
-    def get_stats(self) -> Dict[str, any]:
+    def get_stats(self) -> dict[str, Any]:
         """Получить статистику кеша."""
         with acquire_metrics_lock():
             total_requests = self.hits + self.misses

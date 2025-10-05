@@ -2,7 +2,7 @@
 # Provides cache utilities, validation, and comparison helpers
 
 import logging
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from PyQt6.QtCore import Qt
 
@@ -11,13 +11,24 @@ class DataManagementMixin:
     """Mixin responsible for managing data and cache of the links table."""
 
     logger = logging.getLogger(__name__)
+    _current_links: Dict[int, Dict[str, Any]]  # ожидается заполнение таблицей
+
+    # --- Вспомогательные свойства ---
+    @property
+    def _link_cache(self) -> Dict[int, Dict[str, Any]]:
+        """Гарантированно возвращает внутренний кэш ссылок."""
+        cache = getattr(self, "_current_links", None)
+        if cache is None:
+            cache = {}
+            setattr(self, "_current_links", cache)
+        return cache
 
     def validate_cache_integrity(self) -> bool:
         """Validate the integrity of the links cache."""
         try:
             model = getattr(self, "model", lambda: None)()
             row_count = model.rowCount() if model is not None else 0
-            cache_size = len(self._current_links)
+            cache_size = len(self._link_cache)
 
             # Ensure cache size matches the number of rows
             if cache_size != row_count:
@@ -29,7 +40,7 @@ class DataManagementMixin:
                 return False
 
             # Verify every cached index is within the valid range
-            for row in self._current_links.keys():
+            for row in self._link_cache.keys():
                 if not (0 <= row < row_count):
                     self.logger.warning(
                         "[LinksTableView] Invalid cache index: %s",
@@ -71,42 +82,58 @@ class DataManagementMixin:
         # Optimization: lean on ``all()`` for fast comparison
         return all(link1.get(field) == link2.get(field) for field in basic_fields)
 
-    def _get_current_link_ids(self) -> Set[str]:
+    def _get_current_link_ids(self) -> Set[int]:
         """Return the set of current link IDs based on table items (not cache)."""
-        ids: Set[str] = set()
+        ids: Set[int] = set()
         model = getattr(self, "model", lambda: None)()
         total = model.rowCount() if model is not None else 0
         for row in range(total):
             link_data = self.get_link_at(row)
-            if link_data and "id" in link_data:
-                ids.add(link_data["id"])
+            if link_data is not None:
+                link_id = link_data.get("id")
+                if isinstance(link_id, int):
+                    ids.add(link_id)
         return ids
 
-    def _get_new_link_ids(self, new_links: List[Dict]) -> Set[str]:
+    def _get_new_link_ids(self, new_links: List[Dict[str, Any]]) -> Set[int]:
         """Return the set of new link IDs."""
-        return {link.get("id") for link in new_links if link and "id" in link}
+        ids: Set[int] = set()
+        for link in new_links:
+            if not link:
+                continue
+            link_id = link.get("id")
+            if isinstance(link_id, int):
+                ids.add(link_id)
+        return ids
 
     def rebuild_cache_from_items(self) -> None:
         """Rebuild ``_current_links`` cache from the current table state."""
         try:
-            self._current_links.clear()
+            self._link_cache.clear()
             model = getattr(self, "model", lambda: None)()
             total = model.rowCount() if model is not None else 0
             for row in range(total):
                 link_data = self.get_link_at(row)
                 if link_data:
-                    self._current_links[row] = link_data
+                    self._link_cache[row] = link_data
         except Exception as e:
             self.logger.error(
                 "[LinksTableView] Failed to rebuild cache from items: %s",
                 e,
             )
 
-    def _create_link_id_to_data_map(self, links: List[Dict]) -> Dict[str, Dict]:
+    def _create_link_id_to_data_map(self, links: List[Dict[str, Any]]) -> Dict[int, Dict[str, Any]]:
         """Create a mapping ``ID -> link data``."""
-        return {link.get("id"): link for link in links if link and "id" in link}
+        mapping: Dict[int, Dict[str, Any]] = {}
+        for link in links:
+            if not link:
+                continue
+            link_id = link.get("id")
+            if isinstance(link_id, int):
+                mapping[link_id] = link
+        return mapping
 
-    def get_link_at(self, row: int) -> Optional[Dict]:
+    def get_link_at(self, row: int) -> Optional[Dict[str, Any]]:
         """Return link data for the row via model ``UserRole``."""
         try:
             model = getattr(self, "model", lambda: None)()

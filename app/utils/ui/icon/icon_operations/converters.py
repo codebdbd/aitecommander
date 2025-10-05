@@ -73,7 +73,7 @@ def _find_existing_icon_by_content(src_path: Path, dest_dir: Path) -> str | None
     return None
 
 
-def copy_icon_smart(
+def copy_icon_smart(  # noqa: C901
     src_path: str, dest_dir: Path, avoid_duplicates: bool = True
 ) -> str:
     """Умное копирование иконки с проверкой дублирования по содержимому.

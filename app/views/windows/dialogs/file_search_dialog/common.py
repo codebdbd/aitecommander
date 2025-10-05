@@ -2,11 +2,15 @@ import datetime
 import fnmatch
 import os
 import stat
-from typing import Optional
+from typing import Any, Mapping, Optional
+
+from re import Pattern
 
 
 def check_file_content(
-    config: dict, filepath: str, content_regex: Optional[object]
+    config: Mapping[str, Any],
+    filepath: str,
+    content_regex: Optional[Pattern[str]],
 ) -> bool:
     """Check file contents against configuration rules.
 
@@ -17,7 +21,7 @@ def check_file_content(
         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
 
-        if content_regex:
+        if content_regex is not None:
             return bool(content_regex.search(content))
         else:
             search_text = config["content"]
@@ -32,11 +36,11 @@ def check_file_content(
 
 
 def matches_criteria(
-    config: dict,
+    config: Mapping[str, Any],
     filepath: str,
     filename: str,
-    name_regex: Optional[object],
-    content_regex: Optional[object],
+    name_regex: Optional[Pattern[str]],
+    content_regex: Optional[Pattern[str]],
 ) -> bool:
     """Validate file against all criteria defined in ``config``.
 
@@ -50,7 +54,7 @@ def matches_criteria(
             return False
 
         # 2. Filename regex check
-        if name_regex and not name_regex.search(filename):
+        if name_regex is not None and not name_regex.search(filename):
             return False
 
         # 3. File size (KB)

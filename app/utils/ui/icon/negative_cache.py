@@ -20,7 +20,7 @@ from __future__ import annotations
 import heapq
 import threading
 import time
-from typing import Any, Optional
+from typing import Any
 
 from app.config_data import app_config
 from app.utils.cache.base import BaseCache
@@ -128,7 +128,7 @@ class NegativeCache(BaseCache):
         return get_ttl(strikes)
 
     # --- BaseCache API ---
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         now = time.time()
         with self._lock:
             ts = self._ts.get(key)
@@ -145,7 +145,7 @@ class NegativeCache(BaseCache):
             self._ts.pop(key, None)
             return None
 
-    def set(self, key: str, value: Any, *, ttl: Optional[float] = None) -> None:
+    def set(self, key: str, value: Any, *, ttl: float | None = None) -> None:
         # ttl игнорируется: TTL управляется на основе strike и конфигурации
         now = time.time()
         with self._lock:
@@ -189,7 +189,7 @@ class NegativeCache(BaseCache):
                 if s > 0:
                     self._strikes[k_old] = s - 1
 
-    def invalidate(self, key: Optional[str] = None) -> None:
+    def invalidate(self, key: str | None = None) -> None:
         with self._lock:
             if key is None:
                 self._ts.clear()

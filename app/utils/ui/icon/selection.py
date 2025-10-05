@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional, Tuple
 
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QFileDialog, QWidget
@@ -15,8 +14,8 @@ def choose_icon_and_copy(
     parent: QWidget,
     user_icons_dir: Path,
     title: str = "Выбрать иконку",
-    file_filter: Optional[str] = None,
-) -> Tuple[Optional[str], Optional[QIcon]]:
+    file_filter: str | None = None,
+) -> tuple[str | None, QIcon | None]:
     """Открывает диалог выбора иконки, копирует её в user_icons_dir (без дублей)
     и возвращает (имя_файла, QIcon). Если отменено — (None, None).
     """
