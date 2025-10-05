@@ -1,5 +1,5 @@
-# Основной модуль таблицы ссылок
-# Содержит главный класс LinksTableView и базовую функциональность
+# Core module for the links table
+# Contains the main ``LinksTableView`` class and foundational functionality
 
 import logging
 
@@ -21,29 +21,29 @@ from app.views.widgets.link.links_model import LinksTableModel
 
 from .data_management import DataManagementMixin
 
-# Импортируем все миксины
+# Import all mixins
 from .item_builders import ItemBuildersMixin
 from .population_manager import PopulationManagerMixin
 from .row_operations import RowOperationsMixin
 
-# Модульный логгер
+# Module-level logger
 logger = logging.getLogger(__name__)
 
 
 class TableDelegate(QStyledItemDelegate):
-    """Единый делегат: подсветка строки по hover и элидирование по символам в колонке 'Название'."""
+    """Unified delegate: row hover highlight and character-based elision for the ``Name`` column."""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.hovered_row = -1
-        self.hover_color = QColor("#444444")  # Hover цвет для строк таблицы
-        # Настройки размеров шрифтов из единого реестра ui.fonts.*
+        self.hover_color = QColor("#444444")  # Hover color for table rows
+        # Font size settings pulled from the centralized ``ui.fonts.*`` registry
         def _get_px(key: str) -> int | None:
             try:
                 v = app_config.ui.get(f"ui.fonts.{key}")
                 return int(v) if v is not None else None
             except Exception:
                 return None
-        # Единицы для шрифтов: 'px' или 'pt'
+        # Font units: ``px`` or ``pt``
         try:
             self._font_units = str(app_config.ui.get("ui.fonts.units", "px")).strip().lower()
         except Exception:
@@ -51,14 +51,14 @@ class TableDelegate(QStyledItemDelegate):
         if self._font_units not in ("px", "pt"):
             self._font_units = "px"
 
-        # Индивидуальные размеры для колонок (обратная совместимость)
-        self.col_opened_px = _get_px("table_opened_col_px")  # колонка "Открывалась" (index=2)
-        self.col_notes_px = _get_px("table_notes_col_px")    # колонка "Заметки" (index=3)
+        # Individual column sizes (backward compatibility)
+        self.col_opened_px = _get_px("table_opened_col_px")  # "Opened" column (index=2)
+        self.col_notes_px = _get_px("table_notes_col_px")    # "Notes" column (index=3)
 
-        # Новый способ: массив размеров для всех колонок
+        # Modern approach: array of sizes for all columns
         self.col_sizes: dict[int, int] = {}
         try:
-            arr = app_config.ui.get("ui.fonts.table_cols_px")  # ожидается список чисел или None
+            arr = app_config.ui.get("ui.fonts.table_cols_px")  # expected to be a list of numbers or None
         except Exception:
             arr = None
         if isinstance(arr, (list, tuple)):
@@ -73,7 +73,7 @@ class TableDelegate(QStyledItemDelegate):
                     continue
 
     def paint(self, painter, option, index):
-        # Подсветка всей строки при hover (если не выбрана)
+        # Highlight entire row on hover (when not selected)
         is_hovered_row = self.hovered_row == index.row()
         is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
         if is_hovered_row and not is_selected:
@@ -84,10 +84,10 @@ class TableDelegate(QStyledItemDelegate):
         opt = QStyleOptionViewItem(option)
         self.initStyleOption(opt, index)
 
-        # Применяем единые размеры шрифтов для конкретных колонок, если заданы в конфиге
+        # Apply shared font sizes for specific columns if configured
         try:
             col = index.column()
-            # Приоритет: общий массив table_cols_px, затем старые ключи для 2/3
+            # Priority: global ``table_cols_px`` array first, then legacy keys for columns 2 and 3
             val = self.col_sizes.get(col)
             if val is None:
                 if col == 2:
@@ -104,7 +104,7 @@ class TableDelegate(QStyledItemDelegate):
         except Exception:
             pass
 
-        # Цвет текста для колонки "Открывалась" (index=2) — из qproperty LinksTableView.openedColColor
+        # Text color for "Opened" column (index=2) comes from ``LinksTableView.openedColColor``
         try:
             if index.column() == 2:
                 view = self.parent() if hasattr(self, 'parent') else None
@@ -119,7 +119,7 @@ class TableDelegate(QStyledItemDelegate):
         except Exception:
             pass
 
-        # Цвет текста для колонки "Заметки" (index=3) — из qproperty LinksTableView.notesColColor
+        # Text color for "Notes" column (index=3) comes from ``LinksTableView.notesColColor``
         try:
             if index.column() == 3:
                 view = self.parent() if hasattr(self, 'parent') else None
@@ -134,7 +134,7 @@ class TableDelegate(QStyledItemDelegate):
         except Exception:
             pass
 
-        # Для колонки 'Название' (index 1) — жёсткое однострочное элидирование по символам
+        # Column "Name" (index 1): enforce single-line elision by characters
         if index.column() == 1:
             opt.textElideMode = Qt.TextElideMode.ElideRight
             try:
@@ -150,8 +150,8 @@ class TableDelegate(QStyledItemDelegate):
 
         super().paint(painter, opt, index)
 
-        # Границы верхнего левого угла (ячейка над строкой 1 и перед колонкой 0)
-        # рендерятся через QSS (QTableView QTableCornerButton::section) в dark.qss
+        # Top-left corner borders (cell above row 1 and before column 0)
+        # are rendered via QSS (`QTableView QTableCornerButton::section`) in `dark.qss`
 
 
 class LinksTableView(
@@ -162,9 +162,9 @@ class LinksTableView(
     PopulationManagerMixin,
     DragDropHandlerMixin,
     ):
-    """Основной класс таблицы ссылок с модульной архитектурой."""
+    """Primary links table view with modular architecture."""
 
-    # qproperty для задания цвета колонки "Открывалась" из темы (QSS: qproperty-openedColColor)
+    # qproperty: color for the "Opened" column (QSS: ``qproperty-openedColColor``)
     def _get_opened_col_color(self) -> QColor:
         try:
             return getattr(self, "_opened_col_color", QColor())
@@ -183,7 +183,7 @@ class LinksTableView(
 
     openedColColor = pyqtProperty(QColor, fget=_get_opened_col_color, fset=_set_opened_col_color)
 
-    # qproperty для задания цвета колонки "Заметки" из темы (QSS: qproperty-notesColColor)
+    # qproperty: color for the "Notes" column (QSS: ``qproperty-notesColColor``)
     def _get_notes_col_color(self) -> QColor:
         try:
             return getattr(self, "_notes_col_color", QColor())
@@ -202,57 +202,57 @@ class LinksTableView(
 
     notesColColor = pyqtProperty(QColor, fget=_get_notes_col_color, fset=_set_notes_col_color)
 
-    # Сигнал оповещения о завершении массового обновления/заполнения таблицы
+    # Signal emitted after bulk population/update of the table
     table_populated: pyqtSignal = pyqtSignal()
 
     def update_font_size(self, font_size: int):
-        """Применяет локальный размер шрифта ко всем ячейкам таблицы."""
-        # Проверяем, изменился ли размер шрифта
+        """Apply the local font size to every table cell."""
+        # Check whether the font size actually changed
         if hasattr(self, "_current_font_size") and self._current_font_size == font_size:
             return
 
         self._current_font_size = font_size
 
-        # Создаем новый шрифт и применяем к таблице
+        # Create a new font instance and apply it to the table
         from PyQt6.QtGui import QFont
 
         font = QFont(self.font().family(), font_size)
         self.setFont(font)
 
-        # Обновляем отображение
+        # Refresh the viewport
         self.viewport().update()
 
-    # Переопределяем константы базового класса (выравниваем с централизованной функцией)
+    # Override base-class constants (align with centralized helpers)
     MIME_TYPE = get_link_mime()
 
-    # Переименовываем сигнал для совместимости
+    # Rename signal for compatibility
     links_reordered: pyqtSignal = pyqtSignal(
         list
-    )  # List[int] - ID ссылок в новом порядке
+    )  # List[int] - link IDs in the new order
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        # Имя объекта для точечного применения QSS (в т.ч. размера шрифта шапки)
+        # Object name used for QSS tweaks (e.g., header font size)
         try:
             self.setObjectName("linksTable")
         except Exception:
             pass
-        self._current_links = {}  # Кэш текущих данных: {row: link_data}
-        self._current_mode = "normal"  # Текущий режим отображения
+        self._current_links = {}  # Cache of current data: {row: link_data}
+        self._current_mode = "normal"  # Active presentation mode
         self._setup_table()
 
-        # Включаем сортировку и индикатор в заголовке
+        # Enable sorting and header indicator
         self.setSortingEnabled(True)
         header = self.horizontalHeader()
         header.setSortIndicatorShown(True)
-        # Базовый порядок по умолчанию: по названию по возрастанию
+        # Default ordering: ascending by name
         try:
             self.sortByColumn(1, Qt.SortOrder.AscendingOrder)
         except Exception:
             logger.debug("LinksTableView: initial sortByColumn failed", exc_info=True)
         self.delegate = TableDelegate(self)
         self.setItemDelegate(self.delegate)
-        # Глобально: не переносим слова, элидируем справа
+        # Global table settings: no word wrap, elide on the right
         try:
             self.setWordWrap(False)
         except Exception:
@@ -261,9 +261,9 @@ class LinksTableView(
             self.setTextElideMode(Qt.TextElideMode.ElideRight)
         except Exception:
             pass
-        # Используем единый делегат для всех колонок, чтобы подсветка hover применялась ко всей строке
+        # Use the single delegate for every column so hover applies to entire rows
         self.setMouseTracking(True)
-        # QTableView: используем сигнал entered(QModelIndex) вместо cellEntered
+        # QTableView: rely on ``entered(QModelIndex)`` instead of ``cellEntered``
         try:
             self.entered.connect(self._on_index_entered)
         except Exception:
@@ -272,9 +272,9 @@ class LinksTableView(
             )
         self.leaveEvent = self._on_leave_event
 
-        # Сортировка по клику в заголовке: если была отключена после DnD — включим и выполним один сорт
+        # Sorting on header click: re-enable if disabled after drag-and-drop and perform one sort
         self.horizontalHeader().sectionClicked.connect(self._on_sort_clicked)
-        # Перестраиваем кэш только по факту изменения layout модели (дешевле и корректнее)
+        # Rebuild the cache only when the model layout changes (cheaper and correct)
         try:
             self.model().layoutChanged.connect(self._rebuild_cache_on_layout)
         except Exception:
@@ -282,7 +282,7 @@ class LinksTableView(
                 "LinksTableView: failed to connect layoutChanged", exc_info=True
             )
 
-        # Подключаем сигнал базового класса к нашему сигналу для совместимости
+        # Forward base-class signal to our alias for compatibility
         self.items_reordered.connect(self.links_reordered.emit)
 
     def _setup_table(self):
@@ -291,7 +291,7 @@ class LinksTableView(
         model.set_headers(headers)
         self.setModel(model)
 
-        # Визуальные настройки
+        # Visual configuration
         self.setAlternatingRowColors(True)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setShowGrid(False)
@@ -319,7 +319,7 @@ class LinksTableView(
             logger.debug(
                 "LinksTableView: failed to set column widths for 1/2", exc_info=True
             )
-        # Режим изменения ширины колонки 2 ("Открывалась") — из конфига
+        # Column 2 ("Opened") resize mode is driven by config
         try:
             col2_mode = str(app_config.ui.get("ui.links_table_col2_mode", "fixed")).lower()
         except Exception:
@@ -329,12 +329,12 @@ class LinksTableView(
                 header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
             elif col2_mode in ("interactive", "i"):
                 header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
-            elif col2_mode in ("contents", "content", "auto", "resizeToContents".lower()):
+            elif col2_mode in ("contents", "content", "auto", "resizetocontents"):
                 header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
             else:
                 header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         except Exception:
-            # Фолбэк — Fixed
+            # Fallback to Fixed
             header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
 
@@ -348,24 +348,24 @@ class LinksTableView(
             self.delegate.hovered_row = -1
         event.accept()
 
-    # Переопределяем абстрактные методы из BaseDragDropTableWidget
+    # Override abstract methods from ``BaseDragDropTableWidget``
     def _extract_item_ids_from_items(self, items):
-        """Извлекает ID ссылок из выбранных элементов."""
-        # Используем реализацию из DragDropHandlerMixin
+        """Extract link IDs from selected items."""
+        # Delegate to ``DragDropHandlerMixin`` implementation
         return DragDropHandlerMixin._extract_item_ids_from_items(self, items)
 
     def _move_row_visually(self, source_row: int, target_row: int):
-        """Визуально перемещает строку в таблице."""
-        # Используем реализацию из DragDropHandlerMixin
+        """Move a row visually inside the table."""
+        # Delegate to ``DragDropHandlerMixin`` implementation
         return DragDropHandlerMixin._move_row_visually(self, source_row, target_row)
 
     def _get_current_order(self):
-        """Получает текущий порядок ссылок."""
-        # Используем реализацию из DragDropHandlerMixin
+        """Return the current order of links."""
+        # Delegate to ``DragDropHandlerMixin`` implementation
         return DragDropHandlerMixin._get_current_order(self)
 
     def _on_sort_clicked(self, logical_index):
-        """Включаем сортировку по клику, если она была отключена из-за ручного порядка."""
+        """Enable sorting on click if manual ordering disabled it."""
         header = self.horizontalHeader()
         if not self.isSortingEnabled():
             self.setSortingEnabled(True)
@@ -376,7 +376,7 @@ class LinksTableView(
                     "LinksTableView: failed to setSortIndicatorShown(True)",
                     exc_info=True,
                 )
-            # Выполняем один сорт по колонке (Ascending); дальше Qt сам будет
+            # Execute a single ascending sort; Qt will handle subsequent toggles
             try:
                 self.sortByColumn(logical_index, Qt.SortOrder.AscendingOrder)
             except Exception:
@@ -385,16 +385,16 @@ class LinksTableView(
                 )
 
     def _rebuild_cache_on_layout(self):
-        """Перестраиваем кэш после изменения layout модели (сортировка/перемещения)."""
+        """Rebuild cache after the model layout changes (sorting/reordering)."""
         try:
             self.rebuild_cache_from_items()
         except Exception as e:
             logger.debug(
-                "[SORT] Ошибка перестроения кэша по layoutChanged: %s", e, exc_info=True
+                "[SORT] Cache rebuild failed on layoutChanged: %s", e, exc_info=True
             )
 
     def __del__(self):
-        """Отписываемся от сигналов для предотвращения утечек памяти."""
+        """Disconnect signals to prevent memory leaks."""
         try:
             if hasattr(self, 'entered'):
                 self.entered.disconnect()
@@ -409,5 +409,5 @@ class LinksTableView(
             if hasattr(self, 'items_reordered'):
                 self.items_reordered.disconnect()
         except (RuntimeError, TypeError):
-            # Объект уже удалён или сигнал не подключён
+            # Object already deleted or signal not connected
             pass

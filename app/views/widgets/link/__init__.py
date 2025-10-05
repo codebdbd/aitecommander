@@ -1,5 +1,5 @@
-# Модульная структура LinksTableView
-# Экспорт основного класса для обратной совместимости
+# Modular structure for ``LinksTableView``
+# Export the main class for backward compatibility
 
 from .base_table import LinksTableView
 

@@ -1,12 +1,12 @@
 # TopBar Architecture
 
-## Обзор
+## Overview
 
-Модуль `topbar/` отвечает за управление верхней панелью приложения, включая динамическое изменение видимости кнопок панелей (Recent, Favorites, Quick Add) и адаптивное изменение ширины поля поиска в зависимости от доступного пространства.
+The `topbar/` module manages the application's top bar, including dynamic visibility for panel buttons (Recent, Favorites, Quick Add) and adaptive resizing of the search field based on the available space.
 
-## Архитектура
+## Architecture
 
-### Компоненты
+### Components
 
 ```mermaid
 graph TD
@@ -28,79 +28,79 @@ graph TD
     style D fill:#fff4e1
 ```
 
-### Основные классы
+### Key classes
 
 #### `TopBarLayoutManager`
-**Роль**: Оркестратор всей логики верхней панели.
+**Role**: Orchestrates the top-bar logic.
 
-**Ответственность**:
-- Отслеживание событий изменения размера окна/панелей
-- Throttling пересчетов через QTimer
-- Управление жизненным циклом (подключение/отключение сигналов)
-- Координация работы solver, calculator и visibility manager
+**Responsibilities**:
+- Track window/panel resize events.
+- Throttle recalculations via `QTimer`.
+- Manage lifecycle hooks (connect/disconnect signals).
+- Coordinate the solver, calculator, and visibility manager.
 
-**Ключевые методы**:
-- `adjust()` - главный метод пересчета layout
-- `mark_data_ready()` - сигнализирует о готовности данных в панелях
-- `cleanup()` - очистка ресурсов перед удалением
+**Key methods**:
+- `adjust()` — primary layout recomputation entry point.
+- `mark_data_ready()` — signals that panel data is ready.
+- `cleanup()` — releases resources before disposal.
 
 #### `VisibilitySolver`
-**Роль**: Алгоритм расчета оптимального количества видимых кнопок.
+**Role**: Computes the optimal number of visible buttons per panel.
 
-**Алгоритм** (жадный с приоритетами):
-1. Начинаем с максимальных значений для всех панелей
-2. Вычисляем общую ширину через `WidthCalculator`
-3. Если не помещается:
-   - Проходим по панелям в порядке приоритета (recent → fav → quick)
-   - Уменьшаем count на 1 для первой панели, у которой count > minimum
-   - Повторяем, пока не поместится или не достигнем минимумов
-4. Если всё равно не помещается — устанавливаем все в minimum
+**Algorithm** (priority-based greedy):
+1. Start from the maximum values for each panel.
+2. Compute the total width via `WidthCalculator`.
+3. If it does not fit:
+   - Iterate over panels in priority order (recent → fav → quick).
+   - Decrement the first panel whose count is above its minimum.
+   - Repeat until it fits or the minimums are reached.
+4. If it still does not fit, fall back to the minimum counts.
 
-**Сложность**: O(n × m), где n = количество панелей, m = сумма (max - min) для всех панелей
+**Complexity**: O(n × m) where `n` is the panel count and `m` is the sum of `(max - min)` for all panels.
 
-**Защита от бесконечного цикла**: Счетчик steps с ограничением total_steps
+**Infinite-loop safeguard**: A `steps` counter capped by `total_steps`.
 
 #### `WidthCalculator`
-**Роль**: Точный расчет ширины панелей и общего бюджета.
+**Role**: Accurately computes per-panel widths and the overall budget.
 
-**Возможности**:
-- Учет размеров кнопок (sizeHint, min/max width)
-- Учет spacing, margins, frame width
-- Кэширование результатов для оптимизации (O(1) lookup)
-- Статистика кэша (hits/misses/hit_rate)
+**Features**:
+- Considers button size hints and min/max constraints.
+- Accounts for spacing, margins, and frame widths.
+- Caches results for O(1) lookups.
+- Exposes cache statistics (hits/misses/hit_rate).
 
-**Кэширование**:
-- Ключ: `(panel_id, count)`
-- Значение: вычисленная ширина
-- Максимальный размер: 100 записей
-- Стратегия eviction: полная очистка при переполнении
+**Cache**:
+- Key: `(panel_id, count)`.
+- Value: computed width.
+- Capacity: 100 entries.
+- Eviction: full clear when capacity is exceeded.
 
 #### `PanelVisibilityManager`
-**Роль**: Управление видимостью кнопок и анимациями.
+**Role**: Controls button visibility and animations.
 
-**Ответственность**:
-- Поиск кнопок в панелях через `findChildren`
-- Установка видимости кнопок
-- Анимация появления/скрытия (opacity fade)
-- Управление шириной панелей (setMaximumWidth)
+**Responsibilities**:
+- Locate buttons inside panels via `findChildren`.
+- Toggle button visibility.
+- Animate fade-in/fade-out transitions.
+- Enforce panel width constraints (`setMaximumWidth`).
 
-**Защита от утечек памяти**:
-- Трекинг активных анимаций в `_active_animations`
-- Автоматическая очистка через `finished.connect`
-- Декоратор `@safe_widget_operation` для защиты от deleted widgets
+**Memory safety**:
+- Track active animations in `_active_animations`.
+- Auto-cleanup through `finished.connect`.
+- Use the `@safe_widget_operation` decorator to guard against deleted widgets.
 
 #### `LayoutContext` & `PanelState`
-**Роль**: Immutable data classes для передачи состояния.
+**Role**: Immutable data classes used to pass state around.
 
-**Преимущества**:
-- `@dataclass(frozen=True)` предотвращает side effects
-- Явная структура данных для алгоритмов
-- Легко тестировать и мокировать
+**Benefits**:
+- `@dataclass(frozen=True)` prevents side effects.
+- Explicit data layout for algorithms.
+- Easy to test and mock.
 
-### Типизация
+### Typing
 
 #### `TopBarWindow` (Protocol)
-Определяет контракт для главного окна:
+Defines the contract of the main window:
 
 ```python
 class TopBarWindow(Protocol):
@@ -112,15 +112,12 @@ class TopBarWindow(Protocol):
     
     def width(self) -> int: ...
     def isVisible(self) -> bool: ...
-```
-
-#### Enums
 - `PanelLabel`: "recent", "fav", "quick"
 - `ButtonObjectName`: "recentButton", "favoriteButton", "quickButton"
 
-## Жизненный цикл
+## Lifecycle
 
-### Инициализация
+### Initialization
 
 ```mermaid
 sequenceDiagram
@@ -133,14 +130,14 @@ sequenceDiagram
     W->>M: prepare_initial_layout()
     M->>M: show container
     W->>M: _schedule_data_ready_fallback()
-    Note over M: Таймаут 500ms
+    Note over M: Timeout 500 ms
     W->>C: refresh_all()
     C-->>M: data_loaded signal
     M->>M: mark_data_ready()
     M->>M: adjust()
 ```
 
-### Пересчет Layout
+### Layout recomputation
 
 ```mermaid
 sequenceDiagram
@@ -168,17 +165,17 @@ sequenceDiagram
     M->>M: _update_separators_visibility()
 ```
 
-## Race Condition при инициализации
+## Race condition during initialization
 
-### Проблема
-`adjust()` вызывается до загрузки данных в панели → поле поиска временно растягивается.
+### Problem
+`adjust()` fires before the panels finish loading data, so the search field briefly stretches.
 
-### Решение (многоуровневая защита)
+### Solution (multi-layer safeguard)
 
-1. **Флаг `_data_ready`**: Пропускаем ранние `adjust()` до готовности данных
-2. **Сигнал `data_loaded`**: Controller уведомляет Manager о загрузке
-3. **Fallback таймаут**: Через 500ms принудительно запускаем adjust
-4. **Warmup adjusts**: Первые 2 вызова могут быть пропущены
+1. **`_data_ready` flag**: Skip early `adjust()` calls until data is ready.
+2. **`data_loaded` signal**: The controller notifies the manager after loading.
+3. **Fallback timeout**: Force an adjust after 500 ms.
+4. **Warmup adjusts**: The first two calls may be skipped.
 
 ```python
 # TopBarLayoutManager
@@ -187,160 +184,158 @@ if self._warmup_adjusts_remaining > 0 and not self._data_ready:
     return
 ```
 
-## Производительность
+## Performance
 
-### Оптимизации
+### Optimizations
 
-1. **Throttling**: Resize events обрабатываются не чаще чем раз в 32ms (60 FPS)
-2. **Кэширование**: `WidthCalculator` кэширует результаты `panel_width()`
-3. **O(n) алгоритмы**: 
-   - `_clamp_search_width()` - единственный проход по layout
-   - `_update_separators_visibility()` - карта виджетов за O(n)
-4. **Hysteresis**: Предотвращает дёрганье при малых изменениях размера
+1. **Throttling**: Resize events are handled at most once every 32 ms (≈60 FPS).
+2. **Caching**: `WidthCalculator` caches `panel_width()` results.
+3. **O(n) algorithms**:
+   - `_clamp_search_width()` traverses the layout once.
+   - `_update_separators_visibility()` builds the widget map in O(n).
+4. **Hysteresis**: Prevents jitter at small size changes.
 
-### Метрики
+### Metrics
 
 ```python
-# Пороги для логирования медленных операций
+# Logging thresholds for slow operations
 SLOW_ADJUST_THRESHOLD_MS = 16  # 1 frame @ 60fps
 SLOW_CLAMP_THRESHOLD_MS = 8
 
-# Context manager для измерения
+# Measurement helper
 with self._measure_operation("adjust", self.SLOW_ADJUST_THRESHOLD_MS):
-    # ... операция
+    # ... operation
 ```
 
-### Статистика кэша
+### Cache stats
 
 ```python
 stats = width_calculator.get_cache_stats()
 # {'hits': 150, 'misses': 50, 'size': 45, 'hit_rate': 75}
 ```
 
-## Обработка ошибок
+## Error handling
 
-### Defensive Programming
+### Defensive programming
 
-1. **Проверка deleted objects**: `_sip_isdeleted()` перед работой с Qt
-2. **Декоратор `@safe_widget_operation`**: Автоматическая защита методов
-3. **Try/except везде**: Каждая операция с Qt обернута в try/except
-4. **Валидация конфигурации**: `_validate_config_int()` с fallback на defaults
+1. **Deleted-object checks**: Call `_sip_isdeleted()` before touching Qt objects.
+2. **`@safe_widget_operation` decorator**: Adds automatic guards to member functions.
+3. **Try/except everywhere**: Wrap each Qt interaction in exception handling.
+4. **Configuration validation**: `_validate_config_int()` falls back to defaults.
 
-### Логирование
+### Logging
 
-- **DEBUG**: Подробная информация о подключении сигналов, event filters
-- **INFO**: Метрики производительности, видимые counts
-- **WARNING**: Медленные операции, некорректная конфигурация
-- **ERROR**: Критические ошибки (не должны происходить)
+- **DEBUG**: Detailed information on signal hookups and event filters.
+- **INFO**: Performance metrics, visible counts.
+- **WARNING**: Slow operations, invalid configuration.
+- **ERROR**: Critical failures (should never occur).
 
-## Тестирование
+## Testing
 
-### Unit-тесты
+### Unit tests
 
-Расположение: `tests/test_topbar/`
+Location: `tests/test_topbar/`
 
-**Покрытие**:
-- `test_visibility_solver.py` - алгоритм compute_visible_counts
-  - Все панели помещаются
-  - Нужно уменьшение
-  - Минимумы соблюдаются
-  - Приоритет уменьшения
-  - Защита от бесконечного цикла
-  - Параметризованные тесты для разных ширин
+**Coverage**:
+- `test_visibility_solver.py` — `compute_visible_counts` algorithm.
+  - All panels fit.
+  - Reduction required.
+  - Minimum constraints observed.
+  - Decrement priority enforced.
+  - Infinite-loop protection.
+  - Parameterized widths.
 
-**Запуск**:
+**Run**:
 ```bash
 pytest tests/test_topbar/ -v
 pytest tests/test_topbar/test_visibility_solver.py::TestVisibilitySolver::test_compute_visible_counts_all_fit
 ```
 
-### Интеграционные тесты
+### Integration tests
 
-TODO: Добавить тесты для:
-- `TopBarLayoutManager.adjust()` с реальными Qt виджетами
-- Анимации в `PanelVisibilityManager`
-- Кэширование в `WidthCalculator`
+TODO: add coverage for:
+- `TopBarLayoutManager.adjust()` with live Qt widgets.
+- Animations handled by `PanelVisibilityManager`.
+- Caching in `WidthCalculator`.
 
-## Конфигурация
+## Configuration
 
-### app_config параметры
-
-```python
+### `app_config` keys
 # Throttling
 ui.topbar.throttle_ms = 32  # default: 32
 
-# Логирование
-ui.topbar.log_info = False  # default: False
+# Logging
+# ...
+topbar.log_info = False  # default: False
 
-# Размеры
+# Sizes
 ui.get_top_panel_button_size() = 32
 ui.get_top_panel_search_height() = 32
 ui.get_top_panel_search_min_width() = 148
-
-# Минимальные видимые кнопки
+# Minimal visible buttons
 topbar.min_visible.recent = 0
 topbar.min_visible.fav = 0
 topbar.min_visible.quick = 0
 
-# Максимальные (задаются в коде)
+# Maximum defaults (set in code)
 DEFAULT_MAX_RECENT = 10
 DEFAULT_MAX_FAV = 10
 DEFAULT_MAX_QUICK = 6
 ```
 
-## Best Practices
+## Best practices
 
-### При добавлении новой панели
+### Adding a new panel
 
-1. Добавить в `PanelLabel` enum
-2. Добавить в `ButtonObjectName` enum
-3. Добавить `PanelDefinition` в `_panel_definitions`
-4. Добавить атрибут в `TopBarWindow` protocol
-5. Добавить виджет в `WindowUISetup.setup_top_bar_widgets()`
-6. Добавить конфигурацию min/max visible
+1. Update the `PanelLabel` enum.
+2. Add an entry to the `ButtonObjectName` enum.
+3. Register a `PanelDefinition` in `_panel_definitions`.
+4. Extend the `TopBarWindow` protocol with the new attribute.
+5. Add the widget in `WindowUISetup.setup_top_bar_widgets()`.
+6. Provide min/max visibility configuration.
 
-### При изменении алгоритма
+### Modifying algorithms
 
-1. Добавить unit-тесты для нового поведения
-2. Проверить сложность алгоритма (должна быть O(n) или O(n log n))
-3. Добавить метрики производительности
-4. Обновить документацию
+1. Add unit tests for the new behavior.
+2. Validate complexity (should remain O(n) or O(n log n)).
+3. Add performance metrics.
+4. Update this documentation.
 
-### При рефакторинге
+### Refactoring
 
-1. Запустить существующие тесты
-2. Проверить отсутствие утечек памяти (профилировать с `memory_profiler`)
-3. Проверить производительность (профилировать с `cProfile`)
-4. Обновить type hints и docstrings
+1. Run the existing tests.
+2. Check for memory leaks (`memory_profiler`).
+3. Profile performance (`cProfile`).
+4. Refresh type hints and docstrings.
 
-## Известные проблемы
+## Known issues
 
-### 1. Race condition при инициализации (частично решено)
-**Статус**: Улучшено через fallback таймаут  
-**Остаточный эффект**: Возможно кратковременное растягивание search (< 50ms)  
-**Решение**: Требует строгого порядка инициализации или скрытие topbar до готовности
+### 1. Initialization race condition (partially mitigated)
+**Status**: Improved via fallback timeout.  
+**Residual effect**: Possible short-lived search stretching (< 50 ms).  
+**Resolution**: Ensure strict initialization order or hide the top bar until ready.
 
-### 2. Отсутствие интеграционных тестов
-**Статус**: TODO  
-**Риск**: Регрессии при рефакторинге  
-**Решение**: Добавить тесты с реальными Qt виджетами
+### 2. Missing integration tests
+**Status**: TODO.  
+**Risk**: Regressions during refactors.  
+**Resolution**: Add coverage with real Qt widgets.
 
-### 3. Простая стратегия eviction в кэше
-**Статус**: Работает, но не оптимально  
-**Улучшение**: Использовать LRU cache вместо полной очистки
+### 3. Simple cache eviction strategy
+**Status**: Functional but suboptimal.  
+**Improvement**: Consider an LRU cache instead of full invalidation.
 
 ## Changelog
 
-### 2025-09-30: Улучшения качества кода
-- ✅ Добавлен `TopBarWindow` Protocol для типизации
-- ✅ Добавлены Enum для магических строк (`PanelLabel`, `ButtonObjectName`)
-- ✅ Улучшены type hints (заменен `object` на конкретные типы)
-- ✅ Оптимизирован `_update_separators_visibility()` до O(n)
-- ✅ Добавлено кэширование в `WidthCalculator`
-- ✅ Добавлен fallback таймаут для race condition
-- ✅ Созданы unit-тесты для `VisibilitySolver`
-- ✅ Добавлена архитектурная документация
+### 2025-09-30: Code quality improvements
+- ✅ Added the `TopBarWindow` protocol for typing.
+- ✅ Introduced enums for magic strings (`PanelLabel`, `ButtonObjectName`).
+- ✅ Improved type hints (replaced `object` with concrete types).
+- ✅ Optimized `_update_separators_visibility()` to O(n).
+- ✅ Added caching to `WidthCalculator`.
+- ✅ Implemented a fallback timeout for the race condition.
+- ✅ Created unit tests for `VisibilitySolver`.
+- ✅ Documented the architecture.
 
-## Контакты
+## Contacts
 
-При вопросах или проблемах создавайте issue с тегом `topbar`.
+If you have questions or encounter issues, open an issue with the `topbar` tag.

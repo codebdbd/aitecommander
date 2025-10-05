@@ -19,16 +19,16 @@ logger = logging.getLogger(__name__)
 
 
 def safe_widget_operation(func: Callable) -> Callable:
-    """Декоратор для безопасных операций с Qt-виджетами.
-    
-    ИСПРАВЛЕНИЕ: Автоматически проверяет виджет на None и deleted состояние.
-    Предотвращает RuntimeError при работе с удаленными Qt-объектами.
+    """Decorator that guards Qt widget operations.
+
+    Fix: automatically verifies that the widget is not ``None`` or deleted to
+    avoid ``RuntimeError`` on dangling Qt objects.
     """
     @wraps(func)
     def wrapper(self, widget: Optional[QWidget], *args, **kwargs):
         if widget is None or self._is_deleted(widget):
             logger.debug(f"{func.__name__}: widget is None or deleted")
-            # Возвращаем разумное значение по умолчанию
+            # Return a sensible default
             if func.__name__.startswith('get'):
                 return None
             elif func.__name__.startswith('set') or func.__name__.startswith('apply'):
@@ -45,43 +45,43 @@ def safe_widget_operation(func: Callable) -> Callable:
 
 
 class PanelVisibilityManager:
-    """Управляет кнопками панелей и их анимацией.
-    
-    Отвечает за:
-    - Поиск кнопок в панелях
-    - Установку видимости кнопок
-    - Анимацию появления/скрытия кнопок
-    - Управление шириной панелей
+    """Manage panel buttons and their animations.
+
+    Responsibilities:
+    - Find panel buttons
+    - Toggle button visibility
+    - Animate show/hide transitions
+    - Constrain panel widths
     """
 
     def __init__(self, width_calculator: WidthCalculator, parent: Optional[QWidget] = None):
-        """Инициализирует менеджер видимости панелей.
-        
-        ИСПРАВЛЕНИЕ: Добавлен AccessibilityManager для полной поддержки доступности.
-        
+        """Initialize panel-visibility manager.
+
+        Fix: include ``AccessibilityManager`` for complete accessibility support.
+
         Args:
-            width_calculator: Калькулятор ширины панелей
-            parent: Родительский виджет (для accessibility manager)
+            width_calculator: Panel width calculator.
+            parent: Parent widget used by the accessibility manager.
         """
         self._width_calculator = width_calculator
-        # ИСПРАВЛЕНИЕ: Сохраняем ссылки на активные анимации для предотвращения GC
+        # Fix: keep references to active animations to prevent GC collection
         self._active_animations: List[QParallelAnimationGroup] = []
-        # ИСПРАВЛЕНИЕ: Добавлен менеджер accessibility
+        # Fix: instantiate accessibility manager
         self._accessibility_manager = AccessibilityManager(parent)
 
     def iter_buttons(
         self, panel_widget: Optional[QWidget], object_name: str
     ) -> List[QToolButton]:
-        """Находит все кнопки с заданным objectName в панели.
-        
-        ИСПРАВЛЕНИЕ: Добавлены проверки на удаленные объекты.
-        
+        """Find all buttons with the given ``objectName`` inside a panel.
+
+        Fix: add checks for deleted objects.
+
         Args:
-            panel_widget: Виджет панели
-            object_name: Имя объекта кнопки для поиска
-            
+            panel_widget: Panel widget.
+            object_name: Target button ``objectName`` to locate.
+
         Returns:
-            Список найденных кнопок
+            List of matching buttons.
         """
         if not panel_widget or self._is_deleted(panel_widget):
             return []
@@ -104,7 +104,7 @@ class PanelVisibilityManager:
             except (RuntimeError, AttributeError):
                 pass
         
-        # Fallback: поиск через findChildren
+        # Fallback: search via ``findChildren``
         try:
             for button in panel_widget.findChildren(QToolButton, object_name):
                 if button not in buttons and not self._is_deleted(button):
@@ -118,10 +118,10 @@ class PanelVisibilityManager:
     def set_visible_count(
         self, panel_widget: Optional[QWidget], buttons: List[QToolButton], count: int
     ) -> int:
-        """Устанавливает количество видимых кнопок в панели.
-        
-        ИСПРАВЛЕНИЕ: Добавлен декоратор @safe_widget_operation для защиты от deleted widgets.
-        ИСПРАВЛЕНИЕ: Добавлены accessibility атрибуты для screen readers.
+        """Set the number of visible buttons within the panel.
+
+        Fix: protect against deleted widgets via ``@safe_widget_operation`` and set
+        baseline accessibility metadata for screen readers.
         """
         if not buttons:
             self._ensure_panel_visible(panel_widget)
@@ -133,8 +133,8 @@ class PanelVisibilityManager:
                     is_visible = index < visible
                     button.setVisible(is_visible)
                     
-                    # ИСПРАВЛЕНИЕ: Базовые accessibility атрибуты
-                    # (полная настройка через AccessibilityManager в apply_counts)
+                    # Fix: baseline accessibility attributes (full setup occurs in
+                    # ``AccessibilityManager`` via ``apply_counts``)
                     if is_visible:
                         button.setAccessibleDescription(
                             f"Button {index + 1} of {visible} visible buttons"
@@ -146,7 +146,7 @@ class PanelVisibilityManager:
         
         self._ensure_panel_visible(panel_widget)
         
-        # ИСПРАВЛЕНИЕ: Обновляем фокус после изменения видимости
+        # Fix: refresh focus after visibility changes
         try:
             self._accessibility_manager.update_focus_after_visibility_change(buttons, visible)
         except Exception as e:
@@ -159,12 +159,12 @@ class PanelVisibilityManager:
         panel_states: Iterable[PanelState],
         counts: dict[str, int],
     ) -> dict[str, int]:
-        """Применяет количество видимых кнопок для всех панелей.
-        
-        ИСПРАВЛЕНИЕ: Добавлена полная настройка accessibility для каждой панели.
+        """Apply visible button counts across all panels.
+
+        Fix: configure full accessibility metadata per panel.
         """
         applied: dict[str, int] = {}
-        shortcut_counter = 1  # Счетчик для keyboard shortcuts
+        shortcut_counter = 1  # Counter for keyboard shortcuts
         
         for state in panel_states:
             visible = self.set_visible_count(
@@ -172,11 +172,11 @@ class PanelVisibilityManager:
                 state.buttons,
                 counts.get(state.definition.label, 0),
             )
-            # Применяем ширину панели ПОСЛЕ установки видимости кнопок
+            # Apply panel width bounds after adjusting button visibility
             self._apply_panel_width_bounds(state.widget, state.buttons, visible)
             applied[state.definition.label] = visible
             
-            # ИСПРАВЛЕНИЕ: Настраиваем полную accessibility для панели
+            # Fix: configure full accessibility for the panel
             try:
                 panel_name_map = {
                     "recent": "Recent Links",
@@ -193,7 +193,7 @@ class PanelVisibilityManager:
                     start_shortcut_number=shortcut_counter
                 )
                 
-                # Увеличиваем счетчик для следующей панели
+                # Increment counter for the next panel
                 shortcut_counter += visible
                 
             except Exception as e:
@@ -205,9 +205,9 @@ class PanelVisibilityManager:
     def _apply_panel_width_bounds(
         self, panel: Optional[QWidget], buttons: List[QToolButton], visible: int
     ) -> None:
-        """Устанавливает ширину панели на основе видимых кнопок.
-        
-        ИСПРАВЛЕНИЕ: Добавлен декоратор @safe_widget_operation для защиты от deleted widgets.
+        """Set panel width bounds based on visible buttons.
+
+        Fix: guard execution with ``@safe_widget_operation`` to handle deleted widgets.
         """
         try:
             panel.setMinimumWidth(0)
@@ -225,7 +225,7 @@ class PanelVisibilityManager:
             low = name.lower()
             if ('fav' in low or 'quick' in low) and not bool(getattr(panel, '_dbg_logged_once', False)):
                 try:
-                    # Collect current visible buttons and their sizeHints
+                    # Collect current visible buttons and their ``sizeHint`` values
                     visible_btns = []
                     for i, b in enumerate(buttons):
                         try:
@@ -264,17 +264,17 @@ class PanelVisibilityManager:
         duration_ms: int,
         easing,
     ) -> int:
-        """Применяет видимость кнопок с анимацией.
-        
+        """Animate button visibility changes.
+
         Args:
-            panel: Виджет панели
-            buttons: Список кнопок для анимации
-            target_visible: Целевое количество видимых кнопок
-            duration_ms: Длительность анимации в миллисекундах
-            easing: Кривая сглаживания анимации
-            
+            panel: Panel widget.
+            buttons: Button list to animate.
+            target_visible: Desired visible button count.
+            duration_ms: Animation duration in milliseconds.
+            easing: Easing curve for the animation.
+
         Returns:
-            Фактическое количество видимых кнопок
+            Actual number of visible buttons.
         """
         if not panel:
             return 0
@@ -321,8 +321,7 @@ class PanelVisibilityManager:
                 animation.setStartValue(1.0)
                 animation.setEndValue(0.0)
 
-                # ИСПРАВЛЕНИЕ: Используем WeakMethod для избежания утечек памяти
-                # Создаем слабую ссылку на button, чтобы не препятствовать GC
+                # Fix: use weak references to avoid memory leaks when hiding buttons
                 try:
                     from weakref import ref
                     button_ref = ref(button)
@@ -338,15 +337,12 @@ class PanelVisibilityManager:
                     animation.finished.connect(hide_callback)
                 except Exception as e:
                     logger.debug("Failed to create hide callback: %s", e)
-                
-                group.addAnimation(animation)
-                any_animation = True
 
         if any_animation:
-            # ИСПРАВЛЕНИЕ: Сохраняем ссылку на группу анимаций
+            # Fix: retain reference to the animation group
             self._active_animations.append(group)
             try:
-                # ИСПРАВЛЕНИЕ: Используем WeakMethod для cleanup, чтобы избежать circular reference
+                # Fix: use weak references for cleanup to avoid circular references
                 from weakref import ref
                 group_ref = ref(group)
                 
@@ -359,12 +355,12 @@ class PanelVisibilityManager:
                 group.start()
             except Exception as e:
                 logger.warning("Failed to start animation group: %s", e)
-                # ИСПРАВЛЕНИЕ: Очищаем при ошибке
+                # Fix: perform cleanup on failure
                 self._cleanup_animation(group)
         return target_visible
     
     def _create_hide_callback(self, button: QToolButton):
-        """Создает callback для скрытия кнопки без утечек памяти."""
+        """Create a hide callback that avoids memory leaks."""
         def hide_button():
             try:
                 if button and not self._is_deleted(button):
@@ -374,7 +370,7 @@ class PanelVisibilityManager:
         return hide_button
     
     def _safe_hide_button(self, button: QToolButton) -> None:
-        """Безопасно скрывает кнопку."""
+        """Hide a button safely."""
         try:
             if button and not self._is_deleted(button):
                 button.setVisible(False)
@@ -382,7 +378,7 @@ class PanelVisibilityManager:
             pass
     
     def _cleanup_animation(self, group: QParallelAnimationGroup) -> None:
-        """Удаляет завершенную анимацию из списка активных."""
+        """Remove a completed animation group from the active list."""
         try:
             if group in self._active_animations:
                 self._active_animations.remove(group)
@@ -390,7 +386,7 @@ class PanelVisibilityManager:
             pass
     
     def _is_deleted(self, obj) -> bool:
-        """Проверяет, удален ли Qt-объект."""
+        """Check whether a Qt object has been deleted."""
         try:
             from sip import isdeleted
             return isdeleted(obj)
@@ -399,9 +395,9 @@ class PanelVisibilityManager:
 
     @safe_widget_operation
     def _ensure_panel_visible(self, panel_widget: Optional[QWidget]) -> None:
-        """Гарантирует видимость панели.
-        
-        ИСПРАВЛЕНИЕ: Добавлен декоратор @safe_widget_operation для защиты от deleted widgets.
+        """Ensure that the panel itself stays visible.
+
+        Fix: guard the call with ``@safe_widget_operation`` to handle deleted widgets.
         """
         try:
             panel_widget.setVisible(True)

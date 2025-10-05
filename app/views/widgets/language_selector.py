@@ -20,8 +20,9 @@ class LanguageSelector(QComboBox, ReTranslatable):
         ReTranslatable.__init__(self)
 
     def _populate(self) -> None:
-        languages = self._service.available_languages()
-        current = self._service.current_language()
+        service = self._ensure_service()
+        languages = service.available_languages()
+        current = service.current_language()
         self.blockSignals(True)
         self.clear()
         for descriptor in languages:
@@ -40,18 +41,26 @@ class LanguageSelector(QComboBox, ReTranslatable):
 
     def _on_index_changed(self, index: int) -> None:
         code: Optional[str] = self.itemData(index)
+        service = self._ensure_service()
         if not code:
             return
-        if code == self._service.current_language():
+        if code == service.current_language():
             return
-        self._service.set_language(code)
+        service.set_language(code)
         # After switching language, refresh selection to reflect any normalization.
-        normalized = self._service.current_language()
+        normalized = service.current_language()
         normalized_index = self.findData(normalized)
         if normalized_index >= 0:
             self.blockSignals(True)
             self.setCurrentIndex(normalized_index)
             self.blockSignals(False)
+
+    def _ensure_service(self) -> LanguageService:
+        service = getattr(self, "_service", None)
+        if service is None:
+            service = LanguageService.instance()
+            self._service = service
+        return service
 
 
 __all__ = ["LanguageSelector"]

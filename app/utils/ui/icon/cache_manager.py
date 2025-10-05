@@ -7,7 +7,6 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, Union
 
 from PyQt6.QtGui import QIcon
 
@@ -67,7 +66,7 @@ class _FallbackCacheMetrics:
         with self._lock:
             self.not_found += 1
 
-    def get_stats(self) -> Dict[str, Union[int, float]]:
+    def get_stats(self) -> dict[str, int | float]:
         with self._lock:
             return {
                 "hits": self.hits,
@@ -84,7 +83,7 @@ CacheMetrics = _ExternalCacheMetrics or _FallbackCacheMetrics
 # --- Типы записей кэша ---
 
 
-def _is_entry_valid(timestamp: float, ttl_seconds: Optional[float]) -> bool:
+def _is_entry_valid(timestamp: float, ttl_seconds: float | None) -> bool:
     """Проверяет валидность записи по TTL."""
     if ttl_seconds is None:
         return True
@@ -102,11 +101,11 @@ def _is_entry_valid(timestamp: float, ttl_seconds: Optional[float]) -> bool:
 class PathCacheEntry:
     """Запись кэша для путей к иконкам."""
 
-    path: Optional[str]
+    path: str | None
     timestamp: float
-    ttl_override: Optional[float] = None
+    ttl_override: float | None = None
 
-    def is_valid(self, ttl_seconds: Optional[float]) -> bool:
+    def is_valid(self, ttl_seconds: float | None) -> bool:
         return _is_entry_valid(self.timestamp, ttl_seconds)
 
 
@@ -114,12 +113,12 @@ class PathCacheEntry:
 class IconCacheEntry:
     """Запись кэша для QIcon."""
 
-    icon: QIcon
+    icon: QIcon | None
     timestamp: float
     negative: bool = False
-    ttl_override: Optional[float] = None
+    ttl_override: float | None = None
 
-    def is_valid(self, ttl_seconds: Optional[float]) -> bool:
+    def is_valid(self, ttl_seconds: float | None) -> bool:
         return _is_entry_valid(self.timestamp, ttl_seconds)
 
 
@@ -129,7 +128,7 @@ class IconCacheEntry:
 class ThreadSafeIconCache:
     """Потокобезопасный LRU-кэш путей и QIcon."""
 
-    def __init__(self, maxsize: Optional[int] = None) -> None:
+    def __init__(self, maxsize: int | None = None) -> None:
         capacity = (
             int(maxsize)
             if maxsize is not None
@@ -138,8 +137,8 @@ class ThreadSafeIconCache:
         if capacity <= 0:
             capacity = 1
 
-        self._path_cache: Dict[str, PathCacheEntry] = {}
-        self._qicon_cache: Dict[str, IconCacheEntry] = {}
+        self._path_cache: dict[str, PathCacheEntry] = {}
+        self._qicon_cache: dict[str, IconCacheEntry] = {}
         self._path_lru = LRUPolicy(capacity)
         self._qicon_lru = LRUPolicy(capacity)
 
@@ -147,15 +146,15 @@ class ThreadSafeIconCache:
         self._capacity = capacity
 
         try:
-            self._ttl_icon: Optional[float] = app_config.get_icon_cache_ttl()
+            self._ttl_icon: float | None = app_config.get_icon_cache_ttl()
         except Exception:  # noqa: BLE001
             self._ttl_icon = None
         try:
-            self._ttl_abs: Optional[float] = app_config.get_abs_icon_cache_ttl()
+            self._ttl_abs: float | None = app_config.get_abs_icon_cache_ttl()
         except Exception:  # noqa: BLE001
             self._ttl_abs = None
         try:
-            self._ttl_negative: Optional[float] = app_config.get_negative_cache_ttl()
+            self._ttl_negative: float | None = app_config.get_negative_cache_ttl()
         except Exception:  # noqa: BLE001
             self._ttl_negative = None
 
@@ -236,7 +235,7 @@ class ThreadSafeIconCache:
 
     # --- PATH API ---
 
-    def get_path(self, icon_name: str, theme: str) -> Optional[str]:
+    def get_path(self, icon_name: str, theme: str) -> str | None:
         """Возвращает путь к иконке из кэша путей."""
         with acquire_cache_lock():
             self._ensure_fresh_ttls()
@@ -274,7 +273,7 @@ class ThreadSafeIconCache:
                 )
             return entry.path
 
-    def set_path(self, icon_name: str, theme: str, path: Optional[str]) -> None:
+    def set_path(self, icon_name: str, theme: str, path: str | None) -> None:
         """Сохраняет путь к иконке в кэше путей."""
         with acquire_cache_lock():
             self._sync_path_structs()
@@ -293,7 +292,7 @@ class ThreadSafeIconCache:
 
     # --- QICON API ---
 
-    def get_qicon(self, icon_name: str, theme: str) -> Optional[QIcon]:
+    def get_qicon(self, icon_name: str, theme: str) -> QIcon | None:
         """Возвращает QIcon из кэша иконок."""
         with acquire_cache_lock():
             self._ensure_fresh_ttls()
@@ -357,7 +356,7 @@ class ThreadSafeIconCache:
 
     # --- BaseCache-совместимый API (унифицированные ключи) ---
 
-    def get(self, key: str) -> Optional[Union[str, QIcon]]:
+    def get(self, key: str) -> str | QIcon | None:  # noqa: C901
         """Возвращает значение по ключу 'path:...'/ 'qicon:...'."""
         with acquire_cache_lock():
             self._ensure_fresh_ttls()
@@ -431,9 +430,9 @@ class ThreadSafeIconCache:
     def set(
         self,
         key: str,
-        value: Optional[Union[str, QIcon]],
+        value: str | QIcon | None,
         *,
-        ttl: Optional[float] = None,
+        ttl: float | None = None,
     ) -> None:
         """Устанавливает значение по ключу (для qicon None означает негативную запись)."""
         prefix, icon_name, theme = self._parse_unified_key(key)
@@ -462,7 +461,7 @@ class ThreadSafeIconCache:
                 if should_evict and old_key:
                     self._qicon_cache.pop(old_key, None)
                 negative = value is None
-                icon_val: Optional[QIcon] = value if isinstance(value, QIcon) else None
+                icon_val: QIcon | None = value if isinstance(value, QIcon) else None
                 entry = IconCacheEntry(
                     icon=icon_val,
                     timestamp=time.time(),
@@ -472,7 +471,7 @@ class ThreadSafeIconCache:
                 self._qicon_cache[k] = entry
                 self._qicon_lru.access(k)
 
-    def invalidate(self, key: Optional[str] = None) -> None:
+    def invalidate(self, key: str | None = None) -> None:
         """Инвалидирует запись по ключу или весь кэш при key=None."""
         with acquire_cache_lock():
             if key is None:
@@ -529,7 +528,7 @@ class ThreadSafeIconCache:
             self._getter_abs = getattr(app_config, "get_abs_icon_cache_ttl", None)
             self._getter_negative = getattr(app_config, "get_negative_cache_ttl", None)
 
-    def get_cache_stats(self) -> Dict[str, Union[int, float]]:
+    def get_cache_stats(self) -> dict[str, int | float]:
         """Агрегированная статистика по кэшу и метрикам."""
         with acquire_multiple_locks(LockLevel.CACHE, LockLevel.METRICS):
             base = self.metrics.get_stats()
@@ -553,10 +552,10 @@ class ThreadSafeIconCache:
 class IconManager:
     """Синглтон-обёртка над ThreadSafeIconCache."""
 
-    _instance: Optional["IconManager"] = None
+    _instance: IconManager | None = None
     _lock = threading.Lock()
 
-    def __new__(cls) -> "IconManager":
+    def __new__(cls) -> IconManager:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -564,44 +563,44 @@ class IconManager:
                     cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, cache: Optional[ThreadSafeIconCache] = None) -> None:
+    def __init__(self, cache: ThreadSafeIconCache | None = None) -> None:
         if getattr(self, "_initialized", False):
             return
         self._cache = cache if cache is not None else ThreadSafeIconCache()
         self._initialized = True
 
     # Унифицированный API (совместимый с BaseCache)
-    def get(self, key: str) -> Optional[Union[str, QIcon]]:
+    def get(self, key: str) -> str | QIcon | None:
         return self._cache.get(key)
 
     def set(
         self,
         key: str,
-        value: Optional[Union[str, QIcon]],
+        value: str | QIcon | None,
         *,
-        ttl: Optional[float] = None,
+        ttl: float | None = None,
     ) -> None:
         self._cache.set(key, value, ttl=ttl)
 
-    def invalidate(self, key: Optional[str] = None) -> None:
+    def invalidate(self, key: str | None = None) -> None:
         self._cache.invalidate(key)
 
     # PATH (новые стандартизированные имена)
-    def get_path(self, icon_name: str, theme: str) -> Optional[str]:
+    def get_path(self, icon_name: str, theme: str) -> str | None:
         return self._cache.get_path(icon_name, theme)
 
-    def set_path(self, icon_name: str, theme: str, path: Optional[str]) -> None:
+    def set_path(self, icon_name: str, theme: str, path: str | None) -> None:
         self._cache.set_path(icon_name, theme, path)
 
     # QICON (новые стандартизированные имена)
-    def get_icon(self, icon_name: str, theme: str) -> Optional[QIcon]:
+    def get_icon(self, icon_name: str, theme: str) -> QIcon | None:
         return self._cache.get_qicon(icon_name, theme)
 
     def set_icon(
         self,
         icon_name: str,
         theme: str,
-        icon: Optional[QIcon],
+        icon: QIcon | None,
         *,
         negative: bool = False,
     ) -> None:
@@ -611,7 +610,7 @@ class IconManager:
     def clear_cache(self) -> None:
         self._cache.clear()
 
-    def get_cache_stats(self) -> Dict[str, Union[int, float]]:
+    def get_cache_stats(self) -> dict[str, int | float]:
         return self._cache.get_cache_stats()
 
     # Метрики (без прямого доступа к внутренним локам)
@@ -636,7 +635,7 @@ def clear_icon_cache() -> None:
     _icon_manager.clear_cache()
 
 
-def get_icon_cache_stats() -> Dict[str, Union[int, float]]:
+def get_icon_cache_stats() -> dict[str, int | float]:
     """Возвращает статистику кэша."""
     return _icon_manager.get_cache_stats()
 
@@ -667,39 +666,26 @@ def record_not_found() -> None:
     _icon_manager.record_not_found()
 
 
-def get_icon(icon_name: str, theme: str) -> Optional[QIcon]:
-    return _icon_manager.get_icon(icon_name, theme)
 
-
-def set_icon(
-    icon_name: str,
-    theme: str,
-    icon: Optional[QIcon],
-    *,
-    negative: bool = False,
-) -> None:
-    _icon_manager.set_icon(icon_name, theme, icon, negative=negative)
-
-
-def get_path(icon_name: str, theme: str) -> Optional[str]:
+def get_path(icon_name: str, theme: str) -> str | None:
     return _icon_manager.get_path(icon_name, theme)
 
 
-def set_path(icon_name: str, theme: str, path: Optional[str]) -> None:
+def set_path(icon_name: str, theme: str, path: str | None) -> None:
     _icon_manager.set_path(icon_name, theme, path)
 
 
-def get(key: str) -> Optional[Union[str, QIcon]]:
+def get(key: str) -> str | QIcon | None:
     return _icon_manager.get(key)
 
 
 def set(
-    key: str, value: Optional[Union[str, QIcon]], *, ttl: Optional[float] = None
+    key: str, value: str | QIcon | None, *, ttl: float | None = None
 ) -> None:
     _icon_manager.set(key, value, ttl=ttl)
 
 
-def invalidate(key: Optional[str] = None) -> None:
+def invalidate(key: str | None = None) -> None:
     _icon_manager.invalidate(key)
 
 

@@ -1,24 +1,23 @@
-# Улучшения качества кода TopBar (2025-09-30)
+# TopBar Code Quality Improvements (2025-09-30)
 
-## Обзор
+## Overview
 
-Применены критичные и важные исправления на основе анализа качества кода PyQt6 приложения.
-Все изменения направлены на повышение надежности, производительности и поддерживаемости кода.
+Critical and high-priority fixes were applied based on a PyQt6 code quality audit. The changes focus on reliability, performance, and maintainability.
 
-## Реализованные исправления
+## Implemented fixes
 
-### 1. ✅ Исправлены утечки памяти в анимациях
+### 1. ✅ Memory leaks removed from animations
 
-**Файл**: `panel_visibility_manager.py`
+**File**: `panel_visibility_manager.py`
 
-**Проблема**: Lambda-функции в `animation.finished.connect()` создавали circular references, препятствуя сборке мусора.
+**Issue**: Lambda callbacks in `animation.finished.connect()` created circular references and blocked garbage collection.
 
-**Решение**:
+**Fix**:
 ```python
-# Было:
+# Before:
 animation.finished.connect(lambda: self._safe_hide_button(button))
 
-# Стало:
+# After:
 from weakref import ref
 button_ref = ref(button)
 
@@ -30,17 +29,17 @@ def hide_callback():
 animation.finished.connect(hide_callback)
 ```
 
-**Эффект**: Устранены утечки памяти при большом количестве анимаций, снижено потребление памяти на ~15-20%.
+**Impact**: Eliminated leaks under heavy animation usage, reducing memory consumption by ~15–20%.
 
 ---
 
-### 2. ✅ Добавлена проверка thread safety
+### 2. ✅ Added thread-safety check
 
-**Файл**: `top_bar_layout_manager.py`
+**File**: `top_bar_layout_manager.py`
 
-**Проблема**: `adjust()` мог быть вызван из worker thread, что приводило к crash.
+**Issue**: `adjust()` could run from a worker thread, causing crashes.
 
-**Решение**:
+**Fix**:
 ```python
 def adjust(self) -> None:
     # Thread safety check
@@ -54,17 +53,17 @@ def adjust(self) -> None:
     # ...
 ```
 
-**Эффект**: Предотвращены потенциальные crashes при многопоточной работе.
+**Impact**: Prevents crashes under multi-threaded conditions.
 
 ---
 
-### 3. ✅ Упрощена логика инициализации с enum состояний
+### 3. ✅ Simplified initialization logic with state enum
 
-**Файл**: `top_bar_layout_manager.py`
+**File**: `top_bar_layout_manager.py`
 
-**Проблема**: Разрозненные флаги (`_data_ready`, `_warmup_adjusts_remaining`) усложняли отслеживание состояния.
+**Issue**: Disparate flags (`_data_ready`, `_warmup_adjusts_remaining`) made state tracking difficult.
 
-**Решение**:
+**Fix**:
 ```python
 class InitializationState(Enum):
     NOT_STARTED = auto()
@@ -72,7 +71,7 @@ class InitializationState(Enum):
     DATA_READY = auto()
     LAYOUT_APPLIED = auto()
 
-# Использование:
+# Usage:
 self._init_state = InitializationState.WAITING_FOR_DATA
 
 if self._init_state == InitializationState.WAITING_FOR_DATA:
@@ -80,87 +79,85 @@ if self._init_state == InitializationState.WAITING_FOR_DATA:
     return
 ```
 
-**Эффект**: 
-- Явное управление состояниями
-- Упрощенная отладка
-- Предотвращены некорректные переходы состояний
+**Impact**:
+- Explicit state management.
+- Simplified debugging.
+- Prevents invalid state transitions.
 
----
 
-### 4. ✅ Реализован LRU кэш вместо простой очистки
+**File**: `width_calculator.py`
 
-**Файл**: `width_calculator.py`
+**Issue**: Cache overflow triggered full resets, causing latency spikes.
 
-**Проблема**: При переполнении кэша происходила полная очистка, что вызывало spike в latency.
-
-**Решение**:
+**Fix**:
 ```python
 from collections import OrderedDict
 
+{{ ... }}
 self._panel_width_cache: OrderedDict[Tuple[int, int], int] = OrderedDict()
 
-# При чтении - перемещаем в конец (most recently used)
+# On read move to the end (most recently used)
 if cache_key in self._panel_width_cache:
     self._panel_width_cache.move_to_end(cache_key)
     return self._panel_width_cache[cache_key]
 
-# При переполнении - удаляем самый старый элемент
+# On overflow remove the oldest entry
 if len(self._panel_width_cache) >= self.CACHE_MAX_SIZE:
     self._panel_width_cache.popitem(last=False)
 ```
 
-**Эффект**:
-- Устранены spikes в latency при очистке кэша
-- Hit rate увеличился с ~60% до ~85%
-- Более предсказуемая производительность
+**Impact**:
+- Eliminated latency spikes during cache maintenance.
+- Hit rate rose from ~60% to ~85%.
+- Improved predictability.
 
 ---
 
-### 5. ✅ Улучшены type hints
+### 5. ✅ Improved type hints
 
-**Файлы**: `top_bar_layout_manager.py`, `width_calculator.py`
+**Files**: `top_bar_layout_manager.py`, `width_calculator.py`
 
-**Проблема**: Использование `object` вместо конкретных типов снижало информативность.
+**Issue**: Using `object` instead of concrete types reduced clarity.
 
-**Решение**:
+**Fix**:
 ```python
-# Было:
+# Before:
 def _safe_get(self, obj: Optional[object], name: str) -> Optional[object]:
 
-# Стало:
+# After:
 from typing import Any
 
 def _safe_get(self, obj: Optional[Any], name: str) -> Optional[Any]:
-    """Безопасное получение атрибута объекта.
-    
+    """Safely fetch an attribute from the given object.
+
     Args:
-        obj: Объект для получения атрибута (может быть любого типа)
-        name: Имя атрибута
-        
+        obj: Source object of any type.
+        name: Attribute name.
+
     Returns:
-        Значение атрибута или None
+        Attribute value or ``None``.
     """
 ```
 
-**Эффект**: Улучшена читаемость кода и поддержка IDE (autocomplete, type checking).
+**Impact**: Better readability and richer IDE assistance (autocomplete, type checking).
 
 ---
 
-### 6. ✅ Добавлены конкретные исключения
+### 6. ✅ Added specific exceptions
 
-**Файл**: `top_bar_layout_manager.py`
+**File**: `top_bar_layout_manager.py`
 
-**Проблема**: Широкие `except Exception` скрывали реальные ошибки.
+**Issue**: Broad `except Exception` blocks masked genuine errors.
 
-**Решение**:
+**Fix**:
 ```python
-# Было:
+# Before:
 try:
     btn_size = int(app_config.ui.get_top_panel_button_size())
 except Exception:
     btn_size = 32
 
-# Стало:
+# After:
 try:
     btn_size = int(app_config.ui.get_top_panel_button_size())
 except (ValueError, TypeError, AttributeError) as e:
@@ -168,50 +165,50 @@ except (ValueError, TypeError, AttributeError) as e:
     btn_size = 32
 ```
 
-**Эффект**: Улучшена диагностика проблем, не скрываются критичные ошибки.
+**Impact**: Improved diagnostics; critical errors are no longer hidden.
 
 ---
 
-### 7. ✅ Добавлены интеграционные тесты
+### 7. ✅ Added integration tests
 
-**Файл**: `tests/test_topbar/test_integration.py` (новый)
+**File**: `tests/test_topbar/test_integration.py` (new)
 
-**Содержание**:
-- `TestTopBarLayoutManagerIntegration`: 12 тестов для TopBarLayoutManager
-  - Инициализация
-  - Переходы состояний
-  - Adjust с разными ширинами
+**Contents**:
+- `TestTopBarLayoutManagerIntegration`: 12 tests covering TopBarLayoutManager
+  - Initialization
+  - State transitions
+  - `adjust()` across widths
   - Throttling
-  - Испускание сигналов
+  - Signal emission
   - Cleanup
   - Thread safety
-  - Race condition protection
+  - Race-condition protection
   - Fallback timeout
 
-- `TestWidthCalculatorIntegration`: 2 теста для WidthCalculator
-  - Расчет ширины панели
-  - LRU кэш
+- `TestWidthCalculatorIntegration`: 2 tests for `WidthCalculator`
+  - Panel width calculation
+  - LRU cache
 
-- `TestPanelVisibilityManagerIntegration`: 2 теста для PanelVisibilityManager
-  - Установка видимости кнопок
-  - Поиск кнопок
+- `TestPanelVisibilityManagerIntegration`: 2 tests for `PanelVisibilityManager`
+  - Button visibility handling
+  - Button lookup
 
-**Запуск**:
+**Run**:
 ```bash
 pytest tests/test_topbar/test_integration.py -v
 ```
 
-**Эффект**: Покрытие тестами увеличено с ~10% до ~60%.
+**Impact**: Coverage jumped from ~10% to ~60%.
 
 ---
 
-### 8. ✅ Добавлены accessibility атрибуты
+### 8. ✅ Added accessibility attributes
 
-**Файл**: `panel_visibility_manager.py`
+**File**: `panel_visibility_manager.py`
 
-**Проблема**: Отсутствовала поддержка screen readers.
+**Issue**: No screen-reader support.
 
-**Решение**:
+**Fix**:
 ```python
 for index, button in enumerate(buttons):
     is_visible = index < visible
@@ -225,89 +222,89 @@ for index, button in enumerate(buttons):
         button.setAccessibleDescription("Hidden button")
 ```
 
-**Эффект**: Улучшена доступность для пользователей с ограниченными возможностями.
+**Impact**: Better accessibility for assistive-technology users.
 
 ---
 
-## Метрики улучшений
+## Improvement metrics
 
-| Метрика | До | После | Улучшение |
-|---------|-----|-------|-----------|
-| **Покрытие тестами** | ~10% | ~60% | +500% |
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| **Test coverage** | ~10% | ~60% | +500% |
 | **Cache hit rate** | ~60% | ~85% | +42% |
-| **Утечки памяти** | Есть | Нет | ✅ |
-| **Thread safety** | Нет проверок | Есть проверки | ✅ |
-| **Accessibility** | Нет | Базовая поддержка | ✅ |
-| **Type hints качество** | 7/10 | 9/10 | +29% |
-| **Обработка ошибок** | 6/10 | 8/10 | +33% |
+| **Memory leaks** | Present | Absent | ✅ |
+| **Thread safety** | No checks | Checks added | ✅ |
+| **Accessibility** | None | Baseline support | ✅ |
+| **Type hints quality** | 7/10 | 9/10 | +29% |
+| **Error handling** | 6/10 | 8/10 | +33% |
 
-## Обновленная оценка качества
+## Updated quality score
 
-### До исправлений: **7.5/10**
-### После исправлений: **8.5/10** ⭐
+### Before fixes: **7.5/10**
+### After fixes: **8.5/10** ⭐
 
-### Критерии с улучшениями:
+### Criteria improvements
 
-| Критерий | Было | Стало | Изменение |
-|----------|------|-------|-----------|
-| Архитектура кода | 8 | 9 | +1 (enum состояний) |
-| Производительность | 8 | 9 | +1 (LRU кэш) |
-| Утечки памяти | 7 | 9 | +2 (weak refs) |
-| Тестируемость | 5 | 8 | +3 (интеграционные тесты) |
-| Обработка ошибок | 7 | 8 | +1 (конкретные исключения) |
-| Accessibility | 2 | 6 | +4 (базовая поддержка) |
+| Criterion | Before | After | Delta |
+|-----------|--------|-------|-------|
+| Code architecture | 8 | 9 | +1 (state enum) |
+| Performance | 8 | 9 | +1 (LRU cache) |
+| Memory leaks | 7 | 9 | +2 (weak refs) |
+| Testability | 5 | 8 | +3 (integration tests) |
+| Error handling | 7 | 8 | +1 (specific exceptions) |
+| Accessibility | 2 | 6 | +4 (baseline support) |
 
-## Что осталось для 9.5/10
+## Remaining tasks for 9.5/10
 
-### Средний приоритет:
-1. **Dependency injection для app_config** - упростит тестирование
-2. **Профилирование производительности** - добавить метрики для мониторинга
-3. **Структурированное логирование** - JSON logs для анализа
+### Medium priority
+1. **Dependency injection for `app_config`** — simplifies testing.
+2. **Performance profiling** — add monitoring metrics.
+3. **Structured logging** — adopt JSON logs for analysis.
 
-### Низкий приоритет:
-4. **Полная поддержка accessibility** - keyboard navigation, ARIA attributes
-5. **Интернационализация** - использование QTranslator
-6. **Документация API** - Sphinx/MkDocs
+### Low priority
+4. **Full accessibility support** — keyboard navigation, ARIA attributes.
+5. **Internationalization** — integrate `QTranslator`.
+6. **API documentation** — Sphinx/MkDocs.
 
-## Рекомендации по использованию
+## Usage recommendations
 
-### Для разработчиков:
+### For developers
 
-1. **Запускайте тесты перед коммитом**:
+1. **Run tests before committing**:
    ```bash
    pytest tests/test_topbar/ -v
    ```
 
-2. **Проверяйте состояния инициализации**:
+2. **Inspect initialization state**:
    ```python
    logger.debug(f"Current state: {manager._init_state}")
    ```
 
-3. **Мониторьте кэш**:
+3. **Monitor cache stats**:
    ```python
    stats = width_calculator.get_cache_stats()
    logger.info(f"Cache stats: {stats}")
    ```
 
-### Для code review:
+### For code reviews
 
-- ✅ Все новые методы должны иметь type hints
-- ✅ Используйте конкретные исключения вместо `Exception`
-- ✅ Добавляйте тесты для новой функциональности
-- ✅ Проверяйте thread safety для UI операций
+- ✅ Ensure new methods include type hints.
+- ✅ Prefer specific exceptions over `Exception`.
+- ✅ Add tests for new functionality.
+- ✅ Confirm UI operations remain thread-safe.
 
 ## Changelog
 
-### 2025-09-30: Критичные улучшения качества
-- ✅ Исправлены утечки памяти в анимациях (weak references)
-- ✅ Добавлена проверка thread safety в adjust()
-- ✅ Реализован enum для состояний инициализации
-- ✅ Заменена простая очистка кэша на LRU eviction
-- ✅ Улучшены type hints (object → Any)
-- ✅ Добавлены конкретные исключения
-- ✅ Созданы интеграционные тесты (16 тестов)
-- ✅ Добавлена базовая поддержка accessibility
+### 2025-09-30: Critical quality upgrades
+- ✅ Memory leaks fixed in animations (weak references).
+- ✅ Thread-safety guard added to `adjust()`.
+- ✅ Initialization state enum introduced.
+- ✅ Cache flush replaced with LRU eviction.
+- ✅ Type hints improved (`object` → `Any`).
+- ✅ Specific exceptions added.
+- ✅ Integration test suite created (16 tests).
+- ✅ Baseline accessibility enabled.
 
-## Контакты
+## Contacts
 
-При вопросах или проблемах создавайте issue с тегом `topbar-improvements`.
+For questions or issues, open an issue tagged `topbar-improvements`.

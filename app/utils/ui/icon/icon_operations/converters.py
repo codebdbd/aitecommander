@@ -41,7 +41,7 @@ def _calculate_file_hash(file_path: Path) -> str:
         return hash_sha256.hexdigest()[
             :16
         ]  # Используем первые 16 символов для краткости
-    except (OSError, IOError) as exc:
+    except OSError as exc:
         logger.warning("Failed to calculate hash for %s: %s", file_path, exc)
         return ""
 
@@ -117,7 +117,7 @@ def copy_icon_smart(
     try:
         shutil.copyfile(src_path_obj, dst)
         logger.debug("Copied icon to: %s", dst.name)
-    except (OSError, IOError) as exc:
+    except OSError as exc:
         raise InvalidIconError(f"Ошибка копирования файла: {exc}") from exc
 
     # Автоматическая конвертация SVG в PNG при копировании
@@ -187,7 +187,7 @@ def copy_icon_to_path(src_path: str, dst_path: str) -> bool:
         shutil.copy2(src_path, dst_path)
         logger.debug("Successfully copied icon from %s to %s", src_path, dst_path)
         return True
-    except (OSError, IOError, shutil.Error) as exc:
+    except (OSError, shutil.Error) as exc:
         logger.error("Error copying icon from %s to %s: %s", src_path, dst_path, exc)
         return False
     except Exception as exc:
@@ -291,7 +291,7 @@ def convert_icon_to_png_128(src_path: str, dst_path: str, size: int = 128) -> bo
             img.save(dst_path, format="PNG")
         return True
 
-    except (OSError, IOError, ValueError) as exc:
+    except (OSError, ValueError) as exc:
         logger.error("Error converting icon %s: %s", src_path, exc)
         return False
     except Exception as exc:
@@ -336,7 +336,7 @@ def convert_raster_icon_to_png(src_path: str, dst_path: str, size: int = 32) -> 
             "Successfully converted raster icon from %s to %s", src_path, dst_path
         )
         return True
-    except (OSError, IOError, ValueError) as exc:
+    except (OSError, ValueError) as exc:
         logger.error(
             "Error converting raster icon from %s to %s: %s", src_path, dst_path, exc
         )

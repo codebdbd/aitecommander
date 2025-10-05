@@ -48,7 +48,7 @@ def _tr_dialog(text: str, disambiguation: str | None = None) -> str:
 
 
 class _SearchResultsModel(QAbstractTableModel):
-    """Table model for file search results."""
+    """Table model holding file search results for the dialog."""
     HEADERS = [
         _tr_model("Name"),
         _tr_model("Path"),

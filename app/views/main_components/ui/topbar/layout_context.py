@@ -10,7 +10,7 @@ from .panel_state import PanelState
 
 @dataclass(frozen=True)
 class LayoutContext:
-    """Снимок состояния верхней панели во время пересчёта."""
+    """Snapshot of the top-bar state during a layout recomputation."""
 
     container: QWidget
     width: int

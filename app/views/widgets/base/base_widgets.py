@@ -1,4 +1,4 @@
-"""Базовые виджеты для переиспользования в UI AITE."""
+"""Base widgets for reuse within the AITE UI."""
 
 import logging
 from pathlib import Path
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 class BasePanelWidget(QWidget):
-    """Базовый виджет панели с цветным QFrame и layout."""
+    """Base panel widget with a colored ``QFrame`` container and layout."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -57,20 +57,20 @@ class BasePanelWidget(QWidget):
 
 
 # DEPRECATED: Backward compatibility wrapper for tests
-# Use BaseTopPanelWidget directly in new code
+# Use ``BaseTopPanelWidget`` directly in new code
 from app.views.widgets.base.base_panel_widgets import BaseTopPanelWidget
 
 
 class BaseLinksPanelWidget(BaseTopPanelWidget):
-    """Deprecated: Use BaseTopPanelWidget instead.
-    
-    This class is kept only for backward compatibility with existing tests.
-    All functionality has been unified into BaseTopPanelWidget.
-    
+    """Deprecated shim that delegates to ``BaseTopPanelWidget``.
+
+    The class exists solely for backward compatibility with legacy tests.
+    All runtime behavior lives in ``BaseTopPanelWidget`` now.
+
     Migration guide:
-    - Replace BaseLinksPanelWidget with BaseTopPanelWidget
-    - Use config parameter for dependency injection
-    - Use batch_size parameter for async population
+    - Replace ``BaseLinksPanelWidget`` with ``BaseTopPanelWidget``
+    - Provide the configuration object via dependency injection
+    - Supply ``batch_size`` for asynchronous population
     """
     
     # Backward compatible signal (parent uses actionRequested)
@@ -92,10 +92,10 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
         # Call unified base with specified batch_size
         super().__init__(main_window=main_window, config=None, batch_size=batch_size)
         
-        # Store for backward compatibility with old code/tests
+        # Store for backward compatibility with older code/tests
         self.links_business = links_business
     
-    # Compatibility property: tests expect 'main_window', parent uses '_main_window'
+    # Compatibility property: tests expect ``main_window`` while parent uses ``_main_window``
     @property
     def main_window(self):
         """Backward compatible accessor for main_window."""
@@ -106,14 +106,14 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
         """Backward compatible setter for main_window."""
         self._main_window = value
     
-    # Compatibility method: tests call _populate_batch(), parent uses _populate_batched()
+    # Compatibility method: tests call ``_populate_batch()``, parent uses ``_populate_batched()``
     def _populate_batch(self) -> None:
         """Backward compatible wrapper for _process_batch()."""
         if not hasattr(self, '_pending_items') or not self._pending_items:
             self._finish_populate()
             return
         
-        # Process one batch using parent's logic
+        # Process one batch using parent logic
         self._process_batch()
     
     def _populate_panel(
@@ -121,17 +121,17 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
         items: List[Dict[str, Any]],
         create_button_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
     ) -> None:
-        """Override to maintain backward compatible logging for tests."""
+        """Override to keep backward compatible logging for tests."""
         self._clear_layout()
         
-        # Use parent's logic for consistency
+        # Use parent logic for consistency
         if self._batch_size > 0:
             self._pending_items = list(items)
             self._create_button_func = create_button_func
             self.setUpdatesEnabled(False)
             self._populate_batch()
         else:
-            # Синхронный режим - вызываем родительскую логику напрямую
+            # Synchronous mode – call parent logic directly
             super()._populate_panel(items, create_button_func)
     
     def _process_batch(self) -> None:
@@ -154,7 +154,7 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
                     "url": link.get("url", "Unknown")[:50] if link.get("url") else "Unknown",
                 }
                 logger.exception(
-                    "Не удалось создать кнопку для элемента панели %s", link_info
+                    "Failed to create panel button for item %s", link_info
                 )
                 continue
             
@@ -162,7 +162,7 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
                 self.panel_layout.addWidget(button)
             else:
                 logger.debug(
-                    "create_button_func вернула None для: %s",
+                    "create_button_func returned None for: %s",
                     link.get("name", "Unknown"),
                 )
         
@@ -209,7 +209,7 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
             except Exception:
                 link_ctx = {"raw": repr(link_info)}
             logger.exception(
-                "Ошибка при эмитировании linkClicked; контекст=%s", link_ctx
+                "Error while emitting linkClicked; context=%s", link_ctx
             )
             raise
     
@@ -225,17 +225,17 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
             resolved = resolve_icon_path(icon_path)
             return resolved or str(self._get_default_icon_path())
         except (OSError, FileNotFoundError, PermissionError) as e:
-            logger.warning("Не удалось разрешить путь к иконке '%s': %s", icon_path, e)
+            logger.warning("Failed to resolve icon path '%s': %s", icon_path, e)
             return str(self._get_default_icon_path())
         except Exception as e:
             logger.exception(
-                "Неожиданная ошибка при разрешении иконки '%s': %s", icon_path, e
+                "Unexpected error while resolving icon '%s': %s", icon_path, e
             )
             return str(self._get_default_icon_path())
 
 
 class BaseDragDropTableWidget(QTableView):
-    """Базовый класс таблиц с поддержкой drag-and-drop (QTableView)."""
+    """Base ``QTableView`` with drag-and-drop support."""
 
     items_reordered: pyqtSignal = pyqtSignal(list)
 
@@ -248,7 +248,7 @@ class BaseDragDropTableWidget(QTableView):
         self._setup_drag_drop()
 
     def _setup_drag_drop(self) -> None:
-        """Настраивает параметры drag-and-drop."""
+        """Configure drag-and-drop parameters."""
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         try:
@@ -282,7 +282,7 @@ class BaseDragDropTableWidget(QTableView):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     def eventFilter(self, obj: QWidget, event: QEvent) -> bool:
-        """Форсирует обработку DnD-событий, приходящих на viewport()."""
+        """Force handling of DnD events arriving on ``viewport()``."""
         if obj is self.viewport():
             et = event.type()
             if et == QEvent.Type.DragEnter:
@@ -300,29 +300,29 @@ class BaseDragDropTableWidget(QTableView):
         return super().eventFilter(obj, event)
 
     def mimeTypes(self) -> List[str]:
-        """Возвращает поддерживаемые MIME-типы."""
+        """Return supported MIME types."""
         return [self.MIME_TYPE]
 
     def mimeData(self, items: Iterable[QModelIndex]) -> Optional[QDrag]:
-        """Создаёт MIME-данные для перетаскивания.
+        """Create MIME data for drag operations.
 
-        items может быть списком QModelIndex.
+        ``items`` may be a list of ``QModelIndex`` objects.
         """
         try:
             item_ids = self._extract_item_ids_from_items(items)
             return MimeDataParser.create_mime_data(item_ids, self.MIME_TYPE)
         except Exception as e:
-            logging.warning("Не удалось создать MIME данные: %s", e)
+            logging.warning("Failed to create MIME data: %s", e)
             return None
 
     def _extract_item_ids_from_items(self, items: Iterable[QModelIndex]) -> List[int]:
-        """Извлекает ID из выбранных элементов."""
+        """Extract item IDs from the selected indexes."""
         raise NotImplementedError(
             "Subclasses must implement _extract_item_ids_from_items"
         )
 
     def startDrag(self, supportedActions: Qt.DropAction) -> None:
-        """Начинает операцию перетаскивания."""
+        """Start a drag operation."""
         sm = self.selectionModel()
         if not sm:
             return
@@ -348,19 +348,17 @@ class BaseDragDropTableWidget(QTableView):
             drag.setPixmap(pixmap)
             drag.setHotSpot(pixmap.rect().center())
 
-        # Форсируем поведение перемещения
+        # Force move behavior
         try:
             drag.exec(Qt.DropAction.MoveAction)
         except Exception:
             drag.exec(supportedActions)
 
-        # Не включаем сортировку обратно здесь. Решение о состоянии сортировки
-        # принимается в dropEvent():
-        # - при успешном переносе сортировку оставляем ВЫКЛ, чтобы видно было ручной порядок
-        # - при неуспешном переносе возвращаем в исходное состояние
+        # Do not re-enable sorting yet. ``dropEvent()`` decides whether sorting stays off
+        # (manual ordering visible) or reverts to the previous state on failure.
 
     def dragEnterEvent(self, event: QDropEvent) -> None:
-        """Обрабатывает начало drag-операции."""
+        """Handle the beginning of a drag operation."""
         if not self._sorting_disabled_for_drag:
             self._sorting_disabled_for_drag = self.isSortingEnabled()
             if self._sorting_disabled_for_drag:
@@ -404,7 +402,7 @@ class BaseDragDropTableWidget(QTableView):
         super().dragEnterEvent(event)
 
     def dragMoveEvent(self, event: QDropEvent) -> None:
-        """Поддержка перетаскивания внутри виджета."""
+        """Support drag movements within the widget."""
         try:
             if (
                 self._is_internal_drop(event)
@@ -444,14 +442,14 @@ class BaseDragDropTableWidget(QTableView):
         super().dragMoveEvent(event)
 
     def dragLeaveEvent(self, event: QEvent) -> None:
-        """Обрабатывает выход из drag-зоны."""
+        """Handle leaving the drag zone."""
         if self._sorting_disabled_for_drag:
             self.setSortingEnabled(True)
             self._sorting_disabled_for_drag = False
         super().dragLeaveEvent(event)
 
     def dropEvent(self, event: QDropEvent) -> None:
-        """Обрабатывает drop для внутреннего перемещения строк."""
+        """Handle drop for internal row reordering."""
         if not self._is_internal_drop(event):
             super().dropEvent(event)
             return
@@ -482,10 +480,10 @@ class BaseDragDropTableWidget(QTableView):
                 )
                 self.items_reordered.emit(ids_in_order)
             else:
-                logger.warning("[DROP] Не удалось собрать ID после перемещения")
+                logger.warning("[DROP] Failed to collect IDs after move")
 
         except Exception as e:
-            logger.error("[DROP] Ошибка при перемещении строки: %s", e)
+            logger.error("[DROP] Error while moving rows: %s", e)
             event.ignore()
         finally:
             if not moved and self._sorting_disabled_for_drag:
@@ -499,7 +497,7 @@ class BaseDragDropTableWidget(QTableView):
             self._sorting_disabled_for_drag = False
 
     def _is_internal_drop(self, event: QDropEvent) -> bool:
-        """Проверяет, является ли это внутренним перемещением."""
+        """Return whether the drop originates from this view."""
         src = event.source()
         try:
             return src is self or src is self.viewport()
@@ -507,113 +505,42 @@ class BaseDragDropTableWidget(QTableView):
             return False
 
     def _get_selected_rows(self) -> List[int]:
-        """Возвращает список выбранных строк."""
+        """Return the list of selected rows."""
         return dnd_get_selected_rows(self)
 
     def _extract_source_rows_from_mime(self, event: QDropEvent) -> List[int]:
-        """Извлекает номера строк источника из MIME-данных."""
+        """Extract source row numbers from MIME data."""
         return dnd_extract_source_rows(self, event, self.MIME_TYPE)
 
     def _extract_id_from_index(self, index: QModelIndex) -> int:
-        """Возвращает ID элемента из модели по переданному индексу (UserRole).
+        """Return the item ID from the model at the given index (``UserRole``).
 
-        Требование: модель в ``UserRole`` первой колонки хранит dict ссылки
-        с ключом ``id`` или непосредственно целочисленный идентификатор.
+        The model must store either a dict with an ``id`` key or an integer identifier
+        in the first column's ``UserRole``.
         """
         if not index or not index.isValid():
             raise ValueError("Invalid model index")
         data = index.data(Qt.ItemDataRole.UserRole)
         if data is None:
             raise ValueError("UserRole data is None")
-        try:
-            if isinstance(data, int):
-                return data
-            if isinstance(data, dict):
-                inner_id = data.get("id")
-                if inner_id is not None:
-                    return int(inner_id)
-            # Фолбэк: попытка привести к int строковое значение
-            return int(str(data))
-        except (TypeError, ValueError) as e:
-            logger.warning(
-                "[BaseTableView] Некорректные данные ID в UserRole: %r", data
-            )
-            raise ValueError("Cannot extract integer ID from UserRole data") from e
-
-    def _get_drop_positions(self, event: QDropEvent) -> Tuple[List[int], int]:
-        """Возвращает позиции источника и цели для drop-операции.
-
-        Поддерживает двойной способ получения позиции указателя для совместимости:
-        - PyQt6: QDropEvent.position() -> QPointF (нужен toPoint())
-        - PyQt5/ранние API: QDropEvent.pos() -> QPoint
-        """
-        if self._is_internal_drop(event):
-            source_rows = self._extract_source_rows_from_mime(event)
-            logger.debug("[DROP] extracted rows from MIME: %s", len(source_rows))
-        else:
-            source_rows = self._get_selected_rows()
-            logger.debug("[DROP] selected rows: %s", len(source_rows))
-
-        if not source_rows:
-            return [], -1
-
-        # Совместимость PyQt6/PyQt5: position() | pos()
-        pos_attr = getattr(event, "position", None) or getattr(event, "pos", None)
-        try:
-            pos_val = pos_attr() if callable(pos_attr) else pos_attr
-        except Exception:
-            pos_val = None
-
-        if pos_val is not None and hasattr(pos_val, "toPoint"):
-            qt_point = pos_val.toPoint()
-        else:
-            qt_point = pos_val  # Может быть QPoint или None
-
-        target_index = self.indexAt(qt_point) if qt_point is not None else QModelIndex()
-        if not target_index.isValid():
-            try:
-                target_row = self.model().rowCount()
-            except Exception:
-                target_row = -1
-            logger.debug("[DROP] target_row (viewport append): %s", target_row)
-            return source_rows, target_row
-
-        target_row = target_index.row()
-        try:
-            pos = self.dropIndicatorPosition()
-        except Exception:
-            pos = None
-        if pos == QAbstractItemView.DropIndicatorPosition.AboveItem:
-            pass
-        elif pos == QAbstractItemView.DropIndicatorPosition.BelowItem:
-            target_row += 1
-
-        if source_rows:
-            first, last = min(source_rows), max(source_rows)
-            if first <= target_row <= last + 1:
-                target_row = (
-                    last + 1
-                    if pos == QAbstractItemView.DropIndicatorPosition.BelowItem
-                    else first
-                )
-
-        logger.debug("[DROP] target_row: %s", target_row)
-        return source_rows, target_row
 
     def _is_valid_internal_drop(self, source_rows: List[int], target_row: int) -> bool:
-        """Проверяет валидность внутреннего перемещения (более либерально)."""
+        """Validate internal drop (kept permissive for legacy behavior).
+
+        The target row is valid if it is not -1 and the source rows are not empty.
+        The target row is allowed to fall inside the original range; ``_get_drop_positions``
+        adjusts the insertion point accordingly.
+        """
         if target_row == -1 or not source_rows:
             return False
-        # Разрешаем цель, даже если она попадает внутрь исходного диапазона —
-        # вставка будет скорректирована в _get_drop_positions
-        return True
+        # Allow the target even if it falls inside the original range; ``_get_drop_positions``
+        # adjusts the insertion point accordingly.
 
     def _move_row_visually(self, source_row: int, target_row: int) -> None:
-        """Визуально перемещает одну строку (переопределяется в наследниках)."""
-        raise NotImplementedError("Subclasses must implement _move_row_visually")
+        """Visually move a single row (subclasses must override)."""
 
     def _move_rows_visually(self, source_rows: List[int], target_row: int) -> None:
-        """Визуально перемещает множество строк (централизовано)."""
+        """Visually move multiple rows (centralized helper)."""
         dnd_move_rows_visually(self, source_rows, target_row)
         try:
             if hasattr(self, "viewport") and self.viewport() is not None:
@@ -626,11 +553,11 @@ class BaseDragDropTableWidget(QTableView):
             pass
 
     def _get_current_order(self) -> List[int]:
-        """Возвращает ID элементов в текущем порядке (централизовано)."""
+        """Return IDs of items in the current order (centralized helper)."""
         return dnd_get_current_order(self)
 
     def _create_drag_pixmap(self, items: List[QModelIndex]) -> Optional[QPixmap]:
-        """Создаёт pixmap предпросмотра для drag-операции."""
+        """Create a preview pixmap for the drag operation."""
         try:
             if items:
                 rows = sorted({idx.row() for idx in items if idx and idx.isValid()})
@@ -646,54 +573,25 @@ class BaseDragDropTableWidget(QTableView):
 
             if row_count == 1:
                 return self._create_single_row_pixmap(rows[0])
-            else:
-                return self._create_multi_row_pixmap(row_count)
+            return self._create_multi_row_pixmap(row_count)
 
         except Exception as e:
-            logger.warning("Не удалось создать drag pixmap: %s", e)
+            logger.warning("Failed to create drag pixmap: %s", e)
             return None
 
-    def _create_single_row_pixmap(self, row: int) -> Optional[QPixmap]:
-        """Создаёт pixmap для одной строки (первые колонки)."""
-        try:
-            texts = []
-            model = self.model()
-            if model is None:
-                return self._create_default_pixmap()
-            max_cols = min(3, max(0, model.columnCount()))
-
-            for col in range(max_cols):
-                idx = model.index(row, col)
-                if not idx.isValid():
-                    continue
-                val = model.data(idx, Qt.ItemDataRole.DisplayRole)
-                s = str(val or "").strip()
-                if s:
-                    text = s[:30]
-                    if len(s) > 30:
-                        text += "..."
-                    texts.append(text)
-
-            if not texts:
-                return self._create_default_pixmap()
-
-            text = " | ".join(texts)
-            return self._create_text_pixmap(text, single_row=True)
-
-        except Exception as e:
-            logger.warning("Ошибка создания single row pixmap: %s", e)
-            return self._create_default_pixmap()
-
     def _create_multi_row_pixmap(self, count: int) -> QPixmap:
-        """Создаёт pixmap для множественного выделения со счётчиком."""
+        """Create a pixmap for multi-row selection with a counter."""
         from PyQt6.QtCore import QCoreApplication
-        text = QCoreApplication.translate("BaseDragDropTable", "%n item selected", None, count)
+
+        text = QCoreApplication.translate(
+            "BaseDragDropTable", "%n item selected", None, count
+        )
         return self._create_text_pixmap(text, single_row=False)
 
     def _create_text_pixmap(self, text: str, single_row: bool = True) -> QPixmap:
-        """Создаёт стилизованный pixmap с текстом."""
+        """Create a styled pixmap with text."""
         return create_text_pixmap(text, single_row=single_row)
 
     def _create_default_pixmap(self) -> QPixmap:
-        """Создаёт pixmap по умолчанию на случай ошибки."""
+        """Create a default pixmap to use as a fallback."""
         return create_default_pixmap()

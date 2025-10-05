@@ -6,15 +6,27 @@ from i18n.language_service import LanguageService
 
 
 class ReTranslatable:
-    """Mixin that reconnects UI text whenever application language changes."""
+    """Mixin that reconnects UI text whenever application language changes.
+    
+    IMPORTANT: When used with multiple inheritance (e.g., BaseDialog, ReTranslatable),
+    you must call ReTranslatable.__init__(self) explicitly AFTER all UI elements
+    are initialized to avoid AttributeError when retranslateUi() is called.
+    """
 
-    def __init__(self, *, auto_connect: bool = True) -> None:
+    def __init__(self, *, auto_connect: bool = True, call_retranslate: bool = True) -> None:
+        """Initialize the ReTranslatable mixin.
+        
+        Args:
+            auto_connect: If True, automatically connect to language change signals.
+            call_retranslate: If True, call retranslateUi() immediately. Set to False
+                            when using multiple inheritance to avoid AttributeError.
+        """
         self._language_service = LanguageService.instance()
         if auto_connect:
             self._language_service.languageChanged.connect(self._handle_language_changed)
             if isinstance(self, QObject):
                 self.destroyed.connect(self._disconnect_from_language_service)  # type: ignore[attr-defined]
-        if hasattr(self, "retranslateUi"):
+        if call_retranslate and hasattr(self, "retranslateUi"):
             self.retranslateUi()  # type: ignore[misc]
 
     def retranslateUi(self) -> None:  # pragma: no cover - override expected

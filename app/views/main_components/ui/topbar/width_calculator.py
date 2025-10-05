@@ -12,27 +12,27 @@ logger = logging.getLogger(__name__)
 
 
 class WidthCalculator:
-    """Вычисляет ширины панелей и общий бюджет топбара.
-    
-    ИСПРАВЛЕНИЕ: Добавлены константы для магических чисел и кэширование результатов.
+    """Compute panel widths and the overall top-bar budget.
+
+    Fix: add named constants for former magic numbers and cache results.
     """
-    
-    MIN_PANEL_WIDTH = 50  # Минимальная ширина панели в пикселях
-    DEFAULT_BUTTON_SIZE = 32  # Размер кнопки по умолчанию
-    CACHE_MAX_SIZE = 100  # Максимальный размер кэша
+
+    MIN_PANEL_WIDTH = 50  # Minimal panel width in pixels
+    DEFAULT_BUTTON_SIZE = 32  # Default button size
+    CACHE_MAX_SIZE = 100  # Maximum cache size
 
     def __init__(self, button_size: int = DEFAULT_BUTTON_SIZE):
         self._button_size = button_size
-        # ИСПРАВЛЕНИЕ: LRU кэш для panel_width - ключ: (panel_id, count), значение: width
-        # OrderedDict обеспечивает O(1) доступ и сохраняет порядок вставки для LRU
+        # Fix: LRU cache for ``panel_width`` — key: (panel_id, count), value: width
+        # ``OrderedDict`` provides O(1) access and preserves insertion order for LRU
         self._panel_width_cache: OrderedDict[Tuple[int, int], int] = OrderedDict()
         self._cache_hits = 0
         self._cache_misses = 0
     
     def _safe_get(self, obj: Optional[Any], name: str) -> Optional[Any]:
-        """Безопасное получение атрибута объекта.
-        
-        ИСПРАВЛЕНИЕ: Заменен object на Any для лучшей типизации.
+        """Safely read an attribute from ``obj``.
+
+        Fix: use ``Any`` instead of ``object`` for better typing fidelity.
         """
         if obj is None:
             return None
@@ -42,7 +42,7 @@ class WidthCalculator:
             return None
     
     def _is_deleted(self, obj) -> bool:
-        """Проверяет, удален ли Qt-объект."""
+        """Check whether a Qt object has been deleted."""
         try:
             from sip import isdeleted
             return isdeleted(obj)
@@ -50,26 +50,25 @@ class WidthCalculator:
             return False
 
     def clear_cache(self) -> None:
-        """Очищает кэш вычислений ширины панелей.
-        
-        ИСПРАВЛЕНИЕ: Добавлен метод для принудительной очистки кэша.
-        Вызывается при изменении конфигурации или размеров кнопок.
+        """Clear the panel-width cache.
+
+        Fix: allow manual cache reset, e.g. after configuration or button-size changes.
         """
         self._panel_width_cache.clear()
         self._cache_hits = 0
         self._cache_misses = 0
     
     def invalidate_cache_for_panel(self, panel: QWidget) -> int:
-        """Инвалидирует кэш для конкретной панели.
-        
-        УЛУЧШЕНИЕ: Селективная инвалидация кэша при изменении размеров
-        конкретной панели (например, при изменении stylesheet).
-        
+        """Invalidate cached widths for a specific panel.
+
+        Improvement note: selectively drop cache entries when a panel changes (e.g.
+        stylesheet adjustments).
+
         Args:
-            panel: Виджет панели для инвалидации
-            
+            panel: Panel widget whose cache entries should be removed.
+
         Returns:
-            Количество удаленных записей из кэша
+            Number of cache records that were removed.
         """
         if not panel or self._is_deleted(panel):
             return 0
@@ -83,10 +82,10 @@ class WidthCalculator:
         return len(keys_to_remove)
     
     def get_cache_stats(self) -> Dict[str, int]:
-        """Возвращает статистику использования кэша.
-        
+        """Return cache-usage statistics.
+
         Returns:
-            Словарь с ключами: hits, misses, size, hit_rate
+            Dictionary with keys: ``hits``, ``misses``, ``size``, ``hit_rate``.
         """
         total = self._cache_hits + self._cache_misses
         hit_rate = (self._cache_hits / total * 100) if total > 0 else 0.0
@@ -100,22 +99,22 @@ class WidthCalculator:
     def panel_width(
         self, panel: Optional[QWidget], buttons: List[QToolButton], count: int
     ) -> int:
-        """Вычисляет ширину панели на основе видимых кнопок.
-        
-        ИСПРАВЛЕНИЕ: Добавлена валидация параметров и кэширование результатов.
-        
+        """Calculate panel width based on visible buttons.
+
+        Fix: add parameter validation and result caching.
+
         Args:
-            panel: Виджет панели
-            buttons: Список кнопок панели (не должен быть None)
-            count: Количество видимых кнопок (>= 0)
-            
+            panel: Panel widget.
+            buttons: Panel buttons list (must not be ``None``).
+            count: Number of visible buttons (>= 0).
+
         Returns:
-            Ширина панели в пикселях (>= MIN_PANEL_WIDTH)
-            
+            Panel width in pixels (>= ``MIN_PANEL_WIDTH``).
+
         Raises:
-            ValueError: Если count < 0
+            ValueError: If ``count`` is negative.
         """
-        # ИСПРАВЛЕНИЕ: Валидация параметров
+        # Fix: validate parameters
         if count < 0:
             raise ValueError(f"count must be >= 0, got {count}")
         
@@ -128,11 +127,11 @@ class WidthCalculator:
         if not panel or self._is_deleted(panel):
             return self.MIN_PANEL_WIDTH
         
-        # ИСПРАВЛЕНИЕ: Проверяем LRU кэш
+        # Fix: probe the LRU cache
         cache_key = (id(panel), count)
         if cache_key in self._panel_width_cache:
             self._cache_hits += 1
-            # ИСПРАВЛЕНИЕ: LRU - перемещаем в конец (most recently used)
+            # Fix: move the key to the MRU position
             self._panel_width_cache.move_to_end(cache_key)
             return self._panel_width_cache[cache_key]
         
@@ -142,14 +141,14 @@ class WidthCalculator:
         safe_count = max(0, min(count, len(buttons)))
         if safe_count <= 0:
             return self.MIN_PANEL_WIDTH
-        # Используем layout, учитывая и дополнительные виджеты панели (которые не входят в 'buttons')
+        # Use the layout, accounting for supplemental panel widgets outside ``buttons``
         bg = self._safe_get(panel, "bg_frame")
         layout = bg.layout() if bg else None
         if not layout:
             return self.MIN_PANEL_WIDTH
         spacing = layout.spacing() or 0
 
-        # Быстрое множество целевых кнопок для панели (например, favoriteButton)
+        # Quick lookup set for target buttons (e.g. favorite buttons)
         btn_set = set(buttons or [])
         included_widths: List[int] = []
         taken_target = 0
@@ -160,7 +159,7 @@ class WidthCalculator:
             w = item.widget()
             if w is None:
                 continue
-            # Если это целевая кнопка панели — учитываем только первые 'safe_count'
+            # Only count the first ``safe_count`` target buttons
             if w in btn_set:
                 if taken_target >= safe_count:
                     continue
@@ -169,7 +168,7 @@ class WidthCalculator:
                     hint_w = int(w.sizeHint().width())
                 except (RuntimeError, AttributeError, ValueError):
                     hint_w = 0
-                # Учитываем фиксированные ограничения кнопки, если заданы через setFixedSize
+                # Respect fixed-size constraints if set via ``setFixedSize``
                 try:
                     max_w = int(w.maximumWidth()) if w.maximumWidth() > 0 else 0
                 except (RuntimeError, AttributeError, ValueError):
@@ -180,7 +179,7 @@ class WidthCalculator:
                     min_w = 0
                 btn_w = hint_w
                 if max_w and min_w:
-                    # setFixedSize устанавливает min==max==fixed; используем это как истину
+                    # ``setFixedSize`` forces min == max == fixed; trust that measurement
                     btn_w = max(min_w, max_w)
                 elif max_w:
                     btn_w = max(btn_w, max_w)
@@ -188,7 +187,7 @@ class WidthCalculator:
                     btn_w = max(btn_w, min_w)
                 included_widths.append(max(self._button_size, btn_w))
             else:
-                # Прочие виджеты панели (например, служебные кнопки) учитываем, если они видимы
+                # For other panel widgets (e.g. utility buttons), use size hints when visible
                 if w.isVisible():
                     try:
                         hint_w = int(w.sizeHint().width())
@@ -201,14 +200,13 @@ class WidthCalculator:
 
         total = sum(included_widths) + spacing * max(0, len(included_widths) - 1)
 
-        # Добавляем внешние отступы layout, рамку QFrame(bg) и отступы панели
+        # Add layout margins, the ``QFrame`` border, and panel margins
         try:
             lm = layout.contentsMargins()
             total += lm.left() + lm.right()
         except Exception:
             pass
-        # Учёт рамки самого bg_frame (QFrame) — без повторного сложения его contentsMargins,
-        # чтобы не дублировать отступы вместе с layout.contentsMargins.
+        # Account for the ``bg_frame`` border without double-counting margins
         try:
             import PyQt6.QtWidgets as _qtw
             if isinstance(bg, _qtw.QFrame):
@@ -228,12 +226,12 @@ class WidthCalculator:
         # Enforce minimal width
         result = max(self.MIN_PANEL_WIDTH, total)
         
-        # ИСПРАВЛЕНИЕ: LRU eviction - удаляем самый старый элемент при переполнении
+        # Fix: perform LRU eviction when the cache is full
         if len(self._panel_width_cache) >= self.CACHE_MAX_SIZE:
-            # OrderedDict.popitem(last=False) удаляет первый (самый старый) элемент
+            # ``OrderedDict.popitem(last=False)`` deletes the oldest entry
             self._panel_width_cache.popitem(last=False)
         
-        # Добавляем в конец (most recently used)
+        # Append at the end (most recently used)
         self._panel_width_cache[cache_key] = result
         return result
 

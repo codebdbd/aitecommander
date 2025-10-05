@@ -1,6 +1,6 @@
 # app/controllers/structure_modules/section_operations.py
 
-"""Модуль для операций с разделами."""
+"""Module providing operations for sections."""
 
 import logging
 from dataclasses import dataclass
@@ -44,7 +44,7 @@ class DeletionInfo:
 
 
 class SectionOperations(BaseOperations):
-    """Класс для операций с разделами."""
+    """Operations handler for sections."""
 
     def __init__(
         self,

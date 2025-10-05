@@ -15,9 +15,9 @@ from __future__ import annotations
 import logging
 import os
 import re
+from collections.abc import Iterable
 from enum import Enum
 from pathlib import Path
-from typing import Iterable
 
 from PIL import Image, UnidentifiedImageError
 
@@ -54,7 +54,7 @@ class Theme(Enum):
     DARK = "dark"
 
     @classmethod
-    def from_string(cls, theme_str: str) -> "Theme":
+    def from_string(cls, theme_str: str) -> Theme:
         s = (theme_str or "").lower().strip()
         return cls.DARK if s == "dark" else cls.LIGHT
 

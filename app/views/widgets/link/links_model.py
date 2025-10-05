@@ -13,24 +13,25 @@ from app.views.widgets.link.item_builders import ItemBuildersMixin
 
 
 class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
-    """Модель данных для таблицы ссылок.
+    """Data model for the links table.
 
-    Колонки по умолчанию: ["★", "Название", "Открывалась", "Заметки"].
-    Данные строки — dict с полями как минимум: id, name, last_used, notes, is_favorite, url/path.
+    Default columns: ["♥", "Name", "Last opened", "Notes"].
+    Each row is a dict containing at minimum: ``id``, ``name``, ``last_used``,
+    ``notes``, ``is_favorite``, ``url``/``path``.
     """
 
-    DEFAULT_HEADERS = ["♥", "Название", "Открывалась", "Заметки"]
-    MAX_ICON_CACHE = 500  # Лимит кэша иконок
+    DEFAULT_HEADERS = ["♥", "Name", "Last opened", "Notes"]
+    MAX_ICON_CACHE = 500  # Icon cache size limit
 
     def __init__(self, links: Optional[Sequence[Dict[str, Any]]] = None, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._headers: List[str] = list(self.DEFAULT_HEADERS)
         self._links: List[Dict[str, Any]] = []
-        # Инициализация с зачисткой потенциального кеша иконок
+        # Initialize while cleaning potential icon cache entries
         if links:
             self.set_links(links)
 
-    # --- Обязательные методы ---
+    # --- Required methods ---
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # type: ignore[override]
         if parent.isValid():
             return 0
@@ -51,17 +52,17 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
 
         link = self._links[row]
 
-        # UserRole: возвращаем исходный dict ссылки
+        # UserRole: return the original link dict
         if role == Qt.ItemDataRole.UserRole:
             return link
 
-        # Display/Decoration/ToolTip по колонкам
-        # 0: ★, 1: Название, 2: Открывалась, 3: Заметки
+        # Display/Decoration/ToolTip per column
+        # 0: ★, 1: Name, 2: Last opened, 3: Notes
         if role == Qt.ItemDataRole.DisplayRole:
             if col == 0:
                 return self._star_display_text(bool(link.get("is_favorite")))
             if col == 1:
-                # Здесь всегда "normal" режим; поиск использует отдельную модель/вид
+                # Always "normal" mode here; search uses a separate model/view
                 return self._name_display_text(link, mode="normal")
             if col == 2:
                 return self._last_used_display_text(link.get("last_used"))
@@ -73,7 +74,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
 
         if role == Qt.ItemDataRole.DecorationRole:
             if col == 1:
-                # Иконка ссылки: используем LRU кэш для предотвращения утечек памяти
+                # Link icon: use LRU cache to avoid memory leaks
                 try:
                     resolved_path = resolve_icon_for_link(link)
                     if resolved_path:
@@ -116,7 +117,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
     def flags(self, index: QModelIndex) -> Qt.ItemFlags:  # type: ignore[override]
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
-        # По умолчанию таблица не редактируема через делегаты
+        # By default the table is not editable via delegates
         return (
             Qt.ItemFlag.ItemIsSelectable
             | Qt.ItemFlag.ItemIsEnabled
@@ -127,14 +128,14 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
     def setData(
         self, index: QModelIndex, value: Any, role: int = Qt.ItemDataRole.EditRole
     ) -> bool:  # type: ignore[override]
-        """Обновляет данные модели программно.
+        """Programmatically update model data.
 
-        Разрешаем обновлять поля ссылки по колонкам:
-        0: is_favorite (bool)
-        1: name (str)
-        2: last_used (любой сериализуемый/сравнимый тип)
-        3: notes (str)
-        Также поддерживаем прямую замену всей ссылки через UserRole (value: dict).
+        Allowed column updates:
+        0: ``is_favorite`` (bool)
+        1: ``name`` (str)
+        2: ``last_used`` (any serializable/comparable type)
+        3: ``notes`` (str)
+        Direct replacement of the entire link is also supported via ``UserRole`` (dict value).
         """
         if not index.isValid():
             return False
@@ -146,14 +147,14 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
 
         try:
             if role == Qt.ItemDataRole.UserRole and isinstance(value, dict):
-                # Полная замена словаря ссылки
+                # Replace the link dict entirely
                 new_link = dict(value)
-                # Удаляем возможный внешний кеш иконки
+                # Remove any external icon cache entry
                 new_link.pop("_icon", None)
                 self._links[row] = new_link
                 top_left = self.index(row, 0)
                 bottom_right = self.index(row, len(self._headers) - 1)
-                # Сообщаем, что могли измениться и декорации (иконки)
+                # Indicate that decorations (icons) might have changed
                 self.dataChanged.emit(
                     top_left, bottom_right, [Qt.ItemDataRole.DecorationRole]
                 )
@@ -165,13 +166,13 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
                 elif col == 1:
                     link["name"] = str(value)
                 elif col == 2:
-                    # Храним как есть; нормализация для сортировки выполняется в sort()
+                    # Store as-is; sort() performs normalization for ordering
                     link["last_used"] = value
                 elif col == 3:
                     link["notes"] = str(value)
                 else:
                     return False
-                # Любое изменение данных потенциально влияет на отображение — чистим кеш иконки
+                # Any change may affect visuals — clear the cached icon
                 link.pop("_icon", None)
                 self.dataChanged.emit(
                     index, index, [role, Qt.ItemDataRole.DecorationRole]
@@ -183,19 +184,19 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
         return False
 
     def supportedDropActions(self) -> Qt.DropActions:  # type: ignore[override]
-        # Поддерживаем только перемещение строк
+        # Support moving rows only
         return Qt.DropAction.MoveAction
 
     def supportedDragActions(self) -> Qt.DropActions:  # type: ignore[override]
         return Qt.DropAction.MoveAction
 
-    # --- Мутации данных ---
+    # --- Data mutations ---
     def set_headers(self, headers: Sequence[str]) -> None:
         headers = list(headers)
         if headers == self._headers:
             return
         self._headers = headers
-        # Более дешёвый сигнал изменения заголовков
+        # Cheaper header-changed notification
 
         self.headerDataChanged.emit(
             Qt.Orientation.Horizontal, 0, len(self._headers) - 1
@@ -203,7 +204,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
 
     def set_links(self, links: Sequence[Dict[str, Any]]) -> None:
         self.beginResetModel()
-        # Клонируем данные (иконки теперь в LRU кэше, не в словаре)
+        # Clone data (icons now live in the LRU cache, not inside dicts)
         self._links = [dict(link_item) for link_item in links]
         self.endResetModel()
 
@@ -229,13 +230,13 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
         if not (0 <= row < len(self._links)):
             return False
         self._links[row].update(new_data)
-        # При изменении данных иконка автоматически обновится через LRU кэш
+        # Icon refresh happens automatically through the LRU cache
         top_left = self.index(row, 0)
         bottom_right = self.index(row, len(self._headers) - 1)
         self.dataChanged.emit(top_left, bottom_right, [Qt.ItemDataRole.DecorationRole])
         return True
 
-    # --- Вспомогательные методы ---
+    # --- Helper methods ---
     def get_link(self, row: int) -> Optional[Dict[str, Any]]:
         if 0 <= row < len(self._links):
             return self._links[row]
@@ -247,12 +248,12 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
                 return i
         return -1
 
-    # --- Перемещение строк ---
+    # --- Row reordering ---
     def move_rows(self, source_rows: List[int], target_row: int) -> None:
-        """Перемещает набор строк в модели, сохраняя относительный порядок.
+        """Move a set of rows while preserving relative order.
 
-        Для одиночного диапазона использует beginMoveRows/endMoveRows.
-        Для разреженных индексов выполняет последовательные перемещения.
+        For a single continuous range use ``beginMoveRows``/``endMoveRows``.
+        For sparse indices perform sequential moves.
         """
         if not source_rows:
             return
@@ -260,35 +261,35 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
         src = [r for r in sorted(set(source_rows)) if 0 <= r < n]
         if not src:
             return
-        # Нормализуем target
+        # Normalize target
         target_row = max(0, min(target_row, n))
 
-        # Если один непрерывный диапазон — используем атомарный move
+        # When the rows form one contiguous range — use an atomic move
         def is_contiguous(rows: List[int]) -> bool:
-            """Проверяет, являются ли строки непрерывным диапазоном."""
+            """Check whether rows form a contiguous range."""
             return all(b - a == 1 for a, b in zip(rows, rows[1:]))
 
         if len(src) == 1 or is_contiguous(src):
             first = src[0]
             last = src[-1]
-            # Корректируем target, если переносим вниз
+            # Adjust the target when moving downward
             insert_row = target_row
             if insert_row > last + 1:
                 insert_row = insert_row
             elif insert_row <= first:
                 insert_row = insert_row
             else:
-                # если цель попадает внутрь диапазона, считаем как no-op
+                # If the target falls inside the range, treat as no-op
                 return
 
             if not self.beginMoveRows(
                 QModelIndex(), first, last, QModelIndex(), insert_row
             ):
                 return
-            # Извлекаем сегмент и вставляем
+            # Extract the segment and insert it at the new location
             segment = self._links[first : last + 1]
             del self._links[first : last + 1]
-            # Корректируем позицию вставки после удаления
+            # Adjust insert position after deletion
             if insert_row > first:
                 insert_row -= last - first + 1
             for i, item in enumerate(segment):
@@ -296,11 +297,10 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
             self.endMoveRows()
             return
 
-        # Разреженный набор: переупорядочиваем список одним проходом через layoutChanged
-        # Семантика: удаляем выбранные строки, затем вставляем их (в исходном порядке)
-        # в позицию target_row среди оставшихся элементов БЕЗ вычитания удалённых до target.
-        # Это соответствует пользовательскому ожиданию: "вставить перед элементом,
-        # который был на позиции target_row до перемещения".
+        # Sparse set: reorder via a single ``layoutChanged`` pass
+        # Semantics: remove selected rows, then insert them (in original order)
+        # at ``target_row`` among remaining elements WITHOUT subtracting removals before target.
+        # Matches user expectation of "insert before the item that was at target_row prior to move".
         src_set = set(src)
         remaining: List[Dict[str, Any]] = [
             item for i, item in enumerate(self._links) if i not in src_set
@@ -313,24 +313,24 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
         finally:
             self.layoutChanged.emit()
 
-    # --- Сортировка ---
+    # --- Sorting ---
     def sort(
         self, column: int, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder
     ) -> None:  # type: ignore[override]
-        """Сортировка данных модели по клику в заголовке QTableView.
+        """Sort table data in response to ``QTableView`` header clicks.
 
-        Поддерживаются колонки:
-        0: is_favorite (bool)
-        1: name (str, casefold)
-        2: last_used (нормализуется в float timestamp; None -> -inf)
-        3: notes (str, casefold)
+        Supported columns:
+        0: ``is_favorite`` (bool)
+        1: ``name`` (str, casefold)
+        2: ``last_used`` (normalized to float timestamp; ``None`` -> ``-inf``)
+        3: ``notes`` (str, casefold)
         """
         if not self._links:
             return
 
         def normalize_last_used(v: Any) -> float:
-            """Возвращает числовой timestamp для last_used.
-            Возвращает -inf (очень старое), если значение отсутствует/непарсибельно.
+            """Return numeric timestamp for ``last_used``.
+            Returns ``-inf`` when value is missing or cannot be parsed.
             """
             from math import inf
 
@@ -348,7 +348,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
                 return datetime.fromisoformat(str(v)).timestamp()
             except Exception:
                 pass
-            # Fallback: хеш-стабилизированное строковое представление -> число (детерминизм)
+            # Fallback: hash-stabilized string representation -> number (deterministic)
             try:
                 return float(abs(hash(str(v))))
             except Exception:
@@ -356,7 +356,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
 
         def key_for(link: Dict[str, Any]) -> Any:
             if column == 0:
-                # Приводим к int для сравнения, чтобы исключить смешение типов
+                # Cast to int for comparison to avoid mixing types
                 return 1 if bool(link.get("is_favorite", False)) else 0
             if column == 1:
                 return str(link.get("name", "")).casefold()
@@ -364,7 +364,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
                 return normalize_last_used(link.get("last_used"))
             if column == 3:
                 return str(link.get("notes", "")).casefold()
-            # Неизвестная колонка — сортируем по стабильному индексу id, иначе по позиции
+            # Unknown column — sort by stable ``id`` if available, otherwise index order
             lid = link.get("id")
             try:
                 return int(lid)
@@ -378,13 +378,13 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
 
     @lru_cache(maxsize=MAX_ICON_CACHE)
     def _get_cached_icon(self, icon_path: str) -> Optional[QIcon]:
-        """Получает иконку с LRU кэшированием для предотвращения утечек памяти.
-        
+        """Return an icon with LRU caching to avoid memory leaks.
+
         Args:
-            icon_path: Путь к файлу иконки
-            
+            icon_path: Path to the icon file.
+
         Returns:
-            QIcon или None если не удалось загрузить
+            ``QIcon`` instance or ``None`` if loading fails.
         """
         if not icon_path:
             return None

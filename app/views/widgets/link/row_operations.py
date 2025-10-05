@@ -1,26 +1,26 @@
 import logging
 from typing import Dict
 
-# Модуль для операций со строками таблицы ссылок
-# Содержит методы добавления, обновления и удаления строк
+# Module containing row operations for the links table
+# Provides methods for adding, updating, and removing rows
 
 logger = logging.getLogger(__name__)
 
 
 class RowOperationsMixin:
-    """Миксин для операций со строками таблицы ссылок."""
+    """Mixin with row-level operations for the links table."""
 
     def update_link_by_id(self, link: dict, mode: str = "normal"):
         """
-        Обновляет строку таблицы по id ссылки, если она есть.
+        Update a table row by the link ID when present.
         """
         try:
             from app.config_data import app_config
             _debug = bool(app_config.ui.get_debug_links_inline_update())
-            # Проверка входных параметров
+            # Validate input
             if not isinstance(link, dict):
                 logger.warning(
-                    "[LinksTableView] Некорректные данные ссылки для обновления: %s",
+                    "[LinksTableView] Invalid link payload for update: %s",
                     type(link),
                 )
                 return False
@@ -29,11 +29,11 @@ class RowOperationsMixin:
 
             if link_id is None:
                 logger.warning(
-                    "[LinksTableView] Отсутствует ID в данных ссылки для обновления"
+                    "[LinksTableView] Missing ID in link payload for update"
                 )
                 return False
 
-            # Используем модель для поиска строки по ID
+            # Use the model to locate the row by ID
             try:
                 model = self.model()
             except Exception:
@@ -45,7 +45,7 @@ class RowOperationsMixin:
                 except Exception:
                     row = -1
             else:
-                # Фолбэк: линейный поиск через get_link_at
+                # Fallback: linear search via ``get_link_at``
                 try:
                     m = model if model is not None else None
                     total = m.rowCount() if m is not None else 0
@@ -78,21 +78,21 @@ class RowOperationsMixin:
             return False
         except Exception as e:
             logger.error(
-                "[LinksTableView] Ошибка обновления строки по ID: %s", e, exc_info=True
+                "[LinksTableView] Row update by ID failed: %s", e, exc_info=True
             )
             return False
 
     def _update_row(self, row: int, link: Dict, mode: str):
-        """Обновляет существующую строку новыми данными через модель."""
+        """Update an existing row with new data via the model."""
         try:
-            # Проверка входных параметров
+            # Validate input
             if not isinstance(link, dict):
                 logger.warning(
-                    f"[LinksTableView] Некорректные данные ссылки для обновления: {type(link)}"
+                    f"[LinksTableView] Invalid link payload for row update: {type(link)}"
                 )
                 return False
 
-            # Проверяем границы по модели
+            # Validate row index against the model
             try:
                 model = self.model()
                 total = model.rowCount() if model is not None else 0
@@ -102,19 +102,19 @@ class RowOperationsMixin:
 
             if row < 0 or row >= total:
                 logger.warning(
-                    "[LinksTableView] Некорректный индекс строки для обновления: %s",
+                    "[LinksTableView] Invalid row index for update: %s",
                     row,
                 )
                 return False
 
-            # Пытаемся обновить через модель
+            # Attempt to update via model
             updated = False
             if model is not None and hasattr(model, "update_link"):
                 try:
                     updated = bool(model.update_link(row, link))
                 except Exception as e:
                     logger.debug(
-                        "[LinksTableView] model.update_link исключение: %s",
+                        "[LinksTableView] model.update_link raised: %s",
                         e,
                         exc_info=True,
                     )
@@ -122,27 +122,26 @@ class RowOperationsMixin:
 
             if not updated:
                 logger.warning(
-                    "[LinksTableView] model.update_link недоступен — обновление пропущено"
+                    "[LinksTableView] model.update_link unavailable — skipping row update"
                 )
                 return False
 
-            # Обновляем кэш (для совместимости)
+            # Refresh cache (legacy compatibility)
             try:
                 self._current_links[row] = link
             except Exception:
                 logger.debug(
-                    "[LinksTableView] не удалось обновить кэш для строки %s",
+                    "[LinksTableView] Failed to refresh cache for row %s",
                     row,
                     exc_info=True,
                 )
-            # Отказываемся от принудительной перерисовки viewport для снижения нагрузки —
-            # перерисовка произойдет по сигналам модели (dataChanged)
-            logger.debug("Строка %s обновлена", row)
+            # Skip forced viewport repaint to reduce load — dataChanged will trigger repaint
+            logger.debug("Row %s updated", row)
             return True
 
         except Exception as e:
             logger.error(
-                "[LinksTableView] Ошибка обновления строки %s: %s",
+                "[LinksTableView] Row update error %s: %s",
                 row,
                 e,
                 exc_info=True,
@@ -150,12 +149,12 @@ class RowOperationsMixin:
             return False
 
     def _add_row(self, row: int, link: Dict, mode: str):
-        """Добавляет новую строку через модель."""
+        """Insert a new row via the model."""
         try:
-            # Проверка входных параметров
+            # Validate input
             if not isinstance(link, dict):
                 logger.warning(
-                    "[LinksTableView] Некорректные данные ссылки для добавления: %s",
+                    "[LinksTableView] Invalid link payload for insert: %s",
                     type(link),
                 )
                 return False
@@ -169,7 +168,7 @@ class RowOperationsMixin:
 
             if row < 0 or row > total:
                 logger.warning(
-                    "[LinksTableView] Некорректный индекс строки для добавления: %s",
+                    "[LinksTableView] Invalid row index for insert: %s",
                     row,
                 )
                 return False
@@ -180,7 +179,7 @@ class RowOperationsMixin:
                     inserted = bool(model.insert_link(row, link))
                 except Exception as e:
                     logger.debug(
-                        "[LinksTableView] model.insert_link исключение: %s",
+                        "[LinksTableView] model.insert_link raised: %s",
                         e,
                         exc_info=True,
                     )
@@ -189,7 +188,7 @@ class RowOperationsMixin:
             if not inserted:
                 return False
 
-            # Обновляем кэш по фактическим данным
+            # Rebuild cache from actual data
             try:
                 self.rebuild_cache_from_items()
             except Exception:
@@ -202,7 +201,7 @@ class RowOperationsMixin:
 
         except Exception as e:
             logger.error(
-                "[LinksTableView] Ошибка добавления строки %s: %s",
+                "[LinksTableView] Row insert error %s: %s",
                 row,
                 e,
                 exc_info=True,
@@ -210,9 +209,9 @@ class RowOperationsMixin:
             return False
 
     def _remove_row(self, row: int) -> bool:
-        """Удаляет строку через модель. Возвращает True при успехе, иначе False."""
+        """Remove a row via the model and return ``True`` on success."""
         try:
-            # Проверка входных параметров
+            # Validate input
             try:
                 model = self.model()
                 total = model.rowCount() if model is not None else 0
@@ -222,7 +221,7 @@ class RowOperationsMixin:
 
             if row < 0 or row >= total:
                 logger.warning(
-                    "[LinksTableView] Некорректный индекс строки для удаления: %s",
+                    "[LinksTableView] Invalid row index for removal: %s",
                     row,
                 )
                 return False
@@ -233,7 +232,7 @@ class RowOperationsMixin:
                     removed = bool(model.remove_row(row))
                 except Exception as e:
                     logger.debug(
-                        "[LinksTableView] model.remove_row исключение: %s",
+                        "[LinksTableView] model.remove_row raised: %s",
                         e,
                         exc_info=True,
                     )
@@ -242,7 +241,7 @@ class RowOperationsMixin:
             if not removed:
                 return False
 
-            # Перестроить кэш по актуальным данным
+            # Rebuild cache from current data
             try:
                 self.rebuild_cache_from_items()
             except Exception:
@@ -252,6 +251,6 @@ class RowOperationsMixin:
 
         except Exception as e:
             logger.error(
-                "[LinksTableView] Ошибка удаления строки %s: %s", row, e, exc_info=True
+                "[LinksTableView] Row removal error %s: %s", row, e, exc_info=True
             )
             return False

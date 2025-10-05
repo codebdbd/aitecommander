@@ -1,10 +1,10 @@
 # app/controllers/structure_modules/async_operations.py
 
-"""Модуль для асинхронных операций структуры.
+"""Module for asynchronous structure operations.
 
-Переведён на новый фасад `run_db` вместо легаси-воркеров из
-`app.utils.db.db_workers`. Для сохранения совместимости определён локальный
-класс сигналов с тем же интерфейсом, что и `StructureWorkerSignals`.
+Migrated to the new `run_db` facade instead of the legacy workers from
+`app.utils.db.db_workers`. A local signal class with the same interface as
+`StructureWorkerSignals` is defined to maintain compatibility.
 """
 
 import logging
@@ -48,14 +48,14 @@ except Exception:  # надёжный фоллбэк: метрики отклю�
 
 logger = logging.getLogger(__name__)
 
-# ИСПРАВЛЕНИЕ: Ограничение на количество pending tasks
+# FIX: Limit the number of pending tasks
 MAX_PENDING_TASKS = 100
 
 
 class AsyncOperations(QObject):
-    """Класс для управления асинхронными операциями структуры.
-    
-    Наследуется от QObject для правильного управления памятью PyQt6.
+    """Manage asynchronous structure operations.
+
+    Inherits from QObject to ensure proper PyQt6 memory management.
     """
 
     def __init__(
@@ -68,27 +68,27 @@ class AsyncOperations(QObject):
         super().__init__(parent)
         self.db = db
         self.logger = logger or globals().get("logger") or logging.getLogger(__name__)
-        # Единый глобальный планировщик задач вместо QThreadPool.globalInstance()
+        # Unified global task scheduler instead of QThreadPool.globalInstance()
         self._scheduler = get_task_scheduler()
-        # ✅ Передаем parent для правильного управления памятью
+        # Pass parent to ensure correct memory ownership
         self._worker_signals = StructureSignals(self)
-        # ✅ Thread-safe защита для shared state
+        # Thread-safe protection for shared state
         self._pending_tasks_lock = Lock()
         self._pending_tasks = {}
         self._metrics_lock = Lock()
         self._active_metric_spans = set()
-        # Прямая зависимость от TopPanelsController для обновления верхних панелей
+        # Direct dependency on TopPanelsController to update top panels
         self.top_panels = top_panels_controller
-    
+
     def cleanup(self) -> None:
-        """Proper cleanup для Qt объектов.
-        
-        ИСПРАВЛЕНИЕ: Отключает все сигналы перед удалением.
-        Вызывается при уничтожении для предотвращения утечек памяти.
+        """Proper cleanup for Qt objects.
+
+        FIX: Disconnects all signals before deletion.
+        Invoked on destruction to prevent memory leaks.
         """
         try:
             if self._worker_signals:
-                # Отключаем все сигналы
+                # Disconnect all signals
                 signals_to_disconnect = [
                     'spheres_loaded', 'structure_loaded', 'sections_loaded',
                     'categories_loaded', 'search_results', 'links_loaded',
@@ -103,22 +103,22 @@ class AsyncOperations(QObject):
                         signal = getattr(self._worker_signals, signal_name, None)
                         if signal and hasattr(signal, 'disconnect'):
                             signal.disconnect()
-                    except TypeError:  # Уже отключено
+                    except TypeError:  # Already disconnected
                         pass
-                
+
                 self._worker_signals.deleteLater()
                 self._worker_signals = None
                 self.logger.debug("AsyncOperations: all signals disconnected")
         except Exception as e:
             self.logger.debug("Error during AsyncOperations cleanup: %s", e)
-        
-        # Очищаем pending tasks
+
+        # Clear pending tasks
         with self._pending_tasks_lock:
             if self._pending_tasks:
                 self.logger.debug("AsyncOperations: clearing %d pending tasks", len(self._pending_tasks))
                 self._pending_tasks.clear()
-        
-        # Очищаем метрики
+
+        # Clear metrics
         with self._metrics_lock:
             if self._active_metric_spans:
                 self.logger.debug("AsyncOperations: clearing %d active metric spans", len(self._active_metric_spans))
@@ -286,36 +286,36 @@ class AsyncOperations(QObject):
 
     # ===== Метрики асинхронных операций =====
     def _start_async_metric(self, name: str, stop_signal: pyqtSignal) -> None:
-        """Стартует метрику name и останавливает по первому срабатыванию stop_signal.
+        """Start a metrics span and stop it on the first `stop_signal` emission.
 
-        Защищает от повторного старта: пока спан активен, повторные вызовы игнорируются.
+        Prevents duplicated spans: subsequent calls are ignored while the span is active.
         """
         try:
-            # ✅ Thread-safe проверка и обновление
+            # ✅ Thread-safe check and update
             with self._metrics_lock:
                 if name in self._active_metric_spans:
                     return
                 metrics.start(name)
                 self._active_metric_spans.add(name)
 
-            # ✅ Используем WeakMethod для предотвращения утечек памяти
+            # ✅ Use a local closure to avoid memory leaks
             def _on_stop(*_args):
                 try:
                     metrics.stop(name)
                 except Exception:
-                    # Логируем только в debug, чтобы не засорять логи пользователя
+                    # Log at debug level only to avoid noisy user logs
                     self.logger.debug("Metrics: failed to stop span %s", name)
                 try:
                     stop_signal.disconnect(_on_stop)
                 except Exception:
                     pass
-                # ✅ Thread-safe удаление
+                # ✅ Thread-safe removal
                 with self._metrics_lock:
                     self._active_metric_spans.discard(name)
 
             stop_signal.connect(_on_stop)
         except Exception:
-            # Никогда не ломаем бизнес-логику из-за метрик
+            # Never break business logic because of metrics failures
             self.logger.debug("Metrics: failed to start span %s", name)
 
     def load_spheres_async(self) -> None:
@@ -324,7 +324,7 @@ class AsyncOperations(QObject):
         self._start_async_metric(
             "async:spheres_load", self._worker_signals.spheres_loaded
         )
-        self._worker_signals.operation_started.emit("Загрузка сфер...")
+        self._worker_signals.operation_started.emit(self.tr("Loading spheres…"))
 
         def _fetch():
             return self.db.spheres.get_spheres() or []
@@ -334,20 +334,23 @@ class AsyncOperations(QObject):
             description="load_spheres",
             on_finished=lambda spheres: (
                 self._worker_signals.spheres_loaded.emit(spheres),
-                self._worker_signals.operation_finished.emit("Сферы загружены"),
+                self._worker_signals.operation_finished.emit(self.tr("Spheres loaded")),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
-                "Ошибка загрузки", f"Ошибка загрузки сфер: {e}"
+                self.tr("Load error"),
+                self.tr("Failed to load spheres: {error}").format(error=e),
             ),
         )
 
     def load_structure_async(self, current_sphere_id: int) -> None:
         """Асинхронная загрузка структуры для сферы через run_db."""
         if not isinstance(current_sphere_id, int) or current_sphere_id <= 0:
-            self.logger.error("Некорректный ID сферы: %s", current_sphere_id)
+            self.logger.error("Invalid sphere ID: %s", current_sphere_id)
             return
 
-        desc = f"Загрузка структуры для сферы {current_sphere_id}..."
+        desc = self.tr("Loading structure for sphere {sphere_id}…").format(
+            sphere_id=current_sphere_id,
+        )
         # Метрика асинхронной загрузки структуры: старт здесь, стоп по сигналу structure_loaded
         self._start_async_metric(
             "async:structure_load", self._worker_signals.structure_loaded
@@ -373,25 +376,28 @@ class AsyncOperations(QObject):
         def _on_finished(payload):
             sections_data, sphere_id = payload
             self._worker_signals.structure_loaded.emit(sections_data, sphere_id)
-            self._worker_signals.operation_finished.emit("Структура загружена")
+            self._worker_signals.operation_finished.emit(self.tr("Structure loaded"))
 
         run_db(
             _fetch,
             description=f"load_structure(sphere_id={current_sphere_id})",
             on_finished=_on_finished,
             on_error=lambda e: self._worker_signals.error.emit(
-                "Ошибка загрузки", f"Ошибка загрузки структуры: {e}"
+                self.tr("Load error"),
+                self.tr("Failed to load structure: {error}").format(error=e),
             ),
         )
 
     def load_sections_async(self, sphere_id: int) -> None:
         """Асинхронная загрузка разделов для сферы через run_db."""
         if not isinstance(sphere_id, int) or sphere_id <= 0:
-            self.logger.error("Некорректный ID сферы: %s", sphere_id)
+            self.logger.error("Invalid sphere ID: %s", sphere_id)
             return
 
         self._worker_signals.operation_started.emit(
-            f"Загрузка разделов для сферы {sphere_id}..."
+            self.tr("Loading sections for sphere {sphere_id}…").format(
+                sphere_id=sphere_id,
+            )
         )
 
         run_db(
@@ -399,21 +405,24 @@ class AsyncOperations(QObject):
             description=f"load_sections(sphere_id={sphere_id})",
             on_finished=lambda sections: (
                 self._worker_signals.sections_loaded.emit(sections, sphere_id),
-                self._worker_signals.operation_finished.emit("Разделы загружены"),
+                self._worker_signals.operation_finished.emit(self.tr("Sections loaded")),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
-                "Ошибка загрузки", f"Ошибка загрузки разделов: {e}"
+                self.tr("Load error"),
+                self.tr("Failed to load sections: {error}").format(error=e),
             ),
         )
 
     def load_categories_async(self, section_id: int) -> None:
         """Асинхронная загрузка категорий для раздела через run_db."""
         if not isinstance(section_id, int) or section_id <= 0:
-            self.logger.error("Некорректный ID раздела: %s", section_id)
+            self.logger.error("Invalid section ID: %s", section_id)
             return
 
         self._worker_signals.operation_started.emit(
-            f"Загрузка категорий для раздела {section_id}..."
+            self.tr("Loading categories for section {section_id}…").format(
+                section_id=section_id,
+            )
         )
 
         run_db(
@@ -421,26 +430,27 @@ class AsyncOperations(QObject):
             description=f"load_categories(section_id={section_id})",
             on_finished=lambda categories: (
                 self._worker_signals.categories_loaded.emit(categories, section_id),
-                self._worker_signals.operation_finished.emit("Категории загружены"),
+                self._worker_signals.operation_finished.emit(self.tr("Categories loaded")),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
-                "Ошибка загрузки", f"Ошибка загрузки категорий: {e}"
+                self.tr("Load error"),
+                self.tr("Failed to load categories: {error}").format(error=e),
             ),
         )
 
     def create_section_async(self, data: Dict[str, Any]) -> None:
         """Асинхронное создание раздела через run_db."""
         if not isinstance(data, dict):
-            self.logger.error("Данные раздела должны быть словарём")
+            self.logger.error("Section data must be a dict")
             return
         name = (data.get("name") or "").strip()
         sphere_id = data.get("sphere_id")
         if not name:
-            self.logger.error("Имя раздела обязательно для создания")
+            self.logger.error("Section name is required")
             return
         if not isinstance(sphere_id, int) or sphere_id <= 0:
             self.logger.error(
-                "ID сферы обязателен и должен быть > 0 для создания раздела"
+                "Sphere ID must be greater than 0 to create a section"
             )
             return
         # Предчек дубликатов для улучшения UX: избегаем падения на ограничении уникальности
@@ -449,7 +459,9 @@ class AsyncOperations(QObject):
             if any(
                 str(row["name"]).strip().lower() == name.lower() for row in existing
             ):
-                msg = f"Раздел с именем '{name}' уже существует в выбранной сфере"
+                msg = self.tr(
+                    "Section named \"{name}\" already exists in the selected sphere"
+                ).format(name=name)
                 self.logger.info(msg)
                 # Покажем пользователю понятное сообщение без запуска воркера
                 self._worker_signals.simple_error.emit(msg)
@@ -457,7 +469,7 @@ class AsyncOperations(QObject):
         except Exception as e:
             # Не блокируем создание при сбое проверки, только логируем
             self.logger.warning(
-                "Не удалось выполнить предчек дубликатов раздела: %s", e
+                "Failed to perform section duplicate pre-check: %s", e
             )
 
         def _create():
@@ -469,7 +481,9 @@ class AsyncOperations(QObject):
             return ("section", parent_id, payload)
 
         self._worker_signals.operation_started.emit(
-            f"Создание section: {name or 'Без названия'}..."
+            self.tr("Creating section: {name}…").format(
+                name=name or self.tr("Untitled"),
+            )
         )
 
         run_db(
@@ -477,26 +491,27 @@ class AsyncOperations(QObject):
             description=f"create_section(name={name!r})",
             on_finished=lambda res: (
                 self._worker_signals.item_created.emit(*res),
-                self._worker_signals.operation_finished.emit("Section создан"),
+                self._worker_signals.operation_finished.emit(self.tr("Section created")),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
-                "Ошибка создания", f"Ошибка создания section: {e}"
+                self.tr("Create error"),
+                self.tr("Failed to create section: {error}").format(error=e),
             ),
         )
 
     def create_category_async(self, data: Dict[str, Any]) -> None:
         """Асинхронное создание категории через run_db."""
         if not isinstance(data, dict):
-            self.logger.error("Данные категории должны быть словарём")
+            self.logger.error("Category data must be a dict")
             return
         name = (data.get("name") or "").strip()
         section_id = data.get("section_id")
         if not name:
-            self.logger.error("Имя категории обязательно для создания")
+            self.logger.error("Category name is required")
             return
         if not isinstance(section_id, int) or section_id <= 0:
             self.logger.error(
-                "ID раздела обязателен и должен быть > 0 для создания категории"
+                "Section ID must be greater than 0 to create a category"
             )
             return
 
@@ -509,7 +524,9 @@ class AsyncOperations(QObject):
             return ("category", parent_id, payload)
 
         self._worker_signals.operation_started.emit(
-            f"Создание category: {name or 'Без названия'}..."
+            self.tr("Creating category: {name}…").format(
+                name=name or self.tr("Untitled"),
+            )
         )
 
         run_db(
@@ -517,27 +534,30 @@ class AsyncOperations(QObject):
             description=f"create_category(name={name!r})",
             on_finished=lambda res: (
                 self._worker_signals.item_created.emit(*res),
-                self._worker_signals.operation_finished.emit("Category создана"),
+                self._worker_signals.operation_finished.emit(self.tr("Category created")),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
-                "Ошибка создания", f"Ошибка создания category: {e}"
+                self.tr("Create error"),
+                self.tr("Failed to create category: {error}").format(error=e),
             ),
         )
 
     def update_section_async(self, section_id: int, data: Dict[str, Any]) -> None:
         """Асинхронное обновление раздела через run_db."""
         if not isinstance(section_id, int) or section_id <= 0:
-            self.logger.error("Некорректный ID раздела: %s", section_id)
+            self.logger.error("Invalid section ID: %s", section_id)
             return
         if not isinstance(data, dict):
-            self.logger.error("Данные раздела должны быть словарём")
+            self.logger.error("Section data must be a dict")
             return
         name = data.get("name")
         if name is not None and not str(name).strip():
-            self.logger.error("Имя раздела должно быть непустой строкой")
+            self.logger.error("Section name must be a non-empty string")
             return
         self._worker_signals.operation_started.emit(
-            f"Обновление section: {data.get('name', f'ID {section_id}')}..."
+            self.tr("Updating section: {name}…").format(
+                name=data.get("name", self.tr("ID {id}").format(id=section_id)),
+            )
         )
 
         def _update():
@@ -549,27 +569,30 @@ class AsyncOperations(QObject):
             description=f"update_section(id={section_id})",
             on_finished=lambda res: (
                 self._worker_signals.item_updated.emit(*res),
-                self._worker_signals.operation_finished.emit("Section обновлён"),
+                self._worker_signals.operation_finished.emit(self.tr("Section updated")),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
-                "Ошибка обновления", f"Ошибка обновления section: {e}"
+                self.tr("Update error"),
+                self.tr("Failed to update section: {error}").format(error=e),
             ),
         )
 
     def update_category_async(self, category_id: int, data: Dict[str, Any]) -> None:
         """Асинхронное обновление категории через run_db."""
         if not isinstance(category_id, int) or category_id <= 0:
-            self.logger.error("Некорректный ID категории: %s", category_id)
+            self.logger.error("Invalid category ID: %s", category_id)
             return
         if not isinstance(data, dict):
-            self.logger.error("Данные категории должны быть словарём")
+            self.logger.error("Category data must be a dict")
             return
         name = data.get("name")
         if name is not None and not str(name).strip():
-            self.logger.error("Имя категории должно быть непустой строкой")
+            self.logger.error("Category name must be a non-empty string")
             return
         self._worker_signals.operation_started.emit(
-            f"Обновление category: {data.get('name', f'ID {category_id}')}..."
+            self.tr("Updating category: {name}…").format(
+                name=data.get("name", self.tr("ID {id}").format(id=category_id)),
+            )
         )
 
         def _update():
@@ -581,20 +604,21 @@ class AsyncOperations(QObject):
             description=f"update_category(id={category_id})",
             on_finished=lambda res: (
                 self._worker_signals.item_updated.emit(*res),
-                self._worker_signals.operation_finished.emit("Category обновлена"),
+                self._worker_signals.operation_finished.emit(self.tr("Category updated")),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
-                "Ошибка обновления", f"Ошибка обновления category: {e}"
+                self.tr("Update error"),
+                self.tr("Failed to update category: {error}").format(error=e),
             ),
         )
 
     def delete_section_async(self, section_id: int) -> None:
         """Асинхронное удаление раздела через run_db."""
         if not isinstance(section_id, int) or section_id <= 0:
-            self.logger.error("Некорректный ID раздела: %s", section_id)
+            self.logger.error("Invalid section ID: %s", section_id)
             return
         self._worker_signals.operation_started.emit(
-            f"Удаление section ID {section_id}..."
+            self.tr("Deleting section ID {section_id}…").format(section_id=section_id)
         )
 
         def _delete():
@@ -613,10 +637,11 @@ class AsyncOperations(QObject):
             description=f"delete_section(id={section_id})",
             on_finished=lambda res: (
                 self._worker_signals.item_deleted.emit(*res),
-                self._worker_signals.operation_finished.emit("Section удалён"),
+                self._worker_signals.operation_finished.emit(self.tr("Section deleted")),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
-                "Ошибка удаления", f"Ошибка удаления section: {e}"
+                self.tr("Delete error"),
+                self.tr("Failed to delete section: {error}").format(error=e),
             ),
         )
 
@@ -631,14 +656,16 @@ class AsyncOperations(QObject):
         """
         try:
             if not isinstance(category_id, int) or category_id <= 0:
-                error_msg = f"Invalid category ID: {category_id}"
+                error_msg = self.tr("Invalid category ID: {category_id}").format(
+                    category_id=category_id
+                )
                 self.logger.error(error_msg)
-                self._worker_signals.error.emit("Ошибка удаления", error_msg)
+                self._worker_signals.error.emit(self.tr("Delete error"), error_msg)
                 return None
 
             self.logger.info("Starting async deletion of category %s", category_id)
             self._worker_signals.operation_started.emit(
-                f"delete_category_{category_id}"
+                self.tr("Deleting category…")
             )
 
             def _delete():
@@ -661,29 +688,34 @@ class AsyncOperations(QObject):
                 description=f"delete_category(id={category_id})",
                 on_finished=lambda res: (
                     self._worker_signals.item_deleted.emit(*res),
-                    self._worker_signals.operation_finished.emit("Category удалена"),
+                    self._worker_signals.operation_finished.emit(self.tr("Category deleted")),
                 ),
                 on_error=lambda e: self._worker_signals.error.emit(
-                    "Ошибка удаления", f"Failed to delete category: {e}"
+                    self.tr("Delete error"),
+                    self.tr("Failed to delete category: {error}").format(error=e),
                 ),
             )
 
             return task_id
 
         except Exception as e:
-            error_msg = f"Failed to start deletion task: {str(e)}"
+            error_msg = self.tr("Failed to start deletion task: {error}").format(
+                error=str(e)
+            )
             self.logger.error("%s", error_msg, exc_info=True)
-            self._worker_signals.error.emit("Ошибка удаления", error_msg)
+            self._worker_signals.error.emit(self.tr("Delete error"), error_msg)
             return None
 
     def count_nested_objects_async(self, section_id: int) -> None:
         """Асинхронный подсчет вложенных объектов (категорий и ссылок) через run_db."""
         if not isinstance(section_id, int) or section_id <= 0:
-            self.logger.error("Некорректный ID раздела: %s", section_id)
+            self.logger.error("Invalid section ID: %s", section_id)
             return
 
         self._worker_signals.operation_started.emit(
-            f"Подсчет объектов в разделе {section_id}..."
+            self.tr("Counting objects for section {section_id}…").format(
+                section_id=section_id,
+            )
         )
 
         def _count():
@@ -708,10 +740,11 @@ class AsyncOperations(QObject):
                 self._worker_signals.item_updated.emit(
                     "section_count", section_id, count_data
                 ),
-                self._worker_signals.operation_finished.emit("Подсчёт завершен"),
+                self._worker_signals.operation_finished.emit(self.tr("Count completed")),
             ),
             on_error=lambda e: self._worker_signals.error.emit(
-                "Ошибка подсчета", f"Ошибка подсчета объектов: {e}"
+                self.tr("Count error"),
+                self.tr("Failed to count items: {error}").format(error=e),
             ),
         )
 

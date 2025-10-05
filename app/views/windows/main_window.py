@@ -14,14 +14,14 @@ from app.views.widgets.link import LinksTableView
 from app.ui.retranslatable import ReTranslatable
 
 if TYPE_CHECKING:
-    # Узкоспециализированные типы только для статического анализа
+    # Narrowly scoped types for static analysis only
     from typing import Any, Dict, Protocol
 
     class StructureItem(Protocol):
-        """Элемент структуры (дерева). Минимальный протокол для статпроверки.
+        """Structure (tree) item protocol used solely for static checks.
 
-        Конкретный тип в рантайме может быть `QModelIndex` или объект модели дерева.
-        Здесь протокол пустой, так как `MainWindow` лишь проксирует объект дальше.
+        At runtime the concrete type may be ``QModelIndex`` or another tree-model object.
+        The protocol remains empty because ``MainWindow`` only forwards the value.
         """
 
         ...
@@ -47,15 +47,15 @@ logger = logging.getLogger(__name__)
 
 
 class MainWindow(QMainWindow, ReTranslatable):
-    """Главное окно приложения.
-    
-    Координирует работу контроллеров через WindowFacade.
-    Основная ответственность - UI layout и обработка событий Qt.
+    """Primary application window.
+
+    Coordinates multiple controllers via ``WindowFacade``.
+    Responsibilities focus on UI layout and handling Qt events.
     """
     
     shown: pyqtSignal = pyqtSignal()
 
-    # Контроллеры (инициализируются в bootstrap)
+    # Controllers initialized during bootstrap
     structure: "StructureUIController"
     menu_controller: "MenuController"
     action_controller: "ActionController"
@@ -66,81 +66,81 @@ class MainWindow(QMainWindow, ReTranslatable):
     system_dialogs: object
     theme_ctrl: "ThemeController"
     
-    # UI компоненты
+    # UI components
     table: LinksTableView
     left_panel: QWidget
     
-    # Undo/Redo
+    # Undo/Redo infrastructure
     undo_stack: Optional[QUndoStack]
     undo_action: Optional[QAction]
     redo_action: Optional[QAction]
     
-    # Фасад для упрощения делегирования
+    # Facade simplifies delegation logic
     facade: Optional[WindowFacade]
 
     def handle_import_browser_bookmarks(self) -> None:
         self.system_dialogs.handle_import_browser_bookmarks()
 
-    # === Делегирование через фасад ===
+    # === Delegation via the facade ===
     
     def get_current_category_id(self) -> Optional[int]:
-        """Возвращает ID текущей категории."""
+        """Return the ID of the currently selected category."""
         return self.facade.get_current_category_id() if self.facade else None
 
     def edit_structure_item(self, item: "StructureItem") -> None:
-        """Редактирует элемент структуры."""
+        """Edit a structure item."""
         self.structure.edit_item(item)
 
     def add_new_category(self) -> None:
-        """Добавляет новую категорию."""
+        """Create a new category."""
         if self.facade:
             self.facade.add_new_category()
 
     def reload_structure(self) -> None:
-        """Перезагружает структуру."""
+        """Reload the entire structure tree."""
         if self.facade:
             self.facade.reload_structure()
 
     def reload_current_category(self) -> None:
-        """Перезагружает текущую категорию."""
+        """Reload the currently selected category."""
         if self.facade:
             self.facade.reload_current_category()
 
     def get_link_at_row(self, row: int) -> "LinkDict | None":
-        """Возвращает ссылку по номеру строки."""
+        """Return the link at the given row index."""
         return self.facade.get_link_at_row(row) if self.facade else None
 
     def select_all_links(self) -> None:
-        """Выделяет все ссылки."""
+        """Select all link rows."""
         self.table.selectAll()
 
     def get_selected_rows(self) -> list[int]:
-        """Возвращает номера выбранных строк."""
+        """Return indices of selected rows."""
         return self.facade.get_selected_rows() if self.facade else []
 
     def get_available_themes(self) -> list[tuple[str, str]]:
-        """Возвращает список доступных тем.
-        
-        Примечание: Использует theme_ctrl напрямую, т.к. вызывается до инициализации фасада.
+        """Return the list of available themes.
+
+        Note: accesses ``theme_ctrl`` directly because it is invoked before facade initialization.
         """
-        # Меню создается рано, до facade, поэтому прямой доступ
+        # Menu is built early (before facade), hence direct access
         return self.theme_ctrl.available() if hasattr(self, 'theme_ctrl') else []
 
     def apply_theme(self, theme_name: str) -> None:
-        """Применяет тему.
-        
-        Примечание: Использует theme_ctrl напрямую, т.к. вызывается до инициализации фасада.
+        """Apply a theme immediately.
+
+        Note: accesses ``theme_ctrl`` directly because it is invoked before facade initialization.
         """
-        # Меню используется рано, до facade, поэтому прямой доступ
+        # Menu is used prior to facade availability, so keep direct access
         if hasattr(self, 'theme_ctrl'):
             self.theme_ctrl.apply(theme_name)
 
     def get_undo_stack(self) -> Optional[QUndoStack]:
-        """Возвращает undo stack или None."""
+        """Return the undo stack instance if available."""
         return getattr(self, "undo_stack", None)
 
     def create_undo_redo_actions(self) -> tuple[Optional[QAction], Optional[QAction]]:
-        """Создает действия Undo/Redo."""
+        """Create Undo/Redo QAction instances."""
         us = getattr(self, "undo_stack", None)
         if us is None:
             return None, None
@@ -159,9 +159,9 @@ class MainWindow(QMainWindow, ReTranslatable):
         self.undo_action = undo_action
         self.redo_action = redo_action
 
-        # Диагностические логи undo/redo и состояния стека для расследования двойного вызова
+        # Diagnostics: track undo/redo triggers and stack state for double-activation analysis
         try:
-            # Логируем активации действий меню/шорткатов
+            # Log menu/shortcut triggers
             undo_action.triggered.connect(
                 lambda checked=False: logging.getLogger(__name__).debug(
                     "[UI] QAction.undo.triggered checked=%s", checked
@@ -179,7 +179,7 @@ class MainWindow(QMainWindow, ReTranslatable):
             )
 
         try:
-            # Локальные безопасные колбэки через weakref, чтобы избежать обращения к удалённому объекту
+            # Local safe callbacks via weakref to avoid touching deleted objects
             _us_ref = weakref.ref(us)
 
             def _on_index_changed(idx: int):
@@ -247,15 +247,15 @@ class MainWindow(QMainWindow, ReTranslatable):
 
     def __init__(self, settings: AppSettings, theme_ctrl: ThemeController):
         super().__init__()
-        # Инициализация перенесена в bootstrap. Здесь только приём базовых зависимостей.
+        # Initialization moved to bootstrap; only accept core dependencies here.
         self.settings = settings
         self.theme_ctrl = theme_ctrl
-        self.facade = None  # Будет установлен в bootstrap после инициализации контроллеров
+        self.facade = None  # Assigned in bootstrap after controllers initialize
 
-        # Debounce таймер для поиска
+        # Debounce timer for search
         self._search_timer = QTimer()
         self._search_timer.setSingleShot(True)
-        self._search_timer.setInterval(300)  # 300ms задержка
+        self._search_timer.setInterval(300)  # 300 ms delay
         self._search_timer.timeout.connect(self._execute_search)
         self._pending_search = ""
 
@@ -271,7 +271,7 @@ class MainWindow(QMainWindow, ReTranslatable):
 
 
     def _init_spheres_ui(self) -> None:
-        """Инициализирует UI сфер (асинхронно)."""
+        """Initialize the spheres UI asynchronously."""
         self.spheres_controller.init()
 
     def show_link_dialog(
@@ -279,7 +279,7 @@ class MainWindow(QMainWindow, ReTranslatable):
         link: "LinkDict | None" = None,
         category_id: int | None = None,
     ) -> bool:
-        """Показывает диалог создания/редактирования ссылки."""
+        """Show the create/edit link dialog."""
         if not self.facade:
             return False
 
@@ -290,29 +290,29 @@ class MainWindow(QMainWindow, ReTranslatable):
     def show_link_dialog_for_category(
         self, category_id: int | None = None, link: "LinkDict | None" = None
     ) -> bool:
-        """Открывает диалог ссылки для указанной категории."""
+        """Open the link dialog for the specified category."""
         return self.show_link_dialog(link=link, category_id=category_id)
 
     def _get_selected_links(self) -> list["LinkDict"]:
-        """Возвращает список выбранных ссылок."""
+        """Return the list of selected links."""
         return self.facade.get_selected_links() if self.facade else []
 
     def _edit_selected_link(self) -> bool:
-        """Редактирует выбранную ссылку."""
+        """Edit the currently selected link."""
         return self.facade.edit_selected_link() if self.facade else False
 
     def edit_current(self) -> None:
-        """Редактирует текущий элемент."""
+        """Edit the current item."""
         if self.facade:
             self.facade.edit_current()
 
     def delete_current(self) -> None:
-        """Удаляет текущий элемент."""
+        """Delete the current item."""
         if self.facade:
             self.facade.delete_current()
 
     def show_section_dialog(self) -> None:
-        """Открывает диалог создания раздела."""
+        """Open the dialog for creating a section."""
         if self.facade:
             self.facade.add_new_section()
 
@@ -322,7 +322,7 @@ class MainWindow(QMainWindow, ReTranslatable):
     def on_structure_item_added(
         self, item_type: str, parent_id: int, data: dict
     ) -> None:
-        """Обрабатывает добавление элемента структуры."""
+        """Handle structure item creation events."""
         if self.facade:
             self.facade.on_structure_item_added(item_type, parent_id, data)
 
@@ -330,7 +330,7 @@ class MainWindow(QMainWindow, ReTranslatable):
     def on_structure_item_changed(
         self, item_type: str, item_id: int, data: dict
     ) -> None:
-        """Обрабатывает изменение элемента структуры."""
+        """Handle structure item change events."""
         if self.facade:
             self.facade.on_structure_item_changed(item_type, item_id, data)
 
@@ -344,55 +344,55 @@ class MainWindow(QMainWindow, ReTranslatable):
         self.system_dialogs.show_file_search_dialog()
 
     def update_theme(self) -> None:
-        """Применяет тему и обновляет UI."""
+        """Apply the current theme and refresh the UI."""
         if self.facade:
             self.facade.update_theme()
 
     def update_widget_font_size(self, widget, size: int) -> None:
-        """Унифицированно применяет размер шрифта к переданному виджету.
+        """Apply a font size to a widget in a unified manner.
 
-        Ожидается, что у виджета есть метод `update_font_size(int)`.
-        Безопасно обрабатывает отсутствие атрибута/метода и редкие непредвиденные ошибки.
+        Assumes the widget provides ``update_font_size(int)``.
+        Safely handles missing attributes/methods and unexpected runtime errors.
 
-        Примечание: со временем логику можно перенести в соответствующие контроллеры
-        дерева/таблицы, а здесь оставить только делегирование.
+        Note: the logic can be migrated into tree/table controllers later, leaving
+        only delegation here.
         """
         try:
             with suppress(AttributeError, RuntimeError, TypeError, ValueError):
                 if widget and hasattr(widget, "update_font_size"):
                     widget.update_font_size(size)
         except Exception:
-            # Лог с типом виджета для диагностики неожиданных ошибок
+            # Log widget type for diagnosing unexpected errors
             logger.exception(
                 "MainWindow: unexpected error updating font size for %s",
                 type(widget).__name__ if widget is not None else "<None>",
             )
 
     def apply_font_size_to_content(self, fs: int) -> None:
-        """Централизованно применяет размер шрифта к основным контент‑виджетам.
+        """Apply font size to primary content widgets.
 
-        Применяется ТОЛЬКО к дереву и таблице (пользовательская настройка).
+        Affects only tree and table widgets (user-facing preference).
         """
-        if isinstance(fs, bool):  # защитимся от ошибок типов
+        if isinstance(fs, bool):  # guard against incorrect types
             return
         try:
             size = int(fs)
         except (TypeError, ValueError):
             return
 
-        # Дерево
+        # Tree widget
         tree = getattr(self, "tree", None)
         self.update_widget_font_size(tree, size)
 
-        # Таблица
+        # Table widget
         table = getattr(self, "table", None)
         self.update_widget_font_size(table, size)
 
-        # Плитки категорий — намеренно НЕ меняем здесь, их шрифт независим
+        # Category tiles intentionally remain unchanged (independent font size)
 
     @signal_guard("_update_left_panel_style")
     def _update_left_panel_style(self, sphere_id: int) -> None:
-        """Обновляет стиль левой панели при смене сферы."""
+        """Update left panel styling when the sphere changes."""
         current_sphere = self.left_panel.property("sphere")
         if current_sphere == str(sphere_id):
             return
@@ -403,15 +403,15 @@ class MainWindow(QMainWindow, ReTranslatable):
             self.left_panel.style().polish(self.left_panel)
 
     def on_search(self, text: str) -> None:
-        """Откладывает выполнение поиска на 300ms (debounce)."""
+        """Schedule search execution after a 300 ms debounce."""
         self._pending_search = text
-        self._search_timer.start()  # Перезапускает таймер при каждом вводе
+        self._search_timer.start()  # Restart timer on each keystroke
 
     def _execute_search(self) -> None:
-        """Выполняет поиск после задержки."""
+        """Execute the search after the debounce interval."""
         la = getattr(self, "links_actions", None)
         if la is None:
-            logger.debug("MainWindow: links_actions ещё не инициализирован")
+            logger.debug("MainWindow: links_actions not initialized yet")
             return
         try:
             la.on_search(self._pending_search)
@@ -419,19 +419,18 @@ class MainWindow(QMainWindow, ReTranslatable):
             logger.exception("MainWindow._execute_search failed")
 
     def showEvent(self, event: QEvent) -> None:
-        """Эмитит сигнал shown при первом показе окна."""
+        """Emit ``shown`` signal the first time the window appears."""
         super().showEvent(event)
         if not hasattr(self, "_shown_emitted"):
             self._shown_emitted = True
-            # Отложенный вызов через очередь событий Qt
-            # Предотвращает блокировку отрисовки окна, если слот выполняет тяжёлую операцию
+            # Use queued single-shot to avoid blocking rendering if slot is heavy
             QTimer.singleShot(0, self.shown.emit)
 
     def closeEvent(self, event: QEvent) -> None:
-        """Корректно завершает работу и закрывает ресурсы."""
+        """Shut down gracefully and release resources."""
         logger.info("MainWindow.closeEvent: initiating shutdown")
         
-        # Останавливаем search timer для предотвращения утечек
+        # Stop search timer to avoid leaks
         try:
             if hasattr(self, '_search_timer'):
                 self._search_timer.stop()
