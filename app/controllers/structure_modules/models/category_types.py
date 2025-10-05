@@ -3,8 +3,6 @@
 """Типы данных и константы для операций с категориями."""
 
 from dataclasses import dataclass
-from typing import Dict
-
 from .types import CategoryData
 
 
@@ -27,7 +25,7 @@ class CategoryDeletionInfo:
     @classmethod
     def create_empty(cls) -> "CategoryDeletionInfo":
         """Создает пустую информацию об удалении."""
-        empty_category: CategoryData = {  # type: ignore
+        empty_category: CategoryData = {
             "id": 0,
             "name": "",
             "section_id": 0,

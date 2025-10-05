@@ -1,5 +1,5 @@
 import logging
-from typing import Dict
+from typing import Any, Dict, Optional
 
 # Module containing row operations for the links table
 # Provides methods for adding, updating, and removing rows
@@ -10,7 +10,15 @@ logger = logging.getLogger(__name__)
 class RowOperationsMixin:
     """Mixin with row-level operations for the links table."""
 
-    def update_link_by_id(self, link: dict, mode: str = "normal"):
+    def _link_cache(self) -> Dict[int, Dict[str, Any]]:
+        """Вспомогательный доступ к кешу текущих ссылок."""
+        cache = getattr(self, "_current_links", None)
+        if cache is None:
+            cache = {}
+            setattr(self, "_current_links", cache)
+        return cache
+
+    def update_link_by_id(self, link: Dict[str, Any], mode: str = "normal") -> bool:
         """
         Update a table row by the link ID when present.
         """
@@ -26,10 +34,9 @@ class RowOperationsMixin:
                 return False
 
             link_id = link.get("id")
-
-            if link_id is None:
+            if not isinstance(link_id, int):
                 logger.warning(
-                    "[LinksTableView] Missing ID in link payload for update"
+                    "[LinksTableView] Missing integer ID in link payload for update"
                 )
                 return False
 
@@ -53,7 +60,11 @@ class RowOperationsMixin:
                     total = 0
                 for r in range(total):
                     row_data = self.get_link_at(r)
-                    if isinstance(row_data, dict) and row_data.get("id") == link_id:
+                    if (
+                        isinstance(row_data, dict)
+                        and isinstance(row_data.get("id"), int)
+                        and row_data.get("id") == link_id
+                    ):
                         row = r
                         break
 
@@ -82,7 +93,7 @@ class RowOperationsMixin:
             )
             return False
 
-    def _update_row(self, row: int, link: Dict, mode: str):
+    def _update_row(self, row: int, link: Dict[str, Any], mode: str) -> bool:
         """Update an existing row with new data via the model."""
         try:
             # Validate input
@@ -128,7 +139,7 @@ class RowOperationsMixin:
 
             # Refresh cache (legacy compatibility)
             try:
-                self._current_links[row] = link
+                self._link_cache()[row] = link
             except Exception:
                 logger.debug(
                     "[LinksTableView] Failed to refresh cache for row %s",
@@ -148,7 +159,7 @@ class RowOperationsMixin:
             )
             return False
 
-    def _add_row(self, row: int, link: Dict, mode: str):
+    def _add_row(self, row: int, link: Dict[str, Any], mode: str) -> bool:
         """Insert a new row via the model."""
         try:
             # Validate input

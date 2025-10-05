@@ -7,7 +7,7 @@ import logging
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Any
 
 from app.config_data import app_config
 
@@ -131,7 +131,7 @@ def _build_theme_index(theme: str) -> None:
         _THEME_DIR_MTIME[theme] = dir_mtime
 
 
-def _get_indexed_icon(theme: str, icon_name: str) -> Optional[Path]:
+def _get_indexed_icon(theme: str, icon_name: str) -> Path | None:
     """Вернуть Path из индекса или None. Создаёт/обновляет индекс по TTL."""
     name_key = icon_name.lower()
     # Читаем состояние индексов под общей блокировкой
@@ -166,7 +166,7 @@ def _get_indexed_icon(theme: str, icon_name: str) -> Optional[Path]:
 class IconPathService:
     """Singleton-сервис для управления путями к иконкам и ресурсам."""
 
-    _instance: Optional[IconPathService] = None
+    _instance: IconPathService | None = None
 
     def __new__(cls) -> IconPathService:
         if cls._instance is None:
@@ -178,9 +178,9 @@ class IconPathService:
             return
         self._initialized = True
 
-        self._user_icons_dir: Optional[Path] = None
-        self._ui_icons_dir: Optional[Path] = None
-        self._user_data_dir: Optional[Path] = None
+        self._user_icons_dir: Path | None = None
+        self._ui_icons_dir: Path | None = None
+        self._user_data_dir: Path | None = None
 
     # --- Папки пользователя и UI ---
 
@@ -212,7 +212,7 @@ class IconPathService:
         """Путь к иконке в указанной теме (без проверки существования)."""
         return self.get_ui_icons_dir() / theme / icon_name
 
-    def get_ui_icon_path(self, icon_name: str, theme: str = "light") -> Optional[Path]:
+    def get_ui_icon_path(self, icon_name: str, theme: str = "light") -> Path | None:
         """Путь к существующей UI-иконке с fallback на light."""
         themed_path = self.get_themed_icon_path(icon_name, theme)
         if themed_path.exists():
@@ -281,7 +281,7 @@ class IconPathResolver:
     # --- Управление кешем и статистикой ---
     def resolve_from_cache(
         self, icon_name: str, theme: str
-    ) -> Tuple[Optional[str], bool]:
+    ) -> tuple[str | None, bool]:
         if not _validate_icon_name(icon_name):
             logger.warning("Invalid icon name provided: %r", icon_name)
             set_path(icon_name, theme, None)  # негативное кеширование
@@ -318,7 +318,7 @@ class IconPathResolver:
         return None, False
 
     # --- Поиск пути по индексу/темам ---
-    def find_source(self, icon_name: str, theme: str) -> Optional[str]:
+    def find_source(self, icon_name: str, theme: str) -> str | None:
         norm_theme = validate_theme(theme)
         idx_hit = _get_indexed_icon(norm_theme, icon_name)
         if idx_hit is not None:
@@ -343,7 +343,7 @@ class IconPathResolver:
         return None
 
     # --- Конвертация иконок ---
-    def convert_svg(self, icon_name: str, theme: str) -> Optional[str]:
+    def convert_svg(self, icon_name: str, theme: str) -> str | None:  # noqa: C901
         # Локальный импорт для избежания циклических зависимостей
         from .icon_operations.converters import convert_icon_to_png_128
 
@@ -465,7 +465,7 @@ class IconPathResolver:
 # --- Поиск и кеширование пути к иконке ---
 
 
-def get_icon_path(icon_name: str, theme: str = "light") -> Optional[str]:
+def get_icon_path(icon_name: str, theme: str = "light") -> str | None:
     """Получить строковый путь к иконке. Тонкая обёртка вокруг IconPathResolver."""
     resolver = IconPathResolver(_icon_path_service)
 
@@ -503,7 +503,7 @@ def get_qss_dir() -> Path:
     return app_config.paths.get_qss_dir()
 
 
-_CURRENT_THEME_CACHE: Optional[str] = None
+_CURRENT_THEME_CACHE: str | None = None
 _LAST_THEME_CHECK: float = 0.0
 _THEME_CACHE_TTL: float = 3.0
 _theme_lock = threading.RLock()

@@ -13,7 +13,7 @@ LRU-политика кэширования для иконок.
 from __future__ import annotations
 
 from collections import OrderedDict
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from .lock_manager import acquire_lru_lock
 
@@ -36,8 +36,8 @@ class LRUPolicy:
             self.access_order.move_to_end(key)
 
     def evict_if_needed(
-        self, cache: Dict[str, Any], key: str
-    ) -> Tuple[bool, Optional[str]]:
+        self, cache: dict[str, Any], key: str
+    ) -> tuple[bool, str | None]:
         """Проверить переполнение и вернуть ключ для удаления.
 
         Возвращает:
@@ -59,7 +59,7 @@ class LRUPolicy:
         with acquire_lru_lock():
             self.access_order.pop(key, None)
 
-    def sync_with_cache(self, cache: Dict[str, Any]) -> None:
+    def sync_with_cache(self, cache: dict[str, Any]) -> None:
         """Синхронизировать порядок доступа с фактическим содержимым кэша."""
         with acquire_lru_lock():
             # удалить отсутствующие
