@@ -1,9 +1,11 @@
 # app/controllers/links_business.py
 
 import logging
+import threading
+from functools import lru_cache, wraps
 from typing import Any, Callable, Dict, List, Optional
-from functools import wraps, lru_cache
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QMutex
+
+from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.models.db import Database
@@ -83,11 +85,11 @@ class LinksBusinessLogic(QObject):
         # Dependency injection
         self.scheduler = scheduler or get_task_scheduler()
         self._tasks_lock = tasks_lock_instance or tasks_lock
-        self.pending_tasks = {}  # Store task_id -> category_id or other payloads
+        self.pending_tasks: Dict[int, int] = {}  # Store task_id -> category_id or other payloads
         self.task_counter = 0
         self.logger = logger or logging.getLogger(self.__class__.__name__)
         self._cache = {}  # Simple cache for results
-        self._mutex = QMutex()  # Prevent race conditions
+        self._mutex = threading.RLock()  # Prevent race conditions
 
     def shutdown(self, timeout: int = DEFAULT_SHUTDOWN_TIMEOUT):
         """Perform a graceful shutdown."""
@@ -259,10 +261,9 @@ class LinksBusinessLogic(QObject):
 
         link_id = link.get("id")
 
-        self._mutex.lock()  # Guard against race conditions
-        try:
-            # Atomic update: read and modify within a single transaction
-            def _toggle():
+        # Atomic update: read and modify within a single transaction
+        def _toggle() -> tuple[int, Dict]:
+            with self._mutex:
                 current_link = self.links.get_link_by_id(link_id)
                 if not current_link:
                     raise ValueError(self.tr("Link not found"))
@@ -276,14 +277,12 @@ class LinksBusinessLogic(QObject):
                 result = self.links.create_or_update_link(link_data)
                 return result, link_data
 
-            self._run_db_task(
-                _toggle,
-                description=f"toggle_favorite({link_id})",
-                on_finished=lambda data: self._on_favorite_toggled(data[0], data[1]),
-                task_id=link_id,
-            )
-        finally:
-            self._mutex.unlock()
+        self._run_db_task(
+            _toggle,
+            description=f"toggle_favorite({link_id})",
+            on_finished=lambda data: self._on_favorite_toggled(data[0], data[1]),
+            task_id=link_id,
+        )
 
     def _on_favorite_toggled(self, result: int, link_data: Dict):
         self.logger.info(

@@ -4,7 +4,7 @@
 
 import logging
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
@@ -89,7 +89,7 @@ class StructureBusinessLogic(QObject):
 
         # Batch mode aggregates frequent `item_updated` events
         self._batch_mode: bool = False
-        self._batch_touched_sections: set[int] = set()
+        self._batch_touched_sections: Set[int] = set()
 
         # Metric helper: remember the moment a sphere switch started
         self._last_switch_started_ms: Optional[float] = None
@@ -104,13 +104,12 @@ class StructureBusinessLogic(QObject):
             self.item_deleted.connect(self._on_item_deleted)
             # Wire batch-deletion handler
             self.items_batch_deleted.connect(self._on_items_batch_deleted)
-            self.logger.info("[BL] Handlers connected for business id=%s", id(self))
         except (AttributeError, RuntimeError) as e:
             self.logger.warning(
                 "Failed to attach internal signal handlers: %s",
                 e, exc_info=True,
             )
-        
+
         # Warm up "first category" cache after structure load (per sphere)
         try:
             self.structure_loaded.connect(self._on_structure_loaded_warm_cache)
@@ -119,6 +118,21 @@ class StructureBusinessLogic(QObject):
             self.logger.debug(
                 "Failed to attach warm-cache handler to structure_loaded: %s",
                 e, exc_info=True,
+            )
+
+    def shutdown(self, timeout: int = 5000) -> None:
+        """Perform a graceful shutdown of internal services."""
+        try:
+            if self._structure_reload_timer and self._structure_reload_timer.isActive():
+                self._structure_reload_timer.stop()
+            async_ops = getattr(self, "async_operations", None)
+            if async_ops and hasattr(async_ops, "shutdown"):
+                async_ops.shutdown(timeout=timeout)
+            self.cache_manager.invalidate()
+            self.logger.info("StructureBusinessLogic shutdown completed")
+        except Exception as exc:
+            self.logger.error(
+                "Error during StructureBusinessLogic shutdown: %s", exc, exc_info=True
             )
 
     def set_top_panels_controller(self, top_panels_controller: Any) -> None:
@@ -312,7 +326,7 @@ class StructureBusinessLogic(QObject):
                             self._batch_touched_sections.add(int(section_id))
                     except (ValueError, TypeError) as ex:
                         self.logger.debug(
-                            "batch: failed to add touched section id=%s: %s",
+                            "_on_item_updated: batch mode failed to add touched section id=%s: %s",
                             section_id,
                             ex,
                             exc_info=True,
@@ -343,7 +357,8 @@ class StructureBusinessLogic(QObject):
         """Disable batch mode and perform consolidated refreshes."""
         try:
             touched = set(self._batch_touched_sections)
-        except Exception:
+        except Exception as exc:
+            self.logger.debug("end_batch: failed to copy touched sections: %s", exc)
             touched = set()
         finally:
             self._batch_touched_sections.clear()
@@ -391,7 +406,7 @@ class StructureBusinessLogic(QObject):
             self._structure_reload_timer.start(delay_ms)
         except Exception as e:
             self.logger.warning(
-                "_schedule_structure_reload: failed to schedule: %s", e, exc_info=True
+                "_schedule_structure_reload failed to schedule: %s", e, exc_info=True
             )
 
     def _perform_structure_reload(self) -> None:
@@ -764,7 +779,7 @@ class StructureBusinessLogic(QObject):
             return []
 
         # Collect source sections for subsequent cache invalidation
-        source_sections: set[int] = set()
+        source_sections: Set[int] = set()
         try:
             for cid in category_ids:
                 try:
