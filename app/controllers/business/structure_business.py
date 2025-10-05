@@ -4,16 +4,16 @@
 
 import logging
 import time
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Optional, Union
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
 from app.controllers.structure_modules import (
+    AsyncOperations,
+    AsyncSignalHandlers,
     CacheManager,
     ValidationResult,
     handle_exceptions,
-    AsyncOperations,
-    AsyncSignalHandlers,
 )
 from app.controllers.structure_services.exporter import ExportService
 from app.controllers.structure_services.importer import ImportService
@@ -30,27 +30,27 @@ class StructureBusinessLogic(QObject):
     """Refactored structure business logic compatible with the legacy UI."""
 
     # Primary signals exposed to the UI layer
-    structure_loaded: pyqtSignal = pyqtSignal(list, name='structureLoaded')  # List[Dict[str, Any]] - sections with categories
-    active_sphere_changed: pyqtSignal = pyqtSignal(int, name='activeSphereChanged')  # int - active sphere ID
+    structure_loaded = pyqtSignal(list, name='structureLoaded')  # List[Dict[str, Any]] - sections with categories
+    active_sphere_changed = pyqtSignal(int, name='activeSphereChanged')  # int - active sphere ID
 
     # CRUD signals (backward compatibility)
-    item_added: pyqtSignal = pyqtSignal(
+    item_added = pyqtSignal(
         str, int, dict, name='itemAdded'
-    )  # str, int, Dict - item type, parent ID, payload
-    item_updated: pyqtSignal = pyqtSignal(
+    )  # str, int, Dict[str, Any] - item type, parent ID, payload
+    item_updated = pyqtSignal(
         str, int, dict, name='itemUpdated'
-    )  # str, int, Dict - item type, element ID, payload
-    item_deleted: pyqtSignal = pyqtSignal(str, int, name='itemDeleted')  # str, int - item type, element ID
+    )  # str, int, Dict[str, Any] - item type, element ID, payload
+    item_deleted = pyqtSignal(str, int, name='itemDeleted')  # str, int - item type, element ID
     # Batch notification to avoid numerous per-item delete signals
-    items_batch_deleted: pyqtSignal = pyqtSignal(str, list, name='itemsBatchDeleted')  # str - item type, list[int] - element IDs
+    items_batch_deleted = pyqtSignal(str, list, name='itemsBatchDeleted')  # str - item type, list[int] - element IDs
 
     # Selection signals
-    section_selected: pyqtSignal = pyqtSignal(int, name='sectionSelected')  # int - section ID
-    category_selected: pyqtSignal = pyqtSignal(int, name='categorySelected')  # int - category ID
+    section_selected = pyqtSignal(int, name='sectionSelected')  # int - section ID
+    category_selected = pyqtSignal(int, name='categorySelected')  # int - category ID
 
     # Additional utility signals
-    error_occurred: pyqtSignal = pyqtSignal(str, str, name='errorOccurred')  # str, str - title, message
-    spheres_loaded: pyqtSignal = pyqtSignal(list, name='spheresLoaded')  # List[Dict] - collection of spheres
+    error_occurred = pyqtSignal(str, str, name='errorOccurred')  # str, str - title, message
+    spheres_loaded = pyqtSignal(list, name='spheresLoaded')  # List[Dict[str, Any]] - collection of spheres
 
     def __init__(self, db: Database, parent: QObject = None, logger: Optional[logging.Logger] = None):
         """Initialise structure business logic."""
@@ -89,7 +89,7 @@ class StructureBusinessLogic(QObject):
 
         # Batch mode aggregates frequent `item_updated` events
         self._batch_mode: bool = False
-        self._batch_touched_sections: Set[int] = set()
+        self._batch_touched_sections: set[int] = set()
 
         # Metric helper: remember the moment a sphere switch started
         self._last_switch_started_ms: Optional[float] = None
@@ -251,7 +251,7 @@ class StructureBusinessLogic(QObject):
         except Exception as e:
             self._handle_error(self.tr("Failed to load structure asynchronously"), e)
 
-    def _load_structure_from_db(self, sphere_id: int) -> List[Dict[str, Any]]:
+    def _load_structure_from_db(self, sphere_id: int) -> list[dict[str, Any]]:
         """Load structure from the database (delegated to service)."""
         return self.loader_service.load_structure_from_db(
             structure_model=self.structure_model,
@@ -262,7 +262,7 @@ class StructureBusinessLogic(QObject):
     # INTERNAL SIGNAL HANDLERS (UI COMMANDS AND MORE)
     @pyqtSlot(str, int, dict)
     def _on_item_added(
-        self, item_type: str, parent_id: int, item_data: Dict[str, Any]
+        self, item_type: str, parent_id: int, item_data: dict[str, Any]
     ) -> None:
         """Handle item addition: invalidate cache and schedule reload."""
         try:
@@ -300,7 +300,7 @@ class StructureBusinessLogic(QObject):
 
     @pyqtSlot(str, int, dict)
     def _on_item_updated(
-        self, item_type: str, item_id: int, item_data: Dict[str, Any]
+        self, item_type: str, item_id: int, item_data: dict[str, Any]
     ) -> None:
         """Handle item update: invalidate cache and schedule reloads."""
         try:
@@ -423,7 +423,7 @@ class StructureBusinessLogic(QObject):
     # Auxiliary handlers
     # -------------------------------------------------------------------------
     @pyqtSlot(list)
-    def _on_structure_loaded_warm_cache(self, _payload: list) -> None:
+    def _on_structure_loaded_warm_cache(self, _payload: list) -> None:  # noqa: C901
         """Warm per-sphere cache for the first category after structure load.
 
         Prefer using the loaded payload to avoid additional synchronous DB queries
@@ -568,7 +568,7 @@ class StructureBusinessLogic(QObject):
     # SPHERE OPERATIONS (BACKWARD COMPATIBILITY)
 
     @handle_exceptions(default_return=[])
-    def get_spheres(self) -> List[Dict[str, Any]]:
+    def get_spheres(self) -> list[dict[str, Any]]:
         """Return cached list of spheres via service layer."""
         cache_key = "all_spheres"
         cached_spheres = self.cache_manager.get(cache_key)
@@ -579,7 +579,7 @@ class StructureBusinessLogic(QObject):
         return spheres or []
 
     # --- Compatibility helpers previously delivered via mixins ---
-    def get_sections(self, sphere_id: int) -> List[Dict[str, Any]]:
+    def get_sections(self, sphere_id: int) -> list[dict[str, Any]]:
         """Return cached sections for a sphere via the service layer."""
         cache_key = f"sections_{sphere_id}"
         cached = self.cache_manager.get(cache_key)
@@ -589,7 +589,7 @@ class StructureBusinessLogic(QObject):
         self.cache_manager.set(cache_key, sections)
         return sections or []
 
-    def get_categories(self, section_id: int) -> List[Dict[str, Any]]:
+    def get_categories(self, section_id: int) -> list[dict[str, Any]]:
         """Return cached categories for a section via the service layer."""
         cache_key = f"categories_{section_id}"
         cached = self.cache_manager.get(cache_key)
@@ -599,7 +599,7 @@ class StructureBusinessLogic(QObject):
         self.cache_manager.set(cache_key, categories)
         return categories or []
 
-    def get_links(self, category_id: int) -> List[Dict[str, Any]]:
+    def get_links(self, category_id: int) -> list[dict[str, Any]]:
         """Return links for a category (legacy interface compatibility)."""
         # Delegate to UtilityService which queries the model
         return self.utility_service.get_links(
@@ -607,23 +607,23 @@ class StructureBusinessLogic(QObject):
         )
 
     @handle_exceptions()
-    def get_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
+    def get_section_data(self, section_id: int) -> Optional[dict[str, Any]]:
         """Return section data for dialogs/UI operations."""
         return self.structure_service.get_section_by_id(section_id)
 
     @handle_exceptions()
-    def get_category_data(self, category_id: int) -> Optional[Dict[str, Any]]:
+    def get_category_data(self, category_id: int) -> Optional[dict[str, Any]]:
         """Return category data for dialogs/UI operations."""
         return self.structure_service.get_category_by_id(category_id)
 
     @handle_exceptions()
-    def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, Any]]:
+    def get_category_hierarchy(self, category_id: int) -> Optional[dict[str, Any]]:
         """Return ``{"sphere_id", "section_id"}`` mapping for a category."""
         return self.structure_service.get_category_hierarchy(category_id)
 
     def get_item_for_editing(
         self, item_id: int, item_type: Union[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """Return item data for editing dialogs (compatibility helper)."""
         return self.utility_service.get_item_for_editing(
             item_id=item_id,
@@ -679,7 +679,7 @@ class StructureBusinessLogic(QObject):
 
     # CRUD OPERATIONS FOR SECTIONS AND CATEGORIES (via StructureService)
     @handle_exceptions()
-    def create_section(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def create_section(self, data: dict[str, Any]) -> Optional[dict[str, Any]]:
         """Create a section, emit signals, and invalidate caches."""
         section_id = self.structure_service.create_section(data)
         if not section_id:
@@ -701,8 +701,8 @@ class StructureBusinessLogic(QObject):
 
     @handle_exceptions()
     def update_section(
-        self, section_id: int, data: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, section_id: int, data: dict[str, Any]
+    ) -> Optional[dict[str, Any]]:
         """Update a section via the service, emit signals, and invalidate caches."""
         ok = self.structure_service.update_section(section_id, data)
         if not ok:
@@ -720,7 +720,7 @@ class StructureBusinessLogic(QObject):
         return section_data or None
 
     @handle_exceptions()
-    def delete_section(self, section_id: int) -> Tuple[bool, Dict[str, Any], int, int]:
+    def delete_section(self, section_id: int) -> tuple[bool, dict[str, Any], int, int]:
         """Delete a section. Return (success flag, data, categories count, links count)."""
         section_before = self.structure_service.get_section_by_id(section_id) or {}
         if not section_before:
@@ -748,7 +748,7 @@ class StructureBusinessLogic(QObject):
         return success, section_before, categories_count, 0
 
     @handle_exceptions()
-    def create_category(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def create_category(self, data: dict[str, Any]) -> Optional[dict[str, Any]]:
         """Create a category via the service and invalidate caches."""
         category_id = self.structure_service.create_category(data)
         if not category_id:
@@ -768,8 +768,8 @@ class StructureBusinessLogic(QObject):
 
     @handle_exceptions(default_return=[])
     def move_categories_batch(
-        self, category_ids: List[int], target_section_id: int, base_row: int = 0
-    ) -> List[int]:
+        self, category_ids: list[int], target_section_id: int, base_row: int = 0
+    ) -> list[int]:
         """Move categories to the target section in a single batch transaction."""
         if (
             not category_ids
@@ -779,7 +779,7 @@ class StructureBusinessLogic(QObject):
             return []
 
         # Collect source sections for subsequent cache invalidation
-        source_sections: Set[int] = set()
+        source_sections: set[int] = set()
         try:
             for cid in category_ids:
                 try:
@@ -816,8 +816,8 @@ class StructureBusinessLogic(QObject):
 
     @handle_exceptions(default_return=[])
     def create_categories_bulk(
-        self, items: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, items: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Create categories in bulk and emit UI signals."""
         if not items:
             return []
@@ -841,8 +841,8 @@ class StructureBusinessLogic(QObject):
 
     @handle_exceptions()
     def update_category(
-        self, category_id: int, data: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, category_id: int, data: dict[str, Any]
+    ) -> Optional[dict[str, Any]]:
         """Update a category via the service, emit signal, and invalidate cache."""
         ok = self.structure_service.update_category(category_id, data)
         if not ok:
@@ -858,7 +858,7 @@ class StructureBusinessLogic(QObject):
         return category_data or None
 
     @handle_exceptions()
-    def delete_category(self, category_id: int) -> Tuple[bool, Dict[str, Any], int]:
+    def delete_category(self, category_id: int) -> tuple[bool, dict[str, Any], int]:
         """Delete a category. Return (success, payload, links count placeholder)."""
         category_before = self.structure_service.get_category_by_id(category_id) or {}
         if not category_before:
@@ -886,7 +886,7 @@ class StructureBusinessLogic(QObject):
             self.logger.error("load_spheres_async failed: %s", e)
 
     @handle_exceptions()
-    def get_sphere_by_id(self, sphere_id: int) -> Optional[Dict[str, Any]]:
+    def get_sphere_by_id(self, sphere_id: int) -> Optional[dict[str, Any]]:
         """Return sphere data by identifier."""
         spheres = self.get_spheres()
         return next((sphere for sphere in spheres if sphere["id"] == sphere_id), None)
@@ -938,11 +938,11 @@ class StructureBusinessLogic(QObject):
         """Return the current active sphere ID."""
         return self.current_sphere_id
 
-    def get_section_for_editing(self, section_id: int) -> Optional[Dict[str, Any]]:
+    def get_section_for_editing(self, section_id: int) -> Optional[dict[str, Any]]:
         """Fetch section data for editing dialogs."""
         return self.get_item_for_editing(section_id, "section")
 
-    def get_category_for_editing(self, category_id: int) -> Optional[Dict[str, Any]]:
+    def get_category_for_editing(self, category_id: int) -> Optional[dict[str, Any]]:
         """Fetch category data for editing dialogs."""
         return self.get_item_for_editing(category_id, "category")
 
@@ -950,7 +950,7 @@ class StructureBusinessLogic(QObject):
 
     @handle_exceptions()
     def create_category_for_import(
-        self, category_data: Dict[str, Any]
+        self, category_data: dict[str, Any]
     ) -> Optional[int]:
         """Create a category during import (delegated to the service layer)."""
         category_id = self.import_service.create_category_for_import(
@@ -966,7 +966,7 @@ class StructureBusinessLogic(QObject):
     # INTERNAL VALIDATION HELPERS
 
     def _validate_section_data(
-        self, data: Dict[str, Any], section_id: Optional[int] = None
+        self, data: dict[str, Any], section_id: Optional[int] = None
     ) -> ValidationResult:
         """Validate section data via ``ValidationService``."""
         return self.validation_service.validate_section_data(
@@ -976,7 +976,7 @@ class StructureBusinessLogic(QObject):
         )
 
     def _validate_category_data(
-        self, data: Dict[str, Any], category_id: Optional[int] = None
+        self, data: dict[str, Any], category_id: Optional[int] = None
     ) -> ValidationResult:
         """Validate category data via ``ValidationService``."""
         return self.validation_service.validate_category_data(
@@ -1019,7 +1019,7 @@ class StructureBusinessLogic(QObject):
 
     # ADDITIONAL UTILITY METHODS
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Return structure statistics via the integrity service."""
         return self.integrity_service.get_statistics(
             get_spheres=self.get_spheres,
