@@ -11,74 +11,70 @@ logger = logging.getLogger(__name__)
 
 
 class VisibilitySolver:
-    """Подбирает количество видимых кнопок для каждой панели.
-    
-    УЛУЧШЕНИЕ: Добавлен оптимизированный алгоритм с бинарным поиском
-    для уменьшения сложности с O(n*m) до O(log(total) * n).
-    
-    Использует два алгоритма:
-    1. Жадный (по умолчанию) - простой и предсказуемый
-    2. Бинарный поиск - быстрее для большого количества кнопок
+    """Compute visible button counts per panel.
+
+    Improvement note: add a binary-search strategy to reduce complexity from
+    ``O(n * m)`` to ``O(log(total) * n)``.
+
+    Two available strategies:
+    1. Greedy (default) — simple and predictable.
+    2. Binary search — faster for large button sets.
     """
 
     def __init__(self, width_calculator: WidthCalculator, use_binary_search: bool = False) -> None:
-        """Инициализирует solver.
-        
+        """Initialize the solver.
+
         Args:
-            width_calculator: Калькулятор ширины
-            use_binary_search: Использовать бинарный поиск (быстрее, но менее предсказуемо)
+            width_calculator: Panel width calculator.
+            use_binary_search: Enable binary search (faster yet less predictable).
         """
         self._width_calculator = width_calculator
         self._use_binary_search = use_binary_search
 
     def compute_visible_counts(self, ctx: LayoutContext) -> Dict[str, int]:
-        """Вычисляет оптимальное количество видимых кнопок.
-        
-        Выбирает алгоритм на основе флага use_binary_search.
+        """Compute the optimal visible-button counts.
+
+        Strategy selection depends on the ``use_binary_search`` flag.
         """
         if self._use_binary_search:
             return self._compute_with_binary_search(ctx)
         return self._compute_greedy(ctx)
     
     def _compute_greedy(self, ctx: LayoutContext) -> Dict[str, int]:
-        """Вычисляет оптимальное количество видимых кнопок для каждой панели.
-        
-        ИСПРАВЛЕНИЕ: Добавлена подробная документация алгоритма.
-        
-        Алгоритм (жадный с приоритетами):
-        1. Начинаем с максимальных значений для всех панелей (max_visible)
-        2. Вычисляем общую ширину с текущими counts через WidthCalculator
-        3. Если не помещается в доступную ширину:
-           - Проходим по панелям в порядке приоритета (recent -> fav -> quick)
-           - Уменьшаем count на 1 для первой панели, у которой count > minimum
-           - Повторяем итерацию, пока не поместится или не достигнем минимумов
-        4. Если всё равно не помещается — устанавливаем все в minimum
-        
-        Сложность: O(n * m), где:
-        - n = количество панелей (обычно 3)
-        - m = сумма (max_visible - min_visible) для всех панелей
-        
-        Порядок приоритета:
-        Определяется порядком элементов в panel_states. Первая панель имеет
-        наивысший приоритет (будет сжиматься последней). Для изменения
-        приоритета нужно изменить порядок в _panel_definitions в TopBarLayoutManager.
-        
-        Защита от бесконечного цикла:
-        Используется счетчик steps с ограничением total_steps = сумма всех
-        возможных уменьшений. Гарантирует завершение за конечное время.
-        
+        """Derive visible counts for each panel via the greedy strategy.
+
+        Fix: document the algorithm thoroughly.
+
+        Greedy algorithm (priority-based):
+        1. Start with ``max_visible`` for every panel.
+        2. Compute total width with the current counts via ``WidthCalculator``.
+        3. If the layout overflows, iterate through panels in priority order
+           (recent → fav → quick), decrementing the first panel whose count is
+           above its minimum. Repeat until the layout fits or all minimums are hit.
+        4. If the layout still overflows, fall back to all minimum values.
+
+        Complexity: ``O(n * m)``, where ``n`` is the panel count (typically 3) and
+        ``m`` is the sum of ``max_visible - min_visible`` across panels.
+
+        Priority order: dictated by the order of ``panel_states``. The first panel
+        has the highest priority (reduced last). Adjust `_panel_definitions` in
+        `TopBarLayoutManager` to change the priority.
+
+        Infinite-loop safeguard: use a ``steps`` counter bounded by the sum of all
+        possible decrements to guarantee termination.
+
         Args:
-            ctx: Контекст layout с информацией о ширине и панелях
-            
+            ctx: Layout context containing width and panel information.
+
         Returns:
-            Словарь {label: visible_count} с количеством видимых кнопок.
-            Гарантируется: minimums[label] <= result[label] <= max_visible
-        
+            Dictionary ``{label: visible_count}``. Guarantees that
+            ``minimums[label] <= result[label] <= max_visible``.
+
         Example:
             >>> ctx = LayoutContext(width=500, panel_states=[...])
             >>> solver.compute_visible_counts(ctx)
             {'recent': 8, 'fav': 5, 'quick': 6}
-            # recent имеет наивысший приоритет, quick - наименьший
+            # 'recent' has the highest priority, 'quick' the lowest
         """
         panel_states = list(ctx.panel_states)
         counts: Dict[str, int] = {
@@ -127,47 +123,46 @@ class VisibilitySolver:
         return counts
     
     def _compute_with_binary_search(self, ctx: LayoutContext) -> Dict[str, int]:
-        """Вычисляет количество видимых кнопок используя бинарный поиск.
-        
-        УЛУЧШЕНИЕ: Оптимизированный алгоритм O(log(total) * n) вместо O(n * m).
-        
-        Идея:
-        1. Вычисляем общее количество кнопок (total_buttons)
-        2. Бинарным поиском находим максимальное количество, которое помещается
-        3. Распределяем найденное количество по панелям с учетом приоритетов
-        
+        """Compute visible counts using binary search.
+
+        Improvement note: optimized to ``O(log(total) * n)`` over ``O(n * m)``.
+
+        Idea:
+        1. Compute the total number of buttons ``total_buttons``.
+        2. Use binary search to find the largest feasible total.
+        3. Distribute the result among panels according to priorities.
+
         Args:
-            ctx: Контекст layout
-            
+            ctx: Layout context.
+
         Returns:
-            Словарь с количеством видимых кнопок для каждой панели
+            Dictionary mapping each panel to its visible button count.
         """
         panel_states = list(ctx.panel_states)
         
-        # Подготавливаем данные для бинарного поиска
+        # Prepare data for the binary search
         minimums: Dict[str, int] = {
             state.definition.label: state.min_visible for state in panel_states
         }
         maximums: Dict[str, int] = {
             state.definition.label: state.max_visible for state in panel_states
         }
-        
-        # Вычисляем диапазон для бинарного поиска
+        # Calculate the search range
         min_total = sum(minimums.values())
         max_total = sum(maximums.values())
         
         if min_total == max_total:
-            # Нет гибкости - возвращаем минимумы
+            # No flexibility — return minimums
             return minimums.copy()
-        
-        # Бинарный поиск максимального количества кнопок, которое помещается
+
+        # Binary search for the maximum number of buttons that still fits
         left, right = min_total, max_total
         best_total = min_total
         
         while left <= right:
             mid = (left + right) // 2
             counts = self._distribute_buttons(panel_states, mid, minimums, maximums)
-            
+
             total_width = self._width_calculator.total_width(
                 ctx.top_bar,
                 ctx.search,
@@ -177,14 +172,14 @@ class VisibilitySolver:
             )
             
             if total_width <= ctx.width:
-                # Помещается - пробуем больше
+                # Fits — try more
                 best_total = mid
                 left = mid + 1
             else:
-                # Не помещается - пробуем меньше
+                # Does not fit — try fewer
                 right = mid - 1
-        
-        # Возвращаем распределение для лучшего найденного значения
+
+        # Return the distribution for the best total found
         return self._distribute_buttons(panel_states, best_total, minimums, maximums)
     
     def _distribute_buttons(
@@ -194,30 +189,30 @@ class VisibilitySolver:
         minimums: Dict[str, int],
         maximums: Dict[str, int],
     ) -> Dict[str, int]:
-        """Распределяет заданное количество кнопок по панелям.
-        
-        УЛУЧШЕНИЕ: Вспомогательный метод для бинарного поиска.
-        Распределяет кнопки с учетом приоритетов (порядок в panel_states).
-        
+        """Distribute the requested button count across panels.
+
+        Improvement note: helper method for the binary search honoring panel
+        priorities (the order of ``panel_states``).
+
         Args:
-            panel_states: Список состояний панелей (определяет приоритет)
-            total: Общее количество кнопок для распределения
-            minimums: Минимумы для каждой панели
-            maximums: Максимумы для каждой панели
-            
+            panel_states: Panel-state list defining priority.
+            total: Total number of buttons to distribute.
+            minimums: Minimum counts per panel.
+            maximums: Maximum counts per panel.
+
         Returns:
-            Словарь с распределением кнопок
+            Dictionary with the final distribution.
         """
         counts: Dict[str, int] = {}
         remaining = total
         
-        # Сначала выделяем минимумы
+        # Allocate minimum counts first
         for state in panel_states:
             label = state.definition.label
             counts[label] = minimums[label]
             remaining -= minimums[label]
         
-        # Распределяем оставшиеся кнопки по приоритету
+        # Distribute remaining buttons according to priority
         for state in panel_states:
             label = state.definition.label
             available = maximums[label] - minimums[label]

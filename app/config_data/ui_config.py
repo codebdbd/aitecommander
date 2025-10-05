@@ -307,6 +307,16 @@ class UIConfig(BaseConfig):
         """Return the thread pool shutdown timeout."""
         return self.get("ui.thread_pool_shutdown_timeout", 2000)
 
+    # === Structure reload timing ===
+
+    def get_structure_reload_delay_ms(self) -> int:
+        """Return the coalesced structure reload delay in milliseconds."""
+        return int(self.get("ui.structure_reload_delay_ms", 200))
+
+    def get_structure_reload_immediate_delay_ms(self) -> int:
+        """Return the immediate structure reload delay (usually 0 ms)."""
+        return int(self.get("ui.structure_reload_immediate_delay_ms", 0))
+
     # === Dialogs ===
 
     def get_dialogs_enable_details(self) -> bool:

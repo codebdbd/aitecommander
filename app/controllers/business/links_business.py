@@ -7,18 +7,18 @@ from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QMutex
 
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.models.db import Database
-from app.services import LinksService
+from app.services.links_service import LinksService
 from app.utils.db.api import run_db
 from app.utils.db.db_error_handler import handle_db_error
 from app.utils.db.synchronization import tasks_lock
 
 
 def validate_link_form(func):
-    """Декоратор для валидации данных ссылки."""
+    """Decorator that validates link data before processing."""
     @wraps(func)
     def wrapper(self, link_data: Dict, *args, **kwargs):
         if not isinstance(link_data, dict):
-            raise ValueError("Invalid link data provided: not a dict")
+            raise ValueError(self.tr("Invalid link data provided: not a dict"))
         from app.utils.validators.link_validators import validate_link_form_data
 
         name = link_data.get("name")
@@ -30,13 +30,13 @@ def validate_link_form(func):
             and isinstance(category_id, int)
             and category_id > 0
         ):
-            raise ValueError("Invalid link data provided")
+            raise ValueError(self.tr("Invalid link data provided"))
         return func(self, link_data, *args, **kwargs)
     return wrapper
 
 
 def handle_errors(func):
-    """Декоратор для централизованной обработки ошибок."""
+    """Decorator providing centralized error handling."""
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         try:
@@ -49,48 +49,48 @@ def handle_errors(func):
 
 
 class LinksBusinessLogic(QObject):
-    """Бизнес-логика для работы со ссылками."""
+    """Business logic responsible for working with links."""
 
-    # Константы
+    # Constants
     DEFAULT_SHUTDOWN_TIMEOUT = 2000
     DEFAULT_RECENT_LIMIT = 10
 
-    # Сигналы для уведомления UI (PyQt6 стиль с типизацией)
+    # Signals used to notify the UI layer (PyQt6 typed style)
     links_loaded: pyqtSignal = pyqtSignal(
         list, int, int, name='linksLoaded'
-    )  # List[Dict], int, int - ссылки, ID категории, ID задачи
+    )  # List[Dict], int, int - links, category ID, task ID
     search_results_ready: pyqtSignal = pyqtSignal(
         list, name='searchResultsReady'
-    )  # List[Dict] - результаты поиска
+    )  # List[Dict] - search results
     favorites_counted: pyqtSignal = pyqtSignal(
         int, list, object, name='favoritesCounted'
-    )  # int, List[Dict], Optional[Dict] - количество, ссылки, текущая ссылка
-    link_updated: pyqtSignal = pyqtSignal(dict, name='linkUpdated')  # Dict - обновленная ссылка
-    error_occurred: pyqtSignal = pyqtSignal(str, name='errorOccurred')  # str - сообщение об ошибке
-    link_deleted: pyqtSignal = pyqtSignal(int, name='linkDeleted')  # int - ID удаленной ссылки
-    recent_links_loaded: pyqtSignal = pyqtSignal(list, name='recentLinksLoaded')  # List[Dict] - недавние ссылки
-    favorite_links_loaded: pyqtSignal = pyqtSignal(list, name='favoriteLinksLoaded')  # List[Dict] - избранные ссылки
-    favorites_cleared: pyqtSignal = pyqtSignal(bool, name='favoritesCleared')  # bool - успех очистки
-    link_by_id_loaded: pyqtSignal = pyqtSignal(dict, int, name='linkByIdLoaded')  # Dict, int - ссылка, ID
-    next_position_loaded: pyqtSignal = pyqtSignal(int, int, name='nextPositionLoaded')  # int, int - позиция, category_id
-    batch_updated: pyqtSignal = pyqtSignal(bool, name='batchUpdated')  # bool - успех пакетного обновления
+    )  # int, List[Dict], Optional[Dict] - count, links, current link
+    link_updated: pyqtSignal = pyqtSignal(dict, name='linkUpdated')  # Dict - updated link
+    error_occurred: pyqtSignal = pyqtSignal(str, name='errorOccurred')  # str - error message
+    link_deleted: pyqtSignal = pyqtSignal(int, name='linkDeleted')  # int - deleted link ID
+    recent_links_loaded: pyqtSignal = pyqtSignal(list, name='recentLinksLoaded')  # List[Dict] - recent links
+    favorite_links_loaded: pyqtSignal = pyqtSignal(list, name='favoriteLinksLoaded')  # List[Dict] - favorite links
+    favorites_cleared: pyqtSignal = pyqtSignal(bool, name='favoritesCleared')  # bool - success flag
+    link_by_id_loaded: pyqtSignal = pyqtSignal(dict, int, name='linkByIdLoaded')  # Dict, int - link, ID
+    next_position_loaded: pyqtSignal = pyqtSignal(int, int, name='nextPositionLoaded')  # int, int - position, category_id
+    batch_updated: pyqtSignal = pyqtSignal(bool, name='batchUpdated')  # bool - batch result
 
     def __init__(self, db: Database, parent: QObject = None, logger=None, tasks_lock_instance=None, scheduler=None):
         super().__init__(parent)
         self.db = db
-        # Сервисный слой поверх репозитория для снижения дублирования и транзакций
+        # Service layer atop the repository to reduce duplication and manage transactions
         self.links = LinksService(db)
-        # Инжекция зависимостей
+        # Dependency injection
         self.scheduler = scheduler or get_task_scheduler()
         self._tasks_lock = tasks_lock_instance or tasks_lock
-        self.pending_tasks = {}  # Изменено на dict для хранения task_id: category_id или других данных
+        self.pending_tasks = {}  # Store task_id -> category_id or other payloads
         self.task_counter = 0
         self.logger = logger or logging.getLogger(self.__class__.__name__)
-        self._cache = {}  # Простой кэш для результатов
-        self._mutex = QMutex()  # Для защиты от race conditions
+        self._cache = {}  # Simple cache for results
+        self._mutex = QMutex()  # Prevent race conditions
 
     def shutdown(self, timeout: int = DEFAULT_SHUTDOWN_TIMEOUT):
-        """Корректное завершение работы."""
+        """Perform a graceful shutdown."""
         try:
             thread_pool = self.scheduler.get_thread_pool()
             active_threads = thread_pool.activeThreadCount()
@@ -110,7 +110,7 @@ class LinksBusinessLogic(QObject):
             self.pending_tasks.clear()
 
     def load_links(self, category_id: int):
-        """Загрузить ссылки для категории."""
+        """Load links for a category."""
         self.task_counter += 1
         task_id = self.task_counter
 
@@ -132,7 +132,7 @@ class LinksBusinessLogic(QObject):
 
     @handle_errors
     def get_links(self, category_id: int) -> List[Dict]:
-        """Синхронно вернуть ссылки для категории (унифицированный метод)."""
+        """Return links for a category synchronously (unified method)."""
         self.logger.warning("Using synchronous get_links; consider using load_links for async operation")
         return self._get_cached(
             f"links_{category_id}",
@@ -140,7 +140,7 @@ class LinksBusinessLogic(QObject):
         )
 
     def search_links(self, query: str):
-        """Поиск ссылок по запросу."""
+        """Search links by query."""
         q = (query or "").strip()
         if not q:
             self.logger.debug(
@@ -162,7 +162,7 @@ class LinksBusinessLogic(QObject):
         )
 
     def update_link_order(self, link_ids: list):
-        """Обновить порядок ссылок."""
+        """Update the order of links."""
         if not link_ids:
             return
 
@@ -175,7 +175,7 @@ class LinksBusinessLogic(QObject):
         )
 
     def count_favorites(self, link: Optional[Dict] = None):
-        """Подсчитать количество избранных ссылок."""
+        """Count favorite links."""
 
         def _count():
             return self.db.links.count_favorites()
@@ -189,7 +189,7 @@ class LinksBusinessLogic(QObject):
         )
 
     def delete_link(self, link_id: int):
-        """Удалить ссылку."""
+        """Delete a link."""
         if not self._validate_link_id(link_id):
             return
 
@@ -203,7 +203,7 @@ class LinksBusinessLogic(QObject):
     @validate_link_form
     @handle_errors
     def save_link(self, link_data: Dict) -> int:
-        """Сохранить ссылку."""
+        """Save a link."""
         self.logger.warning("Using synchronous save_link; consider using save_link_async for async")
 
         result = self.links.create_or_update_link(link_data)
@@ -222,7 +222,7 @@ class LinksBusinessLogic(QObject):
 
     @validate_link_form
     def save_link_async(self, link_data: Dict):
-        """Асинхронно сохранить ссылку."""
+        """Save a link asynchronously."""
         self._run_db_task(
             lambda: self.links.create_or_update_link(link_data),
             description="save_link_async",
@@ -237,7 +237,7 @@ class LinksBusinessLogic(QObject):
         self.logger.info("Link saved async: %s", link_data.get("id", "[new]"))
 
     def update_link_last_used(self, link_id: int):
-        """Обновить время последнего использования ссылки."""
+        """Update the last-used timestamp for a link."""
         if not self._validate_link_id(link_id):
             return
 
@@ -249,23 +249,23 @@ class LinksBusinessLogic(QObject):
         )
 
     def toggle_favorite(self, link: Dict):
-        """Переключить статус избранного для ссылки."""
+        """Toggle favorite status for a link."""
         if (
             not isinstance(link, dict)
             or not isinstance(link.get("id"), int)
             or link["id"] <= 0
         ):
-            raise ValueError("Invalid link data for toggle_favorite")
+            raise ValueError(self.tr("Invalid link data for toggle_favorite"))
 
         link_id = link.get("id")
 
-        self._mutex.lock()  # Защита от race conditions
+        self._mutex.lock()  # Guard against race conditions
         try:
-            # Атомарное обновление: прочитать и обновить в одной транзакции
+            # Atomic update: read and modify within a single transaction
             def _toggle():
                 current_link = self.links.get_link_by_id(link_id)
                 if not current_link:
-                    raise ValueError("Link not found")
+                    raise ValueError(self.tr("Link not found"))
                 old_status = current_link.get("is_favorite", False)
                 new_status = not old_status
                 self.logger.debug(
@@ -294,7 +294,7 @@ class LinksBusinessLogic(QObject):
 
     @handle_errors
     def get_recent_links(self, limit: int = DEFAULT_RECENT_LIMIT) -> List[Dict]:
-        """Получить недавние ссылки."""
+        """Retrieve recent links."""
         self.logger.warning("Using synchronous get_recent_links; consider using load_recent_links for async")
         if limit <= 0:
             self.logger.warning("Invalid limit for recent links: %s", limit)
@@ -306,7 +306,7 @@ class LinksBusinessLogic(QObject):
         )
 
     def load_recent_links(self, limit: int = DEFAULT_RECENT_LIMIT):
-        """Асинхронно загрузить недавние ссылки."""
+        """Load recent links asynchronously."""
         if limit <= 0:
             self.logger.warning("Invalid limit for recent links: %s", limit)
             self.recent_links_loaded.emit([])
@@ -325,7 +325,7 @@ class LinksBusinessLogic(QObject):
 
     @handle_errors
     def get_favorite_links(self) -> List[Dict]:
-        """Получить избранные ссылки."""
+        """Retrieve favorite links."""
         self.logger.warning("Using synchronous get_favorite_links; consider using load_favorite_links for async")
         return self._get_cached(
             "favorite_links",
@@ -333,7 +333,7 @@ class LinksBusinessLogic(QObject):
         )
 
     def load_favorite_links(self):
-        """Асинхронно загрузить избранные ссылки."""
+        """Load favorite links asynchronously."""
         cache_key = "favorite_links"
         if cache_key in self._cache:
             self.favorite_links_loaded.emit(self._cache[cache_key])
@@ -347,15 +347,15 @@ class LinksBusinessLogic(QObject):
 
     @handle_errors
     def clear_favorites(self) -> bool:
-        """Очистить все избранные ссылки."""
+        """Clear all favorite links."""
         self.logger.warning("Using synchronous clear_favorites; consider using clear_favorites_async for async")
         result = self.links.clear_favorites() or True
         self._invalidate_cache()
-        self.logger.info("Избранные ссылки очищены")
+        self.logger.info("Favorite links cleared")
         return result
 
     def clear_favorites_async(self):
-        """Асинхронно очистить все избранные ссылки."""
+        """Clear favorite links asynchronously."""
         self._run_db_task(
             lambda: self.links.clear_favorites() or True,
             description="clear_favorites_async",
@@ -364,7 +364,7 @@ class LinksBusinessLogic(QObject):
 
     @handle_errors
     def get_link_by_id(self, link_id: int) -> Optional[Dict]:
-        """Получает ссылку по ID."""
+        """Fetch a link by ID."""
         self.logger.warning("Using synchronous get_link_by_id; consider using load_link_by_id for async")
         if not self._validate_link_id(link_id):
             return None
@@ -375,7 +375,7 @@ class LinksBusinessLogic(QObject):
         )
 
     def load_link_by_id(self, link_id: int):
-        """Асинхронно получить ссылку по ID."""
+        """Fetch a link by ID asynchronously."""
         if not self._validate_link_id(link_id):
             self.link_by_id_loaded.emit({}, link_id)
             return
@@ -393,7 +393,7 @@ class LinksBusinessLogic(QObject):
 
     @handle_errors
     def get_next_position(self, category_id: int) -> int:
-        """Получает следующую позицию для новой ссылки в категории."""
+        """Calculate the next position for a new link within a category."""
         self.logger.warning("Using synchronous get_next_position; consider using load_next_position for async")
         if not isinstance(category_id, int) or category_id <= 0:
             self.logger.warning(
@@ -407,7 +407,7 @@ class LinksBusinessLogic(QObject):
         )
 
     def load_next_position(self, category_id: int):
-        """Асинхронно получить следующую позицию."""
+        """Load the next position asynchronously."""
         if not isinstance(category_id, int) or category_id <= 0:
             self.logger.warning(
                 "Invalid category_id for load_next_position: %s", category_id
@@ -428,7 +428,7 @@ class LinksBusinessLogic(QObject):
 
     @handle_errors
     def batch_update_links(self, links_data: List[Dict]) -> bool:
-        """Выполняет пакетное обновление ссылок в транзакции."""
+        """Perform a transactional batch update of links."""
         self.logger.warning("Using synchronous batch_update_links; consider using batch_update_links_async for async")
         if not links_data:
             self.logger.warning("Empty links_data for batch_update_links")
@@ -444,7 +444,7 @@ class LinksBusinessLogic(QObject):
         return result
 
     def batch_update_links_async(self, links_data: List[Dict]):
-        """Асинхронно выполнить пакетное обновление ссылок."""
+        """Execute a batch link update asynchronously."""
         if not links_data:
             self.logger.warning("Empty links_data for batch_update_links_async")
             self.batch_updated.emit(True)
@@ -465,32 +465,29 @@ class LinksBusinessLogic(QObject):
     @validate_link_form
     @handle_errors
     def create_link_for_import(self, link_data: Dict[str, Any]) -> Optional[int]:
-        """Создает новую ссылку для импорта.
-
-        Этот метод предназначен для создания ссылок во время импорта данных.
-        Не эмитит UI сигналы, так как импорт происходит в фоновом режиме.
+        """Create a new link during background data import.
 
         Args:
-            link_data: Словарь с данными ссылки
+            link_data: Dictionary containing the link payload.
 
         Returns:
-            ID созданной ссылки или None при ошибке
+            The ID of the created link, or ``None`` if creation failed.
         """
         result_id = self.links.create_or_update_link(link_data)
         if result_id:
             self._invalidate_cache()
             self.logger.debug(
-                "Создана ссылка для импорта: %s", link_data.get("name", "без имени")
+                "Created link for import: %s", link_data.get("name", "<no name>")
             )
             return result_id
         else:
-            self.logger.warning("Не удалось создать ссылку для импорта")
+            self.logger.warning("Failed to create link for import")
             return None
 
-    # Приватные методы для валидации и вспомогательных операций
+    # Private helpers for validation and shared operations
 
     def _validate_link_id(self, link_id: int) -> bool:
-        """Валидация ID ссылки."""
+        """Validate that a link identifier is a positive integer."""
         if not isinstance(link_id, int) or link_id <= 0:
             self.logger.warning("Invalid link_id: %s", link_id)
             return False
@@ -498,11 +495,11 @@ class LinksBusinessLogic(QObject):
 
     @lru_cache(maxsize=32)
     def _get_all_links_safe(self) -> List[Dict]:
-        """Безопасное получение всех ссылок для внутреннего использования."""
+        """Return all links for internal usage with caching."""
         return self.links.get_all_links()
 
     def _get_cached(self, cache_key: str, loader: Callable[[], Any]) -> Any:
-        """Возвращает значение из локального кэша или подгружает его через loader."""
+        """Retrieve a value from the local cache or load it via ``loader``."""
         if cache_key in self._cache:
             return self._cache[cache_key]
 
@@ -517,7 +514,7 @@ class LinksBusinessLogic(QObject):
         on_finished: Callable[[Any], None],
         task_id: Optional[Any] = None,
     ) -> None:
-        """Универсальный обёрточный метод для run_db с централизованной обработкой ошибок."""
+        """Wrapper around ``run_db`` that centralizes error handling."""
         run_db(
             task,
             description=description,
@@ -526,46 +523,46 @@ class LinksBusinessLogic(QObject):
         )
 
     def _invalidate_cache(self):
-        """Инвалидация кэша после обновлений."""
+        """Invalidate caches after a mutating operation."""
         self._cache.clear()
-        self._get_all_links_safe.cache_clear()  # Очистка lru_cache
+        self._get_all_links_safe.cache_clear()  # Clear lru_cache
 
     def _cache_links_and_emit(self, key: str, data: Any, emit_func):
         self._cache[key] = data
         emit_func(data)
 
-    # Вспомогательные методы для обработки результатов операций
-    
+    # Helpers for handling asynchronous results
+
     def _on_reorder_finished(self, _):
-        """Обработка завершения переупорядочивания ссылок."""
+        """Handle completion of a link reordering operation."""
         self._invalidate_cache()
         self.logger.debug("Link reordering completed")
-    
+
     def _on_delete_finished(self, link_id: int):
-        """Обработка завершения удаления ссылки."""
+        """Handle completion of a link deletion."""
         self._invalidate_cache()
         self.link_deleted.emit(link_id)
-    
+
     def _on_last_used_updated(self, link_id: int):
-        """Обработка обновления времени последнего использования."""
+        """Handle completion of a last-used timestamp update."""
         self._invalidate_cache()
         self.logger.debug("Link last_used updated: %s", link_id)
-    
+
     def _on_favorites_cleared(self, result: bool):
-        """Обработка очистки избранного."""
+        """Handle completion of clearing favorites."""
         self._invalidate_cache()
         self.favorites_cleared.emit(result)
-    
+
     def _on_batch_updated(self, result: bool):
-        """Обработка пакетного обновления ссылок."""
+        """Handle completion of a batch update."""
         self._invalidate_cache()
         self.batch_updated.emit(result)
 
-    # Слоты для обработки результатов воркеров
+    # Slots for handling asynchronous results
 
     @pyqtSlot(object, int, int)
     def _on_links_loaded(self, links: List[Dict], category_id: int, task_id: int):
-        """Обработка загруженных ссылок."""
+        """Handle completion of link loading."""
         with self._tasks_lock:
             if task_id in self.pending_tasks:
                 del self.pending_tasks[task_id]
@@ -573,19 +570,19 @@ class LinksBusinessLogic(QObject):
 
     @pyqtSlot(object)
     def _on_search_finished(self, search_results: List[Dict]):
-        """Обработка результатов поиска."""
+        """Handle completion of a search operation."""
         self.search_results_ready.emit(search_results or [])
 
     @pyqtSlot(int, object, object)
     def _on_favorites_counted(
         self, fav_count: int, links: List[Dict], link: Optional[Dict]
     ):
-        """Обработка подсчета избранного."""
+        """Handle completion of counting favorites."""
         self.favorites_counted.emit(fav_count, links or [], link)
 
     @pyqtSlot(str)
     def _on_worker_error(self, error_msg: str, task_id: Optional[int] = None):
-        """Обработка ошибок воркеров."""
+        """Handle errors emitted by background workers."""
         self.logger.error("Worker error: %s", error_msg)
         self.error_occurred.emit(str(error_msg))
         if task_id and task_id in self.pending_tasks:

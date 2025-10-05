@@ -50,6 +50,8 @@
     "stack_index_tiles": 0,
     "stack_index_table": 1,
     "table_selection_restore_delay": 100,
+    "structure_reload_delay_ms": 200,
+    "structure_reload_immediate_delay_ms": 0,
     "thread_pool_shutdown_timeout": 2000,
     "delete_confirm_title": "Подтверждение удаления",
     "delete_confirm_text": "Вы уверены, что хотите удалить {count} ссылк(и/у)?",

@@ -1,5 +1,5 @@
-# Модуль для заполнения и обновления таблицы ссылок
-# Содержит методы массового обновления данных таблицы
+# Module for populating and updating the links table
+# Provides bulk-update helpers
 
 import logging
 from typing import Dict, List
@@ -10,23 +10,23 @@ from app.utils.ui.updates import suspend_updates
 
 
 class PopulationManagerMixin:
-    # Модульный логгер
+    # Module-level logger
     logger = logging.getLogger(__name__)
 
-    """Миксин для заполнения и обновления таблицы ссылок."""
+    """Mixin that populates and refreshes the links table."""
 
     def populate(self, links: List[Dict], mode: str = "normal"):
-        """Заполняет таблицу данными ссылок с инкрементальным обновлением."""
+        """Populate the table with link data using incremental updates."""
         if not isinstance(links, list):
             self.logger.warning(
-                "[LinksTableView] Ожидался список ссылок, получен %s",
+                "[LinksTableView] Expected a list of links, got %s",
                 type(links),
             )
             return
 
-        # Оптимизация: отключаем обновление UI при массовых изменениях
+        # Optimization: suspend UI updates during bulk operations
         with suspend_updates(self):
-            # Сохраняем состояние UI
+            # Capture UI state
             try:
                 sel = self.selectionModel()
                 current_selection = [i.row() for i in sel.selectedRows()] if sel else []
@@ -37,7 +37,7 @@ class PopulationManagerMixin:
                 current_selection = []
             current_scroll_pos = self.verticalScrollBar().value()
 
-            # Сохраняем текущую сортировку
+            # Preserve current sorting
             try:
                 header = self.horizontalHeader()
                 sort_col, sort_order = (
@@ -50,7 +50,7 @@ class PopulationManagerMixin:
                 )
                 sort_col, sort_order = -1, Qt.SortOrder.AscendingOrder
 
-            # Если режим изменился, делаем полное обновление
+            # If the mode changed, trigger a full refresh
             if mode != self._current_mode:
                 self._current_mode = mode
                 self._full_populate(links, mode)
@@ -59,9 +59,9 @@ class PopulationManagerMixin:
                 )
                 return
 
-            # Инкрементальное обновление
+            # Incremental update
             try:
-                # Безопасно блокируем сигналы, если методы доступны (в тестовом окружении может их не быть)
+                # Safely block signals when APIs are available (tests may lack them)
                 try:
                     if hasattr(self, "blockSignals"):
                         self.blockSignals(True)
@@ -75,12 +75,12 @@ class PopulationManagerMixin:
                         header.blockSignals(True)
                 except Exception:
                     pass
-                # Гарантируем корректность кэша перед диффом
+                # Ensure cache consistency before diffing
                 cache_ok = self.validate_cache_integrity()
                 if not cache_ok:
                     self.rebuild_cache_from_items()
 
-                # Если нет активной сортировки и изменился порядок ID, проще и безопаснее сделать полное обновление
+                # Without active sorting and ID order changed, fall back to full refresh
                 def _ids_from_table() -> List:
                     ids = []
                     model = self.model()
@@ -95,7 +95,7 @@ class PopulationManagerMixin:
                 new_order = [link.get("id") for link in links if link and "id" in link]
                 if (sort_col == -1) and current_order and (current_order != new_order):
                     self.logger.info(
-                        "[LinksTableView] Обнаружено изменение порядка ID без активной сортировки — выполняем полное обновление"
+                        "[LinksTableView] Detected ID order change without active sorting — performing full refresh"
                     )
                     self._full_populate(links, mode)
                     return
@@ -104,47 +104,47 @@ class PopulationManagerMixin:
                 new_ids = self._get_new_link_ids(links)
                 new_link_map = self._create_link_id_to_data_map(links)
 
-                # Находим изменения
+                # Detect differences
                 ids_to_remove = current_ids - new_ids
                 ids_to_add = new_ids - current_ids
                 ids_to_check = current_ids & new_ids
 
-                # Если изменений очень много — дешевле сделать полное обновление
+                # If many rows changed, a full refresh is cheaper
                 bulk_changes = len(ids_to_add) + len(ids_to_remove)
                 if bulk_changes >= 30 or len(links) >= 200:
                     self.logger.info(
-                        "[LinksTableView] Большой объём изменений (%s) — выполняем полное обновление",
+                        "[LinksTableView] Large number of changes (%s) — performing full refresh",
                         bulk_changes,
                     )
                     self._full_populate(links, mode)
                     return
 
-                # Удаляем исчезнувшие ссылки (в обратном порядке)
+                # Remove disappeared links (reverse order)
                 rows_to_remove = []
-                # Создаем копию кэша для итерации, чтобы избежать проблем при изменении кэша во время итерации
+                # Copy cache to avoid mutating while iterating
                 current_links_copy = self._current_links.copy()
                 for row, link in current_links_copy.items():
                     if link and link.get("id") in ids_to_remove:
                         rows_to_remove.append(row)
 
-                # Сортируем индексы в обратном порядке для корректного удаления
+                # Sort indexes descending to delete safely
                 for row in sorted(rows_to_remove, reverse=True):
                     removed_ok = False
                     try:
                         removed_ok = bool(self._remove_row(row))
                     except Exception as e:
                         self.logger.debug(
-                            "[LinksTableView] _remove_row исключение: %s",
+                            "[LinksTableView] _remove_row exception: %s",
                             e,
                             exc_info=True,
                         )
                         removed_ok = False
                     if not removed_ok:
                         self.logger.warning(
-                            f"[LinksTableView] Не удалось удалить строку {row} при инкрементальном обновлении"
+                            f"[LinksTableView] Failed to remove row {row} during incremental update"
                         )
 
-                # Обновляем изменившиеся ссылки
+                # Update modified links
                 for row, current_link in list(self._current_links.items()):
                     if not current_link or current_link.get("id") not in ids_to_check:
                         continue
@@ -155,21 +155,20 @@ class PopulationManagerMixin:
                     if new_link and not self._links_equal(current_link, new_link, mode):
                         self._update_row(row, new_link, mode)
 
-                # Добавляем новые ссылки
+                # Insert new links
                 if ids_to_add:
-                    # Находим позицию для вставки каждой новой ссылки
+                    # Pick insertion point for each new link
                     for i, link in enumerate(links):
                         link_id = link.get("id")
                         if link_id in ids_to_add:
-                            # Ищем правильную позицию для вставки
-                            # Если есть активная сортировка, добавляем в конец и затем сортировка восстановится
+                            # If sorted, append; otherwise insert near source index
                             model = self.model()
                             total = model.rowCount() if model is not None else 0
                             target_row = total if sort_col != -1 else min(i, total)
-                            # Оптимизация: не перестраиваем кэш на каждый insert — сделаем один раз ниже
+                            # Optimization: rebuild cache once afterward
                             self._add_row(target_row, link, mode)
 
-                # После пакетных операций — разовая перестройка кэша
+                # Rebuild cache once after batch operations
                 try:
                     if hasattr(self, "rebuild_cache_from_items"):
                         self.rebuild_cache_from_items()
@@ -181,14 +180,14 @@ class PopulationManagerMixin:
 
             except Exception as e:
                 self.logger.error(
-                    "[LinksTableView] Ошибка при инкрементальном обновлении: %s",
+                    "[LinksTableView] Incremental update error: %s",
                     e,
                     exc_info=True,
                 )
-                # В случае ошибки делаем полное обновление
+                # Fall back to full refresh on failure
                 self._full_populate(links, mode)
             finally:
-                # Всегда аккуратно разблокируем сигналы, если методы доступны
+                # Always unblock signals when APIs are available
                 try:
                     header = self.horizontalHeader()
                     if header is not None and hasattr(header, "blockSignals"):
@@ -207,44 +206,44 @@ class PopulationManagerMixin:
                 self._restore_ui_state(
                     current_selection, current_scroll_pos, sort_col, sort_order
                 )
-                # Сообщаем подписчикам, что таблица обновлена
+                # Notify listeners about table refresh
                 try:
                     if hasattr(self, "table_populated"):
                         self.table_populated.emit()
                 except Exception as e:
                     self.logger.debug(
-                        "[LinksTableView] Не удалось эмитить table_populated после populate: %s",
+                        "[LinksTableView] Failed to emit table_populated after populate: %s",
                         e,
                         exc_info=True,
                     )
 
     def _full_populate(self, links: List[Dict], mode: str):
-        """Выполняет полное обновление таблицы через модель."""
+        """Perform a full table refresh via the model."""
         try:
-            # Обновляем режим
+            # Update mode
             self._current_mode = mode
-            # Передаём данные в модель одним вызовом
+            # Push data into the model once
             model = self.model()
             if model is not None and hasattr(model, "set_links"):
                 model.set_links(links)
-            # Обновляем кэш из модели
+            # Refresh cache from the model
             if hasattr(self, "rebuild_cache_from_items"):
                 self.rebuild_cache_from_items()
 
         except Exception as e:
             self.logger.error(
-                "[LinksTableView] Ошибка при полном обновлении таблицы: %s",
+                "[LinksTableView] Full refresh error: %s",
                 e,
                 exc_info=True,
             )
         finally:
-            # Сообщаем подписчикам, что таблица полностью обновлена
+            # Notify listeners that the table was fully refreshed
             try:
                 if hasattr(self, "table_populated"):
                     self.table_populated.emit()
             except Exception as e:
                 self.logger.debug(
-                    "[LinksTableView] Не удалось эмитить table_populated после _full_populate: %s",
+                    "[LinksTableView] Failed to emit table_populated after _full_populate: %s",
                     e,
                     exc_info=True,
                 )
@@ -256,44 +255,42 @@ class PopulationManagerMixin:
         sort_col: int,
         sort_order: Qt.SortOrder,
     ):
-        # Обновляем состояние сортировки
+        # Update stored sorting state
         self._sort_col = sort_col
         self._sort_order = sort_order
-        """Восстанавливает состояние UI после обновления."""
+        """Restore UI state after an update."""
         try:
-            # Восстанавливаем сортировку
+            # Restore sorting
             model = self.model()
             total_cols = model.columnCount() if model is not None else 0
             if sort_col != -1 and sort_col < total_cols:
-                # Для QTableView используем sortByColumn
+                # Use ``sortByColumn`` for QTableView
                 try:
                     self.sortByColumn(sort_col, sort_order)
                 except Exception:
                     pass
-                # ВАЖНО: после сортировки строки меняют индексы —
-                # нужно синхронизировать кэш _current_links с фактическими элементами,
-                # иначе возможны визуальные дубликаты и неверные обновления строк
+                # IMPORTANT: sorting reindexes rows — sync ``_current_links`` with items
+                # to avoid visual duplicates and incorrect updates
                 try:
                     if hasattr(self, "rebuild_cache_from_items"):
                         self.rebuild_cache_from_items()
                 except Exception as e:
                     self.logger.warning(
-                        "[LinksTableView] Не удалось перестроить кэш после сортировки: %s",
+                        "[LinksTableView] Failed to rebuild cache after sorting: %s",
                         e,
                         exc_info=True,
                     )
 
-            # Убрано автоматическое восстановление выделения строк
-            # для стандартного поведения Qt без принудительного выбора
+            # Automatic selection restore intentionally removed for default Qt behavior
 
-            # Восстанавливаем позицию скролла
+            # Restore scroll position
             self.verticalScrollBar().setValue(scroll_pos)
 
             self.viewport().update()
 
         except Exception as e:
             self.logger.error(
-                "[LinksTableView] Ошибка восстановления UI состояния: %s",
+                "[LinksTableView] Failed to restore UI state: %s",
                 e,
                 exc_info=True,
             )

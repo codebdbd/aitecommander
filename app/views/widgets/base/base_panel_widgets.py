@@ -40,7 +40,7 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         self._main_window = main_window
         self._default_icon_path: Optional[Path] = None
         
-        # УЛУЧШЕНИЕ: Dependency injection для конфигурации
+        # IMPROVEMENT: Configuration dependency injection
         if config is None:
             try:
                 from app.config_data import app_config
@@ -49,13 +49,13 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
                 logger.warning("Failed to load app_config, using None: %s", e)
         self._config = config
         
-        # ИСПРАВЛЕНИЕ: Батчевая загрузка с защитой от утечки QTimer
+        # FIX: Batched loading with QTimer leak protection
         self._batch_size = max(0, batch_size)
         self._populate_timer: Optional[QTimer] = None
         self._pending_items: List[Dict[str, Any]] = []
         self._create_button_func: Optional[Callable[[Dict[str, Any]], Optional[QToolButton]]] = None
 
-        # Size policy наследуется из BasePanelWidget: (Minimum, Fixed) для горизонтального сжатия
+        # Size policy is inherited from BasePanelWidget: (Minimum, Fixed) for horizontal compression
 
     def set_data(self, items: List[Dict[str, Any]]) -> None:
         """Sets panel data - to be implemented by subclasses."""
@@ -103,13 +103,14 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
 
     def _clear_layout(self):
         """Safely clears layout of widgets and spacers.
-        
-        ИСПРАВЛЕНИЕ: Теперь удаляет также QSpacerItem для предотвращения утечек.
+
+        FIX: Also removes ``QSpacerItem`` instances to prevent leaks.
         """
         while self.panel_layout.count():
             item = self.panel_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
             elif item.spacerItem():
                 # Explicitly delete spacer to prevent memory leaks
                 del item
@@ -119,20 +120,24 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         items: List[Dict[str, Any]],
         create_button_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
     ) -> None:
-        """Clears panel and populates with link buttons.
-        
-        УЛУЧШЕНИЕ: Поддержка батчевого режима для предотвращения блокировок UI.
-        Если batch_size > 0, использует асинхронную загрузку через QTimer.
+        """Clear the panel and populate it with link buttons.
+
+        IMPROVEMENT: Supports batched mode to prevent UI freezes. When
+        ``batch_size`` > 0 the method uses asynchronous loading via ``QTimer``.
         """
         self._clear_layout()
-        
+
         if self._batch_size > 0:
             self._populate_batched(items, create_button_func)
         else:
             self._populate_sync(items, create_button_func)
-    
-    def _populate_sync(self, items: List[Dict[str, Any]], create_func: Callable) -> None:
-        """Synchronous population for small datasets."""
+
+    def _populate_sync(
+        self,
+        items: List[Dict[str, Any]],
+        create_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
+    ) -> None:
+        """Populate synchronously for small datasets."""
         self.setUpdatesEnabled(False)
         try:
             for i, link in enumerate(items):
@@ -162,40 +167,40 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
                     )
         finally:
             self._finish_populate()
-    
+
     def _populate_batched(
-        self, 
-        items: List[Dict[str, Any]], 
-        create_func: Callable[[Dict[str, Any]], Optional[QToolButton]]
+        self,
+        items: List[Dict[str, Any]],
+        create_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
     ) -> None:
-        """Batched population to prevent UI freezes.
-        
-        ИСПРАВЛЕНИЕ: Использует QTimer с проверкой isVisible() для предотвращения
-        callbacks на удалённых объектах.
+        """Populate using batches to prevent UI freezes.
+
+        FIX: Uses ``QTimer`` with ``isVisible()`` checks to avoid callbacks on
+        destroyed widgets.
         """
         self._pending_items = list(items)
         self._create_button_func = create_func
         self.setUpdatesEnabled(False)
-        
-        # ИСПРАВЛЕНИЕ: Создаём таймер с self как parent для автоматической очистки
+
+        # FIX: Create timer with ``self`` as parent to ensure automatic cleanup
         if self._populate_timer is None:
             self._populate_timer = QTimer(self)
             self._populate_timer.setSingleShot(True)
             self._populate_timer.timeout.connect(self._process_batch)
-        
+
         self._process_batch()
-    
+
     def _process_batch(self) -> None:
         """Process one batch of items.
-        
-        ИСПРАВЛЕНИЕ: Проверяет isVisible() перед обработкой для защиты от
-        вызовов после deleteLater().
+
+        FIX: Checks ``isVisible()`` before processing to prevent calls after
+        ``deleteLater()``.
         """
-        # КРИТИЧНО: Проверяем, что виджет ещё жив и видим
+        # CRITICAL: Ensure the widget is still alive and visible
         if not self.isVisible() or not self._pending_items:
             self._finish_populate()
             return
-        
+
         batch = self._pending_items[:self._batch_size]
         self._pending_items = self._pending_items[self._batch_size:]
         
@@ -206,13 +211,23 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
                     self.panel_layout.addWidget(button)
             except Exception:
                 logger.exception("Failed to create button for %s", link.get("name"))
-        
-        # Планируем следующий батч
+                continue
+
+            if button is not None:
+                self.panel_layout.addWidget(button)
+            else:
+                logger.debug(
+                    "create_button_func returned None for element %d: %s",
+                    i,
+                    link.get("name", "Unknown"),
+                )
+
+        # Schedule next batch
         if self._pending_items and self._populate_timer:
             self._populate_timer.start(0)
         else:
             self._finish_populate()
-    
+
     def _finish_populate(self) -> None:
         """Finalize population."""
         try:
@@ -234,9 +249,8 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
     
     def closeEvent(self, event) -> None:
         """Cancel pending batches on close.
-        
-        ИСПРАВЛЕНИЕ: Останавливает таймер при закрытии для предотвращения
-        callbacks на удалённом виджете.
+
+        FIX: Stops the timer on close to prevent callbacks on a destroyed widget.
         """
         if self._populate_timer and self._populate_timer.isActive():
             self._populate_timer.stop()

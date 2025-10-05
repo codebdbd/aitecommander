@@ -1,9 +1,6 @@
 # app/controllers/structure_business.py
 
-"""
-Полностью рефакторированная бизнес-логика для управления структурой (сферы, разделы, категории).
-Совместима с существующей программой, сохраняет все необходимые интерфейсы и сигналы.
-"""
+"""Business layer for managing spheres, sections, and categories."""
 
 import logging
 import time
@@ -30,53 +27,48 @@ from app.services.structure_service import StructureService
 
 
 class StructureBusinessLogic(QObject):
-    """
-    Полностью рефакторированная бизнес-логика для управления структурой.
+    """Refactored structure business logic compatible with the legacy UI."""
 
-    Сохраняет полную совместимость с существующим кодом программы,
-    но с улучшенной внутренней архитектурой и обработкой ошибок.
-    """
+    # Primary signals exposed to the UI layer
+    structure_loaded: pyqtSignal = pyqtSignal(list, name='structureLoaded')  # List[Dict[str, Any]] - sections with categories
+    active_sphere_changed: pyqtSignal = pyqtSignal(int, name='activeSphereChanged')  # int - active sphere ID
 
-    # Основные сигналы (PyQt6 стиль с типизацией)
-    structure_loaded: pyqtSignal = pyqtSignal(list, name='structureLoaded')  # List[Dict[str, Any]] - разделы с категориями
-    active_sphere_changed: pyqtSignal = pyqtSignal(int, name='activeSphereChanged')  # int - ID новой активной сферы
-
-    # Сигналы изменения элементов (совместимость)
+    # CRUD signals (backward compatibility)
     item_added: pyqtSignal = pyqtSignal(
         str, int, dict, name='itemAdded'
-    )  # str, int, Dict - тип элемента, ID родителя, данные
+    )  # str, int, Dict - item type, parent ID, payload
     item_updated: pyqtSignal = pyqtSignal(
         str, int, dict, name='itemUpdated'
-    )  # str, int, Dict - тип элемента, ID элемента, данные
-    item_deleted: pyqtSignal = pyqtSignal(str, int, name='itemDeleted')  # str, int - тип элемента, ID элемента
-    # Новый батч-сигнал: единое событие вместо множества per-item
-    items_batch_deleted: pyqtSignal = pyqtSignal(str, list, name='itemsBatchDeleted')  # str - тип, list[int] - IDs элементов
+    )  # str, int, Dict - item type, element ID, payload
+    item_deleted: pyqtSignal = pyqtSignal(str, int, name='itemDeleted')  # str, int - item type, element ID
+    # Batch notification to avoid numerous per-item delete signals
+    items_batch_deleted: pyqtSignal = pyqtSignal(str, list, name='itemsBatchDeleted')  # str - item type, list[int] - element IDs
 
-    # Сигналы выбора
-    section_selected: pyqtSignal = pyqtSignal(int, name='sectionSelected')  # int - ID раздела
-    category_selected: pyqtSignal = pyqtSignal(int, name='categorySelected')  # int - ID категории
+    # Selection signals
+    section_selected: pyqtSignal = pyqtSignal(int, name='sectionSelected')  # int - section ID
+    category_selected: pyqtSignal = pyqtSignal(int, name='categorySelected')  # int - category ID
 
-    # Служебные сигналы
-    error_occurred: pyqtSignal = pyqtSignal(str, str, name='errorOccurred')  # str, str - заголовок, сообщение
-    spheres_loaded: pyqtSignal = pyqtSignal(list, name='spheresLoaded')  # List[Dict] - список сфер
+    # Additional utility signals
+    error_occurred: pyqtSignal = pyqtSignal(str, str, name='errorOccurred')  # str, str - title, message
+    spheres_loaded: pyqtSignal = pyqtSignal(list, name='spheresLoaded')  # List[Dict] - collection of spheres
 
     def __init__(self, db: Database, parent: QObject = None, logger: Optional[logging.Logger] = None):
-        """Инициализация бизнес-логики."""
+        """Initialise structure business logic."""
         super().__init__(parent)
 
         self.db = db
         self.structure_model = StructureModel(db)
-        # Сервис структуры: маршрут к репозиторию через сервисный слой (без дублирования SQL)
+        # Structure service provides repository access without duplicating SQL
         self.structure_service = StructureService(db)
         self.logger = logger or logging.getLogger(__name__)
 
-        # Состояние
+        # State
         self.current_sphere_id: Optional[int] = None
 
-        # Кэш-менеджер
+        # Cache manager
         self.cache_manager = CacheManager(self.logger)
 
-        # Сервисы
+        # Supporting services
         self.export_service = ExportService()
         self.integrity_service = IntegrityService()
         self.loader_service = LoaderService()
@@ -85,63 +77,56 @@ class StructureBusinessLogic(QObject):
         self.import_service = ImportService()
         self.utility_service = UtilityService()
 
-        # Реальный асинхронный слой для операций структуры (через TaskScheduler)
+        # Async layer backed by TaskScheduler
         self.async_operations = AsyncOperations(self.db, self.logger)
         self._async_handlers = AsyncSignalHandlers(self)
         self.async_operations.connect_signal_handlers(self._async_handlers)
 
-        # Таймер для дебаунса перезагрузки структуры при изменениях ссылок
+        # Debounce timer for structure reloads triggered by link changes
         self._structure_reload_timer: Optional[QTimer] = QTimer(self)
         self._structure_reload_timer.setSingleShot(True)
         self._structure_reload_timer.timeout.connect(self._perform_structure_reload)
 
-        # Режим батч-обновлений: коалесцирует множественные item_updated(category)
+        # Batch mode aggregates frequent `item_updated` events
         self._batch_mode: bool = False
         self._batch_touched_sections: set[int] = set()
 
-        # Метрики: момент начала переключения сферы (для последующего логирования времени)
+        # Metric helper: remember the moment a sphere switch started
         self._last_switch_started_ms: Optional[float] = None
 
-        # Инициализация
+        # Initialise internals
         self._initialize_system()
 
-        # Подключаем внутренние обработчики к бизнес-сигналам, чтобы
-        # изменения, пришедшие не через воркеры, тоже приводили к
-        # инвалидизации кэша и асинхронной перезагрузке UI
+        # Connect internal handlers so direct changes also invalidate caches
         try:
             self.item_added.connect(self._on_item_added)
             self.item_updated.connect(self._on_item_updated)
             self.item_deleted.connect(self._on_item_deleted)
-            # Подключаем обработчик нового батч-сигнала
+            # Wire batch-deletion handler
             self.items_batch_deleted.connect(self._on_items_batch_deleted)
             self.logger.info("[BL] Handlers connected for business id=%s", id(self))
         except (AttributeError, RuntimeError) as e:
-            # Ошибки подключения сигналов - не ломаем инициализацию
             self.logger.warning(
-                "Не удалось подключить внутренние обработчики бизнес-сигналов: %s",
+                "Failed to attach internal signal handlers: %s",
                 e, exc_info=True,
             )
         
-        # Прогрев кэша "первой категории" после загрузки структуры (per-sphere)
+        # Warm up "first category" cache after structure load (per sphere)
         try:
             self.structure_loaded.connect(self._on_structure_loaded_warm_cache)
         except (AttributeError, RuntimeError) as e:
-            # Если сигнал недоступен — прогрев необязателен, фиксируем в debug
+            # Cache warming is optional; log on failure only for diagnostics
             self.logger.debug(
-                "Не удалось подключить прогрев кэша к сигналу structure_loaded: %s",
+                "Failed to attach warm-cache handler to structure_loaded: %s",
                 e, exc_info=True,
             )
 
     def set_top_panels_controller(self, top_panels_controller: Any) -> None:
-        """Внедрить TopPanelsController и распространить зависимость во все уровни.
-
-        Явно сохраняем ссылку и прокидываем её в AsyncOperations и AsyncSignalHandlers,
-        чтобы обработчики сигналов вызывали методы контроллера напрямую без getattr.
-        """
-        # Локальная ссылка в бизнес-логике (может использоваться UI/другими службами)
+        """Inject ``TopPanelsController`` into asynchronous layers."""
+        # Store local reference for UI/services
         self.top_panels_controller = top_panels_controller
         try:
-            # Прямая ссылка для асинхронного слоя
+            # Provide direct reference to AsyncOperations
             if hasattr(self, "async_operations") and self.async_operations:
                 self.async_operations.top_panels = top_panels_controller
         except AttributeError as e:
@@ -151,7 +136,7 @@ class StructureBusinessLogic(QObject):
                 exc_info=True,
             )
         try:
-            # И немедленно для уже подключённых обработчиков сигналов
+            # Update already attached signal handlers
             if hasattr(self, "_async_handlers") and self._async_handlers:
                 self._async_handlers.top_panels = top_panels_controller
         except AttributeError as e:
@@ -162,54 +147,51 @@ class StructureBusinessLogic(QObject):
             )
 
     def _initialize_system(self) -> None:
-        """Инициализация системы."""
-        self.logger.info("Инициализация StructureBusinessLogic")
+        """Initialise auxiliary components."""
+        self.logger.info("StructureBusinessLogic initialised")
 
-        # Таймеры и дополнительные компоненты настраиваются напрямую в __init__
+        # Timers and auxiliary components are configured directly in ``__init__``
 
-    # =============================================================================
-    # ОСНОВНЫЕ МЕТОДЫ КОНТРОЛЛЕРА (СОВМЕСТИМОСТЬ)
-    # =============================================================================
+    # CORE CONTROLLER METHODS (BACKWARD COMPATIBILITY)
 
     def set_current_sphere(self, sphere_id: int) -> None:
-        """Устанавливает текущую сферу."""
+        """Set the currently active sphere."""
         try:
             old_sphere_id = self.current_sphere_id
 
-            # Гард: если сфера не меняется — ничего не делаем
+            # Guard: nothing to do if the sphere does not change
             if old_sphere_id == sphere_id:
-                self.logger.debug("set_current_sphere: сфера не изменилась; пропуск")
+                self.logger.debug("set_current_sphere: sphere unchanged; skipping")
                 return
 
-            # Зафиксируем момент старта переключения для последующей метрики
+            # Record the start time for metrics
             try:
                 self._last_switch_started_ms = time.monotonic()
             except (RuntimeError, OverflowError):
                 self._last_switch_started_ms = None
 
             self.current_sphere_id = sphere_id
-            # Обновляем токен переключения сферы для отмены устаревших отложенных задач
+            # Update switch token to cancel stale delayed operations
             try:
                 self._switch_token = getattr(self, "_switch_token", 0) + 1
             except (ValueError, TypeError, AttributeError):
                 self._switch_token = 1
-            # Сообщаем UI-слою, что переключение сферы активно: не восстанавливать
-            # автоматически выбор категории (это вызывает тяжёлую загрузку ссылок).
+            # Tell the UI layer that a sphere switch is active
             self._suppress_category_restore_once = True
 
-            # Очищаем кэш при смене сферы
+            # Invalidate cache when sphere changes
             if old_sphere_id != sphere_id:
                 self.cache_manager.invalidate(f"sphere_{old_sphere_id}")
 
-            self.logger.info("Установлена текущая сфера: %s", sphere_id)
+            self.logger.info("Current sphere set: %s", sphere_id)
             self.active_sphere_changed.emit(sphere_id)
 
         except Exception as e:
-            self._handle_error("Ошибка установки текущей сферы", e)
+            self._handle_error(self.tr("Failed to set current sphere"), e)
 
     @handle_exceptions(default_return=[])
     def load_structure(self, sphere_id: Optional[int] = None) -> None:
-        """Загружает структуру для указанной сферы с оптимизированными запросами."""
+        """Load structure for the provided sphere using optimised queries."""
         if sphere_id is not None:
             self.current_sphere_id = sphere_id
 
@@ -217,7 +199,7 @@ class StructureBusinessLogic(QObject):
             self.structure_loaded.emit([])
             return
 
-        # Проверяем кэш
+        # Try cache first
         cache_key = f"structure_{self.current_sphere_id}"
         cached_structure = self.cache_manager.get(cache_key)
 
@@ -225,62 +207,55 @@ class StructureBusinessLogic(QObject):
             self.structure_loaded.emit(cached_structure)
             return
 
-        # Загружаем из базы данных
+        # Load from database
         structure_data = self._load_structure_from_db(self.current_sphere_id)
 
-        # Кэшируем результат
+        # Cache the result
         self.cache_manager.set(cache_key, structure_data)
 
         self.structure_loaded.emit(structure_data)
-        self.logger.debug("Загружена структура для сферы %s", self.current_sphere_id)
+        self.logger.debug("Structure loaded for sphere %s", self.current_sphere_id)
 
     def load_structure_async(self, sphere_id: Optional[int] = None) -> None:
-        """Асинхронно загружает структуру текущей/указанной сферы через AsyncOperations.
-
-        Предпочтительный путь для UI: не блокирует главный поток и использует
-        батч-запрос категорий по всем разделам сферы.
-        """
-        # Обновляем текущую сферу, если передана явно
+        """Asynchronously load structure via ``AsyncOperations``."""
+        # Update current sphere if provided explicitly
         if sphere_id is not None:
             self.current_sphere_id = sphere_id
 
-        # Валидация текущего идентификатора сферы
+        # Validate sphere ID
         if not isinstance(self.current_sphere_id, int) or self.current_sphere_id <= 0:
-            # Сообщаем UI пустую структуру, чтобы очистить вид
+            # Emit empty structure to reset UI
             try:
                 self.structure_loaded.emit([])
             except Exception:
                 pass
             return
 
-        # Запускаем асинхронную загрузку через общий слой
+        # Trigger asynchronous load
         try:
             self.async_operations.load_structure_async(int(self.current_sphere_id))
         except Exception as e:
-            # В случае сбоя не подменяем на синхронный путь, а эскалируем через обработчик ошибок
-            self._handle_error("Ошибка асинхронной загрузки структуры", e)
+            self._handle_error(self.tr("Failed to load structure asynchronously"), e)
 
     def _load_structure_from_db(self, sphere_id: int) -> List[Dict[str, Any]]:
-        """Загружает структуру из базы данных (делегировано в сервис)."""
+        """Load structure from the database (delegated to service)."""
         return self.loader_service.load_structure_from_db(
             structure_model=self.structure_model,
             sphere_id=sphere_id,
             logger=self.logger,
         )
 
-    # =============================================================================
-    # ВНУТРЕННИЕ ОБРАБОТЧИКИ БИЗНЕС-СИГНАЛОВ (от команд UI и проч.)
-    # =============================================================================
+    # INTERNAL SIGNAL HANDLERS (UI COMMANDS AND MORE)
     @pyqtSlot(str, int, dict)
     def _on_item_added(
         self, item_type: str, parent_id: int, item_data: Dict[str, Any]
     ) -> None:
-        """Элемент добавлен: инвалидируем кэш и запускаем асинхронную перезагрузку."""
+        """Handle item addition: invalidate cache and schedule reload."""
         try:
             self.logger.info(
                 "[BL] item_added: type=%s, parent_id=%s", item_type, parent_id
             )
-            # Для ссылок не требуется немедленная полная перезагрузка структуры
+            # Links do not require immediate structure reload
             if item_type == "link":
                 category_id = (
                     item_data.get("category_id")
@@ -288,31 +263,32 @@ class StructureBusinessLogic(QObject):
                     else None
                 )
                 self._invalidate_categories_cache(category_id)
-                # Лёгкая консистентность дерева: отложенная общая перезагрузка (коалесцирует частые события)
-                self._schedule_structure_reload(200)
+                # Keep tree consistent: delayed reload coalesces frequent events
+                self._schedule_structure_reload()
                 return
             if item_type == "category":
-                # parent_id здесь — это section_id для категории
+                # ``parent_id`` corresponds to section_id for categories
                 section_id = parent_id or (
                     item_data.get("section_id") if isinstance(item_data, dict) else None
                 )
                 self._invalidate_categories_cache(section_id)
                 if isinstance(section_id, int) and section_id > 0:
                     self.async_operations.load_categories_async(section_id)
-            # Для надёжности всегда инвалидируем общую структуру
+            # Always invalidate full structure cache for safety
             self._invalidate_structure_cache()
-            # Коалесцируем перезагрузку структуры, чтобы избежать дублей
-            self._schedule_structure_reload(0)
+            # Debounce structure reload to avoid duplicates
+            from app.config_data import app_config
+            self._schedule_structure_reload(int(app_config.ui.get_structure_reload_immediate_delay_ms()))
         except Exception as e:
             self.logger.error(
-                "Ошибка в обработчике _on_item_added: %s", e, exc_info=True
+                "Error in _on_item_added handler: %s", e, exc_info=True
             )
 
     @pyqtSlot(str, int, dict)
     def _on_item_updated(
         self, item_type: str, item_id: int, item_data: Dict[str, Any]
     ) -> None:
-        """Элемент обновлён: инвалидируем кэш и запускаем асинхронную перезагрузку."""
+        """Handle item update: invalidate cache and schedule reloads."""
         try:
             self.logger.info("[BL] item_updated: type=%s, id=%s", item_type, item_id)
             if item_type == "link":
@@ -322,16 +298,14 @@ class StructureBusinessLogic(QObject):
                     else None
                 )
                 self._invalidate_categories_cache(category_id)
-                # Раньше здесь планировалась полная перезагрузка структуры сферы.
-                # Отключено для «мелких» правок ссылок: таблицу/избранное обновляют UI-команды,
-                # а структура сферы не меняется.
+                # Previously the whole sphere structure was reloaded; disabled for small link edits
                 return
             if item_type == "category":
                 section_id = (
                     item_data.get("section_id") if isinstance(item_data, dict) else None
                 )
                 self._invalidate_categories_cache(section_id)
-                # Если активен батч-режим — не запускаем загрузки/перезагрузку сразу
+                # Skip immediate reload when batch mode is active
                 if self._batch_mode:
                     try:
                         if isinstance(section_id, int) and section_id > 0:
@@ -344,31 +318,29 @@ class StructureBusinessLogic(QObject):
                             exc_info=True,
                         )
                     return
-                # Обычный режим: сразу подгрузим категории раздела
+                # Normal mode: load categories right away
                 if isinstance(section_id, int) and section_id > 0:
                     self.async_operations.load_categories_async(section_id)
             self._invalidate_structure_cache()
-            # Коалесцируем перезагрузку структуры, чтобы избежать дублей
+            # Debounce structure reload to avoid duplicates
             self._schedule_structure_reload(0)
         except Exception as e:
             self.logger.error(
-                "Ошибка в обработчике _on_item_updated: %s", e, exc_info=True
+                "Error in _on_item_updated handler: %s", e, exc_info=True
             )
 
-    # =============================================================================
-    # BATСH-РЕЖИМ ДЛЯ КОНСОЛИДАЦИИ МНОЖЕСТВЕННЫХ ОБНОВЛЕНИЙ
-    # =============================================================================
+    # BATCH MODE FOR CONSOLIDATING MULTIPLE UPDATES
     def begin_batch(self) -> None:
-        """Включает батч-режим: пер-item обновления коалесцируются."""
+        """Enable batch mode so per-item updates are consolidated."""
         try:
             self._batch_mode = True
             self._batch_touched_sections.clear()
         except Exception:
-            # Даже при ошибке не падаем
+            # Keep batch mode enabled even if clearing fails
             self._batch_mode = True
 
     def end_batch(self) -> None:
-        """Завершает батч-режим: выполняет одну консолидацию загрузок/перезагрузки."""
+        """Disable batch mode and perform consolidated refreshes."""
         try:
             touched = set(self._batch_touched_sections)
         except Exception:
@@ -377,7 +349,7 @@ class StructureBusinessLogic(QObject):
             self._batch_touched_sections.clear()
             self._batch_mode = False
 
-        # Единожды загрузим категории для затронутых разделов
+        # Load categories for touched sections once
         try:
             for sid in touched:
                 try:
@@ -395,21 +367,25 @@ class StructureBusinessLogic(QObject):
                 "end_batch: failed to iterate touched sections: %s", exc, exc_info=True
             )
 
-        # И одна коалесцированная перезагрузка структуры сферы
+        # Perform one consolidated structure reload
         try:
             self._invalidate_structure_cache()
-            self._schedule_structure_reload(0)
+            from app.config_data import app_config
+            self._schedule_structure_reload(int(app_config.ui.get_structure_reload_immediate_delay_ms()))
         except Exception as exc:
             self.logger.debug(
                 "end_batch: failed to schedule structure reload: %s", exc, exc_info=True
             )
 
-    def _schedule_structure_reload(self, delay_ms: int = 200) -> None:
-        """Планирует отложенную перезагрузку структуры (дебаунсирует частые события)."""
+    def _schedule_structure_reload(self, delay_ms: Optional[int] = None) -> None:
+        """Schedule a delayed structure reload (debounces frequent events)."""
         try:
+            from app.config_data import app_config
+            if delay_ms is None:
+                delay_ms = int(app_config.ui.get_structure_reload_delay_ms())
             if not isinstance(delay_ms, int) or delay_ms < 0:
-                delay_ms = 200
-            # Перезапускаем одиночный таймер: несколько вызовов сольются в один
+                delay_ms = int(app_config.ui.get_structure_reload_delay_ms())
+            # Restart single-shot timer to merge multiple calls
             if self._structure_reload_timer.isActive():
                 self._structure_reload_timer.stop()
             self._structure_reload_timer.start(delay_ms)
@@ -419,7 +395,7 @@ class StructureBusinessLogic(QObject):
             )
 
     def _perform_structure_reload(self) -> None:
-        """Выполняет фактическую перезагрузку структуры текущей сферы."""
+        """Perform the actual reload for the current sphere structure."""
         try:
             self._invalidate_structure_cache()
             sphere_id = self.current_sphere_id
@@ -429,23 +405,23 @@ class StructureBusinessLogic(QObject):
             self.logger.error("_perform_structure_reload: %s", e, exc_info=True)
 
     # -------------------------------------------------------------------------
-    # Вспомогательные обработчики
+    # Auxiliary handlers
     # -------------------------------------------------------------------------
     @pyqtSlot(list)
     def _on_structure_loaded_warm_cache(self, _payload: list) -> None:
-        """Лёгкий прогрев per-sphere кэша первой категории после загрузки структуры.
+        """Warm per-sphere cache for the first category after structure load.
 
-        Приоритетно используем уже загруженный payload, чтобы избежать дополнительных
-        синхронных обращений к БД при переключении сфер. Если payload не содержит
-        категорий, откладываем вычисление через QTimer.singleShot(0), чтобы не блокировать UI.
-        Ошибки прогрева не фатальны и логируются на уровне DEBUG.
+        Prefer using the loaded payload to avoid additional synchronous DB queries
+        during sphere switches. If the payload lacks categories, defer computation
+        via ``QTimer.singleShot(0)`` to keep the UI responsive. Errors are logged at
+        debug level only.
         """
         try:
             sphere_id = self.current_sphere_id
             if not isinstance(sphere_id, int) or sphere_id <= 0:
                 return
 
-            # 1) Попробуем извлечь первую категорию напрямую из payload структуры
+            # 1) Try to extract the first category directly from the payload
             if isinstance(_payload, list):
                 for section in _payload:
                     try:
@@ -459,7 +435,7 @@ class StructureBusinessLogic(QObject):
                             self.cache_manager.set(f"first_category_id:{sphere_id}", cid)
                             return
 
-            # 2) Если в payload нет категорий — прогреем кэш асинхронно в следующий тик
+            # 2) No categories in payload: warm cache asynchronously on next tick
             def _deferred_warmup():
                 try:
                     _ = self.utility_service.get_target_section_id(
@@ -475,17 +451,17 @@ class StructureBusinessLogic(QObject):
             try:
                 QTimer.singleShot(0, _deferred_warmup)
             except (RuntimeError, TypeError):
-                # Фолбэк: в крайнем случае — синхронный вызов
+                # Fallback: perform synchronous call
                 _deferred_warmup()
 
-            # Дополнительный немедленный прогрев для сред без активного цикла событий.
-            # Даже если QTimer сработает позже, повторный вызов безвреден благодаря кэшу.
+            # Immediate warmup helps environments without an active event loop.
+            # Repeated execution is harmless due to cache usage.
             try:
                 _deferred_warmup()
             except Exception as ex:
                 self.logger.debug("Immediate warm cache failed: %s", ex, exc_info=True)
 
-            # 3) Лёгкий асинхронный прелоад категорий для первых секций сферы (улучшает UX дерева)
+            # 3) Lightweight async preload for the first sections in the sphere (improves tree UX)
             try:
                 if isinstance(_payload, list) and _payload:
                     from app.config_data import app_config
@@ -501,7 +477,7 @@ class StructureBusinessLogic(QObject):
 
                         def _preload_one(section_id: int = sid, token: int = planned_token, psid: int = planned_sphere):
                             try:
-                                # Отбрасываем устаревшие задачи при смене сферы
+                                # Drop stale tasks when the sphere changes
                                 if int(getattr(self, "_switch_token", 0)) != int(token):
                                     return
                                 cur = getattr(self, "current_sphere_id", None)
@@ -524,72 +500,61 @@ class StructureBusinessLogic(QObject):
 
     @pyqtSlot(str, int)
     def _on_item_deleted(self, item_type: str, item_id: int) -> None:
-        """Элемент удалён: инвалидируем кэш и запускаем асинхронную перезагрузку.
-
-        Примечание: данная сигнатура не содержит старых данных (section_id для категорий),
-        поэтому для надёжности перезагружаем всю структуру текущей сферы.
-        """
+        """Handle deletion: invalidate caches and schedule asynchronous reload."""
         try:
             self.logger.info("[BL] item_deleted: type=%s, id=%s", item_type, item_id)
-            # Для ссылок используем отложенную перезагрузку структуры, чтобы
-            # коалесцировать серию удалений в одну перезагрузку
+            # Links: use delayed reload to coalesce multiple deletions
             if item_type == "link":
-                self._schedule_structure_reload(200)
+                self._schedule_structure_reload()
                 return
-            # Для остальных типов: инвалидируем и планируем общую перезагрузку структуры
+            # Other types: invalidate and schedule a structure reload
             self._invalidate_structure_cache()
             self._schedule_structure_reload(0)
         except Exception as e:
             self.logger.error(
-                "Ошибка в обработчике _on_item_deleted: %s", e, exc_info=True
+                "Error in _on_item_deleted handler: %s", e, exc_info=True
             )
 
     @pyqtSlot(str, list)
     def _on_items_batch_deleted(self, item_type: str, ids: list) -> None:
-        """Батч-удаление элементов: одна инвалидизация и одна перезагрузка.
-
-        Для совместимости по умолчанию выполняем консолидацию как для одиночных
-        удалений, но без лавины событий.
-        """
+        """Handle batch deletions with a single cache invalidation and reload."""
         try:
             total = len(ids) if isinstance(ids, (list, tuple)) else 0
             self.logger.info(
                 "[BL] items_batch_deleted: type=%s, count=%s", item_type, total
             )
-            # Для ссылок используем небольшую задержку, чтобы коалесцировать
+            # Links: small delay keeps deletions consolidated
             if item_type == "link":
-                self._schedule_structure_reload(200)
+                self._schedule_structure_reload()
                 return
-            # Для категорий/разделов: немедленная консолидация
+            # Categories/sections: consolidate immediately
             self._invalidate_structure_cache()
             self._schedule_structure_reload(0)
         except Exception as e:
             self.logger.error(
-                "Ошибка в обработчике _on_items_batch_deleted: %s", e, exc_info=True
+                "Error in _on_items_batch_deleted handler: %s", e, exc_info=True
             )
 
     @handle_exceptions()
     def select_section(self, section_id: int) -> None:
-        """Выбирает раздел и загружает его категории."""
+        """Emit selection event and load categories for the section."""
         categories = self.get_categories(section_id)
         self.section_selected.emit(section_id)
         self.logger.debug(
-            "Выбран раздел %s с %s категориями", section_id, len(categories)
+            "Section %s selected with %s categories", section_id, len(categories)
         )
 
     @handle_exceptions()
     def select_category(self, category_id: int) -> None:
-        """Выбирает категорию."""
+        """Emit selection event for the specified category."""
         self.category_selected.emit(category_id)
-        self.logger.debug("Выбрана категория %s", category_id)
+        self.logger.debug("Category %s selected", category_id)
 
-    # =============================================================================
-    # ОПЕРАЦИИ СО СФЕРАМИ (СОВМЕСТИМОСТЬ)
-    # =============================================================================
+    # SPHERE OPERATIONS (BACKWARD COMPATIBILITY)
 
     @handle_exceptions(default_return=[])
     def get_spheres(self) -> List[Dict[str, Any]]:
-        """Получает список всех сфер (с кэшированием, чтение через сервис)."""
+        """Return cached list of spheres via service layer."""
         cache_key = "all_spheres"
         cached_spheres = self.cache_manager.get(cache_key)
         if cached_spheres is not None:
@@ -598,9 +563,9 @@ class StructureBusinessLogic(QObject):
         self.cache_manager.set(cache_key, spheres)
         return spheres or []
 
-    # --- Совместимые методы, ранее предоставлялись Mixin-ами ---
+    # --- Compatibility helpers previously delivered via mixins ---
     def get_sections(self, sphere_id: int) -> List[Dict[str, Any]]:
-        """Получает разделы для сферы с кэшированием (чтение через сервис)."""
+        """Return cached sections for a sphere via the service layer."""
         cache_key = f"sections_{sphere_id}"
         cached = self.cache_manager.get(cache_key)
         if cached is not None:
@@ -610,7 +575,7 @@ class StructureBusinessLogic(QObject):
         return sections or []
 
     def get_categories(self, section_id: int) -> List[Dict[str, Any]]:
-        """Получает категории для раздела с кэшированием (чтение через сервис)."""
+        """Return cached categories for a section via the service layer."""
         cache_key = f"categories_{section_id}"
         cached = self.cache_manager.get(cache_key)
         if cached is not None:
@@ -620,31 +585,31 @@ class StructureBusinessLogic(QObject):
         return categories or []
 
     def get_links(self, category_id: int) -> List[Dict[str, Any]]:
-        """Получает ссылки для категории (совместимость со старым интерфейсом)."""
-        # Делегируем в UtilityService, который обращается к модели.
+        """Return links for a category (legacy interface compatibility)."""
+        # Delegate to UtilityService which queries the model
         return self.utility_service.get_links(
             self.structure_model, category_id, self.logger
         )
 
     @handle_exceptions()
     def get_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
-        """Совместимый метод получения данных раздела (для диалогов/операций UI)."""
+        """Return section data for dialogs/UI operations."""
         return self.structure_service.get_section_by_id(section_id)
 
     @handle_exceptions()
     def get_category_data(self, category_id: int) -> Optional[Dict[str, Any]]:
-        """Совместимый метод получения данных категории (для диалогов/операций UI)."""
+        """Return category data for dialogs/UI operations."""
         return self.structure_service.get_category_by_id(category_id)
 
     @handle_exceptions()
     def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, Any]]:
-        """Совместимый метод: возвращает {'sphere_id', 'section_id'} для категории."""
+        """Return ``{"sphere_id", "section_id"}`` mapping for a category."""
         return self.structure_service.get_category_hierarchy(category_id)
 
     def get_item_for_editing(
         self, item_id: int, item_type: Union[str, Any]
     ) -> Optional[Dict[str, Any]]:
-        """Совместимый метод получения данных элемента для редактирования."""
+        """Return item data for editing dialogs (compatibility helper)."""
         return self.utility_service.get_item_for_editing(
             item_id=item_id,
             item_type=item_type,
@@ -654,7 +619,7 @@ class StructureBusinessLogic(QObject):
         )
 
     def get_first_category_id(self) -> Optional[int]:
-        """Возвращает id первой доступной категории в текущей сфере (с кэшированием)."""
+        """Return cached ID of the first available category in the current sphere."""
         return self.utility_service.get_first_category_id(
             current_sphere_id=self.current_sphere_id,
             get_sections=self.get_sections,
@@ -663,37 +628,32 @@ class StructureBusinessLogic(QObject):
             cache_set=self.cache_manager.set,
         )
 
-    # =============================================================================
-    # СИГНАЛЬНЫЕ ОБРАБОТЧИКИ ДЛЯ ПОДКЛЮЧЕНИЯ ИЗ НАСТРОЙКИ ОКНА
-    # =============================================================================
+    # SIGNAL HANDLERS FOR WINDOW SETUP INTEGRATION
     def on_active_sphere_changed(self, *_args: Any) -> None:
-        """Обработчик смены активной сферы для подключения напрямую к сигналу.
+        """React to active sphere changes from external wiring.
 
-        Предпочитает асинхронную перезагрузку структуры, если доступен соответствующий
-        метод, иначе выполняет синхронную загрузку через `load_structure()`.
-
-        Замечание: неожиданные исключения не перехватываются здесь намеренно, чтобы
-        логика настройки могла эскалировать ошибку в SetupError при необходимости.
+        Prefer asynchronous reload when available, otherwise fall back to the
+        synchronous ``load_structure()`` helper.
         """
-        # Попытка вызвать явный async-метод, если он предоставлен бизнес-логикой
+        # Attempt explicit async loader when provided by business logic
         loader_async = getattr(self, "load_structure_async", None)
         if callable(loader_async):
             loader_async()
             return
 
-        # Фолбэк на синхронную загрузку (метод существует в текущей реализации)
+        # Fallback to synchronous load if available
         loader_sync = getattr(self, "load_structure", None)
         if callable(loader_sync):
             loader_sync()
             return
 
-        # Если ни один метод не обнаружен — зафиксируем и завершим без исключения
+        # Log and exit when no loader methods are available
         self.logger.error(
             "StructureBusinessLogic has no load_structure_async() or load_structure(); skipping reload"
         )
 
     def get_target_section_id(self) -> Optional[int]:
-        """Совместимое имя-обёртка для получения первой категории текущей сферы."""
+        """Compatibility wrapper returning the first category of the current sphere."""
         return self.utility_service.get_target_section_id(
             current_sphere_id=self.current_sphere_id,
             get_sections=self.get_sections,
@@ -702,12 +662,10 @@ class StructureBusinessLogic(QObject):
             cache_set=self.cache_manager.set,
         )
 
-    # =============================================================================
-    # CRUD-ОПЕРАЦИИ ДЛЯ РАЗДЕЛОВ И КАТЕГОРИЙ (через StructureService)
-    # =============================================================================
+    # CRUD OPERATIONS FOR SECTIONS AND CATEGORIES (via StructureService)
     @handle_exceptions()
     def create_section(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Создаёт раздел через сервис, эмитит сигнал и инвалидирует кэш."""
+        """Create a section, emit signals, and invalidate caches."""
         section_id = self.structure_service.create_section(data)
         if not section_id:
             return None
@@ -720,7 +678,7 @@ class StructureBusinessLogic(QObject):
                 "section", int(sphere_id) if sphere_id else 0, section_data
             )
         finally:
-            # Инвалидируем кэш по разделам и структуре
+            # Invalidate section and structure caches
             if sphere_id:
                 self.cache_manager.invalidate(f"sections_{sphere_id}")
             self._invalidate_structure_cache()
@@ -730,7 +688,7 @@ class StructureBusinessLogic(QObject):
     def update_section(
         self, section_id: int, data: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
-        """Обновляет раздел через сервис, эмитит сигнал и инвалидирует кэш."""
+        """Update a section via the service, emit signals, and invalidate caches."""
         ok = self.structure_service.update_section(section_id, data)
         if not ok:
             return None
@@ -748,10 +706,7 @@ class StructureBusinessLogic(QObject):
 
     @handle_exceptions()
     def delete_section(self, section_id: int) -> Tuple[bool, Dict[str, Any], int, int]:
-        """Удаляет раздел через сервис. Возвращает (успех, данные, кол-во категорий, кол-во ссылок).
-
-        Примечание: считаем количество категорий до удаления для обратной совместимости.
-        """
+        """Delete a section. Return (success flag, data, categories count, links count)."""
         section_before = self.structure_service.get_section_by_id(section_id) or {}
         if not section_before:
             return False, {}, 0, 0
@@ -766,7 +721,7 @@ class StructureBusinessLogic(QObject):
             else []
         )
         categories_count = len(categories_before or [])
-        # Информации о ссылках на уровне раздела нет в сервисе — возвращаем 0 для совместимости
+        # Link count per section is unavailable in the service—return 0 for compatibility
         success = self.structure_service.delete_section(section_id)
         if success:
             try:
@@ -779,7 +734,7 @@ class StructureBusinessLogic(QObject):
 
     @handle_exceptions()
     def create_category(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Создаёт категорию через сервис, эмитит сигнал и инвалидирует кэш."""
+        """Create a category via the service and invalidate caches."""
         category_id = self.structure_service.create_category(data)
         if not category_id:
             return None
@@ -788,7 +743,7 @@ class StructureBusinessLogic(QObject):
             category_data.get("section_id") if isinstance(category_data, dict) else None
         )
         try:
-            # parent_id для категории — это section_id
+            # ``parent_id`` for categories equals ``section_id``
             self.item_added.emit(
                 "category", int(section_id) if section_id else 0, category_data
             )
@@ -800,12 +755,7 @@ class StructureBusinessLogic(QObject):
     def move_categories_batch(
         self, category_ids: List[int], target_section_id: int, base_row: int = 0
     ) -> List[int]:
-        """Пакетно переносит категории в целевой раздел одним батчем (одна транзакция).
-
-        - Не эмитит per-item сигналы, чтобы избежать лавины обновлений.
-        - Инвалидирует кэши затронутых разделов и выполняет одну коалесцированную перезагрузку.
-        Возвращает список фактически перенесённых id (дубликаты имён пропускаются).
-        """
+        """Move categories to the target section in a single batch transaction."""
         if (
             not category_ids
             or not isinstance(target_section_id, int)
@@ -813,7 +763,7 @@ class StructureBusinessLogic(QObject):
         ):
             return []
 
-        # Соберём исходные разделы (минимально необходимое для инвалидирования)
+        # Collect source sections for subsequent cache invalidation
         source_sections: set[int] = set()
         try:
             for cid in category_ids:
@@ -826,17 +776,17 @@ class StructureBusinessLogic(QObject):
                     if isinstance(sid, int) and sid > 0 and sid != target_section_id:
                         source_sections.add(int(sid))
         except Exception:
-            # В случае ошибки просто продолжим без источников
+            # In case of an error, simply continue without sources
             source_sections = set()
 
-        # Включаем батч-режим для консолидации последующих загрузок
+        # Enable batch mode for subsequent operations
         self.begin_batch()
         try:
             moved_ids = self.structure_service.move_categories_to_section_bulk(
                 category_ids, target_section_id, base_row
             )
 
-            # Инвалидируем кэш категорий: источники + целевой раздел
+            # Invalidate caches: sources + target
             try:
                 for sid in source_sections:
                     self._invalidate_categories_cache(sid)
@@ -846,23 +796,19 @@ class StructureBusinessLogic(QObject):
 
             return moved_ids or []
         finally:
-            # Одна консолидация загрузок/перезагрузки структуры
+            # Perform consolidated reload after batch operation
             self.end_batch()
 
     @handle_exceptions(default_return=[])
     def create_categories_bulk(
         self, items: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        """Пакетно создаёт категории через сервис и эмитит сигналы для UI.
-
-        Возвращает список фактических категорий после операции (как новые, так и
-        существующие из набора имён), упорядоченных по position.
-        """
+        """Create categories in bulk and emit UI signals."""
         if not items:
             return []
-        # Выполняем пакетное создание
+        # Execute bulk creation
         created_or_existing = self.structure_service.create_categories_bulk(items)
-        # Инвалидируем кэш и планируем одну перезагрузку структуры.
+        # Invalidate caches and schedule a structure reload
         try:
             touched_sections = {
                 c.get("section_id")
@@ -872,7 +818,8 @@ class StructureBusinessLogic(QObject):
             for sid in touched_sections:
                 if sid:
                     self._invalidate_categories_cache(sid)
-            self._schedule_structure_reload(0)
+            from app.config_data import app_config
+            self._schedule_structure_reload(int(app_config.ui.get_structure_reload_immediate_delay_ms()))
         except Exception:
             pass
         return created_or_existing or []
@@ -881,7 +828,7 @@ class StructureBusinessLogic(QObject):
     def update_category(
         self, category_id: int, data: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
-        """Обновляет категорию через сервис, эмитит сигнал и инвалидирует кэш."""
+        """Update a category via the service, emit signal, and invalidate cache."""
         ok = self.structure_service.update_category(category_id, data)
         if not ok:
             return None
@@ -897,10 +844,7 @@ class StructureBusinessLogic(QObject):
 
     @handle_exceptions()
     def delete_category(self, category_id: int) -> Tuple[bool, Dict[str, Any], int]:
-        """Удаляет категорию через сервис. Возвращает (успех, данные, кол-во ссылок).
-
-        Примечание: кол-во ссылок на уровне категории сейчас не подсчитываем — вернём 0.
-        """
+        """Delete a category. Return (success, payload, links count placeholder)."""
         category_before = self.structure_service.get_category_by_id(category_id) or {}
         if not category_before:
             return False, {}, 0
@@ -917,26 +861,24 @@ class StructureBusinessLogic(QObject):
                 self._invalidate_categories_cache(section_id)
         return success, category_before, 0
 
-    # =============================================================================
-    # ПУБЛИЧНЫЕ АСИНХРОННЫЕ ОБЁРТКИ ДЛЯ UI (совместимость)
-    # =============================================================================
+    # PUBLIC ASYNCHRONOUS WRAPPERS FOR UI (COMPATIBILITY)
     def load_spheres_async(self) -> None:
-        """Загружает список сфер и эмитит сигнал spheres_loaded (совместимость с UI)."""
+        """Load spheres asynchronously and emit ``spheres_loaded``."""
         try:
-            # Переход на реальную асинхронную загрузку через AsyncOperations
+            # Defer to AsyncOperations for real asynchronous loading
             self.async_operations.load_spheres_async()
         except Exception as e:
             self.logger.error("load_spheres_async failed: %s", e)
 
     @handle_exceptions()
     def get_sphere_by_id(self, sphere_id: int) -> Optional[Dict[str, Any]]:
-        """Получает данные сферы по ID."""
+        """Return sphere data by identifier."""
         spheres = self.get_spheres()
         return next((sphere for sphere in spheres if sphere["id"] == sphere_id), None)
 
     @handle_exceptions()
     def get_next_sphere_id(self) -> Optional[int]:
-        """Определяет и возвращает ID следующей сферы в списке (циклически)."""
+        """Return the next sphere ID in a cyclical manner."""
         spheres = self.get_spheres()
         if not spheres:
             return None
@@ -963,7 +905,7 @@ class StructureBusinessLogic(QObject):
     def has_duplicate_category(
         self, section_id: int, category_name: str, exclude_id: Optional[int] = None
     ) -> bool:
-        """Проверяет наличие дубликата категории в разделе."""
+        """Check whether a duplicate category exists within the section."""
         categories = self.get_categories(section_id)
 
         for category in categories:
@@ -975,49 +917,43 @@ class StructureBusinessLogic(QObject):
 
         return False
 
-    # =============================================================================
-    # ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ (СОВМЕСТИМОСТЬ)
-    # =============================================================================
+    # AUXILIARY METHODS (COMPATIBILITY)
 
     def get_current_sphere_id(self) -> Optional[int]:
-        """Возвращает ID текущей активной сферы."""
+        """Return the current active sphere ID."""
         return self.current_sphere_id
 
     def get_section_for_editing(self, section_id: int) -> Optional[Dict[str, Any]]:
-        """Получает данные раздела для редактирования в диалоге."""
+        """Fetch section data for editing dialogs."""
         return self.get_item_for_editing(section_id, "section")
 
     def get_category_for_editing(self, category_id: int) -> Optional[Dict[str, Any]]:
-        """Получает данные категории для редактирования в диалоге."""
+        """Fetch category data for editing dialogs."""
         return self.get_item_for_editing(category_id, "category")
 
-    # =============================================================================
-    # МЕТОДЫ ДЛЯ ИМПОРТА И ИНТЕГРАЦИИ (СОВМЕСТИМОСТЬ)
-    # =============================================================================
+    # IMPORT AND INTEGRATION HELPERS (COMPATIBILITY)
 
     @handle_exceptions()
     def create_category_for_import(
         self, category_data: Dict[str, Any]
     ) -> Optional[int]:
-        """Создает новую категорию для импорта (делегировано в сервис)."""
+        """Create a category during import (delegated to the service layer)."""
         category_id = self.import_service.create_category_for_import(
             self.structure_model, category_data, self.logger
         )
         if category_id:
-            # Инвалидируем кэш для раздела
+            # Invalidate cache for the affected section
             section_id = category_data.get("section_id")
             if section_id:
                 self._invalidate_categories_cache(section_id)
         return category_id
 
-    # =============================================================================
-    # ВНУТРЕННИЕ МЕТОДЫ - ВАЛИДАЦИЯ
-    # =============================================================================
+    # INTERNAL VALIDATION HELPERS
 
     def _validate_section_data(
         self, data: Dict[str, Any], section_id: Optional[int] = None
     ) -> ValidationResult:
-        """Валидирует данные раздела (делегировано в ValidationService)."""
+        """Validate section data via ``ValidationService``."""
         return self.validation_service.validate_section_data(
             data=data,
             section_id=section_id,
@@ -1027,55 +963,49 @@ class StructureBusinessLogic(QObject):
     def _validate_category_data(
         self, data: Dict[str, Any], category_id: Optional[int] = None
     ) -> ValidationResult:
-        """Валидирует данные категории (делегировано в ValidationService)."""
+        """Validate category data via ``ValidationService``."""
         return self.validation_service.validate_category_data(
             data=data,
             category_id=category_id,
             has_duplicate_category=self.has_duplicate_category,
         )
 
-    # =============================================================================
-    # ВНУТРЕННИЕ МЕТОДЫ - УПРАВЛЕНИЕ КЭШЕМ
-    # =============================================================================
+    # INTERNAL CACHE MANAGEMENT HELPERS
 
     def _invalidate_structure_cache(self) -> None:
-        """Инвалидирует кэш структуры."""
+        """Invalidate cached structure data."""
         if self.current_sphere_id:
-            # Инвалидируем кэш структуры и разделов для текущей сферы
+            # Invalidate structure and section caches for the current sphere
             self.cache_manager.invalidate(f"structure_{self.current_sphere_id}")
             self.cache_manager.invalidate(f"sections_{self.current_sphere_id}")
-            # Пер-сферный ключ для первой категории (унифицированный формат)
+            # Per-sphere key for the first category (unified format)
             self.cache_manager.invalidate(f"first_category_id:{self.current_sphere_id}")
 
     def _invalidate_categories_cache(self, section_id: Optional[int]) -> None:
-        """Инвалидирует кэш категорий для раздела."""
+        """Invalidate cached categories for the provided section."""
         if section_id:
             self.cache_manager.invalidate(f"categories_{section_id}")
 
-        # Также инвалидируем структуру, так как она содержит категории
+        # Invalidate structure as well because it contains categories
         self._invalidate_structure_cache()
 
-    # =============================================================================
-    # ВНУТРЕННИЕ МЕТОДЫ - ОБРАБОТКА ОШИБОК
-    # =============================================================================
+    # INTERNAL ERROR HANDLING HELPERS
 
     def _handle_error(self, title: str, error: Exception) -> None:
-        """Обрабатывает ошибки с полным логированием."""
+        """Log an error and emit a translated message."""
         error_msg = str(error)
         self.logger.error("%s: %s", title, error_msg, exc_info=True)
         self._emit_error(title, error_msg)
 
     def _emit_error(self, title: str, message: str) -> None:
-        """Отправляет сигнал об ошибке."""
+        """Emit an error signal with the provided message."""
         self.error_occurred.emit(title, message)
         self.logger.error("%s: %s", title, message)
 
-    # =============================================================================
-    # ДОПОЛНИТЕЛЬНЫЕ СЛУЖЕБНЫЕ МЕТОДЫ
-    # =============================================================================
+    # ADDITIONAL UTILITY METHODS
 
     def get_statistics(self) -> Dict[str, Any]:
-        """Получает статистику по структуре (делегировано в сервис)."""
+        """Return structure statistics via the integrity service."""
         return self.integrity_service.get_statistics(
             get_spheres=self.get_spheres,
             get_sections=self.get_sections,
@@ -1085,6 +1015,6 @@ class StructureBusinessLogic(QObject):
         )
 
     def clear_all_cache(self) -> None:
-        """Полностью очищает весь кэш."""
+        """Clear all caches for this business logic."""
         self.cache_manager.invalidate()
-        self.logger.info("Кэш полностью очищен")
+        self.logger.info("Cache fully cleared")

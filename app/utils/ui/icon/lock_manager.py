@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 from contextlib import AbstractContextManager
 from enum import IntEnum
-from typing import List
 
 from app.utils.locking import (
     ICON_LOCK_NAMES,
@@ -70,7 +69,7 @@ def acquire_multiple_locks(*levels: LockLevel):
     Упорядочивает уровни по приоритету и делегирует в общий модуль.
     """
     # Удаляем дубликаты и сортируем по значению Enum
-    unique_sorted: List[LockLevel] = sorted(set(levels), key=int)
+    unique_sorted: list[LockLevel] = sorted(set(levels), key=int)
     names = [
         ICON_LOCK_NAMES["GLOBAL"]
         if lvl == LockLevel.GLOBAL

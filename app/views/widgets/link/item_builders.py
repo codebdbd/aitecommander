@@ -1,30 +1,29 @@
-"""
-Утилиты генерации текстов и tooltip'ов для ролей модели (QAbstractTableModel).
-"""
+"""Utilities for generating display text and tooltips for model roles (``QAbstractTableModel``)."""
 
 from typing import Dict, Tuple
 
-# Константы для магических чисел
+# Constants for magic numbers
 MAX_NOTES_LENGTH = 462
-# Маркер избранного: сердечко вместо звезды
+# Favorite marker: heart symbol instead of the default star
 STAR_SYMBOL = "♥"
 STAR_COLOR = "#FFD700"
 PATH_SEPARATOR = " → "
 
 
 class ItemBuildersMixin:
-    """Миксин-утилиты для генерации данных под роли модели.
-    Методы возвращают строки и тексты для ролей Display/ToolTip.
-    Иконки обрабатываются в модели (`LinksTableModel.data(DecorationRole)`).
+    """Utility mixin for building model role data.
+
+    Methods return strings and tooltips for ``DisplayRole`` / ``ToolTipRole``.
+    Icons are handled inside the model (`LinksTableModel.data(DecorationRole)`).
     """
 
-    # --- DisplayRole генерация ---
+    # --- DisplayRole generation ---
     def _star_display_text(self, is_favorite: bool) -> str:
-        """Текст для столбца избранного (★ или пусто)."""
+        """Return text for the favorites column (★ or blank)."""
         return STAR_SYMBOL if is_favorite else ""
 
     def _name_display_text(self, link: Dict, mode: str) -> str:
-        """Текст для названия. В режиме поиска добавляет трейл категории."""
+        """Return the name text; append category trail in search mode."""
         name_text = link.get("name", "")
         if mode == "search":
             trail = self._build_category_trail(link)
@@ -33,7 +32,7 @@ class ItemBuildersMixin:
         return name_text
 
     def _build_category_trail(self, link: Dict) -> str:
-        """Строит путь категории для режима поиска."""
+        """Construct the category trail for search mode."""
         parts = [
             link.get("sphere_name", ""),
             link.get("section_name", ""),
@@ -42,7 +41,7 @@ class ItemBuildersMixin:
         return PATH_SEPARATOR.join(filter(None, parts))
 
     def _last_used_display_text(self, last_used) -> str:
-        """Форматированный текст для даты последнего использования."""
+        """Return formatted text representing the last-used timestamp."""
         from app.utils.system.date_utils import format_last_used
 
         try:
@@ -53,9 +52,9 @@ class ItemBuildersMixin:
     def _notes_display_and_tooltip(
         self, notes: str, truncate: bool = False
     ) -> Tuple[str, str]:
-        """Возвращает (display, tooltip) для заметок."""
+        """Return the ``(display, tooltip)`` pair for notes."""
         text = str(notes or "")
-        # Визуальный индикатор заметки перед текстом (иконка-эмодзи)
+        # Visual indicator in front of notes text (emoji icon)
         has_text = bool(text)
         prefix = "📝 " if has_text else ""
         if truncate and len(text) > MAX_NOTES_LENGTH:
@@ -63,11 +62,11 @@ class ItemBuildersMixin:
         return prefix + text, (text or "")
 
     def _path_display_and_tooltip(self, link: Dict) -> Tuple[str, str]:
-        """Возвращает (display, tooltip) для пути/URL."""
+        """Return the ``(display, tooltip)`` pair for path/URL."""
         url_or_path = link.get("url", "") or link.get("path", "")
         return url_or_path, (url_or_path or "")
 
     def _name_tooltip(self, link: Dict) -> str:
-        """Tooltip для названия (URL/Путь)."""
+        """Return tooltip for the name column (URL/Path)."""
         url_or_path = link.get("url", "") or link.get("path", "")
-        return f"<b>URL/Путь:</b> {url_or_path}" if url_or_path else ""
+        return f"<b>URL/Path:</b> {url_or_path}" if url_or_path else ""

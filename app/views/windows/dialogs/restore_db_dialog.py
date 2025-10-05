@@ -12,7 +12,6 @@ from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtWidgets import QDialogButtonBox, QListWidget, QListWidgetItem, QVBoxLayout
 
 from app.config_data import app_config
-from app.ui.retranslatable import ReTranslatable
 from i18n.locale_utils import format_datetime, format_decimal
 
 from .base_dialog import BaseDialog
@@ -40,7 +39,7 @@ class BackupMeta:
     message: Optional[str] = None
 
 
-class RestoreDbDialog(BaseDialog, ReTranslatable):
+class RestoreDbDialog(BaseDialog):
     """Dialog that allows restoring the database from backups."""
 
     def __init__(self, backup_dir: Optional[Path] = None, parent=None):
@@ -55,7 +54,23 @@ class RestoreDbDialog(BaseDialog, ReTranslatable):
 
         self._init_ui()
         self._load_backups()
-        ReTranslatable.__init__(self)
+        
+        # Connect to language change signal
+        from i18n.language_service import LanguageService
+        LanguageService.instance().languageChanged.connect(self._on_language_changed)
+        self.destroyed.connect(self._disconnect_language_service)
+        
+        self.retranslateUi()
+    
+    def _on_language_changed(self, _lang_code: str) -> None:
+        self.retranslateUi()
+    
+    def _disconnect_language_service(self) -> None:
+        try:
+            from i18n.language_service import LanguageService
+            LanguageService.instance().languageChanged.disconnect(self._on_language_changed)
+        except Exception:
+            pass
 
     def _init_ui(self) -> None:
         layout = QVBoxLayout(self)

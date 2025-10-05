@@ -130,7 +130,7 @@ def _create_svg_icon(svg_path: str) -> QIcon:
         finally:
             painter.end()
 
-    except (OSError, IOError, RuntimeError) as exc:
+    except (OSError, RuntimeError) as exc:
         raise InvalidIconError(
             f"Error creating SVG icon from {svg_path}: {exc}"
         ) from exc

@@ -1,6 +1,6 @@
 # app/controllers/structure_modules/category_operations.py
 
-"""Модуль для операций с категориями."""
+"""Module providing category operations."""
 
 import logging
 from typing import Any, Callable, Dict, List, Optional
@@ -20,7 +20,7 @@ from .base import BaseOperations, StructureItemType
 
 
 class CategoryOperations(BaseOperations):
-    """Класс для операций с категориями."""
+    """Operations handler for categories."""
 
     def __init__(
         self,
@@ -35,47 +35,47 @@ class CategoryOperations(BaseOperations):
         self._execute_with_validation = execute_with_validation
         self._emit_signal = emit_signal_callback
         self._cache_manager = cache_manager
-        # Сервисный слой: транзакции и чтения без дублирования SQL
+        # Service layer: transactions and reads without duplicating SQL
         try:
             self._structure_service = StructureService(structure_model.db)
         except Exception:
             self._structure_service = None
 
     def create_category(self, data: CategoryCreateData) -> bool:
-        """Создает новую категорию."""
-        # Делегируем в универсальный метод базового класса
+        """Create a new category."""
+        # Delegate to the universal base-class helper
         result = self.create_item(StructureItemType.CATEGORY, data)
         if result:
             self._cache_manager.invalidate_first_category_cache()
         return result
 
     def update_category(self, category_id: int, data: CategoryUpdateData) -> bool:
-        """Обновляет существующую категорию."""
-        # Делегируем в универсальный метод базового класса
+        """Update an existing category."""
+        # Delegate to the universal base-class helper
         result = self.update_item(StructureItemType.CATEGORY, category_id, data)
         if result:
             self._cache_manager.invalidate_first_category_cache()
         return result
 
     def delete_category(self, category_id: int) -> CategoryDeletionInfo:
-        """Удаляет категорию. Возвращает информацию об удалении."""
+        """Delete a category and return deletion info."""
 
         def _delete_category_operation():
-            # Получаем данные категории
+            # Retrieve category data
             category_data = self._get_category_data_internal(category_id)
             if not category_data:
-                error_msg = f"Категория с ID {category_id} не найдена"
+                error_msg = f"Category with ID {category_id} was not found"
                 self.logger.error(error_msg)
                 return CategoryDeletionInfo.create_empty()
             
-            # ✅ Преобразуем в строго типизированные данные
+            # ✅ Convert to strongly typed data
             typed_category_data: CategoryData = category_data  # type: ignore
 
-            # Подсчитываем количество связанных ссылок
+            # Count linked links
             links_count = self._count_category_links(category_id)
 
             self.logger.info(
-                "Подготовка к удалению категории %s: %s ссылок",
+                "Preparing to delete category %s: %s linked items",
                 category_id,
                 links_count,
             )
@@ -84,19 +84,19 @@ class CategoryOperations(BaseOperations):
 
         return self._execute_with_error_handling(
             _delete_category_operation,
-            f"получить данные категории {category_id}",
+            f"fetch category data {category_id}",
             default_return=CategoryDeletionInfo.create_empty(),
         )
 
     def confirm_delete_category(self, category_id: int) -> bool:
-        """Подтверждает и выполняет удаление категории."""
+        """Confirm and perform category deletion."""
         if not self._structure_service:
             def _raise_service_error():
-                raise RuntimeError("StructureService недоступен для удаления категории")
+                raise RuntimeError("StructureService is unavailable for category deletion")
             
             return self._execute_with_error_handling(
                 _raise_service_error,
-                f"удалить категорию {category_id}",
+                f"delete category {category_id}",
                 default_return=False,
             )
 
@@ -114,24 +114,24 @@ class CategoryOperations(BaseOperations):
         return result
 
     def get_category_data(self, category_id: int) -> Optional[Dict[str, Any]]:
-        """Получает данные категории с гарантированной нормализацией."""
+        """Fetch category data with guaranteed normalization."""
 
         def _get_category_operation():
             category_data = self._get_category_data_internal(category_id)
             if category_data:
-                self.logger.debug("Найдена категория %s", category_id)
+                self.logger.debug("Category %s found", category_id)
             else:
-                self.logger.warning("Категория %s не найдена", category_id)
+                self.logger.warning("Category %s not found", category_id)
             return category_data
 
         return self._exec_with_norm(
             _get_category_operation,
-            f"загрузить данные категории {category_id}",
+            f"load category data {category_id}",
             default_return=None,
         )
 
     def get_categories(self, section_id: int) -> List[Dict[str, Any]]:
-        """Получает список категорий для указанного раздела."""
+        """Retrieve categories for the specified section."""
 
         def _get_categories_operation():
             categories_data = (
@@ -141,7 +141,7 @@ class CategoryOperations(BaseOperations):
             )
             result = categories_data if categories_data else []
             self.logger.debug(
-                "Загружено %s категорий для раздела %s",
+                "Loaded %s categories for section %s",
                 len(result),
                 section_id,
             )
@@ -149,28 +149,28 @@ class CategoryOperations(BaseOperations):
 
         return self._exec_with_norm(
             _get_categories_operation,
-            f"загрузить категории для раздела {section_id}",
+            f"load categories for section {section_id}",
             default_return=[],
         )
 
     def get_categories_batch(self, section_ids: List[int]) -> List[Dict[str, Any]]:
-        """Получает категории для нескольких разделов с гарантированной нормализацией."""
+        """Fetch categories for multiple sections with guaranteed normalization."""
         if not section_ids:
             return []
 
         def _get_categories_batch_operation():
-            # Используем оптимизированный метод модели
+            # Use the optimized model method
             rows = self.structure_model.get_categories_batch(section_ids)
             return rows if rows else []
 
-        # Применяем нормализацию и валидацию
+        # Apply normalization and validation
         normalized = self._exec_with_norm(
             _get_categories_batch_operation,
-            f"загрузить категории для разделов {section_ids}",
+            f"load categories for sections {section_ids}",
             default_return=[],
         )
 
-        # Дополнительная валидация для batch операций
+        # Additional validation for batch operations
         return self._validate_batch_categories(normalized)
 
     def _process_item(
@@ -182,17 +182,17 @@ class CategoryOperations(BaseOperations):
         *,
         require_parent: bool = True,
     ) -> bool:
-        """Переопределяем обработку для категорий: используем StructureService для мутаций.
+        """Override processing for categories by using `StructureService` mutations.
 
-        Для иных типов элементов используем базовую реализацию.
+        Fall back to the base implementation for other item types.
         """
-        # Если это не категория — передаём вниз в базу
+        # If this is not a category, delegate to the base implementation
         if item_type is not StructureItemType.CATEGORY:
             return super()._process_item(
                 data, item_type, item_id, is_update, require_parent=require_parent
             )
 
-        # Нет сервисного слоя — безопасный фоллбек на базовую реализацию
+        # Without a service layer we safely delegate to the base implementation
         if not getattr(self, "_structure_service", None):
             return super()._process_item(
                 data, item_type, item_id, is_update, require_parent=require_parent
@@ -200,21 +200,21 @@ class CategoryOperations(BaseOperations):
 
         def _operation():
             if is_update:
-                # Обновление через сервис
+                # Update via the service layer
                 self._structure_service.update_category(int(item_id), data)  # type: ignore[arg-type]
                 current = self._structure_service.get_category_by_id(int(item_id)) or {}
-                # parent_or_id = id элемента для updated
+                # parent_or_id = element ID for updated items
                 self._emit_item_signal(
                     SignalTypes.ITEM_UPDATED, item_type, int(item_id), current
                 )  # type: ignore[arg-type]
-                # Инвалидация лёгкого кэша первой категории
+                # Invalidate the lightweight first-category cache
                 try:
                     self._cache_manager.invalidate_first_category_cache()
                 except Exception:
                     pass
                 return True
             else:
-                # Создание через сервис
+                # Create via the service layer
                 new_id = self._structure_service.create_category(data)
                 if not new_id:
                     return False
@@ -227,7 +227,7 @@ class CategoryOperations(BaseOperations):
                     or data.get("section_id")
                     or 0
                 )
-                # parent_or_id = section_id для added
+                # parent_or_id = section_id for added items
                 self._emit_item_signal(
                     SignalTypes.ITEM_ADDED, item_type, int(parent_id), current
                 )
@@ -237,7 +237,7 @@ class CategoryOperations(BaseOperations):
                     pass
                 return True
 
-        operation_name = "обновления" if is_update else "создания"
+        operation_name = "update" if is_update else "create"
         result = self._execute_with_validation(
             _operation,
             data,
@@ -248,53 +248,53 @@ class CategoryOperations(BaseOperations):
         return result if result is not None else False
 
     def get_first_category_id(self) -> Optional[int]:
-        """Получает ID первой категории с кэшированием для оптимизации."""
-        # Проверяем кэш
+        """Return the first category ID with caching for optimization."""
+        # Check cache
         cached_id = self._cache_manager.get_first_category_id()
         if cached_id is not None:
             self.logger.debug(
-                "Используется кэшированная первая категория: %s", cached_id
+                "Using cached first category: %s", cached_id
             )
             return cached_id
 
         def _get_first_category_operation():
-            # Сервиса для этого метода пока нет — используем модель
+            # The service layer lacks this method, rely on the model
             category_id = self.structure_model.get_first_category_id()
             if category_id:
-                self.logger.debug("Найдена первая категория с ID: %s", category_id)
+                self.logger.debug("First category found with ID: %s", category_id)
                 self._cache_manager.set_first_category_id(category_id)
                 return category_id
             else:
-                self.logger.debug("Категории не найдены")
+                self.logger.debug("No categories found")
                 return None
 
         return self._execute_with_error_handling(
             _get_first_category_operation,
-            "получить первую категорию",
+            "get first category",
             default_return=None,
         )
 
     def get_first_category_id_for_sphere(self, sphere_id: int) -> Optional[int]:
-        """Получить ID первой категории в рамках конкретной сферы (per-sphere cache).
+        """Return the first category ID within a sphere using per-sphere cache.
 
-        - Не ломает совместимость: это дополнительный метод.
-        - Сначала пытается взять из per-sphere кэша в `CacheManager`.
-        - При промахе вычисляет через StructureModel/Service и записывает кэш.
+        - Maintains backward compatibility as an additional helper.
+        - First consults the per-sphere cache in `CacheManager`.
+        - On cache miss it calculates via StructureModel/Service and stores the result.
         """
-        # 1) Кэш per-sphere
+        # 1) Per-sphere cache lookup
         try:
             cached = self._cache_manager.get_first_category_id_for_sphere(sphere_id)
         except Exception:
             cached = None
         if cached is not None:
             self.logger.debug(
-                "Используется per-sphere кэш первой категории для сферы %s: %s",
+                "Using per-sphere cache for sphere %s: %s",
                 sphere_id,
                 cached,
             )
             return cached
 
-        # 2) Вычисление: берём первую категорию в первой секции сферы, где есть категории
+        # 2) Compute: find the first category in the first section that has categories
         def _compute_first_for_sphere() -> Optional[int]:
             try:
                 get_sections = (
@@ -319,7 +319,7 @@ class CategoryOperations(BaseOperations):
                 return None
             except Exception as e:
                 self.logger.error(
-                    "Ошибка вычисления первой категории для сферы %s: %s", sphere_id, e
+                    "Failed to compute first category for sphere %s: %s", sphere_id, e
                 )
                 return None
 
@@ -331,7 +331,7 @@ class CategoryOperations(BaseOperations):
         return result
 
     def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, Any]]:
-        """Получает иерархию (sphere_id, section_id) для категории с гарантированной нормализацией."""
+        """Fetch hierarchy (sphere_id, section_id) for a category with normalization."""
 
         def _get_hierarchy_operation():
             hierarchy_data = (
@@ -340,21 +340,21 @@ class CategoryOperations(BaseOperations):
                 else self.structure_model.get_category_hierarchy(category_id)
             )
             if hierarchy_data:
-                self.logger.debug("Найдена иерархия для категории %s", category_id)
+                self.logger.debug("Hierarchy found for category %s", category_id)
             else:
-                self.logger.warning("Иерархия для категории %s не найдена", category_id)
+                self.logger.warning("Hierarchy for category %s not found", category_id)
             return hierarchy_data
 
         return self._exec_with_norm(
             _get_hierarchy_operation,
-            f"получить иерархию категории {category_id}",
+            f"fetch category hierarchy {category_id}",
             default_return=None,
         )
 
     def has_duplicate_category(
         self, section_id: int, category_name: str, exclude_id: Optional[int] = None
     ) -> bool:
-        """Проверяет наличие дубликата категории в разделе."""
+        """Check whether a duplicate category exists in the section."""
 
         def _check_duplicate_operation():
             return self.structure_model.has_duplicate_category(
@@ -363,7 +363,7 @@ class CategoryOperations(BaseOperations):
 
         result = self._execute_with_error_handling(
             _check_duplicate_operation,
-            f"проверить дубликат категории '{category_name}' в разделе {section_id}",
+            f"check duplicate category '{category_name}' in section {section_id}",
             default_return=False,
         )
         return bool(result) if result is not None else False
@@ -371,27 +371,27 @@ class CategoryOperations(BaseOperations):
     def create_category_for_import(
         self, category_data: Dict[str, Any]
     ) -> Optional[int]:
-        """Создает новую категорию для импорта."""
+        """Create a new category for import."""
         if self._structure_service:
             return self._structure_service.create_category(category_data)
         else:
-            raise RuntimeError("StructureService недоступен для создания категории")
+            raise RuntimeError("StructureService is unavailable for category creation")
 
-    # Приватные вспомогательные методы
+    # Private helper methods
 
     def _get_category_data_internal(self, category_id: int) -> Optional[Dict[str, Any]]:
-        """Внутренний метод для получения данных категории."""
+        """Internal helper to load category data."""
         if self._structure_service:
             return self._structure_service.get_category_by_id(category_id)
         return self.structure_model.get_category_by_id(category_id)
 
     def _count_category_links(self, category_id: int) -> int:
-        """Подсчитывает количество ссылок в категории."""
+        """Count the number of links in a category."""
         try:
             return self.structure_model.count_links_by_category(category_id)
         except Exception as e:
             self.logger.error(
-                "Ошибка подсчета ссылок для категории %s: %s",
+                "Failed to count links for category %s: %s",
                 category_id,
                 e,
             )
@@ -404,7 +404,7 @@ class CategoryOperations(BaseOperations):
         item_id: int,
         data: Optional[Dict[str, Any]] = None,
     ):
-        """Централизованная отправка сигналов для элементов структуры."""
+        """Emit structure signals centrally for items."""
         try:
             if data:
                 self._emit_signal(signal_type, item_type.value, item_id, data)
@@ -412,7 +412,7 @@ class CategoryOperations(BaseOperations):
                 self._emit_signal(signal_type, item_type.value, item_id)
         except Exception as e:
             self.logger.error(
-                "Ошибка отправки сигнала %s для %s %s: %s",
+                "Failed to emit signal %s for %s %s: %s",
                 signal_type,
                 item_type.value,
                 item_id,
@@ -422,19 +422,19 @@ class CategoryOperations(BaseOperations):
     def _validate_batch_categories(
         self, categories: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        """Валидирует данные категорий после batch загрузки."""
+        """Validate category data after batch loading."""
         if not categories:
             return []
 
         from .normalization import validate_normalized_data
 
-        # Требуем ключ section_id для группировки в coordination.py
+        # Require `section_id` key for grouping in coordination.py
         if not validate_normalized_data(categories, required_keys=["section_id"]):
             self.logger.warning(
-                "Некоторые записи категорий не содержат обязательного ключа 'section_id'. "
-                "Будут отфильтрованы некорректные элементы."
+                "Some category records do not contain the required 'section_id' key. "
+                "Invalid entries will be filtered out."
             )
-            # Фильтруем только валидные элементы
+            # Keep only valid entries
             categories = [
                 item
                 for item in categories
@@ -446,42 +446,42 @@ class CategoryOperations(BaseOperations):
     def _create_item_for_import(
         self, item_type: str, item_data: Dict[str, Any], create_func: Callable
     ) -> Optional[int]:
-        """Универсальный метод создания элементов для импорта."""
+        """Generic helper for creating items during import."""
 
         def _create_import_operation():
             result_id = create_func(item_data)
             if not result_id:
-                self.logger.warning("Не удалось создать %s для импорта", item_type)
+                self.logger.warning("Failed to create %s for import", item_type)
                 return None
 
-            # Подготавливаем данные для сигнала
+            # Prepare payload for the signal
             signal_data = item_data.copy()
             signal_data["id"] = result_id
 
-            # Определяем parent_id в зависимости от типа элемента
+            # Determine parent_id depending on the item type
             parent_id = self._get_parent_id_for_item_type(item_type, signal_data)
 
-            # Маппим строковый тип к enum и эмитируем сигнал централизованно
+            # Map string item type to enum and emit the signal centrally
             enum_type = self._to_item_enum(item_type)
             self._emit_item_signal(
                 SignalTypes.ITEM_ADDED, enum_type, parent_id, signal_data
             )
 
             self.logger.info(
-                "Создан %s для импорта: %s",
+                "Created %s for import: %s",
                 item_type,
-                signal_data.get("name", "без имени"),
+                signal_data.get("name", "unnamed"),
             )
             return result_id
 
         return self._execute_with_error_handling(
             _create_import_operation,
-            f"создать {item_type} для импорта",
+            f"create {item_type} for import",
             default_return=None,
         )
 
     def _to_item_enum(self, item_type: str) -> StructureItemType:
-        """Преобразует строковый тип элемента в enum StructureItemType."""
+        """Convert string item type into `StructureItemType`."""
         mapping = {
             "section": StructureItemType.SECTION,
             "category": StructureItemType.CATEGORY,
@@ -490,19 +490,19 @@ class CategoryOperations(BaseOperations):
         try:
             return mapping[item_type]
         except KeyError:
-            raise ValueError(f"Неподдерживаемый тип элемента: {item_type}")
+            raise ValueError(f"Unsupported item type: {item_type}")
 
     def _get_parent_id_for_item_type(
         self, item_type: str, item_data: Dict[str, Any]
     ) -> Optional[int]:
-        """Определяет parent_id для элемента в зависимости от его типа."""
-        # Для категорий используем section_id как parent_id
+        """Determine parent_id for an item depending on its type."""
+        # Use section_id as parent_id for categories
         if item_type == "category":
             return item_data.get("section_id")
-        # Для других типов можно добавить логику позже
+        # Other types can be handled later
         elif item_type == "section":
             return item_data.get("sphere_id")
         elif item_type == "link":
             return item_data.get("category_id")
         else:
-            raise ValueError(f"Неподдерживаемый тип элемента: {item_type}")
+            raise ValueError(f"Unsupported item type: {item_type}")

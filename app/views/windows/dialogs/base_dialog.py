@@ -116,6 +116,9 @@ def create_context_menu(widget):
 class BaseDialog(QDialog):
     """
     A base dialog class that applies uniform widget heights when shown.
+    
+    Note: When inheriting from both BaseDialog and ReTranslatable, call
+    ReTranslatable.__init__() explicitly after UI setup to avoid AttributeError.
     """
 
     def __init__(self, *args, **kwargs):

@@ -166,9 +166,9 @@ def _get_indexed_icon(theme: str, icon_name: str) -> Optional[Path]:
 class IconPathService:
     """Singleton-сервис для управления путями к иконкам и ресурсам."""
 
-    _instance: Optional["IconPathService"] = None
+    _instance: Optional[IconPathService] = None
 
-    def __new__(cls) -> "IconPathService":
+    def __new__(cls) -> IconPathService:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance

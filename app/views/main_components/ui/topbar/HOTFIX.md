@@ -1,46 +1,45 @@
-# Hotfix: Восстановление отображения панели
+# Hotfix: Restore panel visibility
 
-## Проблема
-После попытки устранить race condition путём скрытия container до готовности layout, панель перестала отображаться.
+## Problem
+After attempting to fix the race condition by hiding the container until the layout was ready, the panel stopped appearing altogether.
 
-## Причина
-Скрытие container в `prepare_initial_layout()` приводило к тому, что панель оставалась скрытой, если не происходил правильный переход через состояние `DATA_READY`.
+## Root cause
+Hiding the container inside `prepare_initial_layout()` caused the panel to remain hidden when the state transition to `DATA_READY` did not occur as expected.
 
-## Решение
-**Откат изменений** - оставляем container видимым для совместимости:
+**Rollback the change** — keep the container visible for compatibility:
 
 ```python
-# БЫЛО (вызывало проблему):
+# BEFORE (problematic):
 def prepare_initial_layout(self) -> None:
-    container.setVisible(False)  # Скрываем до готовности
-    
-# СТАЛО (исправлено):
+    container.setVisible(False)  # Hide until layout is ready
+
+# AFTER (fixed):
 def prepare_initial_layout(self) -> None:
     if not container.isVisible():
-        container.setVisible(True)  # Показываем сразу
+        container.setVisible(True)  # Show immediately
 ```
 
-## Статус
-✅ **Исправлено** - панель снова отображается корректно
+## Status
+✅ **Resolved** — the panel renders correctly again.
 
-## Итоговая оценка
-Остаётся **9.2/10** (без полного устранения race condition, но с рабочей панелью)
+{{ ... }}
+Remains **9.2/10** (race condition still present, but the panel works).
 
-Для достижения 9.5/10 потребуется более сложное решение race condition через:
-- Placeholder виджет во время загрузки
+Achieving 9.5/10 will require a more advanced race-condition solution such as:
+- Placeholder widget during loading
 - Skeleton UI
-- Fade-in анимация после готовности
+- Fade-in animation after readiness
 
-## Применённые улучшения (остаются активными)
-1. ✅ Dependency Injection
-2. ✅ Полная Accessibility
-3. ✅ Оптимизация throttling (50ms)
-4. ✅ Устранение избыточных adjust
-5. ✅ Интернационализация (i18n)
-6. ✅ Property-based тесты
-7. ✅ LRU кэш
+## Active improvements (unchanged)
+1. ✅ Dependency injection
+2. ✅ Full accessibility
+3. ✅ Throttling optimization (50 ms)
+4. ✅ Eliminated redundant `adjust()` calls
+5. ✅ Internationalization-ready strings
+6. ✅ Property-based tests
+7. ✅ LRU cache
 8. ✅ Thread safety
-9. ✅ Enum состояний
-10. ✅ Устранение утечек памяти
+9. ✅ State enum
+10. ✅ Memory leak fixes
 
-Все остальные улучшения работают корректно!
+All other improvements remain intact!
