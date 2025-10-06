@@ -18,6 +18,7 @@ from app.utils.ui.dnd.link import DragDropHandlerMixin
 from app.utils.ui.dnd.mime import get_link_mime
 from app.views.widgets.base.base_widgets import BaseDragDropTableWidget
 from app.views.widgets.link.links_model import LinksTableModel
+from i18n.language_service import LanguageService
 
 from .data_management import DataManagementMixin
 
@@ -291,6 +292,13 @@ class LinksTableView(
         model.set_headers(headers)
         self.setModel(model)
 
+        # Subscribe to language changes to update table headers
+        try:
+            self._lang_service = LanguageService.instance()
+            self._lang_service.languageChanged.connect(self._on_language_changed)
+        except Exception:
+            pass
+
         # Visual configuration
         self.setAlternatingRowColors(True)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -408,6 +416,20 @@ class LinksTableView(
                     model.layoutChanged.disconnect()
             if hasattr(self, 'items_reordered'):
                 self.items_reordered.disconnect()
+            if hasattr(self, '_lang_service') and self._lang_service:
+                try:
+                    self._lang_service.languageChanged.disconnect(self._on_language_changed)
+                except Exception:
+                    pass
         except (RuntimeError, TypeError):
             # Object already deleted or signal not connected
+            pass
+
+    def _on_language_changed(self, _code: str) -> None:
+        """Update localized headers on language change."""
+        try:
+            m = self.model()
+            if m is not None and hasattr(m, 'retranslate'):
+                m.retranslate()
+        except Exception:
             pass

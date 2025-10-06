@@ -1,8 +1,8 @@
 # gui_exec.py
-"""Утилиты для выполнения кода в GUI-потоке Qt (PyQt6).
+"""Utilities to execute code in the Qt GUI thread (PyQt6).
 
-Минимальные и безопасные помощники для синхронного и асинхронного исполнения
-функций в GUI-потоке без раздувания зависимостей.
+Minimal and safe helpers for synchronous and asynchronous execution
+in the GUI thread without extra dependencies.
 """
 
 from __future__ import annotations
@@ -33,13 +33,13 @@ def is_gui_thread() -> bool:
 
 
 def run_in_gui_thread_sync(func: Callable[[], T]) -> T:
-    """Выполнить функцию в GUI-потоке и вернуть результат (блокирующе)."""
+    """Execute a function in the GUI thread and return its result (blocking)."""
     if is_gui_thread():
         return func()
 
     app = QApplication.instance()
     if not app:
-        # Если QApplication не инициализирован — просто выполняем (лучше, чем падать)
+        # If QApplication is not initialised — run directly (better than crashing)
         return func()
 
     result_container: dict[str, Any] = {}
@@ -51,12 +51,12 @@ def run_in_gui_thread_sync(func: Callable[[], T]) -> T:
         except Exception as exc:  # noqa: BLE001
             result_container["exc"] = exc
         finally:
-            # asyncio.Event нельзя трогать напрямую из другого потока
+            # asyncio.Event cannot be set directly from another thread
             loop = asyncio.get_event_loop()
             loop.call_soon_threadsafe(done.set)
 
     QTimer.singleShot(0, _runner)
-    # Блокирующее ожидание через временный цикл событий asyncio
+    # Blocking wait via the current asyncio event loop
     loop = asyncio.get_event_loop()
     loop.run_until_complete(done.wait())
 
@@ -66,7 +66,7 @@ def run_in_gui_thread_sync(func: Callable[[], T]) -> T:
 
 
 async def run_in_gui_thread_async(func: Callable[[], T]) -> T:
-    """Асинхронно выполнить функцию в GUI-потоке и вернуть результат."""
+    """Execute a function in the GUI thread asynchronously and return result."""
     if is_gui_thread():
         return func()
 

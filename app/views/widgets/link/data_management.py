@@ -11,12 +11,12 @@ class DataManagementMixin:
     """Mixin responsible for managing data and cache of the links table."""
 
     logger = logging.getLogger(__name__)
-    _current_links: Dict[int, Dict[str, Any]]  # ожидается заполнение таблицей
+    _current_links: Dict[int, Dict[str, Any]]  # expected to be populated by the table view
 
-    # --- Вспомогательные свойства ---
+    # --- Helper properties ---
     @property
     def _link_cache(self) -> Dict[int, Dict[str, Any]]:
-        """Гарантированно возвращает внутренний кэш ссылок."""
+        """Return the internal links cache, creating it if missing."""
         cache = getattr(self, "_current_links", None)
         if cache is None:
             cache = {}

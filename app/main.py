@@ -13,6 +13,13 @@ from app.settings import AppSettings
 from app.startup.app_factory import create_application
 from i18n.language_service import LanguageService
 from app.startup.argument_parser import determine_log_level, parse_arguments
+
+# Register Qt resources for translations (:/i18n/app_*.qm) if available
+try:  # noqa: SIM105 - best-effort import, optional in dev mode
+    from i18n import resources_rc  # type: ignore  # noqa: F401
+except Exception:
+    # Fallback: LanguageService will try filesystem i18n/app_*.qm
+    pass
 from app.startup.browser_profiles_loader import BrowserProfilesLoader
 from app.startup.logging_setup import log_shutdown, log_system_info, setup_logging
 

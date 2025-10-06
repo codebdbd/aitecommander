@@ -1,12 +1,13 @@
-"""Типы данных для модуля views.
+"""Data types for the ``views`` module.
 
-Централизованное определение TypedDict для улучшения type safety.
+Centralized TypedDict definitions to improve type safety across models, dialogs,
+and controllers.
 """
 
 from typing import Any, Literal, TypedDict, NotRequired
 
 # ================================================================================
-# БАЗОВЫЕ ТИПЫ
+# BASIC TYPES
 # ================================================================================
 
 NodeType = Literal["section", "category", "root"]
@@ -14,14 +15,13 @@ LinkType = Literal["web", "file", "folder", "app"]
 
 
 # ================================================================================
-# ТИПЫ ССЫЛОК
+# LINK TYPES
 # ================================================================================
 
 class LinkData(TypedDict):
-    """Полная структура данных ссылки.
-    
-    Используется в моделях, диалогах и контроллерах для типобезопасной
-    передачи данных ссылок.
+    """Full link data structure.
+
+    Used in models, dialogs, and controllers for type-safe link data passing.
     """
     id: NotRequired[int]
     name: str
@@ -35,12 +35,12 @@ class LinkData(TypedDict):
     last_used: NotRequired[str | float | None]
     created_at: NotRequired[str]
     updated_at: NotRequired[str]
-    # Кэш иконки (внутреннее использование модели)
+    # Icon cache (model's internal use)
     _icon: NotRequired[Any]
 
 
 class MinimalLinkData(TypedDict):
-    """Минимальная структура ссылки для отображения."""
+    """Minimal link structure for display purposes."""
     id: int
     name: str
     url: str
@@ -48,11 +48,11 @@ class MinimalLinkData(TypedDict):
 
 
 # ================================================================================
-# ТИПЫ СТРУКТУРЫ (ИЕРАРХИЯ)
+# STRUCTURE TYPES (HIERARCHY)
 # ================================================================================
 
 class SphereData(TypedDict):
-    """Данные сферы."""
+    """Sphere data."""
     id: int
     name: str
     icon_path: NotRequired[str]
@@ -60,7 +60,7 @@ class SphereData(TypedDict):
 
 
 class SectionData(TypedDict):
-    """Данные раздела."""
+    """Section data."""
     id: int
     name: str
     sphere_id: int
@@ -69,7 +69,7 @@ class SectionData(TypedDict):
 
 
 class CategoryData(TypedDict):
-    """Данные категории."""
+    """Category data."""
     id: int
     name: str
     section_id: int
@@ -77,24 +77,24 @@ class CategoryData(TypedDict):
 
 
 class HierarchyData(TypedDict):
-    """Иерархический путь к категории."""
+    """Hierarchical path to a category."""
     sphere_id: NotRequired[int]
     section_id: NotRequired[int]
     category_id: NotRequired[int]
 
 
 # ================================================================================
-# ТИПЫ ДЛЯ ДИАЛОГОВ
+# DIALOG TYPES
 # ================================================================================
 
 class LinkDialogInitData(TypedDict):
-    """Данные инициализации LinkDialog."""
+    """Initialization data for LinkDialog."""
     spheres: list[SphereData]
     category_hierarchy: NotRequired[HierarchyData]
 
 
 class BrowserProfileData(TypedDict):
-    """Данные профиля браузера."""
+    """Browser profile data."""
     id: NotRequired[int]
     name: str
     email: NotRequired[str]
@@ -103,22 +103,22 @@ class BrowserProfileData(TypedDict):
 
 
 # ================================================================================
-# ТИПЫ ДЛЯ DRAG & DROP
+# DRAG & DROP TYPES
 # ================================================================================
 
 class DragDropPayload(TypedDict):
-    """Payload для drag & drop операций."""
+    """Payload for drag & drop operations."""
     item_type: NodeType
     item_id: int
     source_parent_id: NotRequired[int]
 
 
 # ================================================================================
-# ТИПЫ ДЛЯ КОНФИГУРАЦИИ
+# CONFIGURATION TYPES
 # ================================================================================
 
 class UIConfig(TypedDict):
-    """Конфигурация UI (подмножество app_config.ui)."""
+    """UI configuration (subset of app_config.ui)."""
     row_height: int
     icon_size: tuple[int, int]
     col_widths: list[int]
@@ -129,26 +129,26 @@ class UIConfig(TypedDict):
 
 
 # ================================================================================
-# ЭКСПОРТ
+# EXPORTS
 # ================================================================================
 
 __all__ = [
-    # Базовые типы
+    # Basic types
     "NodeType",
     "LinkType",
-    # Типы ссылок
+    # Link types
     "LinkData",
     "MinimalLinkData",
-    # Типы структуры
+    # Structure types
     "SphereData",
     "SectionData",
     "CategoryData",
     "HierarchyData",
-    # Типы диалогов
+    # Dialog types
     "LinkDialogInitData",
     "BrowserProfileData",
     # Drag & Drop
     "DragDropPayload",
-    # Конфигурация
+    # Configuration
     "UIConfig",
 ]

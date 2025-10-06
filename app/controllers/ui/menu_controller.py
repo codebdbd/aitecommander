@@ -14,6 +14,8 @@ from app.utils.ui.menu_builders import (
     StructureMenuBuilder,
 )
 
+from i18n.language_service import LanguageService
+
 if TYPE_CHECKING:
     from app.views.windows.main_window import MainWindow
 
@@ -29,12 +31,30 @@ class MenuController:
         self._structure_menu_builder = None
         self._links_menu_builder = None
         self._category_menu_builder = None
+        self._language_service = LanguageService.instance()
+        self._language_service.languageChanged.connect(self._on_language_changed)
+        if hasattr(self.main_window, "destroyed"):
+            self.main_window.destroyed.connect(self._cleanup)
 
     def create_main_menu(self) -> QMenuBar:
         """Создаёт главное меню."""
         if not self._main_menu_builder:
             self._main_menu_builder = MainMenuBuilder(self.main_window)
         return self._main_menu_builder.build()
+
+    def _on_language_changed(self, _lang_code: str) -> None:
+        """Пересоздаёт главное меню при смене языка."""
+        try:
+            self.rebuild_after_language_change()
+        except Exception:
+            pass
+
+    def _cleanup(self) -> None:
+        """Отключает сигналы при уничтожении окна."""
+        try:
+            self._language_service.languageChanged.disconnect(self._on_language_changed)
+        except Exception:
+            pass
 
     def create_structure_context_menu(
         self,
@@ -116,5 +136,16 @@ class MenuController:
                 # Не препятствуем дальнейшей пересборке меню
                 logger.debug("MenuController: подсказка в статус-бар не отображена")
 
+        self.clear_cache()
+        self.main_window.setMenuBar(self.create_main_menu())
+
+    def rebuild_after_language_change(self) -> None:
+        """Пересобирает главное меню после смены языка."""
+        try:
+            old_menu = self.main_window.menuBar()
+            if old_menu is not None:
+                old_menu.deleteLater()
+        except Exception:
+            pass
         self.clear_cache()
         self.main_window.setMenuBar(self.create_main_menu())

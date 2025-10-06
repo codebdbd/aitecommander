@@ -20,6 +20,7 @@ Options:
 import argparse
 import subprocess
 import sys
+import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -99,40 +100,45 @@ def run_pylupdate(project_file: Path) -> bool:
     print(f"Running pylupdate6 on {project_file}...")
     
     # Parse .pro file to get source files and translation files
-    sources = []
-    translations = []
-    
+    sources: list[str] = []
+    translations: list[str] = []
+
+    def _split_files(s: str) -> list[str]:
+        # Split by whitespace and handle line continuations already stripped
+        return [tok for tok in s.replace('\t', ' ').split() if tok and tok != '\\']
+
+    current: str | None = None  # 'SOURCES' | 'TRANSLATIONS' | None
+
     try:
         with open(project_file, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
+            for raw_line in f:
+                line = raw_line.strip()
                 if not line or line.startswith('#'):
                     continue
-                    
-                # Handle SOURCES and SOURCES +=
-                if 'SOURCES' in line:
-                    # Extract file paths from the line
+
+                # Section headers
+                if line.startswith('SOURCES'):
+                    current = 'SOURCES'
                     parts = line.split('=', 1)
                     if len(parts) == 2:
-                        files_part = parts[1].strip()
-                        # Remove trailing backslash
-                        files_part = files_part.rstrip('\\').strip()
-                        if files_part:
-                            sources.append(files_part)
-                elif 'TRANSLATIONS' in line:
+                        files = _split_files(parts[1].rstrip('\\').strip())
+                        sources.extend(files)
+                    continue
+
+                if line.startswith('TRANSLATIONS'):
+                    current = 'TRANSLATIONS'
                     parts = line.split('=', 1)
                     if len(parts) == 2:
-                        files_part = parts[1].strip()
-                        files_part = files_part.rstrip('\\').strip()
-                        if files_part:
-                            translations.append(files_part)
-                elif line and not line.startswith(('CODECFORTR', 'CODECFORSRC')):
-                    # Continuation line
-                    line = line.rstrip('\\').strip()
-                    if line and not any(kw in line for kw in ['CODECFORTR', 'CODECFORSRC', 'TRANSLATIONS']):
-                        sources.append(line)
-                    elif 'TRANSLATIONS' not in line and line and any(x in line for x in ['.ts']):
-                        translations.append(line)
+                        files = _split_files(parts[1].rstrip('\\').strip())
+                        translations.extend(files)
+                    continue
+
+                # Continuation lines belong to the last seen section
+                cont = line.rstrip('\\').strip()
+                if current == 'SOURCES':
+                    sources.extend(_split_files(cont))
+                elif current == 'TRANSLATIONS':
+                    translations.extend(_split_files(cont))
     except Exception as e:
         print(f"Error parsing {project_file}: {e}", file=sys.stderr)
         return False
@@ -145,6 +151,10 @@ def run_pylupdate(project_file: Path) -> bool:
         print("No translation files found in .pro file", file=sys.stderr)
         return False
     
+    # Filter and normalize entries
+    sources = [s for s in sources if s.endswith('.py') or s.endswith('.ui')]
+    translations = [t for t in translations if t.endswith('.ts')]
+
     # Convert relative paths to absolute
     base_dir = project_file.parent
     source_files = []
@@ -163,12 +173,18 @@ def run_pylupdate(project_file: Path) -> bool:
         print(f"\nUpdating {ts_file}...")
         
         try:
-            cmd = ["pylupdate6", "--verbose", "--ts", str(ts_path)] + source_files
+            # Correct invocation order for pylupdate6 (suppress verbose to avoid cp1251 emoji crash):
+            #   pylupdate6 [sources ...] -ts app_xx.ts
+            cmd = ["pylupdate6"] + source_files + ["-ts", str(ts_path)]
+            # Force UTF-8 stdout/stderr for child process to avoid Windows cp1251 issues
+            env = dict(**os.environ)
+            env.setdefault("PYTHONIOENCODING", "utf-8")
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 check=False,
+                env=env,
             )
             print(result.stdout)
             if result.stderr:
@@ -191,15 +207,24 @@ def compile_translations(i18n_dir: Path, ts_files: List[Path]) -> bool:
     print("\nCompiling translation files...")
     success = True
 
-    # Try to find lrelease in various locations
-    lrelease_commands = [
+    # Try to find lrelease in various locations (prefer local i18n/lrelease.exe)
+    candidates: List[str] = []
+    local_lrelease = i18n_dir / "lrelease.exe"
+    if local_lrelease.exists():
+        candidates.append(str(local_lrelease))
+    # Also consider non-.exe (Unix-like)
+    local_lrelease_unix = i18n_dir / "lrelease"
+    if local_lrelease_unix.exists():
+        candidates.append(str(local_lrelease_unix))
+    # PATH fallbacks
+    candidates += [
         "lrelease",
         "lrelease-qt6",
         "lrelease6",
     ]
-    
+
     lrelease_found = None
-    for cmd in lrelease_commands:
+    for cmd in candidates:
         try:
             result = subprocess.run(
                 [cmd, "-version"],
@@ -209,13 +234,13 @@ def compile_translations(i18n_dir: Path, ts_files: List[Path]) -> bool:
             )
             if result.returncode == 0:
                 lrelease_found = cmd
-                print(f"Found {cmd}: {result.stdout.strip()}")
+                print(f"Found lrelease: {cmd} -> {result.stdout.strip()}")
                 break
         except FileNotFoundError:
             continue
     
     if not lrelease_found:
-        print("\n⚠️  lrelease not found. Trying Python-based compilation...")
+        print("\n⚠️  lrelease not found (including local i18n/lrelease.exe). Trying Python-based compilation...")
         return _compile_with_python(i18n_dir, ts_files)
 
     for ts_file in ts_files:

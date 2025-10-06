@@ -260,9 +260,9 @@ class MoveOperationsHandler(TreeHandlerBase):
             )
         else:
             self._show_warning(
-                "История действий недоступна. Перемещение между разделами отменено.",
-                "Недоступна история действий",
-                informative_text="Включите поддержку undo/redo или инициализируйте undo_stack в главном окне.",
+                self.tr("History is unavailable. Move between sections canceled."),
+                self.tr("Undo history unavailable"),
+                informative_text=self.tr("Enable undo/redo support or initialize undo_stack in the main window."),
             )
             logger.warning(
                 "Undo stack не найден для перемещения категории между разделами"

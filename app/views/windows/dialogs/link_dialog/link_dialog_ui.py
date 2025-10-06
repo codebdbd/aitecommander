@@ -81,7 +81,8 @@ class LinkDialogUI:
         self, container: QVBoxLayout, link_types: List[Tuple[str, str]]
     ) -> None:
         """Create link type section and add it to container."""
-        container.addWidget(QLabel(_tr("Link type:")))
+        self.lbl_link_type = QLabel(_tr("Link type:"))
+        container.addWidget(self.lbl_link_type)
         self.type_group = QButtonGroup(self.parent)
         hl_type = QHBoxLayout()
 
@@ -296,3 +297,85 @@ class LinkDialogUI:
             elif hasattr(widget, "isChecked"):
                 return widget.isChecked()
         return None
+
+    # --- Runtime i18n -------------------------------------------------------
+    def retranslate(self) -> None:
+        """Update all static texts when the application language changes."""
+        # Type section label
+        try:
+            if hasattr(self, "lbl_link_type") and self.lbl_link_type is not None:
+                self.lbl_link_type.setText(_tr("Link type:"))
+        except Exception:
+            pass
+
+        # Path row
+        try:
+            if hasattr(self, "browse_btn") and self.browse_btn is not None:
+                self.browse_btn.setText(_tr("Browse…"))
+            if hasattr(self, "profile_btn") and self.profile_btn is not None:
+                # Do not override if dialog set a specific profile summary text
+                if not self.profile_btn.text() or self.profile_btn.text() == _tr("Profile"):
+                    self.profile_btn.setText(_tr("Profile"))
+            # Update label via labelForField
+            if hasattr(self, "form") and self.form is not None:
+                lbl = self.form.labelForField(self.parent.findChild(QWidget, None) or self.parent)
+            # Safer: explicitly query URL/Path row by passing layout used as field
+            # (Qt doesn't give direct handle here; skip if not applicable)
+        except Exception:
+            pass
+        try:
+            # Name row label
+            if hasattr(self, "form") and self.form is not None and hasattr(self, "name_le"):
+                name_label = self.form.labelForField(self.name_le)
+                if name_label is not None:
+                    name_label.setText(_tr("Name:"))
+        except Exception:
+            pass
+
+        # Arguments row
+        try:
+            if hasattr(self, "args_label") and self.args_label is not None:
+                self.args_label.setText(_tr("Arguments:"))
+        except Exception:
+            pass
+
+        # Hierarchy labels
+        try:
+            if hasattr(self, "form") and self.form is not None:
+                if hasattr(self, "sphere_cb"):
+                    lbl = self.form.labelForField(self.sphere_cb)
+                    if lbl is not None:
+                        lbl.setText(_tr("Sphere:"))
+                if hasattr(self, "section_cb"):
+                    lbl = self.form.labelForField(self.section_cb)
+                    if lbl is not None:
+                        lbl.setText(_tr("Section:"))
+                if hasattr(self, "category_cb"):
+                    lbl = self.form.labelForField(self.category_cb)
+                    if lbl is not None:
+                        lbl.setText(_tr("Category:"))
+        except Exception:
+            pass
+
+        # Notes label and favorites
+        try:
+            if hasattr(self, "form") and self.form is not None and hasattr(self, "notes_te"):
+                notes_label = self.form.labelForField(self.notes_te)
+                if notes_label is not None:
+                    notes_label.setText(_tr("Notes:"))
+            if hasattr(self, "fav_chk") and self.fav_chk is not None:
+                self.fav_chk.setText(_tr("Add to favorites"))
+        except Exception:
+            pass
+
+        # Buttons
+        try:
+            if hasattr(self, "button_box") and self.button_box is not None:
+                ok_btn = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
+                cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
+                if ok_btn is not None:
+                    ok_btn.setText(_tr("Save"))
+                if cancel_btn is not None:
+                    cancel_btn.setText(_tr("Cancel"))
+        except Exception:
+            pass

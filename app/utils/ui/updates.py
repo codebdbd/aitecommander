@@ -12,17 +12,17 @@ logger = logging.getLogger(__name__)
 
 @contextmanager
 def suspend_updates(window: SupportsUpdates) -> Iterator[None]:
-    """Временно отключает обновления окна/виджета на время блока `with`.
+    """Temporarily disable widget/window updates for the duration of the `with` block.
 
-    Пример:
+    Example:
         with suspend_updates(self.window):
-            ...  # тяжелая операция обновления UI
+            ...  # heavy UI update operation
 
-    Примечание:
-        Ошибки при восстановлении обновлений (вызове `setUpdatesEnabled(True)`) не
-        прокидываются наверх, но логируются на уровне ERROR для последующей диагностики.
-        Для уже показанных top-level окон обновления *не* отключаются, чтобы избежать
-        визуальных артефактов (например, фантомного контура при разворачивании).
+    Note:
+        Errors when restoring updates (calling `setUpdatesEnabled(True)`) are not
+        propagated but are logged at ERROR level for diagnostics. For already
+        shown top-level windows updates are not disabled to avoid visual artifacts
+        (e.g., phantom outline on maximize).
     """
 
     should_suspend = True
@@ -34,7 +34,7 @@ def suspend_updates(window: SupportsUpdates) -> Iterator[None]:
         if is_window and is_visible:
             should_suspend = False
     except Exception:
-        # Если проверка не удалась, по умолчанию пытаемся отключить обновления
+        # If the check fails, default to attempting to suspend updates
         should_suspend = True
 
     if not should_suspend:
@@ -48,7 +48,7 @@ def suspend_updates(window: SupportsUpdates) -> Iterator[None]:
         try:
             window.setUpdatesEnabled(True)
         except Exception as exc:
-            # Логируем, чтобы не терять информацию о потенциально "замороженном" UI
+            # Log to avoid losing information about a potentially "frozen" UI
             logger.error(
                 "Failed to restore updates via setUpdatesEnabled(True): %s", exc
             )

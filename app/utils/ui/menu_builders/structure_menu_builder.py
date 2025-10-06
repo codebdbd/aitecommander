@@ -1,17 +1,18 @@
-"""Строитель контекстного меню для дерева структуры."""
+"""Context menu builder for the structure tree."""
 
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from PyQt6.QtWidgets import QMenu
 
-# Сервис бизнес-логики контекстного меню
+# Context operations service for structure
 from app.services.structure_context_service import StructureContextService
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 from app.utils.ui.menu_builders.menu_actions import (
     ActionBuilder,
     Shortcuts,
     StructureItemType,
+    MenuTexts,
 )
 from app.utils.ui.qt.roles import get_tree_tuple
 
@@ -24,14 +25,14 @@ logger = logging.getLogger(__name__)
 
 
 class StructureMenuBuilder:
-    """Строитель контекстного меню для дерева структуры."""
+    """Context menu builder for the structure tree."""
 
     def __init__(self, tree_widget, main_window: "MainWindow"):
         self.tree_widget = tree_widget
         self.main_window = main_window
         self.actions = ActionBuilder(tree_widget)
         self.theme = main_window.settings.get_theme()
-        # Инициализация сервиса бизнес-логики
+        # Initialize business-logic service
         dc = getattr(self.main_window, "database_controller", None)
         db = getattr(dc, "db", None)
         self._svc = StructureContextService(db)
@@ -43,7 +44,7 @@ class StructureMenuBuilder:
         add_new_section_cb: Callable,
         sort_tree_cb: Callable,
     ) -> QMenu:
-        """Создаёт контекстное меню для дерева структуры."""
+        """Build context menu for the structure tree."""
         menu = QMenu(self.tree_widget)
 
         if item:
@@ -54,7 +55,7 @@ class StructureMenuBuilder:
         return menu
 
     def _add_item_actions(self, menu: QMenu, item: Any, delete_item_cb: Callable):
-        """Добавляет действия для выбранного элемента."""
+        """Add actions for the selected item."""
         t = get_tree_tuple(item, 0)
         if not t:
             logger.warning("Invalid item data in context menu: None")
@@ -72,30 +73,29 @@ class StructureMenuBuilder:
     def _add_section_actions(
         self, menu: QMenu, item: Any, section_id: Any, delete_item_cb: Callable
     ):
-        """Добавляет действия для раздела."""
+        """Actions for the selected section."""
         menu.addAction(
             self.actions.create(
-                "Редактировать раздел",
+                MenuTexts.EDIT_SECTION,
                 lambda: self.main_window.edit_structure_item(item),
                 Shortcuts.EDIT,
                 get_menu_icon("edit", self.theme),
             )
         )
-
         menu.addAction(
             self.actions.create(
-                "Добавить категорию",
+                MenuTexts.ADD_CATEGORY,
                 self.main_window.add_new_category,
                 Shortcuts.ADD_CATEGORY,
                 get_menu_icon("add_category", self.theme),
             )
         )
 
-        # Вставить категорию (если в буфере корректные данные категории)
+        # Paste category from clipboard (if clipboard data is valid)
         if self._svc.clipboard_has_pastable_category():
             menu.addAction(
                 self.actions.create(
-                    "Вставить",
+                    MenuTexts.PASTE_CATEGORY,
                     lambda: self._paste_category_from_clipboard_to_section(section_id),
                     Shortcuts.CTRL_V,
                     get_menu_icon("paste", self.theme),
@@ -106,110 +106,40 @@ class StructureMenuBuilder:
 
         menu.addAction(
             self.actions.create(
-                "Удалить раздел",
+                MenuTexts.DELETE_SECTION,
                 lambda: delete_item_cb(item),
                 Shortcuts.DELETE,
                 get_menu_icon("delete", self.theme),
             )
         )
 
-    def _add_category_actions(
-        self, menu: QMenu, item: Any, id_: Any, delete_item_cb: Callable
-    ):
-        """Добавляет действия для категории."""
-        menu.addAction(
-            self.actions.create(
-                "Редактировать категорию",
-                lambda: self.main_window.edit_structure_item(item),
-                Shortcuts.EDIT,
-                get_menu_icon("edit", self.theme),
-            )
-        )
-
-        menu.addAction(
-            self.actions.create(
-                "Добавить ссылку",
-                lambda: self.main_window.links_actions.show_link_dialog(
-                    category_id=id_
-                ),
-                Shortcuts.ADD_LINK,
-                get_menu_icon("add_link", self.theme),
-            )
-        )
-
-        menu.addSeparator()
-
-        # 3. Копировать
-        menu.addAction(
-            self.actions.create(
-                "Копировать",
-                lambda: self._copy_category_tree_to_clipboard(item, id_),
-                Shortcuts.CTRL_C,
-                get_menu_icon("copy", self.theme),
-            )
-        )
-
-        # 4. Вырезать (одиночно/массово)
-        def _cut_action():
-            # Определим множественный выбор категорий (QTreeView)
-            selected = self._get_selected_category_nodes()
-            if len(selected) > 1:
-                # Массово: сначала скопировать все выбранные категории в буфер, потом пакетно удалить
-                self._copy_selected_categories_to_clipboard(selected)
-                try:
-                    if (
-                        hasattr(self.main_window, "structure")
-                        and self.main_window.structure
-                    ):
-                        self.main_window.structure.delete_selected_item()
-                        return
-                except Exception:
-                    logger.exception(
-                        "[CtxMenu] Ошибка пакетного удаления выбранных категорий"
-                    )
-            else:
-                # Одиночная категория
-                self._copy_category_tree_to_clipboard(item, id_)
-                # Затем удалить текущий элемент
-                # Используем тот же callback, что и для "Удалить категорию"
-                delete_item_cb(item)
-
-        menu.addAction(
-            self.actions.create(
-                "Вырезать",
-                _cut_action,
-                Shortcuts.CTRL_X,
-                get_menu_icon("cut", self.theme),
-            )
-        )
-
-        # 5. Вставить (только если в буфере есть текст)
+        # Paste (only if clipboard has text)
         if self._svc.clipboard_has_text():
             menu.addAction(
                 self.actions.create(
-                    "Вставить",
+                    MenuTexts.PASTE_LINK,
                     self.main_window.add_new_category,
                     Shortcuts.CTRL_V,
                     get_menu_icon("paste", self.theme),
                 )
             )
 
-        # 6. Удалить категорию / Удлаить выбранное (если выделено несколько)
+        # Delete category / delete selected (if multi-select)
         def _delete_action():
             try:
                 selected = self._get_selected_category_nodes()
             except Exception:
                 logger.exception(
-                    "[CtxMenu] Не удалось получить выделенные категории для удаления; одиночное удаление"
+                    "[CtxMenu] Failed to get selected categories for deletion; using single-item delete"
                 )
                 selected = []
-            # Если в выделении несколько категорий — используем пакетное удаление
+            # If multiple items are selected — use batch delete
             if len(selected) > 1:
                 logger.debug(
                     "[CtxMenu] Batch delete for %s selected categories", len(selected)
                 )
                 try:
-                    # Контроллер доступен как main_window.structure
+                    # Controller available as main_window.structure
                     if (
                         hasattr(self.main_window, "structure")
                         and self.main_window.structure
@@ -218,25 +148,23 @@ class StructureMenuBuilder:
                         return
                 except Exception:
                     logger.exception(
-                        "[CtxMenu] Ошибка пакетного удаления выбранных категорий"
+                        "[CtxMenu] Batch delete failed for selected categories"
                     )
-            # Иначе — одиночное удаление конкретного элемента
+            # Otherwise — delete single item
             delete_item_cb(item)
 
-        action_text = "Удалить категорию"
+        # Choose localized caption key based on selection count
         try:
-            # Меняем подпись, если выделено больше одной категории
             selected_count = len(self._get_selected_category_nodes())
-            if selected_count > 1:
-                action_text = "Удалить выбранное"
         except Exception:
             logger.exception(
-                "[CtxMenu] Не удалось вычислить количество выделенных категорий"
+                "[CtxMenu] Failed to compute selected categories count"
             )
-
+            selected_count = 0
+        action_text_key = MenuTexts.DELETE_SELECTED if selected_count > 1 else MenuTexts.DELETE_CATEGORY
         menu.addAction(
             self.actions.create(
-                action_text,
+                action_text_key,
                 _delete_action,
                 Shortcuts.DELETE,
                 get_menu_icon("delete", self.theme),
@@ -245,10 +173,10 @@ class StructureMenuBuilder:
 
         menu.addSeparator()
 
-        # 7. Выделить все (категории раздела)
+        # Select all categories under section
         menu.addAction(
             self.actions.create(
-                "Выделить все",
+                MenuTexts.SELECT_ALL_CATEGORIES,
                 lambda: self._select_all_categories_in_section(item),
                 Shortcuts.CTRL_A,
                 get_menu_icon("select_all", self.theme),
@@ -257,14 +185,14 @@ class StructureMenuBuilder:
 
         menu.addSeparator()
 
-        # 7-8. Отменить/Повторить, если есть в главном окне
+        # Undo/Redo from main window if available
         if hasattr(self.main_window, "undo_action") and self.main_window.undo_action:
             menu.addAction(self.main_window.undo_action)
         if hasattr(self.main_window, "redo_action") and self.main_window.redo_action:
             menu.addAction(self.main_window.redo_action)
 
-    # --- Helpers ---
-    # Проксирующие методы для читаемости прежних вызовов (минимально-инвазивный рефакторинг)
+    # --- Helper methods ---
+    # Proxy helpers for readability/backward-compatibility
     def _clipboard_has_text(self) -> bool:
         return self._svc.clipboard_has_text()
 
@@ -272,12 +200,12 @@ class StructureMenuBuilder:
         return self._svc.clipboard_has_pastable_category()
 
     def _copy_category_tree_to_clipboard(self, item: Any, cat_id: Any) -> None:
-        """Копирует в буфер одно дерево категории либо, при множественном выборе, сразу несколько."""
+        """Copy a single category tree or multiple (when multi-select) to clipboard."""
         try:
             selected = self._get_selected_category_nodes()
         except Exception:
             logger.exception(
-                "[Clipboard] Не удалось получить список выделенных категорий; копируем одиночную"
+                "[Clipboard] Failed to get selected categories list; copying single"
             )
             selected = []
         if len(selected) > 1:
@@ -291,23 +219,24 @@ class StructureMenuBuilder:
                     ids.append(int(cid))
                 except Exception:
                     logger.exception(
-                        "[Clipboard] Некорректный идентификатор категории в выделении: %r",
+                        "[Clipboard] Invalid category id in selection: %r",
                         cid,
                     )
                     continue
             if ids:
                 self._svc.copy_categories_to_clipboard(ids)
                 return
-        # одиночная категория
+        # Single category
         try:
             self._svc.copy_category_tree_to_clipboard(int(cat_id))
         except Exception:
             logger.exception(
-                "[Clipboard] Ошибка копирования дерева категории id=%r в буфер", cat_id
+                "[Clipboard] Failed to copy category tree id=%r to clipboard", cat_id
             )
 
+
     def _copy_selected_categories_to_clipboard(self, items: list[Any]) -> None:
-        """Копирует несколько выделенных категорий по их id через сервис."""
+        """Copy several selected categories by their ids via service."""
         ids: list[int] = []
         for it in items:
             t = get_tree_tuple(it, 0)
@@ -320,8 +249,7 @@ class StructureMenuBuilder:
                 ids.append(int(cat_id))
             except Exception:
                 logger.exception(
-                    "[Clipboard] Некорректный идентификатор категории в выделении: %r",
-                    cat_id,
+                    "[Clipboard] Invalid category id in selection: %r", cat_id
                 )
                 continue
         if ids:
@@ -329,41 +257,40 @@ class StructureMenuBuilder:
                 self._svc.copy_categories_to_clipboard(ids)
             except Exception:
                 logger.exception(
-                    "[Clipboard] Ошибка пакетного копирования категорий в буфер: %r",
+                    "[Clipboard] Failed to batch copy categories to clipboard: %r",
                     ids,
                 )
 
     def _paste_category_from_clipboard_to_section(self, section_id: Any) -> None:
-        """Вставляет одну или несколько категорий из буфера в раздел, делегируя бизнес-логику сервису."""
+        """Paste one or more categories from clipboard into a section (delegates business logic to service)."""
         try:
             logger.debug("[PasteCategories] start paste into section_id=%s", section_id)
 
             business = getattr(self.main_window, "structure_business", None)
             struct = getattr(self.main_window, "structure", None)
-            tree_widget = getattr(struct, "tree", None)
             selection = getattr(struct, "selection_handler", None)
 
-            # Подавляем сигналы выбора/дерева на время пакетной операции
+            # Suppress selection/tree signals during batch operation
             try:
                 try:
                     setattr(self.main_window, "_suppress_deletes", True)
                     logger.debug("[PasteCategories] _suppress_deletes set=True")
                 except Exception:
                     logger.exception(
-                        "[PasteCategories] Не удалось установить _suppress_deletes=True"
+                        "[PasteCategories] Failed to set _suppress_deletes=True"
                     )
                 if selection is not None:
                     try:
                         selection.begin_suppress_selection()
                     except Exception:
                         logger.exception(
-                            "[PasteCategories] Не удалось начать подавление выбора"
+                            "[PasteCategories] Failed to begin selection suppression"
                         )
                 if tree_widget is not None:
                     tree_widget.blockSignals(True)
             except Exception:
                 logger.exception(
-                    "[PasteCategories] Не удалось заблокировать сигналы/начать подавление событий UI"
+                    "[PasteCategories] Failed to block signals/start UI suppression"
                 )
 
             created_categories: list[dict] = []
@@ -372,30 +299,30 @@ class StructureMenuBuilder:
                     int(section_id)
                 )
             finally:
-                # Возвращаем сигналы
+                # Restore signals
                 try:
                     if tree_widget is not None:
                         tree_widget.blockSignals(False)
                 except Exception:
                     logger.exception(
-                        "[PasteCategories] Не удалось разблокировать сигналы дерева"
+                        "[PasteCategories] Failed to unblock tree signals"
                     )
                 try:
                     if selection is not None:
                         selection.end_suppress_selection()
                 except Exception:
                     logger.exception(
-                        "[PasteCategories] Не удалось завершить подавление выбора"
+                        "[PasteCategories] Failed to end selection suppression"
                     )
                 try:
                     setattr(self.main_window, "_suppress_deletes", False)
                     logger.debug("[PasteCategories] _suppress_deletes set=False")
                 except Exception:
                     logger.exception(
-                        "[PasteCategories] Не удалось установить _suppress_deletes=False"
+                        "[PasteCategories] Failed to set _suppress_deletes=False"
                     )
 
-            # Инкрементальное обновление UI без полной перезагрузки
+            # Incremental UI update without full reload
             if created_categories:
                 try:
                     if business:
@@ -403,13 +330,13 @@ class StructureMenuBuilder:
                             clear_icon_cache()
                         except Exception:
                             logger.exception(
-                                "[PasteCategories] Не удалось очистить кэш иконок"
+                                "[PasteCategories] Failed to clear icon cache"
                             )
                         try:
                             business._invalidate_categories_cache(int(section_id))
                         except Exception:
                             logger.exception(
-                                "[PasteCategories] Не удалось инвалидацировать кэш категорий секции %r",
+                                "[PasteCategories] Failed to invalidate categories cache for section %r",
                                 section_id,
                             )
                         try:
@@ -419,24 +346,24 @@ class StructureMenuBuilder:
                             )
                         except Exception:
                             logger.exception(
-                                "[PasteCategories] Не удалось запланировать перезагрузку структуры"
+                                "[PasteCategories] Failed to schedule structure reload"
                             )
                         business.section_selected.emit(int(section_id))
                 except Exception:
                     logger.exception(
-                        "[PasteCategories] Ошибка обновления UI после вставки категорий"
+                        "[PasteCategories] Failed to update UI after pasting categories"
                     )
             logger.debug(
                 "[PasteCategories] done, created=%s items", len(created_categories)
             )
         except Exception:
-            # Не роняем UI из-за ошибок вставки — но логируем
+            # Do not crash UI due to paste errors — log them
             logger.exception(
-                "[PasteCategories] Ошибка вставки категорий в раздел %r", section_id
+                "[PasteCategories] Category paste failed for section %r", section_id
             )
 
     def _select_all_categories_in_section(self, item: Any) -> None:
-        """Выделить все категории внутри раздела (QTreeView-only)."""
+        """Select all categories inside a section (QTreeView-only)."""
         try:
             if not (
                 hasattr(self.tree_widget, "selectionModel")
@@ -447,7 +374,7 @@ class StructureMenuBuilder:
             sel_model = self.tree_widget.selectionModel()
             if not (model and sel_model):
                 return
-            # item — QModelIndex категории или раздела
+            # item — QModelIndex of category or section
             idx = item if getattr(item, "isValid", lambda: False)() else None
             if idx is None:
                 return
@@ -458,9 +385,9 @@ class StructureMenuBuilder:
             section_index = idx if typ == StructureItemType.SECTION else idx.parent()
             if not (section_index and section_index.isValid()):
                 return
-            # Снимаем выделение
+            # Clear current selection
             sel_model.clearSelection()
-            # Выделяем все дочерние элементы раздела (категории)
+            # Select all child items (categories) of the section
             row_count = model.rowCount(section_index)
             for r in range(row_count):
                 child = model.index(r, 0, section_index)
@@ -473,11 +400,11 @@ class StructureMenuBuilder:
                             | sel_model.SelectionFlag.Rows,
                         )
         except Exception:
-            logger.exception("[SelectAll] Ошибка выделения всех категорий в разделе")
+            logger.exception("[SelectAll] Failed to select all categories in section")
 
-    # --- Универсальные хелперы выбора категорий ---
+    # --- Category selection helpers ---
     def _get_selected_category_nodes(self) -> list[Any]:
-        """Возвращает список выделенных узлов категорий для QTreeView (QModelIndex)."""
+        """Return selected category nodes for QTreeView (QModelIndex)."""
         try:
             if hasattr(self.tree_widget, "selectionModel") and hasattr(
                 self.tree_widget, "model"
@@ -495,17 +422,17 @@ class StructureMenuBuilder:
                     )
                 ]
         except Exception:
-            logger.exception("[Selection] Ошибка получения выделенных узлов категорий")
+            logger.exception("[Selection] Failed to fetch selected category nodes")
             return []
         return []
 
     def _add_root_actions(
         self, menu: QMenu, add_new_section_cb: Callable, sort_tree_cb: Callable
     ):
-        """Добавляет действия для корневого уровня."""
+        """Add actions for the root level."""
         menu.addAction(
             self.actions.create(
-                "Добавить раздел",
+                MenuTexts.ADD_SECTION,
                 add_new_section_cb,
                 Shortcuts.ADD_SECTION,
                 get_menu_icon("add_section", self.theme),
@@ -516,7 +443,7 @@ class StructureMenuBuilder:
 
         menu.addAction(
             self.actions.create(
-                "Сортировать категории",
+                MenuTexts.SORT_CATEGORIES,
                 sort_tree_cb,
                 Shortcuts.SORT,
                 get_menu_icon("sort", self.theme),

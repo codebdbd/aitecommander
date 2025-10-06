@@ -124,6 +124,14 @@ class FileSearchDialog(BaseDialog):
         self.search_worker = None
         self.is_searching = False
 
+        # Hold references to UI texts for runtime retranslation
+        self.lbl_search_location = None
+        self.lbl_name_regex = None
+        self.lbl_pattern = None
+        self.lbl_content = None
+        self.lbl_size = None
+        self.lbl_modified = None
+
         self._setup_ui()
         self._setup_defaults()
 
@@ -138,7 +146,8 @@ class FileSearchDialog(BaseDialog):
 
         # Folder selection
         folder_layout = QHBoxLayout()
-        folder_layout.addWidget(QLabel(self.tr("Search location:")))
+        self.lbl_search_location = QLabel(self.tr("Search location:"))
+        folder_layout.addWidget(self.lbl_search_location)
         self.root_le = QLineEdit(os.path.expanduser("~"))
         self.root_le.setMinimumWidth(200)
         browse_btn = QPushButton(self.tr("Browse"))
@@ -148,7 +157,8 @@ class FileSearchDialog(BaseDialog):
 
         # File name/regex and mask row
         name_mask_layout = QHBoxLayout()
-        name_mask_layout.addWidget(QLabel(self.tr("Name (regex):")))
+        self.lbl_name_regex = QLabel(self.tr("Name (regex):"))
+        name_mask_layout.addWidget(self.lbl_name_regex)
         from PyQt6.QtWidgets import QSizePolicy
 
         self.regex_le = QLineEdit()
@@ -157,7 +167,8 @@ class FileSearchDialog(BaseDialog):
         )
         name_mask_layout.addWidget(self.regex_le)
         name_mask_layout.setStretch(name_mask_layout.count() - 1, 1)
-        name_mask_layout.addWidget(QLabel(self.tr("Pattern:")))
+        self.lbl_pattern = QLabel(self.tr("Pattern:"))
+        name_mask_layout.addWidget(self.lbl_pattern)
         self.pattern_le = QLineEdit("*.*")
         self.pattern_le.setMaximumWidth(100)
         name_mask_layout.addWidget(self.pattern_le)
@@ -227,7 +238,8 @@ class FileSearchDialog(BaseDialog):
         name_mask_layout.addWidget(self.pattern_combo)
 
         # Content filter and toggles
-        name_mask_layout.addWidget(QLabel(self.tr("Content:")))
+        self.lbl_content = QLabel(self.tr("Content:"))
+        name_mask_layout.addWidget(self.lbl_content)
         self.content_le = QLineEdit()
         self.content_le.setMinimumWidth(200)
         self.content_regex_cb = QCheckBox(self.tr("Regex"))
@@ -252,7 +264,8 @@ class FileSearchDialog(BaseDialog):
 
         # File size filter
         size_layout = QHBoxLayout()
-        size_layout.addWidget(QLabel(self.tr("Size (KB):")))
+        self.lbl_size = QLabel(self.tr("Size (KB):"))
+        size_layout.addWidget(self.lbl_size)
         from PyQt6.QtGui import QIntValidator
 
         self.size_min_le = QLineEdit()
@@ -269,7 +282,8 @@ class FileSearchDialog(BaseDialog):
 
         # Modified date filter
         date_layout = QHBoxLayout()
-        date_layout.addWidget(QLabel(self.tr("Modified:")))
+        self.lbl_modified = QLabel(self.tr("Modified:"))
+        date_layout.addWidget(self.lbl_modified)
         self.date_from_de = QDateEdit()
         self.date_from_de.setCalendarPopup(True)
         self.date_from_de.setDate(QDate.currentDate().addYears(-1))
@@ -357,6 +371,49 @@ class FileSearchDialog(BaseDialog):
             )
         except Exception:
             pass
+
+        # Initial translation pass
+        self.retranslateUi()
+
+    def retranslateUi(self) -> None:  # type: ignore[override]
+        """Update all texts on language change."""
+        self.setWindowTitle(self.tr("Advanced file search"))
+        if self.lbl_search_location is not None:
+            self.lbl_search_location.setText(self.tr("Search location:"))
+        if self.lbl_name_regex is not None:
+            self.lbl_name_regex.setText(self.tr("Name (regex):"))
+        if self.lbl_pattern is not None:
+            self.lbl_pattern.setText(self.tr("Pattern:"))
+        if self.lbl_content is not None:
+            self.lbl_content.setText(self.tr("Content:"))
+        if self.lbl_size is not None:
+            self.lbl_size.setText(self.tr("Size (KB):"))
+        if self.lbl_modified is not None:
+            self.lbl_modified.setText(self.tr("Modified:"))
+
+        # Buttons and tooltips
+        if hasattr(self, "pattern_combo") and self.pattern_combo is not None:
+            self.pattern_combo.setToolTip(self.tr("Quickly apply an extension mask"))
+        if hasattr(self, "content_regex_cb") and self.content_regex_cb is not None:
+            self.content_regex_cb.setText(self.tr("Regex"))
+        if hasattr(self, "case_cb") and self.case_cb is not None:
+            self.case_cb.setText(self.tr("Case sensitive"))
+        if hasattr(self, "search_btn") and self.search_btn is not None:
+            self.search_btn.setText(self.tr("Search"))
+        if hasattr(self, "stop_btn") and self.stop_btn is not None:
+            self.stop_btn.setText(self.tr("Stop"))
+        if hasattr(self, "add_link_btn") and self.add_link_btn is not None:
+            self.add_link_btn.setText(self.tr("Add as link"))
+        if hasattr(self, "open_folder_btn") and self.open_folder_btn is not None:
+            self.open_folder_btn.setText(self.tr("Open in file explorer"))
+        if hasattr(self, "status_label") and self.status_label is not None and not self.is_searching:
+            self.status_label.setText(self.tr("Ready to search"))
+
+        # Placeholders
+        if hasattr(self, "size_min_le") and self.size_min_le is not None:
+            self.size_min_le.setPlaceholderText(self.tr("from"))
+        if hasattr(self, "size_max_le") and self.size_max_le is not None:
+            self.size_max_le.setPlaceholderText(self.tr("to"))
 
     def _update_buttons(self):
         """Enable/disable buttons based on current selection."""

@@ -21,10 +21,12 @@ from app.utils.browser.browser_profiles import persistent_cache as _pc
 from app.utils.browser.browser_profiles import profile_manager as _pm
 from app.utils.browser.browser_profiles.utils import get_browser_display_name
 
+from .base_dialog import BaseDialog
+
 logger = logging.getLogger(__name__)
 
 
-class BrowserProfileDialog(QDialog):
+class BrowserProfileDialog(BaseDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(self.tr("Select browser profile"))
@@ -36,12 +38,15 @@ class BrowserProfileDialog(QDialog):
         self._populate_browsers()
         # Do not load every profile immediately; populate on demand for the chosen browser.
         # self._populate_profiles()
+        # Initial translation pass
+        self.retranslateUi()
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         # 1. Row: browsers + refresh button
         top_layout = QHBoxLayout()
-        top_layout.addWidget(QLabel(self.tr("Browsers:")))
+        self.lbl_browsers = QLabel(self.tr("Browsers:"))
+        top_layout.addWidget(self.lbl_browsers)
         self.browser_combo = QComboBox()
         self.browser_combo.currentIndexChanged.connect(self._populate_profiles)
         top_layout.addWidget(self.browser_combo, 1)
@@ -99,6 +104,27 @@ class BrowserProfileDialog(QDialog):
         self.button_box.rejected.connect(self.reject)
         bottom_layout.addWidget(self.button_box, 0)
         layout.addLayout(bottom_layout)
+
+    def retranslateUi(self) -> None:  # type: ignore[override]
+        """Update UI texts on language change."""
+        self.setWindowTitle(self.tr("Select browser profile"))
+        if hasattr(self, "lbl_browsers") and self.lbl_browsers is not None:
+            self.lbl_browsers.setText(self.tr("Browsers:"))
+        if hasattr(self, "refresh_btn") and self.refresh_btn is not None:
+            self.refresh_btn.setText(self.tr("Refresh"))
+        if hasattr(self, "search_line") and self.search_line is not None:
+            self.search_line.setPlaceholderText(self.tr("Search by name/email…"))
+        if hasattr(self, "select_all_btn") and self.select_all_btn is not None:
+            self.select_all_btn.setText(self.tr("Add all"))
+        if hasattr(self, "deselect_all_btn") and self.deselect_all_btn is not None:
+            self.deselect_all_btn.setText(self.tr("Clear selection"))
+        if hasattr(self, "button_box") and self.button_box is not None:
+            ok_btn = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
+            cancel_btn = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
+            if ok_btn is not None:
+                ok_btn.setText(self.tr("Save"))
+            if cancel_btn is not None:
+                cancel_btn.setText(self.tr("Cancel"))
 
     def _set_controls_enabled(self, enabled: bool):
         self.browser_combo.setEnabled(enabled)

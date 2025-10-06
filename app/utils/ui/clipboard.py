@@ -12,23 +12,23 @@ logger = logging.getLogger(__name__)
 
 
 def _to_jsonable(value: Any) -> Any:
-    """Преобразует значение к JSON-совместимому виду или возвращает None для пропуска.
+    """Convert a value to a JSON-serializable form or return ``None`` to skip it.
 
-    - Удаляет объекты UI (например, QIcon)
-    - Конвертирует Path в str
-    - Рекурсивно обрабатывает dict/list/tuple
-    - Пропускает (возвращает None) неподдерживаемые типы
+    - Removes UI objects (e.g., ``QIcon``)
+    - Converts ``Path`` to ``str``
+    - Processes ``dict``/``list``/``tuple`` recursively
+    - Skips unsupported types by returning ``None``
     """
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     if isinstance(value, Path):
         return str(value)
     if isinstance(value, QIcon):
-        return None  # не сериализуем в буфер, иконка восстанавливается по icon_path
+        return None  # do not serialize UI icon; it is restored via icon_path
     if isinstance(value, dict):
         out: Dict[str, Any] = {}
         for k, v in value.items():
-            # пропускаем служебные ключи вида _icon, _cache и т.п.
+            # skip internal keys like _icon, _cache, etc.
             if isinstance(k, str) and k.startswith("_"):
                 continue
             jv = _to_jsonable(v)
@@ -42,7 +42,7 @@ def _to_jsonable(value: Any) -> Any:
             if jv is not None:
                 arr.append(jv)
         return arr
-    # Любые иные типы не сериализуем — пропускаем
+    # Skip all other unsupported types
     return None
 
 

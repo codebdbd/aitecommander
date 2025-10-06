@@ -170,6 +170,8 @@ class LinkDialog(BaseDialog):
         # Configure UI and load data
         self._setup_ui_properties()
         self._load_initial()
+        # Initial translation pass
+        self.retranslateUi()
 
     def _init_core_properties(
         self,
@@ -283,9 +285,7 @@ class LinkDialog(BaseDialog):
 
     def _setup_ui_properties(self) -> None:
         """Configure dialog UI properties."""
-        self.setWindowTitle(
-            self.tr("Edit link") if self.link else self.tr("Add link")
-        )
+        # Window title is updated in retranslateUi()
         self.setFixedSize(
             app_config.ui.get_link_dialog_width(),
             app_config.ui.get_link_dialog_height(),
@@ -537,3 +537,23 @@ class LinkDialog(BaseDialog):
                 "LinkDialog: failed to stop processing timer during close: %s", e
             )
         super().closeEvent(event)
+
+    def retranslateUi(self) -> None:  # type: ignore[override]
+        """Update UI texts on language change."""
+        # Window title
+        self.setWindowTitle(
+            self.tr("Edit link") if self.link else self.tr("Add link")
+        )
+        # Delegate to UI component
+        if hasattr(self, "ui") and self.ui is not None:
+            self.ui.retranslate()
+        # Profile button text (reset to default if not customized)
+        try:
+            profile_btn = self._get_profile_btn()
+            if profile_btn is not None:
+                current_text = profile_btn.text()
+                # Only reset if it's the default "Profile" text to avoid overriding custom summaries
+                if not current_text or current_text == self.tr("Profile"):
+                    profile_btn.setText(self.tr("Profile"))
+        except Exception:
+            pass
