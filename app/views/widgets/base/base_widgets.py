@@ -1,8 +1,7 @@
 """Base widgets for reuse within the AITE UI."""
 
-import logging
-from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from collections.abc import Iterable
+from typing import Any, Callable, Dict, List, Optional
 
 from PyQt6.QtCore import QEvent, QModelIndex, Qt, pyqtSignal
 from PyQt6.QtGui import QDrag, QDropEvent, QPixmap
@@ -33,10 +32,8 @@ from app.utils.ui.dnd.link import (
 )
 from app.utils.ui.dnd.mime import MimeDataParser, get_link_mime
 from app.utils.ui.dnd.pixmap import create_default_pixmap, create_text_pixmap
-from app.utils.ui.icon.icon_resolver import get_default_icon_path, resolve_icon_path
-from app.views.widgets.link_button_mixin import LinkButtonMixin
-
-logger = logging.getLogger(__name__)
+from app.utils.ui.icon.icon_resolver import resolve_icon_path
+from app.views.widgets.protocols import LinksBusinessProtocol
 
 
 class BasePanelWidget(QWidget):
@@ -79,16 +76,9 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
     def __init__(
         self, 
         main_window: Optional[QWidget] = None, 
-        links_business: Any = None,
+        links_business: LinksBusinessProtocol = None,
         batch_size: int = 50
     ) -> None:
-        """Initialize with backward compatible API.
-        
-        Args:
-            main_window: Reference to main window
-            links_business: Business logic for links (stored for compatibility)
-            batch_size: Batch size for async population (default 50 for tests)
-        """
         # Call unified base with specified batch_size
         super().__init__(main_window=main_window, config=None, batch_size=batch_size)
         
@@ -139,23 +129,18 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
         if not self._pending_items:
             self._finish_populate()
             return
-        
-        BATCH_SIZE = 50
-        batch = self._pending_items[:BATCH_SIZE]
-        self._pending_items = self._pending_items[BATCH_SIZE:]
+
+        # ✅ ИСПРАВЛЕНИЕ: Конфигурируемый batch_size вместо hardcoded значения
+        batch_size = app_config.ui.get("panel_batch_size", 50)
+        batch = self._pending_items[:batch_size]
+        self._pending_items = self._pending_items[batch_size:]
         
         for i, link in enumerate(batch):
             try:
                 button = self._create_button_func(link)
-            except Exception:
-                link_info = {
-                    "id": link.get("id", "Unknown"),
-                    "name": link.get("name", "Unknown"),
-                    "url": link.get("url", "Unknown")[:50] if link.get("url") else "Unknown",
-                }
-                logger.exception(
-                    "Failed to create panel button for item %s", link_info
-                )
+            except (AttributeError, KeyError, ValueError, TypeError) as expected:
+                # ИСПРАВЛЕНИЕ: Конкретные исключения вместо широкого Exception
+                logger.debug("Failed to create button for link %s: %s", link.get('id', 'unknown'), expected)
                 continue
             
             if button is not None:
@@ -182,9 +167,11 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
         
         try:
             self.updateGeometry()
-        except Exception:
+        except (AttributeError, RuntimeError) as e:
+            # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения вместо широкого Exception
             logger.debug(
-                "BaseLinksPanelWidget: updateGeometry failed after populate",
+                "BaseLinksPanelWidget: updateGeometry failed after populate: %s",
+                e,
                 exc_info=True,
             )
         
@@ -227,9 +214,10 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
         except (OSError, FileNotFoundError, PermissionError) as e:
             logger.warning("Failed to resolve icon path '%s': %s", icon_path, e)
             return str(self._get_default_icon_path())
-        except Exception as e:
-            logger.exception(
-                "Unexpected error while resolving icon '%s': %s", icon_path, e
+        except (AttributeError, ValueError, TypeError) as e:
+            # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения для разных типов ошибок
+            logger.warning(
+                "Error while resolving icon '%s': %s", icon_path, e
             )
             return str(self._get_default_icon_path())
 
@@ -311,8 +299,9 @@ class BaseDragDropTableWidget(QTableView):
         try:
             item_ids = self._extract_item_ids_from_items(items)
             return MimeDataParser.create_mime_data(item_ids, self.MIME_TYPE)
-        except Exception as e:
-            logging.warning("Failed to create MIME data: %s", e)
+        except (AttributeError, ValueError, TypeError) as e:
+            # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения для создания MIME данных
+            logger.warning("Failed to create MIME data: %s", e)
             return None
 
     def _extract_item_ids_from_items(self, items: Iterable[QModelIndex]) -> List[int]:
@@ -492,8 +481,9 @@ class BaseDragDropTableWidget(QTableView):
                 try:
                     if moved:
                         self.horizontalHeader().setSortIndicatorShown(False)
-                except Exception:
-                    pass
+                except (AttributeError, RuntimeError) as e:
+                    # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения для установки индикатора сортировки
+                    logger.debug("Failed to set sort indicator: %s", e)
             self._sorting_disabled_for_drag = False
 
     def _is_internal_drop(self, event: QDropEvent) -> bool:
@@ -501,7 +491,9 @@ class BaseDragDropTableWidget(QTableView):
         src = event.source()
         try:
             return src is self or src is self.viewport()
-        except Exception:
+        except (AttributeError, RuntimeError) as e:
+            # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения для проверки источника drop
+            logger.debug("Failed to determine drop source: %s", e)
             return False
 
     def _get_selected_rows(self) -> List[int]:
@@ -545,12 +537,15 @@ class BaseDragDropTableWidget(QTableView):
         try:
             if hasattr(self, "viewport") and self.viewport() is not None:
                 self.viewport().update()
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения для обновления viewport
+            logger.debug("Failed to update viewport after row move: %s", e)
+        
         try:
             self.update()
-        except Exception:
-            pass
+        except (AttributeError, RuntimeError) as e:
+            # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения для обновления виджета
+            logger.debug("Failed to update widget after row move: %s", e)
 
     def _get_current_order(self) -> List[int]:
         """Return IDs of items in the current order (centralized helper)."""
@@ -575,7 +570,8 @@ class BaseDragDropTableWidget(QTableView):
                 return self._create_single_row_pixmap(rows[0])
             return self._create_multi_row_pixmap(row_count)
 
-        except Exception as e:
+        except (AttributeError, ValueError, TypeError) as e:
+            # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения для создания drag pixmap
             logger.warning("Failed to create drag pixmap: %s", e)
             return None
 

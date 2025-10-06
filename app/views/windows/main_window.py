@@ -1,17 +1,15 @@
-from __future__ import annotations
+from PyQt6.QtCore import QEvent, QTimer, pyqtSignal
+from PyQt6.QtGui import QAction, QKeySequence, QUndoStack
+from PyQt6.QtWidgets import QMainWindow, QWidget
 
 import logging
 import weakref
 from contextlib import suppress
 from typing import TYPE_CHECKING, Optional
 
-from PyQt6.QtCore import QEvent, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QKeySequence, QUndoStack
-from PyQt6.QtWidgets import QMainWindow, QWidget
-
-from app.utils.ui.timings import SEARCH_RETRY_ATTEMPTS, SEARCH_RETRY_INTERVAL_MS
-from app.views.widgets.link import LinksTableView
+from app.views.widgets.protocols import SystemDialogsProtocol
 from app.ui.retranslatable import ReTranslatable
+from app.views.widgets.link import LinksTableView
 
 if TYPE_CHECKING:
     # Narrowly scoped types for static analysis only
@@ -63,7 +61,7 @@ class MainWindow(QMainWindow, ReTranslatable):
     spheres_controller: "SpheresBarController"
     top_panels_controller: "TopPanelsController"
     ui_state: "UIStateManager"
-    system_dialogs: object
+    system_dialogs: SystemDialogsProtocol
     theme_ctrl: "ThemeController"
     
     # UI components
@@ -245,7 +243,7 @@ class MainWindow(QMainWindow, ReTranslatable):
 
         return undo_action, redo_action
 
-    def __init__(self, settings: AppSettings, theme_ctrl: ThemeController):
+    def __init__(self, settings: AppSettings, theme_ctrl: "ThemeController"):
         super().__init__()
         # Initialization moved to bootstrap; only accept core dependencies here.
         self.settings = settings
@@ -430,13 +428,8 @@ class MainWindow(QMainWindow, ReTranslatable):
         """Shut down gracefully and release resources."""
         logger.info("MainWindow.closeEvent: initiating shutdown")
         
-        # Stop search timer to avoid leaks
-        try:
-            if hasattr(self, '_search_timer'):
-                self._search_timer.stop()
-                self._search_timer.deleteLater()
-        except (AttributeError, RuntimeError):
-            pass
+        # ✅ ИСПРАВЛЕНИЕ: Comprehensive cleanup для предотвращения memory leaks
+        self._cleanup_resources()
         
         if hasattr(self, "app_shutdown") and self.app_shutdown:
             try:
@@ -446,3 +439,57 @@ class MainWindow(QMainWindow, ReTranslatable):
             except Exception:
                 logger.exception("MainWindow.closeEvent: AppShutdownController failed, falling back to base closeEvent")
         super().closeEvent(event)
+    
+    def _cleanup_resources(self) -> None:
+        """✅ ИСПРАВЛЕНИЕ: Централизованная очистка ресурсов для предотвращения утечек памяти."""
+        logger.debug("MainWindow._cleanup_resources: starting cleanup")
+        
+        # 1. Stop and cleanup search timer
+        try:
+            if hasattr(self, '_search_timer'):
+                self._search_timer.stop()
+                self._search_timer.timeout.disconnect()
+                self._search_timer.deleteLater()
+        except (AttributeError, RuntimeError):
+            pass
+        
+        # 2. Disconnect undo/redo actions to prevent dangling references
+        try:
+            if hasattr(self, 'undo_action') and self.undo_action:
+                self.undo_action.triggered.disconnect()
+        except (AttributeError, RuntimeError, TypeError):
+            pass
+        
+        try:
+            if hasattr(self, 'redo_action') and self.redo_action:
+                self.redo_action.triggered.disconnect()
+        except (AttributeError, RuntimeError, TypeError):
+            pass
+        
+        # 3. Cleanup undo stack connections
+        try:
+            if hasattr(self, 'undo_stack') and self.undo_stack:
+                # Disconnect all signals to prevent callbacks on deleted objects
+                self.undo_stack.indexChanged.disconnect()
+                self.undo_stack.cleanChanged.disconnect()
+                self.undo_stack.canUndoChanged.disconnect()
+                self.undo_stack.canRedoChanged.disconnect()
+        except (AttributeError, RuntimeError, TypeError):
+            pass
+        
+        # 4. Cleanup facade and controllers
+        try:
+            if hasattr(self, 'facade') and self.facade:
+                if hasattr(self.facade, 'cleanup'):
+                    self.facade.cleanup()
+        except Exception as e:
+            logger.warning("MainWindow._cleanup_resources: facade cleanup error: %s", e)
+        
+        # 5. Clear table model to prevent access to deleted data
+        try:
+            if hasattr(self, 'table') and self.table:
+                self.table.setModel(None)
+        except (AttributeError, RuntimeError):
+            pass
+        
+        logger.debug("MainWindow._cleanup_resources: cleanup completed")

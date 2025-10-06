@@ -8,7 +8,14 @@ from .base import DatabaseBase, DatabaseError, ValidationError, db_lock
 from .types import LinkType
 
 # Экспортируем workers для асинхронных операций
-from .workers import DatabaseWorker, WorkerSignals, ImportStructureWorker, ExportStructureWorker, BackupWorker
+from .workers import (
+    DatabaseWorker,
+    WorkerSignals,
+    ImportStructureWorker,
+    ExportStructureWorker,
+    BackupWorker,
+    InitializationWorker,
+)
 
 __all__ = [
     # Core
@@ -32,4 +39,5 @@ __all__ = [
     "ImportStructureWorker",
     "ExportStructureWorker",
     "BackupWorker",
+    "InitializationWorker",
 ]

@@ -73,12 +73,18 @@ class EnhancedLock:
     """Улучшенная блокировка с таймаутами и мониторингом."""
 
     def __init__(self, name: str, lock_type: LockType, reentrant: bool = True):
+        """Инициализирует улучшенную блокировку.
+        
+        ✅ ИСПРАВЛЕНИЕ: Добавлен порог для логирования.
+        """
         self.name = name
         self.lock_type = lock_type
         self._lock = RLock() if reentrant else Lock()
         self._acquisition_time: Optional[float] = None
         self._holder_thread: Optional[int] = None
         self._stats = LockStats(name, lock_type.value)
+        # ✅ Логировать только медленные операции
+        self._log_threshold_ms = 100.0  # Логировать если > 100ms
 
     def acquire(self, timeout: Optional[float] = None) -> bool:
         """
@@ -95,8 +101,6 @@ class EnhancedLock:
         """
         start_time = time.time()
         thread_id = threading.get_ident()
-
-        logger.debug("[LOCK] Попытка захвата %s потоком %s", self.name, thread_id)
 
         # Пытаемся захватить блокировку
         acquired = self._lock.acquire(timeout=timeout or -1)
@@ -115,33 +119,44 @@ class EnhancedLock:
 
         # Обновляем статистику
         wait_time = time.time() - start_time
+        wait_time_ms = wait_time * 1000.0
         self._stats.update_wait_time(wait_time)
         self._acquisition_time = time.time()
         self._holder_thread = thread_id
         self._stats.holder_thread = thread_id
         self._stats.is_held = True
 
-        logger.debug(
-            "[LOCK] Захвачена %s потоком %s (ожидание: %.3fs)",
-            self.name,
-            thread_id,
-            wait_time,
-        )
+        # ✅ Логируем только медленные операции
+        if wait_time_ms > self._log_threshold_ms:
+            logger.warning(
+                "[LOCK] Slow acquisition %s by thread %s: %.2fms",
+                self.name,
+                thread_id,
+                wait_time_ms,
+            )
+        elif logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                "[LOCK] Захвачена %s потоком %s (ожидание: %.2fms)",
+                self.name,
+                thread_id,
+                wait_time_ms,
+            )
         return True
 
     def release(self) -> None:
-        """Освобождает блокировку и обновляет статистику."""
+        """Освобождает блокировку и обновляет статистику.
+        
+        ✅ ИСПРАВЛЕНИЕ: Логирует только длительное удержание.
+        """
         if self._acquisition_time:
             hold_time = time.time() - self._acquisition_time
             self._stats.update_hold_time(hold_time)
 
-            if hold_time > 1.0:  # Предупреждение о длительном удержании
+            # ✅ Логируем только длительное удержание (> 1s)
+            if hold_time > 1.0:
                 logger.warning(
                     "[LOCK] Длительное удержание %s: %.3fs", self.name, hold_time
                 )
-
-        thread_id = threading.get_ident()
-        logger.debug("[LOCK] Освобождена %s потоком %s", self.name, thread_id)
 
         self._acquisition_time = None
         self._holder_thread = None

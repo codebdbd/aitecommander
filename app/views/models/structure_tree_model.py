@@ -93,7 +93,12 @@ class StructureTreeModel(QAbstractItemModel):
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:  # noqa: N802
         if not index.isValid():
             return None
+        
+        # ✅ ИСПРАВЛЕНИЕ: Проверка на deleted objects
         node: TreeNode = index.internalPointer()
+        if node is None:
+            return None
+            
         if role == Qt.ItemDataRole.DisplayRole:
             return node.name
         if role == Qt.ItemDataRole.DecorationRole:
@@ -108,7 +113,11 @@ class StructureTreeModel(QAbstractItemModel):
     ) -> bool:  # noqa: N802
         if not index.isValid():
             return False
+        
         node: TreeNode = index.internalPointer()
+        if node is None:
+            return False
+            
         if role == Qt.ItemDataRole.EditRole:
             node.name = str(value)
             self.dataChanged.emit(index, index, [Qt.ItemDataRole.DisplayRole])

@@ -108,7 +108,9 @@ def create_main_window(settings, theme_ctrl, db):
     Это соответствует требованию: окно принимает только готовые зависимости верхнего уровня,
     а низкоуровневые детали (Database) не проходят через конструктор окна.
     """
-    from app.views.main_components.initialization.window_initializer import WindowInitializer
+    from app.views.main_components.initialization.window_initializer import (
+        WindowInitializer,
+    )
     from app.views.windows.main_window import MainWindow
 
     # 1) Создаём окно с безопасной сигнатурой (без Database)

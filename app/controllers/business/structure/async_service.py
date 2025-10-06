@@ -11,6 +11,7 @@ from app.controllers.structure_modules import AsyncOperations, AsyncSignalHandle
 
 if TYPE_CHECKING:  # pragma: no cover - only for type checking
     from app.controllers.business.structure_business import StructureBusinessLogic
+    from app.controllers.ui.top_panels_controller import TopPanelsController
     from app.models import Database
 
 
@@ -21,8 +22,8 @@ class StructureAsyncService(QObject):
         super().__init__(owner)
         self._owner = owner
         self._logger = logger
-        self.async_operations = AsyncOperations(db, logger)
-        self._handlers = AsyncSignalHandlers(owner)
+        self.async_operations = AsyncOperations(db, logger, parent=self)  # ✅ Добавлен parent
+        self._handlers = AsyncSignalHandlers(owner, parent=self)  # ✅ Добавлен parent
         self.async_operations.connect_signal_handlers(self._handlers)
 
         self._structure_reload_timer = QTimer(self)
@@ -33,12 +34,21 @@ class StructureAsyncService(QObject):
     # Public API
     # ------------------------------------------------------------------
     def shutdown(self, timeout: int) -> None:
-        """Stop pending timers and shutdown async operations."""
+        """Stop pending timers and shutdown async operations.
+        
+        ✅ ИСПРАВЛЕНИЕ: Добавлено отключение сигнала для предотвращения утечек памяти.
+        """
         if self._structure_reload_timer.isActive():
             try:
                 self._structure_reload_timer.stop()
             except Exception as exc:  # pragma: no cover - defensive
                 self._logger.debug("Failed to stop structure reload timer: %s", exc, exc_info=True)
+        
+        # ✅ Отключаем сигнал для предотвращения утечек памяти
+        try:
+            self._structure_reload_timer.timeout.disconnect(self._perform_structure_reload)
+        except (TypeError, RuntimeError):
+            pass  # Сигнал уже отключен
 
         try:
             self.async_operations.shutdown(timeout=timeout)
@@ -47,7 +57,7 @@ class StructureAsyncService(QObject):
         except Exception as exc:  # pragma: no cover - defensive
             self._logger.debug("AsyncOperations.shutdown raised: %s", exc, exc_info=True)
 
-    def set_top_panels_controller(self, controller: Any) -> None:
+    def set_top_panels_controller(self, controller: 'TopPanelsController') -> None:
         """Inject top panels controller into async components."""
         try:
             self.async_operations.top_panels = controller

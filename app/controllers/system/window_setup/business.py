@@ -7,14 +7,15 @@ from typing import Any, Dict
 
 from PyQt6.QtWidgets import QApplication
 
-from .types import SetupError, DatabaseProtocol, WindowProtocol
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.business.links_business import LinksBusinessLogic
 from app.controllers.system.app_shutdown_controller import AppShutdownController
 from app.controllers.ui.action_controller import ActionController
 from app.controllers.ui.category_tiles_controller import CategoryTilesController
 from app.controllers.ui.dialogs.database_controller import DatabaseController
-from app.controllers.ui.dialogs.link_operations_controller import LinkOperationsController
+from app.controllers.ui.dialogs.link_operations_controller import (
+    LinkOperationsController,
+)
 from app.controllers.ui.dialogs.system_dialog_controller import SystemDialogController
 from app.controllers.ui.links.controller import LinksUIController
 from app.controllers.ui.links.links_actions import LinksActions
@@ -23,6 +24,8 @@ from app.controllers.ui.state.ui_state_manager import UIStateManager
 from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
 from app.controllers.ui.structure.structure_ui_controller import StructureUIController
 from app.controllers.ui.top_panels_controller import TopPanelsController
+
+from .types import DatabaseProtocol, SetupError, WindowProtocol
 
 logger = logging.getLogger(__name__)
 

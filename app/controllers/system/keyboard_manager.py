@@ -2,14 +2,18 @@
 
 import logging
 import time
-from typing import Any, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Optional, Protocol, TypeVar
+
+if TYPE_CHECKING:
+    pass
 
 from PyQt6.QtCore import QItemSelection, QItemSelectionModel, QObject, Qt, QTimer
 from PyQt6.QtGui import QKeyEvent, QKeySequence, QShortcut
 from PyQt6.QtWidgets import QApplication, QWidget
 
+from app.utils.common import safe_call as _common_safe_call
+from app.utils.common import safe_getattr as _common_safe_getattr
 from app.utils.ui.qt.roles import get_tree_tuple
-from app.utils.common import safe_getattr as _common_safe_getattr, safe_call as _common_safe_call
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +32,29 @@ WIDGET_CLASSES = {
 WIDGET_OBJECT_NAMES = {"CATEGORY_TILES": "tiles"}
 
 
-class BaseKeyHandler:
-    """Базовый класс для обработчиков клавиш."""
+class MainWindowProtocol(Protocol):
+    """Протокол для главного окна с необходимыми атрибутами.
+    
+    ✅ ИСПРАВЛЕНИЕ: Добавлен протокол для строгой типизации.
+    """
+    structure: Any  # StructureUIController
+    table: Any  # LinksTableView
+    links_actions: Any  # LinkOperationsController
+    links: Any  # LinksUIController
 
-    def __init__(self, main_window: Any) -> None:
+
+class BaseKeyHandler:
+    """Базовый класс для обработчиков клавиш.
+    
+    ✅ ИСПРАВЛЕНИЕ: Добавлена типизация через Protocol.
+    """
+
+    def __init__(self, main_window: MainWindowProtocol) -> None:
+        """Инициализирует обработчик клавиш.
+        
+        Args:
+            main_window: Главное окно приложения
+        """
         self.main_window = main_window
 
     def _is_widget_of_type(self, widget: Optional[QWidget], widget_type: str) -> bool:
@@ -78,7 +101,13 @@ class ClipboardKeyHandler(BaseKeyHandler):
     """Обработчик клавиш буфера обмена."""
 
     def handle_select_all(self) -> None:
-        # Контекстно: дерево -> выделить все категории раздела; таблица -> selectAll()
+        """Обрабатывает Ctrl+A в зависимости от контекста.
+        
+        ✅ ИСПРАВЛЕНИЕ: Добавлена документация.
+        
+        - Дерево: выделяет все категории текущего раздела
+        - Таблица: выделяет все строки
+        """
         focused_widget = QApplication.focusWidget()
         if self._is_tree_focused(focused_widget):
             self._handle_tree_select_all()
@@ -119,7 +148,7 @@ class ClipboardKeyHandler(BaseKeyHandler):
         # QTreeView: используем модель и selectionModel
         try:
             if hasattr(tree, "currentIndex") and callable(
-                getattr(tree, "currentIndex")
+                tree.currentIndex
             ):
                 idx = tree.currentIndex()
                 if not (idx and idx.isValid()):
@@ -164,6 +193,10 @@ class ClipboardKeyHandler(BaseKeyHandler):
             )
 
     def handle_copy(self) -> None:
+        """Обрабатывает Ctrl+C - копирование выделенных ссылок.
+        
+        ✅ ИСПРАВЛЕНИЕ: Добавлена документация.
+        """
         la = self._safe_getattr(self.main_window, "links_actions")
         if la:
             self._safe_call(la, "copy_selected_links")
@@ -173,6 +206,10 @@ class ClipboardKeyHandler(BaseKeyHandler):
             self._safe_call(links_controller, "copy_selected_links")
 
     def handle_cut(self) -> None:
+        """Обрабатывает Ctrl+X - вырезание выделенных ссылок.
+        
+        ✅ ИСПРАВЛЕНИЕ: Добавлена документация.
+        """
         la = self._safe_getattr(self.main_window, "links_actions")
         if la:
             self._safe_call(la, "cut_selected_links")
@@ -182,6 +219,10 @@ class ClipboardKeyHandler(BaseKeyHandler):
             self._safe_call(links_controller, "cut_selected_links")
 
     def handle_paste(self) -> None:
+        """Обрабатывает Ctrl+V - вставка ссылок из буфера.
+        
+        ✅ ИСПРАВЛЕНИЕ: Добавлена документация.
+        """
         la = self._safe_getattr(self.main_window, "links_actions")
         if la:
             self._safe_call(la, "paste_links")

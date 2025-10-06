@@ -28,6 +28,12 @@ class SystemDialogController:
         self.database_controller = database_controller
         self.links_table_controller = links_table_controller
         self.links_business = links_business
+
+        # ✅ ИСПРАВЛЕНИЕ: Lazy loading диалогов
+        self._about_dialog = None
+        self._settings_dialog = None
+        self._file_search_dialog = None
+
         # Валидация обязательных зависимостей
         if self.database_controller is None:
             raise SetupError("SystemDialogController requires 'database_controller'")
@@ -150,37 +156,46 @@ class SystemDialogController:
 
     def show_about_dialog(self):
         """Показать диалог О программе."""
-        from PyQt6.QtWidgets import QMessageBox
-        from PyQt6.QtCore import Qt
-        
-        title = app_config.get_about_title()
-        text = app_config.get_about_text()
-        
-        msg_box = QMessageBox(self.main_window)
-        msg_box.setIcon(QMessageBox.Icon.NoIcon)  # Без иконки = без звука
-        msg_box.setWindowTitle(title)
-        msg_box.setText(text)
-        msg_box.setTextFormat(Qt.TextFormat.PlainText)  # Важно: правильно обрабатывает \n
-        msg_box.setInformativeText("Спасибо, что используете наше приложение!")
-        msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
-        msg_box.exec()
+        # ✅ ИСПРАВЛЕНИЕ: Lazy loading - создаем диалог только при первом вызове
+        if self._about_dialog is None:
+            from PyQt6.QtCore import Qt
+            from PyQt6.QtWidgets import QMessageBox
+
+            title = app_config.get_about_title()
+            text = app_config.get_about_text()
+
+            self._about_dialog = QMessageBox(self.main_window)
+            self._about_dialog.setIcon(QMessageBox.Icon.NoIcon)  # Без иконки = без звука
+            self._about_dialog.setWindowTitle(title)
+            self._about_dialog.setText(text)
+            self._about_dialog.setTextFormat(Qt.TextFormat.PlainText)  # Важно: правильно обрабатывает \n
+            self._about_dialog.setInformativeText("Спасибо, что используете наше приложение!")
+            self._about_dialog.setStandardButtons(QMessageBox.StandardButton.Ok)
+
+        self._about_dialog.exec()
 
     def show_settings_dialog(self):
         """Показать диалог настроек."""
-        from app.views.windows.dialogs.entity_dialogs import SettingsDialog
+        # ✅ ИСПРАВЛЕНИЕ: Lazy loading - создаем диалог только при первом вызове
+        if self._settings_dialog is None:
+            from app.views.windows.dialogs.entity_dialogs import SettingsDialog
 
-        dlg = SettingsDialog(
-            self.main_window.settings,
-            self.main_window.theme_ctrl,
-            parent=self.main_window,
-        )
-        dlg.exec()
+            self._settings_dialog = SettingsDialog(
+                self.main_window.settings,
+                self.main_window.theme_ctrl,
+                parent=self.main_window,
+            )
+
+        self._settings_dialog.exec()
 
     def show_file_search_dialog(self):
         """Показать диалог поиска файлов."""
-        from app.views.windows.dialogs.file_search_dialog.file_search_dialog import (
-            FileSearchDialog,
-        )
+        # ✅ ИСПРАВЛЕНИЕ: Lazy loading - создаем диалог только при первом вызове
+        if self._file_search_dialog is None:
+            from app.views.windows.dialogs.file_search_dialog.file_search_dialog import (
+                FileSearchDialog,
+            )
 
-        dialog = FileSearchDialog(self.main_window)
-        dialog.exec()
+            self._file_search_dialog = FileSearchDialog(self.main_window)
+
+        self._file_search_dialog.exec()

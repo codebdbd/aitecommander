@@ -4,7 +4,10 @@ import threading
 import time
 import warnings
 from pathlib import Path
-from typing import Dict, List, Optional, Callable
+from typing import Dict, List, Optional, Callable, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from PyQt6.QtCore import QObject
 
 from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal
 
@@ -55,9 +58,16 @@ class Database(QObject):
     operation_finished = pyqtSignal(str, bool)  # operation_name, success
     warning_occurred = pyqtSignal(str, str)  # title, message
     
-    def __init__(self):
-        # Инициализируем QObject (правильный порядок - один родитель)
-        super().__init__()
+    def __init__(self, parent: Optional[QObject] = None):
+        """Инициализирует Database.
+        
+        ✅ ИСПРАВЛЕНИЕ: Добавлен parent параметр для правильного управления памятью.
+        
+        Args:
+            parent: Родительский QObject (опционально)
+        """
+        # Инициализируем QObject с parent
+        super().__init__(parent)
         
         self.db_path = str(DB_PATH)
         self.thread_local = threading.local()
@@ -71,6 +81,7 @@ class Database(QObject):
         self._thread_pool.setMaxThreadCount(max_threads)
 
         # Инициализируем модели после полной инициализации Database
+        # ✅ ИСПРАВЛЕНИЕ: Модели не являются QObject, parent не нужен
         self.spheres = SphereModel(self)
         self.sections = SectionModel(self)
         self.categories = CategoryModel(self)
@@ -81,6 +92,9 @@ class Database(QObject):
         self.import_export_manager = ImportExportManager(self)
         self.duplicate_resolver = DuplicateResolver(self)
         self.structure_manager = StructureManager(self)
+        
+        # ✅ Флаг для отслеживания cleanup
+        self._cleaned_up = False
     
     # Делегируем методы DatabaseBase через композицию
     def commit(self) -> None:
@@ -105,9 +119,17 @@ class Database(QObject):
     def initialize_or_migrate(self) -> None:
         """Инициализирует новую БД или выполняет миграции для существующей.
 
+        .. deprecated::
+            Используйте :meth:`initialize_or_migrate_async` для предотвращения блокировки UI.
+        
         Тяжёлая операция: запускать в фоне (QRunnable) с использованием глобальной
         блокировки `db_lock` внутри методов, где это необходимо.
         """
+        warnings.warn(
+            "Метод initialize_or_migrate() устарел. Используйте initialize_or_migrate_async().",
+            DeprecationWarning,
+            stacklevel=2
+        )
         operation = "initialize_or_migrate"
         try:
             self.operation_started.emit(operation, 1)
@@ -141,6 +163,83 @@ class Database(QObject):
                 self.close()
             except Exception:
                 pass
+    
+    def initialize_or_migrate_async(
+        self,
+        on_finished: Optional[Callable] = None,
+        on_error: Optional[Callable] = None,
+        on_progress: Optional[Callable] = None
+    ):
+        """Инициализирует БД в фоновом потоке (РЕКОМЕНДУЕТСЯ).
+        
+        ✅ ИСПРАВЛЕНИЕ: Добавлен async метод для предотвращения блокировки UI.
+        
+        Args:
+            on_finished: Callback при завершении (stats: {is_new: bool, migrations_applied: int})
+            on_error: Callback при ошибке (exception, traceback)
+            on_progress: Callback для прогресса (current, total, message)
+            
+        Example:
+            >>> def on_done(stats):
+            ...     print(f"Migrations applied: {stats['migrations_applied']}")
+            >>> db.initialize_or_migrate_async(on_finished=on_done)
+        """
+        from .workers import InitializationWorker
+        
+        worker = InitializationWorker(self.db_path, MIGRATIONS_DIR)
+        
+        # Подключаем внутренние сигналы Database
+        worker.signals.finished.connect(
+            lambda stats: self._safe_emit(self.operation_finished, "initialize_or_migrate", True)
+        )
+        worker.signals.error.connect(
+            lambda e, tb: self._safe_emit(self.error_occurred, "Ошибка инициализации", str(e))
+        )
+        
+        # Подключаем пользовательские callbacks
+        if on_finished:
+            worker.signals.finished.connect(on_finished)
+        if on_error:
+            worker.signals.error.connect(on_error)
+        if on_progress:
+            worker.signals.progress.connect(on_progress)
+        
+        self._thread_pool.start(worker)
+        logger.info("Запущена асинхронная инициализация БД")
+    
+    def _safe_emit(self, signal: pyqtSignal, *args) -> None:
+        """Безопасный эмит сигнала с проверкой QApplication.
+        
+        ✅ ИСПРАВЛЕНИЕ: Добавлена проверка QApplication.instance() перед эмитом.
+        
+        Предотвращает падение при использовании вне Qt-приложения (тесты, CLI).
+        
+        Args:
+            signal: Сигнал для эмита
+            *args: Аргументы сигнала
+        """
+        try:
+            from PyQt6.QtWidgets import QApplication
+            
+            # Проверяем наличие QApplication instance
+            if QApplication.instance() is None:
+                logger.debug(
+                    "Skipping signal emit (no QApplication): %s",
+                    signal.__class__.__name__
+                )
+                return
+            
+            # Эмитим сигнал
+            signal.emit(*args)
+            
+        except Exception as e:
+            # Не прерываем основную операцию при ошибке сигнала
+            logger.debug(
+                "Error emitting signal %s: %s",
+                signal.__class__.__name__,
+                e,
+                exc_info=True
+            )
 
     def __enter__(self):
         """Позволяет использовать Database как context manager."""
@@ -254,15 +353,8 @@ class Database(QObject):
             )
             
             # Уведомляем UI об изменении данных через Qt сигнал
-            try:
-                self.data_changed.emit(table_name, "update_positions", ids)
-            except Exception as signal_err:
-                # Не прерываем основную операцию при ошибке сигнала
-                logger.debug(
-                    "Ошибка отправки сигнала data_changed: %s",
-                    signal_err,
-                    exc_info=True,
-                )
+            # ✅ ИСПРАВЛЕНИЕ: Используем _safe_emit
+            self._safe_emit(self.data_changed, table_name, "update_positions", ids)
         except ValidationError:
             # Ошибки валидации входных данных пробрасываем как есть
             raise
@@ -509,3 +601,57 @@ class Database(QObject):
     def create_nocase_unique_indexes(self) -> None:
         """Пере-создаёт case-insensitive уникальные индексы для sphere/section/category."""
         return self.duplicate_resolver.create_nocase_unique_indexes()
+    
+    def cleanup(self) -> None:
+        """Освобождает ресурсы Database.
+        
+        ✅ ИСПРАВЛЕНИЕ: Добавлен метод cleanup для предотвращения утечек памяти.
+        
+        Вызывается при закрытии приложения для корректного завершения:
+        - Ожидает завершения всех workers в thread pool
+        - Закрывает соединения с БД
+        - Освобождает ресурсы моделей и менеджеров
+        
+        Идемпотентен - можно вызывать многократно.
+        """
+        if self._cleaned_up:
+            return
+        
+        try:
+            logger.debug("Database cleanup started")
+            
+            # 1. Ждём завершения всех workers (макс 5 секунд)
+            if hasattr(self, '_thread_pool') and self._thread_pool:
+                try:
+                    logger.debug("Waiting for thread pool to finish...")
+                    # waitForDone возвращает True если все завершились, False если таймаут
+                    if not self._thread_pool.waitForDone(5000):
+                        logger.warning(
+                            "Thread pool did not finish within timeout, "
+                            "some workers may still be running"
+                        )
+                except Exception as e:
+                    logger.warning("Error waiting for thread pool: %s", e)
+            
+            # 2. Закрываем соединение с БД
+            try:
+                self.close()
+            except Exception as e:
+                logger.warning("Error closing database connection: %s", e)
+            
+            # 3. Очищаем ссылки на модели и менеджеры
+            # (Python GC сам освободит память, но явно обнуляем для ясности)
+            for attr in ['spheres', 'sections', 'categories', 'links',
+                        'backup_manager', 'import_export_manager', 
+                        'duplicate_resolver', 'structure_manager']:
+                if hasattr(self, attr):
+                    try:
+                        delattr(self, attr)
+                    except Exception:
+                        pass
+            
+            self._cleaned_up = True
+            logger.debug("Database cleanup completed")
+            
+        except Exception as exc:
+            logger.error("Error during Database cleanup: %s", exc, exc_info=True)

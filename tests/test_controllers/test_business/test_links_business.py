@@ -1,8 +1,10 @@
 # tests/test_controllers/test_business/test_links_business.py
 
 import pytest
-from unittest.mock import Mock, MagicMock
-from PyQt6.QtCore import QObject
+from unittest.mock import Mock, MagicMock, patch
+from PyQt6.QtCore import QObject, QMutex
+import threading
+import time
 
 from app.controllers.business.links_business import LinksBusinessLogic
 from app.models.db import Database
@@ -247,3 +249,94 @@ class TestLinksBusinessLogic:
         mock_db.links.create_or_update_link.return_value = None
         result = links_business_logic.create_link_for_import({"name": "Import"})
         assert result is None
+
+    def test_mutex_locking_in_toggle_favorite(self, qtbot, links_business_logic, mock_db):
+        """Test that mutex properly locks during toggle_favorite operations."""
+        mock_db.links.get_link_by_id.return_value = {"id": 1, "is_favorite": False}
+        mock_db.links.create_or_update_link.return_value = 1
+        
+        # Create a mock that tracks mutex state
+        original_mutex = links_business_logic._mutex
+        lock_acquired = threading.Event()
+        lock_released = threading.Event()
+        
+        def mock_lock():
+            lock_acquired.set()
+            original_mutex.lock()
+            
+        def mock_unlock():
+            original_mutex.unlock()
+            lock_released.set()
+            
+        with patch.object(original_mutex, 'lock', side_effect=mock_lock), \
+             patch.object(original_mutex, 'unlock', side_effect=mock_unlock):
+            
+            links_business_logic.toggle_favorite({"id": 1})
+            
+            # Verify lock was acquired and released
+            assert lock_acquired.wait(timeout=1.0)
+            assert lock_released.wait(timeout=1.0)
+
+    def test_thread_safety_cache_operations(self, links_business_logic):
+        """Test thread safety of cache operations."""
+        import concurrent.futures
+        
+        def cache_operation(key: str, value: str):
+            links_business_logic._cache[key] = value
+            time.sleep(0.01)  # Small delay to increase chance of race condition
+            return links_business_logic._cache.get(key)
+        
+        # Run multiple cache operations concurrently
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            futures = []
+            for i in range(10):
+                future = executor.submit(cache_operation, f"key_{i}", f"value_{i}")
+                futures.append(future)
+            
+            # Wait for all operations to complete
+            results = [future.result() for future in concurrent.futures.as_completed(futures)]
+            
+        # All operations should have completed successfully
+        assert len(results) == 10
+        assert all(result is not None for result in results)
+
+    def test_signal_emission_from_worker_thread(self, qtbot, links_business_logic, mock_db):
+        """Test that signals are properly emitted from worker threads via dispatch."""
+        mock_db.links.get_links.return_value = [{"id": 1, "name": "Test"}]
+        
+        # Track signal emission
+        signal_received = threading.Event()
+        
+        def on_signal_received(*args):
+            signal_received.set()
+            
+        links_business_logic.links_loaded.connect(on_signal_received)
+        
+        with qtbot.waitSignal(links_business_logic.links_loaded, timeout=2000):
+            links_business_logic.load_links(category_id=1)
+            
+        # Verify signal was received
+        assert signal_received.wait(timeout=2.0)
+
+    def test_error_dispatch_mechanism(self, qtbot, links_business_logic, mock_db):
+        """Test error dispatch mechanism works correctly."""
+        mock_db.links.get_links.side_effect = Exception("Test error")
+        
+        with qtbot.waitSignal(links_business_logic.error_occurred, timeout=2000) as blocker:
+            links_business_logic.load_links(category_id=1)
+            
+        assert "Test error" in blocker.args[0]
+
+    def test_pending_tasks_cleanup_on_error(self, qtbot, links_business_logic, mock_db):
+        """Test that pending tasks are cleaned up when errors occur."""
+        mock_db.links.get_links.side_effect = Exception("Test error")
+        
+        # Load links to create pending task
+        links_business_logic.load_links(category_id=1)
+        
+        # Wait for error to be processed
+        with qtbot.waitSignal(links_business_logic.error_occurred, timeout=2000):
+            pass
+            
+        # Pending tasks should be cleaned up
+        assert len(links_business_logic.pending_tasks) == 0

@@ -12,27 +12,33 @@
 
 import logging
 
-from app.controllers.system.window_setup.types import (
-    SetupError,
-)
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.system.window_setup.coordinator import (
-    setup_controllers,
     WindowControllersSetup,
-)
-from app.controllers.system.window_setup.ui import (
-    setup_ui_elements,
-    setup_dependency_injection,
-)
-from app.controllers.system.window_setup.wiring import (
-    setup_signal_connections,
-    _connect_structure_signals as _new_connect_structure_signals,
-    _connect_top_panels_signals_explicit as _new_connect_top_panels_signals_explicit,
-    _on_structure_changed_schedule_refresh as _new_on_structure_changed_schedule_refresh,
-    DatabaseEventHandler,
+    setup_controllers,
 )
 from app.controllers.system.window_setup.keyboard import (
     setup_keyboard,
+)
+from app.controllers.system.window_setup.types import (
+    SetupError,
+)
+from app.controllers.system.window_setup.ui import (
+    setup_dependency_injection,
+    setup_ui_elements,
+)
+from app.controllers.system.window_setup.wiring import (
+    DatabaseEventHandler,
+    setup_signal_connections,
+)
+from app.controllers.system.window_setup.wiring import (
+    _connect_structure_signals as _new_connect_structure_signals,
+)
+from app.controllers.system.window_setup.wiring import (
+    _connect_top_panels_signals_explicit as _new_connect_top_panels_signals_explicit,
+)
+from app.controllers.system.window_setup.wiring import (
+    _on_structure_changed_schedule_refresh as _new_on_structure_changed_schedule_refresh,
 )
 
 logger = logging.getLogger(__name__)

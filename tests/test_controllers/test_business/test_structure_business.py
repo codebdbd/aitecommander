@@ -271,3 +271,120 @@ class TestStructureBusinessLogic:
             result = structure_business_logic.get_statistics()
             assert result == {"total": 10}
             mock_stats.assert_called_once()
+
+    def test_signal_disconnection_on_shutdown(self, qtbot, structure_business_logic):
+        """Test that all signals are properly disconnected on shutdown."""
+        # Connect a test handler to verify disconnection
+        handler_called = []
+        
+        def test_handler(*args):
+            handler_called.append(args)
+            
+        structure_business_logic.active_sphere_changed.connect(test_handler)
+        structure_business_logic.structure_loaded.connect(test_handler)
+        
+        # Shutdown should disconnect all signals
+        structure_business_logic.shutdown(timeout=100)
+        
+        # Try to emit signals - handlers should not be called
+        structure_business_logic.active_sphere_changed.emit(1)
+        structure_business_logic.structure_loaded.emit([])
+        
+        # No handlers should have been called
+        assert len(handler_called) == 0
+
+    def test_async_service_integration(self, qtbot, structure_business_logic):
+        """Test integration with async service."""
+        with patch.object(structure_business_logic.async_service, 'load_structure_async') as mock_load:
+            structure_business_logic.load_structure_async(sphere_id=1)
+            mock_load.assert_called_once_with(1)
+
+    def test_cache_service_integration(self, structure_business_logic):
+        """Test integration with cache service."""
+        with patch.object(structure_business_logic.cache_service, 'get_spheres', return_value=[{"id": 1}]) as mock_get:
+            result = structure_business_logic.get_spheres()
+            assert result == [{"id": 1}]
+            mock_get.assert_called_once()
+
+    def test_validation_service_integration(self, structure_business_logic):
+        """Test integration with validation service."""
+        test_data = {"name": "Test Section", "sphere_id": 1}
+        with patch.object(structure_business_logic.validation_facade, 'validate_section_data') as mock_validate:
+            structure_business_logic._validate_section_data(test_data, section_id=1)
+            mock_validate.assert_called_once_with(test_data, 1)
+
+    def test_event_service_batch_handling(self, structure_business_logic):
+        """Test event service batch mode handling."""
+        structure_business_logic.begin_batch()
+        assert structure_business_logic.event_service.batch_mode is True
+        
+        structure_business_logic.end_batch()
+        assert structure_business_logic.event_service.batch_mode is False
+
+    def test_warmup_service_after_structure_load(self, qtbot, structure_business_logic):
+        """Test warmup service is called after structure load."""
+        test_payload = [{"id": 1, "categories": [{"id": 1}]}]
+        
+        with patch.object(structure_business_logic.warmup_service, 'warm_after_structure_loaded') as mock_warm:
+            # Emit structure_loaded to trigger warmup
+            structure_business_logic.structure_loaded.emit(test_payload)
+            
+            # Process Qt events to ensure slot is called
+            qtbot.wait(10)
+            
+            mock_warm.assert_called_once_with(test_payload)
+
+    def test_crud_service_create_operations(self, structure_business_logic):
+        """Test CRUD service create operations."""
+        test_data = {"name": "New Section", "sphere_id": 1}
+        
+        with patch.object(structure_business_logic.crud_service, 'create_section', return_value={"id": 1}) as mock_create:
+            result = structure_business_logic.create_section(test_data)
+            assert result == {"id": 1}
+            mock_create.assert_called_once_with(test_data)
+
+    def test_query_service_selection_operations(self, structure_business_logic):
+        """Test query service selection operations."""
+        with patch.object(structure_business_logic.query_service, 'select_section') as mock_select:
+            structure_business_logic.select_section(section_id=1)
+            mock_select.assert_called_once_with(1)
+
+    def test_error_handling_and_emission(self, qtbot, structure_business_logic):
+        """Test error handling emits proper error signals."""
+        test_error = Exception("Test error")
+        
+        with qtbot.waitSignal(structure_business_logic.error_occurred, timeout=1000) as blocker:
+            structure_business_logic._handle_error("Test Title", test_error)
+            
+        assert blocker.args == ("Test Title", "Test error")
+
+    def test_thread_safety_current_sphere_changes(self, structure_business_logic):
+        """Test thread safety of current sphere changes."""
+        import threading
+        import time
+        
+        results = []
+        errors = []
+        
+        def change_sphere(sphere_id):
+            try:
+                structure_business_logic.set_current_sphere(sphere_id)
+                results.append(structure_business_logic.current_sphere_id)
+            except Exception as e:
+                errors.append(e)
+        
+        # Run concurrent sphere changes
+        threads = []
+        for i in range(5):
+            thread = threading.Thread(target=change_sphere, args=(i + 1,))
+            threads.append(thread)
+            thread.start()
+        
+        # Wait for all threads to complete
+        for thread in threads:
+            thread.join(timeout=1.0)
+        
+        # Should have no errors and final sphere should be set
+        assert len(errors) == 0
+        assert structure_business_logic.current_sphere_id is not None
+        assert len(results) == 5

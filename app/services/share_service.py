@@ -1,10 +1,10 @@
 import logging
-from typing import Optional
+from typing import Optional, Tuple
 from urllib.parse import quote_plus
 
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QDesktopServices
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtWidgets import QApplication
 
 logger = logging.getLogger(__name__)
 
@@ -89,8 +89,14 @@ def share_via_pinterest(name: Optional[str], url: str) -> bool:
     return _open_url(pin)
 
 
-def open_default_apps_settings() -> bool:
-    """Открыть настройки Windows для приложений по умолчанию (mailto-ассоциация)."""
+def open_default_apps_settings() -> Tuple[bool, Optional[str]]:
+    """Открыть настройки Windows для приложений по умолчанию (mailto-ассоциация).
+    
+    ✅ ИСПРАВЛЕНИЕ: Возвращает статус и сообщение вместо показа QMessageBox.
+    
+    Returns:
+        Tuple[bool, Optional[str]]: (success, user_message)
+    """
     try:
         ok = QDesktopServices.openUrl(QUrl("ms-settings:defaultapps"))
         if not ok:
@@ -98,18 +104,15 @@ def open_default_apps_settings() -> bool:
             ok = QDesktopServices.openUrl(QUrl("ms-settings:"))
         if not ok:
             raise RuntimeError("Failed to open ms-settings")
-        try:
-            QMessageBox.information(
-                None,
-                "Назначить почтовый клиент",
-                "Откройте раздел Приложения по умолчанию и свяжите протокол mailto с вашим почтовым приложением.",
-            )
-        except Exception:
-            logger.exception("ShareService: failed to show settings hint message box")
-        return True
-    except Exception:
+        
+        message = (
+            "Откройте раздел Приложения по умолчанию и свяжите протокол mailto "
+            "с вашим почтовым приложением."
+        )
+        return True, message
+    except Exception as e:
         logger.exception("ShareService: failed to open Windows default apps settings")
-        return False
+        return False, f"Не удалось открыть настройки: {e}"
     
 
 
@@ -127,23 +130,28 @@ def share_via_whatsapp(name: Optional[str], url: str) -> bool:
     return _open_url(deep)
 
 
-def share_via_viber(name: Optional[str], url: str) -> bool:
+def share_via_viber(name: Optional[str], url: str) -> Tuple[bool, Optional[str]]:
+    """Поделиться через Viber.
+    
+    ✅ ИСПРАВЛЕНИЕ: Возвращает статус и сообщение вместо показа QMessageBox.
+    
+    Returns:
+        Tuple[bool, Optional[str]]: (success, user_message)
+    """
     text = build_share_text(name, url)
     primary = f"viber://forward?text={quote_plus(text)}"
     if _open_url(primary):
-        return True
-    # Fallback для Viber: копируем в буфер обмена и логируем подсказку
+        return True, None
+    
+    # Fallback для Viber: копируем в буфер обмена
     _clipboard_copy(text)
-    logger.warning("ShareService: Viber fallback — скопировано в буфер обмена. Откройте Viber и вставьте сообщение вручную.")
-    try:
-        QMessageBox.information(
-            None,
-            "Поделиться в Viber",
-            "Текст сообщения скопирован в буфер обмена.\nОткройте Viber и вставьте (Ctrl+V) в чат вручную.",
-        )
-    except Exception:
-        logger.exception("ShareService: failed to show QMessageBox for Viber fallback")
-    return False
+    logger.warning("ShareService: Viber fallback — скопировано в буфер обмена")
+    
+    message = (
+        "Текст сообщения скопирован в буфер обмена.\n"
+        "Откройте Viber и вставьте (Ctrl+V) в чат вручную."
+    )
+    return False, message
 
 
 def share_via_email(name: Optional[str], url: str) -> bool:
@@ -177,18 +185,18 @@ def share_via_email_gmail(name: Optional[str], url: str) -> bool:
     return _open_url(gmail)
 
 
-def copy_email_template(name: Optional[str], url: str) -> bool:
-    """Скопировать в буфер обмена шаблон письма (Тема + Тело) и показать подсказку."""
+def copy_email_template(name: Optional[str], url: str) -> Tuple[bool, Optional[str]]:
+    """Скопировать в буфер обмена шаблон письма (Тема + Тело).
+    
+    ✅ ИСПРАВЛЕНИЕ: Возвращает статус и сообщение вместо показа QMessageBox.
+    
+    Returns:
+        Tuple[bool, Optional[str]]: (success, user_message)
+    """
     subject = "Поделиться ссылкой"
     body = build_share_text(name, url)
     template = f"Тема: {subject}\n\n{body}"
     _clipboard_copy(template)
-    try:
-        QMessageBox.information(
-            None,
-            "Шаблон письма скопирован",
-            "Шаблон письма скопирован в буфер обмена. Откройте любую почту и вставьте (Ctrl+V).",
-        )
-    except Exception:
-        logger.exception("ShareService: failed to show QMessageBox for email template copy")
-    return True
+    
+    message = "Шаблон письма скопирован в буфер обмена. Откройте любую почту и вставьте (Ctrl+V)."
+    return True, message

@@ -10,10 +10,11 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QAction, QFont
 from PyQt6.QtWidgets import QPushButton, QWidget
 
-from .types import SetupError
 from app.utils.ui.icon.icon_operations.creators import themed_icon
 from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.menu_builders.category_menu_builder import CategoryMenuBuilder
+
+from .types import SetupError
 
 logger = logging.getLogger(__name__)
 
