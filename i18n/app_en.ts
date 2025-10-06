@@ -4,38 +4,38 @@
   <context>
     <name>AsyncOperationDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="84" />
+      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="89" />
       <source>Cancel</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="109" />
+      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="114" />
       <source>{percentage}% ({current}/{total})</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="125" />
+      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="130" />
       <source>✅ Operation completed successfully</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="156" />
-      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="136" />
+      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="161" />
+      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="141" />
       <source>Close</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="151" />
+      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="156" />
       <source>❌ Error: {error}</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="165" />
+      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="170" />
       <source>⚠️ Operation cancelled</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="172" />
+      <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="177" />
       <source>Cancelling operation…</source>
       <translation type="unfinished" />
     </message>
@@ -43,22 +43,22 @@
   <context>
     <name>BaseDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="190" />
+      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="221" />
       <source>Information</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="213" />
+      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="244" />
       <source>Warning</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="236" />
+      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="267" />
       <source>Error</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="258" />
+      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="289" />
       <source>Confirmation</source>
       <translation type="unfinished" />
     </message>
@@ -66,7 +66,7 @@
   <context>
     <name>BaseDragDropTable</name>
     <message numerus="yes">
-      <location filename="..\app\views\widgets\base\base_widgets.py" line="586" />
+      <location filename="..\app\views\widgets\base\base_widgets.py" line="582" />
       <source>%n item selected</source>
       <translation type="unfinished">
         <numerusform />
@@ -82,77 +82,77 @@
   <context>
     <name>BaseEntityDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="162" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="183" />
       <source>Edit</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="162" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="183" />
       <source>Add</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="164" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="185" />
       <source>section</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="165" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="186" />
       <source>category</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="167" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="188" />
       <source>entity</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="171" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="192" />
       <source>Name:</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="173" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="194" />
       <source>Icon</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="179" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="200" />
       <source>Save</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="181" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="202" />
       <source>Cancel</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="227" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="248" />
       <source>Unable to set selected icon.</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="228" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="249" />
       <source>Icon selection error</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="229" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="250" />
       <source>Choose another image file (.png, .ico, .jpg, .svg) and try again.</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="240" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="261" />
       <source>Name cannot be empty.</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="241" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="262" />
       <source>Invalid input</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="242" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="263" />
       <source>Please provide a name for the entity.</source>
       <translation type="unfinished" />
     </message>
@@ -238,59 +238,59 @@
   <context>
     <name>CategoryDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="485" />
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="392" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="506" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="413" />
       <source>Sphere:</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="488" />
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="395" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="509" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="416" />
       <source>Section:</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="420" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="441" />
       <source>Failed to load sections.</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="421" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="442" />
       <source>Error loading sections</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="422" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="443" />
       <source>Check database connection and try again.</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="432" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="453" />
       <source>Category not found.</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="433" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="454" />
       <source>Category unavailable</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="434" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="455" />
       <source>The category might have been deleted. ID: %1</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="470" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="491" />
       <source>Section not selected.</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="471" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="492" />
       <source>Section selection required</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="472" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="493" />
       <source>Choose a section from the list and press "Save".</source>
       <translation type="unfinished" />
     </message>
@@ -298,53 +298,53 @@
   <context>
     <name>ChromeProfileDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="762" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="831" />
       <source>Select Chrome profile</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="764" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="833" />
       <source>Choose a Chrome profile:</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="765" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="834" />
       <source>Select all</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="766" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="835" />
       <source>Deselect all</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="781" />
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="767" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="850" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="836" />
       <source>Refresh profiles</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="772" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="841" />
       <source>Save</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="774" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="843" />
       <source>Cancel</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="779" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="848" />
       <source>Loading…</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="803" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="872" />
       <source>Chrome profiles not found</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="810" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="879" />
       <source>(no email)</source>
       <translation type="unfinished" />
     </message>
@@ -638,12 +638,12 @@
   <context>
     <name>LanguageSelector</name>
     <message>
-      <location filename="..\app\views\widgets\language_selector.py" line="36" />
+      <location filename="..\app\views\widgets\language_selector.py" line="37" />
       <source>Change application language</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\widgets\language_selector.py" line="37" />
+      <location filename="..\app\views\widgets\language_selector.py" line="38" />
       <source>Language Selector</source>
       <translation type="unfinished" />
     </message>
@@ -724,16 +724,16 @@
   <context>
     <name>MainWindow</name>
     <message>
-      <location filename="..\app\views\windows\main_window.py" line="267" />
-      <location filename="..\app\views\windows\main_window.py" line="156" />
-      <location filename="..\app\views\windows\main_window.py" line="149" />
+      <location filename="..\app\views\windows\main_window.py" line="265" />
+      <location filename="..\app\views\windows\main_window.py" line="154" />
+      <location filename="..\app\views\windows\main_window.py" line="147" />
       <source>&amp;Undo</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\main_window.py" line="270" />
-      <location filename="..\app\views\windows\main_window.py" line="157" />
-      <location filename="..\app\views\windows\main_window.py" line="153" />
+      <location filename="..\app\views\windows\main_window.py" line="268" />
+      <location filename="..\app\views\windows\main_window.py" line="155" />
+      <location filename="..\app\views\windows\main_window.py" line="151" />
       <source>&amp;Redo</source>
       <translation type="unfinished" />
     </message>
@@ -746,12 +746,14 @@
       <translation type="unfinished" />
     </message>
     <message>
+      <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="264" />
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="139" />
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="97" />
       <source>Undo history unavailable</source>
       <translation type="unfinished" />
     </message>
     <message>
+      <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="265" />
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="140" />
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="98" />
       <source>Enable undo/redo support or initialize undo_stack in the main window.</source>
@@ -760,6 +762,11 @@
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="138" />
       <source>Undo history is unavailable. Batch move canceled.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="263" />
+      <source>History is unavailable. Move between sections canceled.</source>
       <translation type="unfinished" />
     </message>
     <message>
@@ -796,37 +803,37 @@
   <context>
     <name>NoteDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="541" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="578" />
       <source>Notes</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="543" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="580" />
       <source>Enter notes here</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="548" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="585" />
       <source>Save</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="550" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="587" />
       <source>Cancel</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="560" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="597" />
       <source>Failed to update notes.</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="561" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="598" />
       <source>Notes update error</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="562" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="599" />
       <source>Close and reopen the dialog, then try again.</source>
       <translation type="unfinished" />
     </message>
@@ -834,38 +841,38 @@
   <context>
     <name>SectionDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="351" />
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="294" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="372" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="315" />
       <source>Sphere:</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="314" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="335" />
       <source>Section not found.</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="315" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="336" />
       <source>Section unavailable</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="316" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="337" />
       <source>The section might have been deleted. ID: %1</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="336" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="357" />
       <source>Sphere not selected.</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="337" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="358" />
       <source>Sphere selection required</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="338" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="359" />
       <source>Choose a sphere from the list and press "Save".</source>
       <translation type="unfinished" />
     </message>
@@ -873,44 +880,44 @@
   <context>
     <name>SettingsDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="628" />
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="598" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="681" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="651" />
       <source>Max backups:</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="631" />
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="611" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="684" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="664" />
       <source>Font size:</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="624" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="677" />
       <source>Settings</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="636" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="689" />
       <source>Save</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="638" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="691" />
       <source>Cancel</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="663" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="716" />
       <source>Failed to save settings.</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="664" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="717" />
       <source>Settings save error</source>
       <translation type="unfinished" />
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="665" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="718" />
       <source>Check the values and try again.</source>
       <translation type="unfinished" />
     </message>

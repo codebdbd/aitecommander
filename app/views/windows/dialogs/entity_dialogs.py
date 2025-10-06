@@ -67,15 +67,13 @@ class BaseEntityDialog(BaseDialog):
         self._button_box: QDialogButtonBox | None = None
         self._name_label: QLabel | None = None
         self._name_field_widget: QWidget | None = None
+        # Ensure attributes accessed during initial retranslateUi() exist
+        self.icon_btn: QPushButton | None = None
+        self.name_le: QLineEdit | None = None
         self._retranslation_initialized = False
 
         super().__init__(parent)
-        
-        # Connect to language change signal
-        from i18n.language_service import LanguageService
-        self._language_service = LanguageService.instance()
-        self._language_service.languageChanged.connect(self._handle_language_changed)
-        self.destroyed.connect(self._disconnect_language_service)
+
 
     def _init_common_ui(self, form_layout: QFormLayout):
         """Initialize common UI elements: name input and icon button."""
@@ -169,15 +167,7 @@ class BaseEntityDialog(BaseDialog):
                 self.retranslateUi()
             self._retranslation_initialized = True
     
-    def _handle_language_changed(self, _lang_code: str) -> None:
-        if hasattr(self, "retranslateUi"):
-            self.retranslateUi()
-    
-    def _disconnect_language_service(self, *_: object) -> None:
-        try:
-            self._language_service.languageChanged.disconnect(self._handle_language_changed)
-        except Exception:
-            pass
+    # Language changes are handled via BaseDialog(ReTranslatable)
 
     def retranslateUi(self) -> None:
         title_verb = self.tr("Edit") if self.entity_id else self.tr("Add")
@@ -538,22 +528,8 @@ class NoteDialog(BaseDialog):
         self.resize(400, 300)
         self._init_ui()
 
-        # Connect to language change signal
-        from i18n.language_service import LanguageService
-        self._language_service = LanguageService.instance()
-        self._language_service.languageChanged.connect(self._on_language_changed)
-        self.destroyed.connect(self._disconnect_language_service)
-
+        # Initial translate pass
         self.retranslateUi()
-
-    def _on_language_changed(self, _lang_code: str) -> None:
-        self.retranslateUi()
-
-    def _disconnect_language_service(self, *_: object) -> None:
-        try:
-            self._language_service.languageChanged.disconnect(self._on_language_changed)
-        except Exception:
-            pass
 
     def _init_ui(self):
         """Initialize the notes dialog UI."""
@@ -613,22 +589,8 @@ class SettingsDialog(BaseDialog):
         self._button_box: QDialogButtonBox | None = None
         self._init_ui()
 
-        # Connect to language change signal
-        from i18n.language_service import LanguageService
-        self._language_service = LanguageService.instance()
-        self._language_service.languageChanged.connect(self._on_language_changed)
-        self.destroyed.connect(self._disconnect_language_service)
-
+        # Initial translate pass
         self.retranslateUi()
-
-    def _on_language_changed(self, _lang_code: str) -> None:
-        self.retranslateUi()
-
-    def _disconnect_language_service(self, *_: object) -> None:
-        try:
-            self._language_service.languageChanged.disconnect(self._on_language_changed)
-        except Exception:
-            pass
 
     def _init_ui(self):
         """Initialize the settings dialog UI."""
@@ -755,26 +717,13 @@ class ChromeProfileDialog(BaseDialog):
         self._button_box: QDialogButtonBox | None = None
         self._setup_size()
         self._setup_ui()
-
-        # Connect to language change signal
-        from i18n.language_service import LanguageService
-        self._language_service = LanguageService.instance()
-        self._language_service.languageChanged.connect(self._on_language_changed)
-        self.destroyed.connect(self._disconnect_language_service)
-
+        
         self.retranslateUi()
         self.threadpool = QThreadPool.globalInstance()
         self.profiles_loaded.connect(self._populate_profiles)
         self._start_profiles_loading()
-
-    def _on_language_changed(self, _lang_code: str) -> None:
-        self.retranslateUi()
-
-    def _disconnect_language_service(self, *_: object) -> None:
-        try:
-            self._language_service.languageChanged.disconnect(self._on_language_changed)
-        except Exception:
-            pass
+    
+    # Language changes are handled via BaseDialog(ReTranslatable)
 
     def _setup_size(self):
         """Set the dialog size based on scale factor."""

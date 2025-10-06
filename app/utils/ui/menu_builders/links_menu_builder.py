@@ -1,4 +1,4 @@
-"""Строитель контекстного меню для таблицы ссылок."""
+"""Context menu builder for the links table."""
 
 import json
 import logging
@@ -6,8 +6,9 @@ from typing import TYPE_CHECKING, Callable, Dict
 
 from PyQt6.QtCore import QModelIndex
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
+from PyQt6.QtCore import QCoreApplication
 
-from app.utils.ui.menu_builders.menu_actions import ActionBuilder, Shortcuts
+from app.utils.ui.menu_builders.menu_actions import ActionBuilder, Shortcuts, MenuTexts
 
 from .base import get_menu_icon
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class LinksMenuBuilder:
-    """Строитель контекстного меню для таблицы ссылок."""
+    """Context menu builder for the links table."""
 
     def __init__(self, table_widget: QWidget, main_window: "MainWindow"):
         self.table_widget = table_widget
@@ -27,7 +28,7 @@ class LinksMenuBuilder:
         self.theme = main_window.settings.get_theme()
 
     def build(self, idx: QModelIndex, paste_link_cb: Callable) -> QMenu:
-        """Создаёт контекстное меню для таблицы ссылок."""
+        """Build context menu for the links table."""
         menu = QMenu(self.table_widget)
 
         if idx.isValid():
@@ -37,26 +38,23 @@ class LinksMenuBuilder:
             self._add_additional_actions(menu, link)
         else:
             self._add_empty_area_actions(menu, paste_link_cb)
-
         return menu
 
     def _add_link_item_actions(self, menu: QMenu, link: Dict) -> None:
-        """Добавляет действия для выбранной ссылки."""
+        """Add actions for the selected link."""
         logger.debug("LinksMenuBuilder._add_link_item_actions: link=%s", link)
-        # Открыть ссылку
         menu.addAction(
             self.actions.create(
-                "Открыть",
+                MenuTexts.OPEN,
                 lambda: self.main_window.links_actions.open_link(link),
                 Shortcuts.ENTER,
                 get_menu_icon("run", self.theme),
             )
         )
 
-        # Добавить ссылку
         menu.addAction(
             self.actions.create(
-                "Добавить ссылку",
+                MenuTexts.ADD_LINK,
                 lambda: self.main_window.links_actions.show_link_dialog(
                     category_id=self.main_window.get_current_category_id()
                 ),
@@ -65,9 +63,10 @@ class LinksMenuBuilder:
             )
         )
 
-        # Избранное (динамически)
         is_favorite = link and link.get("is_favorite")
-        fav_text = "Удалить из избранного" if is_favorite else "Добавить в избранное"
+        fav_text = (
+            MenuTexts.REMOVE_FROM_FAVORITES if is_favorite else MenuTexts.ADD_TO_FAVORITES
+        )
         fav_icon = (
             get_menu_icon("delete_favorites", self.theme)
             if is_favorite
@@ -83,26 +82,23 @@ class LinksMenuBuilder:
             )
         )
 
-        # Поделиться (сразу после избранного) — только для веб‑ссылок
         if self._is_web_link(link):
             self._add_share_submenu(menu, link)
 
         menu.addSeparator()
 
-        # Редактировать
         menu.addAction(
             self.actions.create(
-                "Редактировать",
+                MenuTexts.EDIT,
                 lambda: self.main_window.links_actions.show_link_dialog(link=link),
                 Shortcuts.EDIT,
                 get_menu_icon("edit", self.theme),
             )
         )
 
-        # Удалить
         menu.addAction(
             self.actions.create(
-                "Удалить",
+                MenuTexts.DELETE,
                 self._create_delete_callback(),
                 Shortcuts.DELETE,
                 get_menu_icon("delete", self.theme),
@@ -111,10 +107,9 @@ class LinksMenuBuilder:
 
         menu.addSeparator()
 
-        # Копировать
         menu.addAction(
             self.actions.create(
-                "Копировать",
+                MenuTexts.COPY,
                 self.main_window.links_actions.copy_selected_links,
                 Shortcuts.CTRL_C,
                 get_menu_icon("copy", self.theme),
@@ -122,11 +117,11 @@ class LinksMenuBuilder:
         )
 
     def _add_common_link_actions(self, menu: QMenu, paste_link_cb: Callable):
-        """Добавляет общие действия для ссылок."""
+        """Add common actions for links."""
         if self._clipboard_has_links():
             menu.addAction(
                 self.actions.create(
-                    "Вставить",
+                    MenuTexts.PASTE,
                     self.main_window.links_actions.paste_links,
                     Shortcuts.CTRL_V,
                     get_menu_icon("paste", self.theme),
@@ -135,98 +130,88 @@ class LinksMenuBuilder:
 
         menu.addAction(
             self.actions.create(
-                "Вырезать",
+                MenuTexts.CUT,
                 self.main_window.links_actions.cut_selected_links,
                 Shortcuts.CTRL_X,
                 get_menu_icon("cut", self.theme),
             )
         )
 
-        # Добавляем действия undo/redo из главного окна (только если они созданы)
         if getattr(self.main_window, "undo_action", None) is not None:
             menu.addAction(self.main_window.undo_action)
         if getattr(self.main_window, "redo_action", None) is not None:
             menu.addAction(self.main_window.redo_action)
 
     def _add_share_submenu(self, menu: QMenu, link: Dict) -> None:
-        """Добавляет подменю «Поделиться» для одиночной ссылки."""
+        """Add "Share" submenu for a single link."""
         try:
-            # Защита от не‑веб ссылок (например, program://, file:// и т.п.)
+            # Guard against non-web links
             if not self._is_web_link(link):
                 return
-            share_menu = QMenu("Поделиться", menu)
+            share_menu = QMenu(QCoreApplication.translate("MenuActions", MenuTexts.SHARE), menu)
             share_menu.setIcon(get_menu_icon("share", self.theme))
 
-            # Telegram
             share_menu.addAction(
                 self.actions.create(
-                    "Telegram",
+                    MenuTexts.SHARE_TELEGRAM,
                     lambda: self.main_window.links_actions.share_via_telegram(link),
                     None,
                     get_menu_icon("telegram", self.theme),
                 )
             )
-            # WhatsApp
             share_menu.addAction(
                 self.actions.create(
-                    "WhatsApp",
+                    MenuTexts.SHARE_WHATSAPP,
                     lambda: self.main_window.links_actions.share_via_whatsapp(link),
                     None,
                     get_menu_icon("whatsapp", self.theme),
                 )
             )
-            # Viber
             share_menu.addAction(
                 self.actions.create(
-                    "Viber",
+                    MenuTexts.SHARE_VIBER,
                     lambda: self.main_window.links_actions.share_via_viber(link),
                     None,
                     get_menu_icon("viber", self.theme),
                 )
             )
-            # X (Twitter)
             share_menu.addAction(
                 self.actions.create(
-                    "X (Twitter)",
+                    MenuTexts.SHARE_X,
                     lambda: self.main_window.links_actions.share_via_x(link),
                     None,
                     get_menu_icon("x", self.theme),
                 )
             )
-            # Facebook
             share_menu.addAction(
                 self.actions.create(
-                    "Facebook",
+                    MenuTexts.SHARE_FACEBOOK,
                     lambda: self.main_window.links_actions.share_via_facebook(link),
                     None,
                     get_menu_icon("facebook", self.theme),
                 )
             )
-            # LinkedIn
             share_menu.addAction(
                 self.actions.create(
-                    "LinkedIn",
+                    MenuTexts.SHARE_LINKEDIN,
                     lambda: self.main_window.links_actions.share_via_linkedin(link),
                     None,
                     get_menu_icon("linkedin", self.theme),
                 )
             )
-            # Pinterest
             share_menu.addAction(
                 self.actions.create(
-                    "Pinterest",
+                    MenuTexts.SHARE_PINTEREST,
                     lambda: self.main_window.links_actions.share_via_pinterest(link),
                     None,
                     get_menu_icon("pinterest", self.theme),
                 )
             )
-            # Email (подменю)
-            email_menu = QMenu("Email", share_menu)
+            email_menu = QMenu(QCoreApplication.translate("MenuActions", MenuTexts.EMAIL), share_menu)
             email_menu.setIcon(get_menu_icon("email", self.theme))
-            # Сначала Gmail, затем системный почтовый клиент
             email_menu.addAction(
                 self.actions.create(
-                    "Через Gmail",
+                    MenuTexts.EMAIL_VIA_GMAIL,
                     lambda: self.main_window.links_actions.share_via_email_gmail(link),
                     None,
                     get_menu_icon("gmail", self.theme),
@@ -234,7 +219,7 @@ class LinksMenuBuilder:
             )
             email_menu.addAction(
                 self.actions.create(
-                    "Через приложение (mailto)",
+                    MenuTexts.EMAIL_VIA_CLIENT,
                     lambda: self.main_window.links_actions.share_via_email_client(link),
                     None,
                     get_menu_icon("email_client", self.theme),
@@ -242,15 +227,12 @@ class LinksMenuBuilder:
             )
             email_menu.addAction(
                 self.actions.create(
-                    "Скопировать как письмо",
+                    MenuTexts.EMAIL_COPY_AS_MESSAGE,
                     lambda: self.main_window.links_actions.copy_email_template(link),
                     None,
                     get_menu_icon("copy", self.theme),
                 )
             )
-
-            # Настройка почтового клиента не добавляется по просьбе пользователя –
-            # ассоциации mailto управляются в Windows автоматически.
 
             share_menu.addMenu(email_menu)
 
@@ -259,7 +241,7 @@ class LinksMenuBuilder:
             logger.warning("Failed to build Share submenu: %s", e, exc_info=True)
 
     def _is_web_link(self, link: Dict) -> bool:
-        """Проверяет, является ли ссылка веб‑ссылкой (http/https)."""
+        """Check if link is a web link (http/https)."""
         if not isinstance(link, dict):
             return False
         try:
@@ -272,30 +254,25 @@ class LinksMenuBuilder:
             return False
 
     def _add_additional_actions(self, menu: QMenu, link: dict):
-        """Добавляет дополнительные действия."""
-        # Используем явную ссылку на undo_action из главного окна
+        """Add additional actions."""
         undo_anchor = getattr(self.main_window, "undo_action", None)
-        # Вставляем дополнительные действия только если undo присутствует в текущем меню,
-        # чтобы сохранить исходную логику расположения.
         if undo_anchor and undo_anchor in menu.actions():
             menu.insertSeparator(undo_anchor)
 
-            # Выделить все
             menu.insertAction(
                 undo_anchor,
                 self.actions.create(
-                    "Выделить все",
+                    MenuTexts.SELECT_ALL,
                     self.main_window.select_all_links,
                     Shortcuts.CTRL_A,
                     get_menu_icon("select_all", self.theme),
                 ),
             )
 
-            # Редактировать заметку
             menu.insertAction(
                 undo_anchor,
                 self.actions.create(
-                    "Редактировать заметку",
+                    MenuTexts.EDIT_NOTE,
                     lambda: self.main_window.links_actions.show_note_dialog(link),
                     Shortcuts.CTRL_N,
                     get_menu_icon("edit_note", self.theme),
@@ -305,12 +282,12 @@ class LinksMenuBuilder:
             menu.insertSeparator(undo_anchor)
 
     def _add_empty_area_actions(self, menu: QMenu, paste_link_cb: Callable):
-        """Добавляет действия для пустой области таблицы."""
+        """Add actions for empty area of the table."""
         current_category_id = self.main_window.get_current_category_id()
         if current_category_id is not None:
             menu.addAction(
                 self.actions.create(
-                    "Добавить ссылку",
+                    MenuTexts.ADD_LINK,
                     lambda: self.main_window.links_actions.show_link_dialog(
                         category_id=current_category_id
                     ),
@@ -319,33 +296,31 @@ class LinksMenuBuilder:
                 )
             )
 
-        # Только вставить и undo/redo для пустой области
         if self._clipboard_has_links():
             menu.addAction(
                 self.actions.create(
-                    "Вставить",
+                    MenuTexts.PASTE,
                     self.main_window.links_actions.paste_links,
                     Shortcuts.CTRL_V,
                     get_menu_icon("paste", self.theme),
                 )
             )
 
-        # Добавляем действия undo/redo из главного окна (только если они созданы)
+        # Add undo/redo from main window (if available)
         if getattr(self.main_window, "undo_action", None) is not None:
             menu.addAction(self.main_window.undo_action)
         if getattr(self.main_window, "redo_action", None) is not None:
             menu.addAction(self.main_window.redo_action)
 
     def _create_delete_callback(self):
-        """Создаёт коллбек для удаления выбранных ссылок."""
+        """Create delete callback for selected links."""
         return lambda: self.main_window.links_actions.delete_selected_links()
 
     def _clipboard_has_links(self) -> bool:
-        """Проверяет, содержит ли буфер обмена ссылки."""
+        """Check if clipboard contains links."""
         try:
             app = QApplication.instance()
             if app is None:
-                # Нет активного приложения — вставка недоступна
                 return False
 
             clipboard = app.clipboard()
@@ -354,13 +329,11 @@ class LinksMenuBuilder:
 
             text = clipboard.text() or ""
             if not text.strip():
-                # Пустой буфер обмена — это не ошибка
                 return False
 
             try:
                 data = json.loads(text)
             except json.JSONDecodeError:
-                # В буфере не JSON нашего формата — это штатная ситуация
                 logger.debug(
                     "[LinksMenu] Clipboard does not contain valid JSON for links"
                 )
@@ -373,6 +346,5 @@ class LinksMenuBuilder:
             ):
                 return True
         except Exception as e:
-            # Нежданные ошибки логируем без трейсбека, чтобы не шуметь
             logger.warning("[LinksMenu] Clipboard check failed: %s", e)
         return False

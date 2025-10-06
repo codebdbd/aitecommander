@@ -4,8 +4,10 @@ from PyQt6.QtCore import QModelIndex, Qt
 
 
 def get_tree_tuple(index: QModelIndex, column: int = 0) -> Optional[Tuple[str, int]]:
-    """Читает (type, id) из UserRole по QModelIndex (колонка column, по умолчанию 0).
-    Возвращает None, если структура некорректна или индекс невалиден.
+    """Read ``(type, id)`` from UserRole for the given ``QModelIndex``.
+
+    Uses the specified ``column`` (defaults to 0). Returns ``None`` if the data
+    structure is invalid or the index is not valid.
     """
     try:
         if not isinstance(index, QModelIndex) or not index.isValid():
@@ -25,7 +27,7 @@ def get_tree_tuple(index: QModelIndex, column: int = 0) -> Optional[Tuple[str, i
 
 
 def get_index_int(index) -> Optional[int]:
-    """Читает целочисленное значение из UserRole по QModelIndex. Возвращает None при неудаче."""
+    """Read an integer value from UserRole by ``QModelIndex``. Returns ``None`` on failure."""
     try:
         if not index or not index.isValid():
             return None
@@ -38,7 +40,7 @@ def get_index_int(index) -> Optional[int]:
 
 
 def get_index_dict(index) -> Optional[Dict[str, Any]]:
-    """Читает словарь из UserRole по QModelIndex. Возвращает None, если не dict."""
+    """Read a ``dict`` from UserRole by ``QModelIndex``. Returns ``None`` if not a dict."""
     try:
         if not index or not index.isValid():
             return None
@@ -51,8 +53,8 @@ def get_index_dict(index) -> Optional[Dict[str, Any]]:
 def set_index_data(
     index, value: Any, role: Qt.ItemDataRole = Qt.ItemDataRole.UserRole
 ) -> bool:
-    """Устанавливает значение через model.setData(index, value, role).
-    Возвращает True при успехе, False иначе. Требуется, чтобы модель поддерживала setData для данной роли.
+    """Set value via ``model.setData(index, value, role)``.
+    Returns ``True`` on success, ``False`` otherwise. Requires the model to support ``setData`` for the role.
     """
     try:
         if not index or not index.isValid():
@@ -66,8 +68,8 @@ def set_index_data(
 
 
 def set_tree_tuple(index: QModelIndex, value: Tuple[str, int]) -> bool:
-    """Устанавливает (type, id) в UserRole для QModelIndex через model.setData.
-    Требует поддержки setData в модели для UserRole.
+    """Set ``(type, id)`` into UserRole for ``QModelIndex`` via ``model.setData``.
+    Requires the model to support ``setData`` for ``UserRole``.
     """
     try:
         if not index or not index.isValid():
@@ -85,8 +87,8 @@ def set_tree_tuple(index: QModelIndex, value: Tuple[str, int]) -> bool:
 def get_row_userrole(
     view, row: int, column: int = 0, role: Qt.ItemDataRole = Qt.ItemDataRole.UserRole
 ) -> Any:
-    """Возвращает данные роли из модели по номеру строки через view (QTableView).
-    Удобно для получения словаря ссылки из UserRole: role=UserRole, column=0.
+    """Return role data from the model by row index via a view (QTableView).
+    Handy to get a link dict from UserRole: ``role=UserRole``, ``column=0``.
     """
     try:
         model = view.model()
@@ -101,18 +103,18 @@ def get_row_userrole(
 
 
 def get_selected_rows(view) -> list[int]:
-    """Возвращает отсортированный список уникальных выбранных строк.
+    """Return sorted unique selected rows.
 
-    Безопасно работает с QTableView/QTreeView, используя selectionModel().selectedRows().
-    При любой ошибке или отсутствии выделения возвращает пустой список.
+    Works safely with QTableView/QTreeView using ``selectionModel().selectedRows()``.
+    Returns an empty list on any error or when no selection is present.
     """
     try:
         selection_model = view.selectionModel()
         if not selection_model:
             return []
 
-        # selectedRows() возвращает индексы только для выбранных строк (по одному на строку)
-        # Это эффективнее, чем собирать индексы из selectedIndexes() и удалять дубликаты
+        # selectedRows() returns one index per selected row only
+        # This is more efficient than collecting from selectedIndexes() and deduplicating
         selected_rows = {index.row() for index in selection_model.selectedRows()}
         return sorted(list(selected_rows))
     except Exception:
@@ -122,9 +124,8 @@ def get_selected_rows(view) -> list[int]:
 def find_index_by_role(
     model, type_val: str, id_val: int, parent: QModelIndex | None = None
 ) -> Optional[QModelIndex]:
-    """Рекурсивный поиск QModelIndex по кортежу (type,id) в UserRole, колонка 0.
-    Универсальный и независящий от конкретной модели. Для больших деревьев
-    рекомендуется использовать специализированные методы модели (например, index_for).
+    """Recursive search for ``QModelIndex`` by ``(type, id)`` tuple in ``UserRole``, column 0.
+    Generic and model-agnostic. For large trees, prefer specialized model methods (e.g., ``index_for``).
     """
     try:
         if model is None:
@@ -143,7 +144,7 @@ def find_index_by_role(
                 and data[1] == id_val
             ):
                 return idx
-            # Рекурсивный спуск
+            # Recursively traverse the tree
             found = find_index_by_role(model, type_val, id_val, idx)
             if found is not None:
                 return found

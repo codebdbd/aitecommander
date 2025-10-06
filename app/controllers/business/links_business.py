@@ -268,6 +268,16 @@ class LinksBusinessLogic(QObject):
         return result
 
     @validate_link_form
+    @handle_errors
+    def save_link(self, link_data: Dict[str, Any]) -> int:
+        """Backward-compatible synchronous save.
+
+        Delegates to ``create_link`` to persist data and emit ``link_updated``.
+        Used by legacy UI code expecting a synchronous save method.
+        """
+        return self.create_link(link_data)
+
+    @validate_link_form
     def save_link_async(self, link_data: Dict[str, Any]) -> None:
         """Save a link asynchronously."""
         self._run_db_task(

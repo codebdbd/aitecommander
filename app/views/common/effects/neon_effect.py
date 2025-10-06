@@ -22,20 +22,20 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-# Константы
-DEFAULT_NEON_COLOR = "#0194F0"  # Цвет неонового свечения по умолчанию
-DEFAULT_BLUR_RADIUS = 18  # Радиус размытия свечения
+# Constants
+DEFAULT_NEON_COLOR = "#0194F0"  # Default neon glow color
+DEFAULT_BLUR_RADIUS = 18  # Glow blur radius
 
 
 class NeonEventFilter(QObject):
     """
-    Универсальный eventFilter, добавляющий/убирающий неоновое свечение
-    (QGraphicsDropShadowEffect) при hover/focus для кнопок и полей ввода.
+    Universal eventFilter that adds/removes neon glow
+    (QGraphicsDropShadowEffect) on hover/focus for buttons and input fields.
 
-    Использование:
+    Usage:
       filt = NeonEventFilter(color=QColor('#0194F0'), blur_radius=18)
       widget.installEventFilter(filt)
-    или установить на контейнер, тогда фильтр будет работать и на его дочерних виджетах.
+    Or install it on a container to affect eligible child widgets as well.
     """
 
     def __init__(
@@ -54,12 +54,12 @@ class NeonEventFilter(QObject):
         self._x = x_offset
         self._y = y_offset
         self._outline_only = outline_only
-        self._tracked_widgets: list[QWidget] = []  # Трекинг виджетов для очистки
+        self._tracked_widgets: list[QWidget] = []  # Track widgets for cleanup
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         et = event.type()
 
-        # Интересуют кнопки, поля ввода и представления списков/таблиц
+        # Handle buttons, input fields, and list/table views
         if isinstance(
             watched,
             (
@@ -77,7 +77,7 @@ class NeonEventFilter(QObject):
                 QAbstractItemView,
             ),
         ):
-            # Наведение / фокус (включая hover события)
+            # Enter/focus (including hover events)
             if et in (
                 QEvent.Type.Enter,
                 QEvent.Type.FocusIn,
@@ -85,20 +85,20 @@ class NeonEventFilter(QObject):
                 QEvent.Type.HoverMove,
             ):
                 self._apply_effect(watched)
-            # Уход курсора / потеря фокуса (включая hover leave)
+            # Leave/lose focus (including hover leave)
             elif et in (
                 QEvent.Type.Leave,
                 QEvent.Type.FocusOut,
                 QEvent.Type.HoverLeave,
             ):
-                # Для checkable-активных кнопок оставляем свечение
+                # Keep glow for active checkable buttons
                 if self._is_active_checked_button(watched):
                     self._apply_effect(watched)
                 else:
                     self._clear_effect(watched)
 
-        # Если фильтр поставлен на контейнер, автоматически навешиваем фильтр
-        # на добавленных дочерних виджетов подходящих типов
+        # If installed on a container, automatically attach to newly added
+        # eligible child widgets
         if et == QEvent.Type.ChildAdded:
             try:
                 child = event.child()
@@ -127,16 +127,16 @@ class NeonEventFilter(QObject):
         )
         if isinstance(w, eligible):
             w.installEventFilter(self)
-            self._tracked_widgets.append(w)  # Добавляем в трекинг
+            self._tracked_widgets.append(w)  # Track
             self._maybe_connect_toggled(w)
-            # Синхронизируем эффект с текущим состоянием checked
+            # Sync effect with current checked state
             if self._is_active_checked_button(w):
                 self._apply_effect(w)
         # Рекурсивно обходим текущих потомков
         for child in w.findChildren(QWidget):
             if isinstance(child, eligible):
                 child.installEventFilter(self)
-                self._tracked_widgets.append(child)  # Добавляем в трекинг
+                self._tracked_widgets.append(child)  # Track
                 self._maybe_connect_toggled(child)
                 if self._is_active_checked_button(child):
                     self._apply_effect(child)
@@ -156,8 +156,8 @@ class NeonEventFilter(QObject):
         if checked:
             self._apply_effect(w)
         else:
-            # если виджет под курсором или в фокусе — эффект останется активным из-за Enter/FocusIn
-            # иначе выключаем
+            # If the widget is hovered/focused, the effect remains due to Enter/FocusIn;
+            # otherwise, turn it off
             self._clear_effect(w)
 
     def _ensure_effect(self, w: QWidget) -> QGraphicsDropShadowEffect:
@@ -171,10 +171,10 @@ class NeonEventFilter(QObject):
         return eff
 
     def _apply_effect(self, w: QWidget) -> None:
-        # В режиме outline_only настоящий неон используем ТОЛЬКО для выбранной (checked) кнопки
+        # In outline_only mode, use real neon ONLY for the selected (checked) button
         if self._outline_only and not self._is_active_checked_button(w):
-            # В режиме только обводки не используем графический эффект —
-            # переключаем динамическое свойство для QSS.
+            # In outline-only mode do not use the graphics effect — switch
+            # a dynamic property for QSS instead.
             try:
                 w.setProperty("_neon_on", True)
                 st = w.style()
@@ -204,7 +204,7 @@ class NeonEventFilter(QObject):
         eff = getattr(w, "_neon_effect", None)
         if isinstance(eff, QGraphicsDropShadowEffect):
             eff.setEnabled(False)
-            # Эффект оставляем привязанным, чтобы не создавать его заново каждый раз
+            # Keep the effect instance to avoid recreating it every time
 
     def _is_active_checked_button(self, w: QWidget) -> bool:
         return (
@@ -214,23 +214,23 @@ class NeonEventFilter(QObject):
         )
 
     def cleanup(self) -> None:
-        """Удаляет все event filters и отписывается от сигналов.
-        
-        Вызывайте этот метод перед удалением фильтра для предотвращения утечек памяти.
+        """Remove all event filters and disconnect signals.
+
+        Call this method before deleting the filter to prevent memory leaks.
         """
         for widget in self._tracked_widgets:
             try:
                 widget.removeEventFilter(self)
-                # Отписываемся от toggled если подключены
+                # Disconnect from toggled if connected
                 if hasattr(widget, "toggled") and getattr(widget, "_neon_toggled_connected", False):
                     widget.toggled.disconnect()
             except (RuntimeError, TypeError):
-                # Виджет уже удалён
+                # Widget already deleted
                 pass
         self._tracked_widgets.clear()
 
     def __del__(self):
-        """Автоматическая очистка при удалении."""
+        """Automatic cleanup on deletion."""
         try:
             self.cleanup()
         except Exception:

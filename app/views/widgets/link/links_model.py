@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
-from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt, QVariant
+from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt, QVariant, QCoreApplication
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QWidget
 
@@ -20,16 +20,34 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
     ``notes``, ``is_favorite``, ``url``/``path``.
     """
 
-    DEFAULT_HEADERS = ["♥", "Name", "Last opened", "Notes"]
+    DEFAULT_HEADERS = ["♥", "Name", "Last opened", "Notes"]  # source strings
     MAX_ICON_CACHE = 500  # Icon cache size limit
 
     def __init__(self, links: Optional[Sequence[Dict[str, Any]]] = None, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
-        self._headers: List[str] = list(self.DEFAULT_HEADERS)
+        self._headers: List[str] = []
         self._links: List[Dict[str, Any]] = []
         # Initialize while cleaning potential icon cache entries
+        self.retranslate()
         if links:
             self.set_links(links)
+
+    # --- i18n helpers ---
+    @staticmethod
+    def _tr(text: str) -> str:
+        return QCoreApplication.translate("LinksTableModel", text)
+
+    def retranslate(self) -> None:
+        """Refresh localized headers (call on language change)."""
+        self._headers = [
+            self._tr("♥"),
+            self._tr("Name"),
+            self._tr("Last opened"),
+            self._tr("Notes"),
+        ]
+        # Notify views about header text update
+        if hasattr(self, "headerDataChanged"):
+            self.headerDataChanged.emit(Qt.Orientation.Horizontal, 0, len(self._headers) - 1)
 
     # --- Required methods ---
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # type: ignore[override]

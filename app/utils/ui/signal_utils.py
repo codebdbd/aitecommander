@@ -1,4 +1,4 @@
-"""Совместимый слой для легаси-импорта `app.utils.ui.signal_utils`."""
+"""Compatibility layer for legacy import `app.utils.ui.signal_utils`."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from app.utils.db.synchronization import (  # noqa: F401
 
 
 class _SignalBlocker:
-    """Контекстный менеджер, временно блокирующий сигналы у Qt-объекта."""
+    """Context manager that temporarily blocks signals on a Qt object."""
 
     def __init__(self, target: Any):
         self._target = target
@@ -24,7 +24,7 @@ class _SignalBlocker:
             try:
                 self._previous_state = bool(self._target.blockSignals(True))
             except Exception:
-                # Если объект не поддерживает блокировку, просто пропускаем
+                # If the object does not support blocking, just skip
                 self._supports_blocking = False
         return self._target
 
@@ -39,21 +39,21 @@ class _SignalBlocker:
 
 
 def signal_guard(obj_or_func: Any = None, *, slot_name: Optional[str] = None):
-    """Поддерживает два способа использования:
+    """Supports two usage patterns:
 
-    1. Как контекстный менеджер: ``with signal_guard(widget): ...``
-    2. Как декоратор: ``@signal_guard`` или ``@signal_guard("slot")``
+    1. As a context manager: ``with signal_guard(widget): ...``
+    2. As a decorator: ``@signal_guard`` or ``@signal_guard("slot")``
     """
 
-    # Декоратор без аргументов: @signal_guard
+    # Decorator without args: @signal_guard
     if callable(obj_or_func) and slot_name is None:
         return _decorator_signal_guard()(obj_or_func)
 
-    # Декоратор с именем слота: @signal_guard("slot") или signal_guard("slot")(func)
+    # Decorator with slot name: @signal_guard("slot") or signal_guard("slot")(func)
     if isinstance(obj_or_func, str) and slot_name is None:
         return _decorator_signal_guard(obj_or_func)
 
-    # signal_guard()(func) -> возвращаем сам декоратор
+    # signal_guard()(func) -> return the decorator itself
     if obj_or_func is None and slot_name is None:
         return _decorator_signal_guard()
 
@@ -61,7 +61,7 @@ def signal_guard(obj_or_func: Any = None, *, slot_name: Optional[str] = None):
     if obj_or_func is None and slot_name is not None:
         return _decorator_signal_guard(slot_name)
 
-    # signal_guard(widget) -> контекстный менеджер
+    # signal_guard(widget) -> context manager
     return _SignalBlocker(obj_or_func)
 
 
@@ -69,14 +69,14 @@ def signal_guard(obj_or_func: Any = None, *, slot_name: Optional[str] = None):
 
 
 class _LegacyWeakMethod:
-    """WeakMethod, который не удерживает сильных ссылок на экземпляр."""
+    """WeakMethod that does not keep strong references to the instance."""
 
     def __init__(self, method: Callable):
         try:
             self._func = method.__func__  # type: ignore[attr-defined]
             self._self_ref = weakref.ref(method.__self__)  # type: ignore[attr-defined]
         except AttributeError:
-            # Обычная функция (не bound method)
+            # Plain function (not a bound method)
             self._func = method
             self._self_ref = None
 
@@ -103,7 +103,7 @@ class _LegacyWeakMethod:
         return _bound
 
 
-# Переопределяем WeakMethod только если ещё не подменён
+# Override WeakMethod only if it hasn't been replaced yet
 if getattr(weakref.WeakMethod, "__module__", "") != __name__:
     weakref.WeakMethod = _LegacyWeakMethod  # type: ignore[assignment]
 

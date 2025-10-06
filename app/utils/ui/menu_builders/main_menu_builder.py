@@ -1,12 +1,13 @@
-"""Строитель главного меню приложения."""
+"""Builder for the application's main menu."""
 
 import logging
 from typing import TYPE_CHECKING
 
 from PyQt6.QtWidgets import QMenuBar
+from PyQt6.QtCore import QCoreApplication
 
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
-from app.utils.ui.menu_builders.menu_actions import ActionBuilder, Shortcuts
+from app.utils.ui.menu_builders.menu_actions import ActionBuilder, Shortcuts, MenuTexts
 
 if TYPE_CHECKING:
     from app.main_window import MainWindow
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class MainMenuBuilder:
-    """Строитель для главного меню приложения."""
+    """Builder for the application main menu."""
 
     def __init__(self, main_window: "MainWindow"):
         self.main_window = main_window
@@ -23,14 +24,14 @@ class MainMenuBuilder:
         self.theme = main_window.settings.get_theme()
 
     def build(self) -> QMenuBar:
-        """Создаёт и возвращает готовое главное меню."""
-        logger.debug("Создание главного меню для темы: %s", self.theme)
+        """Create and return the fully built main menu bar."""
+        logger.debug("Creating main menu for theme: %s", self.theme)
 
         menubar = QMenuBar(self.main_window)
 
-        # Первым пунктом — унифицированное меню действий
+        # First item — unified Actions menu
         self._create_actions_menu(menubar)
-        # Вторым пунктом — меню данных
+        # Second item — Data menu
         self._create_data_menu(menubar)
         self._create_file_menu(menubar)
         self._create_search_menu(menubar)
@@ -40,34 +41,34 @@ class MainMenuBuilder:
         return menubar
 
     def _get_icon(self, name: str, source: str = "main_menu"):
-        """Получить иконку с учётом темы."""
+        """Get themed icon for the current theme."""
         return icon_cache.get_icon(name, self.theme, source)
 
     def _create_actions_menu(self, menubar: QMenuBar):
-        """Создаёт меню 'Действия' первым пунктом, унифицированное с контекстным меню."""
-        actions_menu = menubar.addMenu("&Действия")
+        """Create the '&Actions' menu as the first item, unified with context menus."""
+        actions_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&Actions"))
 
-        # Добавить раздел
+        # Add section
         actions_menu.addAction(
             self.actions.create(
-                "Добавить раздел",
+                MenuTexts.ADD_SECTION,
                 getattr(self.main_window, "show_section_dialog", None),
                 Shortcuts.ADD_SECTION,
                 self._get_icon("add_section"),
             )
         )
 
-        # Добавить категорию
+        # Add category
         actions_menu.addAction(
             self.actions.create(
-                "Добавить категорию",
+                MenuTexts.ADD_CATEGORY,
                 getattr(self.main_window, "add_new_category", None),
                 Shortcuts.ADD_CATEGORY,
                 self._get_icon("add_category"),
             )
         )
 
-        # Добавить ссылку (для текущей категории)
+        # Add link (for current category)
         def _add_link_current_category():
             try:
                 cat_id = None
@@ -77,12 +78,12 @@ class MainMenuBuilder:
                     self.main_window.show_link_dialog_for_category(cat_id)
             except Exception:
                 logger.exception(
-                    "[MainMenu] Ошибка при добавлении ссылки из меню Действия"
+                    "[MainMenu] Error adding link from Actions menu"
                 )
 
         actions_menu.addAction(
             self.actions.create(
-                "Добавить ссылку",
+                MenuTexts.ADD_LINK,
                 _add_link_current_category,
                 Shortcuts.ADD_LINK,
                 self._get_icon("add_link"),
@@ -91,7 +92,7 @@ class MainMenuBuilder:
 
         actions_menu.addSeparator()
 
-        # Отменить/Повторить — через публичный метод окна
+        # Undo/Redo via window's public methods
         undo_action, redo_action = self.main_window.create_undo_redo_actions()
         if undo_action and redo_action:
             undo_action.setIcon(self._get_icon("undo"))
@@ -104,68 +105,67 @@ class MainMenuBuilder:
 
         actions_menu.addSeparator()
 
-        # Очистить избранное — перед выходом
+        # Clear favorites — before Exit
         actions_menu.addAction(
             self.actions.create(
-                "Очистить избранное",
+                MenuTexts.CLEAR_FAVORITES,
                 self._clear_favorites,
                 icon=self._get_icon("delete"),
             )
         )
 
-        # Выход
+        # Exit
         actions_menu.addAction(
             self.actions.create(
-                "Выход",
+                MenuTexts.EXIT,
                 getattr(self.main_window, "close", None),
                 icon=self._get_icon("exit"),
             )
         )
 
     def _create_file_menu(self, menubar: QMenuBar):
-        """Создаёт меню 'Файл'."""
-        file_menu = menubar.addMenu("&Файл")
+        """Create the '&File' menu."""
+        file_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&File"))
 
-        # Настройки
+        # Settings
         file_menu.addAction(
             self.actions.create(
-                "Настройки",
+                MenuTexts.SETTINGS,
                 self.main_window.show_settings_dialog,
                 icon=self._get_icon("settings"),
             )
         )
 
-        # Пункты перенесены: Импорт/База/Иконки — см. меню "Данные". Выход — в "Действия".
+        # Items moved: Import/DB/Icons — see '&Data'. Exit — in '&Actions'.
 
     def _create_data_menu(self, menubar: QMenuBar):
-        """Создаёт меню 'Данные'."""
-        data_menu = menubar.addMenu("&Данные")
+        """Create the '&Data' menu."""
+        data_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&Data"))
 
-        # Сохранить/Восстановить/Подключить базу
         data_menu.addAction(
             self.actions.create(
-                "Сохранить базу", self._save_database, icon=self._get_icon("export")
+                MenuTexts.SAVE_DATABASE, self._save_database, icon=self._get_icon("export")
             )
         )
         data_menu.addAction(
             self.actions.create(
-                "Восстановить базу",
+                MenuTexts.RESTORE_DATABASE,
                 self._restore_database,
                 icon=self._get_icon("dbrestore"),
             )
         )
         data_menu.addAction(
             self.actions.create(
-                "Подключить базу", self._connect_database, icon=self._get_icon("import")
+                MenuTexts.CONNECT_DATABASE, self._connect_database, icon=self._get_icon("import")
             )
         )
 
         data_menu.addSeparator()
 
-        # Импорт из браузера
+        # Import from browser
         data_menu.addAction(
             self.actions.create(
-                "Импорт из браузера",
+                MenuTexts.IMPORT_BROWSER,
                 self.main_window.handle_import_browser_bookmarks,
                 icon=self._get_icon("import"),
             )
@@ -173,39 +173,39 @@ class MainMenuBuilder:
 
         data_menu.addSeparator()
 
-        # Операции с иконками
+        # Icon operations
         data_menu.addAction(
             self.actions.create(
-                "Экспорт иконок", self._save_icons, icon=self._get_icon("zip_ico")
+                MenuTexts.EXPORT_ICONS, self._save_icons, icon=self._get_icon("zip_ico")
             )
         )
         data_menu.addAction(
             self.actions.create(
-                "Импорт иконок", self._load_icons, icon=self._get_icon("add_ico")
+                MenuTexts.IMPORT_ICONS, self._load_icons, icon=self._get_icon("add_ico")
             )
         )
 
     def _create_search_menu(self, menubar: QMenuBar):
-        """Создаёт меню 'Поиск'."""
-        search_menu = menubar.addMenu("&Поиск")
+        """Create the '&Search' menu."""
+        search_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&Search"))
         search_menu.addAction(
             self.actions.create(
-                "Поиск файлов",
+                MenuTexts.SEARCH_FILES,
                 self.main_window.show_file_search_dialog,
                 icon=self._get_icon("search"),
             )
         )
 
     def _create_themes_menu(self, menubar: QMenuBar):
-        """Создаёт меню 'Темы'."""
-        themes_menu = menubar.addMenu("&Темы")
+        """Create the '&Themes' menu."""
+        themes_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&Themes"))
 
         theme_icons = {"dark": self._get_icon("dark"), "light": self._get_icon("light")}
 
         for name, display_name in self.main_window.get_available_themes():
             icon = theme_icons.get(name) or self._get_icon(name)
 
-            # Создаем функцию с правильным замыканием для каждой темы
+            # Create handler with proper closure per theme
             def make_theme_handler(theme_name):
                 return lambda: self.main_window.apply_theme(theme_name)
 
@@ -215,44 +215,44 @@ class MainMenuBuilder:
             themes_menu.addAction(action)
 
     def _create_help_menu(self, menubar: QMenuBar):
-        """Создаёт меню 'Справка'."""
-        help_menu = menubar.addMenu("&Справка")
+        """Create the '&Help' menu."""
+        help_menu = menubar.addMenu(QCoreApplication.translate("MainMenu", "&Help"))
         help_menu.addAction(
             self.actions.create(
-                "О программе",
+                MenuTexts.ABOUT,
                 self.main_window.show_about_dialog,
                 icon=self._get_icon("help"),
             )
         )
 
-    # Методы для действий меню
+    # Menu action handlers
 
     def _clear_favorites(self):
-        """Очистить избранное - делегирование в DialogController."""
+        """Clear favorites — delegated to DialogController."""
         if hasattr(self.main_window, "database_controller"):
             self.main_window.database_controller.handle_clear_favorites()
 
     def _restore_database(self):
-        """Восстановить базу данных - делегирование в DialogController."""
+        """Restore database — delegated to DialogController."""
         if hasattr(self.main_window, "database_controller"):
             self.main_window.database_controller.handle_restore_database()
 
     def _connect_database(self):
-        """Подключить другую базу данных - делегирование в DialogController."""
+        """Connect different database — delegated to DialogController."""
         if hasattr(self.main_window, "database_controller"):
             self.main_window.database_controller.handle_connect_database()
 
     def _save_database(self):
-        """Сохранить копию базы данных - делегирование в DialogController."""
+        """Save database copy — delegated to DialogController."""
         if hasattr(self.main_window, "database_controller"):
             self.main_window.database_controller.handle_save_database()
 
     def _save_icons(self):
-        """Сохранить архив иконок - делегирование в DialogController."""
+        """Export icons — delegated to DialogController."""
         if hasattr(self.main_window, "database_controller"):
             self.main_window.database_controller.handle_save_icons()
 
     def _load_icons(self):
-        """Загрузить архив иконок - делегирование в DialogController."""
+        """Import icons — delegated to DialogController."""
         if hasattr(self.main_window, "database_controller"):
             self.main_window.database_controller.handle_load_icons()

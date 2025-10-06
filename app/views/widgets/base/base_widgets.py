@@ -130,7 +130,7 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
             self._finish_populate()
             return
 
-        # ✅ ИСПРАВЛЕНИЕ: Конфигурируемый batch_size вместо hardcoded значения
+        # Use configurable batch_size instead of a hardcoded value
         batch_size = app_config.ui.get("panel_batch_size", 50)
         batch = self._pending_items[:batch_size]
         self._pending_items = self._pending_items[batch_size:]
@@ -139,7 +139,7 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
             try:
                 button = self._create_button_func(link)
             except (AttributeError, KeyError, ValueError, TypeError) as expected:
-                # ИСПРАВЛЕНИЕ: Конкретные исключения вместо широкого Exception
+                # Catch specific exceptions instead of broad Exception
                 logger.debug("Failed to create button for link %s: %s", link.get('id', 'unknown'), expected)
                 continue
             
@@ -168,7 +168,7 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
         try:
             self.updateGeometry()
         except (AttributeError, RuntimeError) as e:
-            # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения вместо широкого Exception
+            # Catch specific exceptions instead of broad Exception
             logger.debug(
                 "BaseLinksPanelWidget: updateGeometry failed after populate: %s",
                 e,
@@ -215,7 +215,7 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
             logger.warning("Failed to resolve icon path '%s': %s", icon_path, e)
             return str(self._get_default_icon_path())
         except (AttributeError, ValueError, TypeError) as e:
-            # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения для разных типов ошибок
+            # Catch specific exceptions for different error types
             logger.warning(
                 "Error while resolving icon '%s': %s", icon_path, e
             )
@@ -300,7 +300,7 @@ class BaseDragDropTableWidget(QTableView):
             item_ids = self._extract_item_ids_from_items(items)
             return MimeDataParser.create_mime_data(item_ids, self.MIME_TYPE)
         except (AttributeError, ValueError, TypeError) as e:
-            # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения для создания MIME данных
+            # Catch specific exceptions when creating MIME data
             logger.warning("Failed to create MIME data: %s", e)
             return None
 
@@ -482,7 +482,7 @@ class BaseDragDropTableWidget(QTableView):
                     if moved:
                         self.horizontalHeader().setSortIndicatorShown(False)
                 except (AttributeError, RuntimeError) as e:
-                    # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения для установки индикатора сортировки
+                    # Catch specific exceptions when setting sort indicator
                     logger.debug("Failed to set sort indicator: %s", e)
             self._sorting_disabled_for_drag = False
 
@@ -492,7 +492,7 @@ class BaseDragDropTableWidget(QTableView):
         try:
             return src is self or src is self.viewport()
         except (AttributeError, RuntimeError) as e:
-            # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения для проверки источника drop
+            # Catch specific exceptions when checking drop source
             logger.debug("Failed to determine drop source: %s", e)
             return False
 
@@ -538,13 +538,13 @@ class BaseDragDropTableWidget(QTableView):
             if hasattr(self, "viewport") and self.viewport() is not None:
                 self.viewport().update()
         except (AttributeError, RuntimeError) as e:
-            # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения для обновления viewport
+            # Catch specific exceptions when updating viewport
             logger.debug("Failed to update viewport after row move: %s", e)
         
         try:
             self.update()
         except (AttributeError, RuntimeError) as e:
-            # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения для обновления виджета
+            # Catch specific exceptions when updating widget
             logger.debug("Failed to update widget after row move: %s", e)
 
     def _get_current_order(self) -> List[int]:
@@ -571,7 +571,7 @@ class BaseDragDropTableWidget(QTableView):
             return self._create_multi_row_pixmap(row_count)
 
         except (AttributeError, ValueError, TypeError) as e:
-            # ✅ ИСПРАВЛЕНИЕ: Конкретные исключения для создания drag pixmap
+            # Catch specific exceptions when creating drag pixmap
             logger.warning("Failed to create drag pixmap: %s", e)
             return None
 

@@ -31,17 +31,21 @@ class ImportBrowserDialog(BaseDialog):
         self.resize(400, 180)
         self.setModal(True)
 
+        self._header_label: QLabel | None = None
+        self._button_box: QDialogButtonBox | None = None
         self._init_ui()
         self._populate_spheres()
         self._update_sections()
+        # Первичная установка локализованных текстов
+        self.retranslateUi()
 
     def _init_ui(self) -> None:
         """Initialize dialog widgets."""
         vbox = QVBoxLayout(self)
 
         # Header
-        label = QLabel(self.tr("Select where to import links:"))
-        vbox.addWidget(label)
+        self._header_label = QLabel(self.tr("Select where to import links:"))
+        vbox.addWidget(self._header_label)
 
         # Form with two rows: sphere and section
         form = QFormLayout()
@@ -71,10 +75,41 @@ class ImportBrowserDialog(BaseDialog):
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         vbox.addWidget(button_box)
+        self._button_box = button_box
 
         # Connect signals
         self.sphere_cb.currentIndexChanged.connect(self._update_sections)
         self.section_cb.currentIndexChanged.connect(self._on_section_changed)
+
+    def retranslateUi(self) -> None:  # type: ignore[override]
+        """Update all user-facing texts on language change."""
+        self.setWindowTitle(self.tr("Import from browser"))
+        if self._header_label is not None:
+            self._header_label.setText(self.tr("Select where to import links:"))
+        # Update form labels via labelForField
+        # (FormLayout auto-creates QLabel instances for string labels)
+        try:
+            # Find the form layout by scanning the top-level layout
+            for i in range(self.layout().count()):
+                item = self.layout().itemAt(i)
+                form = isinstance(item.layout(), QFormLayout) and item.layout() or None
+                if form:
+                    sphere_label = form.labelForField(self.sphere_cb)
+                    if sphere_label is not None:
+                        sphere_label.setText(self.tr("Sphere:"))
+                    section_label = form.labelForField(self.section_cb)
+                    if section_label is not None:
+                        section_label.setText(self.tr("Section:"))
+                    break
+        except Exception:
+            pass
+        if self._button_box is not None:
+            ok_btn = self._button_box.button(QDialogButtonBox.StandardButton.Ok)
+            cancel_btn = self._button_box.button(QDialogButtonBox.StandardButton.Cancel)
+            if ok_btn is not None:
+                ok_btn.setText(self.tr("Import"))
+            if cancel_btn is not None:
+                cancel_btn.setText(self.tr("Cancel"))
 
     def _populate_spheres(self) -> None:
         """Populate the sphere combobox."""

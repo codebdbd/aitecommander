@@ -17,6 +17,8 @@ from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.qt.delegates.combo_row_height_delegate import ComboRowHeightDelegate
 
+from app.ui.retranslatable import ReTranslatable
+
 logger = logging.getLogger(__name__)
 
 
@@ -113,7 +115,7 @@ def create_context_menu(widget):
     return menu
 
 
-class BaseDialog(QDialog):
+class BaseDialog(QDialog, ReTranslatable):
     """
     A base dialog class that applies uniform widget heights when shown.
     
@@ -125,6 +127,18 @@ class BaseDialog(QDialog):
         super().__init__(*args, **kwargs)
         self._styles_applied = False
         self._context_menus: list = []  # ✅ ИСПРАВЛЕНИЕ: Трекинг context menu для cleanup
+        # Подключаемся к службе языков, но не вызываем retranslateUi здесь (делают наследники)
+        try:
+            ReTranslatable.__init__(self, call_retranslate=False)
+        except Exception:
+            # Безопасно игнорируем, если наследник не QObject или нет слота destroyed
+            logger.debug("BaseDialog: ReTranslatable init skipped", exc_info=True)
+ 
+    def retranslateUi(self) -> None:
+        """Базовая реализация. Наследники должны переопределить и установить тексты.
+        Оставляем пустой метод, чтобы избежать NotImplementedError в миксине.
+        """
+        pass
 
     def showEvent(self, event):
         """
