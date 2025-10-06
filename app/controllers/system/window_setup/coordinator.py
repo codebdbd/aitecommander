@@ -5,20 +5,20 @@
 import logging
 from typing import Any, Dict
 
-from .types import SetupError
 from .business import (
-    _validate_qt_context,
-    _setup_business_logic,
-    _setup_ui_state_and_tiles,
-    _setup_structure_controllers,
-    _setup_links_controllers,
-    _setup_dialog_controllers,
-    _setup_shutdown_controller,
     _assign_controllers_to_window,
+    _setup_business_logic,
+    _setup_dialog_controllers,
+    _setup_links_controllers,
+    _setup_shutdown_controller,
+    _setup_structure_controllers,
+    _setup_ui_state_and_tiles,
+    _validate_qt_context,
 )
-from .ui import setup_ui_elements, setup_dependency_injection
-from .wiring import setup_signal_connections
 from .keyboard import setup_keyboard
+from .types import SetupError
+from .ui import setup_dependency_injection, setup_ui_elements
+from .wiring import setup_signal_connections
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +117,9 @@ class WindowControllersSetup:
         try:
             sc = getattr(self.window, "spheres_controller", None)
             if sc is None:
-                from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
+                from app.controllers.ui.structure.spheres_bar_controller import (
+                    SpheresBarController,
+                )
                 sc = SpheresBarController(self.window)
                 self.window.spheres_controller = sc
             sc.init()

@@ -124,6 +124,7 @@ class BaseDialog(QDialog):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._styles_applied = False
+        self._context_menus: list = []  # ✅ ИСПРАВЛЕНИЕ: Трекинг context menu для cleanup
 
     def showEvent(self, event):
         """
@@ -136,11 +137,29 @@ class BaseDialog(QDialog):
             self._setup_russian_context_menus()
         super().showEvent(event)
 
+    def closeEvent(self, event):
+        """✅ ИСПРАВЛЕНИЕ: Cleanup context menus для предотвращения утечек памяти."""
+        self._cleanup_context_menus()
+        super().closeEvent(event)
+    
+    def _cleanup_context_menus(self) -> None:
+        """Cleanup all created context menus."""
+        for menu in self._context_menus:
+            try:
+                if menu and not menu.isHidden():
+                    menu.close()
+                menu.deleteLater()
+            except (AttributeError, RuntimeError):
+                pass
+        self._context_menus.clear()
+
     def _setup_russian_context_menus(self):
+        """Setup context menus with proper cleanup tracking."""
         for widget in self.findChildren((QLineEdit, QTextEdit)):
             widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             widget.customContextMenuRequested.connect(
-                lambda pos, w=widget: create_context_menu(w).popup(w.mapToGlobal(pos))
+                # ✅ ИСПРАВЛЕНИЕ: Трекинг созданных menu для cleanup
+                lambda pos, w=widget: self._show_context_menu(w, pos)
             )
 
     def _apply_combo_popup_styles(self):
@@ -177,6 +196,15 @@ class BaseDialog(QDialog):
                     continue
         except (RuntimeError, AttributeError):
             logger.exception("Failed to apply combo popup styles (outer)")
+
+    def _show_context_menu(self, widget, pos):
+        """✅ ИСПРАВЛЕНИЕ: Show context menu с трекингом для cleanup."""
+        try:
+            menu = create_context_menu(widget)
+            self._context_menus.append(menu)
+            menu.popup(widget.mapToGlobal(pos))
+        except Exception as e:
+            logger.warning("Failed to show context menu: %s", e)
 
     # --- Local message box helpers to avoid importing controllers in views ---
     def show_info(

@@ -61,6 +61,8 @@ class ShutdownHandler:
 class AppShutdownController:
     """Улучшенный контроллер корректного завершения приложения.
 
+    ✅ ИСПРАВЛЕНИЕ: Добавлена строгая типизация и cleanup метод.
+
     Особенности:
     - Поддержка приоритетов операций
     - Улучшенная обработка ошибок с реальными таймаутами
@@ -69,7 +71,7 @@ class AppShutdownController:
     - Безопасное завершение в многопоточной среде
     """
 
-    def __init__(self, main_window):
+    def __init__(self, main_window: 'QMainWindow'):
         self.window = main_window
         self.shutdown_handlers: List[ShutdownHandler] = []
         self.shutdown_in_progress = False
@@ -80,9 +82,18 @@ class AppShutdownController:
         # Настройки из конфигурации
         self.max_shutdown_time = app_config.get("shutdown.max_total_time", 10000)
         self.parallel_execution = app_config.get("shutdown.parallel_execution", False)
+        
+        # ✅ Флаг для отслеживания cleanup
+        self._cleaned_up = False
 
-    def perform_shutdown(self, event):
-        """Основной метод - полностью совместим с оригинальным интерфейсом."""
+    def perform_shutdown(self, event: 'QCloseEvent') -> None:
+        """Основной метод - полностью совместим с оригинальным интерфейсом.
+        
+        ✅ ИСПРАВЛЕНИЕ: Добавлена типизация параметров.
+        
+        Args:
+            event: Событие закрытия окна
+        """
         with self._shutdown_lock:
             if self.shutdown_in_progress:
                 logger.warning(
@@ -103,6 +114,8 @@ class AppShutdownController:
         finally:
             # Безопасный вызов родительского closeEvent (обратная совместимость)
             self._safe_close_event(event)
+            # ✅ Cleanup ресурсов
+            self.cleanup()
 
     def _safe_close_event(self, event):
         """Безопасный вызов родительского closeEvent с fallback."""
@@ -462,7 +475,7 @@ class AppShutdownController:
                     continue
 
                 logger.debug("Shutting down %s", display_name)
-                shutdown_method = getattr(controller, "shutdown")
+                shutdown_method = controller.shutdown
                 if callable(shutdown_method):
                     shutdown_method()
                 else:
@@ -500,7 +513,7 @@ class AppShutdownController:
         # Локальный thread pool окна
         try:
             if hasattr(self.window, "thread_pool"):
-                local_pool = getattr(self.window, "thread_pool")
+                local_pool = self.window.thread_pool
                 if local_pool and local_pool.activeThreadCount() > 0:
                     logger.debug(
                         "Waiting for %s local threads to finish",
@@ -527,7 +540,7 @@ class AppShutdownController:
                 logger.debug("No 'db' attribute found on window, skipping backup")
                 return
 
-            db = getattr(self.window, "db")
+            db = self.window.db
             if db is None:
                 logger.debug("Database instance is None, skipping backup")
                 return
@@ -536,7 +549,7 @@ class AppShutdownController:
                 logger.debug("Database has no backup method")
                 return
 
-            backup_method = getattr(db, "backup")
+            backup_method = db.backup
             if not callable(backup_method):
                 logger.debug("Database backup attribute is not callable")
                 return
@@ -549,12 +562,51 @@ class AppShutdownController:
             # Для бэкапа ошибка не критична, но логируем
             logger.error("Database backup failed: %s", exc, exc_info=True)
 
+    def cleanup(self) -> None:
+        """Освобождает ресурсы контроллера.
+        
+        ✅ ИСПРАВЛЕНИЕ: Добавлен метод cleanup для предотвращения утечек памяти.
+        
+        Вызывается автоматически после завершения shutdown sequence.
+        Идемпотентен - можно вызывать многократно.
+        """
+        if self._cleaned_up:
+            return
+        
+        try:
+            # Освобождаем RLock
+            if hasattr(self, '_shutdown_lock') and self._shutdown_lock:
+                try:
+                    # RLock не требует явного освобождения, но обнуляем ссылку
+                    self._shutdown_lock = None
+                except Exception as e:
+                    logger.debug("Error clearing shutdown lock: %s", e)
+            
+            # Очищаем handlers
+            if hasattr(self, 'shutdown_handlers'):
+                self.shutdown_handlers.clear()
+            
+            self._cleaned_up = True
+            logger.debug("AppShutdownController cleanup completed")
+            
+        except Exception as exc:
+            logger.error("Error during AppShutdownController cleanup: %s", exc, exc_info=True)
+
 
 # ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
 
 
-def create_shutdown_controller(main_window) -> AppShutdownController:
-    """Фабричная функция для создания контроллера с настройками по умолчанию."""
+def create_shutdown_controller(main_window: 'QMainWindow') -> AppShutdownController:
+    """Фабричная функция для создания контроллера с настройками по умолчанию.
+    
+    ✅ ИСПРАВЛЕНИЕ: Добавлена типизация параметров.
+    
+    Args:
+        main_window: Главное окно приложения
+        
+    Returns:
+        Настроенный экземпляр AppShutdownController
+    """
     controller = AppShutdownController(main_window)
 
     # Дополнительные handlers можно добавить здесь

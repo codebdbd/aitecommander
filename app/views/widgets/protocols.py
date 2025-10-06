@@ -1,10 +1,49 @@
-"""Configuration protocols for widgets.
+"""Protocols for views module type safety."""
 
-Provides type-safe configuration interfaces for dependency injection,
-eliminating hard dependencies on global app_config.
-"""
+from typing import Protocol, TypedDict, List, Tuple
 
-from typing import Protocol, Tuple
+
+class LinkDict(TypedDict, total=False):
+    """Typed dictionary для link data вместо Dict[str, Any]."""
+    id: int
+    name: str
+    url: str
+    category_id: int
+    type: str
+    browser_key: str
+    icon_path: str
+    position: int
+    is_favorite: int
+    notes: str
+
+
+class TreeNodeDict(TypedDict):
+    """Typed dictionary для tree node data."""
+    type: str  # "section" | "category"
+    id: int
+    name: str
+    icon_path: str
+    position: int
+
+
+class SystemDialogsProtocol(Protocol):
+    """Protocol для system dialogs вместо object.
+
+    Используется в `MainWindow` для типобезопасного обращения к контроллеру
+    системных диалогов без жёсткой привязки к реализации.
+    """
+    def show_about_dialog(self) -> None: ...
+    def show_settings_dialog(self) -> None: ...
+    def show_file_search_dialog(self) -> None: ...
+    def handle_import_browser_bookmarks(self) -> None: ...
+
+
+class LinksBusinessProtocol(Protocol):
+    """✅ ИСПРАВЛЕНИЕ: Protocol для links business вместо Any."""
+    def get_links(self, category_id: int) -> List[LinkDict]: ...
+    def create_link(self, data: LinkDict) -> int: ...
+    def update_link(self, link_id: int, data: LinkDict) -> bool: ...
+    def delete_link(self, link_id: int) -> bool: ...
 
 
 class WidgetConfigProtocol(Protocol):

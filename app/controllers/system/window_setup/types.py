@@ -2,7 +2,7 @@
 Типы и протоколы для настройки контроллеров главного окна.
 """
 
-from typing import Any, Protocol, runtime_checkable, TypedDict
+from typing import Any, Protocol, TypedDict, runtime_checkable
 
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.business.links_business import LinksBusinessLogic

@@ -6,12 +6,13 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Iterable, Optional
+from typing import Iterable, Optional
 
 from PyQt6.QtWidgets import QApplication
 
 from app.services.links_service import LinksService
 from app.services.structure_service import StructureService
+from app.services.protocols import DatabaseProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,14 @@ class StructureContextService:
     операции с буфером производятся через QApplication.clipboard().
     """
 
-    def __init__(self, db: Any):
+    def __init__(self, db: DatabaseProtocol):
+        """Инициализирует сервис контекстного меню.
+        
+        ✅ ИСПРАВЛЕНИЕ: Использует DatabaseProtocol вместо Any.
+        
+        Args:
+            db: Экземпляр Database
+        """
         self.db = db
         self._ss = StructureService(db)
         self._ls = LinksService(db)

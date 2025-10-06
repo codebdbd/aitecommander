@@ -21,6 +21,8 @@ class ThemeStylesheetService:
         self._qss_cache: OrderedDict[str, str] = OrderedDict()
         self._common_qss: Optional[str] = None
         self._cache_lock = RLock()
+        # ✅ ИСПРАВЛЕНИЕ: Кэш для QSS overrides
+        self._overrides_cache: Optional[str] = None
         try:
             initial_size = max_cache_size
             if initial_size is None:
@@ -39,10 +41,15 @@ class ThemeStylesheetService:
 
     # ---------------------- Публичные методы ----------------------
     def clear_cache(self) -> None:
+        """Очищает все кэши (темы, common.qss, overrides).
+        
+        ✅ ИСПРАВЛЕНИЕ: Очищает также overrides_cache.
+        """
         with self._cache_lock:
             cache_size = len(self._qss_cache)
             self._qss_cache.clear()
             self._common_qss = None
+            self._overrides_cache = None  # ✅ Очищаем overrides
         logger.debug("ThemeStylesheetService: кэш очищен, удалено %d записей", cache_size)
 
     def get_cache_stats(self) -> dict[str, object]:
@@ -110,8 +117,9 @@ class ThemeStylesheetService:
         common_qss = self._load_common_qss()
         combined_qss = f"{common_qss}\n{theme_qss}" if common_qss is not None else theme_qss
 
+        # ✅ ИСПРАВЛЕНИЕ: Используем кэшированные overrides
         try:
-            overrides = self._build_config_overrides_qss()
+            overrides = self._get_cached_overrides()
             if overrides:
                 combined_qss = (
                     f"{combined_qss}\n\n/* ==== AppConfig overrides (auto-generated) ==== */\n{overrides}"
@@ -185,6 +193,34 @@ class ThemeStylesheetService:
                 key, _ = self._qss_cache.popitem(last=False)
                 logger.debug("ThemeStylesheetService: LRU удалил тему %s", key)
 
+    def _get_cached_overrides(self) -> str:
+        """Возвращает кэшированные QSS overrides.
+        
+        ✅ ИСПРАВЛЕНИЕ: Кэширует результат _build_config_overrides_qss().
+        """
+        with self._cache_lock:
+            if self._overrides_cache is not None:
+                return self._overrides_cache
+        
+        # Генерируем overrides
+        overrides = self._build_config_overrides_qss()
+        
+        with self._cache_lock:
+            self._overrides_cache = overrides
+        
+        return overrides
+    
+    def invalidate_overrides_cache(self) -> None:
+        """Сбрасывает кэш overrides при изменении настроек.
+        
+        ✅ ИСПРАВЛЕНИЕ: Публичный метод для сброса кэша.
+        
+        Вызывайте этот метод после изменения размеров шрифтов или других UI-настроек.
+        """
+        with self._cache_lock:
+            self._overrides_cache = None
+        logger.debug("ThemeStylesheetService: overrides cache invalidated")
+    
     def _is_safe_filename(self, filename: str) -> bool:
         if not filename or re.search(r'[<>:"/\\|?*]', filename):
             return False

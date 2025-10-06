@@ -5,7 +5,15 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional, TYPE_CHECKING
 
+try:
+    from app.utils.metrics import get_metrics
+    _metrics = get_metrics()
+except ImportError:
+    _metrics = None
+
 if TYPE_CHECKING:  # pragma: no cover - typing only
+    from logging import Logger
+
     from app.controllers.business.structure_business import StructureBusinessLogic
     from app.controllers.structure_modules import CacheManager
     from app.controllers.structure_services.loader import LoaderService
@@ -15,17 +23,17 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 
 
 class StructureCacheService:
-    """Encapsulates cached data access and invalidation routines."""
+    """Provides cached access to spheres, sections, and categories."""
 
     def __init__(
         self,
-        owner: StructureBusinessLogic,
+        owner: 'StructureBusinessLogic',
         cache_manager: CacheManager,
         structure_service: StructureService,
         loader_service: LoaderService,
         utility_service: UtilityService,
         structure_model: StructureModel,
-        logger: logging.Logger,
+        logger: 'Logger',
     ) -> None:
         self._owner = owner
         self._cache_manager = cache_manager
@@ -35,48 +43,102 @@ class StructureCacheService:
         self._structure_model = structure_model
         self._logger = logger
 
-    # ------------------------------------------------------------------
-    # Public data access methods
-    # ------------------------------------------------------------------
-    def load_structure(self, sphere_id: int) -> None:
-        cache_key = f"structure_{sphere_id}"
-        cached_structure = self._cache_manager.get(cache_key)
-        if cached_structure is not None:
-            self._owner.structure_loaded.emit(cached_structure)
+    def warm_first_category(self, sphere_id: int, payload: Optional[list[dict[str, Any]]]) -> None:
+        """Прогревает кэш первой категории для сферы.
+        
+        Извлекает ID первой категории из payload и сохраняет в кэш.
+        Используется для оптимизации навигации после загрузки структуры.
+        
+        Args:
+            sphere_id: ID сферы для кэширования
+            payload: Список разделов с вложенными категориями
+        """
+        if not isinstance(sphere_id, int) or sphere_id <= 0:
             return
+        if not payload:
+            return
+        for section in payload:
+            categories = section.get("categories") if isinstance(section, dict) else None
+            if not categories:
+                continue
+            first = categories[0]
+            cid = first.get("id") if isinstance(first, dict) else None
+            if isinstance(cid, int) and cid > 0:
+                self._cache_manager.set(f"first_category_id:{sphere_id}", cid)
+                break
 
-        structure_data = self._loader_service.load_structure_from_db(
-            structure_model=self._structure_model,
-            sphere_id=sphere_id,
-            logger=self._logger,
-        )
-        self._cache_manager.set(cache_key, structure_data)
-        self._owner.structure_loaded.emit(structure_data)
-        self._logger.debug("Structure loaded for sphere %s", sphere_id)
+    def schedule_reload(self, delay_ms: int) -> None:
+        """Планирует перезагрузку структуры через async сервис владельца.
+        
+        Args:
+            delay_ms: Задержка в миллисекундах перед перезагрузкой
+        """
+        async_service = getattr(self._owner, "async_service", None)
+        if async_service and hasattr(async_service, "schedule_structure_reload"):
+            async_service.schedule_structure_reload(delay_ms)
 
     def get_spheres(self) -> list[dict[str, Any]]:
+        """Получает список всех сфер с кэшированием.
+        
+        ✅ Метрика кэша: отслеживается hit/miss rate.
+        
+        Returns:
+            Список словарей с данными сфер
+        """
         cache_key = "all_spheres"
         cached = self._cache_manager.get(cache_key)
         if cached is not None:
+            if _metrics:
+                _metrics.record_cache_hit("spheres_cache")
             return cached
+        if _metrics:
+            _metrics.record_cache_miss("spheres_cache")
         spheres = self._structure_service.get_spheres()
         self._cache_manager.set(cache_key, spheres)
         return spheres or []
 
     def get_sections(self, sphere_id: int) -> list[dict[str, Any]]:
+        """Получает разделы для сферы с кэшированием.
+        
+        ✅ Метрика кэша: отслеживается hit/miss rate.
+        
+        Args:
+            sphere_id: ID сферы
+            
+        Returns:
+            Список словарей с данными разделов
+        """
         cache_key = f"sections_{sphere_id}"
         cached = self._cache_manager.get(cache_key)
         if cached is not None:
+            if _metrics:
+                _metrics.record_cache_hit("sections_cache")
             return cached
+        if _metrics:
+            _metrics.record_cache_miss("sections_cache")
         sections = self._structure_service.get_sections(sphere_id)
         self._cache_manager.set(cache_key, sections)
         return sections or []
 
     def get_categories(self, section_id: int) -> list[dict[str, Any]]:
+        """Получает категории для раздела с кэшированием.
+        
+        ✅ Метрика кэша: отслеживается hit/miss rate.
+        
+        Args:
+            section_id: ID раздела
+            
+        Returns:
+            Список словарей с данными категорий
+        """
         cache_key = f"categories_{section_id}"
         cached = self._cache_manager.get(cache_key)
         if cached is not None:
+            if _metrics:
+                _metrics.record_cache_hit("categories_cache")
             return cached
+        if _metrics:
+            _metrics.record_cache_miss("categories_cache")
         categories = self._structure_service.get_categories(section_id)
         self._cache_manager.set(cache_key, categories)
         return categories or []

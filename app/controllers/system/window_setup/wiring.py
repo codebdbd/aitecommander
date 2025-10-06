@@ -8,13 +8,14 @@ from typing import Any, Dict
 
 from PyQt6.QtCore import QTimer, pyqtSlot
 
-from .types import SetupError, DatabaseProtocol, WindowProtocol
 from app.controllers.business import StructureBusinessLogic
-from app.controllers.ui.structure.structure_ui_controller import StructureUIController
-from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
-from app.controllers.ui.top_panels_controller import TopPanelsController
 from app.controllers.ui.links.table_controller import LinksTableController
+from app.controllers.ui.structure.spheres_bar_controller import SpheresBarController
+from app.controllers.ui.structure.structure_ui_controller import StructureUIController
+from app.controllers.ui.top_panels_controller import TopPanelsController
 from app.services import LinksService
+
+from .types import DatabaseProtocol, SetupError, WindowProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -74,13 +75,13 @@ def _connect_favorites_widget(
             raise SetupError(
                 "Favorites widget must expose unified signal refreshRequested"
             )
-        refresh_sig = getattr(fav_widget, "refreshRequested")
+        refresh_sig = fav_widget.refreshRequested
         if not hasattr(refresh_sig, "connect"):
             raise SetupError("Favorites refreshRequested must provide connect()")
         refresh_sig.connect(top_panels_controller.request_favorites_refresh)
 
         if hasattr(fav_widget, "clearRequested"):
-            clear_sig = getattr(fav_widget, "clearRequested")
+            clear_sig = fav_widget.clearRequested
             if hasattr(clear_sig, "connect"):
                 clear_sig.connect(top_panels_controller.clear_favorites)
     except (AttributeError, TypeError) as e:
@@ -105,7 +106,7 @@ def _connect_recent_widget(
             raise SetupError(
                 "Recent links widget must expose unified signal refreshRequested"
             )
-        refresh_sig = getattr(recent_links_widget, "refreshRequested")
+        refresh_sig = recent_links_widget.refreshRequested
         if not hasattr(refresh_sig, "connect"):
             raise SetupError("Recent refreshRequested must provide connect()")
         refresh_sig.connect(top_panels_controller.request_recents_refresh)
@@ -119,10 +120,10 @@ def _connect_widget_action_signal(widget: Any, links_actions: Any, widget_name: 
     """Подключить actionRequested сигнал виджета к links_actions."""
     try:
         if hasattr(widget, "actionRequested"):
-            action_signal = getattr(widget, "actionRequested")
+            action_signal = widget.actionRequested
             if hasattr(action_signal, "connect") and hasattr(
                 links_actions, "on_action_requested"
-            ) and callable(getattr(links_actions, "on_action_requested")):
+            ) and callable(links_actions.on_action_requested):
                 action_signal.connect(links_actions.on_action_requested)
             else:
                 logger.debug(
@@ -454,8 +455,8 @@ class DatabaseEventHandler:
                 links_ref.db = new_db
                 links_ref.links = new_db.links
             elif hasattr(links_ref, "business") and hasattr(links_ref, "link_ops"):
-                business = getattr(links_ref, "business")
-                link_ops = getattr(links_ref, "link_ops")
+                business = links_ref.business
+                link_ops = links_ref.link_ops
 
                 try:
                     if hasattr(link_ops, "db"):

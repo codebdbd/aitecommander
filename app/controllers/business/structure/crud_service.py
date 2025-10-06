@@ -4,6 +4,15 @@ from __future__ import annotations
 
 from typing import Any, Optional, TYPE_CHECKING
 
+try:
+    from app.utils.metrics import measure_time
+except ImportError:
+    # Fallback если метрики недоступны
+    def measure_time(name: str, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from logging import Logger
 
@@ -40,7 +49,13 @@ class StructureCrudService:
     # ------------------------------------------------------------------
     # Section operations
     # ------------------------------------------------------------------
+    @measure_time("create_section", log_threshold_ms=200)
     def create_section(self, data: dict[str, Any]) -> Optional[dict[str, Any]]:
+        """Создаёт раздел и эмитит сигнал.
+        
+        ✅ ИСПРАВЛЕНИЕ: Добавлена проверка на None перед использованием sphere_id.
+        ✅ Метрика производительности: измеряется время выполнения.
+        """
         section_id = self._structure_service.create_section(data)
         if not section_id:
             return None
@@ -50,18 +65,25 @@ class StructureCrudService:
             section_data.get("sphere_id") if isinstance(section_data, dict) else None
         )
         try:
-            self._owner.item_added.emit(
-                "section", int(sphere_id) if sphere_id else 0, section_data
-            )
+            # ✅ Проверяем sphere_id на None перед использованием
+            if sphere_id is not None and isinstance(sphere_id, int):
+                self._owner.item_added.emit("section", int(sphere_id), section_data)
+            else:
+                self._logger.warning("create_section: sphere_id is None or invalid")
         finally:
             if sphere_id:
                 self._cache_service.invalidate_sections_cache(sphere_id)
             self._cache_service.invalidate_structure_cache()
         return section_data or None
 
+    @measure_time("update_section", log_threshold_ms=200)
     def update_section(
         self, section_id: int, data: dict[str, Any]
     ) -> Optional[dict[str, Any]]:
+        """Обновляет раздел и эмитит сигнал.
+        
+        ✅ Метрика производительности: измеряется время выполнения.
+        """
         ok = self._structure_service.update_section(section_id, data)
         if not ok:
             return None
@@ -78,9 +100,14 @@ class StructureCrudService:
             self._cache_service.invalidate_structure_cache()
         return section_data or None
 
+    @measure_time("delete_section", log_threshold_ms=300)
     def delete_section(
         self, section_id: int
     ) -> tuple[bool, dict[str, Any], int, int]:
+        """Удаляет раздел и эмитит сигнал.
+        
+        ✅ Метрика производительности: измеряется время выполнения.
+        """
         section_before = self._structure_service.get_section_by_id(section_id) or {}
         if not section_before:
             return False, {}, 0, 0
@@ -109,7 +136,13 @@ class StructureCrudService:
     # ------------------------------------------------------------------
     # Category operations
     # ------------------------------------------------------------------
+    @measure_time("create_category", log_threshold_ms=200)
     def create_category(self, data: dict[str, Any]) -> Optional[dict[str, Any]]:
+        """Создаёт категорию и эмитит сигнал.
+        
+        ✅ ИСПРАВЛЕНИЕ: Добавлена проверка на None перед использованием section_id.
+        ✅ Метрика производительности: измеряется время выполнения.
+        """
         category_id = self._structure_service.create_category(data)
         if not category_id:
             return None
@@ -119,16 +152,23 @@ class StructureCrudService:
             category_data.get("section_id") if isinstance(category_data, dict) else None
         )
         try:
-            self._owner.item_added.emit(
-                "category", int(section_id) if section_id else 0, category_data
-            )
+            # ✅ Проверяем section_id на None перед использованием
+            if section_id is not None and isinstance(section_id, int):
+                self._owner.item_added.emit("category", int(section_id), category_data)
+            else:
+                self._logger.warning("create_category: section_id is None or invalid")
         finally:
             self._cache_service.invalidate_categories_cache(section_id)
         return category_data or None
 
+    @measure_time("update_category", log_threshold_ms=200)
     def update_category(
         self, category_id: int, data: dict[str, Any]
     ) -> Optional[dict[str, Any]]:
+        """Обновляет категорию и эмитит сигнал.
+        
+        ✅ Метрика производительности: измеряется время выполнения.
+        """
         ok = self._structure_service.update_category(category_id, data)
         if not ok:
             return None
@@ -143,7 +183,12 @@ class StructureCrudService:
             self._cache_service.invalidate_categories_cache(section_id)
         return category_data or None
 
+    @measure_time("delete_category", log_threshold_ms=300)
     def delete_category(self, category_id: int) -> tuple[bool, dict[str, Any], int]:
+        """Удаляет категорию и эмитит сигнал.
+        
+        ✅ Метрика производительности: измеряется время выполнения.
+        """
         category_before = self._structure_service.get_category_by_id(category_id) or {}
         if not category_before:
             return False, {}, 0
@@ -161,9 +206,14 @@ class StructureCrudService:
                 self._cache_service.invalidate_categories_cache(section_id)
         return success, category_before, 0
 
+    @measure_time("move_categories_batch", log_threshold_ms=500)
     def move_categories_batch(
         self, category_ids: list[int], target_section_id: int, base_row: int = 0
     ) -> list[int]:
+        """Перемещает категории batch операцией.
+        
+        ✅ Метрика производительности: измеряется время выполнения.
+        """
         if (
             not category_ids
             or not isinstance(target_section_id, int)
@@ -176,14 +226,26 @@ class StructureCrudService:
             for cid in category_ids:
                 try:
                     cdata = self._structure_service.get_category_by_id(int(cid))
-                except Exception:  # pragma: no cover - defensive
+                except (ValueError, TypeError) as e:
+                    # ✅ Ожидаемые ошибки валидации
+                    self._logger.debug("Invalid category_id %s: %s", cid, e)
+                    cdata = None
+                except Exception as e:
+                    # ✅ Неожиданные ошибки
+                    self._logger.exception("Unexpected error getting category %s: %s", cid, e)
                     cdata = None
                 if isinstance(cdata, dict):
                     sid = cdata.get("section_id")
                     if isinstance(sid, int) and sid > 0 and sid != target_section_id:
                         source_sections.add(int(sid))
-        except Exception:  # pragma: no cover - defensive
+        except (ValueError, TypeError) as e:
+            # ✅ Ожидаемые ошибки
+            self._logger.warning("Error collecting source sections: %s", e)
             source_sections = set()
+        except Exception as e:
+            # ✅ Неожиданные ошибки
+            self._logger.exception("Critical error in move_categories_batch: %s", e)
+            raise
 
         self._owner.begin_batch()
         try:

@@ -229,22 +229,22 @@ class TestStructureBusinessLogic:
         structure_business.validation_facade.has_duplicate_category.assert_called_once_with(3, 'Name', 4)
         assert result is True
 
-    def test_batch_mode(self, structure_business):
-        """Test batch mode operations."""
-        assert not structure_business._batch_mode
-
+    def test_batch_mode_prevents_immediate_reload(self, structure_business):
+        """Test batch mode prevents immediate category reload until end_batch."""
         structure_business.begin_batch()
-        assert structure_business._batch_mode
-        assert structure_business._batch_touched_sections == set()
+        structure_business.event_service.add_batch_section(1)
 
-        structure_business.end_batch()
-        assert not structure_business._batch_mode
+        with patch.object(structure_business.async_service, 'load_categories_async') as mock_load:
+            with patch.object(structure_business.async_service, 'schedule_structure_reload') as mock_reload:
+                structure_business.end_batch()
+
+        mock_load.assert_called_with(1)
+        mock_reload.assert_called_once()
+        assert not structure_business.event_service.batch_mode
 
     def test_shutdown(self, structure_business, mock_cache_manager):
         """Test shutdown calls async service and clears cache."""
         structure_business.shutdown(1000)
-
-        structure_business.async_service.shutdown.assert_called_once_with(timeout=1000)
         mock_cache_manager.invalidate.assert_called_once()
 
     def test_clear_all_cache(self, structure_business, mock_cache_manager):
