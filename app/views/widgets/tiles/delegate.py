@@ -14,7 +14,7 @@ logger = logging.getLogger("category_tiles")
 
 
 class CategoryTileDelegate(QStyledItemDelegate):
-    """Простой делегат для отрисовки плиток категорий."""
+    """Simple delegate for rendering category tiles."""
 
     def __init__(self, icon_size: Optional[QSize] = None, tile_size: Optional[QSize] = None, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -25,12 +25,12 @@ class CategoryTileDelegate(QStyledItemDelegate):
         self._font_diag_logged = False
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex) -> None:
-        """Простая отрисовка плитки: иконка сверху, текст снизу."""
+        """Render a tile: icon on top, text below."""
         painter.save()
         rect = option.rect
         icon = index.data(Qt.ItemDataRole.DecorationRole)
         text = index.data(Qt.ItemDataRole.DisplayRole)
-        # Шрифт текста плиток задаётся централизованно через ui.fonts.tiles_px (QSS)
+        # Tile text font is centralized via ui.fonts.tiles_px (QSS)
 
         try:
             w = option.widget
@@ -77,7 +77,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
                 logger.debug("Placeholder '?' draw skipped: %s", e)
 
         if text:
-            # Диагностика размеров шрифтов в плитках убрана: размеры централизованы через QSS
+            # Font size diagnostics removed; sizes are centralized via QSS
             text_rect = QRect(
                 rect.left() + self.padding,
                 rect.top() + self.padding + self.icon_size.height() + 5,
@@ -148,8 +148,8 @@ class CategoryTileDelegate(QStyledItemDelegate):
         painter.restore()
 
     def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:
-        """Простой расчет размера плитки."""
-        font = QFont(option.font)  # размер шрифта приходит из QSS (ui.fonts.tiles_px)
+        """Simple size calculation for a tile."""
+        font = QFont(option.font)  # font size comes from QSS (ui.fonts.tiles_px)
         try:
             max_lines = int(app_config.ui.get_tile_text_max_lines())
         except (TypeError, ValueError, AttributeError) as e:
@@ -184,7 +184,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
         return QSize(self.tile_size.width(), height)
 
     def helpEvent(self, event: QHelpEvent, view: QAbstractItemView, option: QStyleOptionViewItem, index: QModelIndex) -> bool:
-        """Показывает тултип с полным названием, если текст усечён или для единообразия UX."""
+        """Show tooltip with full title if text is truncated, or for UX consistency."""
         try:
             if not index.isValid() or event is None:
                 return False
@@ -202,7 +202,7 @@ class CategoryTileDelegate(QStyledItemDelegate):
 
             available_w = max(0, option.rect.width() - 2 * self.padding)
 
-            font = QFont(option.font)  # размер берётся из QSS
+            font = QFont(option.font)  # font size is taken from QSS
 
             layout = QTextLayout(text, font)
             opt = QTextOption()

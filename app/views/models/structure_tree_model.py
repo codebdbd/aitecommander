@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 from PyQt6.QtCore import QAbstractItemModel, QModelIndex, Qt
 from PyQt6.QtGui import QIcon
 
-# Типы узлов дерева
+# Tree node types
 NodeType = str  # "section" | "category" | "root"
 
 
@@ -29,20 +29,20 @@ class TreeNode:
             return -1
 
     def __hash__(self) -> int:
-        # Идентичностный хеш позволяет использовать узлы как ключи словаря
-        # (например, при группировке по родителю) и безопасен для мутируемых объектов
+        # Identity-based hash allows using nodes as dict keys
+        # (e.g., grouping by parent) and is safe for mutable objects
         return id(self)
 
 
 class StructureTreeModel(QAbstractItemModel):
     """
-    Иерархическая модель для структуры разделов/категорий.
+    Hierarchical model for sections/categories structure.
 
-    - Колонка одна (имя).
-    - Qt.UserRole возвращает кортеж (type, id) для совместимости с get_tree_tuple().
-    - Qt.DecorationRole возвращает иконку узла (если задана).
+    - Single column (name).
+    - Qt.UserRole returns a tuple (type, id) for compatibility with get_tree_tuple().
+    - Qt.DecorationRole returns node icon (if provided).
 
-    Публичные batch-методы (минимальный набор для начального этапа):
+    Public batch methods (minimal initial set):
     - set_snapshot(tree: list[dict])
     - index_for(item_type: str, item_id: int) -> QModelIndex | invalid
     """
@@ -50,14 +50,9 @@ class StructureTreeModel(QAbstractItemModel):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._root = TreeNode(type="root", id=None, name="root")
-        # Быстрые отображения для поиска индексов
         self._section_by_id: Dict[int, TreeNode] = {}
         self._category_by_id: Dict[int, TreeNode] = {}
-        # Для будущего: можно хранить persistent index'ы, если потребуется
 
-    
-
-    # --- Базовая иерархия ---
     def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:  # noqa: N802 (Qt API)
         return 1
 
@@ -81,7 +76,6 @@ class StructureTreeModel(QAbstractItemModel):
             return QModelIndex()
         node: TreeNode = index.internalPointer()
         if not node.parent or node.parent is self._root:
-            # Родителем секций является root → top-level
             return QModelIndex()
         grand = node.parent.parent
         row = node.parent.row()
@@ -89,12 +83,10 @@ class StructureTreeModel(QAbstractItemModel):
             row = node.parent.row()
         return self.createIndex(row, 0, node.parent)
 
-    # --- Данные/роли ---
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Any:  # noqa: N802
         if not index.isValid():
             return None
-        
-        # ✅ ИСПРАВЛЕНИЕ: Проверка на deleted objects
+
         node: TreeNode = index.internalPointer()
         if node is None:
             return None
@@ -104,7 +96,6 @@ class StructureTreeModel(QAbstractItemModel):
         if role == Qt.ItemDataRole.DecorationRole:
             return node.icon
         if role == Qt.ItemDataRole.UserRole:
-            # Совместимость с get_tree_tuple(): (type, id)
             return (node.type, node.id)
         return None
 
@@ -128,14 +119,12 @@ class StructureTreeModel(QAbstractItemModel):
                 self.dataChanged.emit(index, index, [Qt.ItemDataRole.DecorationRole])
                 return True
         if role == Qt.ItemDataRole.UserRole:
-            # Поддержка записи кортежа (type, id) — для совместимости с set_tree_tuple()
             try:
                 if isinstance(value, (tuple, list)) and len(value) == 2:
                     t_val, i_val = value
                     if isinstance(t_val, str) and (
                         isinstance(i_val, int) or i_val is None
                     ):
-                        # Обновляем мапы, если меняется id/тип
                         old_type, old_id = node.type, node.id
                         if (
                             old_type == "section"
@@ -166,7 +155,6 @@ class StructureTreeModel(QAbstractItemModel):
 
     def flags(self, index: QModelIndex) -> Qt.ItemFlag:  # noqa: N802
         if not index.isValid():
-            # Разрешаем drop на пустое пространство верхнего уровня (как минимум для разделов)
             return Qt.ItemFlag.ItemIsDropEnabled | Qt.ItemFlag.ItemIsEnabled
         node: TreeNode = index.internalPointer()
         flags = (
@@ -174,7 +162,6 @@ class StructureTreeModel(QAbstractItemModel):
             | Qt.ItemFlag.ItemIsSelectable
             | Qt.ItemFlag.ItemIsDragEnabled
         )
-        # Разрешаем drop на раздел (для категорий) и на корень (для разделов, по необходимости)
         if node.type in ("root", "section"):
             flags |= Qt.ItemFlag.ItemIsDropEnabled
         return flags
@@ -182,9 +169,7 @@ class StructureTreeModel(QAbstractItemModel):
     def supportedDropActions(self) -> Qt.DropAction:  # noqa: N802
         return Qt.DropAction.MoveAction | Qt.DropAction.CopyAction
 
-    # --- MIME/DnD поддержка модели (минимальная) ---
     def mimeTypes(self) -> list[str]:  # noqa: N802
-        # Используются типы из app_config; модель объявляет общий тип
         return ["application/x-structure-tree-index"]
 
     def mimeData(self, indexes: list[QModelIndex]):  # noqa: N802
@@ -215,12 +200,10 @@ class StructureTreeModel(QAbstractItemModel):
         column: int,
         parent: QModelIndex,
     ) -> bool:
-        # В текущей архитектуре перенос обрабатывается на уровне view/handler.
-        # Реализуем безопасный no-op, чтобы не ломать стандартный DnD Qt.
-        # Возвращаем False, чтобы указать, что модель не обрабатывает drop напрямую.
+        # DnD handled by view/handler; model does not process drops
         return False
 
-    # --- Инкрементальные операции высокого уровня (удобные API) ---
+    # --- High-level incremental operations (convenient APIs) ---
     def insert_sections(self, row: int, sections: List[Dict[str, Any]]) -> None:
         if row < 0:
             row = len(self._root.children)
@@ -276,13 +259,11 @@ class StructureTreeModel(QAbstractItemModel):
         if not idx.isValid():
             return
         node: TreeNode = idx.internalPointer()
-        # Обновляем поля узла
         if "name" in data:
             node.name = str(data.get("name", node.name))
         if "icon" in data and isinstance(data.get("icon"), QIcon):
             node.icon = data.get("icon")
         if data:
-            # Сохраняем исходный словарь (например, для диалогов)
             node.payload.update(data)
         self.dataChanged.emit(
             idx,
@@ -295,25 +276,21 @@ class StructureTreeModel(QAbstractItemModel):
         )
 
     def remove_sections(self, section_ids: List[int]) -> None:
-        # Удаляем по одному, учитывая сдвиги индексов
         for sec_id in list(section_ids or []):
             sec_node = self._section_by_id.get(int(sec_id))
             if not sec_node:
                 continue
             row = sec_node.row()
             self.beginRemoveRows(QModelIndex(), row, row)
-            # Удаляем все категории из мапы
             for cat in sec_node.children:
                 if isinstance(cat.id, int) and cat.id in self._category_by_id:
                     del self._category_by_id[cat.id]
-            # Удаляем раздел
             self._root.children.pop(row)
             if isinstance(sec_id, int) and sec_id in self._section_by_id:
                 del self._section_by_id[sec_id]
             self.endRemoveRows()
 
     def remove_categories(self, category_ids: List[int]) -> None:
-        # Группируем по родителю, чтобы корректно вызывать beginRemoveRows per parent
         by_parent: Dict[TreeNode, List[TreeNode]] = {}
         for cid in list(category_ids or []):
             cat_node = self._category_by_id.get(int(cid))
@@ -322,7 +299,6 @@ class StructureTreeModel(QAbstractItemModel):
             by_parent.setdefault(cat_node.parent, []).append(cat_node)
         for parent_node, cats in by_parent.items():
             cats_sorted = sorted(cats, key=lambda n: n.row())
-            # Удаляем по одному (простая и безопасная стратегия)
             for node in reversed(cats_sorted):
                 parent_index = (
                     QModelIndex()
@@ -359,25 +335,21 @@ class StructureTreeModel(QAbstractItemModel):
             else self.createIndex(dst_parent.row(), 0, dst_parent)
         )
         src_row = cat_node.row()
-        # Корректируем new_row если перенос внутри одного родителя и ниже по списку
         if src_parent is dst_parent and new_row > src_row:
             new_row -= 1
-        # Выполняем перенос
         if not self.beginMoveRows(
             src_parent_index, src_row, src_row, dst_parent_index, new_row
         ):
             return False
-        # Реальный перенос в структуре
         src_parent.children.pop(src_row)
         cat_node.parent = dst_parent
         dst_parent.children.insert(new_row, cat_node)
         self.endMoveRows()
         return True
 
-    # --- Пакетные операции ---
     def set_snapshot(self, sections: List[Dict[str, Any]]) -> None:
         """
-        Полная перезагрузка дерева. Формат sections — список dict:
+        Full tree reload. The format for sections is a list[dict]:
         {
             "id": int,
             "name": str,
@@ -418,7 +390,6 @@ class StructureTreeModel(QAbstractItemModel):
 
         self.endResetModel()
 
-    # --- Поиск индексов ---
     def index_for(self, item_type: str, item_id: int) -> QModelIndex:
         if item_type == "section":
             node = self._section_by_id.get(int(item_id))
@@ -432,7 +403,6 @@ class StructureTreeModel(QAbstractItemModel):
             return QModelIndex()
         return QModelIndex()
 
-    # --- Вспомогательное ---
     def _node_from_index(self, index: QModelIndex) -> TreeNode:
         if index.isValid():
             node = index.internalPointer()

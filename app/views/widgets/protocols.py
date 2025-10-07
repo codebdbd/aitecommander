@@ -4,7 +4,7 @@ from typing import Protocol, TypedDict, List, Tuple
 
 
 class LinkDict(TypedDict, total=False):
-    """Typed dictionary для link data вместо Dict[str, Any]."""
+    """Typed dictionary for link data instead of ``Dict[str, Any]``."""
     id: int
     name: str
     url: str
@@ -18,7 +18,7 @@ class LinkDict(TypedDict, total=False):
 
 
 class TreeNodeDict(TypedDict):
-    """Typed dictionary для tree node data."""
+    """Typed dictionary for tree node data."""
     type: str  # "section" | "category"
     id: int
     name: str
@@ -27,10 +27,10 @@ class TreeNodeDict(TypedDict):
 
 
 class SystemDialogsProtocol(Protocol):
-    """Protocol для system dialogs вместо object.
+    """Protocol for system dialogs instead of a plain ``object``.
 
-    Используется в `MainWindow` для типобезопасного обращения к контроллеру
-    системных диалогов без жёсткой привязки к реализации.
+    Used in ``MainWindow`` for type-safe access to the system dialogs controller
+    without tight coupling to a particular implementation.
     """
     def show_about_dialog(self) -> None: ...
     def show_settings_dialog(self) -> None: ...
@@ -39,7 +39,7 @@ class SystemDialogsProtocol(Protocol):
 
 
 class LinksBusinessProtocol(Protocol):
-    """✅ ИСПРАВЛЕНИЕ: Protocol для links business вместо Any."""
+    """Protocol for links business layer instead of ``Any``."""
     def get_links(self, category_id: int) -> List[LinkDict]: ...
     def create_link(self, data: LinkDict) -> int: ...
     def update_link(self, link_id: int, data: LinkDict) -> bool: ...

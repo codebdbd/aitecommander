@@ -15,10 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 class ThemeController:
-    # Политика завершения приложения:
-    # - UI-слой не вызывает напрямую quit()/exit().
-    # - Массовое обновление UI после смены темы выполняется без закрытия приложения;
-    #   завершение, если требуется, делегируется AppShutdownController через закрытие окна.
+    # Application shutdown policy:
+    # - UI layer does not call quit()/exit() directly.
+    # - Bulk UI update after theme change is performed without closing the application;
+    #   shutdown, if required, is delegated to AppShutdownController via window close.
     def __init__(
         self,
         settings,
@@ -29,44 +29,43 @@ class ThemeController:
         top_panels_controller: Optional[Any] = None,
         stylesheet_service: Optional[ThemeStylesheetService] = None,
     ):
-        """Инициализация контроллера тем."""
+        """Initialize theme controller."""
         self.settings = settings
         self.main_window = main_window
-        # TopPanelsController может быть внедрён позже через set_top_panels_controller()
+        # TopPanelsController can be injected later via set_top_panels_controller()
         self.top_panels_controller = top_panels_controller
         self._themes: List[Dict[str, Any]] = []
         self._stylesheet_service = stylesheet_service or ThemeStylesheetService(
             app_config, settings=settings
         )
-        # Инъекция зависимостей для тестируемости
+        # Dependency injection for testability
         self._stylesheet_applier = stylesheet_applier  # Callable[[str], None]
         self._gui_scheduler = gui_scheduler  # Callable[[Callable[[], None]], None]
-        # Примечание: защита от реэнтрантности не используется — возвращаем исходное поведение
+        # Note: reentrancy protection is not used — restoring original behavior
 
-        # Темы зафиксированы (light/dark)
+        # Themes are fixed (light/dark)
         self._init_fixed_themes()
-        # Убраны любые кастомные тени у QMenu (см. требования стабильности)
 
-    # Кастомные тени у QMenu удалены; никаких фильтров событий не применяем
+    # Custom shadows for QMenu removed; no event filters applied
 
     def set_top_panels_controller(self, top_panels_controller) -> None:
-        """Внедряет зависимость TopPanelsController.
+        """Inject TopPanelsController dependency.
 
-        Может вызываться после инициализации ThemeController, когда
-        TopPanelsController становится доступен. Поднимает ValueError,
-        если зависимость не передана или некорректна.
+        Can be called after ThemeController initialization when
+        TopPanelsController becomes available. Raises ValueError
+        if dependency is not provided or invalid.
         """
         if top_panels_controller is None:
             raise ValueError("TopPanelsController must be provided to ThemeController")
         self.top_panels_controller = top_panels_controller
 
     def _normalize_theme_input(self, name: Optional[str]) -> str:
-        """Нормализует входное имя темы: обрезает пробелы, приводит к нижнему регистру,
-        маппит известные синонимы на канонические имена (напр. русские варианты)."""
+        """Normalize theme name: trim spaces, convert to lowercase,
+        map known synonyms to canonical names (e.g. Russian variants)."""
         if not name:
             return ""
         v = str(name).strip().lower()
-        # Небольшая таблица синонимов
+        # Small synonym table
         synonyms = {
             "темная": "dark",
             "тёмная": "dark",
@@ -79,7 +78,7 @@ class ThemeController:
         return synonyms.get(v, v)
 
     def _init_fixed_themes(self) -> None:
-        """Инициализирует фиксированный список тем."""
+        """Initialize fixed theme list."""
         self._themes = [
             {
                 "name": "light",
@@ -96,27 +95,27 @@ class ThemeController:
         ]
 
     def is_dark(self) -> bool:
-        """Проверяет, является ли текущая тема тёмной."""
+        """Check if current theme is dark."""
         try:
             current_theme = self.settings.get_theme()
             if not current_theme:
                 logger.warning(
-                    "Текущая тема не установлена, используется светлая тема по умолчанию"
+                    "Current theme not set, using light theme by default"
                 )
                 return False
-            # Нормализуем имя и пытаемся найти конфиг
+            # Normalize name and try to find config
             norm = self._normalize_theme_input(current_theme)
             theme_config = self._get_theme_by_name(norm)
             if theme_config:
                 return theme_config.get("is_dark", False)
-            # Если тема не найдена в конфигурации, определяем по нормализованному имени
+            # If theme not found in config, determine by normalized name
             return norm == "dark"
         except Exception as exc:
-            logger.error("Ошибка при определении темной темы: %s", exc, exc_info=True)
+            logger.error("Error determining dark theme: %s", exc, exc_info=True)
             return False
 
     def _get_theme_by_name(self, name: str) -> Optional[Dict[str, Any]]:
-        """Получает словарь темы по имени (без учета регистра)."""
+        """Get theme dictionary by name (case insensitive)."""
         if not name:
             return None
         name_lc = str(name).lower()
@@ -130,21 +129,21 @@ class ThemeController:
         )
 
     def available(self) -> List[Tuple[str, str]]:
-        """Получает список доступных тем."""
+        """Get list of available themes."""
         try:
             if not self._themes:
-                logger.warning("Список тем пуст, возвращаются темы по умолчанию")
+                logger.warning("Theme list is empty, returning default themes")
                 return [("light", "Светлая"), ("dark", "Тёмная")]
             result: List[Tuple[str, str]] = []
             for theme in self._themes:
                 name = theme.get("name")
                 if not name:
-                    # Пропускаем некорректные записи
-                    logger.warning("Пропущена тема без имени в конфигурации")
+                    # Skip invalid entries
+                    logger.warning("Skipped theme without name in configuration")
                     continue
                 display_name = theme.get("display_name")
                 if not display_name:
-                    # Fallback для известных тем, иначе — красивое представление имени
+                    # Fallback for known themes, otherwise pretty name
                     if name == "light":
                         display_name = "Светлая"
                     elif name == "dark":
@@ -152,110 +151,109 @@ class ThemeController:
                     else:
                         display_name = str(name).replace("_", " ").title()
                     logger.warning(
-                        "Тема '%s' не имеет display_name в конфигурации, использовано значение по умолчанию: %s",
+                        "Theme '%s' has no display_name in configuration, using default value: %s",
                         name,
                         display_name,
                     )
                 result.append((name, display_name))
             return result
         except Exception as exc:
-            logger.error("Ошибка при получении списка тем: %s", exc, exc_info=True)
-            # Возвращаем темы по умолчанию в случае ошибки
+            logger.error("Error getting theme list: %s", exc, exc_info=True)
+            # Return default themes on error
             return [("light", "Светлая"), ("dark", "Тёмная")]
 
     def apply(self, name: str) -> bool:
-        """Применяет тему по имени и сохраняет в настройки."""
+        """Apply theme by name and save to settings."""
         normalized_name = self._normalize_theme_input(name)
         theme_config = self._get_theme_by_name(normalized_name)
         if not theme_config:
-            logger.error("Тема не найдена: %s", name)
+            logger.error("Theme not found: %s", name)
             return False
         qss_file = theme_config.get("qss_file")
         if not qss_file:
-            logger.error("QSS файл не указан для темы: %s", name)
+            logger.error("QSS file not specified for theme: %s", name)
             return False
 
-        # Кэшируем и ищем по каноническому имени, чтобы избежать дублей ключей
+        # Cache and search by canonical name to avoid duplicate keys
         canonical_name = theme_config.get("name", normalized_name)
-        # ВАЖНО: инвалидируем кэш общих/темовых QSS перед загрузкой,
-        # чтобы гарантированно подхватывать изменения файлов стилей
-        # (особенно common.qss) без перезапуска приложения.
-        # Это безопасно: кэш восстановится при чтении ниже.
+        # IMPORTANT: invalidate common/theme QSS cache before loading,
+        # to ensure style file changes (especially common.qss) are picked up
+        # without application restart. Safe: cache will restore on read below.
         self.clear_cache()
         qss_content = self._stylesheet_service.load_stylesheet(canonical_name, qss_file)
         if qss_content is None:
-            logger.error("Не удалось загрузить QSS для темы: %s", name)
+            logger.error("Failed to load QSS for theme: %s", name)
             return False
 
         try:
-            # Применяем QSS
+            # Apply QSS
             if self._stylesheet_applier is not None:
                 self._stylesheet_applier(qss_content)
             else:
                 app = QApplication.instance()
                 if not app:
-                    logger.error("QApplication instance не найден")
+                    logger.error("QApplication instance not found")
                     return False
                 app.setStyleSheet(qss_content)
 
-            # Кастомные тени у меню отключены полностью — ничего не делаем
+            # Custom menu shadows fully disabled — doing nothing
 
-            # Инициализируем тему иконок Qt
+            # Initialize Qt icon theme
             try:
                 configure_qicon_theme(canonical_name, app_config)
             except Exception as icon_exc:
                 logger.warning(
-                    "Не удалось применить тему иконок Qt: %s", icon_exc, exc_info=True
+                    "Failed to apply Qt icon theme: %s", icon_exc, exc_info=True
                 )
 
-            # Обновляем настройки и окно (возвращаем исходный вызов update_theme у окна)
-            logger.info("Применена тема: %s", canonical_name)
+            # Update settings and window (restore original update_theme call)
+            logger.info("Applied theme: %s", canonical_name)
             self.settings.set_theme(canonical_name)
             if self.main_window and hasattr(self.main_window, "update_theme"):
                 self.main_window.update_theme()
             return True
         except Exception as exc:
-            logger.error("Ошибка применения темы %s: %s", name, exc, exc_info=True)
+            logger.error("Theme application error %s: %s", name, exc, exc_info=True)
             return False
 
     def clear_cache(self) -> None:
-        """Очищает кэш QSS."""
+        """Clear QSS cache."""
         self._stylesheet_service.clear_cache()
 
     def apply_and_refresh_ui(self) -> None:
-        """Централизованно обновляет UI после применения темы.
+        """Centralized UI update after theme application.
 
-        Делает следующее:
-        - Очищает кэш иконок
-        - Пересобирает главное меню
-        - Перезагружает иконки дерева структуры
-        - Обновляет верхние панели (Избранное/Недавние)
+        Performs:
+        - Clear icon cache
+        - Rebuild main menu
+        - Reload structure tree icons
+        - Update top panels (Favorites/Recent)
 
-        Все массовые операции выполняются при приостановленной перерисовке
-        главного окна, чтобы избежать визуального дергания размеров панелей.
+        All bulk operations run with suspended main window repaint
+        to avoid visual flicker of panel sizes.
         """
         logger.info(
-            "ThemeController: пакетное обновление UI после смены темы: меню → иконки структуры → верхние панели"
+            "ThemeController: batch UI update after theme change: menu → structure icons → top panels"
         )
         try:
             clear_icon_cache()
         except Exception as exc:
-            logger.warning("Не удалось очистить кэш иконок: %s", exc, exc_info=True)
+            logger.warning("Failed to clear icon cache: %s", exc, exc_info=True)
 
         mw = getattr(self, "main_window", None)
         if not mw:
             return
 
-        # Импорт лениво, чтобы избежать циклов импортов на старте
+        # Lazy import to avoid circular imports on startup
         try:
             from app.utils.ui.updates import suspend_updates
         except Exception as exc:
-            suspend_updates = None  # fallback, если модуль недоступен
+            suspend_updates = None  # fallback if module unavailable
             logger.debug(
-                "Не удалось импортировать suspend_updates: %s", exc, exc_info=True
+                "Failed to import suspend_updates: %s", exc, exc_info=True
             )
 
-        # Политика: требовать ли suspend_updates для пакетного обновления UI
+        # Policy: require suspend_updates for batch UI update
         try:
             require_suspend = bool(getattr(app_config, "REQUIRE_SUSPEND_UPDATES", False))
         except Exception:
@@ -264,17 +262,17 @@ class ThemeController:
         if suspend_updates is None:
             if require_suspend:
                 logger.warning(
-                    "ThemeController: require_suspend_updates=True, но утилита suspend_updates недоступна — пропускаем пакетное обновление UI"
+                    "ThemeController: require_suspend_updates=True, but suspend_updates utility unavailable — skipping batch UI update"
                 )
                 return
-            # Fallback: выполняем операции без приостановки перерисовки
+            # Fallback: execute operations without suspended repaint
             try:
                 menu_ctrl = getattr(mw, "menu_controller", None)
                 if menu_ctrl:
                     menu_ctrl.rebuild_after_theme_change()
             except Exception as exc:
                 logger.warning(
-                    "Ошибка пересборки меню после смены темы: %s", exc, exc_info=True
+                    "Menu rebuild error after theme change: %s", exc, exc_info=True
                 )
             try:
                 structure = getattr(mw, "structure", None)
@@ -282,111 +280,109 @@ class ThemeController:
                     structure.reload_icons()
             except Exception as exc:
                 logger.warning(
-                    "Ошибка перезагрузки иконок структуры: %s", exc, exc_info=True
+                    "Structure icons reload error: %s", exc, exc_info=True
                 )
             try:
                 self.top_panels_controller.refresh_all()
             except Exception as exc:
                 logger.warning(
-                    "Ошибка обновления верхних панелей: %s", exc, exc_info=True
+                    "Error updating top panels: %s", exc, exc_info=True
                 )
-            # Диагностика размеров шапки отключена как шумная
             return
 
-        # Основной путь: выполняем массовые обновления при приостановленной перерисовке окна
+        # Main path: execute bulk updates with suspended window repaint
         if require_suspend:
-            logger.debug("ThemeController: выполняем пакетное обновление UI с suspend_updates (strict mode)")
+            logger.debug("ThemeController: executing batch UI update with suspend_updates (strict mode)")
         try:
             with suspend_updates(mw):
-                # Пересоздание главного меню
+                # Rebuild main menu
                 try:
                     menu_ctrl = getattr(mw, "menu_controller", None)
                     if menu_ctrl:
                         menu_ctrl.rebuild_after_theme_change()
                 except Exception as exc:
                     logger.warning(
-                        "Ошибка пересборки меню после смены темы: %s",
+                        "Menu rebuild error after theme change: %s",
                         exc,
                         exc_info=True,
                     )
 
-                # Перезагрузка иконок в структуре
+                # Reload icons in structure
                 try:
                     structure = getattr(mw, "structure", None)
                     if structure and hasattr(structure, "reload_icons"):
                         structure.reload_icons()
                 except Exception as exc:
                     logger.warning(
-                        "Ошибка перезагрузки иконок структуры: %s", exc, exc_info=True
+                        "Structure icons reload error: %s", exc, exc_info=True
                     )
 
-                # Обновление верхних панелей — прямая зависимость из конструктора
+                # Update top panels — direct dependency from constructor
                 try:
                     self.top_panels_controller.refresh_all()
                 except Exception as exc:
                     logger.warning(
-                        "Ошибка обновления верхних панелей: %s", exc, exc_info=True
+                        "Top panels update error: %s", exc, exc_info=True
                     )
-                # Диагностика размеров шапки отключена как шумная
         except Exception as exc:
             logger.warning(
-                "ThemeController: сбой при пакетном обновлении UI: %s",
+                "ThemeController: batch UI update failure: %s",
                 exc,
                 exc_info=True,
             )
 
-        # Не переустанавливаем размеры шрифтов при смене темы.
-        # Базовый размер приложения и точечные размеры для меню/меню-бара управляются отдельно,
-        # а пользовательские размеры дерева/таблицы не должны затрагиваться темой.
+        # Don't reset font sizes on theme change.
+        # Base app size and specific sizes for menu/menubar are managed separately,
+        # and user-set tree/table sizes should not be affected by theme.
 
     def _apply_qt_icon_theme(self, theme_name: str) -> None:
-        """Устанавливает тему и пути поиска иконок Qt для корректного отображения стандартных иконок.
-        Выполнять в GUI-потоке до показа первых меню/диалогов."""
+        """Set Qt icon theme and search paths for correct standard icon display.
+        Must be executed in GUI thread before showing first menus/dialogs."""
         if not theme_name:
             return
-        # Формируем пути поиска: UI-иконки приложения как тема Qt
+        # Build search paths: app UI icons as Qt theme
         ui_icons_dir = app_config.paths.get_ui_icons_dir()
         if not ui_icons_dir.exists():
             logger.debug("UI icons dir does not exist: %s", ui_icons_dir)
             return
-        # Проверяем наличие директории темы, при отсутствии — используем fallback 'light'
+        # Check theme directory exists, otherwise use fallback 'light'
         theme_dir = ui_icons_dir / theme_name
         if not theme_dir.exists():
             fallback = "light"
             fallback_dir = ui_icons_dir / fallback
             if fallback_dir.exists():
                 logger.warning(
-                    "Тема иконок '%s' не найдена, используется fallback '%s'",
+                    "Icon theme '%s' not found, using fallback '%s'",
                     theme_name,
                     fallback,
                 )
                 theme_name = fallback
             else:
                 logger.warning(
-                    "Директория темы иконок не найдена: %s, fallback 'light' также отсутствует",
+                    "Icon theme directory not found: %s, fallback 'light' also missing",
                     theme_dir,
                 )
         search_paths = [str(ui_icons_dir)]
         try:
-            # Добавляем существующие ранее пути поиска, чтобы не терять системные
+            # Add existing search paths to preserve system ones
             current_paths = QIcon.themeSearchPaths()
             for p in current_paths:
                 if p not in search_paths:
                     search_paths.append(p)
         except Exception as exc:
             logger.debug(
-                "Не удалось получить текущие пути поиска тем QIcon: %s",
+                "Failed to get current QIcon theme search paths: %s",
                 exc,
                 exc_info=True,
             )
         QIcon.setThemeSearchPaths(search_paths)
-        # Имя темы — каноническое имя, ожидая поддиректории ui_icons_dir/<theme_name>
+        # Theme name is canonical name, expecting subdirectory ui_icons_dir/<theme_name>
         QIcon.setThemeName(theme_name)
 
     def _build_config_overrides_qss(self) -> str:
-        """Формирует блок QSS c параметрами из конфигурации для перекрытия темовых значений.
+        """Build QSS block with config parameters to override theme values.
 
-        Возвращает строку QSS. Пустая строка, если нечего перекрывать.
+        Returns QSS string. Empty string if nothing to override.
         """
         try:
             menu_font_size = int(app_config.ui.get_menu_font_size())
@@ -408,10 +404,10 @@ class ThemeController:
             menu_indicator_size = int(app_config.ui.get_menu_indicator_size())
         except Exception:
             menu_indicator_size = None
-        # Единый реестр шрифтов из конфигурации (ui.fonts.*)
+        # Unified font registry from config (ui.fonts.*)
         def _get_font_px(key: str, default: int | None) -> int | None:
             try:
-                # ВАЖНО: у UIConfig ключи должны начинаться с 'ui.'
+                # IMPORTANT: UIConfig keys must start with 'ui.'
                 val = app_config.ui.get(f"ui.fonts.{key}", default)
                 return int(val) if val is not None else None
             except Exception:
@@ -432,7 +428,7 @@ class ThemeController:
         form_field_px = _get_font_px("form_field_px", None)
         link_type_button_px = _get_font_px("link_type_button_px", None)
 
-        # Глобальная единица измерения для шрифтов: 'px' (по умолчанию) или 'pt'
+        # Global font unit: 'px' (default) or 'pt'
         try:
             fonts_units = str(app_config.ui.get("ui.fonts.units", "px")).strip().lower()
         except Exception:
@@ -447,23 +443,23 @@ class ThemeController:
 
         lines = []
 
-        # Диалоги: принудительно используем системный (по умолчанию Qt) размер шрифта приложения,
-        # чтобы избежать нежелательных изменений из тем/стилей. Это не меняет семейство шрифта.
+        # Dialogs: force system (Qt default) app font size
+        # to avoid unwanted changes from themes/styles. Does not change font family.
         try:
             app = QApplication.instance()
             dialog_font_size = app.font().pointSize() if app else None
         except Exception:
             dialog_font_size = None
         if dialog_font_size and dialog_font_size > 0:
-            # Распространяем на содержимое диалога, чтобы вложенные виджеты не переопределяли случайно
+            # Propagate to dialog content so nested widgets don't override accidentally
             lines.append(f"QDialog {{ font-size: {dialog_font_size}pt; }}")
             lines.append(f"QDialog * {{ font-size: {dialog_font_size}pt; }}")
 
-        # Меню (QMenu)
+        # Menu (QMenu)
         if menu_font_size:
-            # Используем pt, чтобы соответствовать глобальному шрифту приложения и DPI
+            # Use pt to match global app font and DPI
             lines.append(f"QMenu {{ font-size: {menu_font_size}pt; }}")
-            # Применяем размер шрифта ко всем состояниям пунктов меню, чтобы перекрыть темовые состояния
+            # Apply font size to all menu item states to override theme states
             lines.append(f"QMenu::item {{ font-size: {menu_font_size}pt; }}")
             lines.append(f"QMenu::item:selected {{ font-size: {menu_font_size}pt; }}")
             lines.append(f"QMenu::item:hover {{ font-size: {menu_font_size}pt; }}")
@@ -481,10 +477,10 @@ class ThemeController:
                 f"QMenu::indicator {{ width: {menu_indicator_size}px; height: {menu_indicator_size}px; }}"
             )
 
-        # Меню-бар (QMenuBar)
+        # Menubar (QMenuBar)
         menubar_rules = []
         if menubar_font_size:
-            # Тоже используем pt для соответствия системному масштабу
+            # Also use pt to match system scale
             menubar_rules.append(f"font-size: {menubar_font_size}pt;")
         if menubar_px:
             menubar_rules.append(f"font-size: {sz(menubar_px)};")
@@ -496,61 +492,61 @@ class ThemeController:
         if menubar_item_height:
             item_rules.append(f"min-height: {menubar_item_height}px;")
         if item_rules:
-            # Базовое правило для пункта меню-бара
+            # Base rule for menubar item
             lines.append("QMenuBar::item { " + " ".join(item_rules) + " }")
-            # Дублируем для состояний, чтобы избежать переопределения темой
+            # Duplicate for states to avoid theme override
             if menubar_font_size or menubar_item_height:
                 lines.append("QMenuBar::item:selected { " + " ".join(item_rules) + " }")
                 lines.append("QMenuBar::item:hover { " + " ".join(item_rules) + " }")
                 lines.append("QMenuBar::item:pressed { " + " ".join(item_rules) + " }")
         
-        # Заголовки таблиц/деревьев (QHeaderView): финальный оверрайд размера шрифта
+        # Table/tree headers (QHeaderView): final font size override
         if table_header_px and table_header_px > 0:
             fs = sz(table_header_px)
             lines.append(f"QHeaderView {{ font-size: {fs}; font-weight: normal; }}")
             lines.append(f"QTableView QHeaderView, QTreeView QHeaderView {{ font-size: {fs}; font-weight: normal; }}")
-            # Не навязываем жирный в интерактивных состояниях
+            # Don't force bold in interactive states
             lines.append(
                 "QHeaderView::section:pressed, QHeaderView::section:hover, QHeaderView::section:checked { font-weight: normal; }"
             )
 
-        # Табличные строки по умолчанию
+        # Table rows by default
         if table_row_px and table_row_px > 0:
             lines.append(f"QTableView {{ font-size: {sz(table_row_px)}; }}")
 
-        # Дерево (QTreeView)
+        # Tree (QTreeView)
         if tree_px and tree_px > 0:
             lines.append(f"QTreeView {{ font-size: {sz(tree_px)}; }}")
 
-        # Текст в редакторе заметок (QTextEdit)
+        # Notes editor text (QTextEdit)
         if notes_editor_px and notes_editor_px > 0:
             lines.append(f"QTextEdit {{ font-size: {sz(notes_editor_px)}; }}")
 
-        # Кнопки (включая нижнюю панель)
+        # Buttons (including bottom panel)
         if button_text_px and button_text_px > 0:
             lines.append(f"QPushButton {{ font-size: {sz(button_text_px)}; }}")
         if bottom_bar_button_px and bottom_bar_button_px > 0:
-            # Повышение специфичности для нижней панели: поддерживаем оба имени контейнера
+            # Increase specificity for bottom panel: support both container names
             fsb = sz(bottom_bar_button_px)
             lines.append(f"QWidget#BottomPanel QPushButton {{ font-size: {fsb}; }}")
             lines.append(f"QWidget#bottomBarContainer QPushButton {{ font-size: {fsb}; }}")
 
-        # Главное меню и выпадающие меню
+        # Main menu and dropdown menus
         if menu_item_px and menu_item_px > 0:
             fs = sz(menu_item_px)
             lines.append(f"QMenu {{ font-size: {fs}; }}")
             lines.append(f"QMenu::item {{ font-size: {fs}; }}")
         if context_menu_px and context_menu_px > 0:
-            # Контекстные меню — это тоже QMenu; отдельный ключ позволяет отличать, если нужно
+            # Context menus are also QMenu; separate key allows distinction if needed
             lines.append(f"QMenu[contextMenuPolicy] {{ font-size: {sz(context_menu_px)}; }}")
 
-        # Подсказки (ToolTip)
+        # Tooltips (ToolTip)
         if tooltip_px and tooltip_px > 0:
             lines.append(f"QToolTip {{ font-size: {sz(tooltip_px)}; }}")
-        # Плитки категорий (QListView#categoryTiles)
+        # Category tiles (QListView#categoryTiles)
         if tiles_px and tiles_px > 0:
             lines.append(f"QListView#categoryTiles {{ font-size: {sz(tiles_px)}; }}")
-        # Лейблы и поля форм (диалоги и формы)
+        # Form labels and fields (dialogs and forms)
         if form_label_px and form_label_px > 0:
             fs = sz(form_label_px)
             lines.append(f"QLabel {{ font-size: {fs}; }}")
@@ -560,16 +556,16 @@ class ThemeController:
             lines.append(f"QTextEdit {{ font-size: {fs}; }}")
             lines.append(f"QComboBox {{ font-size: {fs}; }}")
             lines.append(f"QSpinBox {{ font-size: {fs}; }}")
-        # Кнопки выбора типа ссылки (QToolButton с property link_type)
+        # Link type selection buttons (QToolButton with property link_type)
         if link_type_button_px and link_type_button_px > 0:
             fs = sz(link_type_button_px)
             lines.append(f"QToolButton[link_type=\"true\"] {{ font-size: {fs}; }}")
         return "\n".join(lines)
         
-        # Примечание: код ниже не выполнится из-за раннего return; сохраняется порядок на будущее
+        # Note: code below won't execute due to early return; preserved for future
 
     def get_cache_stats(self) -> Dict[str, Any]:
-        """Возвращает статистику кэша тем."""
+        """Return theme cache statistics."""
         with self._cache_lock:
             return {
                 "cache_size": len(self._qss_cache),

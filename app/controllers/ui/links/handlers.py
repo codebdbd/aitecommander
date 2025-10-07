@@ -10,11 +10,11 @@ logger = logging.getLogger(__name__)
 
 
 class SetupError(Exception):
-    """Ошибка проводки критичных сигналов LinksUIHandlers."""
+    """Wiring error for critical LinksUIHandlers signals."""
 
 
 class LinksUIHandlers(BaseLinksUIComponent):
-    """Обработчики событий для LinksUIController."""
+    """Event handlers for LinksUIController."""
 
     def __init__(
         self,
@@ -26,7 +26,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
         category_provider=None,
         structure_tree=None,
     ):
-        # Явные требования зависимостей для лучшей диагностируемости
+        # Explicit dependency requirements for better diagnostics
         if links_table_controller is None:
             raise ValueError(
                 "LinksUIHandlers requires explicit 'links_table_controller' dependency"
@@ -36,7 +36,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
             raise ValueError(
                 "LinksUIHandlers requires 'ui_state' or 'category_provider' dependency"
             )
-        # Обязательный контракт: требуется метод get_current_category_id()
+        # Required contract: get_current_category_id() method needed
         if not hasattr(provider, "get_current_category_id") or not callable(
             provider.get_current_category_id
         ):
@@ -45,8 +45,8 @@ class LinksUIHandlers(BaseLinksUIComponent):
             )
         self._category_provider = provider
 
-        # Зависимость дерева структуры для очистки выбора (инжектируется контроллером окна)
-        # Для unit-тестов wiring может отсутствовать, тогда поведение будет только логировать ошибку
+        # Structure tree dependency for selection clearing (injected by window controller)
+        # For unit tests, wiring may be absent, then behavior will only log error
         self._structure_tree = structure_tree
 
         super().__init__(
@@ -54,14 +54,14 @@ class LinksUIHandlers(BaseLinksUIComponent):
         )
 
     def _connect_signals(self):
-        """Подключение сигналов от бизнес-логики."""
+        """Connect signals from business logic."""
         if getattr(self, "_signals_connected", False):
             return
-        # Перенесено в централизованный LinksTableController, чтобы избежать прямых populate и возможных циклов
-        # Строго требуем наличие критичных сигналов бизнес-логики и их совместимость
+        # Moved to centralized LinksTableController to avoid direct populate and possible cycles
+        # Strictly require presence of critical business signals and their compatibility
         try:
             biz = self.business
-            # Обязательные сигналы
+            # Required signals
             required = {
                 "favorites_counted": self._complete_toggle_fav,
                 "link_updated": self._on_link_updated,
@@ -78,7 +78,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
                     )
                 connect_fn(slot)
 
-            # Опциональный сигнал глобального поиска (для обратной совместимости тестов)
+            # Optional global search signal (for backward test compatibility)
             try:
                 search_sig = getattr(biz, "search_results_ready", None)
                 if (
@@ -97,22 +97,22 @@ class LinksUIHandlers(BaseLinksUIComponent):
                     exc_info=True,
                 )
         except SetupError:
-            # Уже информативное сообщение — пробрасываем как есть, но логируем стек
+            # Already informative message — re-raise as is, but log stack
             logger.exception(
                 "Failed to wire LinksUIHandlers business signals (setup error)"
             )
             raise
         except Exception:
-            # Любые иные ошибки считаем ошибкой настройки, чтобы не маскировать дефекты DI
+            # Any other errors considered setup error to not mask DI defects
             logger.exception("Unexpected error wiring LinksUIHandlers business signals")
             raise SetupError("Failed to connect LinksUIHandlers to business signals")
         self._signals_connected = True
 
     def _connect_table_signals(self):
-        """Подключение сигналов от таблицы."""
+        """Connect signals from table."""
         if getattr(self, "_table_signals_connected", False):
             return
-        # Обязательные сигналы/методы таблицы для контекстного меню — строгая проверка интерфейса
+        # Required table signals/methods for context menu — strict interface check
         if not hasattr(self.table, "setContextMenuPolicy") or not callable(
             self.table.setContextMenuPolicy
         ):
@@ -128,7 +128,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
             )
         connect_fn = context_sig.connect
 
-        # Подключение обязательных обработчиков контекстного меню
+        # Connect required context menu handlers
         try:
             self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         except (AttributeError, TypeError) as e:
@@ -158,7 +158,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
             )
             raise
 
-        # QTableView: используем index-based сигналы и адаптируем к существующим обработчикам
+        # QTableView: use index-based signals and adapt to existing handlers
         try:
             self.table.doubleClicked.connect(
                 lambda idx: self._on_double_click(idx.row(), idx.column())
@@ -171,8 +171,8 @@ class LinksUIHandlers(BaseLinksUIComponent):
             )
         except (AttributeError, TypeError) as e:
             raise SetupError(f"Failed to connect clicked: {e}") from e
-        # Флаг реентрантности для защиты от зацикливания при переупорядочивании
-        # (например, когда обновление порядка в БД приводит к перезагрузке UI)
+        # Reentrancy flag to protect from loops during reordering
+        # (e.g. when order update in DB triggers UI reload)
         self._handling_reorder: bool = False
         try:
             if hasattr(self.table, "links_reordered"):
@@ -181,7 +181,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 raise AttributeError("links_reordered signal is missing")
         except (AttributeError, TypeError) as e:
             raise SetupError(f"Failed to connect links_reordered: {e}") from e
-        # Эксклюзивность выбора: любое выделение в таблице снимает выделение в дереве
+        # Exclusive selection: any selection in table clears tree selection
         try:
             if hasattr(self.table, "selectionModel"):
                 sel_model = self.table.selectionModel()
@@ -194,48 +194,48 @@ class LinksUIHandlers(BaseLinksUIComponent):
             raise SetupError(f"Failed to connect selectionChanged: {e}") from e
         self._table_signals_connected = True
 
-        # Обработка клавиш теперь централизована в KeyboardManager
+        # Key handling now centralized in KeyboardManager
 
     def _update_table(self, links: List[Dict], category_id: int, task_id: int):
-        """Обновляет таблицу ссылок новыми данными."""
-        # Защита от рассинхронизации: принимаем только ссылки для текущей категории
+        """Update links table with new data."""
+        # Desync protection: accept only links for current category
         current_category_id = self._category_provider.get_current_category_id()
         if category_id != current_category_id:
-            # Например, пользователь успел переключить категорию, пока грузились ссылки
+            # E.g. user switched category while links were loading
             logger.debug(
-                "Игнорируем результаты task_id=%s: категория результатов = %s, "
-                "но текущая категория = %s",
+                "Ignoring task_id=%s results: result category = %s, "
+                "but current category = %s",
                 task_id,
                 category_id,
                 current_category_id,
             )
             return
 
-        # Напрямую обновляем таблицу, не полагаясь на асинхронную обработку сигнала
+        # Update table directly, not relying on async signal processing
         try:
             self.links_table_controller.on_links_loaded(links, category_id, task_id)
         except (ValueError, RuntimeError):
-            # Ожидаемые ошибки контракта контроллера таблицы - логируем и повторно выбрасываем
+            # Expected table controller contract errors - log and re-raise
             logger.exception(
                 "LinksUIHandlers._update_table: links_table_controller.on_links_loaded contract error"
             )
             raise
         except Exception:
-            # Неожиданные ошибки логируем с полным стек-трейсом, но не скрываем
+            # Unexpected errors log with full stacktrace, but don't hide
             logger.exception(
                 "LinksUIHandlers._update_table: unexpected error in links_table_controller.on_links_loaded"
             )
             raise
 
-        # Не эмитим links_changed здесь, чтобы не провоцировать повторные перезагрузки
-        # Уведомления о загрузке обрабатываются в LinksTableController.on_links_loaded
+        # Don't emit links_changed here to avoid triggering repeated reloads
+        # Load notifications handled in LinksTableController.on_links_loaded
 
     def _update_search_results(self, search_results: List[Dict]):
-        """Обновить результаты поиска."""
+        """Update search results."""
         try:
             self.links_table_controller.on_search_results(search_results)
         except (TypeError, ValueError):
-            # Ошибки контракта контроллера таблицы не скрываем
+            # Don't hide table controller contract errors
             logger.exception(
                 "LinksUIHandlers._update_search_results: on_search_results contract error"
             )
@@ -244,14 +244,14 @@ class LinksUIHandlers(BaseLinksUIComponent):
     def _complete_toggle_fav(
         self, fav_count: int, links: List[Dict], link: Optional[Dict]
     ):
-        """Завершить переключение избранного."""
-        # Централизуем эмиссию сигналов в LinkOperationsController
+        """Complete favorite toggle."""
+        # Centralize signal emission in LinkOperationsController
         try:
             cat_id = None
             if link is not None:
                 cat_id = link.get("category_id")
             if not isinstance(cat_id, int) or cat_id <= 0:
-                # Используем явный провайдер вместо getattr(self.main, ...)
+                # Use explicit provider instead of getattr(self.main, ...)
                 cat_id = self._category_provider.get_current_category_id()
             self.link_operations.on_favorite_toggled(cat_id)
         except Exception as e:
@@ -260,13 +260,13 @@ class LinksUIHandlers(BaseLinksUIComponent):
             )
 
     def _handle_error(self, error_msg: str):
-        """Обработать ошибку."""
+        """Handle error."""
         logger.error("LinksUIController error: %s", error_msg)
         self._show_error(f"An error occurred: {error_msg}")
 
     def _on_link_updated(self, updated_link: Dict):
-        """Обработка обновления ссылки."""
-        # Диагностическое логирование вместо неиспользуемых локальных переменных
+        """Handle link update."""
+        # Diagnostic logging instead of unused local variables
         try:
             logger.debug(
                 "Link updated: id=%s, name=%s, favorite=%s",
@@ -280,7 +280,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 exc_info=True,
             )
 
-        # Централизуем эмиссию сигналов в LinkOperationsController
+        # Centralize signal emission in LinkOperationsController
         try:
             self.link_operations.on_link_updated(updated_link)
         except Exception as e:
@@ -289,13 +289,13 @@ class LinksUIHandlers(BaseLinksUIComponent):
             )
 
     def _on_double_click(self, row: int, column: int):
-        """Обработка двойного клика по строке."""
+        """Handle double-click on row."""
         link = self.controller.get_link_at(row)
         if not link:
             logger.warning("No link found at row %s", row)
             return
 
-        # Не открываем ссылку при двойном клике по колонке избранного (звезда)
+        # Don't open link on double-click on favorite column (star)
         if column == self.COLUMNS["favorite"]:
             return
 
@@ -305,7 +305,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
             self.controller.open_link(link)
 
     def _on_cell_clicked(self, row: int, column: int):
-        """Обработка клика по ячейке."""
+        """Handle cell click."""
         link = self.controller.get_link_at(row)
         if not link:
             logger.warning("No link found at row %s", row)
@@ -314,7 +314,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
         if column == self.COLUMNS["favorite"]:
             link_name = link.get("name", "Untitled")
 
-            # Получаем видимое имя через модель (DisplayRole)
+            # Get visible name through model (DisplayRole)
             model = safe_call(self.table, "model", default=None)
             idx = (
                 safe_call(model, "index", row, self.COLUMNS["name"], default=None)
@@ -334,7 +334,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
                     link_name,
                 )
 
-            # Логируем переключение избранного с кратким контекстом
+            # Log favorite toggle with brief context
             logger.debug(
                 "Toggling favorite: id=%s, name=%s, current=%s",
                 link.get("id"),
@@ -345,7 +345,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
             self.controller.toggle_favorite(link)
 
     def _on_context_menu(self, pos):
-        """Обработка контекстного меню."""
+        """Handle context menu."""
         idx = self.table.indexAt(pos)
         try:
             if idx and idx.isValid():
@@ -363,23 +363,23 @@ class LinksUIHandlers(BaseLinksUIComponent):
         if menu:
             menu.exec(self.table.mapToGlobal(pos))
 
-    # Метод _handle_key_press удален - обработка клавиш централизована в KeyboardManager
+    # Method _handle_key_press removed - key handling centralized in KeyboardManager
 
     def _on_links_reordered(self, link_ids: list):
-        """Обработка изменения порядка ссылок с защитой от реентрантности."""
+        """Handle link reordering with reentrancy protection."""
         try:
-            # Предотвращаем повторные входы, если обработчик уже выполняется
+            # Prevent reentrant calls if handler already executing
             if getattr(self, "_handling_reorder", False):
                 logger.debug("[Reorder] Suppressed recursive _on_links_reordered call")
                 return
 
             self._handling_reorder = True
 
-            # Пустые или тривиальные входные данные игнорируем
+            # Ignore empty or trivial input data
             if not link_ids or not isinstance(link_ids, list):
                 return
 
-            # Выполняем обновление порядка через бизнес-логику
+            # Execute order update through business logic
             self.business.update_link_order(link_ids)
 
         except Exception as e:
@@ -390,9 +390,9 @@ class LinksUIHandlers(BaseLinksUIComponent):
             self._handling_reorder = False
 
     def _on_table_selection_changed(self, _selected, _deselected):
-        """Эксклюзивность: при выделении в таблице очищаем выделение в дереве."""
+        """Exclusivity: when selecting in table, clear tree selection."""
         try:
-            # Ранний выход: если фактически выделение пустое, не трогаем дерево
+            # Early exit: if selection actually empty, don't touch tree
             if _selected is not None and bool(safe_call(_selected, "isEmpty", default=False)):
                 logger.debug("Table selection change: selected is empty; skip clearing tree")
                 return

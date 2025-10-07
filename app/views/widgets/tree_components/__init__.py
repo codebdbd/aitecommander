@@ -1,5 +1,6 @@
-# app/views/tree_components/__init__.py
+"""Tree components package.
 
-# NavigationHandler удален - функциональность перенесена в централизованный KeyboardManager
+NavigationHandler removed - functionality moved to centralized KeyboardManager.
+"""
 
-__all__ = []  # NavigationHandler удален
+__all__ = []

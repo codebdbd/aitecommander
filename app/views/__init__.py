@@ -1,6 +1,5 @@
-# === VIEWS PACKAGE ===
-# UI утилиты для работы с иконками перенесены в app.utils.icon
+"""Views package containing UI components.
 
-# Пакет views содержит UI компоненты приложения.
-# Основные виджеты импортируются напрямую по имени модуля,
-# поэтому __all__ не используется.
+UI utilities for icons have been moved to app.utils.icon.
+Main widgets are imported directly by module name, so __all__ is not used.
+"""

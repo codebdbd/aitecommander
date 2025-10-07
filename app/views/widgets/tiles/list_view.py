@@ -16,11 +16,11 @@ class CategoryListView(QListView):
     """QListView with custom drag that serialises category id from model UserRole."""
 
     MIME_TYPE = app_config.settings.get_category_mime_type()
-    # Сигнал активации по клавише Enter/Return
+    # Activation signal on Enter/Return key
     enterActivated = pyqtSignal(object)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        # Гарантируем установку currentIndex по месту клика (для DnD и контекстного меню)
+        # Ensure currentIndex is set at click position (for DnD and context menu)
         try:
             p = event.position().toPoint()
             self._press_pos = p
@@ -65,12 +65,12 @@ class CategoryListView(QListView):
         logger.debug("CategoryListView.startDrag: drag result = %s", result)
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        # Явный запуск DnD при достаточном смещении курсора
+        # Explicitly start DnD when cursor moved enough
         try:
             if event.buttons() & Qt.MouseButton.LeftButton:
                 idx = self.currentIndex()
                 if idx.isValid():
-                    # Порог из системных настроек
+                    # Threshold from system settings
                     threshold = QApplication.startDragDistance()
                     start = getattr(self, "_press_pos", event.position().toPoint())
                     if (
@@ -87,7 +87,7 @@ class CategoryListView(QListView):
         super().mouseMoveEvent(event)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        # Активация плитки по Enter/Return
+        # Activate tile on Enter/Return
         try:
             if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
                 idx = self.currentIndex()
@@ -112,7 +112,7 @@ class CategoryListView(QListView):
         super().keyPressEvent(event)
 
     def contextMenuEvent(self, event: QEvent) -> None:
-        # Всегда устанавливаем текущий индекс по правому клику и прокидываем сигнал
+        # Always set current index on right-click and emit signal
         try:
             idx = self.indexAt(event.pos())
             if idx.isValid():
@@ -142,7 +142,7 @@ class CategoryListView(QListView):
         super().contextMenuEvent(event)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
-        # Гарантированный перехват QContextMenuEvent из viewport()
+        # Guaranteed interception of QContextMenuEvent from viewport()
         try:
             if obj is self.viewport() and event.type() == QEvent.Type.ContextMenu:
                 pos = event.pos()

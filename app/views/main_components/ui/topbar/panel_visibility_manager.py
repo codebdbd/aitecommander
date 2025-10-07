@@ -4,7 +4,7 @@ import logging
 from functools import wraps
 from typing import Callable, Iterable, List, Optional
 
-from PyQt6.QtCore import QParallelAnimationGroup, QPropertyAnimation
+from PyQt6.QtCore import QCoreApplication, QParallelAnimationGroup, QPropertyAnimation
 from PyQt6.QtWidgets import (
     QGraphicsOpacityEffect,
     QToolButton,
@@ -137,10 +137,15 @@ class PanelVisibilityManager:
                     # ``AccessibilityManager`` via ``apply_counts``)
                     if is_visible:
                         button.setAccessibleDescription(
-                            f"Button {index + 1} of {visible} visible buttons"
+                            QCoreApplication.translate(
+                                "TopBarPanels",
+                                "Button {idx} of {total} visible buttons",
+                            ).format(idx=index + 1, total=visible)
                         )
                     else:
-                        button.setAccessibleDescription("Hidden button")
+                        button.setAccessibleDescription(
+                            QCoreApplication.translate("TopBarPanels", "Hidden button")
+                        )
                 except (RuntimeError, AttributeError):
                     pass
         
@@ -178,10 +183,11 @@ class PanelVisibilityManager:
             
             # Fix: configure full accessibility for the panel
             try:
+                # Translated panel display names
                 panel_name_map = {
-                    "recent": "Recent Links",
-                    "fav": "Favorites",
-                    "quick": "Quick Add",
+                    "recent": QCoreApplication.translate("TopBarPanels", "Recent Links"),
+                    "fav": QCoreApplication.translate("TopBarPanels", "Favorites"),
+                    "quick": QCoreApplication.translate("TopBarPanels", "Quick Add"),
                 }
                 panel_name = panel_name_map.get(state.definition.label, state.definition.label)
                 
@@ -200,6 +206,36 @@ class PanelVisibilityManager:
                 logger.debug("Failed to setup accessibility for %s: %s", state.definition.label, e)
         
         return applied
+
+    def retranslate_panels(
+        self,
+        panel_states: Iterable[PanelState],
+        visible_counts: dict[str, int],
+    ) -> None:
+        """Re-apply accessibility metadata with translated panel names.
+
+        Called when the application language changes.
+        """
+        try:
+            panel_name_map = {
+                "recent": QCoreApplication.translate("TopBarPanels", "Recent Links"),
+                "fav": QCoreApplication.translate("TopBarPanels", "Favorites"),
+                "quick": QCoreApplication.translate("TopBarPanels", "Quick Add"),
+            }
+            shortcut_counter = 1
+            for state in panel_states:
+                panel_name = panel_name_map.get(state.definition.label, state.definition.label)
+                visible = int(visible_counts.get(state.definition.label, 0))
+                self._accessibility_manager.setup_panel_accessibility(
+                    state.widget,
+                    state.buttons,
+                    panel_name,
+                    visible,
+                    start_shortcut_number=shortcut_counter,
+                )
+                shortcut_counter += visible
+        except Exception as e:
+            logger.debug("Failed to retranslate panels: %s", e)
 
     @safe_widget_operation
     def _apply_panel_width_bounds(

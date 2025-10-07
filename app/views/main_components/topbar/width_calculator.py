@@ -1,4 +1,4 @@
-"""Совместимый слой для легаси-импорта `app.views.main_components.topbar.width_calculator`."""
+"""Compatibility layer for legacy import `app.views.main_components.topbar.width_calculator`."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from app.views.main_components.ui.topbar.width_calculator import (
 
 
 class WidthCalculator(_ModernWidthCalculator):
-    """Обёртка, восстанавливающая поведение кэширования из легаси-версии."""
+    """Wrapper that restores legacy caching behavior."""
 
     def panel_width(self, panel, buttons, count):  # type: ignore[override]
         if count < 0:
@@ -26,13 +26,13 @@ class WidthCalculator(_ModernWidthCalculator):
 
         self._cache_misses += 1
 
-        # Сохраняем счетчики перед вызовом super(), чтобы избежать двойного подсчета
+        # Preserve counters before calling super() to avoid double counting
         saved_hits = self._cache_hits
         saved_misses = self._cache_misses
 
         result = super().panel_width(panel, buttons, count)
 
-        # Восстанавливаем счетчики после вызова super()
+        # Restore counters after calling super()
         self._cache_hits = saved_hits
         self._cache_misses = saved_misses
 

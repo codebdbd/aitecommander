@@ -276,6 +276,9 @@ class TopBarLayoutManager(QObject):
         if hasattr(self.window, "shown"):
             self._connect_signal(self.window, "shown", self.adjust)
 
+        # Note: retranslation hookup should be done by the app's LanguageService.
+        # Provide a public method `retranslate_topbar()` for that purpose.
+
     def _connect_signal(self, obj: QObject, signal_name: str, slot: object) -> None:
         """Safely connect a signal and track the binding for later cleanup.
 
@@ -586,6 +589,54 @@ class TopBarLayoutManager(QObject):
 
         self._last_applied = self._counts_tuple(applied)
         return applied
+
+    # --- i18n/retranslation ---
+    def _visible_counts_from_state(self, panel_states: Iterable[PanelState]) -> Dict[str, int]:
+        """Build visible counts by inspecting current button visibility.
+
+        Used when `_last_applied` is not available.
+        """
+        counts: Dict[str, int] = {label: 0 for label in self._panel_labels}
+        try:
+            for state in panel_states:
+                visible = 0
+                for b in state.buttons:
+                    try:
+                        if b.isVisible():
+                            visible += 1
+                    except Exception:
+                        pass
+                counts[state.definition.label] = visible
+        except Exception:
+            pass
+        return counts
+
+    def retranslate_topbar(self) -> None:
+        """Re-apply user-facing texts for the current language.
+
+        Safe to call after the application language changes.
+        """
+        try:
+            container = self._get_container_widget()
+            if not container:
+                return
+            top_bar = self._get_top_bar()
+            if not isinstance(top_bar, QLayout):
+                return
+            panel_states = self._collect_panel_states()
+            if not panel_states:
+                return
+
+            # Build counts dict from last applied or current visibility
+            if self._last_applied is not None:
+                visible_counts = {label: self._last_applied[i] for i, label in enumerate(self._panel_labels)}
+            else:
+                visible_counts = self._visible_counts_from_state(panel_states)
+
+            # Delegate to visibility manager for accessibility/UI texts
+            self._visibility_manager.retranslate_panels(panel_states, visible_counts)
+        except Exception as e:
+            logger.debug("TopBarLM: retranslate_topbar failed: %s", e)
 
     def _finalize_regular_layout(
         self, ctx: LayoutContext, applied_counts: Dict[str, int]

@@ -3,7 +3,7 @@
 import logging
 from typing import Optional
 
-from PyQt6.QtCore import (  # Импортируем Qt и QSize из QtCore
+from PyQt6.QtCore import (  # Import Qt and QSize from QtCore
     QObject,
     QSize,
     Qt,
@@ -19,7 +19,7 @@ from .item_operations import ItemOperations
 from .selection_handling import SelectionHandling
 from .tree_management import TreeManagement
 
-# Используем строковые литералы "section" и "category"
+# Use string literals "section" and "category"
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class StructureUIController(QObject):
     item_changed = pyqtSignal(str, int, dict)
     item_added = pyqtSignal(
         str, int, dict
-    )  # Исправлено: object → int для согласованности с Business Layer
+    )  # Fixed: object → int for consistency with Business Layer
 
     def __init__(self, tree_widget: QTreeView, business_logic, main_window):
         super().__init__()
@@ -37,15 +37,15 @@ class StructureUIController(QObject):
         self.main = main_window
         self.undo_stack = main_window.undo_stack
 
-        # Изменяем порядок: сначала icon_handler, затем вычисляем зависимости UI
+        # Change order: initialize icon_handler first, then compute UI dependencies
         self.icon_handler = IconHandling(self)
-        # Явная зависимость контроллера плиток категорий
+        # Explicit dependency on category tiles controller
         cat_tiles_ctrl = getattr(self.main, "category_tiles_controller", None)
         self.selection_handler = SelectionHandling(
             self, category_tiles_controller=cat_tiles_ctrl
         )
         self.item_ops = ItemOperations(self)
-        # Передаём явную зависимость контроллера плиток категорий в TreeManagement
+        # Pass explicit category tiles controller dependency into TreeManagement
         self.tree_manager = TreeManagement(
             self, category_tiles_controller=cat_tiles_ctrl
         )  # TreeManagement после IconHandling
@@ -55,11 +55,11 @@ class StructureUIController(QObject):
         self._connect_model_icon_reload_signals()
 
     def _connect_model_icon_reload_signals(self) -> None:
-        """Подключаемся к сигналам модели, чтобы перезаполнить иконки после стабилизации дерева.
+        """Connect to model signals to repopulate icons after tree stabilizes.
 
-        Коалесцируем множественные события в один вызов через QTimer.singleShot(0, ...).
-        Это гарантирует, что иконки выставляются только после того, как модель завершила
-        reset/insert/layout операции.
+        Coalesce multiple events into a single call via QTimer.singleShot(0, ...).
+        This ensures icons are updated only after the model finishes
+        reset/insert/layout operations.
         """
         try:
             model = self.tree.model()
@@ -84,7 +84,7 @@ class StructureUIController(QObject):
 
             QTimer.singleShot(0, _do_reload)
 
-        # После modelReset у QTreeView меняется selectionModel. Переподключаем currentChanged.
+        # After modelReset QTreeView's selectionModel changes. Reconnect currentChanged.
         def _schedule_selection_reconnect():
             try:
                 from PyQt6.QtCore import QTimer
@@ -96,13 +96,13 @@ class StructureUIController(QObject):
                         sel_model = None
                     if not sel_model:
                         return
-                    # На всякий случай пытаемся отключить старую связь, если она есть
+                    # Try to disconnect previous connection if present
                     try:
                         sel_model.currentChanged.disconnect(
                             self.selection_handler._on_current_changed
                         )
                     except Exception:
-                        # Не критично: previous connection мог отсутствовать
+                        # Not critical: previous connection might be absent
                         import logging
                         logging.getLogger(__name__).debug(
                             "Selection reconnect: disconnect previous failed",
@@ -120,19 +120,19 @@ class StructureUIController(QObject):
 
                 QTimer.singleShot(0, _reconnect)
             except Exception:
-                # Не критично, просто логируем в DEBUG
+                # Not critical, log in DEBUG only
                 import logging
                 logging.getLogger(__name__).debug(
                     "Failed to schedule selection reconnect after modelReset", exc_info=True
                 )
 
-        # Подписываемся ТОЛЬКО на modelReset, чтобы выполнять один проход
-        # после полной сборки снапшота и не дергать перерисовку на каждом rowsInserted/layoutChanged
+        # Subscribe ONLY to modelReset to perform a single pass
+        # after full snapshot assembly and avoid repaint on each rowsInserted/layoutChanged
         try:
             model.modelReset.connect(_schedule_reload)
         except Exception:
             pass
-        # Переподключение selectionModel после сброса модели
+        # Reconnect selectionModel after model reset
         try:
             model.modelReset.connect(_schedule_selection_reconnect)
         except Exception:
@@ -140,22 +140,22 @@ class StructureUIController(QObject):
 
     def _setup_tree(self) -> None:
         self.tree.setHeaderHidden(True)
-        # Размер иконок в дереве — из конфигурации (ui.tree_icon_size)
+        # Tree icon size — from configuration (ui.tree_icon_size)
         try:
             w, h = app_config.ui.get_tree_icon_size()
             self.tree.setIconSize(QSize(int(w), int(h)))
         except Exception:
-            # Fallback на безопасное значение
+            # Fallback to safe value
             self.tree.setIconSize(QSize(28, 28))
         self.tree.setDragEnabled(True)
         self.tree.setAcceptDrops(True)
         self.tree.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         self.tree.setDefaultDropAction(Qt.DropAction.MoveAction)
-        # Разрешаем множественное выделение, чтобы "Выделить все" сохранялось
+        # Allow multiple selection so "Select All" persists
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._on_context_menu)
-        # Переключение выделения для QTreeView через QItemSelectionModel
+        # Selection handling for QTreeView via QItemSelectionModel
         sel_model = getattr(self.tree, "selectionModel", None)
         if callable(sel_model):
             sel_model = self.tree.selectionModel()
@@ -176,7 +176,7 @@ class StructureUIController(QObject):
         self.business.error_occurred.connect(self.selection_handler._on_error_occurred)
 
     def _on_context_menu(self, pos):
-        # QTreeView-only: определяем элемент по QModelIndex
+        # QTreeView-only: determine item by QModelIndex
         item = None
         try:
             idx = self.tree.indexAt(pos)
@@ -193,7 +193,7 @@ class StructureUIController(QObject):
         )
         menu.popup(self.tree.viewport().mapToGlobal(pos))
 
-    # Публичные методы
+    # Public methods
     def load(self, item_to_select=None) -> None:
         self.item_ops.load(item_to_select)
 
@@ -201,7 +201,7 @@ class StructureUIController(QObject):
         self.item_ops.switch_sphere(sphere_id)
 
     def switch_to_next_sphere(self) -> None:
-        """Переключается на следующую сферу, используя бизнес-логику."""
+        """Switch to the next sphere using business logic."""
         next_sphere_id = self.business.get_next_sphere_id()
         if next_sphere_id is not None:
             self.switch_sphere(next_sphere_id)
@@ -244,10 +244,10 @@ class StructureUIController(QObject):
         self.tree_manager.on_structure_item_added(item_type, parent_id, data)
 
     def get_current_category_id(self) -> Optional[int]:
-        """Вернуть текущий ID категории на основе активного UI-контекста.
-        Предпочтение: плитки -> выбранный элемент дерева -> первая категория из BL.
+        """Return current category ID based on active UI context.
+        Preference: tiles -> selected tree item -> first category from BL.
         """
-        # 1) Если активен режим плиток категорий — используем текущую плитку
+        # 1) If category tiles view is active — use current tile
         try:
             tiles_stack_index = app_config.ui.get_stack_index_tiles()
             stack = getattr(self.main, "stack", None)
@@ -263,7 +263,7 @@ class StructureUIController(QObject):
         except Exception:
             logger.debug("StructureUIController.get_current_category_id: tiles lookup failed", exc_info=True)
 
-        # 2) Попытка получить категорию через TreeManagement (с учётом сохранённого состояния)
+        # 2) Try to get category via TreeManagement (considering saved state)
         try:
             category_id = self.tree_manager.get_current_category_id()
             if isinstance(category_id, int):
@@ -274,7 +274,7 @@ class StructureUIController(QObject):
                 exc_info=True,
             )
 
-        # 3) Прямое чтение выделения из дерева как резервный путь
+        # 3) Directly read selection from tree as a fallback
         try:
             index = self.tree.currentIndex()
             if index and index.isValid():
@@ -287,7 +287,7 @@ class StructureUIController(QObject):
                 exc_info=True,
             )
 
-        # 4) Fallback: спросить у бизнес-логики первую доступную категорию
+        # 4) Fallback: ask business logic for the first available category
         try:
             return self.business.get_first_category_id()
         except Exception:

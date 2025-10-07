@@ -26,7 +26,7 @@ class TreeManagement(QObject):
         self.controller = controller
         self.tree = controller.tree
         self.icon_handler = controller.icon_handler
-        # Явная обязательная зависимость: контроллер плиток категорий
+        # Explicit mandatory dependency: category tiles controller
         if category_tiles_controller is None:
             raise ValueError(
                 "TreeManagement requires a non-None category_tiles_controller"
@@ -37,7 +37,7 @@ class TreeManagement(QObject):
             )
         self.tiles_controller: CategoryTilesControllerProtocol = category_tiles_controller
 
-        # Явная ссылка на модель дерева и проверка контракта
+        # Explicit reference to tree model and contract check
         try:
             model_getter = getattr(self.tree, "model")
             raw_model = model_getter() if callable(model_getter) else None
@@ -65,11 +65,11 @@ class TreeManagement(QObject):
 
     @pyqtSlot(list)
     def _on_structure_loaded(self, sections_data: list[dict[str, Any]]) -> None:
-        # Сохраняем текущее выделение и состояние разворота до перезагрузки модели
+        # Save current selection and expansion state before model reload
         current_selection = self._state.capture_current_selection()
         expanded_state = self._state.capture_expanded_state()
 
-        # Сортируем разделы по имени (без учета регистра) перед передачей в модель
+        # Sort sections by name (case-insensitive) before passing to model
         try:
             sections_data = sorted(
                 sections_data or [],
@@ -77,15 +77,15 @@ class TreeManagement(QObject):
             )
         except (TypeError, AttributeError, KeyError):
             logger.exception(
-                "TreeManagement._on_structure_loaded: ошибка сортировки разделов"
+                "TreeManagement._on_structure_loaded: sections sort error"
             )
 
-        # Обновляем модель одним снимком
+        # Update model with single snapshot
         if sections_data is None:
             sections_data = []
         def _on_snapshot_error() -> None:
             logger.exception(
-                "TreeManagement._on_structure_loaded: модель не смогла принять снапшот"
+                "TreeManagement._on_structure_loaded: model failed to accept snapshot"
             )
 
         self._snapshot.schedule_snapshot(
@@ -97,18 +97,18 @@ class TreeManagement(QObject):
         )
         return
 
-        # Если структура пуста (нет ни одного раздела) — очистим плитки категорий
+        # If structure empty (no sections) — clear category tiles
         try:
             if not sections_data:
                 self.clear_tiles()
         except Exception:
             logger.exception(
-                "TreeManagement._on_structure_loaded: ошибка очистки плиток при пустой структуре"
+                "TreeManagement._on_structure_loaded: error clearing tiles on empty structure"
             )
         self._after_snapshot_applied(expanded_state, current_selection)
 
-        # Гарантированно сбросим одноразовый флаг подавления восстановления категории,
-        # если он по какой-то причине остался установлен после обработки выше.
+        # Guaranteed reset of one-time category restore suppression flag,
+        # if it somehow remained set after processing above.
         try:
             sb = getattr(self.controller, "business", None) or getattr(
                 self.controller, "structure_business", None
@@ -118,10 +118,10 @@ class TreeManagement(QObject):
         except Exception:
             pass
 
-        # Иконки теперь обновляются событием modelReset в StructureUIController;
-        # здесь дополнительных вызовов не делаем, чтобы избежать двойной работы.
+        # Icons now updated by modelReset event in StructureUIController;
+        # no additional calls here to avoid duplicate work.
 
-        # После первой загрузки структуры обновляем отображение главного окна
+        # After first structure load update main window display
         main = getattr(self.controller, "main", None)
         if main is not None and getattr(main, "_first_structure_load", False):
             setattr(main, "_first_structure_load", False)
@@ -130,10 +130,10 @@ class TreeManagement(QObject):
 
     @pyqtSlot(str, int, dict)
     def _on_item_added(self, item_type: str, parent_id: int, data: dict[str, Any]) -> None:
-        # Инкрементальная вставка через модель
-        # Примечание: при ошибке вставки требуется полная перезагрузка структуры —
-        # ожидаемые ошибки модели (ValueError, RuntimeError) логируем и пробрасываем вверх,
-        # неожиданные исключения также не подавляются.
+        # Incremental insert via model
+        # Note: on insert error full structure reload required —
+        # expected model errors (ValueError, RuntimeError) logged and re-raised,
+        # unexpected exceptions also not suppressed.
         if item_type == "category" and not isinstance(parent_id, int):
             return
         self._updates.handle_item_added(item_type, parent_id, data)
@@ -147,15 +147,15 @@ class TreeManagement(QObject):
         self._updates.handle_item_deleted(item_type, item_id)
 
     def clear_tiles(self) -> None:
-        """Сбросить плитки категорий."""
+        """Clear category tiles."""
         self._tiles.clear_tiles()
 
     def refresh_tiles_for_current_selection(self) -> None:
-        """Обновить плитки в соответствии с текущим выбором дерева."""
+        """Update tiles according to current tree selection."""
         self._tiles.refresh_by_current_tree_selection()
 
     def refresh_section_tiles(self, section_id: int) -> None:
-        """Обновить плитки раздела через переданный CategoryTilesController."""
+        """Update section tiles via passed CategoryTilesController."""
         self._tiles.refresh_section_tiles(section_id)
 
     def get_current_category_id(self) -> Optional[int]:
@@ -165,9 +165,9 @@ class TreeManagement(QObject):
         return None
 
     def _find_item_by_id(self, item_type: str, item_id: int):
-        """Возвращает QModelIndex элемента по типу ('section'|'category') и id.
+        """Return QModelIndex of item by type ('section'|'category') and id.
 
-        Совместимый хелпер для вызовов из `ItemOperations` и действий меню.
+        Compatible helper for calls from `ItemOperations` and menu actions.
         """
         try:
             idx = self.model.index_for(item_type, int(item_id))
@@ -175,26 +175,26 @@ class TreeManagement(QObject):
                 return idx
         except Exception:
             logger.exception(
-                "TreeManagement._find_item_by_id: ошибка поиска элемента %s #%s",
+                "TreeManagement._find_item_by_id: error finding item %s #%s",
                 item_type,
                 item_id,
             )
         return None
 
-    # Сортировка переносится в сборку снапшота модели; дополнительных действий во view не требуется
+    # Sorting moved to model snapshot assembly; no additional actions in view required
 
     def _sort_tree(self) -> None:
-        """Сортирует категории внутри каждого раздела по имени (case-insensitive).
+        """Sort categories within each section by name (case-insensitive).
 
-        Поддерживает QTreeView с моделью `StructureTreeModel`.
-        Сохраняет текущее выделение и состояние разворота.
+        Supports QTreeView with `StructureTreeModel`.
+        Preserves current selection and expansion state.
         """
-        # Сохраняем текущее выделение и развёрнутость
+        # Save current selection and expansion
         current_selection = self._state.capture_current_selection()
         expanded_state = self._state.capture_expanded_state()
 
         try:
-            # Собираем текущий снапшот из модели
+            # Collect current snapshot from model
             sections_data: list[dict] = []
             root_rows = self.model.rowCount(QModelIndex())
             for r in range(root_rows):
@@ -208,7 +208,7 @@ class TreeManagement(QObject):
                 s_name = self.model.data(s_idx, Qt.ItemDataRole.DisplayRole) or ""
                 s_icon = self.model.data(s_idx, Qt.ItemDataRole.DecorationRole)
 
-                # Собираем категории раздела
+                # Collect section categories
                 cats: list[dict] = []
                 child_rows = self.model.rowCount(s_idx)
                 for i in range(child_rows):
@@ -223,7 +223,7 @@ class TreeManagement(QObject):
                     c_icon = self.model.data(c_idx, Qt.ItemDataRole.DecorationRole)
                     cats.append({"id": c_id, "name": c_name, "icon": c_icon})
 
-                # Сортируем категории по имени без учета регистра
+                # Sort categories by name case-insensitive
                 try:
                     cats.sort(key=lambda c: (c.get("name") or "").lower())
                 except Exception:
@@ -262,7 +262,7 @@ class TreeManagement(QObject):
     ) -> None:
         self._on_item_updated(item_type, item_id, data)
 
-    # --- Вспомогательные методы ----------------------------------------
+    # --- Helper methods ----------------------------------------
 
     def _after_structure_loaded_snapshot(
         self,
@@ -270,19 +270,19 @@ class TreeManagement(QObject):
         current_selection: Optional[tuple[str, int]],
         has_sections: bool,
     ) -> None:
-        # Если структура пуста — очищаем плитки
+        # If structure empty — clear tiles
         if not has_sections:
             try:
                 self.clear_tiles()
             except Exception:
                 logger.exception(
-                    "TreeManagement._after_structure_loaded_snapshot: ошибка очистки плиток"
+                    "TreeManagement._after_structure_loaded_snapshot: tiles clear error"
                 )
 
-        # Восстанавливаем развёрнутость
+        # Restore expansion
         self._state.restore_expanded_state(expanded_state)
 
-        # Восстанавливаем выделение, если оно существовало
+        # Restore selection if it existed
         if current_selection:
             item_type, item_id = current_selection
             if item_type in ("section", "category") and isinstance(item_id, int):
@@ -309,7 +309,7 @@ class TreeManagement(QObject):
         self._finalize_first_load()
 
     def _finalize_first_load(self) -> None:
-        # Гарантированно сбросим одноразовый флаг подавления восстановления категории
+        # Guaranteed reset of one-time category restore suppression flag
         try:
             sb = getattr(self.controller, "business", None) or getattr(
                 self.controller, "structure_business", None
@@ -319,7 +319,7 @@ class TreeManagement(QObject):
         except Exception:
             pass
 
-        # После первой загрузки структуры обновляем отображение главного окна
+        # After first structure load update main window display
         main = getattr(self.controller, "main", None)
         if main is not None and getattr(main, "_first_structure_load", False):
             setattr(main, "_first_structure_load", False)
@@ -332,7 +332,7 @@ class TreeManagement(QObject):
         self._on_item_added(item_type, parent_id, data)
 
     def _update_category_display(self, category_id: int, new_data: dict) -> None:
-        """Отображение обновится после перезагрузки модели; плитки обновим через бизнес-логику."""
+        """Display will update after model reload; update tiles via business logic."""
         if hasattr(self.controller, "business"):
             try:
                 hier = self.controller.business.get_category_hierarchy(category_id)
@@ -340,19 +340,19 @@ class TreeManagement(QObject):
                     self.refresh_section_tiles(int(hier["section_id"]))
             except Exception:
                 logger.exception(
-                    "TreeManagement._update_category_display: ошибка обновления плиток по иерархии категории #%s",
+                    "TreeManagement._update_category_display: tiles update error by category #%s hierarchy",
                     category_id,
                 )
 
     def _update_category_tiles_after_edit(
         self, _category_index: QModelIndex | None = None
     ) -> None:
-        """Обновляет плитки категорий после редактирования категории."""
-        # Определим текущий раздел по текущему индексу и обновим плитки
+        """Update category tiles after category edit."""
+        # Determine current section by current index and update tiles
         self._tiles.refresh_after_category_edit()
 
     def _update_section_tiles_after_edit(
         self, _section_index: QModelIndex | None = None
     ) -> None:
-        """Обновляет плитки категорий после редактирования раздела."""
+        """Update category tiles after section edit."""
         self._tiles.refresh_after_section_edit()

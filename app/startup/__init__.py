@@ -1,1 +1,1 @@
-"""Модули для инициализации и запуска приложения."""
+"""Modules for application initialization and startup."""

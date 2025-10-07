@@ -36,7 +36,6 @@ class ImportBrowserDialog(BaseDialog):
         self._init_ui()
         self._populate_spheres()
         self._update_sections()
-        # Первичная установка локализованных текстов
         self.retranslateUi()
 
     def _init_ui(self) -> None:

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class LinksUIController(QObject):
-    """UI-контроллер для управления таблицей ссылок."""
+    """UI controller for managing links table."""
 
     def __init__(
         self,
@@ -46,9 +46,9 @@ class LinksUIController(QObject):
         self._row_by_link_id: dict[int, int] = {}
         self.table_controller = links_table_controller
 
-        # Инициализация подмодулей с явными зависимостями
-        # Передача провайдера категории: сначала ui_state, иначе сам main_window,
-        # если он предоставляет get_current_category_id (важно для тестов/заглушек)
+        # Initialize submodules with explicit dependencies
+        # Pass category provider: first ui_state, otherwise main_window itself,
+        # if it provides get_current_category_id (important for tests/stubs)
         _ui_state = getattr(main_window, "ui_state", None)
         _kwargs = {}
         if _ui_state is not None:
@@ -56,7 +56,7 @@ class LinksUIController(QObject):
         elif hasattr(main_window, "get_current_category_id"):
             _kwargs["category_provider"] = main_window
 
-        # Явная проводка зависимости structure_tree для LinksUIHandlers (если доступна)
+        # Explicit structure_tree dependency wiring for LinksUIHandlers (if available)
         structure = getattr(main_window, "structure", None)
         tree = getattr(structure, "tree", None) if structure is not None else None
         if tree is not None:
@@ -71,79 +71,79 @@ class LinksUIController(QObject):
         self.clipboard = LinksUIClipboard(self, link_operations=link_operations)
         self.link_ops = LinksUILinkOperations(self, link_operations=link_operations)
 
-        # Подключение сигналов
+        # Connect signals
         self.handlers._connect_signals()
         self.handlers._connect_table_signals()
-        # Индексация строк после любого массового обновления таблицы
+        # Row indexing after any bulk table update
         try:
             if hasattr(self.table, "table_populated"):
                 self.table.table_populated.connect(self.rebuild_row_index)
         except Exception as e:
             logger.debug("Failed to connect table_populated: %s", e)
 
-        # ЦЕНТРАЛИЗОВАНО: начальная загрузка категории
+        # CENTRALIZED: initial category load
         self._reload_current_category()
 
     def shutdown(self, timeout: int = 2000):
-        """Корректное завершение работы."""
+        """Graceful shutdown."""
         self.business.shutdown(timeout)
 
     def load_category(self, category_id: int):
-        """Загрузить ссылки для категории - ТОЛЬКО бизнес-логика.
+        """Load links for category - business logic ONLY.
 
-        ЦЕНТРАЛИЗОВАНО: UI координация перенесена в UIStateManager.load_category().
-        Этот метод теперь содержит только бизнес-логику загрузки данных.
+        CENTRALIZED: UI coordination moved to UIStateManager.load_category().
+        This method now contains only business logic for data loading.
         """
         self.business.load_links(category_id)
 
     def on_search(self, text: str):
-        """Обработка поискового запроса."""
+        """Handle search query."""
         if not text.strip():
-            # Если поиск пустой, загружаем текущую категорию
+            # If search empty, load current category
             self._reload_current_category()
         else:
             self.business.search_links(text)
 
     def get_link_at(self, row: int) -> Optional[Dict]:
-        """Получить ссылку по номеру строки, делегируя вызов таблице.
+        """Get link by row number, delegating call to table.
 
-        Проверки границ и обработка ошибок инкапсулированы в методе представления.
+        Bounds checks and error handling encapsulated in view method.
         """
         return safe_call(self.table, "get_link_at", row, default=None)
 
     def get_row_count(self) -> int:
-        """Получить количество строк в таблице."""
+        """Get table row count."""
         try:
             model = self.table.model()
             return model.rowCount() if model is not None else 0
         except (AttributeError, RuntimeError) as e:
-            logger.error("Ошибка при получении количества строк: %s", e)
+            logger.error("Error getting row count: %s", e)
             return 0
 
     def has_selection(self) -> bool:
-        """Проверить, есть ли выделение в таблице."""
+        """Check if table has selection."""
         try:
             sel = self.table.selectionModel()
             return bool(sel and sel.hasSelection())
         except (AttributeError, RuntimeError) as e:
-            logger.error("Ошибка при проверке выделения: %s", e)
+            logger.error("Error checking selection: %s", e)
             return False
 
     def current_row(self) -> int:
-        """Получить номер текущей строки."""
+        """Get current row number."""
         try:
             idx = self.table.currentIndex()
             return idx.row() if idx and idx.isValid() else -1
         except (AttributeError, RuntimeError) as e:
-            logger.error("Ошибка при получении текущей строки: %s", e)
+            logger.error("Error getting current row: %s", e)
             return -1
 
     def select_row(self, row: int) -> None:
-        """Выделить строку по номеру."""
+        """Select row by number."""
         self.table.selectRow(row)
 
     def set_current_cell(self, row: int, column: int) -> None:
-        """Установить текущую ячейку."""
+        """Set current cell."""
         try:
             model = self.table.model()
             if model is None:
@@ -152,10 +152,10 @@ class LinksUIController(QObject):
             if index and index.isValid():
                 self.table.setCurrentIndex(index)
         except (AttributeError, RuntimeError) as e:
-            logger.error("Ошибка при установке текущей ячейки: %s", e)
+            logger.error("Error setting current cell: %s", e)
 
     def scroll_to_row(self, row: int) -> None:
-        """Прокрутить таблицу к строке."""
+        """Scroll table to row."""
         try:
             model = self.table.model()
             if model is None:
@@ -164,25 +164,25 @@ class LinksUIController(QObject):
             if index and index.isValid():
                 self.table.scrollTo(index)
         except (AttributeError, RuntimeError) as e:
-            logger.error("Ошибка при прокрутке к строке: %s", e)
+            logger.error("Error scrolling to row: %s", e)
 
     def get_selected_rows(self) -> List[int]:
-        """Получить номера выделенных строк через общую утилиту."""
+        """Get selected row numbers via common utility."""
         return get_selected_rows_util(self.table)
 
     def quick_add_link(self, link_type: str, category_id: int = None):
-        """Быстрое добавление ссылки."""
+        """Quick add link."""
         self.link_ops.quick_add_link(link_type, category_id)
 
     def show_note_dialog(self, link: Dict) -> None:
-        """Показать диалог заметки для ссылки."""
+        """Show note dialog for link."""
         self.link_ops.show_note_dialog(link)
 
     def get_selected_links(self) -> List[Dict]:
-        """Получить выбранные ссылки (единый источник истины).
+        """Get selected links (single source of truth).
 
-        Собирает выбранные строки через get_selected_rows() и извлекает
-        объекты ссылок через get_link_at(). Фильтрует пустые значения.
+        Collects selected rows via get_selected_rows() and extracts
+        link objects via get_link_at(). Filters empty values.
         """
         rows = self.get_selected_rows()
         if not rows:
@@ -191,42 +191,42 @@ class LinksUIController(QObject):
         return [ln for ln in links if ln]
 
     def open_link(self, link: Dict) -> None:
-        """Открыть ссылку."""
+        """Open link."""
         logger.info("open_link called with link: %s", link)
         self.link_ops._open_link(link)
 
     def toggle_favorite(self, link: Dict = None) -> None:
-        """Переключить статус избранного."""
+        """Toggle favorite status."""
         self.link_ops._toggle_fav(link)
 
     def cut_selected_links(self) -> None:
-        """Вырезать выбранные ссылки."""
+        """Cut selected links."""
         self.clipboard.cut_link()
 
     def copy_selected_links(self) -> None:
-        """Копировать выбранные ссылки."""
+        """Copy selected links."""
         self.clipboard.copy_link()
 
     def paste_links(self) -> None:
-        """Вставить ссылки из буфера обмена."""
+        """Paste links from clipboard."""
         self.clipboard.paste_link()
 
     def delete_selected_links(self) -> None:
-        """Удалить выбранные ссылки."""
+        """Delete selected links."""
         links = self.clipboard.get_selected_links()
         self.clipboard.delete_links(links)
 
     def focus_on_link(self, link_id: int) -> None:
-        """Сфокусироваться на ссылке с указанным ID.
+        """Focus on link with specified ID.
 
-        Перенос логики из MainWindow._restore_table_selection для устранения дублирования
-        и чтобы внешние вызовы (см. link_operations_controller) работали через UI-контроллер.
+        Logic moved from MainWindow._restore_table_selection to eliminate duplication
+        and so external calls (see link_operations_controller) work through UI controller.
         """
         try:
-            # Быстрый путь: используем индекс, если он есть
+            # Fast path: use index if available
             row = self._row_by_link_id.get(link_id)
             if row is None:
-                # Ленивая перестройка индекса
+                # Lazy index rebuild
                 self.rebuild_row_index()
                 row = self._row_by_link_id.get(link_id)
             if row is not None:
@@ -246,7 +246,7 @@ class LinksUIController(QObject):
             logger.error("Failed to focus on link %s: %s", link_id, e)
 
     def rebuild_row_index(self) -> None:
-        """Переcтроить индекс link_id -> row по текущему содержимому таблицы."""
+        """Rebuild link_id -> row index from current table contents."""
         try:
             self._row_by_link_id.clear()
             rows = self.get_row_count()
@@ -258,7 +258,7 @@ class LinksUIController(QObject):
             logger.debug("rebuild_row_index failed: %s", e)
 
     def _reload_current_category(self) -> None:
-        """Централизованная перезагрузка текущей категории через LinksTableController."""
+        """Centralized current category reload via LinksTableController."""
         category_id = self.main.get_current_category_id()
         if not category_id:
             return

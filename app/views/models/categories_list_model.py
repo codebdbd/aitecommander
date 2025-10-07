@@ -10,25 +10,25 @@ from app.utils.ui.icon.cache_manager import get_cached_category_icon
 
 logger = logging.getLogger(__name__)
 
-# Единый дефолтный QIcon для экономии аллокаций
+# Single default QIcon to save allocations
 DEFAULT_ICON = QIcon()
 
 
 class CategoriesListModel(QAbstractListModel):
-    """Простая модель для списка категорий.
+    """Simple model for a list of categories.
 
-    Элемент: dict с ключами: id (int), name (str), icon_path (str|None)
+    Item: dict with keys: id (int), name (str), icon_path (str|None)
     Roles:
       - DisplayRole: name
-      - DecorationRole: QIcon по icon_path
+      - DecorationRole: QIcon resolved from icon_path
       - UserRole: id
-      - ToolTipRole: name (можно расширить)
+      - ToolTipRole: name (can be extended)
     """
 
     def __init__(self, categories: Optional[List[Dict[str, Any]]] = None, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._items: List[Dict[str, Any]] = []
-        # Кэш строк по id для O(1) поиска: id -> row
+        # Row cache by id for O(1) lookup: id -> row
         self._row_by_id: Dict[int, int] = {}
         if categories:
             self.set_categories(categories)
@@ -59,7 +59,7 @@ class CategoriesListModel(QAbstractListModel):
 
     # --- mutators ---
     def set_categories(self, categories: List[Dict[str, Any]]) -> None:
-        # Нормализуем входные данные и подготавливаем иконки
+        # Normalize input data and prepare icons
         items: List[Dict[str, Any]] = []
         for cat in categories:
             name = cat.get("name", "")
@@ -69,9 +69,9 @@ class CategoriesListModel(QAbstractListModel):
                     raise ValueError("id is None")
                 cat_id = int(raw_id)
             except Exception as e:
-                # Логируем пропуск некорректного элемента по общему паттерну
+                # Log skipping of invalid element per common pattern
                 logger.warning(
-                    "Пропущен элемент списка категорий: некорректный id (%r). Элемент=%r; причина: %s",
+                    "Skipped category list item: invalid id (%r). Item=%r; reason: %s",
                     raw_id,
                     cat,
                     e,
@@ -88,8 +88,8 @@ class CategoriesListModel(QAbstractListModel):
 
         self.beginResetModel()
         self._items = items
-        # Перестроим кэш строк по id
-        # Важно: сохраняем индекс ПЕРВОГО вхождения для совместимости с прежним линейным поиском
+        # Rebuild row cache by id
+        # Important: keep the index of the FIRST occurrence for compatibility with previous linear lookup
         row_by_id: Dict[int, int] = {}
         for idx, it in enumerate(self._items):
             cid = it["id"]
@@ -100,5 +100,5 @@ class CategoriesListModel(QAbstractListModel):
 
     # --- helpers ---
     def find_row_by_id(self, category_id: int) -> int:
-        # Используем кэш для O(1) поиска
+        # Use cache for O(1) lookup
         return self._row_by_id.get(category_id, -1)

@@ -16,15 +16,15 @@ from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.path_service import get_current_theme
 from app.views.widgets.tree_components.move_operations_handler import MoveOperationsHandler
 
-# Используем строковые литералы "section" и "category"
+# Use string literals "section" and "category"
 
-COLUMN_DATA = 0  # Индекс колонки с данными в таблицах
+COLUMN_DATA = 0  # Column index containing data in tables
 
 logger = logging.getLogger(__name__)
 
 
 class NoFocusRectDelegate(QStyledItemDelegate):
-    """Делегат для убирания рамки фокуса с элементов."""
+    """Delegate to hide focus rectangle for items."""
 
     def paint(self, painter, option, index):
         option2 = QStyleOptionViewItem(option)
@@ -33,7 +33,7 @@ class NoFocusRectDelegate(QStyledItemDelegate):
 
 
 class HighQualityTreeDelegate(QStyledItemDelegate):
-    """Делегат для высококачественной отрисовки иконок в дереве разделов."""
+    """Delegate providing high-quality icon rendering in the structure tree."""
 
     def __init__(self, item_height: int | None = None, parent=None):
         super().__init__(parent)
@@ -46,12 +46,12 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
                 e,
             )
             self._item_height = None
-        # Кэш подготовленных пиксмапов: ключ = (icon_cache_key, width, height, dpr)
-        # Это значительно снижает количество перерасчётов и аллокаций в paint()
+        # Cache of prepared pixmaps: key = (icon_cache_key, width, height, dpr)
+        # This significantly reduces recalculations and allocations in paint()
         self._pixmap_cache: dict[tuple, QIcon] = {}
 
     def clear_cache(self):
-        """Очистить кэш иконок (например, при смене параметров размера/масштаба)."""
+        """Clear icon cache (e.g., when size/scale parameters change)."""
         try:
             self._pixmap_cache.clear()
         except AttributeError as e:
@@ -62,7 +62,7 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
             self._pixmap_cache = {}
 
     def set_item_height(self, item_height: int | None):
-        """Установить новую высоту элемента и очистить кэш."""
+        """Set new item height and clear cache."""
         try:
             self._item_height = int(item_height) if item_height is not None else None
         except (TypeError, ValueError) as e:
@@ -75,27 +75,27 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
         self.clear_cache()
 
     def paint(self, painter, option, index):
-        # Убираем рамку фокуса у элементов дерева
+        # Remove focus rectangle from tree items
         option.state &= ~QStyle.StateFlag.State_HasFocus
 
-        # Получаем иконку из модели
+        # Get icon from model
         icon = index.data(Qt.ItemDataRole.DecorationRole)
         if isinstance(icon, QIcon) and not icon.isNull():
-            # Если по какой-то причине QPainter не активен, не пытаемся рисовать
+            # If for some reason QPainter is not active, do not attempt to draw
             if hasattr(painter, "isActive") and not painter.isActive():
                 logger.error(
                     "HighQualityTreeDelegate.paint: painter is not active; index=%r",
                     index,
                 )
                 return
-            # Вычисляем размер иконки
+            # Compute icon size
             icon_size = option.decorationSize
             if icon_size.width() <= 0 or icon_size.height() <= 0:
                 icon_size = option.widget.iconSize() if option.widget else QSize(16, 16)
 
-            # DPR устройства вывода
+            # Output device DPR
             device_pixel_ratio = 1.0
-            # Предпочитаем DPR от виджета/экрана, чтобы не обращаться к painter.device()
+            # Prefer DPR from widget/screen to avoid calling painter.device()
             try:
                 if option.widget is not None and hasattr(
                     option.widget, "devicePixelRatioF"
@@ -113,7 +113,7 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
                     e,
                 )
 
-            # Ключ кэша: используем cacheKey() QIcon, размеры и DPR
+            # Cache key: use QIcon.cacheKey(), dimensions and DPR
             try:
                 icon_key = icon.cacheKey()  # int
             except AttributeError as e:
@@ -131,10 +131,10 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
 
             cached_icon = self._pixmap_cache.get(cache_key)
             if cached_icon is None:
-                # Создаем временную опцию с высококачественной иконкой
+                # Create a temporary option with high-quality icon
                 temp_option = QStyleOptionViewItem(option)
 
-                # Создаём исходный пиксмап с учётом DPR
+                # Create source pixmap considering DPR
                 actual_size = QSize(
                     int(icon_size.width() * device_pixel_ratio),
                     int(icon_size.height() * device_pixel_ratio),
@@ -142,7 +142,7 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
                 pixmap = icon.pixmap(actual_size)
                 pixmap.setDevicePixelRatio(device_pixel_ratio)
 
-                # Масштабируем с высоким качеством если нужно
+                # Scale with high quality if needed
                 if not pixmap.isNull():
                     pixmap_size = pixmap.size() / device_pixel_ratio
                     if (
@@ -164,26 +164,26 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
                         )
                         pixmap.setDevicePixelRatio(device_pixel_ratio)
 
-                # Создаем QIcon на основе подготовленного пиксмапа и кладём в кэш
+                # Build QIcon from prepared pixmap and put into cache
                 high_quality_icon = QIcon()
                 high_quality_icon.addPixmap(pixmap)
                 self._pixmap_cache[cache_key] = high_quality_icon
                 cached_icon = high_quality_icon
 
-            # Рисуем стандартным способом с кэшированной иконкой
+            # Draw using cached icon with the standard method
             temp_option = QStyleOptionViewItem(option)
             temp_option.icon = cached_icon
             super().paint(painter, temp_option, index)
         else:
-            # Рисуем без иконки
+            # Draw without icon
             super().paint(painter, option, index)
 
-        # Без обводки при наведении для дерева согласно требованиям
+        # No hover outline for the tree per UX requirements
 
     def sizeHint(self, option: QStyleOptionViewItem, index):
-        # Базовый размер от Qt
+        # Base size from Qt
         base = super().sizeHint(option, index)
-        # Жёстко возвращаем единую высоту строки из глобальной конфигурации (ui.row_height)
+        # Enforce a single row height from global configuration (ui.row_height)
         try:
             row_h = int(app_config.ui.get_row_height())
         except (AttributeError, TypeError, ValueError) as e:
@@ -197,11 +197,11 @@ class HighQualityTreeDelegate(QStyledItemDelegate):
 
 class StructureTreeView(QTreeView):
     """
-    Итоговый QTreeView для дерева структуры на Model/View.
-    Сохраняет визуальные параметры и делегаты; сигналы оставлены для совместимости с прежним API.
+    Final QTreeView for the structure tree based on Model/View.
+    Preserves visual parameters and delegates; signals are kept for compatibility with previous API.
     """
 
-    # Совместимость: заготовленные сигналы, будут задействованы после DnD-рефактора
+    # Compatibility: pre-defined signals to be used after DnD refactor
     itemsMoved: pyqtSignal = pyqtSignal(object)
     invalidDrop: pyqtSignal = pyqtSignal(str)
     dragFeedback: pyqtSignal = pyqtSignal(object)
@@ -209,24 +209,22 @@ class StructureTreeView(QTreeView):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._setup_tree_view()
-        # Интеграция обработчиков для совместимости с прежним API
+        # Integrate handlers for compatibility with previous API
         self.move_operations_handler = MoveOperationsHandler(self)
         self.drag_drop_handler = DragDropHandler(self)
 
     def update_font_size(self, font_size: int):
-        """
-        Явно применяет локальный размер шрифта к дереву структуры.
-        Делает поведение согласованным с таблицей ссылок (LinksTableView.update_font_size).
+        """Apply local font size to the structure tree.
+        
+        Makes behavior consistent with LinksTableView.update_font_size.
         """
         try:
-            # Ничего не делаем, если размер не менялся
             if hasattr(self, "_current_font_size") and self._current_font_size == int(
                 font_size
             ):
                 return
             self._current_font_size = int(font_size)
         except Exception:
-            # В случае некорректного значения просто выходим
             return
 
         try:
@@ -234,7 +232,6 @@ class StructureTreeView(QTreeView):
 
             f = QFont(self.font().family(), int(self._current_font_size))
             self.setFont(f)
-            # Обновляем отображение
             self.viewport().update()
         except Exception as e:
             logger.warning(
@@ -244,14 +241,14 @@ class StructureTreeView(QTreeView):
             )
 
     def _setup_tree_view(self):
-        """Настройка параметров QTreeView под текущие UX-требования."""
-        # DnD включен на уровне вида (логика обработчиков находится в обработчиках)
+        """Configure QTreeView parameters according to current UX requirements."""
+        # DnD is enabled at the view level (handlers encapsulate logic)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
 
-        # Делегат высокого качества (иконки, высота строки)
+        # High-quality delegate (icons, row height)
         try:
             item_h = int(app_config.ui.get_row_height())
         except (AttributeError, TypeError, ValueError) as e:
@@ -262,7 +259,7 @@ class StructureTreeView(QTreeView):
             item_h = None
         self.setItemDelegate(HighQualityTreeDelegate(item_height=item_h))
 
-        # Производительность: одинаковая высота строк
+        # Performance: uniform row heights
         try:
             self.setUniformRowHeights(True)
         except AttributeError as e:
@@ -271,11 +268,11 @@ class StructureTreeView(QTreeView):
                 e,
             )
 
-        # Hover-поведение как в прежней версии
+        # Hover behavior similar to the previous version
         self.setMouseTracking(True)
 
-        # Чистая реализация нестандартных индикаторов ветвей через QProxyStyle.
-        # Иконки берутся из общего кэша по текущей теме на этапе отрисовки — без подписок/хуков.
+        # Clean implementation of custom branch indicators via QProxyStyle.
+        # Icons are fetched from the shared cache per current theme at paint time — no subscriptions/hooks.
         try:
             def _get_branch_icons():
                 theme = get_current_theme()
@@ -290,7 +287,7 @@ class StructureTreeView(QTreeView):
                 def drawPrimitive(self, element, option, painter, widget=None):  # noqa: N802
                     if element == QStyle.PrimitiveElement.PE_IndicatorBranch:
                         try:
-                            # Показываем индикатор только для узлов с детьми (разделы).
+                            # Show indicator only for nodes with children (sections).
                             if not (option.state & QStyle.StateFlag.State_Children):
                                 return super().drawPrimitive(element, option, painter, widget)
                             is_open = bool(option.state & QStyle.StateFlag.State_Open)
@@ -304,7 +301,7 @@ class StructureTreeView(QTreeView):
                                 painter.drawPixmap(x, y, pm)
                                 return
                         except Exception:
-                            # Фолбэк на дефолтный рендеринг
+                            # Fallback to default rendering
                             return super().drawPrimitive(element, option, painter, widget)
                     return super().drawPrimitive(element, option, painter, widget)
 
@@ -316,13 +313,13 @@ class StructureTreeView(QTreeView):
         except Exception:
             logger.debug("StructureTreeView: failed to install branch proxy style", exc_info=True)
     def _safe_emit(self, signal, payload, *, fallback=None, signal_name: str = "") -> None:
-        """Безопасно эмитит сигнал с унифицированной обработкой ошибок.
+        """Safely emit a signal with unified error handling.
 
         Args:
-            signal: pyqtSignal экземпляра (например, self.itemsMoved)
-            payload: данные для эмиссии
-            fallback: callable для альтернативной эмиссии (например, self.dragFeedback.emit)
-            signal_name: имя сигнала для логирования (itemsMoved/invalidDrop/dragFeedback)
+            signal: instance pyqtSignal (e.g., self.itemsMoved)
+            payload: data to emit
+            fallback: callable for alternative emission (e.g., self.dragFeedback.emit)
+            signal_name: signal name for logging (itemsMoved/invalidDrop/dragFeedback)
         """
         try:
             signal.emit(payload)
@@ -335,7 +332,7 @@ class StructureTreeView(QTreeView):
             )
             if fallback is not None:
                 try:
-                    # Прокидываем единый формат обратной связи
+                    # Provide unified feedback payload
                     fb_payload = {
                         "type": "emit_error",
                         "signal": signal_name or getattr(signal, "__name__", "<unknown>"),
@@ -347,7 +344,7 @@ class StructureTreeView(QTreeView):
                         "StructureTreeView._safe_emit: fallback emit failed: %s", e2
                     )
 
-    # --- Emit helpers (совместимость с прежним API) ---
+    # --- Emit helpers (compatibility with previous API) ---
     def emit_items_moved(self, payload):
         self._safe_emit(self.itemsMoved, payload, fallback=self.dragFeedback, signal_name="itemsMoved")
 
@@ -357,10 +354,10 @@ class StructureTreeView(QTreeView):
     def emit_drag_feedback(self, info):
         self._safe_emit(self.dragFeedback, info, fallback=None, signal_name="dragFeedback")
 
-    # --- DnD события: сначала собственный обработчик, затем (при необходимости) стандартная обработка ---
-    # Подход сочетает кастомную логику (DragDropHandler) и базовое поведение Qt.
-    # Если пользовательский обработчик НЕ принял событие (event.isAccepted() == False),
-    # передаём его родительскому классу для стандартной обработки.
+    # --- DnD events: first custom handler, then (if needed) default handling ---
+    # Approach combines custom logic (DragDropHandler) and Qt default behavior.
+    # If custom handler did NOT accept the event (event.isAccepted() == False),
+    # delegate to the base class for standard handling.
     def dragEnterEvent(self, event):
         self.drag_drop_handler.handle_drag_enter_event(event)
         if not event.isAccepted():

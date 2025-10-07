@@ -132,7 +132,6 @@ class NeonEventFilter(QObject):
             # Sync effect with current checked state
             if self._is_active_checked_button(w):
                 self._apply_effect(w)
-        # Рекурсивно обходим текущих потомков
         for child in w.findChildren(QWidget):
             if isinstance(child, eligible):
                 child.installEventFilter(self)

@@ -1,16 +1,16 @@
-"""Mixin с общей логикой создания кнопок ссылок и поиска иконок.
+"""Mixin with common logic for creating link buttons and resolving icons.
 
-Использование:
-- Хост-класс должен предоставлять метод `_get_default_icon_path()`
-  который возвращает pathlib.Path к иконке по умолчанию (с кэшированием).
-- Миксин добавляет методы `_find_icon` и `_create_link_button`.
+Usage:
+- The host class must provide `_get_default_icon_path()` which returns a
+  ``pathlib.Path`` to the default icon (with caching).
+- The mixin adds `_find_icon` and `_create_link_button` methods.
 """
 from __future__ import annotations
 
 import logging
 from typing import Any, Dict
 
-from PyQt6.QtCore import QSize
+from PyQt6.QtCore import QSize, QCoreApplication
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
 
 from app.config_data import app_config
@@ -22,26 +22,30 @@ from app.utils.ui.icon.icon_resolver import (
 
 logger = logging.getLogger(__name__)
 
+_TR_CONTEXT = "LinkButtonMixin"
+
+
+def _tr(text: str) -> str:
+    return QCoreApplication.translate(_TR_CONTEXT, text)
+
 
 class LinkButtonMixin:
     def _find_icon(self, icon_path: str) -> str:
-        """Возвращает путь к иконке через общий резолвер с fallback."""
+        """Return icon path via the common resolver with a fallback."""
         if not icon_path:
             return str(self._get_default_icon_path())
         try:
             resolved = resolve_icon_path(icon_path)
             return resolved or str(self._get_default_icon_path())
         except (OSError, FileNotFoundError, PermissionError) as e:
-            logger.warning("Не удалось разрешить путь к иконке '%s': %s", icon_path, e)
+            logger.warning("Failed to resolve icon path '%s': %s", icon_path, e)
             return str(self._get_default_icon_path())
         except Exception as e:
-            logger.exception(
-                "Неожиданная ошибка при разрешении иконки '%s': %s", icon_path, e
-            )
+            logger.exception("Unexpected error while resolving icon '%s': %s", icon_path, e)
             return str(self._get_default_icon_path())
 
     def _create_link_button(self, link_data: Dict[str, Any]) -> QToolButton:
-        """Создаёт кнопку ссылки с иконкой, синхронизированной с таблицей."""
+        """Create a link button with an icon, synchronized with the table."""
         button = QToolButton()
 
         button_size = app_config.ui.get_top_panel_button_size()
@@ -52,18 +56,18 @@ class LinkButtonMixin:
         try:
             resolved_path = self._find_icon(resolve_icon_for_link(link_data))
             icon = create_icon_from_path(resolved_path)
-            # Фолбэк: если иконка не создана или пуста — используем дефолтную
+            # Fallback: if icon not created or is empty — use default
             if not icon or getattr(icon, "isNull", lambda: True)():
                 fallback_path = str(self._get_default_icon_path())
                 logger.warning(
-                    "Иконка не создана/пустая для ссылки %r (path=%s). Используем дефолтную: %s",
+                    "Icon not created/empty for link %r (path=%s). Using default: %s",
                     link_data.get("name"),
                     resolved_path,
                     fallback_path,
                 )
                 icon = create_icon_from_path(fallback_path)
             button.setIcon(icon)
-            # Диагностика фактических размеров и DPR
+            # Diagnostics of actual sizes and DPR
             try:
                 from PyQt6.QtCore import QSize as _QSize
                 from PyQt6.QtGui import QGuiApplication
@@ -88,16 +92,16 @@ class LinkButtonMixin:
                 logging.debug("[TopBarIconDiag] failed to log diagnostics: %s", diag_exc)
         except Exception as e:
             logger.warning(
-                "Не удалось создать иконку для ссылки '%s': %s",
+                "Failed to create icon for link '%s': %s",
                 link_data.get("name", "Unknown"),
                 e,
             )
-            # Гарантируем визуальный отклик — ставим иконку по умолчанию
+            # Ensure visual feedback — set default icon
             try:
                 fallback_path = str(self._get_default_icon_path())
                 button.setIcon(create_icon_from_path(fallback_path))
             except Exception:
                 pass
 
-        button.setToolTip(link_data.get("name", "Неизвестная ссылка"))
+        button.setToolTip(link_data.get("name", _tr("Unknown link")))
         return button

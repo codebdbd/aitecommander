@@ -4,7 +4,7 @@ import logging
 
 from PyQt6.QtCore import QObject, pyqtSlot
 
-# Используем строковые литералы "section" и "category"
+# Use string literals "section" and "category"
 from app.controllers.ui.dialogs.dialog_manager import DialogManager
 from app.controllers.ui.structure.item_dialogs_service import ItemDialogService
 from app.controllers.ui.structure.item_deletion_service import ItemDeletionService
@@ -38,8 +38,8 @@ class ItemOperations(QObject):
 
     @pyqtSlot(object)
     def load(self, item_to_select=None) -> None:
-        # При загрузке структуры tree_management автоматически сохранит и восстановит выделение
-        # если item_to_select не указан, иначе будет восстановлено указанное выделение
+        # On structure load, tree_management will automatically save and restore selection
+        # if item_to_select is not provided; otherwise the specified selection will be restored
         self.business.load_structure()
         if item_to_select:
             from app.controllers.ui.state.task_scheduler import (
@@ -48,14 +48,14 @@ class ItemOperations(QObject):
             )
 
             item_type, item_id = item_to_select
-            # Восстанавливаем выделение после загрузки с небольшой задержкой
+            # Restore selection after load with a small delay
             schedule_selection_restore(
                 lambda: self.controller.selection_handler._restore_selection_after_load(
                     item_type, item_id
                 ),
                 f"{item_type}_{item_id}",
             )
-            # И дополнительно восстановим фокус на дереве
+            # Additionally restore focus to the tree
             try:
                 schedule_focus(lambda: self.tree.setFocus(), "structure_tree")
             except Exception as e:
@@ -63,12 +63,12 @@ class ItemOperations(QObject):
 
     @pyqtSlot(int)
     def switch_sphere(self, sphere_id: int) -> None:
-        """Переключает сферу и перезагружает структуру.
+        """Switch sphere and reload structure.
 
-        Лучшие практики: только асинхронная загрузка через обработчик
-        business.active_sphere_changed, без дублей и синхронных фолбэков.
+        Best practice: only async loading via handler
+        business.active_sphere_changed, without duplicates or sync fallbacks.
         """
-        # Не делаем ничего, если сфера не меняется (например, двойной клик по той же сфере)
+        # Do nothing if sphere doesn't change (e.g., double-click same sphere)
         try:
             current = getattr(self.business, "current_sphere_id", None)
             if isinstance(current, int) and current == int(sphere_id):
@@ -81,10 +81,10 @@ class ItemOperations(QObject):
             pass
 
         self.business.set_current_sphere(sphere_id)
-        # Не очищаем модель сразу: ждём structure_loaded, чтобы избежать пустого дерева
-        # и артефактов при двукратных кликах/быстром переключении.
-        # Дальнейшая загрузка инициируется обработчиком business.on_active_sphere_changed,
-        # который вызовет load_structure_async(). Здесь ничего дополнительно не делаем.
+        # Do not clear the model immediately: wait for structure_loaded to avoid empty tree
+        # and artifacts on double clicks/fast switching.
+        # Further loading is initiated by business.on_active_sphere_changed handler,
+        # which calls load_structure_async(). Nothing else to do here.
         return
 
     @pyqtSlot()
@@ -134,26 +134,35 @@ class ItemOperations(QObject):
     def _confirm_section_deletion(
         self, section_data: dict, cats_count: int, links_count: int
     ) -> bool:
-        section_name = section_data.get("name", "неизвестный раздел")
-        msg = f"Раздел '{section_name}' содержит {cats_count} категори{'ю' if cats_count == 1 else 'и'} и {links_count} ссыл{'ку' if links_count == 1 else 'ок'}.\n\n"
-        msg += "Все вложенные категории и ссылки будут удалены безвозвратно!\n\nВы уверены, что хотите продолжить?"
+        section_name = section_data.get("name", "unknown section")
+        msg = (
+            f"Section '{section_name}' contains {cats_count} categor"
+            f"{'y' if cats_count == 1 else 'ies'} and {links_count} link"
+            f"{'s' if links_count != 1 else ''}.\n\n"
+            "All nested categories and links will be permanently deleted!\n\n"
+            "Are you sure you want to continue?"
+        )
         return DialogManager.ask_confirmation(
             self.main,
             msg,
-            "Удалить раздел",
-            informative_text="Действие необратимо. Будут удалены все вложенные категории и ссылки.",
+            "Delete section",
+            informative_text="This action is irreversible. All nested categories and links will be deleted.",
             details=f"section_id={section_data.get('id')}, cats={cats_count}, links={links_count}",
         )
 
     def _confirm_category_deletion(self, category_data: dict, links_count: int) -> bool:
-        category_name = category_data.get("name", "неизвестная категория")
-        msg = f"Категория '{category_name}' содержит {links_count} ссыл{'ку' if links_count == 1 else 'ок'}.\n\n"
-        msg += "Все вложенные ссылки будут удалены безвозвратно!\n\nВы уверены, что хотите продолжить?"
+        category_name = category_data.get("name", "unknown category")
+        msg = (
+            f"Category '{category_name}' contains {links_count} link"
+            f"{'s' if links_count != 1 else ''}.\n\n"
+            "All nested links will be permanently deleted!\n\n"
+            "Are you sure you want to continue?"
+        )
         return DialogManager.ask_confirmation(
             self.main,
             msg,
-            "Подтвердите удаление",
-            informative_text="Действие необратимо. Все ссылки в категории будут удалены.",
+            "Confirm deletion",
+            informative_text="This action is irreversible. All links in the category will be deleted.",
             details=f"category_id={category_data.get('id')}, links={links_count}",
         )
 
@@ -166,7 +175,7 @@ class ItemOperations(QObject):
         self._deleter.handle_delete_category(category_id)
 
     def _has_any_items_in_tree(self) -> bool:
-        """Возвращает True, если в дереве (QTreeView) есть хотя бы один элемент."""
+        """Return True if the tree (QTreeView) has at least one item."""
         try:
             if hasattr(self.tree, "model"):
                 model = self.tree.model()

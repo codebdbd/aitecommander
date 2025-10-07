@@ -1,6 +1,6 @@
 # app/views/tree_components/move_operations_handler.py
 
-"""Обработчик операций перемещения для дерева структуры (QTreeView-only)."""
+"""Handler for move operations in the structure tree (QTreeView-only)."""
 
 import logging
 from typing import Any, Dict, List
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class MoveOperationsHandler(TreeHandlerBase):
-    """Обработчик операций перемещения элементов в дереве структуры."""
+    """Move operations handler for items in the structure tree."""
 
     def _show_message(
         self,
@@ -38,14 +38,12 @@ class MoveOperationsHandler(TreeHandlerBase):
             msg.setIcon(QMessageBox.Icon.Warning)
         else:
             msg.setIcon(QMessageBox.Icon.Critical)
-        msg.setWindowTitle(title)
         msg.setText(text)
         if informative_text:
             msg.setInformativeText(informative_text)
         if details:
             msg.setDetailedText(details)
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
-        # silent зарезервирован для единообразия с BaseDialog; здесь поведение одинаковое
         msg.exec()
 
     def _show_info(
@@ -79,7 +77,7 @@ class MoveOperationsHandler(TreeHandlerBase):
         self._show_message("error", text, title, informative_text, details, silent)
 
     def execute_move_category_command(self, category_id: int, target_id: int) -> None:
-        """Выполняет команду перемещения категории."""
+        """Execute the command to move a category."""
         main_win = self.tree_widget.window()
 
         if hasattr(main_win, "undo_stack"):
@@ -87,7 +85,7 @@ class MoveOperationsHandler(TreeHandlerBase):
                 MoveCategoryCommand(category_id, target_id, main_win)
             )
             logger.info(
-                "Выполнена команда перемещения категории %s в %s",
+                "MoveCategoryCommand executed: category %s -> section %s",
                 category_id,
                 target_id,
             )
@@ -97,12 +95,12 @@ class MoveOperationsHandler(TreeHandlerBase):
                 self.tr("Undo history unavailable"),
                 informative_text=self.tr("Enable undo/redo support or initialize undo_stack in the main window."),
             )
-            logger.warning("Undo stack не найден для перемещения категории")
+            logger.warning("Undo stack not found for moving a category")
 
     def execute_move_links_command(
         self, link_ids: List[int], new_category_id: int
     ) -> None:
-        """Выполняет команду перемещения ссылок."""
+        """Execute the command to move links."""
         main_win = self.tree_widget.window()
 
         if hasattr(main_win, "undo_stack"):
@@ -110,17 +108,17 @@ class MoveOperationsHandler(TreeHandlerBase):
                 MoveLinksCommand(link_ids, new_category_id, main_win)
             )
             logger.info(
-                "Выполнена команда перемещения ссылок %s в категорию %s",
+                "MoveLinksCommand executed: links %s -> category %s",
                 link_ids,
                 new_category_id,
             )
         else:
-            logger.warning("Undo stack не найден для перемещения ссылок")
+            logger.warning("Undo stack not found for moving links")
 
     def execute_move_categories_command(
         self, category_ids: List[int], new_section_id: int, base_row: int
     ) -> None:
-        """Выполняет пакетную команду перемещения категорий одной записью в undo."""
+        """Execute batch command to move categories as a single undo record."""
         main_win = self.tree_widget.window()
 
         if hasattr(main_win, "undo_stack"):
@@ -128,7 +126,7 @@ class MoveOperationsHandler(TreeHandlerBase):
                 MoveCategoriesCommand(category_ids, new_section_id, base_row, main_win)
             )
             logger.info(
-                "Выполнена пакетная команда перемещения категорий %s в раздел %s с base_row=%s",
+                "MoveCategoriesCommand executed: categories %s -> section %s, base_row=%s",
                 category_ids,
                 new_section_id,
                 base_row,
@@ -139,15 +137,15 @@ class MoveOperationsHandler(TreeHandlerBase):
                 self.tr("Undo history unavailable"),
                 informative_text=self.tr("Enable undo/redo support or initialize undo_stack in the main window."),
             )
-            logger.warning("Undo stack не найден для массового перемещения категорий")
+            logger.warning("Undo stack not found for batch move of categories")
 
     def execute_move_categories_batch(
         self, category_ids: List[int], target_section_id: int, base_row: int = 0
     ) -> None:
-        """Выполняет реальный батч-перенос категорий одним вызовом бизнес-логики.
+        """Perform the actual batch move of categories via a single business call.
 
-        Подавляет сигналы выбора и дерева на время операции, затем обновляет только
-        целевой раздел одним вызовом `select_section(target_section_id)`.
+        Suppresses selection/tree signals during the operation, then updates only
+        the target section via a single `select_section(target_section_id)` call.
         """
         if not category_ids or not isinstance(target_section_id, int):
             return
@@ -157,7 +155,7 @@ class MoveOperationsHandler(TreeHandlerBase):
             hasattr(main_win, "structure_business") and main_win.structure_business
         ):
             logger.warning(
-                "Бизнес-логика структуры недоступна для батч-переноса категорий"
+                "Structure business logic is not available for batch moving categories"
             )
             return
 
@@ -166,7 +164,7 @@ class MoveOperationsHandler(TreeHandlerBase):
         selection = getattr(struct, "selection_handler", None)
         tree = getattr(struct, "tree", None)
 
-        # Подавляем лавину selection/дерево сигналов на время операции
+        # Suppress cascade of selection/tree signals during the operation
         try:
             if selection is not None:
                 try:
@@ -179,24 +177,24 @@ class MoveOperationsHandler(TreeHandlerBase):
                 except Exception:
                     pass
 
-            # Выполняем батч-перенос одной транзакцией через бизнес-логику
+            # Perform batch move in a single transaction via business logic
             moved_ids = sb.move_categories_batch(
                 category_ids, int(target_section_id), int(base_row)
             )
             logger.info(
-                "Батч-перенос категорий завершён: перенесено %s из %s в раздел %s",
+                "Batch move of categories completed: moved %s of %s to section %s",
                 len(moved_ids),
                 len(category_ids),
                 target_section_id,
             )
 
-            # Финальное точечное обновление UI: только целевой раздел
+            # Final targeted UI update: only the target section
             try:
                 sb.section_selected.emit(int(target_section_id))
             except Exception:
                 pass
         except Exception as e:
-            logger.error("Ошибка батч-переноса категорий: %s", e)
+            logger.error("Batch move of categories failed: %s", e)
             self._on_db_error(e)
         finally:
             if tree is not None:
@@ -211,7 +209,7 @@ class MoveOperationsHandler(TreeHandlerBase):
                     pass
 
     def handle_internal_move(self, source_item) -> None:
-        """Обработка внутреннего перемещения элементов."""
+        """Handle internal item move."""
         if not source_item:
             return
 
@@ -224,29 +222,29 @@ class MoveOperationsHandler(TreeHandlerBase):
         parent = source_item.parent()
         main_win = self.tree_widget.window()
 
-        # Если это категория между разделами — используем команду
+        # If it's a category between sections — use command
         if source_type == "category" and parent:
             self._handle_category_section_move(source_id, parent, main_win)
             return
 
-        # Для сортировки внутри раздела или для разделов
+        # For sorting within a section or for sections
         self._handle_position_update(source_type, source_id, parent)
 
     def handle_category_section_move(self, source_id: int, parent, main_win) -> None:
-        """Обработка перемещения категории между разделами."""
+        """Handle moving a category between sections."""
         pdata = get_tree_tuple(parent, 0)
         if not (isinstance(source_id, int)):
-            logger.warning("Некорректный тип source_id для перемещения категории")
+            logger.warning("Invalid source_id type for category move")
             return
         if not pdata:
             logger.warning(
-                "Некорректные данные целевого родителя для перемещения категории"
+                "Invalid target parent data for category move"
             )
             return
         parent_type, parent_id = pdata
         if parent_type != "section" or not isinstance(parent_id, int):
             logger.warning(
-                "Некорректные данные целевого родителя для перемещения категории"
+                "Invalid target parent data for category move"
             )
             return
         new_section_id = parent_id
@@ -256,7 +254,7 @@ class MoveOperationsHandler(TreeHandlerBase):
                 MoveCategoryCommand(source_id, new_section_id, main_win)
             )
             logger.info(
-                "Перемещена категория %s в раздел %s", source_id, new_section_id
+                "Category moved: %s -> section %s", source_id, new_section_id
             )
         else:
             self._show_warning(
@@ -265,15 +263,15 @@ class MoveOperationsHandler(TreeHandlerBase):
                 informative_text=self.tr("Enable undo/redo support or initialize undo_stack in the main window."),
             )
             logger.warning(
-                "Undo stack не найден для перемещения категории между разделами"
+                "Undo stack not found for moving a category between sections"
             )
 
     def _handle_category_section_move(self, source_id: int, parent, main_win) -> None:
-        """Внутренний метод для обработки перемещения категории между разделами."""
+        """Internal method to handle moving a category between sections."""
         self.handle_category_section_move(source_id, parent, main_win)
 
     def _handle_position_update(self, source_type: str, source_id: int, parent) -> None:
-        """Обработка обновления позиций элементов."""
+        """Handle items position update."""
         params = self._prepare_position_params(source_type, source_id, parent)
         if not params:
             return
@@ -284,13 +282,13 @@ class MoveOperationsHandler(TreeHandlerBase):
                 hasattr(main_window, "structure_business")
                 and main_window.structure_business
             ):
-                raise Exception("Бизнес-логика структуры недоступна")
+                raise Exception("Structure business logic is not available")
 
             success = main_window.structure_business.update_item_positions(
                 params["table_name"], params["ids_in_order"]
             )
             if not success:
-                raise Exception("Ошибка обновления позиций через бизнес-логику")
+                raise Exception("Failed to update positions via business logic")
 
         run_db(
             internal_move_task,
@@ -302,15 +300,15 @@ class MoveOperationsHandler(TreeHandlerBase):
     def _prepare_position_params(
         self, source_type: str, source_id: int, parent
     ) -> Dict[str, Any]:
-        """Подготавливает параметры для обновления позиций (QTreeView)."""
+        """Prepare parameters for position update (QTreeView)."""
 
-        # Используем модель и бизнес-логику
+            # Use model and business logic
         try:
             model = getattr(self.tree_widget, "model", lambda: None)()
             if not model:
                 return {}
 
-            # Секции: верхний уровень модели
+            # Sections: top level of the model
             if source_type == "section":
                 ids_in_order: list[int] = []
                 rows = model.rowCount()
@@ -323,7 +321,7 @@ class MoveOperationsHandler(TreeHandlerBase):
                     return {}
                 return {"table_name": "section", "ids_in_order": ids_in_order}
 
-            # Категории: определяем раздел-родитель через бизнес-логику
+            # Categories: determine parent section via business logic
             if source_type == "category" and isinstance(source_id, int):
                 try:
                     hierarchy = None
@@ -343,7 +341,7 @@ class MoveOperationsHandler(TreeHandlerBase):
                 if isinstance(hierarchy, dict):
                     section_id = hierarchy.get("section_id")
                 if not isinstance(section_id, int):
-                    # Фолбэк: попытаемся взять текущий индекс и его родителя
+                    # Fallback: try to take current index and its parent
                     cur = getattr(self.tree_widget, "currentIndex", lambda: None)()
                     if cur and cur.isValid():
                         parent_idx = cur.parent()
@@ -356,7 +354,7 @@ class MoveOperationsHandler(TreeHandlerBase):
                             section_id = pt[1]
                 if not isinstance(section_id, int):
                     return {}
-                # Идём по детям индекса раздела
+                # Iterate over the children of the section index
                 sec_idx = (
                     model.index_for("section", int(section_id))
                     if hasattr(model, "index_for")
@@ -379,7 +377,7 @@ class MoveOperationsHandler(TreeHandlerBase):
         return {}
 
     def _on_internal_move_finished(self, result=None) -> None:
-        """Обработчик успешного завершения внутреннего перемещения."""
+        """Handle successful completion of an internal move."""
         logger.info("Async internal move finished successfully.")
 
         if result == "duplicate":
@@ -393,7 +391,7 @@ class MoveOperationsHandler(TreeHandlerBase):
         self._refresh_ui_after_move()
 
     def _on_db_error(self, error) -> None:
-        """Обработчик ошибок базы данных."""
+        """Database error handler."""
         logger.error("Database operation failed in MoveOperationsHandler: %s", error)
         self._show_error(
             self.tr("Failed to update item positions."),
@@ -402,14 +400,14 @@ class MoveOperationsHandler(TreeHandlerBase):
             details=str(error),
         )
 
-        # Обновляем интерфейс после ошибки
+        # Update UI after error
         self._refresh_ui_after_move()
 
     def _refresh_ui_after_move(self) -> None:
-        """Обновляет интерфейс после перемещения."""
+        """Refresh UI after a move."""
         main_win = self.tree_widget.window()
 
-        # После перемещения, если текущая сфера не соответствует целевой — переключаем
+        # After moving, if current sphere doesn't match the target — switch it
         if hasattr(main_win, "structure_business") and main_win.structure_business:
             try:
                 sc = getattr(main_win, "spheres_controller", None)
@@ -418,13 +416,10 @@ class MoveOperationsHandler(TreeHandlerBase):
             except Exception:
                 pass
 
-        # Полная перезагрузка дерева больше не требуется — модель обновляется инкрементально
-
-        # Дополнительно: принудительно обновим плитки категорий, переустановив текущий раздел
+        
         try:
             tw = self.tree_widget
             section_id = None
-            # QTreeView (используем QModelIndex)
             if hasattr(tw, "currentIndex"):
                 index = tw.currentIndex()
                 if index and index.isValid():
@@ -444,8 +439,6 @@ class MoveOperationsHandler(TreeHandlerBase):
                 and hasattr(main_win, "structure_business")
                 and main_win.structure_business
             ):
-                # Это приведет к загрузке актуальных категорий и вызову switch_to_category_tiles()
-                # Подавляем лавину selection-событий на время этого выбора
                 struct = getattr(main_win, "structure", None)
                 selection = getattr(struct, "selection_handler", None)
                 tree = getattr(struct, "tree", None)
@@ -473,5 +466,5 @@ class MoveOperationsHandler(TreeHandlerBase):
                         except Exception:
                             pass
         except Exception:
-            # Не прерываем UI-поток из-за вспомогательного обновления плиток
+            # Do not block the UI thread due to auxiliary tiles refresh
             pass
