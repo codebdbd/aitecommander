@@ -11,33 +11,33 @@ logger = logging.getLogger(__name__)
 
 
 class LinkDialogController:
-    """Контроллер для управления бизнес-логикой диалога ссылок."""
+    """Controller for managing link dialog business logic."""
 
     def __init__(self, database: Database):
         self.database = database
         self.links_business = LinksBusinessLogic(database)
         self.result_data: List[Dict[str, Any]] = []
-        # Единый менеджер профилей через фабрику — исключаем повторные сканы профилей
+        # Unified profile manager via factory — exclude repeated profile scans
         self.profile_manager = get_profile_manager()
 
     def get_initialization_data(
         self, category_id: Optional[int] = None, link: Optional[Dict] = None
     ) -> Dict[str, Any]:
-        """Получает данные для инициализации диалога."""
-        # Получаем сферы
+        """Gets data for dialog initialization."""
+        # Get spheres
         spheres = self.database.spheres.get_spheres()
 
-        # Определяем иерархию категории
+        # Determine category hierarchy
         category_hierarchy = None
         if category_id:
             category_hierarchy = self._get_category_hierarchy(category_id)
         elif link and link.get("category_id"):
             category_hierarchy = self._get_category_hierarchy(link["category_id"])
 
-        # Получаем Chrome профили
+        # Get Chrome profiles
         chrome_profiles = self._get_chrome_profiles()
 
-        # Миграция старых Chrome-профилей в универсальный формат
+        # Migrate old Chrome profiles to universal format
         if link and link.get("args", "").startswith("--profile-directory"):
             from app.utils.browser.browser_profiles import UniversalProfileProcessor
 
@@ -68,41 +68,41 @@ class LinkDialogController:
         }
 
     def _get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, int]]:
-        """Получает иерархию для категории (сфера -> раздел -> категория)."""
+        """Gets hierarchy for category (sphere -> section -> category)."""
         return self.database.categories.get_category_hierarchy(category_id)
 
     def _get_chrome_profiles(self) -> List[Dict[str, Any]]:
-        """Получает список Chrome профилей."""
+        """Gets list of Chrome profiles."""
         try:
             return self.profile_manager.get_browser_profiles("chrome")
         except Exception:
             return []
 
     def get_sections_for_sphere(self, sphere_id: int) -> List[Dict[str, Any]]:
-        """Получает разделы для сферы."""
+        """Gets sections for sphere."""
         return self.database.sections.get_sections(sphere_id)
 
     def get_categories_for_section(self, section_id: int) -> List[Dict[str, Any]]:
-        """Получает категории для раздела."""
+        """Gets categories for section."""
         return self.database.categories.get_categories(section_id)
 
     def validate_and_save(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Валидирует данные формы и подготавливает для сохранения."""
-        # Базовая валидация
+        """Validates form data and prepares for saving."""
+        # Basic validation
         validation_result = self._validate_form_data(form_data)
         if not validation_result["is_valid"]:
             return validation_result
 
-        # Подготавливаем данные для сохранения
+        # Prepare data for saving
         self.result_data = self._prepare_links_data(form_data)
 
         return {"is_valid": True, "errors": []}
 
     def _validate_form_data(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Валидирует данные формы."""
+        """Validates form data."""
         errors = []
 
-        # Проверяем обязательные поля
+        # Check required fields
         if not form_data.get("name", "").strip():
             errors.append("Имя ссылки не может быть пустым.")
 
@@ -115,7 +115,7 @@ class LinkDialogController:
         if not form_data.get("category_id"):
             errors.append("Выберите категорию.")
 
-        # Проверяем файловые пути
+        # Check file paths
         link_type = form_data.get("link_type")
         url = form_data.get("url", "").strip()
         if link_type in ("file", "folder") and url:
@@ -127,12 +127,12 @@ class LinkDialogController:
         return {"is_valid": len(errors) == 0, "errors": errors}
 
     def _prepare_links_data(self, form_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Подготавливает данные ссылок для сохранения."""
+        """Prepares link data for saving."""
         links_data = []
 
-        # Режим редактирования: если web и заданы профили —
-        # использует профильную обработку (обновит текущую и добавит недостающие);
-        # иначе — одна запись
+        # Edit mode: if web and profiles are set —
+        # uses profile processing (will update current and add missing);
+        # otherwise — one record
         is_edit = form_data.get("link_id") is not None
         if is_edit:
             if form_data.get("link_type") == "web" and form_data.get(
@@ -155,7 +155,7 @@ class LinkDialogController:
         return links_data
 
     def _prepare_profile_links(self, form_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Подготавливает ссылки с профилями любых браузеров."""
+        """Prepares links with profiles of any browsers."""
         from app.utils.browser.browser_profiles import (
             UniversalProfileProcessor,
         )
@@ -164,7 +164,7 @@ class LinkDialogController:
         is_edit = form_data.get("link_id") is not None
         existing_link = None
         if is_edit:
-            # Передаем все необходимые поля для правильного сравнения профилей
+            # Pass all necessary fields for proper profile comparison
             existing_link = {
                 "id": form_data["link_id"],
                 "args": form_data.get(
@@ -174,23 +174,23 @@ class LinkDialogController:
                 "position": form_data.get("position", 0),
             }
 
-        # Обрабатываем выбранные профили
+        # Process selected profiles
         selected_profiles = form_data["selected_profiles"]
         if not selected_profiles:
             return []
 
-        # Разделяем профили по браузерам (используем единый менеджер на контроллер)
+        # Separate profiles by browsers (use unified manager per controller)
         manager = self.profile_manager
         profiles_by_browser = {}
 
         for profile in selected_profiles:
-            # Определяем browser_key для каждого профиля
+            # Determine browser_key for each profile
             browser_key = profile.get("browser_key")
             if not browser_key:
-                # Fallback 1: попытка по args
+                # Fallback 1: attempt by args
                 browser_key = manager.detect_browser_from_args(profile.get("args", ""))
                 if not browser_key:
-                    # Fallback 2: перебираем finders и валидируем профиль
+                    # Fallback 2: iterate through finders and validate profile
                     for key, finder in manager.finders.items():
                         try:
                             if hasattr(
@@ -206,12 +206,12 @@ class LinkDialogController:
                     )
                     continue  # Пропускаем профиль, если не можем определить браузер
 
-            # Группируем профили по browser_key
+            # Group profiles by browser_key
             if browser_key not in profiles_by_browser:
                 profiles_by_browser[browser_key] = []
             profiles_by_browser[browser_key].append(profile)
 
-        # Логируем информацию о профилях для отладки
+        # Log profile information for debugging
         try:
             summary = {bk: len(ps) for bk, ps in profiles_by_browser.items()}
             logger.info(
@@ -234,24 +234,24 @@ class LinkDialogController:
         if not profiles_by_browser:
             return []
 
-        # Обрабатываем профили для каждого браузера отдельно
+        # Process profiles for each browser separately
         result_links = []
 
-        # Для редактирования определяем текущий browser_key из существующей ссылки
+        # For editing determine current browser_key from existing link
         current_browser_key = None
         if existing_link and existing_link.get("args"):
             current_browser_key = manager.detect_browser_from_args(
                 existing_link.get("args", "")
             )
 
-        # Определяем, изменил ли пользователь аргументы вручную (для первого браузера)
+        # Determine if user manually changed arguments (for first browser)
         first_browser_key = next(iter(profiles_by_browser))
         first_profiles = profiles_by_browser[first_browser_key]
         user_args = self._get_user_args_if_modified(
             form_data, existing_link, first_profiles, first_browser_key
         )
 
-        # Получаем все существующие ссылки в категории для проверки дубликатов
+        # Get all existing links in category for duplicate checking
         existing_links_in_category = []
         if form_data.get("category_id"):
             existing_links_in_category = list(
@@ -260,7 +260,7 @@ class LinkDialogController:
 
         # Обрабатываем профили для каждого браузера
         for browser_key, profiles in profiles_by_browser.items():
-            # Для каждого браузера создаем отдельные ссылки
+            # Create separate links for each browser
             browser_links = processor.process_profile_links(
                 name=form_data["name"],
                 url=form_data["url"],
@@ -297,25 +297,25 @@ class LinkDialogController:
         browser_key: str,
     ) -> Optional[str]:
         """
-        Определяет, изменил ли пользователь аргументы вручную.
+        Determines if user manually changed arguments.
 
         Args:
-            form_data: Данные формы
-            existing_link: Существующая ссылка (для редактирования)
-            selected_profiles: Выбранные профили
-            browser_key: Ключ браузера
+            form_data: Form data
+            existing_link: Existing link (for editing)
+            selected_profiles: Selected profiles
+            browser_key: Browser key
 
         Returns:
-            str: Пользовательские аргументы, если они отличаются от автогенерированных
-            None: Если аргументы не изменены или это новая ссылка
+            str: User arguments if they differ from auto-generated ones
+            None: If arguments unchanged or this is a new link
         """
         current_args = form_data.get("args", "").strip()
 
-        # Для новых ссылок: если пользователь ввел аргументы, используем их
+        # For new links: if user entered arguments, use them
         if not existing_link:
             return current_args if current_args else None
 
-        # Для редактирования: сравниваем с автогенерированными аргументами
+        # For editing: compare with auto-generated arguments
         try:
             manager = self.profile_manager
             finder = manager.finders.get(browser_key)
@@ -323,24 +323,24 @@ class LinkDialogController:
             if not finder or not selected_profiles:
                 return current_args if current_args else None
 
-            # Генерируем ожидаемые аргументы для первого выбранного профиля
+            # Generate expected arguments for first selected profile
             first_profile = selected_profiles[0]
             expected_args = finder.get_profile_argument(first_profile)
 
-            # Сравниваем текущие аргументы с ожидаемыми
+            # Compare current arguments with expected ones
             if current_args != expected_args:
-                # ВАЖНО: считаем, что пользователь переопределил аргументы
-                # только если они НЕ пустые. Пустые не должны глушить автогенерацию.
+                # IMPORTANT: consider that user overrode arguments
+                # only if they are NOT empty. Empty ones should not suppress auto-generation.
                 return current_args if current_args else None
 
             return None
 
         except Exception:
-            # В случае ошибки возвращаем пользовательские аргументы, если они есть
+            # In case of error return user arguments if they exist
             return current_args if current_args else None
 
     def _prepare_regular_link(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Подготавливает обычную ссылку."""
+        """Prepares regular link."""
         from app.utils.links.link_factory import make_link_record
 
         return make_link_record(
@@ -358,7 +358,7 @@ class LinkDialogController:
         )
 
     def get_result_data(self) -> List[Dict[str, Any]]:
-        """Возвращает результирующие данные после сохранения."""
+        """Returns resulting data after saving."""
         logger.debug(
             "get_result_data: returning %s links",
             len(self.result_data) if self.result_data else 0,

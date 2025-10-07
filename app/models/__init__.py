@@ -3,11 +3,11 @@
 from .entities import CategoryModel, LinkModel, SectionModel, SphereModel, StructureModel
 from .db import Database
 
-# Экспортируем базовые классы и типы для удобства
+# Export base classes and types for convenience
 from .base import DatabaseBase, DatabaseError, ValidationError, db_lock
 from .types import LinkType
 
-# Экспортируем workers для асинхронных операций
+# Export workers for async operations
 from .workers import (
     DatabaseWorker,
     WorkerSignals,

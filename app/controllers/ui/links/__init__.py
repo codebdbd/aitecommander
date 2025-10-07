@@ -1,5 +1,5 @@
 # app/controllers/ui/links/__init__.py
-# Фасад для UI-контроллеров ссылок (локальные импорты).
+# Facade for link UI controllers (local imports).
 
 from .base_component import BaseLinksUIComponent
 from .clipboard import LinksUIClipboard

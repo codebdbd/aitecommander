@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class SelectionWorkflowService(QObject):
-    """Инкапсулирует сложные сценарии работы с выделением в дереве структуры."""
+    """Encapsulates complex selection workflows for the structure tree."""
 
     def __init__(self, *, handler, tree, actions) -> None:
         parent = handler if isinstance(handler, QObject) else None
@@ -21,7 +21,7 @@ class SelectionWorkflowService(QObject):
         self._actions = actions
 
     # ------------------------------------------------------------------
-    # Вспомогательные методы доступа
+    # Helper access methods
     def _get_model_and_selection(self) -> Tuple[object | None, object | None]:
         try:
             model = self._tree.model()
@@ -35,7 +35,7 @@ class SelectionWorkflowService(QObject):
             return None, None
 
     # ------------------------------------------------------------------
-    # Публичный API для SelectionHandling
+    # Public API for SelectionHandling
     def select_first_item_if_needed(self) -> None:
         model, selection_model = self._get_model_and_selection()
         if not model or selection_model is None:

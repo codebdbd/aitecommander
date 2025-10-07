@@ -4,14 +4,14 @@ import datetime
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
-# Модульный логгер для диагностических сообщений
+# Module logger for diagnostic messages
 logger = logging.getLogger(__name__)
 
 
 class ExportService:
-    """Сервис экспорта данных структуры.
+    """Structure data export service.
 
-    Не зависит от Qt. Получает доступ к данным через переданные функции.
+    Does not depend on Qt. Accesses data through passed functions.
     """
 
     def export_structure_data(
@@ -22,9 +22,9 @@ class ExportService:
         get_categories: Callable[[int], List[Dict[str, Any]]],
         logger,
     ) -> Dict[str, Any]:
-        """Экспортирует данные структуры для резервного копирования.
+        """Export structure data for backup.
 
-        Параметры повторяют текущие зависимости фасада, чтобы не тянуть Qt/модели внутрь сервиса.
+        Parameters repeat current facade dependencies to avoid pulling Qt/models into the service.
         """
         try:
             export_data: Dict[str, Any] = {
@@ -35,11 +35,11 @@ class ExportService:
                 "current_sphere_id": current_sphere_id,
             }
 
-            # Экспортируем все сферы
+            # Export all spheres
             spheres = get_spheres() or []
             export_data["spheres"] = spheres
 
-            # Экспортируем все разделы и категории
+            # Export all sections and categories
             for sphere in spheres:
                 sphere_id = sphere.get("id")
                 if sphere_id is None:
@@ -56,7 +56,7 @@ class ExportService:
 
             if logger:
                 logger.info(
-                    "Экспортированы данные структуры: %s сфер, %s разделов, %s категорий",
+                    "Exported structure data: %s spheres, %s sections, %s categories",
                     len(spheres),
                     len(export_data["sections"]),
                     len(export_data["categories"]),
@@ -66,7 +66,7 @@ class ExportService:
 
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
-                logger.error("Ошибка валидации данных при экспорте структуры: %s", e)
+                logger.error("Data validation error during structure export: %s", e)
             return {
                 "spheres": [],
                 "sections": [],
@@ -77,5 +77,5 @@ class ExportService:
             }
         except Exception as e:
             if logger:
-                logger.exception("Критическая ошибка экспорта данных структуры")
-            raise  # Пробрасываем критические ошибки
+                logger.exception("Critical error exporting structure data")
+            raise  # Re-raise critical errors

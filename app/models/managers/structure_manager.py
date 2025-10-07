@@ -1,4 +1,4 @@
-"""Модуль для управления полной структурой данных в БД."""
+"""Module for managing full data structure in DB."""
 import copy
 import logging
 import time
@@ -11,19 +11,19 @@ logger = logging.getLogger(__name__)
 
 
 class StructureManager:
-    """Управление получением и импортом полной структуры данных."""
+    """Management of getting and importing full data structure."""
 
     def __init__(self, db):
         """
         Args:
-            db: Экземпляр Database для доступа к соединению и сигналам
+            db: Database instance for accessing connection and signals
         """
         self.db = db
 
     def get_full_structure(self) -> List[Dict]:
-        """Возвращает полную структуру данных в виде вложенных словарей."""
+        """Returns full data structure as nested dictionaries."""
         try:
-            # Единичные bulk-выборки по всем уровням, чтобы избежать N+1
+            # Single bulk selections at all levels to avoid N+1
             t0 = time.perf_counter()
             with db_lock:
                 spheres_rows = self.db.connection.execute(
@@ -41,7 +41,7 @@ class StructureManager:
 
             t1 = time.perf_counter()
 
-            # Индексы для сборки иерархии
+            # Indexes for hierarchy assembly
             spheres_by_id: Dict[int, Dict] = {}
             sections_by_id: Dict[int, Dict] = {}
             categories_by_id: Dict[int, Dict] = {}
@@ -49,7 +49,7 @@ class StructureManager:
             sections_by_sphere: Dict[int, List[Dict]] = {}
             categories_by_section: Dict[int, List[Dict]] = {}
 
-            # Преобразование строк в dict и подготовка контейнеров
+            # Convert rows to dict and prepare containers
             for s in spheres_rows:
                 sd = dict(s)
                 sd["sections"] = []
@@ -69,7 +69,7 @@ class StructureManager:
                 categories_by_id[cat_id] = cd
                 categories_by_section.setdefault(int(cd["section_id"]), []).append(cd)
 
-            # Раскладываем ссылки по категориям
+            # Distribute links by categories
             for ln in links_rows:
                 ld = dict(ln)
                 cat_id = ld.get("category_id")
@@ -79,7 +79,7 @@ class StructureManager:
                 if cat_obj is not None:
                     cat_obj["links"].append(ld)
 
-            # Сборка итоговой структуры, сохраняя порядок по position
+            # Assemble final structure, preserving order by position
             spheres_data: List[Dict] = []
             for s in spheres_rows:
                 s_obj = spheres_by_id[int(s["id"])]
@@ -104,24 +104,24 @@ class StructureManager:
             )
             return spheres_data
         except Exception as e:
-            logger.error("Ошибка получения полной структуры: %s", e, exc_info=True)
-            raise DatabaseError(f"Не удалось получить полную структуру: {e}")
+            logger.error("Error getting full structure: %s", e, exc_info=True)
+            raise DatabaseError(f"Failed to get full structure: {e}")
 
     def import_full_structure(self, data: List[Dict]):
-        """Очищает базу и импортирует данные из структуры.
+        """Clears database and imports data from structure.
 
-        Потокобезопасная операция, которая не изменяет входные данные.
+        Thread-safe operation that doesn't modify input data.
 
         Args:
-            data: Список словарей со структурой данных для импорта.
-                  Исходный объект остается неизменным.
+            data: List of dictionaries with data structure for import.
+                  Original object remains unchanged.
         """
         operation = "import_full_structure"
         try:
             t0 = time.perf_counter()
             root = copy.deepcopy(data or [])
             
-            # Подсчет элементов для прогресса
+            # Count elements for progress
             total_items = (
                 len(root) +
                 sum(len((s or {}).get("sections", [])) for s in root) +
@@ -133,13 +133,13 @@ class StructureManager:
             )
             self.db.operation_started.emit(operation, total_items or 1)
 
-            # --- Фаза подготовки: нормализуем вход и строим связи ---
-            self.db.operation_progress.emit(operation, 0, total_items or 1, "Подготовка данных...")
+            # --- Preparation phase: normalize input and build relations ---
+            self.db.operation_progress.emit(operation, 0, total_items or 1, "Preparing data...")
             spheres_items: List[Dict] = []  # {ref, id?, name, icon_path, position}
             sections_items: List[Dict] = []  # {ref, id?, name, sphere_ref, icon_path, position}
             categories_items: List[Dict] = []  # {ref, id?, name, section_ref, icon_path, position}
-            links_with_id: List[Dict] = []  # готово к executemany
-            links_without_id: List[Dict] = []  # поштучные INSERT
+            links_with_id: List[Dict] = []  # ready for executemany
+            links_without_id: List[Dict] = []  # individual INSERT
             current = 0
 
             for s_idx, s in enumerate(root):
@@ -193,7 +193,7 @@ class StructureManager:
                             if not isinstance(ln, dict):
                                 continue
                             ld = dict(ln)
-                            # Нормализация минимума
+                            # Minimum normalization
                             try:
                                 ld["type"] = LinkType.from_value(ld.get("type", "web")).value
                             except Exception:
@@ -202,25 +202,25 @@ class StructureManager:
                             ld.setdefault("icon_path", "")
                             if ld.get("position") is None:
                                 ld["position"] = l_idx
-                            # Проставим отложенную ссылку на категорию через ref
+                            # Set deferred reference to category via ref
                             ld["_category_ref"] = cat_ref
                             if ld.get("id"):
                                 links_with_id.append(ld)
                             else:
                                 links_without_id.append(ld)
 
-            # --- Фаза вставки: одна транзакция, уровни сверху вниз ---
+            # --- Insertion phase: one transaction, levels top to bottom ---
             with db_lock:
                 with self.db.connection:
-                    # Очистка таблиц в порядке зависимостей
-                    self.db.operation_progress.emit(operation, current, total_items or 1, "Очистка таблиц...")
+                    # Clear tables in dependency order
+                    self.db.operation_progress.emit(operation, current, total_items or 1, "Clearing tables...")
                     self.db.connection.execute("DELETE FROM link")
                     self.db.connection.execute("DELETE FROM category")
                     self.db.connection.execute("DELETE FROM section")
                     self.db.connection.execute("DELETE FROM sphere")
 
-                    # 1) Сферы
-                    self.db.operation_progress.emit(operation, current, total_items or 1, f"Вставка сфер: {len(spheres_items)}")
+                    # 1) Spheres
+                    self.db.operation_progress.emit(operation, current, total_items or 1, f"Inserting spheres: {len(spheres_items)}")
                     spheres_with_id = [x for x in spheres_items if x.get("id")]
                     spheres_no_id = [x for x in spheres_items if not x.get("id")]
 
@@ -240,7 +240,7 @@ class StructureManager:
 
                     sphere_ref_to_id: Dict[int, int] = {}
                     for x in spheres_with_id:
-                        sphere_ref_to_id[x["ref"]] = int(x["id"])  # задан явно
+                        sphere_ref_to_id[x["ref"]] = int(x["id"])  # explicitly set
                     for x in spheres_no_id:
                         cur = self.db.connection.execute(
                             "INSERT INTO sphere (name, icon_path, position) VALUES (?, ?, ?)",
@@ -248,10 +248,10 @@ class StructureManager:
                         )
                         sphere_ref_to_id[x["ref"]] = int(cur.lastrowid)
 
-                    # 2) Разделы
-                    self.db.operation_progress.emit(operation, len(spheres_items), total_items or 1, f"Вставка разделов: {len(sections_items)}")
+                    # 2) Sections
+                    self.db.operation_progress.emit(operation, len(spheres_items), total_items or 1, f"Inserting sections: {len(sections_items)}")
                     for x in sections_items:
-                        x["sphere_id"] = sphere_ref_to_id.get(x["sphere_ref"])  # гарантируем FK
+                        x["sphere_id"] = sphere_ref_to_id.get(x["sphere_ref"])  # ensure FK
                     sections_with_id = [x for x in sections_items if x.get("id")]
                     sections_no_id = [x for x in sections_items if not x.get("id")]
 
@@ -285,10 +285,10 @@ class StructureManager:
                         )
                         section_ref_to_id[x["ref"]] = int(cur.lastrowid)
 
-                    # 3) Категории
-                    self.db.operation_progress.emit(operation, len(spheres_items) + len(sections_items), total_items or 1, f"Вставка категорий: {len(categories_items)}")
+                    # 3) Categories
+                    self.db.operation_progress.emit(operation, len(spheres_items) + len(sections_items), total_items or 1, f"Inserting categories: {len(categories_items)}")
                     for x in categories_items:
-                        x["section_id"] = section_ref_to_id.get(x["section_ref"])  # гарантируем FK
+                        x["section_id"] = section_ref_to_id.get(x["section_ref"])  # ensure FK
                     categories_with_id = [x for x in categories_items if x.get("id")]
                     categories_no_id = [x for x in categories_items if not x.get("id")]
 
@@ -309,7 +309,7 @@ class StructureManager:
 
                     category_ref_to_id: Dict[int, int] = {}
                     for x in categories_with_id:
-                        category_ref_to_id[x["ref"]] = int(x["id"])  # задан явно
+                        category_ref_to_id[x["ref"]] = int(x["id"])  # explicitly set
                     for x in categories_no_id:
                         cur = self.db.connection.execute(
                             "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
@@ -322,10 +322,10 @@ class StructureManager:
                         )
                         category_ref_to_id[x["ref"]] = int(cur.lastrowid)
 
-                    # 4) Ссылки
+                    # 4) Links
                     total_links = len(links_with_id) + len(links_without_id)
-                    self.db.operation_progress.emit(operation, len(spheres_items) + len(sections_items) + len(categories_items), total_items or 1, f"Вставка ссылок: {total_links}")
-                    # Проставим фактические category_id из карты
+                    self.db.operation_progress.emit(operation, len(spheres_items) + len(sections_items) + len(categories_items), total_items or 1, f"Inserting links: {total_links}")
+                    # Set actual category_id from map
                     for link in links_with_id:
                         if not link.get("category_id"):
                             cref = link.get("_category_ref")
@@ -377,7 +377,7 @@ class StructureManager:
                             ],
                         )
 
-                    # Уважаем согласованный хотфикс: поштучные INSERT для ссылок без id
+                    # Respect agreed hotfix: individual INSERT for links without id
                     if links_without_id:
                         cols = [
                             "category_id",
@@ -432,34 +432,34 @@ class StructureManager:
 
             self.db.operation_finished.emit(operation, True)
             
-            # Создаем резервную копию асинхронно после большой операции импорта
+            # Create a backup asynchronously after a large import operation
             try:
                 self.db.backup_async(
-                    on_error=lambda e, tb: logger.warning(
-                        "Не удалось создать резервную копию после импорта: %s", e
+                    on_error=lambda e: logger.warning(
+                        "Failed to create backup after import: %s", e
                     )
                 )
             except Exception as backup_err:
                 logger.warning(
-                    "Не удалось запустить резервное копирование после импорта: %s",
+                    "Failed to start backup after import: %s",
                     backup_err,
-                    exc_info=True,
+{{ ... }}
                 )
             
-            # Уведомляем UI об успешном импорте структуры
+            # Notify UI about successful structure import
             try:
                 self.db.structure_loaded.emit()
             except Exception as signal_err:
                 logger.debug(
-                    "Ошибка отправки сигнала structure_loaded: %s",
+                    "Error sending structure_loaded signal: %s",
                     signal_err,
                     exc_info=True,
                 )
         except Exception as e:
-            logger.error("Ошибка импорта структуры: %s", e, exc_info=True)
+            logger.error("Error importing structure: %s", e, exc_info=True)
             self.db.operation_finished.emit(operation, False)
             try:
-                self.db.error_occurred.emit("Ошибка импорта", str(e))
+                self.db.error_occurred.emit("Import error", str(e))
             except Exception:
                 pass
-            raise DatabaseError(f"Не удалось импортировать структуру: {e}")
+            raise DatabaseError(f"Failed to import structure: {e}")

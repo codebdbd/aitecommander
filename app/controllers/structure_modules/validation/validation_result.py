@@ -5,8 +5,8 @@ from typing import List, Optional
 
 
 class ValidationResult:
-    """Результат валидации данных.
-    Совместим по интерфейсу с прежней реализацией.
+    """Data validation result.
+    Compatible with previous implementation interface.
     """
 
     def __init__(
@@ -20,10 +20,10 @@ class ValidationResult:
         self.warnings = warnings or []
 
     def add_error(self, error: str) -> None:
-        """Добавляет ошибку валидации и помечает результат как невалидный."""
+        """Add validation error and mark result as invalid."""
         self.is_valid = False
         self.errors.append(error)
 
     def add_warning(self, warning: str) -> None:
-        """Добавляет предупреждение без изменения общего статуса валидности."""
+        """Add warning without changing overall validity status."""
         self.warnings.append(warning)

@@ -1,6 +1,6 @@
 # app/controllers/structure_modules/cache_manager.py
 
-"""Модуль для управления кэшем структуры."""
+"""Module for managing structure cache."""
 
 import logging
 from typing import Any, Optional
@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 class CacheManager:
-    """Менеджер кэша для оптимизации запросов к структуре.
+    """Cache manager for optimizing structure queries.
 
-    Добавлены TTL и LRU-лимиты для универсального хранилища.
-    Поддерживаются два совместимых режима кэширования "первой категории":
-      1) Глобальный ключ (legacy): "first_category_id"
-      2) Пер-сфера ключ:        "first_category_id:{sphere_id}"
+    Added TTL and LRU limits for universal storage.
+    Two compatible "first category" caching modes are supported:
+      1) Global key (legacy): "first_category_id"
+      2) Per-sphere key:      "first_category_id:{sphere_id}"
     """
 
     def __init__(
@@ -26,34 +26,34 @@ class CacheManager:
         ttl: Optional[float] = None,
         max_size: Optional[int] = None,
     ):
-        # Поддерживаем обратную совместимость: если логгер не передан, используем модульный
+        # Maintain backward compatibility: if logger not provided, use module logger
         self.logger = logger or globals().get("logger") or logging.getLogger(__name__)
-        # Универсальное хранилище кэша по ключам с TTL/LRU
-        # Best practice: используем дефолтный TTL, если не задан явно
-        default_ttl = 600.0 if ttl is None else ttl  # 10 минут по умолчанию
+        # Universal key-based cache storage with TTL/LRU
+        # Best practice: use default TTL if not explicitly set
+        default_ttl = 600.0 if ttl is None else ttl  # 10 minutes default
         self._cache = InMemoryCache(default_ttl=default_ttl, max_size=max_size)
 
     def get_first_category_id(self) -> Optional[int]:
-        """Получает кэшированный ID первой категории."""
+        """Get cached first category ID."""
         return self._cache.get("first_category_id")
 
     def set_first_category_id(self, category_id: Optional[int]) -> None:
-        """Устанавливает кэшированный ID первой категории."""
+        """Set cached first category ID."""
         if category_id is None:
-            # Сбрасываем ключ, если None
+            # Reset key if None
             self._cache.invalidate("first_category_id")
-            self.logger.debug("Сброшен кэш ID первой категории (None)")
+            self.logger.debug("Reset first category ID cache (None)")
             return
-        # Используем единый кэш с дефолтным TTL
+        # Use unified cache with default TTL
         self._cache.set("first_category_id", int(category_id))
-        self.logger.debug("Кэширован ID первой категории: %s", category_id)
+        self.logger.debug("Cached first category ID: %s", category_id)
 
     def invalidate_first_category_cache(self) -> None:
-        """Инвалидирует кэш первой категории при изменениях в категориях."""
+        """Invalidate first category cache when categories change."""
         self._cache.invalidate("first_category_id")
-        self.logger.debug("Инвалидирован кэш первой категории")
+        self.logger.debug("Invalidated first category cache")
 
-    # === Пер-сфера кэш для первой категории ===
+    # === Per-sphere cache for first category ===
     @staticmethod
     def _first_category_key_for_sphere(sphere_id: int) -> str:
         try:
@@ -63,52 +63,52 @@ class CacheManager:
         return f"first_category_id:{sid}"
 
     def get_first_category_id_for_sphere(self, sphere_id: int) -> Optional[int]:
-        """Возвращает кэшированный ID первой категории для конкретной сферы."""
+        """Return cached first category ID for specific sphere."""
         key = self._first_category_key_for_sphere(sphere_id)
         return self._cache.get(key)
 
     def set_first_category_id_for_sphere(
         self, sphere_id: int, category_id: Optional[int]
     ) -> None:
-        """Сохраняет/сбрасывает кэш ID первой категории для конкретной сферы."""
+        """Save/reset first category ID cache for specific sphere."""
         key = self._first_category_key_for_sphere(sphere_id)
         if category_id is None:
             self._cache.invalidate(key)
-            self.logger.debug("Сброшен кэш первой категории для сферы %s", sphere_id)
+            self.logger.debug("Reset first category cache for sphere %s", sphere_id)
             return
         self._cache.set(key, int(category_id))
         self.logger.debug(
-            "Кэширован ID первой категории для сферы %s: %s", sphere_id, category_id
+            "Cached first category ID for sphere %s: %s", sphere_id, category_id
         )
 
     def invalidate_first_category_cache_for_sphere(self, sphere_id: int) -> None:
         key = self._first_category_key_for_sphere(sphere_id)
         self._cache.invalidate(key)
         self.logger.debug(
-            "Инвалидирован кэш первой категории для сферы %s", sphere_id
+            "Invalidated first category cache for sphere %s", sphere_id
         )
 
     # =============================
-    # Универсальные операции кэширования
+    # Universal caching operations
     # =============================
     def get(self, key: str) -> Optional[Any]:
-        """Возвращает значение из кэша по ключу или None, если отсутствует."""
+        """Return value from cache by key or None if missing."""
         return self._cache.get(key)
 
     def set(self, key: str, value: Any, *, ttl: Optional[float] = None) -> None:
-        """Сохраняет значение в кэш по ключу с опциональным TTL."""
+        """Save value to cache by key with optional TTL."""
         self._cache.set(key, value, ttl=ttl)
-        self.logger.debug("Кэш установлен: %s", key)
+        self.logger.debug("Cache set: %s", key)
 
     def invalidate(self, key: Optional[str] = None) -> None:
-        """Инвалидирует кэш по ключу. Если key не указан — очищает весь кэш."""
+        """Invalidate cache by key. If key not specified — clear entire cache."""
         if key is None:
             self._cache.clear()
-            self.logger.debug("Очищен весь кэш")
+            self.logger.debug("Cleared entire cache")
             return
         self._cache.invalidate(key)
-        self.logger.debug("Инвалидирован кэш: %s", key)
+        self.logger.debug("Invalidated cache: %s", key)
 
     def clear_all(self) -> None:
-        """Очищает весь кэш."""
+        """Clear entire cache."""
         self.invalidate()

@@ -9,16 +9,16 @@ from .uow import unit_of_work
 
 class LinksService:
     """
-    Сервис работы со ссылками.
-    Этап 1: тонкая обёртка над LinkModel через Database, без дублирования SQL.
-    Этап 2+: инкапсуляция бизнес‑правил (лимиты избранного, проверка дубликатов и пр.).
+    Link service.
+    Stage 1: thin wrapper over LinkModel via Database, without SQL duplication.
+    Stage 2+: encapsulation of business rules (favorite limits, duplicate checking, etc.).
     """
 
     def __init__(self, db: Database):
         self.db = db
-        self.repo = db.links  # короткий алиас
+        self.repo = db.links  # short alias
 
-    # --- Чтение ---
+    # --- Reading ---
     def get_links(self, category_id: int) -> List[Dict[str, Any]]:
         return self.repo.get_links(category_id)
 
@@ -41,10 +41,10 @@ class LinksService:
         return self.repo.count_links_by_category(category_id)
 
     def get_next_position(self, category_id: int) -> int:
-        """Получить следующую позицию для новой ссылки в категории."""
+        """Get next position for new link in category."""
         return self.repo.get_next_position(category_id)
 
-    # --- Проверки/утилиты ---
+    # --- Checks/utilities ---
     def find_duplicate(
         self, category_id: int, name: str, url: str, args: str = ""
     ) -> Optional[Dict[str, Any]]:
@@ -58,19 +58,19 @@ class LinksService:
         link_type: str = "web",
         name: str = "",
     ) -> Optional[Dict[str, Any]]:
-        """Поиск ссылки по уникальным полям (совместимо с репозиторием).
+        """Search link by unique fields (compatible with repository).
 
-        Используется как резервный путь, если поиск по (name,url,args) не дал результата.
+        Used as fallback path if search by (name,url,args) yielded no results.
         """
         return self.repo.get_link_by_unique_fields(
             category_id, url, args, link_type, name
         )
 
-    # --- Мутации ---
+    # --- Mutations ---
     @unit_of_work
     def create_or_update_link(self, link_data: Dict[str, Any]) -> int:
-        """Создаёт или обновляет ссылку. Возвращает id.
-        Бизнес‑правила (например, тихое игнорирование дубликатов) уже реализованы в репозитории.
+        """Creates or updates link. Returns id.
+        Business rules (e.g., silent duplicate ignoring) are already implemented in repository.
         """
         return self.repo.upsert_link(link_data)
 
@@ -87,32 +87,32 @@ class LinksService:
         self.repo.clear_favorites()
 
     def reorder(self, link_ids: List[int]) -> bool:
-        # ВАЖНО: update_link_order в репозитории сам управляет транзакцией через self.transaction()
-        # Оборачивание в UnitOfWork приведёт к вложенной транзакции (SQLite: cannot start a transaction within a transaction)
+        # IMPORTANT: update_link_order in repository manages transaction itself via self.transaction()
+        # Wrapping in UnitOfWork will lead to nested transaction (SQLite: cannot start a transaction within a transaction)
         return self.repo.update_link_order(link_ids)
 
     def batch_update(self, links_data: List[Dict[str, Any]]) -> bool:
-        # ВАЖНО: batch_update_links внутри репозитория уже управляет транзакцией
-        # через self.transaction(). Оборачивать в UnitOfWork нельзя — это приведёт
-        # к вложенной транзакции (SQLite: "cannot start a transaction within a transaction").
+        # IMPORTANT: batch_update_links inside repository already manages transaction
+        # via self.transaction(). Cannot wrap in UnitOfWork — this will lead
+        # to nested transaction (SQLite: "cannot start a transaction within a transaction").
         return self.repo.batch_update_links(links_data)
 
     def batch_create_or_update_links(
         self, links_data: List[Dict[str, Any]]
     ) -> List[int]:
-        """Пакетное создание/обновление ссылок с возвратом созданных ID.
+        """Batch creation/update of links with return of created IDs.
 
-        Оборачивает repo.batch_upsert_links в UnitOfWork для атомарности операции.
-        Обновляет входные элементы links_data установленными ID для новых ссылок.
+        Wraps repo.batch_upsert_links in UnitOfWork for operation atomicity.
+        Updates input elements links_data with set IDs for new links.
         """
-        # ВАЖНО: batch_upsert_links сам управляет транзакцией через self.transaction()
-        # Оборачивание в UnitOfWork приведёт к вложенной транзакции в SQLite.
+        # IMPORTANT: batch_upsert_links manages transaction itself via self.transaction()
+        # Wrapping in UnitOfWork will lead to nested transaction in SQLite.
         return self.repo.batch_upsert_links(links_data)
 
     def batch_delete_links(self, link_ids: List[int]) -> int:
-        """Пакетное удаление ссылок. Возвращает количество удалённых записей.
+        """Batch deletion of links. Returns number of deleted records.
 
-        ВАЖНО: repo.batch_delete_links сам управляет транзакцией, поэтому
-        оборачивать в UnitOfWork нельзя (иначе будет вложенная транзакция в SQLite).
+        IMPORTANT: repo.batch_delete_links manages transaction itself, therefore
+        cannot wrap in UnitOfWork (otherwise will be nested transaction in SQLite).
         """
         return self.repo.batch_delete_links(link_ids)

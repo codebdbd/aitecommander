@@ -13,25 +13,25 @@ logger = logging.getLogger(__name__)
 
 
 class BrowserBookmarksImporter:
-    """Импортер закладок из HTML: выбор файла (UI), парсинг (data), синхронизация с БД (business).
+    """HTML bookmarks importer: file selection (UI), parsing (data), DB synchronization (business).
 
-    ВНИМАНИЕ: Методы не показывают диалоги ошибок/предупреждений (кроме select_file).
-    Сообщения пользователю должен отображать UI-слой.
+    WARNING: Methods do not show error/warning dialogs (except select_file).
+    UI layer should display messages to user.
     """
 
-    # === UI слой ===
+    # === UI layer ===
     def select_file(self, parent_widget):
-        """Открывает диалог выбора файла HTML. Возвращает путь или пустую строку."""
+        """Opens HTML file selection dialog. Returns path or empty string."""
         from PyQt6.QtWidgets import QFileDialog
 
         path, _ = QFileDialog.getOpenFileName(
-            parent_widget, "Импорт из браузера", "", "HTML Files (*.html *.htm)"
+            parent_widget, "Import from browser", "", "HTML Files (*.html *.htm)"
         )
         return path or ""
 
-    # === Data слой ===
+    # === Data layer ===
     def parse_bookmarks(self, html_path: str) -> dict:
-        """Парсит HTML экспорт закладок браузера в структуру {category_name: [links...]}."""
+        """Parses HTML browser bookmarks export into structure {category_name: [links...]}."""
         encodings_to_try = ("utf-8", "utf-8-sig", "cp1251", "latin-1")
         last_err = None
         text = None
@@ -109,9 +109,9 @@ class BrowserBookmarksImporter:
                     process_node(child, current_cat)
 
         if root_dl:
-            process_node(root_dl, "Без категории")
+            process_node(root_dl, "Uncategorized")
             total_links = sum(len(links) for links in categories.values())
-            logger.debug("DEBUG: Всего найдено ссылок: %s", total_links)
+            logger.debug("DEBUG: Total links found: %s", total_links)
         return dict(categories)
 
     # === Business слой ===
@@ -122,16 +122,16 @@ class BrowserBookmarksImporter:
         structure_business_logic,
         links_business_logic=None,
     ) -> tuple[bool, str, int]:
-        """Синхронизирует распарсенные категории/ссылки с БД. Возвращает (success, msg, added)."""
-        # 1) Текущее состояние категорий раздела
+        """Synchronizes parsed categories/links with DB. Returns (success, msg, added)."""
+        # 1) Current state of section categories
         existing_categories = structure_business_logic.get_categories(section_id) or []
         existing_names = {c.get("name") for c in existing_categories}
 
-        # 2) Какие категории отсутствуют
+        # 2) Which categories are missing
         incoming_names = set(categories.keys())
         missing_names = [n for n in incoming_names if n not in existing_names]
 
-        # 3) Пакетная вставка недостающих категорий
+        # 3) Batch insert missing categories
         try:
             default_icon = resolve_icon_for_link({"type": "category", "icon_path": ""})
         except (RuntimeError, OSError, ValueError) as e:
@@ -147,30 +147,30 @@ class BrowserBookmarksImporter:
                     structure_business_logic.create_categories_bulk(bulk_items) or []
                 )
                 logger.debug(
-                    "DEBUG: Пакетно создано/подтверждено категорий: %s для раздела %s",
+                    "DEBUG: Batch created/confirmed categories: %s for section %s",
                     len(created),
                     section_id,
                 )
             except Exception as e:
-                # Используем exception, чтобы не терять стек (непредвиденные ошибки сервисного слоя)
+                # Use exception to preserve stack (unexpected service layer errors)
                 logger.exception(
-                    "ERROR: Пакетное создание категорий завершилось ошибкой: %s", e
+                    "ERROR: Batch category creation failed: %s", e
                 )
 
-        # 4) Актуальная карта name->id
+        # 4) Actual name->id map
         categories_after = structure_business_logic.get_categories(section_id) or []
         name_to_id = {c.get("name"): c.get("id") for c in categories_after}
 
-        # 5) Вставка ссылок без дублей
+        # 5) Insert links without duplicates
         added = 0
         for cat_name, links in categories.items():
             logger.debug(
-                "DEBUG: Обработка категории '%s', ссылок: %s", cat_name, len(links)
+                "DEBUG: Processing category '%s', links: %s", cat_name, len(links)
             )
             category_id = name_to_id.get(cat_name)
             if not category_id:
                 logger.error(
-                    f"ERROR: Не найден ID категории '{cat_name}' после пакетной вставки; пропуск ссылок"
+                    f"ERROR: Category ID '{cat_name}' not found after batch insert; skipping links"
                 )
                 continue
 
@@ -186,7 +186,7 @@ class BrowserBookmarksImporter:
                     existing_links = []
             except Exception as e:
                 logger.warning(
-                    "Не удалось получить существующие ссылки для категории %s: %s",
+                    "Failed to get existing links for category %s: %s",
                     category_id,
                     e,
                 )
@@ -208,14 +208,14 @@ class BrowserBookmarksImporter:
                 url = link.get("url", "")
                 name = link.get("name", "")
                 logger.debug(
-                    "DEBUG: Проверка дубликата: name='%s', url='%s', category_id=%s",
+                    "DEBUG: Checking duplicate: name='%s', url='%s', category_id=%s",
                     name,
                     url,
                     category_id,
                 )
                 if (name.strip(), url.strip()) in existing_name_url:
                     logger.debug(
-                        "DEBUG: Пропущен дубликат '%s' (%s) в категории '%s' (id=%s)",
+                        "DEBUG: Skipped duplicate '%s' (%s) in category '%s' (id=%s)",
                         name,
                         url,
                         cat_name,
@@ -226,7 +226,6 @@ class BrowserBookmarksImporter:
                 link_data = {
                     "category_id": category_id,
                     "name": link.get("name", ""),
-                    "url": link.get("url", ""),
                     "type": "web",
                     "notes": "",
                     "is_favorite": 0,
@@ -248,7 +247,7 @@ class BrowserBookmarksImporter:
                         )
                     if link_id:
                         logger.debug(
-                            "DEBUG: Добавлена ссылка '%s' в категорию '%s' (id=%s)",
+                            "DEBUG: Added link '%s' to category '%s' (id=%s)",
                             link.get("name", ""),
                             cat_name,
                             category_id,
@@ -256,16 +255,16 @@ class BrowserBookmarksImporter:
                         added += 1
                     else:
                         logger.error(
-                            "ERROR: Не удалось добавить ссылку '%s' в категорию '%s'",
+                            "ERROR: Failed to add link '%s' to category '%s'",
                             link.get("name", ""),
                             cat_name,
                         )
                 except Exception as e:
                     logger.exception(
-                        "ERROR: Не удалось добавить ссылку '%s' в категорию '%s': %s",
+                        "ERROR: Failed to add link '%s' to category '%s': %s",
                         link.get("name", ""),
                         cat_name,
                         e,
                     )
 
-        return True, f"Добавлено ссылок: {added}", added
+        return True, f"Added links: {added}", added

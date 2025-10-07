@@ -1,5 +1,5 @@
 """
-Модули настройки контроллеров главного окна.
+Main window controller setup modules.
 """
 import logging
 from typing import Any, Callable
@@ -8,18 +8,18 @@ logger = logging.getLogger(__name__)
 
 
 def _resolve_structure_loader(structure_business: Any) -> Callable[[], None]:
-    """Создает функцию-загрузчик структуры из structure_business.
+    """Create structure loader function from structure_business.
     
     Args:
-        structure_business: Объект бизнес-логики структуры
+        structure_business: Structure business logic object
         
     Returns:
-        Функция без параметров для перезагрузки структуры
+        Parameterless function to reload structure
         
     Raises:
-        ValueError: Если нет подходящего метода загрузки
+        ValueError: If no suitable loading method exists
     """
-    # Приоритет: async > sync
+    # Priority: async > sync
     if hasattr(structure_business, 'load_structure_async') and callable(
         structure_business.load_structure_async
     ):

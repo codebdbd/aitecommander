@@ -1,5 +1,5 @@
 """
-UI элементы и инъекция зависимостей.
+UI elements and dependency injection.
 """
 
 import logging
@@ -20,19 +20,19 @@ logger = logging.getLogger(__name__)
 
 
 def setup_ui_elements(window: Any, controllers: Dict[str, Any]) -> None:
-    """Создать UI элементы: действие и кнопку переключения сфер, вставить в панель."""
+    """Create UI elements: sphere switch action and button, insert into panel."""
     window.switch_sphere_action = QAction(
         themed_icon("switch.svg", theme=get_current_theme(), source="main_window"),
-        "Переключить сферу (F6)",
+        "Switch Sphere (F6)",
         window,
     )
-    window.switch_sphere_action.setToolTip("Переключиться на следующую доступную сферу")
+    window.switch_sphere_action.setToolTip("Switch to next available sphere")
     window.switch_sphere_action.triggered.connect(
         window.structure.switch_to_next_sphere
     )
 
     window.switch_sphere_button = QPushButton(
-        window.switch_sphere_action.icon(), "Сфера (F6)"
+        window.switch_sphere_action.icon(), "Sphere (F6)"
     )
     window.switch_sphere_button.setToolTip(window.switch_sphere_action.toolTip())
 
@@ -50,7 +50,7 @@ def setup_ui_elements(window: Any, controllers: Dict[str, Any]) -> None:
 
 
 def setup_dependency_injection(window: Any, controllers: Dict[str, Any]) -> None:
-    """Запланировать отложенную инъекцию зависимостей в виджеты."""
+    """Schedule deferred dependency injection into widgets."""
     QTimer.singleShot(0, partial(_deferred_setup, window, controllers))
 
 
@@ -81,7 +81,7 @@ def _deferred_setup(window: Any, controllers: Dict[str, Any]) -> None:
 
 
 def _inject_to_category_tiles(window: Any, controllers: Dict[str, Any]) -> None:
-    """Выполнить инъекцию зависимостей для CategoryTiles."""
+    """Perform dependency injection for CategoryTiles."""
     if not (hasattr(window, "tiles") and window.tiles):
         return
 
@@ -94,7 +94,7 @@ def _inject_to_category_tiles(window: Any, controllers: Dict[str, Any]) -> None:
         def show_link_dialog_for_category(
             self, category_id: int | None = None, link=None
         ) -> bool:
-            """Проксирует вызов показа диалога ссылки к главному окну."""
+            """Proxy link dialog show call to main window."""
             try:
                 if hasattr(self.parent, "show_link_dialog_for_category"):
                     return bool(
@@ -102,10 +102,10 @@ def _inject_to_category_tiles(window: Any, controllers: Dict[str, Any]) -> None:
                             category_id=category_id, link=link
                         )
                     )
-                self.show_error("Невозможно открыть диалог ссылки: окно не готово.")
+                self.show_error("Cannot open link dialog: window not ready.")
                 return False
             except Exception as e:
-                self.show_error(f"Ошибка открытия диалога ссылки: {e}")
+                self.show_error(f"Error opening link dialog: {e}")
                 return False
 
     dialog_provider = DialogProvider(window)
@@ -120,14 +120,13 @@ def _inject_to_category_tiles(window: Any, controllers: Dict[str, Any]) -> None:
     structure_ctrl = controllers["structure"]
 
     def on_tiles_context_menu(category_id: int, global_pos):
-        # Ошибки контекстного меню не относятся к wiring и не должны скрываться.
-        # Логируем неожиданные ошибки, но не используем общий перехват в wiring-блоках.
+            # Context menu errors are not related to wiring and should not be hidden.
+            # Log unexpected errors, but don't use general catch in wiring blocks.
         try:
             builder = CategoryMenuBuilder(tiles.view, window)
             menu, edit_action, add_link_action, delete_action = builder.build(
                 category_id,
                 edit_cb=structure_ctrl.handle_edit_category,
-                delete_cb=structure_ctrl.handle_delete_category,
                 add_link_cb=dialog_provider.show_link_dialog_for_category,
             )
             menu.popup(global_pos)

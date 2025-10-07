@@ -1,13 +1,13 @@
 """
-Тонкий фасад для настройки контроллеров главного окна.
+Thin facade for main window controller setup.
 
-Основная логика вынесена в модули:
-- app.controllers.system.window_setup.types - типы и протоколы
-- app.controllers.system.window_setup.business - бизнес-логика и UI setup
-- app.controllers.system.window_setup.wiring - подключение сигналов
-- app.controllers.system.window_setup.coordinator - координатор настройки
+Main logic is moved to modules:
+- app.controllers.system.window_setup.types - types and protocols
+- app.controllers.system.window_setup.business - business logic and UI setup
+- app.controllers.system.window_setup.wiring - signal connections
+- app.controllers.system.window_setup.coordinator - setup coordinator
 
-Этот модуль предоставляет только публичный API и вспомогательные функции.
+This module provides only public API and helper functions.
 """
 
 import logging
@@ -45,12 +45,12 @@ logger = logging.getLogger(__name__)
 
 
 def _resolve_structure_loader(structure_business: StructureBusinessLogic):
-    """Вернуть callable для загрузки структуры: load_structure_async или load_structure.
+    """Return callable for structure loading: load_structure_async or load_structure.
 
-    Строго типизированный поиск загрузчика: проверяем наличие методов через hasattr
-    и сразу поднимаем SetupError, если оба метода отсутствуют.
+    Strictly typed loader search: check method presence via hasattr
+    and immediately raise SetupError if both methods are missing.
     """
-    # Проверяем наличие методов загрузки до попытки их использования
+    # Check for loading methods presence before attempting to use them
     has_async = hasattr(structure_business, "load_structure_async")
     has_sync = hasattr(structure_business, "load_structure")
 
@@ -60,7 +60,7 @@ def _resolve_structure_loader(structure_business: StructureBusinessLogic):
         )
 
     try:
-        # Приоритет async методу, если доступен
+        # Priority to async method if available
         if has_async:
             loader = structure_business.load_structure_async  # type: ignore[attr-defined]
             if not callable(loader):
@@ -78,7 +78,7 @@ def _resolve_structure_loader(structure_business: StructureBusinessLogic):
             return loader
 
     except SetupError:
-        # SetupError уже содержит информативное сообщение - пробрасываем как есть
+        # SetupError already contains informative message - re-raise as is
         raise
     except Exception as e:
         logger.exception("Unexpected error while resolving structure loader")
@@ -86,7 +86,7 @@ def _resolve_structure_loader(structure_business: StructureBusinessLogic):
             "Failed to resolve structure loader due to unexpected error"
         ) from e
 
-    # Этот код никогда не должен выполниться из-за проверок выше
+    # This code should never execute due to checks above
     raise SetupError("Internal error: structure loader resolution failed")
 
 

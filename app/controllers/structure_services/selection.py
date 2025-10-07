@@ -3,12 +3,12 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
-# Модульный логгер для диагностических сообщений
+# Module logger for diagnostic messages
 logger = logging.getLogger(__name__)
 
 
 class SelectionService:
-    """Сервис выборок и вычислений на базе модели (без Qt и кэша)."""
+    """Selection and computation service based on model (without Qt and cache)."""
 
     def get_spheres(self, structure_model, logger) -> List[Dict[str, Any]]:
         try:
@@ -16,12 +16,12 @@ class SelectionService:
             return spheres
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
-                logger.error("Ошибка валидации данных при получении сфер: %s", e)
+                logger.error("Data validation error while getting spheres: %s", e)
             return []
         except Exception as e:
             if logger:
-                logger.exception("Критическая ошибка получения сфер")
-            raise  # Пробрасываем критические ошибки
+                logger.exception("Critical error getting spheres")
+            raise  # Re-raise critical errors
 
     def get_sections(
         self, structure_model, sphere_id: int, logger
@@ -31,12 +31,12 @@ class SelectionService:
             return sections
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
-                logger.error("Ошибка валидации данных при получении разделов для сферы %s: %s", sphere_id, e)
+                logger.error("Data validation error while getting sections for sphere %s: %s", sphere_id, e)
             return []
         except Exception as e:
             if logger:
-                logger.exception("Критическая ошибка получения разделов для сферы %s", sphere_id)
-            raise  # Пробрасываем критические ошибки
+                logger.exception("Critical error getting sections for sphere %s", sphere_id)
+            raise  # Re-raise critical errors
 
     def get_categories(
         self, structure_model, section_id: int, logger
@@ -47,15 +47,15 @@ class SelectionService:
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
                 logger.error(
-                    "Ошибка валидации данных при получении категорий для раздела %s: %s", section_id, e
+                    "Data validation error while getting categories for section %s: %s", section_id, e
                 )
             return []
         except Exception as e:
             if logger:
                 logger.exception(
-                    "Критическая ошибка получения категорий для раздела %s", section_id
+                    "Critical error getting categories for section %s", section_id
                 )
-            raise  # Пробрасываем критические ошибки
+            raise  # Re-raise critical errors
 
     def get_first_category_id(
         self,

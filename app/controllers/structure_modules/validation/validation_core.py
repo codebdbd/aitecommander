@@ -1,6 +1,6 @@
 # app/controllers/structure_modules/validation_core.py
 
-"""Базовый валидатор типов данных."""
+"""Base data type validator."""
 
 from typing import Any, List, Optional
 
@@ -8,12 +8,12 @@ from .validation_types import ValidationIssue, ValidationSeverity
 
 
 class TypeValidator:
-    """Валидатор типов данных."""
+    """Data type validator."""
 
     @staticmethod
     def validate_string(value: Any, field_name: str, required: bool = True,
                        min_length: int = 0, max_length: Optional[int] = None) -> List[ValidationIssue]:
-        """Валидирует строковое поле."""
+        """Validate string field."""
         issues = []
 
         if value is None:
@@ -58,7 +58,7 @@ class TypeValidator:
     @staticmethod
     def validate_integer(value: Any, field_name: str, required: bool = True,
                         min_value: Optional[int] = None, max_value: Optional[int] = None) -> List[ValidationIssue]:
-        """Валидирует целочисленное поле."""
+        """Validate integer field."""
         issues = []
 
         if value is None:
@@ -102,7 +102,7 @@ class TypeValidator:
 
     @staticmethod
     def validate_boolean(value: Any, field_name: str, required: bool = True) -> List[ValidationIssue]:
-        """Валидирует булево поле."""
+        """Validate boolean field."""
         issues = []
 
         if value is None:

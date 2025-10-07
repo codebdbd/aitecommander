@@ -13,23 +13,23 @@ from app.views.windows.dialogs.database_dialogs import DatabaseDialogs
 
 
 class DatabaseController(QObject):
-    """Контроллер для управления операциями с базой данных и иконками.
+    """Controller for managing database and icon operations.
 
-    Использует сигналы для уведомления UI об операциях вместо прямого
-    обращения к main_window.
+    Uses signals to notify UI about operations instead of direct
+    access to main_window.
     """
 
-    # Сигналы для уведомления UI
-    database_restored = pyqtSignal(object)  # Database - новая БД после восстановления
-    database_connected = pyqtSignal(object)  # Database - новая БД после подключения
-    database_saved = pyqtSignal(str)  # str - путь к сохраненной копии
-    favorites_cleared = pyqtSignal()  # Избранное очищено
-    icons_exported = pyqtSignal(str)  # str - путь к экспортированному архиву
-    icons_imported = pyqtSignal(int)  # int - количество импортированных иконок
-    operation_error = pyqtSignal(str, str)  # str, str - заголовок, сообщение об ошибке
+    # UI notification signals
+    database_restored = pyqtSignal(object)  # Database - new DB after restore
+    database_connected = pyqtSignal(object)  # Database - new DB after connection
+    database_saved = pyqtSignal(str)  # str - path to saved copy
+    favorites_cleared = pyqtSignal()  # Favorites cleared
+    icons_exported = pyqtSignal(str)  # str - path to exported archive
+    icons_imported = pyqtSignal(int)  # int - number of imported icons
+    operation_error = pyqtSignal(str, str)  # str, str - title, error message
     operation_success = pyqtSignal(
         str, str
-    )  # str, str - заголовок, сообщение об успехе
+    )  # str, str - title, success message
 
     def __init__(self, db, parent=None):
         super().__init__(parent)
@@ -37,16 +37,16 @@ class DatabaseController(QObject):
         self.dialogs = DatabaseDialogs(parent)
 
     def handle_clear_favorites(self):
-        """Обработчик очистки избранного.
+        """Favorites clearing handler.
 
-        Без подтверждения и без информационного окна: сразу отправляет
-        сигнал для очистки избранного. UI выполнит очистку через контроллеры.
+        No confirmation and no info dialog: immediately sends
+        signal to clear favorites. UI will perform clearing through controllers.
         """
-        # Отправляем сигнал - UI сам обработает очистку и обновление
+        # Send signal - UI will handle clearing and updating itself
         self.favorites_cleared.emit()
 
     def handle_restore_database(self):
-        """Обработчик восстановления базы данных из резервной копии."""
+        """Database restore handler from backup."""
         from app.views.windows.dialogs.restore_db_dialog import RestoreDbDialog
 
         dlg = RestoreDbDialog(parent=self.parent())
@@ -56,41 +56,41 @@ class DatabaseController(QObject):
                 self._perform_database_restore(selected)
 
     def _perform_database_restore(self, backup_path):
-        """Выполнить восстановление базы данных.
+        """Perform database restore.
 
-        Только бизнес-логика восстановления. UI обновляется через сигналы.
+        Business logic only. UI is updated via signals.
         """
         db_path = getattr(self.db, "db_path", None)
         if not db_path:
-            self.operation_error.emit("Ошибка", "Путь к базе данных не найден.")
+            self.operation_error.emit("Error", "Database path not found.")
             return
 
         if self.dialogs.confirm_database_restore(backup_path.name):
             try:
-                # Закрываем старое подключение
+                # Close old connection
                 self.db.close()
 
-                # Копируем резервную копию
+                # Copy backup
                 shutil.copy2(backup_path, db_path)
 
-                # Создаем новое подключение к базе данных
+                # Create new database connection
                 new_db = Database()
                 self.db = new_db
 
-                # Уведомляем UI через сигнал - он сам обновит все зависимости
+                # Notify UI via signal - it will update all dependencies
                 self.database_restored.emit(new_db)
                 self.operation_success.emit(
-                    "Готово", f"База восстановлена из копии:\n{backup_path.name}"
+                    "Done", f"Database restored from backup:\n{backup_path.name}"
                 )
 
             except Exception as e:
-                self.operation_error.emit("Ошибка", f"Ошибка восстановления: {e}")
+                self.operation_error.emit("Error", f"Restore error: {e}")
 
     def handle_connect_database(self):
-        """Обработчик подключения другой базы данных."""
+        """Another database connection handler."""
         db_path = getattr(self.db, "db_path", None)
         if not db_path:
-            self.operation_error.emit("Ошибка", "Путь к базе данных не найден.")
+            self.operation_error.emit("Error", "Database path not found.")
             return
 
         file_path = self.dialogs.get_connect_file()
@@ -98,45 +98,43 @@ class DatabaseController(QObject):
             self._perform_database_connection(str(file_path), db_path)
 
     def _perform_database_connection(self, file_path: str, db_path: str):
-        """Выполнить подключение базы данных.
+        """Perform database connection.
 
-        Только бизнес-логика подключения. UI обновляется через сигналы.
+        Business logic only. UI is updated via signals.
         """
         backup_path = db_path + ".bak"
         try:
-            # Закрыть соединение с базой
+            # Close database connection
             self.db.close()
-            # Сделать резервную копию текущей базы
+            # Make backup of current database
             shutil.copy2(db_path, backup_path)
-            # Заменить файл базы
+            # Replace database file
             shutil.copy2(file_path, db_path)
 
-            # Создаем новое подключение к базе данных
             new_db = Database()
             self.db = new_db
 
-            # Уведомляем UI через сигнал - он сам обновит все зависимости
+            # Notify UI through signal - it will update all dependencies
             self.database_connected.emit(new_db)
-            self.operation_success.emit("Готово", "База успешно подключена!")
 
         except Exception as e:
-            # Используем централизованный обработчик ошибок
+            # Use centralized error handler
             if not handle_db_error(e, self):
-                # В случае ошибки восстановить старую базу
+                # In case of error restore old database
                 try:
                     shutil.copy2(backup_path, db_path)
                 except Exception:
                     pass
                 self.operation_error.emit(
-                    "Ошибка",
-                    f"Ошибка при подключении базы: {e}\nСтарая база восстановлена.",
+                    "Error",
+                    f"Database connection error: {e}\nOld database restored.",
                 )
 
     def handle_save_database(self):
-        """Обработчик сохранения копии базы данных."""
+        """Database copy save handler."""
         db_path = getattr(self.db, "db_path", None)
         if not db_path:
-            self.operation_error.emit("Ошибка", "Путь к базе данных не найден.")
+            self.operation_error.emit("Error", "Database path not found.")
             return
 
         default_name = (
@@ -149,16 +147,16 @@ class DatabaseController(QObject):
                 shutil.copy2(db_path, str(save_path))
                 self.database_saved.emit(str(save_path))
                 self.operation_success.emit(
-                    "Готово", f"Копия базы сохранена:\n{save_path}"
+                    "Done", f"Database copy saved:\n{save_path}"
                 )
             except Exception as e:
-                self.operation_error.emit("Ошибка", f"Ошибка сохранения: {e}")
+                self.operation_error.emit("Error", f"Save error: {e}")
 
     def handle_save_icons(self):
-        """Обработчик сохранения архива иконок."""
+        """Icon archive save handler."""
         icons_dir = icon_path_service.get_user_icons_dir()
         if not os.path.isdir(icons_dir):
-            self.operation_error.emit("Ошибка", f"Папка иконок не найдена: {icons_dir}")
+            self.operation_error.emit("Error", f"Icons folder not found: {icons_dir}")
             return
 
         save_path = self.dialogs.get_icons_archive_location("icons.zip")
@@ -172,13 +170,13 @@ class DatabaseController(QObject):
                             zipf.write(fpath, fname)
                 self.icons_exported.emit(str(save_path))
                 self.operation_success.emit(
-                    "Готово", f"Архив иконок сохранён в:\n{save_path}"
+                    "Done", f"Icon archive saved to:\n{save_path}"
                 )
             except Exception as e:
-                self.operation_error.emit("Ошибка", f"Ошибка при создании архива: {e}")
+                self.operation_error.emit("Error", f"Archive creation error: {e}")
 
     def handle_load_icons(self):
-        """Обработчик загрузки архива иконок."""
+        """Icon archive load handler."""
         icons_dir = icon_path_service.get_user_icons_dir()
         if not os.path.isdir(icons_dir):
             os.makedirs(icons_dir, exist_ok=True)
@@ -193,7 +191,7 @@ class DatabaseController(QObject):
                     icon_count = len(zipf.namelist())
                 self.icons_imported.emit(icon_count)
                 self.operation_success.emit(
-                    "Готово", f"Иконки успешно добавлены в: {icons_dir}"
+                    "Done", f"Icons successfully added to: {icons_dir}"
                 )
             except Exception as e:
-                self.operation_error.emit("Ошибка", f"Ошибка при загрузке архива: {e}")
+                self.operation_error.emit("Error", f"Archive load error: {e}")

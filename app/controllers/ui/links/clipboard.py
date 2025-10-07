@@ -18,18 +18,18 @@ logger = logging.getLogger(__name__)
 
 
 class LinksUIClipboard(BaseLinksUIComponent):
-    """Логика работы с буфером обмена для LinksUIController."""
+    """Clipboard logic for LinksUIController."""
 
     def cut_link(self):
-        """Вырезать выбранные ссылки."""
+        """Cut selected links."""
         self._process_clipboard_operation(is_cut=True)
 
     def copy_link(self):
-        """Копировать выбранные ссылки."""
+        """Copy selected links."""
         self._process_clipboard_operation(is_cut=False)
 
     def _process_clipboard_operation(self, is_cut: bool = False):
-        """Общая логика для копирования/вырезания ссылок."""
+        """Common logic for copying/cutting links."""
         links = self.get_selected_links()
         if not links:
             return
@@ -39,7 +39,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
             self.delete_links(links)
 
     def paste_link(self):
-        """Вставить ссылки из буфера обмена."""
+        """Paste links from clipboard."""
         try:
             current_category_id = self._validate_category_exists(None)
         except CategoryNotFoundError as e:
@@ -51,34 +51,34 @@ class LinksUIClipboard(BaseLinksUIComponent):
             if not links:
                 return
 
-            # Получаем существующие ссылки для проверки дубликатов
+            # Get existing links for duplicate checking
             existing = self.business.get_links(current_category_id)
 
-            # Оптимизированная фильтрация дубликатов с использованием set
+            # Optimized duplicate filtering using set
             new_links = self._filter_duplicates_optimized(
                 links, existing, current_category_id
             )
 
             if not new_links:
-                return  # Все ссылки являются дубликатами
+                return  # All links are duplicates
 
             # Вставка ссылок
             self._insert_links(new_links)
 
         except Exception as e:
-            logger.error("Ошибка при вставке ссылок: %s", e, exc_info=True)
-            self._show_error(f"Не удалось вставить ссылки: {str(e)}")
+            logger.error("Error pasting links: %s", e, exc_info=True)
+            self._show_error(f"Failed to paste links: {str(e)}")
 
     def delete_links(self, links: List[Dict]):
-        """Удалить ссылки."""
+        """Delete links."""
         if not links:
             return
 
         category_id = links[0].get("category_id")
 
         if len(links) > 1:
-            # Пакетная команда: одна транзакция и один внеш. reload
-            with self.main.undo_stack.macro(f"Удаление {len(links)} ссылок"):
+            # Batch command: one transaction and one external reload
+            with self.main.undo_stack.macro(f"Deleting {len(links)} links"):
                 command = BatchDeleteLinksCmd(
                     links_to_delete=links, main_window=self.main
                 )
@@ -90,29 +90,29 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 command._suppress_ui = True
                 self.main.undo_stack.push(command)
 
-        # Обновляем отображение (команда подавляет внутренний UI, здесь — один reload)
+        # Update display (command suppresses internal UI, here — one reload)
         if category_id is not None:
             try:
                 self._update_category_safe(category_id)
             except DatabaseError as e:
                 logger.error("Failed to update category after deletion: %s", e)
-        # Централизованная эмиссия сигналов через LinkOperationsController
+        # Centralized signal emission through LinkOperationsController
         try:
             self.link_operations.on_links_deleted(links)
         except Exception as e:
             logger.debug("Failed to emit signals after delete_links: %s", e)
 
     def get_selected_links(self) -> List[Dict]:
-        """Получить выбранные ссылки через единый источник истины (LinksUIController)."""
+        """Get selected links through single source of truth (LinksUIController)."""
         try:
             return self.controller.get_selected_links()
         except Exception:
-            # В редких случаях при отсутствии контроллера возвращаем пустой список
+            # In rare cases when controller is unavailable, return empty list
             logger.debug("clipboard.get_selected_links: controller unavailable", exc_info=True)
             return []
 
     def _validate_clipboard_data(self) -> List[Dict]:
-        """Валидация данных из буфера обмена."""
+        """Validate clipboard data."""
         links = get_link_from_clipboard()
         if not links:
             return []
@@ -121,28 +121,28 @@ class LinksUIClipboard(BaseLinksUIComponent):
         if isinstance(links, dict):
             links = [links]
         elif not isinstance(links, list):
-            raise ValueError("Некорректный формат данных в буфере обмена")
+            raise ValueError("Incorrect clipboard data format")
 
         return links
 
     def _prepare_link_data(self, link: Dict, category_id: int) -> Dict:
-        """Подготовка данных ссылки для вставки."""
+        """Prepare link data for insertion."""
         new_data = dict(link)
-        new_data.pop("id", None)  # Удаляем старый ID
+        new_data.pop("id", None)  # Remove old ID
         new_data["category_id"] = category_id
         return new_data
 
     def _insert_links(self, links: List[Dict]):
-        """Вставка списка ссылок с поддержкой undo."""
+        """Insert list of links with undo support."""
         if len(links) > 1:
-            # Пакетная вставка: одна транзакция, один reload в команде
-            with self.main.undo_stack.macro(f"Вставка {len(links)} ссылок"):
+            # Batch insertion: one transaction, one reload in command
+            with self.main.undo_stack.macro(f"Inserting {len(links)} links"):
                 cmd = BatchSaveLinksCmd(
                     links_data=links,
                     old_link_data=None,
                     main_window=self.main,
                 )
-                # Команда сама выполнит единичный reload; внешние обновления не нужны
+                # Command will perform single reload; external updates not needed
                 self.main.undo_stack.push(cmd)
         else:
             for link_data in links:
@@ -155,8 +155,8 @@ class LinksUIClipboard(BaseLinksUIComponent):
     def _filter_duplicates_optimized(
         self, links: List[Dict], existing_links: List[Dict], category_id: int
     ) -> List[Dict]:
-        """Оптимизированная фильтрация дубликатов с использованием set для O(n) сложности."""
-        # Создаем set существующих ключей для быстрого поиска
+        """Optimized duplicate filtering using set for O(n) complexity."""
+        # Create set of existing keys for fast lookup
         existing_keys = set()
         for link in existing_links:
             link_dict = dict(link) if not isinstance(link, dict) else link
@@ -183,20 +183,20 @@ class LinksUIClipboard(BaseLinksUIComponent):
 
             if candidate_key not in existing_keys:
                 new_links.append(new_data)
-                existing_keys.add(candidate_key)  # Добавляем для следующих проверок
+                existing_keys.add(candidate_key)  # Add for next checks
             else:
                 filtered_count += 1
 
         if filtered_count:
             logger.info(
-                "[Paste] Отфильтровано дубликатов: %s из %s по ключу (url,type,args,name)",
+                "[Paste] Filtered duplicates: %s out of %s by key (url,type,args,name)",
                 filtered_count,
                 len(links),
             )
         return new_links
 
     def _is_duplicate(self, candidate: Dict, links: List[Dict]) -> bool:
-        """Проверить, является ли ссылка дубликатом (сохранено для обратной совместимости)."""
+        """Check if link is duplicate (preserved for backward compatibility)."""
         candidate_key = (
             candidate.get("url", ""),
             candidate.get("type", ""),

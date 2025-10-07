@@ -1,9 +1,9 @@
 """
-Унифицированный планировщик задач для управления параллелизмом и отложенными операциями.
+Unified task scheduler for managing concurrency and deferred operations.
 
-Перемещён из app/utils/system/task_scheduler.py в слой UI state.
-Сохраняет прежний API (TaskScheduler, get_task_scheduler, schedule_*) для
-обратной совместимости вызовов внутри приложения.
+Moved from app/utils/system/task_scheduler.py to UI state layer.
+Preserves previous API (TaskScheduler, get_task_scheduler, schedule_*) for
+backward compatibility of internal application calls.
 """
 
 import logging
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class TaskType(Enum):
-    """Типы задач для группировки."""
+    """Task types for grouping."""
 
     FOCUS_MANAGEMENT = "focus"
     SELECTION_RESTORE = "selection"
@@ -27,7 +27,7 @@ class TaskType(Enum):
 
 
 class LimitedThreadPool(QThreadPool):
-    """Пул потоков с ограничением на максимальное количество."""
+    """Thread pool with maximum thread count limit."""
 
     def __init__(self, max_threads=4):
         super().__init__()
@@ -36,33 +36,33 @@ class LimitedThreadPool(QThreadPool):
 
 
 class TaskScheduler(QObject):
-    """Унифицированный планировщик задач для управления потоками и таймерами."""
+    """Unified task scheduler for managing threads and timers."""
 
-    # Сигнал класса для потокобезопасного планирования (QueuedConnection между потоками)
+    # Class signal for thread-safe scheduling (QueuedConnection between threads)
     _schedule_sig = pyqtSignal(object, object, object, object, bool)
 
     def __init__(self, max_threads=4):
         super().__init__()
-        # Привязываем обработчик к сигналу (в главном потоке)
+        # Bind handler to signal (in main thread)
         self._schedule_sig.connect(self._handle_schedule_request)
-        # Инициализация пула потоков
+        # Initialize thread pool
         self.thread_pool = LimitedThreadPool(max_threads)
 
-        # Инициализация таймеров
+        # Initialize timers
         self._active_timers: Dict[str, QTimer] = {}
         self._pending_operations: Dict[TaskType, Dict[str, Callable]] = {
             task_type: {} for task_type in TaskType
         }
         self._default_delays = {
-            TaskType.FOCUS_MANAGEMENT: 0,  # Немедленно после event loop
-            TaskType.SELECTION_RESTORE: 100,  # Стандартная задержка для восстановления
-            TaskType.UI_LAYOUT: 0,  # Немедленно для layout
-            TaskType.TABLE_UPDATE: 100,  # Стандартная задержка для таблиц
-            TaskType.GENERAL: 50,  # Общая задержка по умолчанию
-            TaskType.BACKGROUND_TASK: 10,  # Задержка для фоновых задач
+            TaskType.FOCUS_MANAGEMENT: 0,  # Immediately after event loop
+            TaskType.SELECTION_RESTORE: 100,  # Standard delay for restoration
+            TaskType.UI_LAYOUT: 0,  # Immediately for layout
+            TaskType.TABLE_UPDATE: 100,  # Standard delay for tables
+            TaskType.GENERAL: 50,  # General default delay
+            TaskType.BACKGROUND_TASK: 10,  # Delay for background tasks
         }
 
-        # Таймеры для батчинга операций
+        # Timers for batching operations
         self._batch_timers: Dict[TaskType, QTimer] = {}
         self._setup_batch_timers()
 
@@ -74,19 +74,19 @@ class TaskScheduler(QObject):
         operation_id: Optional[str],
         replace_existing: bool,
     ) -> None:
-        """Обработчик сигнала: выполняет логику планирования в потоке владельца объекта."""
-        # Реиспользуем реальную логику schedule_operation, но без повторной проверки потока
-        # Небольшая инкапсуляция общей части
+        """Signal handler: executes scheduling logic in object owner thread."""
+        # Reuse real schedule_operation logic, but without re-checking thread
+        # Small encapsulation of common part
         self._schedule_operation_internal(
             operation, task_type, delay, operation_id, replace_existing
         )
 
     def _setup_batch_timers(self):
-        """Настраивает таймеры для батчинга операций по типам."""
+        """Configures timers for batching operations by types."""
         for task_type in TaskType:
             timer = QTimer()
             timer.setSingleShot(True)
-            # Используем лямбда-функцию с замыканием для правильной передачи task_type
+            # Use lambda function with closure for proper task_type passing
             timer.timeout.connect(
                 lambda t=task_type: self._execute_batched_operations(t)
             )
@@ -101,17 +101,17 @@ class TaskScheduler(QObject):
         replace_existing: bool = True,
     ) -> str:
         """
-        Планирует выполнение операции с оптимизацией.
+        Schedules operation execution with optimization.
 
         Args:
-            operation: Функция для выполнения
-            task_type: Тип операции для группировки
-            delay: Задержка в мс (None = использовать по умолчанию)
-            operation_id: Уникальный ID операции (None = автогенерация)
-            replace_existing: Заменять ли существующую операцию с тем же ID
+            operation: Function to execute
+            task_type: Operation type for grouping
+            delay: Delay in ms (None = use default)
+            operation_id: Unique operation ID (None = auto-generation)
+            replace_existing: Whether to replace existing operation with same ID
 
         Returns:
-            ID операции для возможной отмены
+            Operation ID for possible cancellation
         """
         if delay is None:
             delay = self._default_delays[task_type]
@@ -119,7 +119,7 @@ class TaskScheduler(QObject):
         if operation_id is None:
             operation_id = f"{task_type.value}_{id(operation)}"
 
-        # Если вызвали из другого потока — отправим запрос через сигнал (queued connection)
+        # If called from another thread — send request via signal (queued connection)
         if QThread.currentThread() is not self.thread():
             try:
                 self._schedule_sig.emit(
@@ -127,13 +127,13 @@ class TaskScheduler(QObject):
                 )
             except Exception as e:
                 logger.error(
-                    "Не удалось запланировать операцию через сигнал %s: %s",
+                    "Failed to schedule operation via signal %s: %s",
                     operation_id,
                     e,
                 )
             return operation_id
 
-        # Иначе — тот же поток, можно планировать напрямую
+        # Otherwise — same thread, can schedule directly
         self._schedule_operation_internal(
             operation, task_type, delay, operation_id, replace_existing
         )
@@ -147,21 +147,21 @@ class TaskScheduler(QObject):
         operation_id: Optional[str],
         replace_existing: bool,
     ) -> None:
-        """Общая логика постановки операции в очередь и старта таймера.
-        Вызывается либо из того же потока, либо через queued-сигнал.
+        """Common logic for queuing operation and starting timer.
+        Called either from same thread or via queued signal.
         """
-        # Проверяем, есть ли уже операция с таким ID
+        # Check if operation with this ID already exists
         if operation_id in self._pending_operations[task_type]:
             if not replace_existing:
-                logger.debug("Операция %s уже запланирована, пропускаем", operation_id)
+                logger.debug("Operation %s already scheduled, skipping", operation_id)
                 return
             else:
-                logger.debug("Заменяем существующую операцию %s", operation_id)
+                logger.debug("Replacing existing operation %s", operation_id)
 
-        # Добавляем операцию в очередь
+        # Add operation to queue
         self._pending_operations[task_type][operation_id] = operation
 
-        # Запускаем или перезапускаем батч-таймер для этого типа
+        # Start or restart batch timer for this type
         batch_timer = self._batch_timers[task_type]
         if batch_timer.isActive():
             batch_timer.stop()
@@ -169,55 +169,54 @@ class TaskScheduler(QObject):
         batch_timer.start(delay)
 
         logger.debug(
-            "Запланирована операция %s типа %s с задержкой %sms",
+            "Scheduled operation %s of type %s with delay %sms",
             operation_id,
             task_type.value,
             delay,
         )
 
     def _execute_batched_operations(self, task_type: TaskType):
-        """Выполняет все накопленные операции определенного типа."""
+        """Executes all accumulated operations of specific type."""
         operations = self._pending_operations[task_type]
         if not operations:
             return
 
-        logger.debug("Выполняем %s операций типа %s", len(operations), task_type.value)
+        logger.debug("Executing %s operations of type %s", len(operations), task_type.value)
 
-        # Специальная обработка для focus operations - выполняем только последнюю
+        # Special handling for focus operations - execute only the last one
         if task_type == TaskType.FOCUS_MANAGEMENT:
             if operations:
-                # Берем последнюю операцию (самую актуальную)
+                # Take last operation (most recent)
                 last_operation_id = list(operations.keys())[-1]
-                last_operation = operations[last_operation_id]
                 try:
                     last_operation()
-                    logger.debug("Выполнена focus операция: %s", last_operation_id)
+                    logger.debug("Executed focus operation: %s", last_operation_id)
                 except Exception as e:
                     logger.error(
-                        "Ошибка выполнения focus операции %s: %s", last_operation_id, e
-                    )
+                    "Error executing focus operation %s: %s", last_operation_id, e
+                )
         else:
-            # Для остальных типов выполняем все операции
+            # For other types execute all operations
             for operation_id, operation in operations.items():
                 try:
                     operation()
-                    logger.debug("Выполнена операция: %s", operation_id)
+                    logger.debug("Executed operation: %s", operation_id)
                 except Exception as e:
-                    logger.error("Ошибка выполнения операции %s: %s", operation_id, e)
+                    logger.error("Error executing operation %s: %s", operation_id, str(e))
 
-        # Очищаем выполненные операции
+        # Clear executed operations
         operations.clear()
 
     def cancel_operation(self, operation_id: str, task_type: TaskType = None) -> bool:
         """
-        Отменяет запланированную операцию.
+        Cancels scheduled operation.
 
         Args:
-            operation_id: ID операции для отмены
-            task_type: Тип операции (None = поиск во всех типах)
+            operation_id: ID of operation to cancel
+            task_type: Operation type (None = search in all types)
 
         Returns:
-            True если операция была найдена и отменена
+            True if operation was found and cancelled
         """
         if task_type:
             search_types = [task_type]
@@ -227,30 +226,30 @@ class TaskScheduler(QObject):
         for tt in search_types:
             if operation_id in self._pending_operations[tt]:
                 del self._pending_operations[tt][operation_id]
-                logger.debug("Отменена операция %s типа %s", operation_id, tt.value)
+                logger.debug("Cancelled operation %s of type %s", operation_id, tt.value)
                 return True
 
-        logger.debug("Операция %s не найдена для отмены", operation_id)
+        logger.debug("Operation %s not found for cancellation", operation_id)
         return False
 
     def submit_task(self, task: QRunnable) -> None:
         """
-        Отправляет задачу в пул потоков для выполнения.
+        Sends task to thread pool for execution.
 
         Args:
-            task: Задача для выполнения (QRunnable)
+            task: Task to execute (QRunnable)
         """
         self.thread_pool.start(task)
-        logger.debug("Задача отправлена в пул потоков")
+        logger.debug("Task sent to thread pool")
 
     def get_thread_pool(self) -> "LimitedThreadPool":
-        """Возвращает пул потоков."""
+        """Returns thread pool."""
         return self.thread_pool
 
     def schedule_focus_operation(
         self, widget_focus_func: Callable, widget_name: str = None
     ) -> str:
-        """Удобный метод для планирования операций установки фокуса."""
+        """Convenient method for scheduling focus setting operations."""
         operation_id = f"focus_{widget_name or id(widget_focus_func)}"
         return self.schedule_operation(
             widget_focus_func,
@@ -262,7 +261,7 @@ class TaskScheduler(QObject):
     def schedule_selection_restore(
         self, restore_func: Callable, item_id: Any = None
     ) -> str:
-        """Удобный метод для планирования восстановления выделения."""
+        """Convenient method for scheduling selection restoration."""
         operation_id = f"selection_{item_id or id(restore_func)}"
         return self.schedule_operation(
             restore_func,
@@ -274,7 +273,7 @@ class TaskScheduler(QObject):
     def schedule_layout_operation(
         self, layout_func: Callable, layout_name: str = None
     ) -> str:
-        """Удобный метод для планирования операций с layout."""
+        """Convenient method for scheduling layout operations."""
         operation_id = f"layout_{layout_name or id(layout_func)}"
         return self.schedule_operation(
             layout_func,
@@ -284,14 +283,14 @@ class TaskScheduler(QObject):
         )
 
     def get_pending_operations_count(self, task_type: TaskType = None) -> int:
-        """Возвращает количество ожидающих операций."""
+        """Returns number of pending operations."""
         if task_type:
             return len(self._pending_operations[task_type])
         else:
             return sum(len(ops) for ops in self._pending_operations.values())
 
     def clear_all_operations(self):
-        """Очищает все запланированные операции и останавливает таймеры."""
+        """Clears all scheduled operations and stops timers."""
         for timer in self._batch_timers.values():
             if timer.isActive():
                 timer.stop()
@@ -299,36 +298,36 @@ class TaskScheduler(QObject):
         for operations in self._pending_operations.values():
             operations.clear()
 
-        logger.info("Все запланированные операции очищены")
+        logger.info("All scheduled operations cleared")
 
 
-# Глобальный экземпляр планировщика задач (сохранён для совместимости внутри проекта)
+# Global task scheduler instance (preserved for compatibility within project)
 _task_scheduler_instance: Optional[TaskScheduler] = None
 
 
 def get_task_scheduler() -> TaskScheduler:
-    """Возвращает глобальный экземпляр TaskScheduler (singleton).
-    В дальнейшем может быть заменено провайдером из UIStateManager.
+    """Returns global TaskScheduler instance (singleton).
+    May be replaced with provider from UIStateManager in future.
     """
     global _task_scheduler_instance
     if _task_scheduler_instance is None:
         _task_scheduler_instance = TaskScheduler()
-        logger.info("Создан глобальный TaskScheduler")
+        logger.info("Created global TaskScheduler")
     return _task_scheduler_instance
 
 
 def schedule_focus(widget_focus_func: Callable, widget_name: str = None) -> str:
-    """Глобальная функция для планирования установки фокуса."""
+    """Global function for scheduling focus setting."""
     return get_task_scheduler().schedule_focus_operation(widget_focus_func, widget_name)
 
 
 def schedule_selection_restore(restore_func: Callable, item_id: Any = None) -> str:
-    """Глобальная функция для планирования восстановления выделения."""
+    """Global function for scheduling selection restoration."""
     return get_task_scheduler().schedule_selection_restore(restore_func, item_id)
 
 
 def schedule_layout(layout_func: Callable, layout_name: str = None) -> str:
-    """Глобальная функция для планирования операций с layout."""
+    """Global function for scheduling layout operations."""
     return get_task_scheduler().schedule_layout_operation(layout_func, layout_name)
 
 
@@ -338,12 +337,12 @@ def schedule_operation(
     delay: Optional[int] = None,
     operation_id: Optional[str] = None,
 ) -> str:
-    """Глобальная функция для планирования произвольных операций."""
+    """Global function for scheduling arbitrary operations."""
     return get_task_scheduler().schedule_operation(
         operation, task_type, delay, operation_id
     )
 
 
 def submit_task(task: QRunnable) -> None:
-    """Глобальная функция для отправки задач в пул потоков."""
+    """Global function for submitting tasks to thread pool."""
     get_task_scheduler().submit_task(task)

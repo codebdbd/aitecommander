@@ -1,5 +1,5 @@
-"""Сервис бизнес-логики контекстного меню структуры.
-Инкапсулирует операции копирования/вставки категорий через буфер обмена и работу с БД.
+"""Structure context menu business logic service.
+Encapsulates copy/paste operations for categories via clipboard and DB interaction.
 """
 
 from __future__ import annotations
@@ -18,19 +18,19 @@ logger = logging.getLogger(__name__)
 
 
 class StructureContextService:
-    """Бизнес-логика контекстного меню структуры без привязки к UI-виджетам.
+    """Structure context menu business logic without UI widget binding.
 
-    Зависимости на уровне БД передаются через `db` (adapter/connection),
-    операции с буфером производятся через QApplication.clipboard().
+    DB-level dependencies are passed via `db` (adapter/connection),
+    clipboard operations are performed via QApplication.clipboard().
     """
 
     def __init__(self, db: DatabaseProtocol):
-        """Инициализирует сервис контекстного меню.
+        """Initializes context menu service.
         
-        ✅ ИСПРАВЛЕНИЕ: Использует DatabaseProtocol вместо Any.
+        ✅ FIX: Uses DatabaseProtocol instead of Any.
         
         Args:
-            db: Экземпляр Database
+            db: Database instance
         """
         self.db = db
         self._ss = StructureService(db)
@@ -38,7 +38,7 @@ class StructureContextService:
 
     # --- Qt helpers ---
     def _get_qapp(self):
-        """Безопасно получает экземпляр QApplication или None."""
+        """Safely gets QApplication instance or None."""
         try:
             return QApplication.instance()
         except RuntimeError:
@@ -99,7 +99,7 @@ class StructureContextService:
 
     # --- Copy operations ---
     def copy_category_tree_to_clipboard(self, cat_id: int) -> None:
-        """Копирует полное поддерево категории в буфер обмена."""
+        """Copies full category subtree to clipboard."""
         try:
             app = self._get_qapp()
             if not app:
@@ -113,7 +113,7 @@ class StructureContextService:
             )
 
     def copy_categories_to_clipboard(self, cat_ids: Iterable[int]) -> None:
-        """Копирует несколько категорий (каждую с её ссылками) в буфер обмена."""
+        """Copies multiple categories (each with its links) to clipboard."""
         try:
             app = self._get_qapp()
             if not app:
@@ -136,7 +136,7 @@ class StructureContextService:
 
     # --- Paste operations ---
     def _normalize_to_tree_list(self, payload: object) -> list[dict]:
-        """Нормализует данные буфера в список деревьев категорий."""
+        """Normalizes buffer data to list of category trees."""
         if isinstance(payload, dict):
             if {"category", "links"}.issubset(set(payload.keys())):
                 return [payload]
@@ -166,7 +166,7 @@ class StructureContextService:
         return []
 
     def paste_from_clipboard_to_section(self, section_id: int) -> list[dict]:
-        """Вставляет категории из буфера в раздел. Возвращает список созданных категорий (словари)."""
+        """Pastes categories from clipboard to section. Returns list of created categories (dicts)."""
         try:
             data = self._clipboard_get_json()
             if not data:
@@ -175,7 +175,7 @@ class StructureContextService:
             if not trees:
                 return []
 
-            # 1) Подготовка категорий и батчевое создание
+            # 1) Category preparation and batch creation
             batch_cats = self._prepare_categories_for_section(trees, section_id)
             if not batch_cats:
                 return []
@@ -184,7 +184,7 @@ class StructureContextService:
             if not created_list:
                 return []
 
-            # Индекс по имени для сопоставления созданных id с исходными деревьями
+            # Index by name to match created ids with source trees
             index_by_name: dict[str, list[dict]] = {}
             for c in created_list:
                 nm = c.get("name")
@@ -192,12 +192,12 @@ class StructureContextService:
                     continue
                 index_by_name.setdefault(nm, []).append(c)
 
-            # 2) Генерация ссылок лениво и сбор созданных категорий
+            # 2) Lazy link generation and created category collection
             created_categories: list[dict] = []
             links_iter = self._iter_links_for_created_categories(
                 trees, index_by_name, created_categories
             )
-            # Собираем ссылки в список единожды для батчевой вставки
+            # Collect links into list once for batch insertion
             all_links = list(links_iter)
             if all_links:
                 self._ls.batch_create_or_update_links(all_links)
@@ -213,16 +213,16 @@ class StructureContextService:
     def _prepare_categories_for_section(
         self, trees: Iterable[dict], section_id: int
     ) -> list[dict]:
-        """Готовит данные категорий для вставки в указанный раздел.
+        """Prepares category data for insertion into specified section.
 
-        Возвращает список словарей для batch-создания. Исключает поля id/section_id из исходных данных.
+        Returns list of dicts for batch creation. Excludes id/section_id fields from source data.
         """
 
         def gen():
             sid = int(section_id)
             for tree in trees:
                 src_cat = dict((tree or {}).get("category", {}))
-                # исключаем служебные поля
+                # exclude service fields
                 new_cat = {
                     k: v for k, v in src_cat.items() if k not in {"id", "section_id"}
                 }
@@ -237,10 +237,10 @@ class StructureContextService:
         index_by_name: dict[str, list[dict]],
         created_categories_out: list[dict],
     ) -> Iterable[dict]:
-        """Генерирует словари ссылок для только что созданных категорий.
+        """Generates link dictionaries for newly created categories.
 
-        По имени категории сопоставляет созданные строки и возвращает ссылки, указывая верный category_id.
-        Попутно заполняет created_categories_out копиями созданных категорий в порядке обработки.
+        Matches created rows by category name and returns links with correct category_id.
+        Fills created_categories_out with copies of created categories in processing order.
         """
         for tree in trees:
             src_cat = dict((tree or {}).get("category", {}))

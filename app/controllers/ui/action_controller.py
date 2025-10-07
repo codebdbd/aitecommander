@@ -1,4 +1,4 @@
-"""Контроллер для обработки пользовательских действий (редактирование, удаление, буфер обмена и т.д.)."""
+"""Controller for handling user actions (edit, delete, clipboard, etc.)."""
 
 import logging
 from typing import TYPE_CHECKING
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class ActionController(QObject):
-    """Контроллер для обработки пользовательских действий."""
+    """Controller for handling user actions."""
 
     def __init__(self, main_window: "MainWindow"):
         parent = main_window if isinstance(main_window, QObject) else None
@@ -67,8 +67,8 @@ class ActionController(QObject):
 
     @pyqtSlot()
     def edit_current(self) -> None:
-        """Определить контекст и выполнить редактирование текущего элемента."""
-        # Проверяем плитки категорий
+        """Detect context and perform edit of current item."""
+        # Check category tiles
         tiles_stack_index = app_config.ui.get_stack_index_tiles()
         stack = getattr(self.main_window, "stack", None)
         tiles = getattr(self.main_window, "tiles", None)
@@ -82,34 +82,34 @@ class ActionController(QObject):
             self.main_window.structure.handle_edit_category(tiles._current_item_id)
             return
 
-        # Проверяем таблицу ссылок (активная)
+        # Check links table (active)
         if self._is_table_stack_active() and self._table_has_selection():
             self._edit_selected_link()
             return
 
-        # Проверяем фокус на дереве структуры (QTreeView-only)
+        # Check focus on structure tree (QTreeView-only)
         if self._is_tree_focused() and self._has_tree_selection():
             self.main_window.structure.edit_selected_item()
             return
 
-        # Проверяем фокус на таблице ссылок
+        # Check focus on links table
         if self._is_table_focused() and self._table_has_selection():
             self._edit_selected_link()
             return
 
-        # Fallback: проверяем наличие выбранного элемента в дереве (QTreeView-only)
+        # Fallback: check if there is a selected item in tree (QTreeView-only)
         if self._has_tree_selection():
             self.main_window.structure.edit_selected_item()
             return
 
-        # Fallback: проверяем наличие выбранной ссылки
+        # Fallback: check if there is a selected link
         if self._table_has_selection():
             self._edit_selected_link()
 
     @pyqtSlot()
     def delete_current(self) -> None:
-        """Определить контекст и выполнить удаление текущего элемента."""
-        # Проверяем фокус на таблице ссылок
+        """Detect context and perform deletion of current item."""
+        # Check focus on links table
         if self._is_table_focused() and self._table_has_selection():
             links = self._selected_links()
             if links:
@@ -117,13 +117,13 @@ class ActionController(QObject):
                 self.main_window.update_statusbar()
             return
 
-        # Проверяем фокус на дереве структуры (QTreeView-only)
+        # Check focus on structure tree (QTreeView-only)
         if self._is_tree_focused() and self._has_tree_selection():
             self.main_window.structure.delete_selected_item()
             self.main_window.update_statusbar()
             return
 
-        # Fallback: проверяем наличие выбранных ссылок
+        # Fallback: check if selected links exist
         if self._table_has_selection():
             links = self._selected_links()
             if links:
@@ -131,41 +131,41 @@ class ActionController(QObject):
                 self.main_window.update_statusbar()
             return
 
-        # Fallback: проверяем наличие выбранного элемента в дереве (QTreeView-only)
+        # Fallback: check if there is a selected item in tree (QTreeView-only)
         if self._has_tree_selection():
             self.main_window.structure.delete_selected_item()
             self.main_window.update_statusbar()
 
     @pyqtSlot()
     def copy_current(self) -> None:
-        """Копировать выбранные элементы."""
+        """Copy selected items."""
         if bool(self.main_window.links_actions.get_selected_rows()):
             self.main_window.links_actions.copy_selected_links()
 
     @pyqtSlot()
     def cut_current(self) -> None:
-        """Вырезать выбранные элементы."""
+        """Cut selected items."""
         if bool(self.main_window.links_actions.get_selected_rows()):
             self.main_window.links_actions.cut_selected_links()
 
     @pyqtSlot()
     def paste_current(self) -> None:
-        """Вставить элементы."""
+        """Paste items."""
         self.main_window.links_actions.paste_links()
 
     @pyqtSlot()
     def select_all_current(self) -> None:
-        """Выделить все элементы в текущем контексте."""
+        """Select all items in current context."""
         if self.main_window.table.hasFocus():
             self.main_window.select_all_links()
 
     def _edit_selected_link(self):
-        """Редактировать выбранную ссылку."""
+        """Edit selected link."""
         if self.main_window.links_actions.edit_selected_link():
             return
 
     def _get_selected_links(self):
-        """Получить список выбранных ссылок через фасад LinksActions."""
+        """Get list of selected links via LinksActions facade."""
         try:
             return self.main_window.links_actions.get_selected_links()
         except Exception:

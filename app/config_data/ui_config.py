@@ -325,22 +325,22 @@ class UIConfig(BaseConfig):
 
     def get_delete_confirm_title(self) -> str:
         """Return the delete confirmation dialog title."""
-        return self.get("ui.delete_confirm_title", "Подтверждение удаления")
+        return self.get("ui.delete_confirm_title", "Confirm Deletion")
 
     def get_delete_confirm_text(self) -> str:
         """Return the delete confirmation dialog body text."""
         return self.get(
             "ui.delete_confirm_text",
-            "Вы уверены, что хотите удалить {count} ссылк(и/у)?",
+            "Are you sure you want to delete {count} link(s)?",
         )
 
     def get_yes_text(self) -> str:
         """Return the label for the affirmative button."""
-        return self.get("ui.yes_text", "Да")
+        return self.get("ui.yes_text", "Yes")
 
     def get_no_text(self) -> str:
         """Return the label for the negative button."""
-        return self.get("ui.no_text", "Нет")
+        return self.get("ui.no_text", "No")
 
     def get_link_dialog_width(self) -> int:
         """Return the width for the add/edit link dialog."""
@@ -369,18 +369,18 @@ class UIConfig(BaseConfig):
         return self.get(
             "ui.bottom_actions",
             [
-                ["Добавить раздел (F3)", "show_section_dialog"],
-                ["Добавить категорию (F4)", "add_new_category"],
-                ["Добавить ссылку (F1)", "show_link_dialog"],
-                ["Редактировать (F2)", "edit_current"],
-                ["Удалить (Del)", "delete_current"],
+                ["Add Section (F3)", "show_section_dialog"],
+                ["Add Category (F4)", "add_new_category"],
+                ["Add Link (F1)", "show_link_dialog"],
+                ["Edit (F2)", "edit_current"],
+                ["Delete (Del)", "delete_current"],
             ],
         )
 
     def get_links_table_headers(self) -> list:
         """Return the header labels for the links table."""
         return self.get(
-            "ui.links_table_headers", ["♥", "Название", "Последний запуск", "Заметки"]
+            "ui.links_table_headers", ["♥", "Name", "Last Used", "Notes"]
         )
 
     def get_links_table_columns(self) -> Dict[str, int]:
@@ -395,16 +395,16 @@ class UIConfig(BaseConfig):
         return self.get(
             "ui.links_table_messages",
             {
-                "no_categories": "Нет доступных категорий. Создай категорию сначала.",
-                "select_category": "Выберите категорию для вставки ссылки",
-                "error_saving": "Ошибка сохранения заметки",
-                "database_error": "Ошибка базы данных",
-                "validation_error": "Ошибка валидации",
-                "warning_title": "Предупреждение",
-                "error_title": "Ошибка",
-                # Сообщения безопасности для LinksUILinkOperations._open_link
-                "unsafe_url_info": "Эта ссылка не может быть открыта по соображениям безопасности.",
-                "unsafe_url_hint": "Проверьте адрес ссылки или отредактируйте её.",
+                "no_categories": "No categories available. Create a category first.",
+                "select_category": "Select a category to insert the link",
+                "error_saving": "Error saving note",
+                "database_error": "Database error",
+                "validation_error": "Validation error",
+                "warning_title": "Warning",
+                "error_title": "Error",
+                # Security messages for LinksUILinkOperations._open_link
+                "unsafe_url_info": "This link cannot be opened for security reasons.",
+                "unsafe_url_hint": "Check the link address or edit it.",
             },
         )
 
@@ -519,7 +519,7 @@ class UIConfig(BaseConfig):
 
     def get_search_placeholder(self) -> str:
         """Return the placeholder text for the search field."""
-        return self.get("ui.search_placeholder", "Поиск… (Ctrl+F)")
+        return self.get("ui.search_placeholder", "Search… (Ctrl+F)")
 
     def get_qss_path(self) -> str:
         """Return path to the default QSS theme file."""
@@ -529,11 +529,11 @@ class UIConfig(BaseConfig):
 
     def get_macro_add_links_text(self) -> str:
         """Return macro text for adding links."""
-        return self.get("ui.macro_add_links_text", "Добавление {count} ссылок")
+        return self.get("ui.macro_add_links_text", "Adding {count} links")
 
     def get_macro_delete_links_text(self) -> str:
         """Return macro text for deleting links."""
-        return self.get("ui.macro_delete_links_text", "Удаление {count} ссылок")
+        return self.get("ui.macro_delete_links_text", "Deleting {count} links")
 
     def get_db_connected_text(self) -> str:
         """Return status text for a connected DB."""
@@ -545,11 +545,11 @@ class UIConfig(BaseConfig):
 
     def get_links_count_text(self) -> str:
         """Return the default text showing total links."""
-        return self.get("ui.links_count_text", "Ссылок: 0")
+        return self.get("ui.links_count_text", "Links: 0")
 
     def get_status_ready_text(self) -> str:
         """Return the "ready" status string."""
-        return self.get("ui.status_ready_text", "Готово")
+        return self.get("ui.status_ready_text", "Ready")
 
     def get_path_label_min_width(self) -> int:
         """Return minimum width for the path label."""

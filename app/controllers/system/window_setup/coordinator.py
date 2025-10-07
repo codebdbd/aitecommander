@@ -1,5 +1,5 @@
 """
-Координатор настройки контроллеров и компонентов главного окна.
+Coordinator for setting up controllers and components of the main window.
 """
 
 import logging
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None:
-    """Создать и настроить основные контроллеры."""
+    """Create and set up main controllers."""
     _validate_qt_context()
     
     _setup_business_logic(controllers, db)
@@ -37,7 +37,7 @@ def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None
 
 
 class WindowControllersSetup:
-    """Координатор настройки контроллеров и компонентов главного окна."""
+    """Coordinator for setting up controllers and components of the main window."""
 
     def __init__(self, window_initializer: Any):
         self.window_initializer = window_initializer
@@ -45,7 +45,7 @@ class WindowControllersSetup:
         self.db = window_initializer.db
 
     def setup_controllers(self) -> None:
-        """Настроить контроллеры и компоненты."""
+        """Set up controllers and components."""
         controllers: Dict[str, Any] = {}
 
         try:
@@ -57,7 +57,7 @@ class WindowControllersSetup:
                 "Critical component ControllersSetup failed to initialize"
             ) from e
         
-        # Инициализируем WindowFacade после создания контроллеров
+        # Initialize WindowFacade after creating controllers
         try:
             self._init_window_facade()
             logger.info("WindowFacade initialized")
@@ -86,10 +86,10 @@ class WindowControllersSetup:
                 raise SetupError(f"{name} failed during window setup") from e
 
     def _init_window_facade(self) -> None:
-        """Инициализирует WindowFacade для упрощения делегирования."""
+        """Initialize WindowFacade to simplify delegation."""
         from app.controllers.ui.window_facade import WindowFacade
         
-        # Проверяем наличие необходимых контроллеров
+        # Check for required controllers
         required_controllers = [
             'structure', 'links_actions', 'ui_state', 
             'action_controller', 'theme_ctrl'
@@ -101,7 +101,7 @@ class WindowControllersSetup:
                     f"Cannot initialize WindowFacade: missing controller '{ctrl_name}'"
                 )
         
-        # Создаём фасад
+        # Create facade
         self.window.facade = WindowFacade(
             structure=self.window.structure,
             links_actions=self.window.links_actions,
@@ -113,7 +113,7 @@ class WindowControllersSetup:
         logger.debug("WindowFacade created with all controllers")
     
     def initialize_spheres(self):
-        """Инициализация сфер."""
+        """Initialize spheres."""
         try:
             sc = getattr(self.window, "spheres_controller", None)
             if sc is None:

@@ -1,8 +1,8 @@
 """
-Персистентный кэш профилей браузеров на базе BaseCache.
-- In-memory хранение с TTL (валидность записей)
-- Персистентность в JSON-файле: один общий файл для всех браузеров
-Совместим с прежним форматом `profile_cache.py`.
+Persistent browser profile cache based on BaseCache.
+- In-memory storage with TTL (record validity)
+- Persistence in JSON file: one common file for all browsers
+Compatible with previous `profile_cache.py` format.
 """
 
 from __future__ import annotations
@@ -19,10 +19,10 @@ from app.utils.cache.base import BaseCache, CacheRecord
 
 
 def get_cache_path() -> Path:
-    """Возвращает путь к файлу кэша профилей браузеров.
+    """Returns path to browser profile cache file.
 
-    Остаётся совместимым с прежним расположением: browser_profiles.json
-    в config-директории пользователя.
+    Remains compatible with previous location: browser_profiles.json
+    in user config directory.
     """
     return app_config.paths.get_config_dir() / "browser_profiles.json"
 
@@ -33,7 +33,7 @@ class PersistentProfileCache(BaseCache):
         self._lock = threading.RLock()
         self._store: dict[str, CacheRecord] = {}
         self._path: Path = get_cache_path()
-        # Отложенная/пакетная запись
+        # Deferred/batch writing
         try:
             _delay = getattr(app_config, "get_profile_cache_flush_delay", None)
             self._flush_delay_sec: float = float(_delay()) if callable(_delay) else 0.5
@@ -45,14 +45,14 @@ class PersistentProfileCache(BaseCache):
 
     @property
     def timeout(self) -> Optional[float]:
-        """Возвращает дефолтный TTL (секунды), если он задан для кэша.
+        """Returns default TTL (seconds) if set for cache.
 
-        Совместимость: ранее потребители могли ожидать наличие поля `timeout` у кэша.
-        Теперь предоставляем свойство, проксирующее `_default_ttl`.
+        Compatibility: previously consumers might expect `timeout` field to exist on cache.
+        Now we provide property proxying `_default_ttl`.
         """
         return self._default_ttl
 
-    # --- файловые операции ---
+    # --- file operations ---
     def _load_from_disk(self) -> None:
         try:
             if not self._path.exists():
@@ -70,7 +70,7 @@ class PersistentProfileCache(BaseCache):
                     value=profiles, ts=now, ttl=self._default_ttl
                 )
         except Exception:
-            # Тихо игнорируем проблемы загрузки, как и раньше
+            # Quietly ignore loading problems, as before
             pass
 
     def _ensure_dirs(self) -> None:
@@ -80,24 +80,24 @@ class PersistentProfileCache(BaseCache):
             self._path.parent.mkdir(parents=True, exist_ok=True)
 
     def _dump_to_disk(self) -> None:
-        # Сохраняем только значения (без внутренних полей) атомарно
+        # Save only values (without internal fields) atomically
         data: Dict[str, Any] = {key: rec.value for key, rec in self._store.items()}
         self._ensure_dirs()
         tmp_path = self._path.with_suffix(self._path.suffix + ".tmp")
         try:
-            # 1) Пишем во временный файл
+            # 1) Write to temporary file
             with tmp_path.open("w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
                 try:
                     f.flush()
-                    os.fsync(f.fileno())  # по возможности синхронизируем на диск
+                    os.fsync(f.fileno())  # synchronize to disk when possible
                 except Exception:
-                    # На некоторых ФС/ОС fsync может быть не нужен/недоступен — игнорируем
+                    # On some FS/OS fsync may be unnecessary/unavailable — ignore
                     pass
-            # 2) Атомарно заменяем основной файл
+            # 2) Atomically replace main file
             os.replace(str(tmp_path), str(self._path))
         except Exception:
-            # При любой ошибке пытаемся удалить временный файл, основной не трогаем
+            # On any error try to delete temporary file, don't touch main file
             try:
                 if tmp_path.exists():
                     tmp_path.unlink()
@@ -105,11 +105,11 @@ class PersistentProfileCache(BaseCache):
                 pass
             raise
 
-    # --- механика отложенного сброса ---
+    # --- deferred flush mechanics ---
     def _mark_dirty_locked(self) -> None:
         self._dirty = True
         now = time.time()
-        # если не запланировано, планируем
+        # if not scheduled, schedule
         if self._next_flush_ts <= 0:
             self._next_flush_ts = now + self._flush_delay_sec
 
@@ -121,10 +121,10 @@ class PersistentProfileCache(BaseCache):
             try:
                 self._dump_to_disk()
             except Exception:
-                # Не проваливаемся на ошибке диска
+                # Don't fail on disk error
                 pass
             finally:
-                # Сбрасываем флаги независимо от результата, чтобы не писать бесконечно
+                # Reset flags regardless of result to avoid infinite writing
                 self._dirty = False
                 self._next_flush_ts = 0.0
 
@@ -134,9 +134,9 @@ class PersistentProfileCache(BaseCache):
             rec = self._store.get(key)
             if rec is None:
                 return None
-            # проверяем TTL
+            # check TTL
             if not rec.is_valid():
-                # Протухло — удаляем из памяти и отмечаем необходимость отложенной записи
+                # Expired — remove from memory and mark need for deferred write
                 self._store.pop(key, None)
                 self._mark_dirty_locked()
                 self._maybe_flush_locked()
@@ -150,7 +150,7 @@ class PersistentProfileCache(BaseCache):
                 ts=time.time(),
                 ttl=self._default_ttl if ttl is None else ttl,
             )
-            # Отмечаем грязное состояние и откладываем запись
+            # Mark dirty state and defer writing
             self._mark_dirty_locked()
             self._maybe_flush_locked()
 
@@ -163,26 +163,26 @@ class PersistentProfileCache(BaseCache):
             self._mark_dirty_locked()
             self._maybe_flush_locked()
 
-    # --- публичные методы управления сбросом ---
+    # --- public flush control methods ---
     def flush(self) -> None:
-        """Принудительно сбросить изменения на диск."""
+        """Force flush changes to disk."""
         with self._lock:
             self._maybe_flush_locked(force=True)
 
     def periodic_flush(self) -> None:
-        """Внешняя периодическая точка: выполнить сброс, если подошёл срок.
+        """External periodic point: flush if time has come.
 
-        Вызывайте из места, где уже есть периодический цикл/таймер в приложении.
+        Call from place where application already has periodic cycle/timer.
         """
         with self._lock:
             self._maybe_flush_locked(force=False)
 
-    # Контекстный менеджер для гарантированного сброса
+    # Context manager for guaranteed flush
     def __enter__(self) -> "PersistentProfileCache":
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:  # noqa: D401
-        # При выходе всегда пытаемся сбросить на диск
+        # Always try to flush to disk on exit
         try:
             self.flush()
         except Exception:

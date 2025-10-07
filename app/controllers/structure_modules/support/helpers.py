@@ -16,7 +16,7 @@ __all__ = [
 
 @runtime_checkable
 class StructureController(Protocol):
-    """Протокол для контроллера структурных элементов."""
+    """Protocol for structural element controller."""
 
     def _upsert_and_emit(
         self,
@@ -27,11 +27,11 @@ class StructureController(Protocol):
         item_id: Optional[int],
         emit_signal: Callable[..., None],
     ) -> Any:
-        """Создание/обновление элемента с отправкой сигнала."""
+        """Create/update element with signal emission."""
         ...
 
     def _emit_signal(self, *args, **kwargs) -> None:
-        """Отправка сигнала о событии."""
+        """Emit signal about event."""
         ...
 
     def _execute_with_validation(
@@ -43,7 +43,7 @@ class StructureController(Protocol):
         *,
         require_parent: bool = True,
     ) -> Any:
-        """Выполнение операции с валидацией."""
+        """Execute operation with validation."""
         ...
 
 
@@ -57,43 +57,43 @@ def process_item(
     require_parent: bool = True,
 ) -> bool:
     """
-    Общий помощник для создания/обновления элементов структуры с валидацией.
+    General helper for creating/updating structure elements with validation.
 
     Args:
-        controller: Контроллер, реализующий протокол StructureController
-        data: Данные для создания/обновления элемента
-        item_type: Тип структурного элемента
-        item_id: ID элемента для обновления (опционально)
-        is_update: True для обновления, False для создания
-        require_parent: Требовать наличие родителя (sphere_id/section_id/...).
-            По умолчанию True. Отключайте явно только если операция допускает отсутствие родителя.
+        controller: Controller implementing StructureController protocol
+        data: Data for creating/updating element
+        item_type: Type of structural element
+        item_id: ID of element to update (optional)
+        is_update: True for update, False for creation
+        require_parent: Require parent presence (sphere_id/section_id/...).
+            Defaults to True. Disable explicitly only if operation allows missing parent.
 
     Returns:
-        bool: True в случае успеха, False в случае неудачи
+        bool: True on success, False on failure
 
     Raises:
-        TypeError: Если controller не реализует необходимый протокол
-        ValueError: Если переданы некорректные данные
+        TypeError: If controller doesn't implement required protocol
+        ValueError: If incorrect data is passed
     """
-    # Проверяем, что контроллер реализует необходимый протокол
+    # Check that controller implements required protocol
     if not isinstance(controller, StructureController):
-        error_msg = f"Контроллер должен реализовывать протокол StructureController, получен {type(controller)}"
+        error_msg = f"Controller must implement StructureController protocol, got {type(controller)}"
         logger.error(error_msg)
         raise TypeError(error_msg)
 
-    # Валидируем входные данные
+    # Validate input data
     if not isinstance(data, dict):
-        error_msg = f"Аргумент data должен быть dict, получен {type(data)}"
+        error_msg = f"Argument data must be dict, got {type(data)}"
         logger.error(error_msg)
         raise ValueError(error_msg)
 
     if is_update and item_id is None:
-        error_msg = "Для операций обновления требуется item_id"
+        error_msg = "item_id is required for update operations"
         logger.error(error_msg)
         raise ValueError(error_msg)
 
     def _process_operation():
-        """Внутренняя функция для выполнения операции создания/обновления."""
+        """Internal function to perform create/update operation."""
         try:
             return controller._upsert_and_emit(
                 item_type=item_type,
@@ -106,7 +106,7 @@ def process_item(
             logger.error("Error in _upsert_and_emit: %s", e)
             raise
 
-    operation_name = "обновление" if is_update else "создание"
+    operation_name = "update" if is_update else "creation"
 
     try:
         result = controller._execute_with_validation(
@@ -120,7 +120,7 @@ def process_item(
         # Явно обрабатываем различные типы результатов
         if result is None:
             logger.warning(
-                "Операция %s вернула None (item_type=%s, item_id=%s)",
+                "Operation %s returned None (item_type=%s, item_id=%s)",
                 operation_name,
                 getattr(item_type, "name", item_type),
                 item_id,
@@ -133,13 +133,13 @@ def process_item(
         log_level = logging.INFO if success else logging.WARNING
         logger.log(
             log_level,
-            "Элемент: %s (%s)",
-            "успешно обновлён"
+            "Element: %s (%s)",
+            "successfully updated"
             if is_update and success
             else (
-                "не обновлён"
+                "not updated"
                 if is_update and not success
-                else ("успешно создан" if success else "не создан")
+                else ("successfully created" if success else "not created")
             ),
             getattr(item_type, "name", item_type),
         )
@@ -147,5 +147,5 @@ def process_item(
         return success
 
     except Exception as e:
-        logger.exception("Ошибка во время операции %s: %s", operation_name, e)
+        logger.exception("Error during %s operation: %s", operation_name, e)
         return False

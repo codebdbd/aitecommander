@@ -1,80 +1,80 @@
 """
-Protocols для сервисного слоя.
+Protocols for service layer.
 
-✅ НОВЫЙ ФАЙЛ: Строгая типизация зависимостей через Protocol.
+✅ NEW FILE: Strict typing of dependencies through Protocol.
 """
 
 from typing import Any, Dict, List, Optional, Protocol
 
 
 class DatabaseProtocol(Protocol):
-    """Протокол для Database с необходимыми атрибутами для сервисов.
+    """Protocol for Database with necessary attributes for services.
     
-    ✅ ИСПРАВЛЕНИЕ: Заменяет Any на конкретный Protocol для type safety.
+    ✅ FIX: Replaces Any with specific Protocol for type safety.
     """
     
-    # Репозитории/модели
+    # Repositories/models
     spheres: Any
     sections: Any
     categories: Any
     links: Any
     
-    # Методы транзакций
+    # Transaction methods
     def transaction(self) -> Any:
-        """Контекстный менеджер транзакции."""
+        """Transaction context manager."""
         ...
     
     def commit(self) -> None:
-        """Фиксирует транзакцию."""
+        """Commits transaction."""
         ...
     
     def rollback(self) -> None:
-        """Откатывает транзакцию."""
+        """Rolls back transaction."""
         ...
     
-    # Методы импорта/экспорта
+    # Import/export methods
     def get_full_structure(self) -> List[Dict]:
-        """Возвращает полную структуру данных."""
+        """Returns full data structure."""
         ...
     
     def export_full_structure(self) -> Dict[str, List]:
-        """Экспортирует структуру."""
+        """Exports structure."""
         ...
     
     def export_full_structure_async(
         self, on_finished=None, on_error=None, on_progress=None
     ) -> None:
-        """Асинхронный экспорт структуры."""
+        """Asynchronous structure export."""
         ...
     
     def import_full_structure(self, data: List[Dict]) -> None:
-        """Импортирует структуру."""
+        """Imports structure."""
         ...
     
     def import_full_structure_async(
         self, data: List[Dict], on_finished=None, on_error=None, on_progress=None
     ) -> None:
-        """Асинхронный импорт структуры."""
+        """Asynchronous structure import."""
         ...
     
     def export_section_tree(self, section_id: int) -> Dict[str, Any]:
-        """Экспортирует раздел."""
+        """Exports section."""
         ...
     
     def import_section_tree(self, tree: Dict[str, Any]) -> None:
-        """Импортирует раздел."""
+        """Imports section."""
         ...
     
     def export_category_tree(self, category_id: int) -> Dict[str, Any]:
-        """Экспортирует категорию."""
+        """Exports category."""
         ...
     
     def import_category_tree(self, tree: Dict[str, Any]) -> None:
-        """Импортирует категорию."""
+        """Imports category."""
         ...
     
     def import_category_trees_bulk(self, trees: List[Dict[str, Any]]) -> None:
-        """Импортирует несколько категорий."""
+        """Imports multiple categories."""
         ...
 
 

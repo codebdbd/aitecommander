@@ -15,19 +15,19 @@ from app.controllers.ui.undo.commands_links import (
 from app.controllers.ui.undo.stack import UndoManager
 from app.views.windows.dialogs.link_dialog.link_dialog import LinkDialog
 
-# Константы для макросов отмены/повтора
-MACRO_DELETE_LINKS_TEXT = "Удаление {count} ссылок"
+# Constants for undo/redo macros
+MACRO_DELETE_LINKS_TEXT = "Deleting {count} links"
 
 
 logger = logging.getLogger(__name__)
 
 
 class LinkOperationsController(QObject):
-    """Контроллер для операций со ссылками: создание, редактирование, удаление.
+    """Controller for link operations: creation, editing, deletion.
 
-    Подписчики на сигналы обязаны быть корректными и не выбрасывать исключения.
-    Любые ошибки подписчиков будут залогированы через logger.exception, но не должны
-    полагаться на подавление исключений внутри контроллера.
+    Signal subscribers must be correct and not throw exceptions.
+    Any subscriber errors will be logged via logger.exception, but should not
+    rely on exception suppression within the controller.
     """
 
     def __init__(self, db, undo_stack: UndoManager, main_window):
@@ -36,24 +36,24 @@ class LinkOperationsController(QObject):
         self.undo_stack = undo_stack
         self.main_window = main_window
 
-    # --- Сигналы внешним слушателям ---
-    # Сигнал о том, что данные ссылок в категории изменились и требуется перезагрузка таблицы
+    # --- Signals to external listeners ---
+    # Signal that link data in category has changed and table reload is required
     links_changed = pyqtSignal(int)  # category_id
-    # Сигнал о том, что состояние избранного изменилось (требуется refresh верхней панели)
+    # Signal that favorite state has changed (requires top panel refresh)
     favorites_changed = pyqtSignal()
-    # Новый сигнал: список недавних ссылок изменился (например, при открытии ссылки)
+    # New signal: recent links list changed (e.g., when link is opened)
     recents_changed = pyqtSignal()
-    # Новый сигнал: конкретная ссылка создана/обновлена (payload с category_id, id и др.)
+    # New signal: specific link created/updated (payload with category_id, id, etc.)
     link_saved = pyqtSignal(dict)
-    # Новый сигнал: ссылка удалена (payload с category_id, id и др.)
+    # New signal: link deleted (payload with category_id, id, etc.)
     link_deleted = pyqtSignal(dict)
 
-    # --- Централизованные методы эмиссии сигналов ---
+    # --- Centralized signal emission methods ---
     def emit_links_changed(self, category_id: int) -> None:
-        """Сообщить подписчикам, что изменились ссылки для категории.
+        """Notify subscribers that links for category have changed.
 
-        Требование: подписчики не должны выбрасывать исключения. Ошибки будут
-        залогированы для диагностики, но не подавляются молча.
+        Requirement: subscribers must not throw exceptions. Errors will
+        be logged for diagnostics, but not suppressed silently.
         """
         try:
             if isinstance(category_id, int) and category_id > 0:
@@ -62,10 +62,10 @@ class LinkOperationsController(QObject):
             logger.exception("emit_links_changed: failed to emit signal")
 
     def emit_favorites_changed(self) -> None:
-        """Сообщить о смене состояния избранного.
+        """Notify about favorite state change.
 
-        Требование: подписчики не должны выбрасывать исключения. Ошибки будут
-        залогированы через logger.exception.
+        Requirement: subscribers must not throw exceptions. Errors will
+        be logged via logger.exception.
         """
         try:
             self.favorites_changed.emit()
@@ -73,10 +73,10 @@ class LinkOperationsController(QObject):
             logger.exception("emit_favorites_changed: failed to emit signal")
 
     def emit_recents_changed(self) -> None:
-        """Сообщить об изменении списка недавних ссылок.
+        """Notify about recent links list change.
 
-        Требование: подписчики не должны выбрасывать исключения. Ошибки будут
-        залогированы через logger.exception.
+        Requirement: subscribers must not throw exceptions. Errors will
+        be logged via logger.exception.
         """
         try:
             self.recents_changed.emit()
@@ -97,9 +97,9 @@ class LinkOperationsController(QObject):
         except Exception:
             logger.exception("emit_link_deleted: failed to emit signal")
 
-    # --- Централизованные обработчики событий операций ---
+    # --- Centralized operation event handlers ---
     def on_link_opened(self, link_data: dict) -> None:
-        """Вызвать после успешного открытия ссылки (обновляет недавние и таблицу категории)."""
+        """Call after successful link opening (updates recent links and category table)."""
         try:
             self.emit_recents_changed()
             cat_id = (
@@ -111,7 +111,7 @@ class LinkOperationsController(QObject):
             logger.exception("on_link_opened: failed to emit signals")
 
     def on_favorite_toggled(self, category_id: int | None) -> None:
-        """Вызвать после завершения операции переключения избранного."""
+        """Call after favorite toggle operation completion."""
         try:
             self.emit_favorites_changed()
             if isinstance(category_id, int) and category_id > 0:
@@ -120,7 +120,7 @@ class LinkOperationsController(QObject):
             logger.exception("on_favorite_toggled: failed to emit signals")
 
     def on_link_updated(self, updated_link: dict) -> None:
-        """Вызвать после обновления ссылки (влияет на недавние и возможно таблицу)."""
+        """Call after link update (affects recent links and possibly table)."""
         try:
             self.emit_recents_changed()
             cat_id = (
@@ -134,15 +134,15 @@ class LinkOperationsController(QObject):
             logger.exception("on_link_updated: failed to emit signals")
 
     def on_links_deleted(self, links: list[dict]) -> None:
-        """Вызвать после удаления ссылок (батч/одиночные)."""
+        """Call after link deletion (batch/single)."""
         try:
-            # Обновляем таблицу по категории первой ссылки (как и раньше)
+            # Update table by first link's category (as before)
             cat_id = (links[0] if links else {}).get("category_id")
             if isinstance(cat_id, int) and cat_id > 0:
                 self.emit_links_changed(cat_id)
-            # Удаление может повлиять на недавние
+            # Deletion may affect recent links
             self.emit_recents_changed()
-            # Пробрасываем точечные события удаления
+            # Emit point deletion events
             for payload in links or []:
                 if isinstance(payload, dict):
                     self.emit_link_deleted(payload)
@@ -150,7 +150,7 @@ class LinkOperationsController(QObject):
             logger.exception("on_links_deleted: failed to emit signals")
 
     def get_dialog_initialization_data(self, category_id=None):
-        """Получить данные для инициализации диалога ссылки."""
+        """Get data for link dialog initialization."""
         data = {"spheres": self._prepare_spheres_data(), "category_hierarchy": None}
 
         if category_id:
@@ -159,41 +159,41 @@ class LinkOperationsController(QObject):
         return data
 
     def _prepare_spheres_data(self):
-        """Подготовить данные сфер для диалога."""
+        """Prepare sphere data for dialog."""
         return self.db.spheres.get_spheres()
 
     def _get_category_hierarchy(self, category_id):
-        """Получить иерархию категории (сфера -> раздел -> категория)."""
+        """Get category hierarchy (sphere -> section -> category)."""
         return self.db.categories.get_category_hierarchy(category_id)
 
     def get_sections_for_sphere(self, sphere_id):
-        """Получить разделы для сферы."""
+        """Get sections for sphere."""
         return self.db.sections.get_sections(sphere_id)
 
     def get_categories_for_section(self, section_id):
-        """Получить категории для раздела."""
+        """Get categories for section."""
         return self.db.categories.get_categories(section_id)
 
     def get_database(self):
-        """Получить ссылку на базу данных для валидации."""
+        """Get database reference for validation."""
         return self.db
 
     def show_link_dialog(self, link=None, category_id=None):
-        """Показать диалог создания/редактирования ссылки."""
-        # Гарантировать, что всегда передаём валидный category_id
+        """Show link creation/editing dialog."""
+        # Guarantee that we always pass a valid category_id
         cat_id = category_id or self.main_window.get_current_category_id()
         if not cat_id:
-            # Попробовать взять первую доступную категорию из базы
+            # Try to get first available category from database
             first_cat_id = self.db.categories.get_first_category_id()
             if first_cat_id:
                 cat_id = first_cat_id
 
-        # Создаем контроллер для диалога
+        # Create controller for dialog
         from .link_dialog_controller import LinkDialogController
 
         link_controller = LinkDialogController(self.db)
 
-        # Получаем данные для инициализации через контроллер
+        # Get initialization data through controller
         init_data = link_controller.get_initialization_data(cat_id, link)
 
         dlg = LinkDialog(
@@ -207,7 +207,7 @@ class LinkOperationsController(QObject):
 
         result = dlg.exec() == QDialog.DialogCode.Accepted
         if result:
-            # Получаем данные через контроллер
+            # Get data through controller
             links_to_save = link_controller.get_result_data()
             logger.debug(
                 f"show_link_dialog: got {len(links_to_save) if links_to_save else 0} links to save"
@@ -220,34 +220,35 @@ class LinkOperationsController(QObject):
 
             if not links_to_save:
                 return False
-            # ВАЖНО: определяем обновление/создание по самим результатам, а не по факту редактирования
-            # Если результат содержит id, это обновление существующей записи; иначе — создание новой
+            # IMPORTANT: determine update/creation by results themselves, not by edit fact
+            # If result contains id, this is updating existing record; otherwise — creating new
 
-            # Используем пакетную команду для множественных ссылок
+            # Use batch command for multiple links
             if len(links_to_save) > 1:
-                # Для множественных ссылок (профили) всегда создаются новые записи
+                # For multiple links (profiles) always create new records
                 logger.debug(
                     f"show_link_dialog: using BatchSaveLinksCmd for {len(links_to_save)} links"
                 )
                 cmd = BatchSaveLinksCmd(
                     links_data=links_to_save,
-                    old_link_data=None,  # Всегда None для множественных ссылок
+                    old_link_data=None,  # Always None for multiple links
                     main_window=self.main_window,
                 )
                 self.undo_stack.push(cmd)
 
-                # Если среди сохраняемых ссылок есть изменение признака избранного — уведомим UI централизованно
+                # If any saved links have favorite flag change — notify UI centrally
+                # (e.g., if link was marked as favorite, notify UI to update favorite count)
                 try:
                     if any(
                         isinstance(p, dict) and ("is_favorite" in p)
                         for p in links_to_save
                     ):
-                        # Передаём None, чтобы не дублировать финальный links_changed ниже
+                        # Pass None to avoid duplicating final links_changed below
                         self.on_favorite_toggled(None)
                 except Exception:
                     logger.exception("show_link_dialog: on_favorite_toggled failed")
 
-                # Устанавливаем фокус на первую добавленную ссылку через планировщик
+                # Set focus on first added link through scheduler
                 if hasattr(self.main_window, "links_actions") and hasattr(
                     self.main_window.links_actions, "focus_on_link"
                 ):
@@ -268,7 +269,7 @@ class LinkOperationsController(QObject):
                             logger.exception(
                                 "show_link_dialog(batch): schedule focus failed"
                             )
-                # Эмит событий о сохранённых ссылках (пакетно)
+                # Emit events about saved links (batch)
                 try:
                     for payload in links_to_save:
                         if isinstance(payload, dict):
@@ -276,20 +277,20 @@ class LinkOperationsController(QObject):
                 except Exception:
                     logger.exception("show_link_dialog: emit link_saved failed")
             else:
-                # Для одиночных ссылок используем обычную команду
+                # For single links use regular command
                 data = links_to_save[0]
                 logger.debug(
                     f"show_link_dialog: using SaveLinkCmd for single link: name={data.get('name')}, browser_key={data.get('browser_key')}"
                 )
                 if data.get("_action") == "delete":
-                    # Используем Undo-команду, которая делегирует удаление в сервисный слой
+                    # Use Undo command that delegates deletion to service layer
                     cmd = DeleteLinkCmd(
                         link_to_delete=data, main_window=self.main_window
                     )
                     self.undo_stack.push(cmd)
                 else:
-                    # Переопределяем признак обновления для одиночного результата:
-                    # если у данных нет id — это создание новой ссылки, не передаём old_data
+                    # Override update flag for single result:
+                    # if data has no id — this is creating new link, don't pass old_data
                     is_update_single = bool(data.get("id"))
                     cmd = SaveLinkCmd(
                         new_data=data,
@@ -298,17 +299,17 @@ class LinkOperationsController(QObject):
                     )
                     self.undo_stack.push(cmd)
 
-                    # Если запись содержит поле is_favorite — уведомим централизованно
+                    # If record contains is_favorite field — notify centrally
                     try:
                         if isinstance(data, dict) and ("is_favorite" in data):
-                            # Передаём None, чтобы не дублировать финальный links_changed ниже
+                            # Pass None to avoid duplicating final links_changed below
                             self.on_favorite_toggled(None)
                     except Exception:
                         logger.exception(
                             "show_link_dialog(single): on_favorite_toggled failed"
                         )
 
-                    # Планируем восстановление фокуса на ссылке (для новых и обновлённых)
+                    # Schedule focus restoration on link (for new and updated)
                     logger.debug(
                         f"Focus check: is_update={is_update_single}, has_links_actions={hasattr(self.main_window, 'links_actions')}"
                     )
@@ -338,7 +339,7 @@ class LinkOperationsController(QObject):
                                 )
                         else:
                             logger.warning("No link ID available for focusing")
-                    # Эмит события о сохранении одиночной ссылки
+                    # Emit event about single link save
                     try:
                         if isinstance(data, dict):
                             self.link_saved.emit(data)
@@ -347,7 +348,7 @@ class LinkOperationsController(QObject):
                             "show_link_dialog(single): emit link_saved failed"
                         )
 
-            # Сигнализируем о необходимости перезагрузки таблицы текущей категории
+            # Signal that current category table needs to be reloaded
             try:
                 if isinstance(cat_id, int) and cat_id > 0:
                     self.links_changed.emit(cat_id)
@@ -357,20 +358,20 @@ class LinkOperationsController(QObject):
         return result
 
     def delete_links_with_confirmation(self, links):
-        """Удалить ссылки БЕЗ подтверждения.
+        """Delete links WITHOUT confirmation.
 
-        Приводим поведение к единому сценарию: как в контекстном меню —
-        выполняем немедленное удаление. Для нескольких ссылок используем
-        пакетную команду, для одной — одиночную команду. Диалогов
-        подтверждения больше нет.
+        Bring behavior to unified scenario: like in context menu —
+        perform immediate deletion. For multiple links use
+        batch command, for single — single command. No confirmation
+        dialogs anymore.
         """
         if not links:
             return
 
-        # Одиночное удаление — без подтверждения
+        # Single deletion — without confirmation
         if len(links) == 1:
             cmd = DeleteLinkCmd(link_to_delete=links[0], main_window=self.main_window)
-            # Подавляем внутренние обновления UI, внешний перезагрузчик/статусбар уже вызываются
+            # Suppress internal UI updates, external reloader/statusbar already called
             try:
                 cmd._suppress_ui = True
             except Exception:
@@ -378,7 +379,7 @@ class LinkOperationsController(QObject):
                     "delete_links_with_confirmation(single): failed to set _suppress_ui"
                 )
             self.undo_stack.push(cmd)
-            # Централизованный вызов сигналов
+            # Centralized signal emission
             try:
                 self.on_links_deleted(links)
             except Exception:
@@ -387,18 +388,18 @@ class LinkOperationsController(QObject):
                 )
             return
 
-        # Пакетное удаление — без подтверждения, с макросом для Undo
+        # Batch deletion — without confirmation, with Undo macro
         with self.undo_stack.macro(MACRO_DELETE_LINKS_TEXT.format(count=len(links))):
             cmd = BatchDeleteLinksCmd(
                 links_to_delete=links, main_window=self.main_window
             )
-            # Внутренний UI подавляется, внешний reload выполняется единоразово
+            # Internal UI suppressed, external reload performed once
             try:
                 cmd._suppress_ui = True
             except Exception:
                 pass
             self.undo_stack.push(cmd)
-        # После батч-удаления централизованно оповещаем слушателей
+        # After batch deletion centrally notify listeners
         try:
             self.on_links_deleted(links)
         except Exception:

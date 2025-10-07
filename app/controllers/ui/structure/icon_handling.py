@@ -19,7 +19,7 @@ class IconHandling:
         self._logger = logging.getLogger(__name__)
 
     def _get_icon_for_item(self, item_type: str, icon_name: str) -> QIcon:
-        # Централизованный резолвер: учитывает и заданный icon_name, и тип
+        # Centralized resolver: considers both provided icon_name and type
         try:
             resolved = resolve_icon_for_link(
                 {"type": item_type, "icon_path": icon_name or ""}
@@ -31,13 +31,13 @@ class IconHandling:
                 "IconHandling._get_icon_for_item: failed to resolve icon for %s", item_type,
                 exc_info=True,
             )
-        # Пустая иконка, если ничего не найдено
+        # Empty icon if nothing found
         return QIcon()
 
     def reload_icons(self) -> None:
-        """Переустанавливает иконки для всех элементов дерева.
+        """Reapply icons for all tree items.
 
-        Обходим модель QTreeView и выставляем иконки через DecorationRole.
+        Traverse QTreeView model and set icons via DecorationRole.
         """
         raw_model = getattr(self.tree, "model", lambda: None)()
         if raw_model is None:

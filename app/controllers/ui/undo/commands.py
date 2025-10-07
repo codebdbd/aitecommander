@@ -1,5 +1,5 @@
 """
-Общие вспомогательные undo/redo-команды для централизованного использования.
+Common helper undo/redo commands for centralized usage.
 """
 
 from __future__ import annotations
@@ -10,21 +10,21 @@ from .base import BaseCommand, log_command
 
 
 class NoopCommand(BaseCommand):
-    """Команда-заглушка: ничего не делает, полезна для выравнивания макросов."""
+    """No-op command: does nothing, useful for macro alignment."""
 
     @log_command
     def _noop(self) -> None:
         return None
 
-    # Избегаем дублирования: используем один и тот же no-op для обоих действий
+    # Avoid duplication: use the same no-op for both actions
     redo = _noop
     undo = _noop
 
 
 class MacroCommand(BaseCommand):
-    """Команда-обёртка, которая выполняет переданные колбэки в redo/undo.
+    """Wrapper command that executes provided callbacks in redo/undo.
 
-    Удобна для простых изменений, когда нет смысла выделять отдельный класс.
+    Convenient for simple changes when creating a separate class is unnecessary.
     """
 
     def __init__(

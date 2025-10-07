@@ -9,7 +9,7 @@ from ..types.link_type import LinkType
 logger = logging.getLogger(__name__)
 
 
-# Белый список допустимых колонок для выборки ссылок (единый источник истины)
+# Whitelist of allowed columns for link selection (single source of truth)
 ALLOWED_LINK_COLUMNS = {
     "id",
     "category_id",
@@ -27,14 +27,14 @@ ALLOWED_LINK_COLUMNS = {
 
 
 class LinkModel(DatabaseBase):
-    """Унифицированная модель для работы со ссылками в базе данных.
+    """Unified model for working with links in database.
 
-    Объединяет низкоуровневые операции с БД и высокоуровневые методы
-    для удобной работы с ссылками.
+    Combines low-level DB operations and high-level methods
+    for convenient link management.
     """
 
     def __init__(self, connection_manager):
-        """Инициализирует LinkModel с менеджером соединений."""
+        """Initializes LinkModel with connection manager."""
         super().__init__(connection_manager)
 
     def get_links(
@@ -44,20 +44,20 @@ class LinkModel(DatabaseBase):
         fields: Optional[List[str]] = None,
         all_fields: bool = False,
     ) -> List[Dict[str, Any]]:
-        """Возвращает список ссылок для указанной категории.
+        """Returns list of links for specified category.
 
-        Параметры:
-        - fields: необязательный список полей для выборки. Игнорируется, если указан all_fields.
-        - all_fields: если True — выбираются все столбцы (эквивалент прежнего get_links_for_category()).
+        Parameters:
+        - fields: optional list of fields to select. Ignored if all_fields is specified.
+        - all_fields: if True — selects all columns (equivalent to former get_links_for_category()).
 
-        По умолчанию выбирается стабильный поднабор столбцов для UI:
+        By default selects stable subset of columns for UI:
         [id, category_id, name, url, type, notes, is_favorite, last_used, icon_path, args, browser_key, position].
         """
         try:
             if all_fields:
                 select_clause = "SELECT *"
             else:
-                # Если передан конкретный список полей — используем его, иначе дефолтный поднабор как раньше
+                # If specific field list passed — use it, otherwise default subset as before
                 default_fields = [
                     "id",
                     "category_id",
@@ -72,14 +72,14 @@ class LinkModel(DatabaseBase):
                     "browser_key",
                     "position",
                 ]
-                # Фильтрация пользовательских полей по белому списку
+                # Filter user fields by whitelist
                 use_fields_raw = list(fields or default_fields)
                 use_fields = [
                     f
                     for f in use_fields_raw
                     if isinstance(f, str) and f in ALLOWED_LINK_COLUMNS
                 ]
-                # Логируем игнорируемые поля
+                # Log ignored fields
                 ignored = [
                     f
                     for f in use_fields_raw
@@ -87,14 +87,14 @@ class LinkModel(DatabaseBase):
                 ]
                 if ignored:
                     logger.warning(
-                        "get_links: проигнорированы недопустимые поля %s; допустимые=%s",
+                        "get_links: ignored invalid fields %s; allowed=%s",
                         ignored,
                         sorted(ALLOWED_LINK_COLUMNS),
                     )
-                # Откат к дефолтному набору при пустом списке после фильтрации
+                # Fallback to default set when empty list after filtering
                 if not use_fields:
                     use_fields = list(default_fields)
-                # Простой фолбэк на * только если по какой-то причине и дефолт пуст
+                # Simple fallback to * only if for some reason default is empty
                 select_clause = (
                     f"SELECT {', '.join(use_fields)}" if use_fields else "SELECT *"
                 )
@@ -107,7 +107,7 @@ class LinkModel(DatabaseBase):
             return [dict(row) for row in rows]
         except Exception as e:
             logger.error(
-                "Ошибка получения ссылок для категории %s: %s",
+                "Error getting links for category %s: %s",
                 category_id,
                 e,
                 exc_info=True,
@@ -115,7 +115,7 @@ class LinkModel(DatabaseBase):
             raise
 
     def count_links_by_category(self, category_id: int) -> int:
-        """Возвращает количество ссылок для указанной категории (эффективный подсчет)."""
+        """Returns number of links for specified category (efficient count)."""
         try:
             result = self._execute_with_error_handling(
                 "SELECT COUNT(*) AS cnt FROM link WHERE category_id=?",
@@ -125,7 +125,7 @@ class LinkModel(DatabaseBase):
             return int(result["cnt"]) if result else 0
         except Exception as e:
             logger.error(
-                "Ошибка подсчета ссылок для категории %s: %s",
+                "Error counting links for category %s: %s",
                 category_id,
                 e,
                 exc_info=True,
@@ -133,20 +133,20 @@ class LinkModel(DatabaseBase):
             return 0
 
     def count_links_by_categories(self, category_ids: List[int]) -> Dict[int, int]:
-        """Возвращает словарь {category_id: count} для набора категорий одним запросом.
+        """Returns dictionary {category_id: count} for set of categories in one query.
 
-        Безопасно обрабатывает пустой список, возвращая пустой словарь. В случае ошибки
-        возвращает пустой словарь и логирует проблему, сохраняя стабильность UI.
+        Safely handles empty list, returning empty dictionary. In case of error
+        returns empty dictionary and logs problem, maintaining UI stability.
         """
         if not category_ids:
             return {}
         try:
-            # Убираем дубликаты и некорректные значения
+            # Remove duplicates and incorrect values
             ids = [int(cid) for cid in category_ids if isinstance(cid, int) and cid > 0]
             if not ids:
                 return {}
 
-            # Чанкирование для лимита параметров SQLite (~999)
+            # Chunking for SQLite parameter limit (~999)
             CHUNK = 900
             result: Dict[int, int] = {}
             for i in range(0, len(ids), CHUNK):
@@ -167,7 +167,7 @@ class LinkModel(DatabaseBase):
             return result
         except Exception as e:
             logger.error(
-                "Ошибка пакетного подсчета ссылок для категорий %s: %s",
+                "Error batch counting links for categories %s: %s",
                 category_ids,
                 e,
                 exc_info=True,
@@ -175,13 +175,13 @@ class LinkModel(DatabaseBase):
             return {}
 
     def upsert_link(self, link: Dict[str, Any]) -> int:
-        """Вставляет или обновляет запись о ссылке. Возвращает ID записи.
+        """Inserts or updates link record. Returns record ID.
 
-        Транзакции не завершаются внутри метода. Коммит/роллбек выполняются
-        вызывающей стороной (сервис/бизнес-слой) для возможности группировать
-        несколько операций в одну атомарную транзакцию.
+        Transactions are not completed inside method. Commit/rollback performed
+        by calling side (service/business layer) to enable grouping
+        multiple operations into one atomic transaction.
         """
-        self._validate_required_fields(link, ["category_id"], "ссылки")
+        self._validate_required_fields(link, ["category_id"], "link")
 
         all_possible_fields = [
             "id",
@@ -198,32 +198,32 @@ class LinkModel(DatabaseBase):
             "browser_key",
         ]
 
-        # Создаем копию данных с учётом всех возможных полей
+        # Create data copy considering all possible fields
         data = {field: link.get(field) for field in all_possible_fields}
         data["is_favorite"] = int(data.get("is_favorite", 0) or 0)
-        # icon_path NOT NULL в схеме: нормализуем к пустой строке, если отсутствует/None
+        # icon_path NOT NULL in schema: normalize to empty string if missing/None
         data["icon_path"] = data.get("icon_path", "") or ""
-        # Нормализация типа ссылки: Enum/строка -> строковое значение ('web', 'file', ...)
+        # Link type normalization: Enum/string -> string value ('web', 'file', ...)
         try:
             data["type"] = LinkType.from_value(data.get("type", "web")).value
         except Exception:
-            # Безопасный фолбэк
+            # Safe fallback
             data["type"] = LinkType.WEB.value
 
         logger.debug(
-            "Upsert ссылки: %s, browser_key=%s",
-            data.get("name", "Без названия"),
+            "Upsert link: %s, browser_key=%s",
+            data.get("name", "Untitled"),
             data.get("browser_key"),
         )
-        logger.debug("Upsert ссылки: полные данные=%s", data)
+        logger.debug("Upsert link: full data=%s", data)
 
         try:
             if data["id"]:
-                # Обновление или восстановление
+                # Update or restore
                 if data["position"] is None:
                     data["position"] = 0
 
-                # Подготавливаем данные для обновления
+                # Prepare data for update
                 update_fields = [f for f in all_possible_fields if f != "id"]
                 update_placeholders = ", ".join([f"{f}=?" for f in update_fields])
                 update_values = [data[f] for f in update_fields]
@@ -233,7 +233,7 @@ class LinkModel(DatabaseBase):
                     tuple(update_values + [data["id"]]),
                 )
 
-                # Если запись не была обновлена, вставляем новую с указанным ID
+                # If record was not updated, insert new with specified ID
                 if cursor.rowcount == 0:
                     insert_fields = all_possible_fields
                     insert_placeholders = ", ".join(["?"] * len(insert_fields))
@@ -245,19 +245,19 @@ class LinkModel(DatabaseBase):
                     )
 
                 logger.debug(
-                    "Обновлена ссылка с ID %s, browser_key=%s",
+                    "Updated link with ID %s, browser_key=%s",
                     data["id"],
                     data.get("browser_key"),
                 )
                 return data["id"]
             else:
-                # Новая запись
+                # New record
                 data["position"] = self._get_next_position(
                     "link", "category_id", data["category_id"]
                 )
 
-                # Тихая обработка дубликатов по требованию:
-                # Дубликат = совпадают Имя (name), Путь (url) и Аргумент (args) в рамках категории
+                # Silent duplicate handling on demand:
+                # Duplicate = matching Name (name), Path (url) and Argument (args) within category
                 existing = self.get_link_by_name_url_args(
                     data["category_id"],
                     data.get("name", ""),
@@ -265,7 +265,7 @@ class LinkModel(DatabaseBase):
                     data.get("args", ""),
                 )
                 if existing:
-                    # Молча возвращаем существующий ID без ошибок/предупреждений
+                    # Silently return existing ID without errors/warnings
                     return existing.get("id")
 
                 columns = [f for f in all_possible_fields if f != "id"]
@@ -279,19 +279,19 @@ class LinkModel(DatabaseBase):
 
                 new_id = cursor.lastrowid
                 logger.info(
-                    "Добавлена новая ссылка: %s, browser_key=%s",
-                    data.get("name", "Без названия"),
+                    "Added new link: %s, browser_key=%s",
+                    data.get("name", "Untitled"),
                     data.get("browser_key"),
                 )
                 logger.debug(
-                    "Добавлена новая ссылка с ID %s, полные данные=%s",
+                    "Added new link with ID %s, full data=%s",
                     new_id,
                     data,
                 )
                 return new_id
         except sqlite3.IntegrityError as e:
-            # Молча игнорируем дубликаты по новой уникальности (category_id,name,url,args):
-            # пытаемся найти уже существующую запись и вернуть её ID
+            # Silently ignore duplicates by new uniqueness (category_id,name,url,args):
+            # try to find existing record and return its ID
             try:
                 cat_id = link.get("category_id")
                 name = link.get("name", "")
@@ -309,7 +309,7 @@ class LinkModel(DatabaseBase):
                             return rec_id
                     except (KeyError, TypeError, ValueError) as conv_err:
                         logger.debug(
-                            "upsert_link: ошибка преобразования ID: %s", conv_err
+                            "upsert_link: ID conversion error: %s", conv_err
                         )
             except Exception as ee:
                 logger.debug(
@@ -317,7 +317,7 @@ class LinkModel(DatabaseBase):
                     ee,
                     exc_info=True,
                 )
-            # Если не нашли — пробрасываем как DatabaseError, но без лишнего шума
+            # If not found — propagate as DatabaseError, but without extra noise
             raise DatabaseError(f"UNIQUE constraint failed: {e}")
 
     def get_link_by_unique_fields(
@@ -328,9 +328,9 @@ class LinkModel(DatabaseBase):
         link_type: str = "web",
         name: str = "",
     ):
-        """Находит ссылку по уникальным полям (category_id, url, args, type, name).
+        """Finds link by unique fields (category_id, url, args, type, name).
 
-        Примечание: одинаковые URL считаются дубликатами только если совпадают также args, type и имя ссылки.
+        Note: identical URLs are considered duplicates only if args, type and link name also match.
         """
         try:
             row = self._execute_with_error_handling(
@@ -343,17 +343,17 @@ class LinkModel(DatabaseBase):
             return None
         except Exception as e:
             logger.error(
-                "Ошибка поиска ссылки по уникальным полям: %s", e, exc_info=True
+                "Error finding link by unique fields: %s", e, exc_info=True
             )
             return None
 
     def get_link_by_name_url_args(
         self, category_id: int, name: str, url: str, args: str = ""
     ) -> Optional[Dict[str, Any]]:
-        """Найти ссылку по тройке (Имя, Путь, Аргумент) внутри категории.
+        """Find link by triple (Name, Path, Argument) within category.
 
-        Требование пользователя: дубликатом считается совпадение name, url, args в рамках category_id,
-        тип (type) игнорируется для этой проверки.
+        User requirement: duplicate is matching name, url, args within category_id,
+        type is ignored for this check.
         """
         try:
             row = self._execute_with_error_handling(
@@ -366,12 +366,12 @@ class LinkModel(DatabaseBase):
             return None
         except Exception as e:
             logger.error(
-                "Ошибка поиска ссылки по (name,url,args): %s", e, exc_info=True
+                "Error finding link by (name,url,args): %s", e, exc_info=True
             )
             return None
 
     def get_all_links(self) -> List[Dict[str, Any]]:
-        """Возвращает все ссылки из базы данных в виде списка словарей."""
+        """Returns all links from database as list of dictionaries."""
         try:
             rows = self._execute_with_error_handling(
                 "SELECT id, category_id, name, url, type, notes, "
@@ -381,30 +381,30 @@ class LinkModel(DatabaseBase):
             )
             return [dict(row) for row in rows]
         except Exception as e:
-            logger.error("Ошибка получения всех ссылок: %s", e, exc_info=True)
+            logger.error("Error getting all links: %s", e, exc_info=True)
             raise
 
     def delete_link(self, link_id: int):
-        """Удаляет ссылку по её ID."""
+        """Deletes link by its ID."""
         try:
             self._execute_with_error_handling(
                 "DELETE FROM link WHERE id= ?", (link_id,)
             )
 
-            logger.info("Удалена ссылка с ID %s", link_id)
+            logger.info("Deleted link with ID %s", link_id)
         except Exception as e:
-            logger.error("Ошибка удаления ссылки: %s", e, exc_info=True)
-            raise DatabaseError(f"Не удалось удалить ссылку: {e}")
+            logger.error("Error deleting link: %s", e, exc_info=True)
+            raise DatabaseError(f"Failed to delete link: {e}")
 
     def update_link_last_used(self, link_id: int):
-        """Обновляет время последнего использования для ссылки."""
+        """Updates last used time for link."""
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self._execute_with_error_handling(
             "UPDATE link SET last_used = ? WHERE id = ?", (now, link_id)
         )
 
     def count_favorites(self) -> int:
-        """Возвращает количество избранных ссылок."""
+        """Returns number of favorite links."""
         row = self._execute_with_error_handling(
             "SELECT COUNT(*) AS cnt FROM link WHERE is_favorite=1",
             fetch_method="one",
@@ -412,19 +412,19 @@ class LinkModel(DatabaseBase):
         return int(row["cnt"]) if row else 0
 
     def clear_favorites(self):
-        """Сбрасывает признак избранного у всех ссылок."""
+        """Resets favorite flag for all links."""
         try:
             self._execute_with_error_handling(
                 "UPDATE link SET is_favorite=0 WHERE is_favorite=1"
             )
 
-            logger.info("Очищены все избранные ссылки")
+            logger.info("Cleared all favorite links")
         except Exception as e:
-            logger.error("Ошибка очистки избранного: %s", e)
-            raise DatabaseError(f"Не удалось очистить избранное: {e}")
+            logger.error("Error clearing favorites: %s", e)
+            raise DatabaseError(f"Failed to clear favorites: {e}")
 
     def search_links(self, query: str):
-        """Ищет ссылки по всему дереву, где имя, URL или заметки содержат подстроку запроса."""
+        """Searches links throughout tree where name, URL or notes contain query substring."""
         if not query:
             return []
 
@@ -446,13 +446,13 @@ class LinkModel(DatabaseBase):
             )
             return [dict(row) for row in rows]
         except Exception as e:
-            logger.error("Ошибка поиска ссылок: %s", e)
+            logger.error("Error searching links: %s", e)
             raise
 
     def get_links_by_args_pattern(self, pattern: str) -> List[Dict[str, Any]]:
-        """Возвращает ссылки типа 'web', где args LIKE pattern.
+        """Returns 'web' type links where args LIKE pattern.
 
-        Пример pattern: '--profile-directory=%'
+        Example pattern: '--profile-directory=%'
         """
         try:
             rows = self._execute_with_error_handling(
@@ -462,11 +462,11 @@ class LinkModel(DatabaseBase):
             )
             return [dict(row) for row in rows] if rows else []
         except Exception as e:
-            logger.error("Ошибка выборки ссылок по шаблону args: %s", e)
+            logger.error("Error selecting links by args pattern: %s", e)
             raise
 
     def update_link_notes(self, link_id: int, new_notes: str) -> None:
-        """Обновляет поле notes для указанной ссылки."""
+        """Updates notes field for specified link."""
         try:
             self._execute_with_error_handling(
                 "UPDATE link SET notes = ? WHERE id = ?",
@@ -474,11 +474,11 @@ class LinkModel(DatabaseBase):
             )
 
         except Exception as e:
-            logger.error("Ошибка обновления заметок для ссылки %s: %s", link_id, e)
+            logger.error("Error updating notes for link %s: %s", link_id, e)
             raise
 
     def get_links_args_nonempty(self) -> List[Dict[str, Any]]:
-        """Возвращает строки с непустыми args (только столбец args)."""
+        """Returns rows with non-empty args (args column only)."""
         try:
             rows = self._execute_with_error_handling(
                 "SELECT args FROM link WHERE args IS NOT NULL AND TRIM(args) != ''",
@@ -486,13 +486,13 @@ class LinkModel(DatabaseBase):
             )
             return [dict(row) for row in rows] if rows else []
         except Exception as e:
-            logger.error("Ошибка получения непустых args: %s", e)
+            logger.error("Error getting non-empty args: %s", e)
             raise
 
-    # === Высокоуровневые методы для удобства использования ===
+    # === High-level methods for convenience ===
 
     def get_recent_links(self, limit: int = 10) -> List[Dict[str, Any]]:
-        """Получить недавние ссылки."""
+        """Get recent links."""
         try:
             rows = self._execute_with_error_handling(
                 """SELECT * FROM link 
@@ -504,11 +504,11 @@ class LinkModel(DatabaseBase):
             )
             return [dict(row) for row in rows]
         except Exception as e:
-            logger.error("Ошибка получения недавних ссылок: %s", e, exc_info=True)
+            logger.error("Error getting recent links: %s", e, exc_info=True)
             raise
 
     def get_favorite_links(self) -> List[Dict[str, Any]]:
-        """Получить избранные ссылки."""
+        """Get favorite links."""
         try:
             rows = self._execute_with_error_handling(
                 "SELECT * FROM link WHERE is_favorite=? ORDER BY position",
@@ -517,22 +517,22 @@ class LinkModel(DatabaseBase):
             )
             return [dict(row) for row in rows]
         except Exception as e:
-            logger.error("Ошибка получения избранных ссылок: %s", e, exc_info=True)
+            logger.error("Error getting favorite links: %s", e, exc_info=True)
             raise
 
     def get_link_by_id(self, link_id: int) -> Optional[Dict[str, Any]]:
-        """Получить ссылку по ID."""
+        """Get link by ID."""
         try:
             row = self._execute_with_error_handling(
                 "SELECT * FROM link WHERE id = ?", (link_id,), fetch_method="one"
             )
             return dict(row) if row else None
         except Exception as e:
-            logger.error("Ошибка получения ссылки %s: %s", link_id, e, exc_info=True)
+            logger.error("Error getting link %s: %s", link_id, e, exc_info=True)
             raise
 
     def update_link_order(self, link_ids: List[int]) -> bool:
-        """Обновить порядок ссылок."""
+        """Update link order."""
         try:
             with self.transaction():
                 for i, link_id in enumerate(link_ids):
@@ -541,15 +541,15 @@ class LinkModel(DatabaseBase):
                     )
             return True
         except Exception as e:
-            logger.error("Ошибка обновления порядка ссылок: %s", e, exc_info=True)
+            logger.error("Error updating link order: %s", e, exc_info=True)
             return False
 
     def batch_update_links(self, links_data: List[Dict[str, Any]]) -> bool:
-        """Пакетное обновление ссылок в транзакции."""
+        """Batch update links in transaction."""
         if not links_data:
             return True
 
-        # Готовим параметры для executemany: только валидные записи с id
+        # Prepare parameters for executemany: only valid records with id
         params: List[tuple] = []
         for link_data in links_data:
             link_id = link_data.get("id")
@@ -571,25 +571,25 @@ class LinkModel(DatabaseBase):
         try:
             with self.transaction():
                 cursor = self._execute_many_with_error_handling(sql, params)
-                # rowcount может быть -1 для некоторых драйверов; оборачиваем безопасно
+                # rowcount may be -1 for some drivers; wrap safely
                 try:
                     affected = int(getattr(cursor, "rowcount", 0) or 0)
                 except Exception:
                     affected = 0
-                # Опционально: если затронуто меньше, чем передано, можно залогировать
+                # Optionally: if affected less than passed, can log
                 if affected < len(params):
                     logger.debug(
-                        "batch_update_links: обновлено строк %s из %s",
+                        "batch_update_links: updated %s rows out of %s",
                         affected,
                         len(params),
                     )
             return True
         except Exception as e:
-            logger.error("Ошибка пакетного обновления ссылок: %s", e, exc_info=True)
+            logger.error("Error batch updating links: %s", e, exc_info=True)
             raise
 
     def get_next_position(self, category_id: int) -> int:
-        """Получить следующую позицию для новой ссылки в категории."""
+        """Get next position for new link in category."""
         try:
             result = self._execute_with_error_handling(
                 "SELECT COALESCE(MAX(position), 0) + 1 AS next_pos FROM link WHERE category_id = ?",
@@ -599,21 +599,21 @@ class LinkModel(DatabaseBase):
             return int(result["next_pos"]) if result else 1
         except Exception as e:
             logger.error(
-                "Ошибка получения следующей позиции для категории %s: %s",
+                "Error getting next position for category %s: %s",
                 category_id,
                 e,
                 exc_info=True,
             )
             return 1
 
-    # get_links_for_category был объединён с get_links (параметр all_fields=True)
+    # get_links_for_category was merged with get_links (all_fields=True parameter)
 
     def batch_upsert_links(self, links_data: List[Dict[str, Any]]) -> List[int]:
-        """Пакетное создание/обновление ссылок в одной транзакции.
+        """Batch create/update links in one transaction.
 
-        - Не выполняет commit после каждой записи — транзакция завершится единым commit.
-        - Обновляет входные словари (links_data) установленными ID для новых записей.
-        - Возвращает список ID, созданных в рамках этой операции (только для новых записей).
+        - Does not commit after each record — transaction will complete with single commit.
+        - Updates input dictionaries (links_data) with assigned IDs for new records.
+        - Returns list of IDs created within this operation (new records only).
         """
         if not links_data:
             return []
@@ -624,34 +624,34 @@ class LinkModel(DatabaseBase):
                 created_ids.extend(self._upsert_links_no_tx(links_data))
             return created_ids
         except sqlite3.IntegrityError as e:
-            # Если что-то пошло не так с уникальностью — пробрасываем как DatabaseError
+            # If something went wrong with uniqueness — propagate as DatabaseError
             raise DatabaseError(
                 f"UNIQUE constraint failed during batch_upsert_links: {e}"
             )
         except Exception as e:
-            logger.error("Ошибка пакетного сохранения ссылок: %s", e)
+            logger.error("Error batch saving links: %s", e)
             raise
 
-    # === Выделенные шаги для пакетного апсерта (без транзакции) ===
+    # === Dedicated steps for batch upsert (without transaction) ===
 
     def _normalize_and_group_links(
         self, links_data: List[Dict[str, Any]], all_fields: List[str]
     ) -> Dict[int, List[Dict[str, Any]]]:
-        """Нормализует вход и группирует записи по `category_id`.
+        """Normalizes input and groups records by `category_id`.
 
-        - Валидирует обязательные поля.
-        - Заполняет значения по умолчанию и приводит типы.
-        - Обновляет входные элементы in-place.
-        - Возвращает словарь {category_id: [items...]}
+        - Validates required fields.
+        - Fills default values and converts types.
+        - Updates input elements in-place.
+        - Returns dictionary {category_id: [items...]}
         """
         by_cat: Dict[int, List[Dict[str, Any]]] = {}
         for raw in links_data:
-            self._validate_required_fields(raw, ["category_id"], "ссылки")
+            self._validate_required_fields(raw, ["category_id"], "link")
             data = {field: raw.get(field) for field in all_fields}
             data["name"] = data.get("name", "") or ""
             data["url"] = data.get("url", "") or ""
             data["args"] = data.get("args", "") or ""
-            # Нормализуем тип к строке (на случай, если пришёл Enum)
+            # Normalize type to string (in case Enum was passed)
             try:
                 data["type"] = LinkType.from_value(data.get("type", "web")).value
             except Exception:
@@ -659,7 +659,7 @@ class LinkModel(DatabaseBase):
             data["notes"] = data.get("notes", "") or ""
             data["is_favorite"] = int(data.get("is_favorite", 0) or 0)
             data["icon_path"] = data.get("icon_path", "default.ico") or "default.ico"
-            # position и browser_key оставляем как есть (могут быть None)
+            # position and browser_key remain as is (can be None)
 
             raw.clear()
             raw.update(data)
@@ -674,9 +674,9 @@ class LinkModel(DatabaseBase):
         Dict[int, Dict[str, Any]],
         int,
     ]:
-        """Получает существующие ссылки и max(position) для категории.
+        """Gets existing links and max(position) for category.
 
-        Возвращает кортеж (existing_by_key, existing_by_id, max_pos).
+        Returns tuple (existing_by_key, existing_by_id, max_pos).
         key = (name, url, args)
         """
         rows = self._execute_with_error_handling(
@@ -710,7 +710,7 @@ class LinkModel(DatabaseBase):
     def _assign_positions_for_items(
         self, items: List[Dict[str, Any]], start_pos: int
     ) -> None:
-        """Назначает позицию тем элементам, у кого она не задана."""
+        """Assigns position to items that don't have it set."""
         next_pos = start_pos
         for item in items:
             if item.get("position") is None:
@@ -722,7 +722,7 @@ class LinkModel(DatabaseBase):
         items: List[Dict[str, Any]],
         existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]],
     ) -> Tuple[List[Tuple[Any, ...]], List[Dict[str, Any]]]:
-        """Формирует параметры для UPDATE и список вставок без id."""
+        """Forms parameters for UPDATE and list of inserts without id."""
         updates: List[Tuple[Any, ...]] = []
         inserts_no_id: List[Dict[str, Any]] = []
         for item in items:
@@ -995,5 +995,5 @@ class LinkModel(DatabaseBase):
                     deleted = 0
             return deleted
         except Exception as e:
-            logger.error("Ошибка пакетного удаления ссылок: %s", e)
-            raise DatabaseError(f"Не удалось выполнить пакетное удаление: {e}")
+            logger.error("Error batch deleting links: %s", e)
+            raise DatabaseError(f"Failed to perform batch deletion: {e}")

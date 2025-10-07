@@ -1,8 +1,8 @@
 """
-Централизованный менеджер диалогов для устранения дублирования QMessageBox.
+Centralized dialog manager to eliminate QMessageBox duplication.
 
-Этот модуль предоставляет единую точку для всех диалоговых окон в приложении,
-устраняя дублирование кода и обеспечивая единообразие UI.
+This module provides a single point for all dialog windows in the application,
+eliminating code duplication and ensuring UI consistency.
 """
 
 import logging
@@ -16,31 +16,31 @@ logger = logging.getLogger(__name__)
 
 
 class DialogManager:
-    """Централизованный менеджер диалогов для устранения дублирования QMessageBox.
+    """Centralized dialog manager to eliminate QMessageBox duplication.
 
-    Предоставляет статические методы для показа различных типов диалогов:
-    - Ошибки (critical)
-    - Предупреждения (warning)
-    - Информация (information)
-    - Подтверждения (question)
+    Provides static methods for showing various types of dialogs:
+    - Errors (critical)
+    - Warnings (warning)
+    - Information (information)
+    - Confirmations (question)
 
-    Устраняет дублирование QMessageBox вызовов в 50+ местах проекта.
+    Eliminates QMessageBox call duplication in 50+ places in the project.
     """
 
     @staticmethod
     def show_error(
         parent: Optional[QWidget],
         message: str,
-        title: str = "Ошибка",
+        title: str = "Error",
         informative_text: Optional[str] = None,
         details: Optional[str] = None,
     ) -> None:
-        """Показать диалог критической ошибки.
+        """Show critical error dialog.
 
         Args:
-            parent: Родительский виджет (может быть None)
-            message: Текст сообщения об ошибке
-            title: Заголовок диалога (по умолчанию "Ошибка")
+            parent: Parent widget (can be None)
+            message: Error message text
+            title: Dialog title (default "Error")
         """
         logger.debug("Showing error dialog: %s - %s", title, message)
         msg_box = QMessageBox(parent)
@@ -58,16 +58,16 @@ class DialogManager:
     def show_warning(
         parent: Optional[QWidget],
         message: str,
-        title: str = "Предупреждение",
+        title: str = "Warning",
         informative_text: Optional[str] = None,
         details: Optional[str] = None,
     ) -> None:
-        """Показать диалог предупреждения.
+        """Show warning dialog.
 
         Args:
-            parent: Родительский виджет (может быть None)
-            message: Текст предупреждения
-            title: Заголовок диалога (по умолчанию "Предупреждение")
+            parent: Parent widget (can be None)
+            message: Warning text
+            title: Dialog title (default "Warning")
         """
         logger.debug("Showing warning dialog: %s - %s", title, message)
         msg_box = QMessageBox(parent)
@@ -85,24 +85,24 @@ class DialogManager:
     def show_info(
         parent: Optional[QWidget],
         message: str,
-        title: str = "Информация",
+        title: str = "Information",
         informative_text: Optional[str] = None,
         details: Optional[str] = None,
         silent: bool = False,
     ) -> None:
-        """Показать информационный диалог.
+        """Show information dialog.
 
         Args:
-            parent: Родительский виджет (может быть None)
-            message: Информационное сообщение
-            title: Заголовок диалога (по умолчанию "Информация")
-            informative_text: Дополнительный текст
-            details: Текст для секции подробностей (если включено в конфиге)
-            silent: Если True, окно показывается без иконки (и системного звука)
+            parent: Parent widget (can be None)
+            message: Informational message
+            title: Dialog title (default "Information")
+            informative_text: Additional text
+            details: Details section text (if enabled in config)
+            silent: If True, window is shown without icon (and system sound)
         """
         logger.debug("Showing info dialog: %s - %s", title, message)
         msg_box = QMessageBox(parent)
-        # Для тихого сообщения не используем иконку, чтобы избежать системного звука
+        # For silent message don't use icon to avoid system sound
         msg_box.setIcon(
             QMessageBox.Icon.NoIcon if silent else QMessageBox.Icon.Information
         )
@@ -119,23 +119,23 @@ class DialogManager:
     def ask_confirmation(
         parent: Optional[QWidget],
         message: str,
-        title: str = "Подтверждение",
+        title: str = "Confirmation",
         informative_text: Optional[str] = None,
         details: Optional[str] = None,
     ) -> bool:
-        """Показать диалог подтверждения с кнопками Да/Нет.
+        """Show confirmation dialog with Yes/No buttons.
 
         Args:
-            parent: Родительский виджет (может быть None)
-            message: Текст вопроса для подтверждения
-            title: Заголовок диалога (по умолчанию "Подтверждение")
+            parent: Parent widget (can be None)
+            message: Confirmation question text
+            title: Dialog title (default "Confirmation")
 
         Returns:
-            bool: True если пользователь нажал "Да", False если "Нет"
+            bool: True if user clicked "Yes", False if "No"
         """
         logger.debug("Showing confirmation dialog: %s - %s", title, message)
 
-        # Создаем кастомный QMessageBox с ограниченной шириной
+        # Create custom QMessageBox with limited width
         msg_box = QMessageBox(parent)
         msg_box.setIcon(QMessageBox.Icon.Question)
         msg_box.setWindowTitle(title)
@@ -149,16 +149,16 @@ class DialogManager:
         )
         msg_box.setDefaultButton(QMessageBox.StandardButton.No)
 
-        # Ограничиваем максимальную ширину диалога
+        # Limit maximum dialog width
         msg_box.setMaximumWidth(400)
 
-        # Устанавливаем русские названия кнопок
+        # Set button texts
         yes_button = msg_box.button(QMessageBox.StandardButton.Yes)
         no_button = msg_box.button(QMessageBox.StandardButton.No)
         if yes_button:
-            yes_button.setText("Да")
+            yes_button.setText("Yes")
         if no_button:
-            no_button.setText("Нет")
+            no_button.setText("No")
 
         reply = msg_box.exec()
         result = reply == QMessageBox.StandardButton.Yes
@@ -220,35 +220,35 @@ class DialogMixin:
         2. self (если это QWidget)
         3. None (диалог будет показан без родителя)
         """
-        # Попробовать self.parent
+        # Try self.parent
         if hasattr(self, "parent") and isinstance(getattr(self, "parent"), QWidget):
             return self.parent
 
-        # Попробовать self если это QWidget
+        # Try self if it's QWidget
         if isinstance(self, QWidget):
             return self
 
-        # Попробовать self.main (для контроллеров)
+        # Try self.main (for controllers)
         if hasattr(self, "main") and isinstance(getattr(self, "main"), QWidget):
             return self.main
 
-        # Нет подходящего родителя
+        # No suitable parent
         return None
 
-    def show_error(self, message: str, title: str = "Ошибка") -> None:
-        """Показать диалог ошибки."""
+    def show_error(self, message: str, title: str = "Error") -> None:
+        """Show error dialog."""
         DialogManager.show_error(self._get_parent_widget(), message, title)
 
-    def show_warning(self, message: str, title: str = "Предупреждение") -> None:
-        """Показать диалог предупреждения."""
+    def show_warning(self, message: str, title: str = "Warning") -> None:
+        """Show warning dialog."""
         DialogManager.show_warning(self._get_parent_widget(), message, title)
 
-    def show_info(self, message: str, title: str = "Информация") -> None:
-        """Показать информационный диалог."""
+    def show_info(self, message: str, title: str = "Information") -> None:
+        """Show information dialog."""
         DialogManager.show_info(self._get_parent_widget(), message, title)
 
-    def ask_confirmation(self, message: str, title: str = "Подтверждение") -> bool:
-        """Показать диалог подтверждения."""
+    def ask_confirmation(self, message: str, title: str = "Confirmation") -> bool:
+        """Show confirmation dialog."""
         return DialogManager.ask_confirmation(self._get_parent_widget(), message, title)
 
     def show_custom_dialog(

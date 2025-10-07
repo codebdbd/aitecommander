@@ -1,6 +1,6 @@
 # app/controllers/structure_modules/base.py
 
-"""Базовые классы, енумы и константы для структуры."""
+"""Base classes, enums and constants for structure operations."""
 
 import logging
 from typing import Any, Callable, Dict, Optional
@@ -19,14 +19,11 @@ from ..validation.validators import validate_and_raise, ValidationError
 logger = logging.getLogger(__name__)
 
 
-# ✅ Используем импортированный StructureItemType из types.py
 StructureItemType = ImportedStructureItemType
-
-# ValidationError импортируется из validators.py
 
 
 class StructureOperationError(Exception):
-    """Исключение для ошибок операций структуры."""
+    """Exception for structure operation errors."""
 
     def __init__(self, message: str, operation: str, item_type: str):
         super().__init__(message)
@@ -35,29 +32,25 @@ class StructureOperationError(Exception):
         self.message = message
 
 
-# ✅ Используем импортированный SignalType из types.py
-# SignalType уже импортирован выше
-
-
 class StructureLogger:
-    """Обертка для логирования операций структуры."""
+    """Wrapper for logging structure operations."""
 
     def __init__(self, logger: logging.Logger):
         self.logger = logger
 
     def log_operation(
-        self, operation: str, item_type: str, item_name: str, ru_name: str
+        self, operation: str, item_type: str, item_name: str, display_name: str
     ) -> None:
-        """Логирует операцию с элементом структуры."""
-        self.logger.info("%s %s: %s", ru_name.capitalize(), operation, item_name)
+        """Log an operation with a structure item."""
+        self.logger.info("%s %s: %s", display_name.capitalize(), operation, item_name)
 
     def log_error(self, operation: str, item_type: str, error: str) -> None:
-        """Логирует ошибку операции."""
-        self.logger.error("Ошибка %s для %s: %s", operation, item_type, error)
+        """Log an operation error."""
+        self.logger.error("Error %s for %s: %s", operation, item_type, error)
 
 
 class StructureSignalEmitter:
-    """Обертка для эмиссии сигналов структуры."""
+    """Wrapper for emitting structure signals."""
 
     def __init__(
         self,
@@ -70,18 +63,18 @@ class StructureSignalEmitter:
     def emit(
         self, signal_type: str, item_type: str, parent_or_id: int, data: AnyItemData
     ) -> None:
-        """Эмитирует сигнал."""
+        """Emit a signal."""
         if not self._emit_signal:
             return  # Если функция не установлена, просто ничего не делаем
 
         try:
             self._emit_signal(signal_type, item_type, parent_or_id, data)
         except (AttributeError, TypeError, ValueError) as e:
-            # ✅ Ожидаемые ошибки - логируем warning
-            logger.warning("Ошибка эмиссии сигнала: %s", e)
+            # Expected errors — log as warning
+            logger.warning("Signal emission error: %s", e)
         except Exception as e:
-            # ✅ Неожиданные ошибки - полный traceback и проброс
-            logger.exception("Критическая ошибка эмиссии сигнала: %s", e)
+            # Unexpected errors — full traceback and re-raise
+            logger.exception("Critical signal emission error: %s", e)
             raise
 
 
@@ -89,7 +82,7 @@ class StructureSignalEmitter:
 
 
 class ItemTypeRegistry:
-    """Реестр конфигураций для типов элементов."""
+    """Registry of configurations for structure item types."""
 
     _configs = {
         StructureItemType.SPHERE: ItemTypeConfig(
@@ -105,24 +98,24 @@ class ItemTypeRegistry:
 
     @classmethod
     def get_config(cls, item_type: StructureItemType) -> ItemTypeConfig:
-        """Получает конфигурацию для типа элемента."""
+        """Get configuration for an item type."""
         if item_type not in cls._configs:
             raise ValueError(f"Unsupported item_type: {item_type}")
         return cls._configs[item_type]
 
     @classmethod
     def is_supported(cls, item_type: StructureItemType) -> bool:
-        """Проверяет, поддерживается ли тип элемента."""
+        """Check whether the item type is supported."""
         return item_type in cls._configs
 
 
 class BaseOperations:
-    """Базовый класс для модулей операций структуры.
+    """Base class for structure operation modules.
 
-    Рефакторинг с улучшенной архитектурой:
-    - Разделение ответственностей
-    - Улучшенная обработка ошибок
-    - Поддержка всех типов элементов через реестр
+    Refactoring with improved architecture:
+    - Separation of concerns
+    - Improved error handling
+    - Support of all item types via registry
     """
 
     def __init__(
@@ -150,15 +143,15 @@ class BaseOperations:
         item_type: StructureItemType,
         require_parent: bool = True,
     ) -> None:
-        """Базовая валидация данных."""
+        """Basic data validation."""
         if not isinstance(data, dict):
             raise ValidationError(
-                "Данные должны быть словарем", item_type=item_type.value
+                "Data must be a dict", item_type=item_type.value
             )
 
         if not data.get("name", "").strip():
             raise ValidationError(
-                "Поле 'name' обязательно", field="name", item_type=item_type.value
+                "Field 'name' is required", field="name", item_type=item_type.value
             )
 
         if require_parent:
@@ -167,7 +160,7 @@ class BaseOperations:
                 parent_field = config.parent_field
                 if parent_field not in data or data[parent_field] is None:
                     raise ValidationError(
-                        f"Поле '{parent_field}' обязательно",
+                        f"Field '{parent_field}' is required",
                         field=parent_field,
                         item_type=item_type.value,
                     )
@@ -177,7 +170,7 @@ class BaseOperations:
     def _exec_with_norm(
         self, operation_func: Callable, operation_name: str, default_return: Any
     ):
-        """Вспомогательный метод для вызова с normalize_result=True."""
+        """Helper to call with normalize_result=True."""
         return self._execute_with_error_handling(
             operation_func,
             operation_name,
@@ -193,7 +186,7 @@ class BaseOperations:
         operation_name: str,
         require_parent: bool = True,
     ) -> Optional[bool]:
-        """Выполняет валидацию и операцию с обработкой ошибок."""
+        """Perform validation and operation with error handling."""
         try:
             # Валидация
             self._validate_data(data, item_type, require_parent)
@@ -203,7 +196,7 @@ class BaseOperations:
 
         except ValidationError as e:
             self.slogger.log_error(
-                operation_name, item_type.value, f"Валидация: {e.message}"
+                operation_name, item_type.value, f"Validation: {e.message}"
             )
             return None
         except StructureOperationError as e:
@@ -211,14 +204,14 @@ class BaseOperations:
             return None
         except Exception as e:
             self.slogger.log_error(
-                operation_name, item_type.value, f"Неожиданная ошибка: {str(e)}"
+                operation_name, item_type.value, f"Unexpected error: {str(e)}"
             )
             return None
 
     def _emit_signal(
         self, signal_type: str, item_type: str, parent_or_id: int, data: Dict[str, Any]
     ) -> None:
-        """Эмитирует сигнал через настроенный эмиттер."""
+        """Emit a signal via the configured emitter."""
         self.signal_emitter.emit(signal_type, item_type, parent_or_id, data)
 
     def _upsert_and_emit(
@@ -229,11 +222,11 @@ class BaseOperations:
         item_id: Optional[int],
         emit_signal: Callable[[str, str, int, Dict[str, Any]], None],
     ) -> Optional[int]:
-        """Универсальный метод для создания/обновления элементов структуры.
+        """Generic create/update method for structure items.
 
-        ✅ Выполняет runtime валидацию данных перед обработкой.
+        Performs runtime data validation before processing.
         """
-        # ✅ Runtime валидация входных данных
+        # Runtime validation of input data
         try:
             validate_and_raise(data, item_type, is_update)
         except ValidationError as e:
@@ -244,28 +237,28 @@ class BaseOperations:
                 item_type.value
             ) from e
         
-        # Проверка поддержки типа элемента
+        # Check item type support
         if not ItemTypeRegistry.is_supported(item_type):
             raise StructureOperationError(
-                f"Неподдерживаемый тип элемента: {item_type}", "upsert", item_type.value
+                f"Unsupported item type: {item_type}", "upsert", item_type.value
             )
 
         config = ItemTypeRegistry.get_config(item_type)
 
-        # ✅ Копируем только при необходимости (оптимизация)
+        # Copy only when necessary (optimization)
         if is_update and item_id is not None:
             data_copy = data.copy()
             data_copy["id"] = item_id
         else:
             data_copy = data
 
-        # ✅ Оптимизация: id уже установлен выше при копировании
+        # Optimization: id already set above when copying
 
-        # Выполнение upsert операции
+        # Perform upsert operation
         upsert_method = getattr(self.structure_model, config.upsert_method_name, None)
         if not upsert_method:
             raise StructureOperationError(
-                f"Метод {config.upsert_method_name} не найден в модели",
+                f"Method {config.upsert_method_name} not found in model",
                 "upsert",
                 config.item_type.value,
             )
@@ -274,14 +267,14 @@ class BaseOperations:
             result_id = upsert_method(data_copy)
         except Exception as e:
             raise StructureOperationError(
-                f"Ошибка при выполнении {config.upsert_method_name}: {str(e)}",
+                f"Error executing {config.upsert_method_name}: {str(e)}",
                 "upsert",
                 config.item_type.value,
             ) from e
 
-        # Подготовка данных сигнала
+        # Prepare signal data
         if not is_update:
-            # ✅ Копируем только если не копировали раньше
+            # Copy only if not already copied above
             if data_copy is data:
                 data_copy = data.copy()
             data_copy["id"] = result_id
@@ -293,13 +286,13 @@ class BaseOperations:
 
         emit_signal(signal_type.value, item_type.value, signal_parent_or_id, data_copy)
 
-        # Логирование с указанием валидации
-        operation_name = "обновлен" if is_update else "создан"
+        # Log successful operation with validation confirmation
+        operation_name = "updated" if is_update else "created"
         logger.info(
-            "✅ %s %s '%s' (валидация пройдена)",
+            "✅ %s %s '%s' (validation passed)",
             config.ru_name.capitalize(),
             operation_name,
-            data_copy.get("name", "без имени")
+            data_copy.get("name", "unnamed")
         )
 
         return result_id
@@ -312,14 +305,14 @@ class BaseOperations:
         is_update: bool = False,
         item_id: Optional[int] = None,
     ) -> Optional[int]:
-        """Универсальный метод для создания/обновления элементов структуры.
+        """Process a structure item create/update operation.
 
         Args:
-            item_type: тип элемента структуры
-            data: данные элемента
-            emit_signal: эмиттер сигналов
-            is_update: флаг обновления
-            item_id: идентификатор элемента для обновления
+            item_type: Structure item type
+            data: Item data
+            emit_signal: Signal emitter
+            is_update: Update flag
+            item_id: Item identifier for update
         """
 
         def _process_operation():
@@ -331,7 +324,7 @@ class BaseOperations:
                 emit_signal=emit_signal.emit,
             )
 
-        operation_name = "обновления" if is_update else "создания"
+        operation_name = "update" if is_update else "create"  # For logging/error handling
         result = self._execute_with_validation(
             _process_operation,
             data,
@@ -341,19 +334,18 @@ class BaseOperations:
         )
         return result if result is not None else None
 
-    # === Публичные универсальные CRUD-обёртки ===
+    # === Public CRUD operation wrappers ===
     def create_item(self, item_type: StructureItemType, data: AnyCreateData) -> bool:
-        """Создает элемент указанного типа через универсальную логику.
+        """Create a structure item using generic processing logic.
 
-        Делегирует в `_process_item`, сохраняя политику валидации, сигналов и логирования.
+        Delegates to `_process_item`, preserving validation, signals and logging policy.
 
         Args:
-            item_type: тип элемента структуры
-            data: данные создаваемого элемента
-            require_parent: требовать ли наличие родительского идентификатора
+            item_type: Structure item type
+            data: Data of the created item
 
         Returns:
-            bool: успех операции
+            bool: Whether operation succeeded
         """
         result = self._process_item(
             item_type,
@@ -370,17 +362,17 @@ class BaseOperations:
         item_id: int,
         data: AnyUpdateData,
     ) -> bool:
-        """Обновляет элемент указанного типа через универсальную логику.
+        """Update a structure item using generic processing logic.
 
-        Делегирует в `_process_item`, сохраняя политику валидации, сигналов и логирования.
+        Delegates to `_process_item`, preserving validation, signals and logging policy.
 
         Args:
-            item_type: тип элемента структуры
-            item_id: идентификатор обновляемого элемента
-            data: новые данные элемента
+            item_type: Structure item type
+            item_id: Identifier of the item to update
+            data: New item data
 
         Returns:
-            bool: успех операции
+            bool: Whether operation succeeded
         """
         result = self._process_item(
             item_type,
@@ -399,34 +391,32 @@ class BaseOperations:
         *,
         emit_data: Optional[Dict[str, Any]] = None,
     ) -> bool:
-        """Удаляет элемент указанного типа через переданную функцию, эмитит сигнал и логирует.
+        """Delete a structure item via provided function, emit signal and log.
 
         Args:
-            item_type: тип элемента
-            item_id: идентификатор элемента
-            delete_func: функция, выполняющая фактическое удаление (должна бросать исключение при ошибке)
-            emit_data: опциональные данные для передачи в сигнал
+            item_type: Item type
+            item_id: Item identifier
+            delete_func: Function performing actual deletion (must raise on error)
+            emit_data: Optional data to pass in the signal
 
         Returns:
-            bool: успех операции
+            bool: Whether operation succeeded
         """
 
         def _delete_operation():
-            # Выполняем фактическое удаление
+            # Execute deletion and emit signal
             delete_func()
-
-            # Эмитим сигнал удаления (parent_or_id = id элемента)
             self._emit_signal(
                 SignalType.ITEM_DELETED, item_type.value, item_id, emit_data or {}
             )
 
-            # Логирование
+            # Log deletion
             ru_name = ItemTypeRegistry.get_config(item_type).ru_name
-            self.slogger.log_operation("удален", item_type.value, str(item_id), ru_name)
+            self.slogger.log_operation("deleted", item_type.value, str(item_id), ru_name)
             return True
 
         return self._execute_with_error_handling(
             _delete_operation,
-            f"удалить {item_type.value} {item_id}",
+            f"delete {item_type.value} {item_id}",  # Error context message
             default_return=False,
         )

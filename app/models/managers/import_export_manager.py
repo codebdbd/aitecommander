@@ -1,4 +1,4 @@
-"""Модуль для импорта/экспорта структуры базы данных."""
+"""Module for importing/exporting database structure."""
 import logging
 import time
 from typing import Dict, List
@@ -11,42 +11,42 @@ logger = logging.getLogger(__name__)
 
 
 class ImportExportManager:
-    """Управление импортом/экспортом структуры данных."""
+    """Management of data structure import/export."""
 
     def __init__(self, db):
         """
         Args:
-            db: Экземпляр Database для доступа к соединению, моделям и сигналам
+            db: Database instance for accessing connection, models and signals
         """
         self.db = db
 
     def export_full_structure(self) -> Dict[str, List]:
-        """Экспортирует всю структуру данных из БД в виде словаря."""
+        """Exports entire data structure from DB as dictionary."""
         operation = "export_full_structure"
         try:
             self.db.operation_started.emit(operation, 4)
-            # Загружаем все таблицы одной выборкой каждую под единой блокировкой
+            # Load all tables with single query each under unified lock
             t0 = time.perf_counter()
             with db_lock:
-                self.db.operation_progress.emit(operation, 0, 4, "Загрузка сфер...")
+                self.db.operation_progress.emit(operation, 0, 4, "Loading spheres...")
                 spheres = self.db.connection.execute(
                     "SELECT * FROM sphere ORDER BY position"
                 ).fetchall()
-                self.db.operation_progress.emit(operation, 1, 4, "Загрузка разделов...")
+                self.db.operation_progress.emit(operation, 1, 4, "Loading sections...")
                 sections = self.db.connection.execute(
                     "SELECT * FROM section ORDER BY position"
                 ).fetchall()
-                self.db.operation_progress.emit(operation, 2, 4, "Загрузка категорий...")
+                self.db.operation_progress.emit(operation, 2, 4, "Loading categories...")
                 categories = self.db.connection.execute(
                     "SELECT * FROM category ORDER BY position"
                 ).fetchall()
-                self.db.operation_progress.emit(operation, 3, 4, "Загрузка ссылок...")
+                self.db.operation_progress.emit(operation, 3, 4, "Loading links...")
                 links = self.db.connection.execute(
                     "SELECT * FROM link ORDER BY position"
                 ).fetchall()
             t1 = time.perf_counter()
 
-            # Подготовка индексов для сборки структуры
+            # Prepare indexes for structure assembly
             spheres_by_id = {}
             sections_by_id = {}
             categories_by_id = {}
@@ -54,7 +54,7 @@ class ImportExportManager:
             sections_by_sphere = {}
             categories_by_section = {}
 
-            # Преобразуем строки в dict и инициализируем контейнеры
+            # Convert rows to dict and initialize containers
             for s in spheres:
                 sd = dict(s)
                 sd["sections"] = []
@@ -72,7 +72,7 @@ class ImportExportManager:
                 categories_by_id[cd["id"]] = cd
                 categories_by_section.setdefault(cd["section_id"], []).append(cd)
 
-            # Линки просто добавляем к категориям
+            # Links are simply added to categories
             for ln in links:
                 ld = dict(ln)
                 cat_id = ld.get("category_id")
@@ -80,7 +80,7 @@ class ImportExportManager:
                 if cat_obj is not None:
                     cat_obj["links"].append(ld)
 
-            # Собираем иерархию
+            # Assemble hierarchy
             spheres_data: List[Dict] = []
             for s in spheres:
                 s_obj = spheres_by_id[s["id"]]
@@ -105,25 +105,25 @@ class ImportExportManager:
             )
             if total_ms > PERFORMANCE_WARNING_THRESHOLD_MS:
                 logger.info(
-                    "export_full_structure: завершено, total_ms=%.2f (>%.0fms)",
+                    "export_full_structure: completed, total_ms=%.2f (>%.0fms)",
                     total_ms,
                     PERFORMANCE_WARNING_THRESHOLD_MS,
                 )
             
-            self.db.operation_progress.emit(operation, 4, 4, "Сборка иерархии завершена")
+            self.db.operation_progress.emit(operation, 4, 4, "Hierarchy assembly completed")
             self.db.operation_finished.emit(operation, True)
             return {"spheres": spheres_data}
         except Exception as e:
-            logger.error("Ошибка экспорта структуры: %s", e, exc_info=True)
+            logger.error("Error exporting structure: %s", e, exc_info=True)
             self.db.operation_finished.emit(operation, False)
             try:
-                self.db.error_occurred.emit("Ошибка экспорта", str(e))
+                self.db.error_occurred.emit("Export error", str(e))
             except Exception:
                 pass
-            raise DatabaseError(f"Не удалось экспортировать структуру: {e}")
+            raise DatabaseError(f"Failed to export structure: {e}")
 
     def export_section_tree(self, section_id: int) -> dict:
-        """Экспортирует раздел вместе со всеми категориями и ссылками."""
+        """Exports section along with all categories and links."""
         section = self.db.sections.get_section_by_id(section_id) or {}
         categories = []
         for cat_row in self.db.categories.get_categories(section_id):
@@ -133,13 +133,13 @@ class ImportExportManager:
         return {"section": section, "categories": categories}
 
     def export_category_tree(self, category_id: int) -> dict:
-        """Экспортирует категорию вместе со всеми ссылками."""
+        """Exports category along with all links."""
         cat = self.db.categories.get_category_by_id(category_id) or {}
         links = self.db.links.get_links(category_id)
         return {"category": cat, "links": links}
 
     def import_section_tree(self, tree: dict):
-        """Восстанавливает раздел, его категории и все ссылки из backup-структуры."""
+        """Restores section, its categories and all links from backup structure."""
         section = (tree or {}).get("section") or {}
         categories = (tree or {}).get("categories") or []
         if not section:
@@ -209,12 +209,12 @@ class ImportExportManager:
                     self.db.links._upsert_links_no_tx(raw_links)
 
     def import_category_tree(self, tree: dict):
-        """Восстанавливает категорию и все ссылки из backup-структуры."""
+        """Restores category and all links from backup structure."""
         with self.db.transaction():
             _upsert_category_tree(tree, self.db.connection)
 
     def import_category_trees_bulk(self, trees: list) -> None:
-        """Импортирует несколько поддеревьев категорий в ОДНОЙ транзакции."""
+        """Imports multiple category subtrees in ONE transaction."""
         if not trees:
             return
 
@@ -225,25 +225,25 @@ class ImportExportManager:
                         continue
                     _upsert_category_tree(tree, self.db.connection)
 
-            # Резервная копия асинхронно после успешного bulk-импорта
+            # Backup asynchronously after successful bulk import
             try:
                 self.db.backup_async(
                     on_error=lambda e, tb: logger.warning(
-                        "Не удалось создать резервную копию после bulk-импорта: %s", e
+                        "Failed to create backup after bulk import: %s", e
                     )
                 )
             except Exception as backup_err:
                 logger.warning(
-                    "Не удалось запустить резервное копирование после bulk-импорта: %s",
+                    "Failed to start backup after bulk import: %s",
                     backup_err,
                 )
         except Exception as e:
-            logger.error("Ошибка bulk-импорта деревьев категорий: %s", e)
-            raise DatabaseError(f"Не удалось импортировать деревья категорий: {e}")
+            logger.error("Error bulk importing category trees: %s", e)
+            raise DatabaseError(f"Failed to import category trees: {e}")
 
 
 def _upsert_category_tree(tree: dict, connection) -> None:
-    """Выполняет апсерт категории и её ссылок."""
+    """Performs upsert of category and its links."""
     if not tree:
         return
 
@@ -252,7 +252,7 @@ def _upsert_category_tree(tree: dict, connection) -> None:
     if not isinstance(cat, dict) or not cat:
         return
 
-    # Upsert категории
+    # Upsert category
     cat_id = cat.get("id")
     name = cat.get("name")
     section_id = cat.get("section_id")

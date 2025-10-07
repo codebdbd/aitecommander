@@ -10,11 +10,11 @@ logger = logging.getLogger(__name__)
 
 
 class SetupError(Exception):
-    """Ошибка настройки зависимостей SystemDialogController."""
+    """SystemDialogController dependency setup error."""
 
 
 class SystemDialogController:
-    """Контроллер для управления системными диалогами."""
+    """Controller for managing system dialogs."""
 
     def __init__(
         self,
@@ -29,12 +29,12 @@ class SystemDialogController:
         self.links_table_controller = links_table_controller
         self.links_business = links_business
 
-        # ✅ ИСПРАВЛЕНИЕ: Lazy loading диалогов
+        # ✅ FIX: Lazy loading dialogs
         self._about_dialog = None
         self._settings_dialog = None
         self._file_search_dialog = None
 
-        # Валидация обязательных зависимостей
+        # Validate required dependencies
         if self.database_controller is None:
             raise SetupError("SystemDialogController requires 'database_controller'")
         if self.links_table_controller is None:
@@ -43,42 +43,42 @@ class SystemDialogController:
             raise SetupError("SystemDialogController requires 'links_business'")
 
     def handle_import_browser_bookmarks(self):
-        """Импорт закладок браузера."""
+        """Import browser bookmarks."""
         from app.utils.browser.import_browser_html import BrowserBookmarksImporter
         from app.views.windows.dialogs.import_browser_dialog import ImportBrowserDialog
 
         importer = BrowserBookmarksImporter()
 
-        # 1) Выбор файла
+        # 1) File selection
         path = importer.select_file(self.main_window)
         if not path:
             return
 
-        # 2) Парсинг
+        # 2) Parsing
         try:
             categories = importer.parse_bookmarks(path)
         except Exception as e:
             DialogManager.show_error(
                 self.main_window,
-                "Импорт из браузера",
-                "Ошибка чтения HTML файла.",
-                informative_text="Проверьте целостность файла и права доступа.",
+                "Browser Import",
+                "Error reading HTML file.",
+                informative_text="Check file integrity and access rights.",
                 details=str(e),
             )
             return
         if not any(categories.values()):
             DialogManager.show_warning(
                 self.main_window,
-                "Импорт из браузера",
-                "В файле не найдено ни одной ссылки.",
+                "Browser Import",
+                "No links found in file.",
                 informative_text=(
-                    "Экспортируйте закладки из браузера в формате HTML и выберите корректный файл."
+                    "Export bookmarks from browser in HTML format and select correct file."
                 ),
                 details=f"file={path}",
             )
             return
 
-        # 3) Выбор раздела
+        # 3) Section selection
         dlg = ImportBrowserDialog(self.main_window.structure_business, self.main_window)
         if dlg.exec() != dlg.DialogCode.Accepted:  # QDialog.DialogCode.Accepted
             return
@@ -86,13 +86,13 @@ class SystemDialogController:
         if not section_id:
             DialogManager.show_warning(
                 self.main_window,
-                "Импорт из браузера",
-                "Не выбран раздел для импорта.",
-                informative_text="Выберите раздел, в который будут добавлены категории и ссылки.",
+                "Browser Import",
+                "No section selected for import.",
+                informative_text="Select section where categories and links will be added.",
             )
             return
 
-        # 4) Синхронизация в БД
+        # 4) Sync to DB
         success, msg, added = importer.sync_to_db(
             categories,
             section_id,
@@ -109,8 +109,8 @@ class SystemDialogController:
                 
                 # Используем async backup чтобы не блокировать UI
                 db.backup_async(
-                    on_finished=lambda result: logger.info(f"Резервная копия создана: {result.get('backup_filename')}"),
-                    on_error=lambda e, tb: logger.warning(f"Не удалось создать резервную копию: {e}")
+                    on_finished=lambda result: logger.info(f"Backup created: {result.get('backup_filename')}"),
+                    on_error=lambda e, tb: logger.warning(f"Failed to create backup: {e}")
                 )
             except SetupError:
                 logger.exception(
@@ -119,14 +119,14 @@ class SystemDialogController:
                 raise
             except Exception as backup_err:
                 logger.warning(
-                    f"Не удалось запустить резервное копирование: {backup_err}"
+                    f"Failed to start backup: {backup_err}"
                 )
-            # Обновить дерево категорий и таблицу ссылок
+            # Update category tree and links table
             if hasattr(self.main_window, "structure_business"):
                 self.main_window.structure_business.load_structure()
             category_id = self.main_window.get_current_category_id()
             if category_id:
-                # Централизовано: обновляем таблицу через LinksTableController, без getattr/fallback
+                # Centralized: update table through LinksTableController, without getattr/fallback
                 try:
                     if not hasattr(self.links_table_controller, "reload"):
                         raise SetupError("links_table_controller must expose reload()")
@@ -143,19 +143,19 @@ class SystemDialogController:
             self.main_window.update_statusbar()
             DialogManager.show_info(
                 self.main_window,
-                "Импорт из браузера",
+                "Browser Import",
                 msg,
             )
         else:
             DialogManager.show_error(
                 self.main_window,
-                "Импорт из браузера",
-                "Импорт завершился с ошибкой",
+                "Browser Import",
+                "Import completed with error",
                 details=msg,
             )
 
     def show_about_dialog(self):
-        """Показать диалог О программе."""
+        """Show About dialog."""
         # ✅ ИСПРАВЛЕНИЕ: Lazy loading - создаем диалог только при первом вызове
         if self._about_dialog is None:
             from PyQt6.QtCore import Qt
@@ -169,13 +169,13 @@ class SystemDialogController:
             self._about_dialog.setWindowTitle(title)
             self._about_dialog.setText(text)
             self._about_dialog.setTextFormat(Qt.TextFormat.PlainText)  # Важно: правильно обрабатывает \n
-            self._about_dialog.setInformativeText("Спасибо, что используете наше приложение!")
+            self._about_dialog.setInformativeText("Thank you for using our application!")
             self._about_dialog.setStandardButtons(QMessageBox.StandardButton.Ok)
 
         self._about_dialog.exec()
 
     def show_settings_dialog(self):
-        """Показать диалог настроек."""
+        """Show Settings dialog."""
         # ✅ ИСПРАВЛЕНИЕ: Lazy loading - создаем диалог только при первом вызове
         if self._settings_dialog is None:
             from app.views.windows.dialogs.entity_dialogs import SettingsDialog
@@ -189,7 +189,7 @@ class SystemDialogController:
         self._settings_dialog.exec()
 
     def show_file_search_dialog(self):
-        """Показать диалог поиска файлов."""
+        """Show File Search dialog."""
         # ✅ ИСПРАВЛЕНИЕ: Lazy loading - создаем диалог только при первом вызове
         if self._file_search_dialog is None:
             from app.views.windows.dialogs.file_search_dialog.file_search_dialog import (

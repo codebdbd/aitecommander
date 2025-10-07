@@ -14,10 +14,10 @@ class LinkType(Enum):
 
     @classmethod
     def from_value(cls, value: Any) -> "LinkType":
-        """Нормализует входное значение к LinkType.
+        """Normalizes input value to LinkType.
 
-        Принимает Enum, строку или произвольный скаляр. Неизвестные значения
-        приводятся к WEB для безопасного поведения по умолчанию.
+        Accepts Enum, string or arbitrary scalar. Unknown values
+        are converted to WEB for safe default behavior.
         """
         if isinstance(value, LinkType):
             return value

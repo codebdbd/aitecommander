@@ -1,5 +1,5 @@
 """
-Базовый класс для всех Chromium-based браузеров (Chrome, Edge, Brave, Vivaldi и т.д.).
+Base class for all Chromium-based browsers (Chrome, Edge, Brave, Vivaldi, etc.).
 """
 
 import json
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def detect_chrome_profiles_dir():
-    """Возвращает путь к профилям Chrome для текущей ОС или None, если не найдено."""
+    """Returns path to Chrome profiles for current OS or None if not found."""
     candidates = []
     if os.name == "nt":
         candidates.append(os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\User Data"))
@@ -31,26 +31,26 @@ def detect_chrome_profiles_dir():
 
 
 class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
-    """Базовый класс для всех Chromium-based браузеров."""
+    """Base class for all Chromium-based browsers."""
 
     def __init__(self, profiles_dir: str, browser_name: str):
         """
-        Инициализация finder'а для Chromium-based браузера.
+        Initialization of finder for Chromium-based browser.
 
         Args:
-            profiles_dir: Путь к папке с профилями браузера
-            browser_name: Читаемое имя браузера
+            profiles_dir: Path to browser profiles folder
+            browser_name: Readable browser name
         """
         self.profiles_dir = profiles_dir
         self.browser_name = browser_name
 
     def find_profiles(self) -> List[Dict[str, str]]:
-        """Универсальная логика поиска профилей для Chromium-based браузеров."""
+        """Universal profile search logic for Chromium-based browsers."""
         profiles = []
 
         if not os.path.exists(self.profiles_dir):
             logger.debug(
-                "Папка профилей %s не найдена: %s",
+                "Profiles folder %s not found: %s",
                 self.browser_name,
                 self.profiles_dir,
             )
@@ -76,19 +76,19 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
                             }
                         )
                         logger.debug(
-                            "Найден профиль %s: %s (%s)",
+                            "Found profile %s: %s (%s)",
                             self.browser_name,
                             email,
                             entry,
                         )
         except Exception as e:
-            logger.error("Ошибка при поиске профилей %s: %s", self.browser_name, e)
+            logger.error("Error searching profiles %s: %s", self.browser_name, e)
 
-        logger.info("Найдено %s профилей %s", len(profiles), self.browser_name)
+        logger.info("Found %s profiles %s", len(profiles), self.browser_name)
         return profiles
 
     def _extract_email_from_preferences(self, profile_path: str) -> Optional[str]:
-        """Извлекает email из Preferences файла."""
+        """Extracts email from Preferences file."""
         pref_path = os.path.join(profile_path, "Preferences")
         if not os.path.exists(pref_path):
             return None
@@ -97,10 +97,10 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
             with open(pref_path, "r", encoding="utf-8") as f:
                 prefs = json.load(f)
 
-            # Пробуем разные места где может быть email
+            # Try different places where email might be
             email = None
 
-            # Основные места поиска email
+            # Main places to search for email
             account_info = prefs.get("account_info", [])
             if (
                 account_info
@@ -116,7 +116,7 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
             if not email:
                 profile_info = prefs.get("profile", {}).get("info_cache", {})
                 if profile_info:
-                    # info_cache может содержать несколько профилей
+                    # info_cache may contain multiple profiles
                     for profile_id, profile_data in profile_info.items():
                         if isinstance(profile_data, dict) and profile_data.get(
                             "user_name"
@@ -126,23 +126,23 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
 
             return email
         except Exception as e:
-            logger.debug("Не удалось извлечь email из %s: %s", pref_path, e)
+            logger.debug("Failed to extract email from %s: %s", pref_path, e)
             return None
 
     def get_browser_name(self) -> str:
-        """Возвращает читаемое имя браузера.
-        NOTE: Намеренное дублирование с другими профайл-файдерами для единообразия API
-        и локальной читаемости. Вынос в общий helper нецелесообразен.
+        """Returns readable browser name.
+        NOTE: Intentional duplication with other profile finders for API consistency
+        and local readability. Moving to common helper is not worthwhile.
         """
         return self.browser_name
 
     def get_profile_argument(self, profile_data: Dict) -> str:
-        """Генерирует аргумент командной строки для профиля."""
+        """Generates command line argument for profile."""
         directory = profile_data.get("directory", profile_data.get("name", "Default"))
         return f'--profile-directory="{directory}"'
 
     def parse_profile_from_args(self, args: str) -> Optional[Dict]:
-        """Парсит профиль из аргументов командной строки."""
+        """Parses profile from command line arguments."""
         logger.debug("parse_profile_from_args: args=%s", args)
 
         if not args or "--profile-directory" not in args:
@@ -168,15 +168,15 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
                 logger.debug("parse_profile_from_args: returning result=%s", result)
                 return result
         except Exception as e:
-            logger.debug("Ошибка парсинга аргументов %s: %s", self.browser_name, e)
+            logger.debug("Error parsing arguments %s: %s", self.browser_name, e)
 
         logger.debug("parse_profile_from_args: could not parse profile")
         return None
 
 
-# Конкретные реализации для каждого браузера
+# Concrete implementations for each browser
 class EdgeProfileFinder(ChromiumBaseBrowserFinder):
-    """Finder для Microsoft Edge профилей."""
+    """Finder for Microsoft Edge profiles."""
 
     def __init__(self):
         from app.config_data import app_config
@@ -186,7 +186,7 @@ class EdgeProfileFinder(ChromiumBaseBrowserFinder):
 
 
 class BraveProfileFinder(ChromiumBaseBrowserFinder):
-    """Finder для Brave Browser профилей."""
+    """Finder for Brave Browser profiles."""
 
     def __init__(self):
         from app.config_data import app_config
@@ -196,7 +196,7 @@ class BraveProfileFinder(ChromiumBaseBrowserFinder):
 
 
 class VivaldiProfileFinder(ChromiumBaseBrowserFinder):
-    """Finder для Vivaldi Browser профилей."""
+    """Finder for Vivaldi Browser profiles."""
 
     def __init__(self):
         from app.config_data import app_config
@@ -206,7 +206,7 @@ class VivaldiProfileFinder(ChromiumBaseBrowserFinder):
 
 
 class OperaProfileFinder(ChromiumBaseBrowserFinder):
-    """Finder для Opera Browser профилей."""
+    """Finder for Opera Browser profiles."""
 
     def __init__(self):
         from app.config_data import app_config
@@ -216,7 +216,7 @@ class OperaProfileFinder(ChromiumBaseBrowserFinder):
 
 
 class YandexProfileFinder(ChromiumBaseBrowserFinder):
-    """Finder для Yandex Browser профилей."""
+    """Finder for Yandex Browser profiles."""
 
     def __init__(self):
         from app.config_data import app_config
@@ -226,7 +226,7 @@ class YandexProfileFinder(ChromiumBaseBrowserFinder):
 
 
 class ChromeProfileFinder(ChromiumBaseBrowserFinder):
-    """Finder для Google Chrome профилей."""
+    """Finder for Google Chrome profiles."""
 
     def __init__(self):
         from app.config_data import app_config

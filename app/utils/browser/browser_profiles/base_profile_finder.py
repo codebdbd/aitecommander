@@ -1,4 +1,4 @@
-"""Базовый интерфейс для поиска профилей браузеров."""
+"""Base interface for browser profile finding."""
 
 import logging
 from abc import ABC, abstractmethod
@@ -8,37 +8,37 @@ logger = logging.getLogger(__name__)
 
 
 class BaseBrowserProfileFinder(ABC):
-    """Базовый класс для поиска профилей браузеров."""
+    """Base class for browser profile finding."""
 
     @abstractmethod
     def find_profiles(self) -> List[Dict[str, str]]:
-        """Находит профили браузера."""
+        """Finds browser profiles."""
         pass
 
     @abstractmethod
     def get_browser_name(self) -> str:
-        """Возвращает читаемое имя браузера."""
+        """Returns readable browser name."""
         pass
 
     @abstractmethod
     def get_profile_argument(self, profile_data: Dict) -> str:
-        """Генерирует аргумент командной строки для профиля."""
+        """Generates command line argument for profile."""
         pass
 
     @abstractmethod
     def parse_profile_from_args(self, args: str) -> Optional[Dict]:
-        """Парсит профиль из аргументов командной строки."""
+        """Parses profile from command line arguments."""
         pass
 
     def validate_profile_data(self, profile_data: Dict) -> bool:
-        """Валидирует данные профиля."""
+        """Validates profile data."""
         required_keys = ["args"]
         return all(key in profile_data for key in required_keys)
 
     def format_profile_display_name(self, profile_data: Dict) -> str:
-        """Форматирует имя профиля для отображения в UI."""
-        return profile_data.get("email") or profile_data.get("name") or "Профиль"
+        """Formats profile name for display in UI."""
+        return profile_data.get("email") or profile_data.get("name") or "Profile"
 
     def get_browser_key(self) -> str:
-        """Возвращает ключ браузера для внутреннего использования."""
+        """Returns browser key for internal use."""
         return self.get_browser_name().lower().replace(" ", "_")

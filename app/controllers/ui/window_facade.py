@@ -1,7 +1,7 @@
-"""Фасад для упрощения доступа к функционалу главного окна.
+"""Facade to simplify access to main window functionality.
 
-Этот модуль предоставляет централизованный доступ к основным операциям
-главного окна, скрывая сложность взаимодействия между контроллерами.
+This module provides centralized access to core main window operations,
+hiding the complexity of interactions between controllers.
 """
 
 from __future__ import annotations
@@ -24,17 +24,17 @@ logger = logging.getLogger(__name__)
 
 
 class WindowFacade:
-    """Фасад для операций главного окна.
-    
-    Инкапсулирует логику делегирования к специализированным контроллерам.
-    Упрощает MainWindow, перенося всю логику координации сюда.
-    
+    """Facade for main window operations.
+
+    Encapsulates delegation logic to specialized controllers.
+    Simplifies MainWindow by moving coordination logic here.
+
     Attributes:
-        structure: Контроллер структуры (дерево, разделы, категории)
-        links_actions: Контроллер операций со ссылками
-        ui_state: Менеджер состояния UI
-        action_controller: Контроллер действий (редактирование, удаление)
-        theme_ctrl: Контроллер тем
+        structure: Structure controller (tree, sections, categories)
+        links_actions: Links actions controller
+        ui_state: UI state manager
+        action_controller: Actions controller (edit, delete)
+        theme_ctrl: Theme controller
     """
     
     def __init__(
@@ -45,14 +45,14 @@ class WindowFacade:
         action_controller: "ActionController",
         theme_ctrl: "ThemeController",
     ):
-        """Инициализирует фасад с необходимыми контроллерами.
-        
+        """Initialize facade with required controllers.
+
         Args:
-            structure: Контроллер структуры
-            links_actions: Контроллер ссылок
-            ui_state: Менеджер состояния UI
-            action_controller: Контроллер действий
-            theme_ctrl: Контроллер тем
+            structure: Structure controller
+            links_actions: Links controller
+            ui_state: UI state manager
+            action_controller: Actions controller
+            theme_ctrl: Theme controller
         """
         self.structure = structure
         self.links_actions = links_actions
@@ -60,67 +60,67 @@ class WindowFacade:
         self.action_controller = action_controller
         self.theme_ctrl = theme_ctrl
         
-        logger.debug("WindowFacade инициализирован")
+        logger.debug("WindowFacade initialized")
     
-    # === Операции со структурой ===
+    # === Structure operations ===
     
     def get_current_category_id(self) -> Optional[int]:
-        """Возвращает ID текущей выбранной категории.
-        
+        """Return ID of the currently selected category.
+
         Returns:
-            ID категории или None, если категория не выбрана
+            Category ID or None if no category is selected
         """
         return self.structure.get_current_category_id()
     
     def reload_structure(self) -> None:
-        """Перезагружает всю структуру (дерево)."""
+        """Reload the entire structure (tree)."""
         self.structure.load()
     
     def reload_current_category(self) -> None:
-        """Перезагружает текущую категорию.
-        
-        Использует UIStateManager для сохранения состояния.
+        """Reload the current category.
+
+        Uses UIStateManager to preserve state.
         """
         category_id = self.get_current_category_id()
         if category_id:
             self.ui_state.load_category(category_id, source="reload_current_category")
         else:
-            logger.debug("reload_current_category: категория не выбрана")
+            logger.debug("reload_current_category: no category selected")
     
     def add_new_section(self) -> None:
-        """Открывает диалог создания нового раздела."""
+        """Open dialog to create a new section."""
         self.structure.add_new_section()
     
     def add_new_category(self) -> None:
-        """Открывает диалог создания новой категории."""
+        """Open dialog to create a new category."""
         self.structure.add_new_category()
     
-    # === Операции со ссылками ===
+    # === Link operations ===
     
     def get_link_at_row(self, row: int) -> "LinkDict | None":
-        """Возвращает ссылку по номеру строки в таблице.
-        
+        """Return link by table row number.
+
         Args:
-            row: Номер строки (0-indexed)
-            
+            row: Row number (0-indexed)
+
         Returns:
-            Словарь с данными ссылки или None
+            Dict with link data or None
         """
         return self.links_actions.get_link_at(row)
     
     def get_selected_links(self) -> list["LinkDict"]:
-        """Возвращает список выбранных ссылок.
-        
+        """Return list of selected links.
+
         Returns:
-            Список словарей с данными ссылок
+            List of dicts with link data
         """
         return self.links_actions.get_selected_links()
     
     def get_selected_rows(self) -> list[int]:
-        """Возвращает номера выбранных строк.
-        
+        """Return indices of selected rows.
+
         Returns:
-            Список индексов строк
+            List of row indices
         """
         return self.links_actions.get_selected_rows()
     
@@ -129,21 +129,21 @@ class WindowFacade:
         link: "LinkDict | None" = None,
         category_id: int | None = None,
     ) -> bool:
-        """Показывает диалог создания/редактирования ссылки.
-        
+        """Show create/edit link dialog.
+
         Args:
-            link: Существующая ссылка для редактирования (None для создания новой)
-            category_id: ID категории для новой ссылки
-            
+            link: Existing link to edit (None to create new)
+            category_id: Category ID for new link
+
         Returns:
-            True если диалог был применён, False если отменён
+            True if dialog accepted, False if cancelled
         """
         selected_link_id = link.get("id") if link else None
         
         result = self.links_actions.show_link_dialog(link, category_id)
         
         if result and selected_link_id:
-            # Планирование восстановления выделения
+            # Schedule selection restore
             self.links_actions.schedule_restore_selection(selected_link_id)
         
         return bool(result)
@@ -156,66 +156,66 @@ class WindowFacade:
         """
         return bool(self.links_actions.edit_selected_link())
     
-    # === Универсальные действия ===
+    # === Universal actions ===
     
     def edit_current(self) -> None:
-        """Редактирует текущий выбранный элемент (ссылку или структурный элемент).
-        
-        ActionController автоматически определяет, что редактировать.
+        """Edit currently selected item (link or structure item).
+
+        ActionController automatically determines what to edit.
         """
         self.action_controller.edit_current()
     
     def delete_current(self) -> None:
-        """Удаляет текущий выбранный элемент (ссылку или структурный элемент).
-        
-        ActionController автоматически определяет, что удалять, и запрашивает подтверждение.
+        """Delete currently selected item (link or structure item).
+
+        ActionController automatically determines what to delete and asks for confirmation.
         """
         self.action_controller.delete_current()
     
-    # === Операции с темами ===
+    # === Theme operations ===
     
     def get_available_themes(self) -> list[tuple[str, str]]:
-        """Возвращает список доступных тем.
-        
+        """Return list of available themes.
+
         Returns:
-            Список кортежей (theme_id, theme_display_name)
+            List of tuples (theme_id, theme_display_name)
         """
         return self.theme_ctrl.available()
     
     def apply_theme(self, theme_name: str) -> None:
-        """Применяет тему оформления.
-        
+        """Apply a theme.
+
         Args:
-            theme_name: Идентификатор темы (например, 'light', 'dark')
+            theme_name: Theme identifier (e.g., 'light', 'dark')
         """
         self.theme_ctrl.apply(theme_name)
     
     def update_theme(self) -> None:
-        """Обновляет текущую тему и перерисовывает UI."""
+        """Update current theme and refresh UI."""
         self.theme_ctrl.apply_and_refresh_ui()
     
-    # === Служебные методы ===
+    # === Service methods ===
     
     def on_structure_item_added(
         self, item_type: str, parent_id: int, data: dict
     ) -> None:
-        """Обрабатывает добавление элемента структуры.
-        
+        """Handle structure item addition.
+
         Args:
-            item_type: Тип элемента ('section', 'category')
-            parent_id: ID родительского элемента
-            data: Данные элемента
+            item_type: Item type ('section', 'category')
+            parent_id: Parent item ID
+            data: Item data
         """
         self.structure.on_structure_item_added(item_type, parent_id, data)
     
     def on_structure_item_changed(
         self, item_type: str, item_id: int, data: dict
     ) -> None:
-        """Обрабатывает изменение элемента структуры.
-        
+        """Handle structure item change.
+
         Args:
-            item_type: Тип элемента ('section', 'category')
-            item_id: ID элемента
-            data: Новые данные элемента
+            item_type: Item type ('section', 'category')
+            item_id: Item ID
+            data: New item data
         """
         self.structure.on_structure_item_changed(item_type, item_id, data)

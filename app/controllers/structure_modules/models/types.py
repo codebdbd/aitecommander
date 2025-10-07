@@ -1,10 +1,10 @@
 # app/controllers/structure_modules/types.py
 
-"""Строгие типы для structure_modules - PyQt6 Best Practices.
+"""Strict types for structure_modules - PyQt6 Best Practices.
 
-Этот модуль содержит TypedDict определения для всех data структур,
-используемых в операциях со структурой. Заменяет Dict[str, Any] на
-конкретные типизированные структуры для лучшей безопасности типов.
+This module contains TypedDict definitions for all data structures
+used in structure operations. Replaces Dict[str, Any] with
+concrete typed structures for better type safety.
 """
 
 from typing import TypedDict, Optional, List, Any
@@ -14,7 +14,7 @@ from enum import Enum
 # ===== ENUMS =====
 
 class StructureItemType(Enum):
-    """Типы элементов структуры."""
+    """Structure item types."""
     SPHERE = "sphere"
     SECTION = "section"
     CATEGORY = "category"
@@ -22,7 +22,7 @@ class StructureItemType(Enum):
 
 
 class SignalType(Enum):
-    """Типы сигналов для операций со структурой."""
+    """Signal types for structure operations."""
     ITEM_ADDED = "item_added"
     ITEM_UPDATED = "item_updated"
     ITEM_DELETED = "item_deleted"
@@ -44,7 +44,7 @@ class SignalType(Enum):
 # ===== BASE TYPED DICTS =====
 
 class BaseItemData(TypedDict):
-    """Базовые поля для всех элементов структуры."""
+    """Base fields for all structure items."""
     id: int
     name: str
     created_at: Optional[str]
@@ -54,20 +54,20 @@ class BaseItemData(TypedDict):
 # ===== SPHERE TYPES =====
 
 class SphereData(BaseItemData):
-    """Данные сферы.
-    
-    Сфера - это верхний уровень структуры, содержащий разделы.
-    Примеры: "Работа", "Личное", "Образование".
-    
+    """Sphere data.
+
+    Sphere is the top level of the structure containing sections.
+    Examples: "Work", "Personal", "Education".
+
     Attributes:
-        id: Уникальный идентификатор сферы
-        name: Название сферы (обязательно)
-        description: Описание сферы (опционально)
-        color: Цвет сферы в hex формате (например, "#FF5733")
-        icon: Иконка сферы (опционально)
-        is_active: Активна ли сфера (обязательно)
-        created_at: Время создания
-        updated_at: Время последнего обновления
+        id: Unique sphere identifier
+        name: Sphere name (required)
+        description: Sphere description (optional)
+        color: Sphere color in hex format (e.g., "#FF5733")
+        icon: Sphere icon (optional)
+        is_active: Whether the sphere is active (required)
+        created_at: Creation time
+        updated_at: Last update time
     """
     description: Optional[str]
     color: Optional[str]
@@ -76,7 +76,7 @@ class SphereData(BaseItemData):
 
 
 class SphereCreateData(TypedDict):
-    """Данные для создания сферы."""
+    """Data for creating a sphere."""
     name: str
     description: Optional[str]
     color: Optional[str]
@@ -85,7 +85,7 @@ class SphereCreateData(TypedDict):
 
 
 class SphereUpdateData(TypedDict, total=False):
-    """Данные для обновления сферы (все поля опциональны)."""
+    """Data for updating a sphere (all fields optional)."""
     name: str
     description: Optional[str]
     color: Optional[str]
@@ -96,20 +96,20 @@ class SphereUpdateData(TypedDict, total=False):
 # ===== SECTION TYPES =====
 
 class SectionData(BaseItemData):
-    """Данные раздела.
-    
-    Раздел - это средний уровень структуры, принадлежит сфере и содержит категории.
-    Примеры: "Проекты", "Задачи", "Документы".
-    
+    """Section data.
+
+    Section is the middle level of the structure; belongs to a sphere and contains categories.
+    Examples: "Projects", "Tasks", "Documents".
+
     Attributes:
-        id: Уникальный идентификатор раздела
-        name: Название раздела (обязательно)
-        sphere_id: ID сферы, к которой принадлежит раздел
-        description: Описание раздела (опционально)
-        position: Позиция раздела в списке (для сортировки)
-        is_active: Активен ли раздел (обязательно)
-        created_at: Время создания
-        updated_at: Время последнего обновления
+        id: Unique section identifier
+        name: Section name (required)
+        sphere_id: Sphere ID the section belongs to
+        description: Section description (optional)
+        position: Section position in list (for sorting)
+        is_active: Whether the section is active (required)
+        created_at: Creation time
+        updated_at: Last update time
     """
     sphere_id: int
     description: Optional[str]
@@ -118,7 +118,7 @@ class SectionData(BaseItemData):
 
 
 class SectionCreateData(TypedDict):
-    """Данные для создания раздела."""
+    """Data for creating a section."""
     name: str
     sphere_id: int
     description: Optional[str]
@@ -127,7 +127,7 @@ class SectionCreateData(TypedDict):
 
 
 class SectionUpdateData(TypedDict, total=False):
-    """Данные для обновления раздела (все поля опциональны)."""
+    """Data for updating a section (all fields optional)."""
     name: str
     sphere_id: int
     description: Optional[str]
@@ -138,22 +138,22 @@ class SectionUpdateData(TypedDict, total=False):
 # ===== CATEGORY TYPES =====
 
 class CategoryData(BaseItemData):
-    """Данные категории.
-    
-    Категория - это нижний уровень структуры, принадлежит разделу и содержит ссылки.
-    Примеры: "Важное", "Идеи", "Ресурсы".
-    
+    """Category data.
+
+    Category is the bottom level of the structure; belongs to a section and contains links.
+    Examples: "Important", "Ideas", "Resources".
+
     Attributes:
-        id: Уникальный идентификатор категории
-        name: Название категории (обязательно)
-        section_id: ID раздела, к которому принадлежит категория
-        description: Описание категории (опционально)
-        position: Позиция категории в списке (для сортировки)
-        is_active: Активна ли категория (обязательно)
-        color: Цвет категории в hex формате (опционально)
-        icon: Иконка категории (опционально)
-        created_at: Время создания
-        updated_at: Время последнего обновления
+        id: Unique category identifier
+        name: Category name (required)
+        section_id: Section ID the category belongs to
+        description: Category description (optional)
+        position: Category position in list (for sorting)
+        is_active: Whether the category is active (required)
+        color: Category color in hex format (optional)
+        icon: Category icon (optional)
+        created_at: Creation time
+        updated_at: Last update time
     """
     section_id: int
     description: Optional[str]
@@ -164,7 +164,7 @@ class CategoryData(BaseItemData):
 
 
 class CategoryCreateData(TypedDict):
-    """Данные для создания категории."""
+    """Data for creating a category."""
     name: str
     section_id: int
     description: Optional[str]
@@ -175,7 +175,7 @@ class CategoryCreateData(TypedDict):
 
 
 class CategoryUpdateData(TypedDict, total=False):
-    """Данные для обновления категории (все поля опциональны)."""
+    """Data for updating a category (all fields optional)."""
     name: str
     section_id: int
     description: Optional[str]
@@ -188,7 +188,7 @@ class CategoryUpdateData(TypedDict, total=False):
 # ===== LINK TYPES =====
 
 class LinkData(TypedDict):
-    """Данные ссылки."""
+    """Link data."""
     id: int
     category_id: int
     url: str
@@ -205,7 +205,7 @@ class LinkData(TypedDict):
 # ===== SEARCH TYPES =====
 
 class SearchResultItem(TypedDict):
-    """Элемент результата поиска."""
+    """Search result item."""
     id: int
     type: str  # "sphere", "section", "category", "link"
     title: str
@@ -219,7 +219,7 @@ class SearchResultItem(TypedDict):
 # ===== OPERATION RESULT TYPES =====
 
 class OperationResult(TypedDict):
-    """Результат операции."""
+    """Operation result."""
     success: bool
     message: Optional[str]
     error: Optional[str]
@@ -227,7 +227,7 @@ class OperationResult(TypedDict):
 
 
 class ValidationResult(TypedDict):
-    """Результат валидации."""
+    """Validation result."""
     is_valid: bool
     errors: List[str]
     warnings: List[str]
@@ -236,46 +236,46 @@ class ValidationResult(TypedDict):
 # ===== COUNT TYPES =====
 
 class NestedObjectsCount(TypedDict):
-    """Количество вложенных объектов."""
+    """Count of nested objects."""
     categories_count: int
     links_count: int
 
 
 class SectionNestedCount(NestedObjectsCount):
-    """Количество объектов в разделе."""
+    """Count of objects in a section."""
     pass
 
 
 class CategoryNestedCount(TypedDict):
-    """Количество объектов в категории."""
+    """Count of objects in a category."""
     links_count: int
 
 
 # ===== SIGNAL PAYLOAD TYPES =====
 
 class ItemCreatedPayload(TypedDict):
-    """Payload для сигнала создания элемента."""
+    """Payload for item created signal."""
     item_type: str
     parent_id: int
     item_data: BaseItemData
 
 
 class ItemUpdatedPayload(TypedDict):
-    """Payload для сигнала обновления элемента."""
+    """Payload for item updated signal."""
     item_type: str
     item_id: int
     item_data: BaseItemData
 
 
 class ItemDeletedPayload(TypedDict):
-    """Payload для сигнала удаления элемента."""
+    """Payload for item deleted signal."""
     item_type: str
     item_id: int
     old_data: Optional[BaseItemData]
 
 
 class ErrorPayload(TypedDict):
-    """Payload для сигнала ошибки."""
+    """Payload for error signal."""
     title: str
     message: str
     error_code: Optional[str]
@@ -284,13 +284,13 @@ class ErrorPayload(TypedDict):
 # ===== CACHE TYPES =====
 
 class CacheKey(TypedDict):
-    """Ключ кэша."""
+    """Cache key."""
     key: str
     ttl: Optional[int]
 
 
 class CacheEntry(TypedDict):
-    """Запись кэша."""
+    """Cache entry."""
     key: str
     value: Any
     created_at: float
@@ -300,7 +300,7 @@ class CacheEntry(TypedDict):
 # ===== METRICS TYPES =====
 
 class MetricSpan(TypedDict):
-    """Метрический спан."""
+    """Metric span."""
     name: str
     start_time: float
     end_time: Optional[float]
@@ -311,7 +311,7 @@ class MetricSpan(TypedDict):
 # ===== TASK TYPES =====
 
 class TaskInfo(TypedDict):
-    """Информация о задаче."""
+    """Task information."""
     task_id: str
     description: str
     status: str  # "pending", "running", "completed", "failed"
@@ -326,7 +326,7 @@ class TaskInfo(TypedDict):
 # ===== CONFIGURATION TYPES =====
 
 class ItemTypeConfig:
-    """Конфигурация для типа элемента структуры."""
+    """Configuration for a structure item type."""
 
     def __init__(
         self,
@@ -343,12 +343,12 @@ class ItemTypeConfig:
 
 # ===== UNION TYPES =====
 
-# Объединение всех типов данных элементов
+# Union of all item data types
 AnyItemData = SphereData | SectionData | CategoryData
 AnyCreateData = SphereCreateData | SectionCreateData | CategoryCreateData  
 AnyUpdateData = SphereUpdateData | SectionUpdateData | CategoryUpdateData
 
-# Объединение всех payload типов
+# Union of all payload types
 AnySignalPayload = (
     ItemCreatedPayload | 
     ItemUpdatedPayload | 

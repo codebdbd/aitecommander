@@ -1,5 +1,5 @@
 """
-Настройка клавиатуры и горячих клавиш.
+Keyboard and hotkey setup.
 """
 
 import logging
@@ -11,5 +11,5 @@ logger = logging.getLogger(__name__)
 
 
 def setup_keyboard(window: Any, controllers: Dict[str, Any]) -> None:
-    """Настроить централизованное управление горячими клавишами."""
+    """Set up centralized hotkey management."""
     window.keyboard_manager = KeyboardManager(window)

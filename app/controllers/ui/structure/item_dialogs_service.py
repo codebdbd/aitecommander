@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class ItemDialogService(QObject):
-    """Инкапсулирует логику создания и редактирования разделов и категорий."""
+    """Encapsulates logic for creating and editing sections and categories."""
 
     def __init__(self, *, controller, tree, business, main_window, undo_stack):
         parent = controller if isinstance(controller, QObject) else None
@@ -38,12 +38,12 @@ class ItemDialogService(QObject):
                 if cmd:
                     self._undo_stack.push(cmd)
         except Exception as exc:  # pragma: no cover - UI protection
-            logger.exception("Ошибка добавления раздела")
+            logger.exception("Section addition error")
             DialogManager.show_error(
                 self._main,
-                "Ошибка добавления раздела",
-                "Не удалось добавить раздел.",
-                informative_text="Проверьте корректность введённых данных и повторите попытку.",
+                "Section addition error",
+                "Failed to add section.",
+                informative_text="Check the entered data and try again.",
                 details=str(exc),
             )
 
@@ -59,12 +59,12 @@ class ItemDialogService(QObject):
                 if cmd:
                     self._undo_stack.push(cmd)
         except Exception as exc:  # pragma: no cover - UI protection
-            logger.exception("Ошибка добавления категории")
+            logger.exception("Category addition error")
             DialogManager.show_error(
                 self._main,
-                "Ошибка добавления категории",
-                "Не удалось добавить категорию.",
-                informative_text="Проверьте корректность введённых данных и повторите попытку.",
+                "Category addition error",
+                "Failed to add category.",
+                informative_text="Check the entered data and try again.",
                 details=str(exc),
             )
 
@@ -96,9 +96,9 @@ class ItemDialogService(QObject):
     def _offer_create_section(self) -> bool:
         return DialogManager.ask_confirmation(
             self._main,
-            "В текущей сфере нет разделов. Создать новый раздел?",
-            "Нет разделов",
-            informative_text="Будет открыт диалог создания раздела.",
+            "No sections in the current sphere. Create a new section?",
+            "No sections",
+            informative_text="The section creation dialog will be opened.",
         )
 
     def ensure_section_for_category(self) -> Optional[int]:
@@ -126,12 +126,12 @@ class ItemDialogService(QObject):
                 if cmd:
                     self._undo_stack.push(cmd)
         except Exception as exc:  # pragma: no cover - UI protection
-            logger.exception("Ошибка редактирования раздела")
+            logger.exception("Section edit error")
             DialogManager.show_error(
                 self._main,
-                "Ошибка редактирования раздела",
-                "Не удалось редактировать раздел.",
-                informative_text="Попробуйте ещё раз или обратитесь в поддержку.",
+                "Section edit error",
+                "Failed to edit section.",
+                informative_text="Try again or contact support.",
                 details=str(exc),
             )
 
@@ -155,12 +155,12 @@ class ItemDialogService(QObject):
                 if cmd:
                     self._undo_stack.push(cmd)
         except Exception as exc:  # pragma: no cover - UI protection
-            logger.exception("Ошибка редактирования категории")
+            logger.exception("Category edit error")
             DialogManager.show_error(
                 self._main,
-                "Ошибка редактирования категории",
-                "Не удалось редактировать категорию.",
-                informative_text="Попробуйте ещё раз или обратитесь в поддержку.",
+                "Category edit error",
+                "Failed to edit category.",
+                informative_text="Try again or contact support.",
                 details=str(exc),
             )
 

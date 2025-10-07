@@ -1,10 +1,10 @@
 # app/controllers/structure_modules/validators.py
 
-"""Runtime валидация для structure_modules - PyQt6 Best Practices.
+"""Runtime validation for structure_modules - PyQt6 Best Practices.
 
-Этот модуль предоставляет runtime валидацию для всех TypedDict структур
-и входных данных. Использует встроенные возможности Python без внешних
-зависимостей для максимальной совместимости.
+This module provides runtime validation for all TypedDict structures
+and input data. Uses built-in Python capabilities without external
+dependencies for maximum compatibility.
 """
 
 import logging
@@ -19,7 +19,7 @@ from .validation_api import (
 logger = logging.getLogger(__name__)
 
 
-# Экспорт публичного API для обратной совместимости
+# Export public API for backward compatibility
 __all__ = [
     "validate_create_data",
     "validate_update_data",
@@ -33,7 +33,7 @@ __all__ = [
     "StructureDataValidator"
 ]
 
-# Импорт классов для обратной совместимости
+# Import classes for backward compatibility
 from .validation_types import (
     ValidationError, ValidationSeverity, ValidationIssue, DetailedValidationResult
 )

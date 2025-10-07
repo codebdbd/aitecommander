@@ -1,13 +1,13 @@
 """
-Универсальная система работы с профилями браузеров.
+Universal browser profile system.
 
-Основные компоненты:
-- BrowserProfileManager: Центральный менеджер для всех браузеров
-- UniversalProfileProcessor: Обработка профилей для создания ссылок
-- BaseBrowserProfileFinder: Базовый интерфейс для поиска профилей
-- Конкретные реализации для каждого браузера
+Main components:
+- BrowserProfileManager: Central manager for all browsers
+- UniversalProfileProcessor: Profile processing for link creation
+- BaseBrowserProfileFinder: Base interface for profile finding
+- Concrete implementations for each browser
 
-Использование:
+Usage:
     from app.utils.browser.browser_profiles import get_profile_manager
 
     manager = get_profile_manager()

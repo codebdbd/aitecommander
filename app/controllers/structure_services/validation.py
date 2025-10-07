@@ -5,12 +5,12 @@ from typing import Any, Callable, Dict, Optional
 
 from app.controllers.structure_modules import ValidationResult
 
-# Модульный логгер для диагностических сообщений
+# Module logger for diagnostic messages
 logger = logging.getLogger(__name__)
 
 
 class ValidationService:
-    """Сервис валидации данных структуры."""
+    """Structure data validation service."""
 
     def validate_section_data(
         self,
@@ -23,14 +23,14 @@ class ValidationService:
 
         name = (data.get("name") or "").strip()
         if not name:
-            result.add_error("Название раздела обязательно")
+            result.add_error("Section name is required")
 
         sphere_id = data.get("sphere_id")
         if not sphere_id:
-            result.add_error("ID сферы обязателен")
+            result.add_error("Sphere ID is required")
 
         if name and len(name) > 100:
-            result.add_error("Название раздела не может быть длиннее 100 символов")
+            result.add_error("Section name cannot be longer than 100 characters")
 
         if name and sphere_id:
             sections = get_sections(sphere_id) or []
@@ -40,7 +40,7 @@ class ValidationService:
                     and section.get("id") != section_id
                 ):
                     result.add_error(
-                        "Раздел с таким названием уже существует в этой сфере"
+                        "Section with this name already exists in this sphere"
                     )
                     break
 
@@ -57,19 +57,19 @@ class ValidationService:
 
         name = (data.get("name") or "").strip()
         if not name:
-            result.add_error("Название категории обязательно")
+            result.add_error("Category name is required")
 
         section_id = data.get("section_id")
         if not section_id:
-            result.add_error("ID раздела обязателен")
+            result.add_error("Section ID is required")
 
         if name and len(name) > 100:
-            result.add_error("Название категории не может быть длиннее 100 символов")
+            result.add_error("Category name cannot be longer than 100 characters")
 
         if name and section_id:
             if has_duplicate_category(section_id, name, category_id):
                 result.add_error(
-                    "Категория с таким названием уже существует в этом разделе"
+                    "Category with this name already exists in this section"
                 )
 
         return result

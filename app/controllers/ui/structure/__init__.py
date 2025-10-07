@@ -1,5 +1,5 @@
 # app/controllers/ui/structure/__init__.py
-# Фасад для UI-контроллеров структуры (локальные импорты).
+# Facade for Structure UI controllers (local imports).
 
 from .item_operations import ItemOperations
 from .item_dialogs_service import ItemDialogService

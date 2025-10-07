@@ -13,15 +13,15 @@ logger = logging.getLogger(__name__)
 
 
 class ThemeStylesheetService:
-    """Отвечает за подготовку QSS: чтение файлов, построение override-блоков и LRU-кэш."""
+    """Responsible for QSS preparation: reading files, building override blocks and LRU-cache."""
 
     def __init__(self, app_config, *, max_cache_size: int | None = None, settings=None):
         self._app_config = app_config
-        self._settings = settings  # Пользовательские настройки для динамических размеров шрифтов
+        self._settings = settings  # User settings for dynamic font sizes
         self._qss_cache: OrderedDict[str, str] = OrderedDict()
         self._common_qss: Optional[str] = None
         self._cache_lock = RLock()
-        # ✅ ИСПРАВЛЕНИЕ: Кэш для QSS overrides
+        # ✅ FIX: Cache for QSS overrides
         self._overrides_cache: Optional[str] = None
         try:
             initial_size = max_cache_size
@@ -33,24 +33,24 @@ class ThemeStylesheetService:
             initial_size = 10
         if initial_size < 0:
             logger.warning(
-                "ThemeStylesheetService: отрицательный размер кэша (%s) нормализован до 0",
+                "ThemeStylesheetService: negative cache size (%s) normalized to 0",
                 initial_size,
             )
             initial_size = 0
         self._max_cache_size = initial_size
 
-    # ---------------------- Публичные методы ----------------------
+    # ---------------------- Public methods ----------------------
     def clear_cache(self) -> None:
-        """Очищает все кэши (темы, common.qss, overrides).
+        """Clears all caches (themes, common.qss, overrides).
         
-        ✅ ИСПРАВЛЕНИЕ: Очищает также overrides_cache.
+        ✅ FIX: Also clears overrides_cache.
         """
         with self._cache_lock:
             cache_size = len(self._qss_cache)
             self._qss_cache.clear()
             self._common_qss = None
-            self._overrides_cache = None  # ✅ Очищаем overrides
-        logger.debug("ThemeStylesheetService: кэш очищен, удалено %d записей", cache_size)
+            self._overrides_cache = None  # ✅ Clear overrides
+        logger.debug("ThemeStylesheetService: cache cleared, removed %d entries", cache_size)
 
     def get_cache_stats(self) -> dict[str, object]:
         with self._cache_lock:
@@ -63,7 +63,7 @@ class ThemeStylesheetService:
 
     def load_stylesheet(self, theme_name: str, qss_filename: str) -> Optional[str]:
         if not self._is_safe_filename(qss_filename):
-            logger.error("ThemeStylesheetService: небезопасное имя файла темы: %s", qss_filename)
+            logger.error("ThemeStylesheetService: unsafe theme file name: %s", qss_filename)
             return None
 
         theme_path = self._app_config.paths.get_qss_dir() / qss_filename
@@ -72,13 +72,13 @@ class ThemeStylesheetService:
             full_path = theme_path.resolve()
             if not str(full_path).startswith(str(qss_dir)):
                 logger.error(
-                    "ThemeStylesheetService: попытка доступа к файлу вне директории тем: %s",
+                    "ThemeStylesheetService: attempt to access file outside theme directory: %s",
                     theme_path,
                 )
                 return None
         except Exception as exc:
             logger.error(
-                "ThemeStylesheetService: ошибка проверки пути к файлу темы %s: %s",
+                "ThemeStylesheetService: error checking theme file path %s: %s",
                 theme_path,
                 exc,
                 exc_info=True,
@@ -90,24 +90,24 @@ class ThemeStylesheetService:
             return cached
 
         if not theme_path.exists():
-            logger.error("ThemeStylesheetService: файл темы не найден: %s", theme_path)
+            logger.error("ThemeStylesheetService: theme file not found: %s", theme_path)
             return None
 
         try:
             with theme_path.open("r", encoding="utf-8") as fh:
                 theme_qss = fh.read()
         except UnicodeDecodeError as exc:
-            logger.error("ThemeStylesheetService: ошибка декодирования файла темы %s: %s", theme_name, exc)
+            logger.error("ThemeStylesheetService: error decoding theme file %s: %s", theme_name, exc)
             return None
         except PermissionError as exc:
-            logger.error("ThemeStylesheetService: нет доступа к файлу темы %s: %s", theme_name, exc)
+            logger.error("ThemeStylesheetService: no access to theme file %s: %s", theme_name, exc)
             return None
         except OSError as exc:
-            logger.error("ThemeStylesheetService: ошибка чтения темы %s: %s", theme_name, exc)
+            logger.error("ThemeStylesheetService: error reading theme %s: %s", theme_name, exc)
             return None
         except Exception as exc:
             logger.error(
-                "ThemeStylesheetService: неожиданная ошибка чтения темы %s: %s",
+                "ThemeStylesheetService: unexpected error reading theme %s: %s",
                 theme_name,
                 exc,
                 exc_info=True,
@@ -117,7 +117,7 @@ class ThemeStylesheetService:
         common_qss = self._load_common_qss()
         combined_qss = f"{common_qss}\n{theme_qss}" if common_qss is not None else theme_qss
 
-        # ✅ ИСПРАВЛЕНИЕ: Используем кэшированные overrides
+        # ✅ FIX: Use cached overrides
         try:
             overrides = self._get_cached_overrides()
             if overrides:
@@ -126,7 +126,7 @@ class ThemeStylesheetService:
                 )
         except Exception as exc:
             logger.warning(
-                "ThemeStylesheetService: не удалось построить QSS-оверрайды из конфигурации: %s",
+                "ThemeStylesheetService: failed to build QSS overrides from configuration: %s",
                 exc,
             )
 
@@ -135,10 +135,10 @@ class ThemeStylesheetService:
             self._qss_cache.move_to_end(theme_name, last=True)
             self._enforce_cache_limit()
 
-        logger.debug("ThemeStylesheetService: загружена и кэширована тема: %s", theme_name)
+        logger.debug("ThemeStylesheetService: loaded and cached theme: %s", theme_name)
         return combined_qss
 
-    # ---------------------- Внутренние методы ----------------------
+    # ---------------------- Internal methods ----------------------
     def _get_from_cache(self, theme_name: str) -> Optional[str]:
         with self._cache_lock:
             if theme_name in self._qss_cache:
@@ -153,7 +153,7 @@ class ThemeStylesheetService:
 
         common_path = self._app_config.paths.get_qss_dir() / "common.qss"
         if not common_path.exists():
-            logger.warning("ThemeStylesheetService: файл общих стилей не найден: %s", common_path)
+            logger.warning("ThemeStylesheetService: common styles file not found: %s", common_path)
             with self._cache_lock:
                 self._common_qss = ""
             return ""
@@ -163,17 +163,17 @@ class ThemeStylesheetService:
                 content = fh.read()
             with self._cache_lock:
                 self._common_qss = content
-            logger.debug("ThemeStylesheetService: загружены общие стили из %s", common_path)
+            logger.debug("ThemeStylesheetService: loaded common styles from %s", common_path)
             return content
         except UnicodeDecodeError as exc:
-            logger.error("ThemeStylesheetService: ошибка декодирования общих стилей: %s", exc)
+            logger.error("ThemeStylesheetService: error decoding common styles: %s", exc)
         except PermissionError as exc:
-            logger.error("ThemeStylesheetService: нет доступа к общим стилям: %s", exc)
+            logger.error("ThemeStylesheetService: no access to common styles: %s", exc)
         except OSError as exc:
-            logger.error("ThemeStylesheetService: ошибка чтения общих стилей: %s", exc)
+            logger.error("ThemeStylesheetService: error reading common styles: %s", exc)
         except Exception as exc:
             logger.error(
-                "ThemeStylesheetService: неожиданная ошибка при загрузке общих стилей: %s",
+                "ThemeStylesheetService: unexpected error loading common styles: %s",
                 exc,
                 exc_info=True,
             )
@@ -187,22 +187,22 @@ class ThemeStylesheetService:
                 removed = len(self._qss_cache)
                 self._qss_cache.clear()
                 if removed:
-                    logger.debug("ThemeStylesheetService: кэш выключен, очищено %d записей", removed)
+                    logger.debug("ThemeStylesheetService: cache disabled, cleared %d entries", removed)
                 return
             while len(self._qss_cache) > self._max_cache_size:
                 key, _ = self._qss_cache.popitem(last=False)
-                logger.debug("ThemeStylesheetService: LRU удалил тему %s", key)
+                logger.debug("ThemeStylesheetService: LRU removed theme %s", key)
 
     def _get_cached_overrides(self) -> str:
-        """Возвращает кэшированные QSS overrides.
+        """Returns cached QSS overrides.
         
-        ✅ ИСПРАВЛЕНИЕ: Кэширует результат _build_config_overrides_qss().
+        ✅ FIX: Caches result of _build_config_overrides_qss().
         """
         with self._cache_lock:
             if self._overrides_cache is not None:
                 return self._overrides_cache
         
-        # Генерируем overrides
+        # Generate overrides
         overrides = self._build_config_overrides_qss()
         
         with self._cache_lock:
@@ -211,11 +211,11 @@ class ThemeStylesheetService:
         return overrides
     
     def invalidate_overrides_cache(self) -> None:
-        """Сбрасывает кэш overrides при изменении настроек.
+        """Resets overrides cache when settings change.
         
-        ✅ ИСПРАВЛЕНИЕ: Публичный метод для сброса кэша.
+        ✅ FIX: Public method to reset cache.
         
-        Вызывайте этот метод после изменения размеров шрифтов или других UI-настроек.
+        Call this method after changing font sizes or other UI settings.
         """
         with self._cache_lock:
             self._overrides_cache = None
@@ -265,16 +265,16 @@ class ThemeStylesheetService:
         form_field_px = _get_font_px("form_field_px", None)
         link_type_button_px = _get_font_px("link_type_button_px", None)
 
-        # Применяем пользовательский размер шрифта из settings (если есть)
-        # к дереву и таблице, переопределяя статические значения из app_config
+        # Apply user font size from settings (if any)
+        # to tree and table, overriding static values from app_config
         if self._settings and hasattr(self._settings, 'get_font_size'):
             try:
                 user_font_size = int(self._settings.get_font_size())
-                if 9 <= user_font_size <= 20:  # Валидный диапазон
+                if 9 <= user_font_size <= 20:  # Valid range
                     tree_px = user_font_size
                     table_row_px = user_font_size
             except Exception:
-                pass  # Используем значения по умолчанию
+                pass  # Use default values
 
         try:
             fonts_units = str(app_config.ui.get("ui.fonts.units", "px")).strip().lower()
@@ -424,7 +424,7 @@ def configure_qicon_theme(theme_name: str, app_config) -> None:
         return
     ui_icons_dir = app_config.paths.get_ui_icons_dir()
     if not ui_icons_dir.exists():
-        logger.debug("ThemeStylesheetService: директория UI-иконок отсутствует: %s", ui_icons_dir)
+        logger.debug("ThemeStylesheetService: UI icons directory missing: %s", ui_icons_dir)
         return
     theme_dir = ui_icons_dir / theme_name
     if not theme_dir.exists():
@@ -432,14 +432,14 @@ def configure_qicon_theme(theme_name: str, app_config) -> None:
         fallback_dir = ui_icons_dir / fallback
         if fallback_dir.exists():
             logger.warning(
-                "ThemeStylesheetService: тема иконок '%s' не найдена, используется fallback '%s'",
+                "ThemeStylesheetService: icon theme '%s' not found, using fallback '%s'",
                 theme_name,
                 fallback,
             )
             theme_name = fallback
         else:
             logger.warning(
-                "ThemeStylesheetService: директория темы иконок не найдена: %s, fallback 'light' также отсутствует",
+                "ThemeStylesheetService: icon theme directory not found: %s, fallback 'light' also missing",
                 theme_dir,
             )
     search_paths = [str(ui_icons_dir)]
@@ -450,7 +450,7 @@ def configure_qicon_theme(theme_name: str, app_config) -> None:
                 search_paths.append(path)
     except Exception as exc:
         logger.debug(
-            "ThemeStylesheetService: не удалось получить текущие пути поиска тем QIcon: %s",
+            "ThemeStylesheetService: failed to get current QIcon theme search paths: %s",
             exc,
             exc_info=True,
         )

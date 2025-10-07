@@ -3,12 +3,12 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List
 
-# Модульный логгер для диагностических сообщений
+# Module logger for diagnostic messages
 logger = logging.getLogger(__name__)
 
 
 class LoaderService:
-    """Сервис загрузки структуры из БД/модели."""
+    """Structure loading service from DB/model."""
 
     def load_structure_from_db(
         self,
@@ -16,9 +16,9 @@ class LoaderService:
         sphere_id: int,
         logger,
     ) -> List[Dict[str, Any]]:
-        """Загружает разделы и категории для сферы.
+        """Load sections and categories for sphere.
 
-        Не знает о кэшах и сигналах; только чтение модели и сбор данных.
+        Does not know about caches and signals; only model reading and data collection.
         """
         try:
             sections = structure_model.get_sections(sphere_id) or []
@@ -34,9 +34,9 @@ class LoaderService:
             return sections
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
-                logger.error("Ошибка валидации данных при загрузке структуры: %s", e)
+                logger.error("Data validation error while loading structure: %s", e)
             return []
         except Exception as e:
             if logger:
-                logger.exception("Критическая ошибка загрузки структуры из БД")
-            raise  # Пробрасываем критические ошибки
+                logger.exception("Critical error loading structure from DB")
+            raise  # Re-raise critical errors

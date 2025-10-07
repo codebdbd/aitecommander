@@ -1,6 +1,6 @@
-"""Контроллер для импорта/экспорта данных структуры.
+"""Controller for structure data import/export.
 
-Использует async операции для импорта/экспорта без блокировки UI.
+Uses async operations for import/export without blocking UI.
 """
 import json
 import logging
@@ -17,13 +17,13 @@ logger = logging.getLogger(__name__)
 
 
 class DataImportExportController(QObject):
-    """Контроллер для операций импорта/экспорта структуры данных.
+    """Controller for structure data import/export operations.
     
     Features:
-    - Асинхронный импорт/экспорт с progress dialog
-    - Обработка ошибок
-    - Валидация JSON
-    - Уведомления о результатах
+    - Asynchronous import/export with progress dialog
+    - Error handling
+    - JSON validation
+    - Result notifications
     """
     
     # Сигналы для уведомления UI
@@ -34,104 +34,104 @@ class DataImportExportController(QObject):
     def __init__(self, db: Database, parent: Optional[QWidget] = None):
         """
         Args:
-            db: Экземпляр Database
-            parent: Родительский виджет для диалогов
+            db: Database instance
+            parent: Parent widget for dialogs
         """
         super().__init__(parent)
         self.db = db
         self.parent_widget = parent
     
     def handle_export_structure(self):
-        """Обработчик экспорта структуры данных.
+        """Structure data export handler.
         
-        Показывает диалог сохранения файла и запускает async экспорт.
+        Shows save file dialog and starts async export.
         """
-        # Диалог выбора места сохранения
+        # Save file dialog
         file_path, _ = QFileDialog.getSaveFileName(
             self.parent_widget,
-            "Экспорт структуры данных",
+            "Export structure data",
             "structure_export.json",
             "JSON Files (*.json);;All Files (*)"
         )
         
         if not file_path:
-            return  # Пользователь отменил
+            return  # User cancelled
         
         file_path = Path(file_path)
         
         def on_export_success(result):
-            """Callback при успешном экспорте."""
+            """Callback on successful export."""
             try:
-                # Сохраняем результат в файл
+                # Save result to file
                 with open(file_path, 'w', encoding='utf-8') as f:
                     json.dump(result, f, ensure_ascii=False, indent=2)
                 
-                logger.info(f"Структура экспортирована в {file_path}")
+                logger.info(f"Structure exported to {file_path}")
                 self.export_completed.emit(str(file_path))
                 
-                # Показываем статистику
+                # Show statistics
                 stats_msg = (
-                    f"Экспорт завершен!\n\n"
-                    f"Сфер: {len(result.get('spheres', []))}\n"
-                    f"Разделов: {len(result.get('sections', []))}\n"
-                    f"Категорий: {len(result.get('categories', []))}\n"
-                    f"Ссылок: {len(result.get('links', []))}\n\n"
-                    f"Файл: {file_path.name}"
+                    f"Export completed!\n\n"
+                    f"Spheres: {len(result.get('spheres', []))}\n"
+                    f"Sections: {len(result.get('sections', []))}\n"
+                    f"Categories: {len(result.get('categories', []))}\n"
+                    f"Links: {len(result.get('links', []))}\n\n"
+                    f"File: {file_path.name}"
                 )
                 QMessageBox.information(
                     self.parent_widget,
-                    "Экспорт завершен",
+                    "Export completed",
                     stats_msg
                 )
                 
             except Exception as e:
-                logger.error(f"Ошибка сохранения файла: {e}")
+                logger.error(f"Error saving file: {e}")
                 self.operation_error.emit(
-                    "Ошибка сохранения",
-                    f"Не удалось сохранить файл:\n{str(e)}"
+                    "Save error",
+                    f"Failed to save file:\n{str(e)}"
                 )
         
-        # Запускаем async экспорт с progress dialog
+        # Start async export with progress dialog
         run_async_export(
             self.db,
             parent=self.parent_widget,
             on_success=on_export_success,
-            title="Экспорт структуры"
+            title="Structure export"
         )
     
     def handle_import_structure(self):
-        """Обработчик импорта структуры данных.
+        """Structure data import handler.
         
-        Показывает диалог выбора файла и запускает async импорт.
+        Shows file selection dialog and starts async import.
         """
-        # Диалог выбора файла
+        # File selection dialog
         file_path, _ = QFileDialog.getOpenFileName(
             self.parent_widget,
-            "Импорт структуры данных",
+            "Import structure data",
             "",
             "JSON Files (*.json);;All Files (*)"
         )
         
         if not file_path:
-            return  # Пользователь отменил
+            return  # User cancelled
         
         file_path = Path(file_path)
         
         try:
-            # Читаем и валидируем JSON
+            # Read and validate JSON
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
             if not isinstance(data, list):
-                raise ValueError("Неверный формат данных: ожидается массив")
+                raise ValueError("Invalid data format: array expected")
             
-            # Подтверждение импорта
+            # Import confirmation
             confirm = QMessageBox.question(
                 self.parent_widget,
-                "Подтверждение импорта",
-                f"Импортировать структуру из файла:\n{file_path.name}\n\n"
-                "⚠️ ВНИМАНИЕ: Текущая структура будет полностью заменена!\n\n"
-                "Рекомендуется создать резервную копию перед импортом.",
+                "Import confirmation",
+                f"Import structure from file:\n{file_path.name}\n\n"
+                "⚠️ WARNING: Current structure will be completely replaced!\n\n"
+                "It is recommended to create a backup before importing.",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No
             )
@@ -140,49 +140,49 @@ class DataImportExportController(QObject):
                 return
             
             def on_import_success(stats):
-                """Callback при успешном импорте."""
-                logger.info(f"Структура импортирована из {file_path}")
+                """Callback on successful import."""
+                logger.info(f"Structure imported from {file_path}")
                 self.import_completed.emit(stats)
                 
-                # Уведомление уже показывается в run_async_import
-                # Здесь можем добавить дополнительную логику
+                # Notification is already shown in run_async_import
+                # Additional logic can be added here
             
-            # Запускаем async импорт с progress dialog
+            # Start async import with progress dialog
             run_async_import(
                 self.db,
                 data,
                 parent=self.parent_widget,
                 on_success=on_import_success,
-                title="Импорт структуры",
-                cancelable=True  # Можно отменить длительный импорт
+                title="Structure import",
+                cancelable=True  # Long import can be cancelled
             )
             
         except json.JSONDecodeError as e:
-            logger.error(f"Ошибка парсинга JSON: {e}")
+            logger.error(f"JSON parsing error: {e}")
             self.operation_error.emit(
-                "Ошибка формата",
-                f"Файл содержит невалидный JSON:\n{str(e)}"
+                "Format error",
+                f"File contains invalid JSON:\n{str(e)}"
             )
             QMessageBox.critical(
                 self.parent_widget,
-                "Ошибка формата",
-                f"Файл содержит невалидный JSON:\n{str(e)}"
+                "Format error",
+                f"File contains invalid JSON:\n{str(e)}"
             )
             
         except Exception as e:
-            logger.error(f"Ошибка загрузки файла: {e}")
+            logger.error(f"File loading error: {e}")
             self.operation_error.emit(
-                "Ошибка загрузки",
-                f"Не удалось загрузить файл:\n{str(e)}"
+                "Load error",
+                f"Failed to load file:\n{str(e)}"
             )
             QMessageBox.critical(
                 self.parent_widget,
-                "Ошибка загрузки",
-                f"Не удалось загрузить файл:\n{str(e)}"
+                "Load error",
+                f"Failed to load file:\n{str(e)}"
             )
     
     def handle_quick_backup(self):
-        """Быстрый backup без UI (запускается в фоне)."""
+        """Quick backup without UI (runs in background)."""
         from app.utils.ui.async_helpers import run_async_backup
         
         run_async_backup(

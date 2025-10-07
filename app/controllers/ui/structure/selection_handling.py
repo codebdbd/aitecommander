@@ -13,7 +13,7 @@ from app.utils.ui.qt.roles import get_tree_tuple
 from .selection_actions import SelectionActions
 from .selection_workflow_service import SelectionWorkflowService
 
-# Используем строковые литералы "section" и "category"
+# Use string literals "section" and "category"
 
 logger = logging.getLogger(__name__)
 
@@ -95,9 +95,9 @@ class SelectionHandling(QObject):
 
         DialogManager.show_warning(
             self.main,
-            title or "Предупреждение",
+            title or "Warning",
             message,
-            informative_text="Проверьте корректность действий и повторите попытку.",
+            informative_text="Check the correctness of actions and try again.",
         )
 
     def _select_first_item_if_needed(self) -> None:

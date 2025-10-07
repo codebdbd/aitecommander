@@ -7,9 +7,9 @@ from typing import Any, Callable, Optional
 
 
 def handle_exceptions(default_return=None):
-    """Декоратор для обработки исключений в методах.
+    """Decorator for handling exceptions in methods.
 
-    Ожидает, что у self есть атрибуты logger и метод _emit_error(title, message).
+    Expects self to have logger attribute and _emit_error(title, message) method.
     """
 
     def decorator(func: Callable[..., Any]):
@@ -20,11 +20,11 @@ def handle_exceptions(default_return=None):
             except Exception as e:  # noqa: BLE001
                 logger: Optional[logging.Logger] = getattr(self, "logger", None)
                 if logger:
-                    logger.error("Ошибка в %s: %s", func.__name__, e, exc_info=True)
-                # Сообщение в UI, если метод доступен
+                    logger.error("Error in %s: %s", func.__name__, e, exc_info=True)
+                # UI message if method is available
                 emit_error = getattr(self, "_emit_error", None)
                 if callable(emit_error):
-                    emit_error(f"Ошибка в {func.__name__}", str(e))
+                    emit_error(f"Error in {func.__name__}", str(e))
                 return default_return
 
         return wrapper

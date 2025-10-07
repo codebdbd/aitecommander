@@ -1,5 +1,5 @@
 """
-Бизнес-логика настройки контроллеров.
+Business logic for controller setup.
 """
 
 import logging
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 def _validate_qt_context() -> None:
-    """Валидация наличия Qt application instance."""
+    """Validate Qt application instance presence."""
     app_instance = QApplication.instance()
     if app_instance is None:
         raise SetupError(
@@ -42,14 +42,14 @@ def _validate_qt_context() -> None:
 
 
 def _setup_business_logic(controllers: Dict[str, Any], db: DatabaseProtocol) -> None:
-    """Создать бизнес-логику."""
+    """Create business logic."""
     structure_business = StructureBusinessLogic(db)
     controllers["structure_business"] = structure_business
 
 
 def _setup_ui_state_and_tiles(window: WindowProtocol, controllers: Dict[str, Any]) -> None:
-    """Настроить UI состояние и контроллер плиток категорий."""
-    # Важно: сначала UIState и CategoryTilesController
+    """Set up UI state and category tiles controller."""
+    # Important: first UIState and CategoryTilesController
     window.ui_state = UIStateManager(window)
     controllers["ui_state"] = window.ui_state
 
@@ -58,7 +58,7 @@ def _setup_ui_state_and_tiles(window: WindowProtocol, controllers: Dict[str, Any
             ui_state=controllers["ui_state"],
             structure_business=controllers["structure_business"],
         )
-        # Требуем наличие корректного tiles-виджета и жёстко валидируем ошибки подключения
+        # Require correct tiles widget and strictly validate connection errors
         if not hasattr(window, "tiles") or not window.tiles:
             raise SetupError(
                 "Tiles widget is required for CategoryTilesController setup"
@@ -86,7 +86,7 @@ def _setup_ui_state_and_tiles(window: WindowProtocol, controllers: Dict[str, Any
 
 
 def _setup_structure_controllers(window: Any, controllers: Dict[str, Any]) -> None:
-    """Настроить контроллеры структуры."""
+    """Set up structure controllers."""
     structure_ctrl = StructureUIController(
         window.tree, controllers["structure_business"], window
     )
@@ -94,10 +94,10 @@ def _setup_structure_controllers(window: Any, controllers: Dict[str, Any]) -> No
 
 
 def _setup_links_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None:
-    """Настроить контроллеры ссылок."""
-    # Создаём link_operations и links_table_controller до LinksUIController
+    """Set up link controllers."""
+    # Create link_operations and links_table_controller before LinksUIController
     link_ops = LinkOperationsController(db, window.undo_stack, window)
-    # Ранняя проверка наличия критичных сигналов LinkOperationsController
+    # Early check for critical LinkOperationsController signals
     try:
         rec_sig = link_ops.recents_changed  # должен существовать и иметь connect
         if not hasattr(rec_sig, "connect"):
@@ -107,7 +107,7 @@ def _setup_links_controllers(window: Any, controllers: Dict[str, Any], db: Any) 
             "LinkOperationsController must expose recents_changed signal"
         ) from e
     
-    # Инициализируем LinksBusiness только после успешной настройки tiles
+    # Initialize LinksBusiness only after successful tiles setup
     links_business = LinksBusinessLogic(db)
 
     links_table_ctrl = LinksTableController(
@@ -133,7 +133,7 @@ def _setup_links_controllers(window: Any, controllers: Dict[str, Any], db: Any) 
 
 
 def _setup_dialog_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None:
-    """Настроить контроллеры диалогов."""
+    """Set up dialog controllers."""
     db_ctrl = DatabaseController(db, window)
     sys_dialogs = SystemDialogController(
         window,
@@ -149,15 +149,15 @@ def _setup_dialog_controllers(window: Any, controllers: Dict[str, Any], db: Any)
 
 
 def _setup_shutdown_controller(window: Any, controllers: Dict[str, Any]) -> None:
-    """Настроить контроллер завершения приложения."""
+    """Set up application shutdown controller."""
     app_shutdown = AppShutdownController(window)
     controllers["app_shutdown"] = app_shutdown
 
 
 def _setup_links_actions(window: Any, controllers: Dict[str, Any]) -> None:
-    """Настроить LinksActions контроллер."""
+    """Set up LinksActions controller."""
     try:
-        # Явно передаем созданные выше зависимости, без controllers.get
+        # Explicitly pass dependencies created above, without controllers.get
         window.links = controllers["links"]
         window.link_operations = controllers["link_operations"]
         window.links_actions = LinksActions(
@@ -172,14 +172,14 @@ def _setup_links_actions(window: Any, controllers: Dict[str, Any]) -> None:
 
 
 def _setup_additional_controllers(window: Any, controllers: Dict[str, Any]) -> None:
-    """Настроить дополнительные контроллеры."""
-    # Прямая привязка контроллера таблицы
+    """Set up additional controllers."""
+    # Direct binding of table controller
     window.links_table_controller = controllers["links_table_controller"]
 
     window.action_controller = ActionController(window)
     controllers["action_controller"] = window.action_controller
 
-    # Обязательная зависимость: SpheresBarController должен успешно создаться
+    # Required dependency: SpheresBarController must be created successfully
     try:
         window.spheres_controller = SpheresBarController(window)
         controllers["spheres_controller"] = window.spheres_controller
@@ -189,9 +189,9 @@ def _setup_additional_controllers(window: Any, controllers: Dict[str, Any]) -> N
 
 
 def _setup_top_panels_controller(window: Any, controllers: Dict[str, Any]) -> None:
-    """Настроить контроллер верхних панелей."""
+    """Set up top panels controller."""
     try:
-        # Явно требуем наличие обоих виджетов (обязательные зависимости)
+        # Explicitly require both widgets (required dependencies)
         fav_w = window.fav_widget  # may raise AttributeError
         rec_w = window.recent_links_widget  # may raise AttributeError
         window.top_panels_controller = TopPanelsController(
@@ -202,7 +202,7 @@ def _setup_top_panels_controller(window: Any, controllers: Dict[str, Any]) -> No
         )
         controllers["top_panels_controller"] = window.top_panels_controller
         
-        # Внедряем контроллер верхних панелей в бизнес-логику явным сеттером (обязательно)
+        # Inject top panels controller into business logic with explicit setter (required)
         structure_business = controllers["structure_business"]
         if not hasattr(structure_business, "set_top_panels_controller"):
             raise SetupError(
@@ -210,13 +210,13 @@ def _setup_top_panels_controller(window: Any, controllers: Dict[str, Any]) -> No
             )
         structure_business.set_top_panels_controller(window.top_panels_controller)
         
-        # Также внедряем TopPanelsController в ThemeController, если доступен
+        # Also inject TopPanelsController into ThemeController if available
         try:
             theme_ctrl = getattr(window, "theme_ctrl", None)
             if theme_ctrl and hasattr(theme_ctrl, "set_top_panels_controller"):
                 theme_ctrl.set_top_panels_controller(window.top_panels_controller)
         except Exception as e:
-            # Не считаем критичным для продолжения работы UI, но логируем для диагностики
+            # Not critical for UI operation continuation, but log for diagnostics
             logger.warning(
                 "Failed to inject TopPanelsController into ThemeController: %s",
                 e,
@@ -228,8 +228,8 @@ def _setup_top_panels_controller(window: Any, controllers: Dict[str, Any]) -> No
 
 
 def _connect_controller_signals(controllers: Dict[str, Any]) -> None:
-    """Подключить сигналы между контроллерами."""
-    # Подключение сигналов — явные зависимости и конкретные исключения
+    """Connect signals between controllers."""
+    # Signal connection — explicit dependencies and specific exceptions
     link_ops_ref = controllers["link_operations"]
     table_ref = controllers["links_table_controller"]
     top_panels_ref = controllers["top_panels_controller"]
@@ -271,7 +271,7 @@ def _connect_controller_signals(controllers: Dict[str, Any]) -> None:
 
 
 def _assign_controllers_to_window(window: Any, controllers: Dict[str, Any]) -> None:
-    """Присвоить контроллеры атрибутам окна."""
+    """Assign controllers to window attributes."""
     window.structure_business = controllers["structure_business"]
     window.structure = controllers["structure"]
     window.links_business = controllers["links_business"]

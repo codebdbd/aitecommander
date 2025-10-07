@@ -1,5 +1,5 @@
 """
-Типы и протоколы для настройки контроллеров главного окна.
+Types and protocols for main window controller setup.
 """
 
 from typing import Any, Protocol, TypedDict, runtime_checkable
@@ -9,15 +9,15 @@ from app.controllers.business.links_business import LinksBusinessLogic
 from app.controllers.system.app_shutdown_controller import AppShutdownController
 
 
-# ✅ Строгие протоколы для типизации
+# ✅ Strict protocols for typing
 @runtime_checkable
 class DatabaseProtocol(Protocol):
-    """Протокол для базы данных с детальным интерфейсом."""
+    """Protocol for database with detailed interface."""
     
     def __enter__(self): ...
     def __exit__(self, *args): ...
     
-    # Модели данных
+    # Data models
     spheres: Any
     sections: Any  
     categories: Any
@@ -26,14 +26,14 @@ class DatabaseProtocol(Protocol):
 
 @runtime_checkable
 class QTreeViewProtocol(Protocol):
-    """Протокол для дерева структуры."""
+    """Protocol for structure tree."""
     
     def selectionModel(self): ...
 
 
 @runtime_checkable
 class QTableViewProtocol(Protocol):
-    """Протокол для таблицы ссылок."""
+    """Protocol for links table."""
     
     def selectionModel(self): ...
     def get_link_at(self, row: int): ...
@@ -41,22 +41,22 @@ class QTableViewProtocol(Protocol):
 
 @runtime_checkable
 class QUndoStackProtocol(Protocol):
-    """Протокол для стека отмены операций."""
+    """Protocol for undo operations stack."""
     
     def push(self, command): ...
 
 
 @runtime_checkable
 class WindowProtocol(Protocol):
-    """Строго типизированный протокол для главного окна приложения."""
+    """Strictly typed protocol for application main window."""
     
-    # Методы интерфейса
+    # Interface methods
     def get_current_category_id(self) -> int | None: ...
     def update_statusbar(self) -> None: ...
     def on_structure_item_changed(self, *args) -> None: ...
     def on_structure_item_added(self, *args) -> None: ...
     
-    # Обязательные атрибуты с конкретными типами
+    # Required attributes with specific types
     db: DatabaseProtocol
     tree: QTreeViewProtocol
     table: QTableViewProtocol
@@ -66,9 +66,9 @@ class WindowProtocol(Protocol):
     recent_links_widget: Any  # RecentPanelWidget
 
 
-# ✅ TypedDict для структурированных данных
+# ✅ TypedDict for structured data
 class ControllersDict(TypedDict, total=False):
-    """Типизированный словарь контроллеров."""
+    """Typed dictionary of controllers."""
     structure_business: StructureBusinessLogic
     structure: Any  # StructureUIController
     links_business: LinksBusinessLogic
@@ -87,4 +87,4 @@ class ControllersDict(TypedDict, total=False):
 
 
 class SetupError(Exception):
-    """Ошибки настройки компонентов окна."""
+    """Window component setup errors."""

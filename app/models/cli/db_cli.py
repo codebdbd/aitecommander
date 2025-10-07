@@ -1,4 +1,4 @@
-"""CLI для диагностики и обслуживания базы данных."""
+"""CLI for database diagnostics and maintenance."""
 import argparse
 import json
 import logging
@@ -11,11 +11,11 @@ logger = logging.getLogger(__name__)
 
 
 def _log_duplicates_human(dups: dict) -> None:
-    """Выводит дубликаты в читаемом формате."""
-    logger.info("== Дубликаты (регистронезависимые) ==")
+    """Outputs duplicates in human-readable format."""
+    logger.info("== Duplicates (case-insensitive) ==")
     for table in ("sphere", "section", "category"):
         groups = dups.get(table, []) or []
-        logger.info("%s: %s групп(ы)", table, len(groups))
+        logger.info("%s: %s group(s)", table, len(groups))
         for g in groups:
             scope = g.get("scope")
             lname = g.get("lname")
@@ -24,49 +24,49 @@ def _log_duplicates_human(dups: dict) -> None:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    """Главная функция CLI для работы с базой данных."""
+    """Main CLI function for database operations."""
     parser = argparse.ArgumentParser(
         prog="python -m app.models.db",
-        description="CLI для диагностики и устранения регистронезависимых дубликатов и обслуживания БД",
+        description="CLI for diagnostics and resolution of case-insensitive duplicates and DB maintenance",
     )
 
     mx = parser.add_mutually_exclusive_group(required=True)
     mx.add_argument(
         "--detect-duplicates",
         action="store_true",
-        help="Найти case-insensitive дубликаты (sphere/section/category)",
+        help="Find case-insensitive duplicates (sphere/section/category)",
     )
     mx.add_argument(
         "--resolve-duplicates",
         choices=["rename", "remove"],
-        help="Разрешить дубликаты стратегией: rename (переименовать) или remove (удалить)",
+        help="Resolve duplicates with strategy: rename or remove",
     )
     mx.add_argument(
         "--create-indexes",
         action="store_true",
-        help="Создать уникальные индексы с COLLATE NOCASE (если их нет)",
+        help="Create unique indexes with COLLATE NOCASE (if missing)",
     )
     mx.add_argument(
         "--backup",
         action="store_true",
-        help="Создать резервную копию БД",
+        help="Create DB backup",
     )
 
     parser.add_argument(
         "--json",
         action="store_true",
-        help="Вывод в JSON (для detect/resolve)",
+        help="Output in JSON (for detect/resolve)",
     )
     parser.add_argument(
         "--db-path",
         type=str,
         default=None,
-        help="Путь к файлу БД (по умолчанию — из настроек приложения)",
+        help="Path to DB file (default — from app settings)",
     )
     parser.add_argument(
         "--create-indexes-after",
         action="store_true",
-        help="После resolve запустить создание NOCASE-индексов",
+        help="After resolve run NOCASE index creation",
     )
 
     args = parser.parse_args(argv)
@@ -91,26 +91,26 @@ def main(argv: Optional[List[str]] = None) -> int:
                 if args.json:
                     logger.info(json.dumps(report, ensure_ascii=False, indent=2))
                 else:
-                    logger.info("== Итог resolve ==")
+                    logger.info("== Resolve summary ==")
                     for k, v in (report or {}).items():
                         logger.info("%s: %s", k, v)
                 return 0
 
             if args.create_indexes:
                 db.create_nocase_unique_indexes()
-                logger.info("NOCASE-индексы созданы (если отсутствовали)")
+                logger.info("NOCASE indexes created (if missing)")
                 return 0
 
             if args.backup:
                 db.backup()
-                logger.info("Резервная копия создана")
+                logger.info("Backup created")
                 return 0
 
             parser.print_help()
             return 0
     except Exception as e:
-        logger.error("CLI ошибка: %s", e)
-        logger.error("Ошибка: %s", e)
+        logger.error("CLI error: %s", e)
+        logger.error("Error: %s", e)
         return 1
 
 

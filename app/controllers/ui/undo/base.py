@@ -1,5 +1,5 @@
 """
-Централизованная база для undo/redo команд.
+Centralized base for undo/redo commands.
 """
 
 from __future__ import annotations
@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 class BaseCommand(QUndoCommand):
-    """Базовая команда с единым логированием и безопасными хуками.
+    """Base command with unified logging and safe hooks.
 
-    Все наследники должны переопределять redo() и undo().
+    All subclasses must override redo() and undo().
     """
 
     def __init__(self, text: str = "", main_window: Optional[object] = None) -> None:
@@ -24,25 +24,25 @@ class BaseCommand(QUndoCommand):
         if text:
             self.setText(text)
 
-    # Примечание: QUndoCommand вызывает redo() автоматически при push()
+    # Note: QUndoCommand calls redo() automatically on push()
     def redo(self) -> None:  # noqa: D401 - документируется в наследниках
         raise NotImplementedError
 
     def undo(self) -> None:  # noqa: D401 - документируется в наследниках
         raise NotImplementedError
 
-    # Утилита для пометки команды как устаревшей/неизменяющей состояние
+    # Utility to mark a command as obsolete/non-state-changing
     def set_obsolete(self, value: bool = True) -> None:
         try:
             self.setObsolete(value)
         except (
             Exception
-        ):  # совместимость, если унаследованные классы переопределяют поведение
+        ):  # compatibility if subclasses override behavior
             pass
 
 
 def log_command(fn):
-    """Декоратор для логирования выполнения команд."""
+    """Decorator for logging command execution."""
 
     def wrapper(self: BaseCommand, *args, **kwargs):
         logger.debug("%s.%s: start", self.__class__.__name__, fn.__name__)

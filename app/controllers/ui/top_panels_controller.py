@@ -23,13 +23,13 @@ _DEFAULT_DEBOUNCE_MS = 150
 
 
 class SetupError(Exception):
-    """Ошибка конфигурации/настройки TopPanelsController."""
+    """Configuration/setup error for TopPanelsController."""
 
 
 class TopPanelsController(QObject):
-    """Контроллер верхних панелей (Избранное/Недавние)."""
+    """Controller for top panels (Favorites/Recents)."""
     
-    # ИСПРАВЛЕНИЕ: Сигнал для уведомления о завершении загрузки данных
+    # FIX: Signal to notify when data loading is complete
     data_loaded = pyqtSignal()
 
     def __init__(
@@ -82,7 +82,7 @@ class TopPanelsController(QObject):
 
         self._async_supported = self._connect_business_signals()
 
-        # Strict-режим: при неожиданных исключениях в refresh_* повторно выбрасывать
+        # Strict mode: on unexpected exceptions in refresh_* re-raise
         self._strict = str(os.getenv("APP_TOP_PANELS_STRICT", "").lower()) in {
             "1",
             "true",
@@ -91,17 +91,17 @@ class TopPanelsController(QObject):
         }
 
     def refresh_all(self) -> None:
-        """Обновить обе панели: избранное и недавние.
-        
-        ИСПРАВЛЕНИЕ: Испускает сигнал data_loaded после завершения загрузки.
+        """Refresh both panels: favorites and recents.
+
+        FIX: Emits data_loaded after loading finishes.
         """
         self.refresh_favorites()
         self.refresh_recent()
-        # Испускаем сигнал о завершении загрузки данных
+        # Emit signal indicating data loading finished
         self.data_loaded.emit()
 
     def request_refresh(self, delay_ms: int | None = None, *args, **kwargs) -> None:
-        """Запросить обновление верхних панелей с дебаунсом."""
+        """Request top panels refresh with debounce."""
         try:
             if self._pending_refresh and self._refresh_timer.isActive():
                 return
@@ -119,7 +119,7 @@ class TopPanelsController(QObject):
     def request_favorites_refresh(
         self, delay_ms: int | None = None, *args, **kwargs
     ) -> None:
-        """Запросить обновление только панели избранного с дебаунсом."""
+        """Request refresh of favorites panel only with debounce."""
         try:
             if self._pending_fav_refresh and self._fav_refresh_timer.isActive():
                 return
@@ -141,7 +141,7 @@ class TopPanelsController(QObject):
     def request_recents_refresh(
         self, delay_ms: int | None = None, *args, **kwargs
     ) -> None:
-        """Запросить обновление только панели недавних ссылок с дебаунсом."""
+        """Request refresh of recent links panel only with debounce."""
         try:
             if self._pending_recent_refresh and self._recent_refresh_timer.isActive():
                 return
@@ -161,13 +161,13 @@ class TopPanelsController(QObject):
             raise
 
     def refresh_favorites(self) -> None:
-        """Обновление избранного.
+        """Refresh favorites.
 
-        По умолчанию — асинхронная загрузка через LinksBusinessLogic.load_favorite_links().
-        Если метод/сигнал недоступен (моки в тестах), используем синхронный fallback
-        к get_favorite_links() с прежней обработкой ошибок и обновлением виджета.
+        Default — async load via LinksBusinessLogic.load_favorite_links().
+        If method/signal is unavailable (mocks in tests), use synchronous fallback
+        to get_favorite_links() with the previous error handling and widget update.
         """
-        # 1) Пытаемся асинхронно (только если это реальный LinksBusinessLogic с сигналами)
+        # 1) Try async (only if it's a real LinksBusinessLogic with signals)
         if self._async_supported and callable(
             getattr(self.links_business, "load_favorite_links", None)
         ):
@@ -186,12 +186,12 @@ class TopPanelsController(QObject):
                 )
                 if self._strict:
                     raise
-            # Логируем ошибку вызова async-метода и переходим к синхронному пути
-            # В строгом режиме не выполняем fallback, чтобы выявлять ошибки конфигурации
+            # Log async method call error and proceed to sync path
+            # In strict mode don't fallback to reveal configuration errors
             if self._strict:
                 raise
 
-        # 2) Синхронный fallback — поведение как раньше (для тестов и простых окружений)
+        # 2) Synchronous fallback — previous behavior (for tests and simple envs)
         widget = self.fav_widget
         items: list = []
         try:
@@ -230,14 +230,14 @@ class TopPanelsController(QObject):
                 raise
 
     def refresh_recent(self) -> None:
-        """Обновление недавних ссылок.
+        """Refresh recent links.
 
-        По умолчанию — асинхронная загрузка через LinksBusinessLogic.load_recent_links(limit).
-        Если метод/сигнал недоступен (моки в тестах), используем синхронный fallback
-        к get_recent_links(limit) с прежней обработкой ошибок и обновлением виджета.
+        Default — async load via LinksBusinessLogic.load_recent_links(limit).
+        If method/signal is unavailable (mocks in tests), use synchronous fallback
+        to get_recent_links(limit) with the previous error handling and widget update.
         """
         widget = self.recent_links_widget
-        # Определяем лимит
+        # Determine limit
         limit = 10
         try:
             if isinstance(widget, (RecentsPanelWithLimit, SupportsGetLimit)):
@@ -247,7 +247,7 @@ class TopPanelsController(QObject):
         except (TypeError, ValueError):
             pass
 
-        # 1) Пытаемся асинхронно (только если это реальный LinksBusinessLogic с сигналами)
+        # 1) Try async (only if it's a real LinksBusinessLogic with signals)
         try:
             if self._async_supported and callable(
                 getattr(self.links_business, "load_recent_links", None)
@@ -261,14 +261,14 @@ class TopPanelsController(QObject):
                 exc_info=True,
             )
         except Exception:
-            # Логируем ошибку вызова async-метода и переходим к синхронному пути
+            # Log async call error and proceed to sync path
             logger.exception(
                 "TopPanelsController.refresh_recent: failed to call load_recent_links"
             )
             if self._strict:
                 raise
 
-        # 2) Синхронный fallback — прежняя логика
+        # 2) Synchronous fallback — previous logic
         items: list = []
         try:
             items = self.links_business.get_recent_links(limit)
@@ -306,12 +306,12 @@ class TopPanelsController(QObject):
                 raise
 
     def clear_favorites(self) -> None:
-        """Очистить избранное: бизнес-данные и виджет.
+        """Clear favorites: business data and widget.
 
-        Без вложенных try/except и без временных флагов. Ошибки логируем и не
-        пробрасываем наружу, чтобы не ронять UI-цепочку событий.
+        No nested try/except and no temporary flags. We log errors and don't
+        propagate to avoid breaking the UI event chain.
         """
-        # 1) Бизнес-очистка
+        # 1) Business clear
         try:
             self.links_business.clear_favorites()
         except Exception:
@@ -319,8 +319,8 @@ class TopPanelsController(QObject):
                 "TopPanelsController.clear_favorites: error in links_business.clear_favorites"
             )
 
-        # 2) Обновление виджета через контролируемый путь без повторной эмиссии clear_requested
-        #    (прямой вызов fav_widget.clear_favorites() вызывает clearRequested/clear_requested и цикл)
+        # 2) Update widget via controlled path without re-emitting clear_requested
+        #    (direct call fav_widget.clear_favorites() triggers clearRequested/clear_requested and a loop)
         try:
             self.refresh_favorites()
         except Exception:
@@ -329,11 +329,11 @@ class TopPanelsController(QObject):
             )
 
     def schedule_structure_refresh(self) -> None:
-        """Запланировать обновление верхних панелей по структурным событиям с фиксированным интервалом."""
+        """Schedule top panels refresh for structural events with fixed interval."""
         try:
             if self._structure_refresh_timer is None:
                 raise SetupError("Structure refresh timer is not configured")
-            # Интервал фиксирован, задаётся в __init__ (по умолчанию 200 мс)
+            # Interval is fixed, set in __init__ (200 ms by default)
             if self._structure_refresh_timer.isActive():
                 return
             self._structure_refresh_timer.start()
@@ -341,7 +341,7 @@ class TopPanelsController(QObject):
                 "TopPanelsController.schedule_structure_refresh: timer started"
             )
         except (ValueError, RuntimeError) as e:
-            # Ожидаемые ошибки — логируем, без немедленного обновления
+            # Expected errors — log without immediate refresh
             logger.error(
                 "TopPanelsController.schedule_structure_refresh: failed to start structure timer: %s",
                 e,
@@ -351,7 +351,7 @@ class TopPanelsController(QObject):
         except SetupError:
             raise
         except Exception:
-            # Неожиданные ошибки — не скрываем тип исключения
+            # Unexpected errors — don't hide exception type
             logger.exception(
                 "TopPanelsController.schedule_structure_refresh: unexpected error"
             )
@@ -380,12 +380,12 @@ class TopPanelsController(QObject):
 
     @pyqtSlot()
     def _on_structure_refresh_timeout(self) -> None:
-        """Единый обработчик таймаута для структурных событий.
+        """Single timeout handler for structural events.
 
-        Поведение при ошибках:
-        - Любые ошибки внутри `request_refresh()` не должны оставлять таймер активным.
-        - Таймер всегда останавливается в finally, чтобы избежать повторных попыток при сбое.
-        Ожидаемый жизненный цикл: schedule -> timeout -> request_refresh -> stop.
+        Error behavior:
+        - Any errors inside `request_refresh()` must not leave the timer active.
+        - The timer is always stopped in finally to avoid repeated attempts on failure.
+        Expected life cycle: schedule -> timeout -> request_refresh -> stop.
         """
         try:
             self.request_refresh()
@@ -396,34 +396,34 @@ class TopPanelsController(QObject):
                 exc_info=True,
             )
         except SetupError:
-            # Конфигурационная ошибка — пробрасываем наверх после логирования
+            # Configuration error — re-raise after logging
             logger.exception(
                 "TopPanelsController._on_structure_refresh_timeout: setup error"
             )
             raise
         finally:
             try:
-                # Гарантированно останавливаем таймер, чтобы не было повторных вызовов при ошибке
+                # Ensure the timer is stopped to prevent repeated calls on error
                 if (
                     self._structure_refresh_timer
                     and self._structure_refresh_timer.isActive()
                 ):
                     self._structure_refresh_timer.stop()
             except Exception:
-                # Безопасный best-effort stop
+                # Safe best-effort stop
                 logger.debug(
                     "TopPanelsController._on_structure_refresh_timeout: timer stop failed",
                     exc_info=False,
                 )
 
-    # --- Обработчики сигналов бизнес-слоя ---
+    # --- Business-layer signal handlers ---
     def _on_favorite_links_loaded(self, items: list[dict[str, object]] | list) -> None:
         widget = self.fav_widget
         try:
             if callable(getattr(widget, "set_data", None)):
                 widget.set_data(items)  # type: ignore[call-arg]
             elif isinstance(widget, SupportsSetFavorites):
-                # legacy fallback для тестовых стабов
+                # legacy fallback for test stubs
                 widget.set_favorites(items)  # type: ignore[attr-defined]
             else:
                 raise AttributeError("favorites widget lacks set_data/set_favorites")
@@ -445,7 +445,7 @@ class TopPanelsController(QObject):
             if callable(getattr(widget, "set_data", None)):
                 widget.set_data(items)  # type: ignore[call-arg]
             elif isinstance(widget, SupportsSetRecentLinks):
-                # legacy fallback для тестовых стабов
+                # legacy fallback for test stubs
                 widget.set_recent_links(items)  # type: ignore[attr-defined]
             else:
                 raise AttributeError("recent widget lacks set_data/set_recent_links")
@@ -462,7 +462,7 @@ class TopPanelsController(QObject):
                 raise
 
     def _normalize_delay(self, delay_ms, args, kwargs) -> int:
-        """Безопасно привести задержку к int; игнорирует нерелевантные payload сигналов."""
+        """Safely cast delay to int; ignores irrelevant signal payloads."""
         cand = delay_ms
         if cand is None and args:
             first = args[0]
@@ -509,12 +509,12 @@ class TopPanelsController(QObject):
         return connected_all
     
     def cleanup(self) -> None:
-        """Останавливает таймеры и отключает сигналы при уничтожении.
-        
-        ИСПРАВЛЕНИЕ: Предотвращает утечки памяти от активных таймеров.
-        Должно вызываться при закрытии главного окна.
+        """Stop timers and disconnect signals upon destruction.
+
+        FIX: Prevent memory leaks from active timers. Should be called when
+        closing the main window.
         """
-        # Останавливаем все таймеры
+        # Stop all timers
         timers = [
             self._refresh_timer,
             self._fav_refresh_timer,
@@ -528,13 +528,13 @@ class TopPanelsController(QObject):
         
         logger.debug("TopPanelsController: all timers stopped")
         
-        # Отключаем сигналы business logic
+        # Disconnect business logic signals
         try:
             if hasattr(self.links_business, "favorite_links_loaded"):
                 self.links_business.favorite_links_loaded.disconnect(self._on_favorite_links_loaded)
             if hasattr(self.links_business, "recent_links_loaded"):
                 self.links_business.recent_links_loaded.disconnect(self._on_recent_links_loaded)
-        except TypeError:  # Сигналы уже отключены
+        except TypeError:  # Signals already disconnected
             pass
         except Exception as e:
             logger.warning("TopPanelsController cleanup: failed to disconnect signals: %s", e)

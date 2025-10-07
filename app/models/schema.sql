@@ -1,6 +1,6 @@
 PRAGMA foreign_keys = ON;
 
--- Сферы (верхний уровень)
+-- Spheres (top level)
 CREATE TABLE IF NOT EXISTS sphere (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     name       TEXT    NOT NULL UNIQUE,
@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS sphere (
     icon_path  TEXT    DEFAULT ''
 );
 
--- Разделы (внутри сферы)
+-- Sections (within sphere)
 CREATE TABLE IF NOT EXISTS section (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     sphere_id  INTEGER NOT NULL REFERENCES sphere(id) ON DELETE CASCADE,
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS section (
     UNIQUE(sphere_id, name)
 );
 
--- Категории (внутри раздела)
+-- Categories (within section)
 CREATE TABLE IF NOT EXISTS category (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     section_id INTEGER NOT NULL REFERENCES section(id) ON DELETE CASCADE,
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS category (
     UNIQUE(section_id, name)
 );
 
--- Ссылки (внутри категории)
+-- Links (within category)
 CREATE TABLE IF NOT EXISTS link (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     category_id  INTEGER NOT NULL REFERENCES category(id) ON DELETE CASCADE,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS link (
     UNIQUE(category_id, name, url, args)
 );
 
--- Резервные копии базы
+-- Database backups
 CREATE TABLE IF NOT EXISTS backup (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at TEXT    NOT NULL,

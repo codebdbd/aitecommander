@@ -1,8 +1,8 @@
 # app/controllers/structure_modules/validation.py
 
-"""Централизованные хелперы валидации, делегирующие в ValidationService.
+"""Centralized validation helpers delegating to ValidationService.
 
-Возвращают единый ValidationResult.
+Return unified ValidationResult.
 """
 
 from typing import Any, Callable, Dict, Optional
@@ -20,12 +20,12 @@ def validate_section_data(
     section_id: Optional[int] = None,
     get_sections: Callable[[int], list],
 ) -> ValidationResult:
-    """Валидация данных раздела через ValidationService.
+    """Validate section data through ValidationService.
 
     Args:
-        data: данные раздела
-        section_id: id редактируемого раздела (для исключения себя при проверках)
-        get_sections: коллбек получения разделов по sphere_id
+        data: section data
+        section_id: id of section being edited (to exclude self in checks)
+        get_sections: callback to get sections by sphere_id
 
     Returns:
         ValidationResult
@@ -41,12 +41,12 @@ def validate_category_data(
     category_id: Optional[int] = None,
     has_duplicate_category: Callable[[int, str, Optional[int]], bool],
 ) -> ValidationResult:
-    """Валидация данных категории через ValidationService.
+    """Validate category data through ValidationService.
 
     Args:
-        data: данные категории
-        category_id: id редактируемой категории
-        has_duplicate_category: коллбек проверки дубликатов в разделе
+        data: category data
+        category_id: id of category being edited
+        has_duplicate_category: callback to check duplicates in section
 
     Returns:
         ValidationResult
