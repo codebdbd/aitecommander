@@ -1,4 +1,4 @@
-"""Модуль для настройки системы логирования."""
+"""Module for configuring the logging system."""
 
 import logging
 import os
@@ -8,18 +8,18 @@ import sys
 from app.utils.logging.application_logger import ApplicationLogger
 from app.utils.logging.exception_handler import ExceptionHandler
 
-# Модульный логгер
+# Module-level logger
 logger = logging.getLogger(__name__)
 
 
 def setup_logging(log_level: int) -> None:
     """
-    Настраивает систему логирования приложения.
+    Configure application logging.
 
     Args:
-        log_level: Уровень логирования
+        log_level: Initial logging level
     """
-    # Разрешаем переопределить уровень через переменную окружения APP_LOG_LEVEL
+    # Allow overriding level via APP_LOG_LEVEL environment variable
     try:
         env_level = os.getenv("APP_LOG_LEVEL")
         if isinstance(env_level, str):
@@ -28,30 +28,30 @@ def setup_logging(log_level: int) -> None:
             if isinstance(numeric_level, int):
                 log_level = numeric_level
     except (OSError, ValueError, KeyError, AttributeError, TypeError):
-        # Тест ожидает предупреждение на уровне WARNING
+        # Test expects a WARNING-level message
         logger.warning("APP_LOG_LEVEL read failed")
 
     ApplicationLogger(log_level)
     logger.info("=" * 60)
-    logger.info("ЗАПУСК ПРИЛОЖЕНИЯ")
+    logger.info("APPLICATION START")
     logger.info("=" * 60)
 
-    # Устанавливаем глобальный обработчик исключений
+    # Install global exception handler
     ExceptionHandler()
 
-    # Подавляем шум от сторонних библиотек (оставляем только WARNING+)
+    # Suppress noise from third-party libraries (keep WARNING+)
     try:
         for noisy in ("asyncio", "urllib3", "PIL"):
             nl = logging.getLogger(noisy)
             nl.setLevel(max(logging.WARNING, log_level))
     except (OSError, ValueError, KeyError, AttributeError, RuntimeError):
-        # Тест ожидает предупреждение на уровне WARNING
+        # Test expects a WARNING-level message
         logger.warning("failed to adjust noisy loggers")
 
 
 def log_system_info() -> None:
-    """Логирует системную информацию для отладки."""
-    # Сокращаем объём логирования при обычном запуске — только в режиме DEBUG
+    """Log system information for debugging."""
+    # Reduce log volume in normal runs — only in DEBUG
     try:
         if not logger.isEnabledFor(logging.DEBUG):
             return
@@ -62,31 +62,31 @@ def log_system_info() -> None:
     from PyQt6.QtGui import QGuiApplication
 
     try:
-        logger.info("Операционная система: %s", platform.platform())
-        logger.info("Версия Python: %s", sys.version)
-        logger.info("Архитектура Python: %s", platform.architecture())
-        logger.info("Версия PyQt6: %s", QT_VERSION_STR)
-        logger.info("Путь запуска: %s", sys.argv[0])
-        logger.info("Рабочая директория: %s", os.getcwd())
-        logger.info("PID процесса: %s", os.getpid())
-        logger.info("Количество аргументов командной строки: %s", len(sys.argv))
+        logger.info("Operating system: %s", platform.platform())
+        logger.info("Python version: %s", sys.version)
+        logger.info("Python architecture: %s", platform.architecture())
+        logger.info("PyQt6 version: %s", QT_VERSION_STR)
+        logger.info("Launch path: %s", sys.argv[0])
+        logger.info("Working directory: %s", os.getcwd())
+        logger.info("Process PID: %s", os.getpid())
+        logger.info("Command-line arguments count: %s", len(sys.argv))
 
         screens = QGuiApplication.screens()
         for i, screen in enumerate(screens):
             geometry = screen.geometry()
             logger.info(
-                "Дисплей %s: %sx%s @ %sx",
+                "Display %s: %sx%s @ %sx",
                 i,
                 geometry.width(),
                 geometry.height(),
                 screen.devicePixelRatio(),
             )
     except (OSError, RuntimeError, AttributeError) as e:
-        logger.warning("Не удалось получить системную информацию: %s", e)
+        logger.warning("Failed to obtain system information: %s", e)
 
 
 def log_shutdown() -> None:
-    """Логирует завершение работы приложения."""
+    """Log application shutdown."""
     logger.info("=" * 60)
-    logger.info("ЗАВЕРШЕНИЕ РАБОТЫ ПРИЛОЖЕНИЯ")
+    logger.info("APPLICATION SHUTDOWN")
     logger.info("=" * 60)

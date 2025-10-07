@@ -17,17 +17,17 @@ logger = logging.getLogger(__name__)
 
 
 class LinksUILinkOperations(BaseLinksUIComponent):
-    """Операции с ссылками для LinksUIController."""
+    """Link operations for LinksUIController."""
 
     def quick_add_link(self, link_type: str, category_id: int = None):
-        """Быстрое добавление ссылки."""
+        """Quick add link."""
         try:
             cat_id = self._validate_category_exists(category_id)
         except CategoryNotFoundError as e:
             self._show_warning(str(e))
             return
 
-        # Создаем контроллер для диалога
+        # Create dialog controller
         from PyQt6.QtWidgets import QDialog
 
         from app.controllers.ui.dialogs import LinkDialogController
@@ -45,7 +45,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             link_controller=link_controller,
         )
 
-        # Устанавливаем тип ссылки
+        # Set link type
         dlg.set_link_type(link_type)
 
         if dlg.exec() == QDialog.DialogCode.Accepted:
@@ -58,18 +58,18 @@ class LinksUILinkOperations(BaseLinksUIComponent):
                     self.main.undo_stack.push(cmd)
 
     def show_note_dialog(self, link: Dict):
-        """Показать диалог заметки для ссылки."""
+        """Show note dialog for link."""
         if not link:
             return
 
-        # Создаем копию ссылки для безопасности
+        # Create link copy for safety
         link_copy = link.copy()
 
         dlg = NoteDialog(link_copy, parent=self.main)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            # Обновляем ссылку через бизнес-логику
+            # Update link via business logic
             try:
-                # Бизнес-слой сам эмитит link_updated внутри save_link()
+                # Business layer emits link_updated itself inside save_link()
                 self.business.save_link(link_copy)
                 logger.debug("Note saved for link: %s", link_copy.get("name"))
             except DatabaseError as e:
@@ -80,12 +80,12 @@ class LinksUILinkOperations(BaseLinksUIComponent):
                 self._show_error(f"{self.get_message('error_saving')}: {str(e)}")
 
     def _open_link(self, link: Dict):
-        """Открыть ссылку используя LinkOpener."""
+        """Open link using LinkOpener."""
         logger.debug("Opening link: type=%s, url=%s", link.get("type"), link.get("url"))
 
         success = False
         try:
-            # Создаем LinkInfo из словаря
+            # Create LinkInfo from dict
             logger.debug("_open_link: link dict=%s", link)
             link_info = LinkInfo.from_dict(link)
             logger.info("_open_link: link_info=%s", link_info)
@@ -94,7 +94,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
                 link_info.browser_key,
             )
 
-            # Используем LinkOpener для открытия
+            # Use LinkOpener to open
             opener = LinkOpener()
             opener.open_link(link_info)
 
@@ -103,56 +103,56 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             logger.error("Link validation error: %s", e)
             self._show_error(f"{self.get_message('validation_error')}: {str(e)}")
         except ValueError as e:
-            # Дружелюбная обработка небезопасных URL без всплывающих ошибок
+            # User-friendly unsafe URL handling without popup errors
             msg = str(e)
             if msg.startswith("Unsafe URL:"):
                 from app.controllers.ui.dialogs import DialogManager
 
                 safe_msg = self.get_message(
                     "unsafe_url_info",
-                    "Эта ссылка не может быть открыта по соображениям безопасности.",
+                    "This link cannot be opened for security reasons.",
                 )
-                details = msg  # чтобы был доступен текст причины при включённых деталях
+                details = msg  # so reason text is available when details enabled
                 logger.warning("Blocked unsafe URL: %s", msg)
                 DialogManager.show_info(
                     parent=self.main,
-                    title=self.get_message("warning_title", "Предупреждение"),
+                    title=self.get_message("warning_title", "Warning"),
                     message=safe_msg,
                     informative_text=self.get_message(
                         "unsafe_url_hint",
-                        "Проверьте адрес ссылки или отредактируйте её.",
+                        "Check link address or edit it.",
                     ),
                     details=details,
                     silent=True,
                 )
             else:
-                # Прочие ValueError — как ошибка
+                # Other ValueError — as error
                 logger.error(
                     "Error opening link %s: %s", link.get("url", link), e, exc_info=True
                 )
-                self._show_error(f"Не удалось открыть ссылку: {str(e)}")
+                self._show_error(f"Failed to open link: {str(e)}")
         except Exception as e:
             logger.error(
                 "Error opening link %s: %s", link.get("url", link), e, exc_info=True
             )
-            self._show_error(f"Не удалось открыть ссылку: {str(e)}")
+            self._show_error(f"Failed to open link: {str(e)}")
 
-        # Обновляем счетчик последних ссылок только при успешном открытии
+        # Update recent links counter only on successful open
         if success:
             link_data = link.copy()
             link_data["last_used"] = datetime.now().isoformat()
 
-            # Асинхронно сохранить в БД (старое поведение)
+            # Asynchronously save to DB (old behavior)
             self.business.save_link(link_data)
 
-            # Централизованная эмиссия сигналов через LinkOperationsController
+            # Centralized signal emission via LinkOperationsController
             try:
                 self.link_operations.on_link_opened(link_data)
             except Exception as e:
                 logger.debug("Failed to emit signals after opening link: %s", e)
 
     def _toggle_fav(self, link: Dict = None):
-        """Переключить статус избранного."""
+        """Toggle favorite status."""
         if not link:
             selected_links = self.controller.get_selected_links()
             if not selected_links:

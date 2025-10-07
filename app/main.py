@@ -23,12 +23,12 @@ except Exception:
 from app.startup.browser_profiles_loader import BrowserProfilesLoader
 from app.startup.logging_setup import log_shutdown, log_system_info, setup_logging
 
-# Модульный логгер
+# Module logger
 logger = logging.getLogger(__name__)
 
 
 class ApplicationInitializer:
-    """Класс для инициализации компонентов приложения."""
+    """Initializer for application components."""
 
     def __init__(self, settings=None):
         self.settings = settings
@@ -37,69 +37,65 @@ class ApplicationInitializer:
         self.main_window = None
 
     def cleanup(self):
-        """Очищает ресурсы приложения."""
+        """Clean up application resources."""
         try:
-            # Закрываем соединение, если база и метод close доступны
+            # Close DB connection if available
             if self.database and hasattr(self.database, "close"):
                 self.database.close()
         except (sqlite3.Error, AttributeError) as e:
-            # Предсказуемые ошибки соединения/атрибутов логируем
-            logger.error("Ошибка при закрытии соединения с базой данных: %s", e)
-        # Любые другие неожиданные исключения не подавляем
+            # Log expected connection/attribute errors
+            logger.error("Error while closing DB connection: %s", e)
+        # Do not suppress unexpected exceptions
 
-        # Корректно дожидаемся завершения фоновых задач БД (run_db)
+        # Wait for background DB tasks to finish (run_db)
         try:
             from app.utils.db.executors.pool import get_thread_pool
 
             pool = get_thread_pool()
             try:
-                # Пытаемся дождаться завершения с таймаутом (если поддерживается)
+                # Try waiting with timeout if supported
                 if hasattr(pool, "waitForDone"):
                     try:
-                        pool.waitForDone(5000)  # 5 секунд на мягкое завершение
+                        pool.waitForDone(5000)  # 5 seconds for graceful shutdown
                     except TypeError:
-                        # В некоторых версиях сигнатура без аргументов
+                        # Fallback: signature without args in some versions
                         pool.waitForDone()
             except AttributeError as e:
-                # Нет ожидаемого метода у пула — не критично
-                logger.debug("Исключение при ожидании завершения пула потоков: %s", e)
+                # Pool has no expected method — not critical
+                logger.debug("Exception while waiting for thread pool completion: %s", e)
         except AttributeError as e:
-            # Пул не тот объект/без ожидаемых атрибутов — не критично
-            logger.debug("Не удалось получить пул потоков для задач БД: %s", e)
+            # Pool object missing/without expected attributes — not critical
+            logger.debug("Failed to get thread pool for DB tasks: %s", e)
 
     def initialize_settings(self) -> bool:
-        """Инициализирует настройки приложения."""
+        """Initialize application settings."""
         try:
             if self.settings is None:
                 self.settings = AppSettings()
             return True
         except (ValueError, OSError, RuntimeError) as e:
-            # Ожидаемые ошибки конфигурации окружения/настроек
-            logger.error("Ошибка загрузки настроек: %s", e, exc_info=True)
+            # Expected environment/settings configuration errors
+            logger.error("Error loading settings: %s", e, exc_info=True)
             return False
         except Exception as e:
-            # Неожиданная ошибка — выделяем уровнем CRITICAL для быстрой диагностики
-            logger.critical(
-                "Неожиданная ошибка при инициализации настроек: %s", e, exc_info=True
-            )
+            # Unexpected error — mark CRITICAL for quick diagnostics
+            logger.critical("Unexpected error initializing settings: %s", e, exc_info=True)
             return False
 
     def initialize_database(self) -> bool:
-        """Инициализирует подключение к базе данных."""
+        """Initialize database connection."""
         try:
             self.database = Database()
             return True
         except (sqlite3.Error, OSError, RuntimeError) as e:
-            logger.error("Ошибка подключения к базе данных: %s", e, exc_info=True)
+            logger.error("Error connecting to database: %s", e, exc_info=True)
             return False
         except Exception as e:
-            logger.critical(
-                "Неожиданная ошибка при инициализации базы данных: %s", e, exc_info=True
-            )
+            logger.critical("Unexpected error initializing database: %s", e, exc_info=True)
             return False
 
     def initialize_theme_controller(self) -> bool:
-        """Инициализирует контроллер темы."""
+        """Initialize theme controller."""
         try:
             self.theme_controller = ThemeController(
                 self.settings,
@@ -107,18 +103,16 @@ class ApplicationInitializer:
             )
             return True
         except (ValueError, TypeError, RuntimeError) as e:
-            logger.error("Ошибка создания контроллера темы: %s", e, exc_info=True)
+            logger.error("Error creating ThemeController: %s", e, exc_info=True)
             return False
         except Exception as e:
-            logger.critical(
-                "Неожиданная ошибка при создании контроллера темы: %s", e, exc_info=True
-            )
+            logger.critical("Unexpected error creating ThemeController: %s", e, exc_info=True)
             return False
 
     def initialize_main_window(self) -> bool:
-        """Инициализирует главное окно приложения."""
+        """Initialize the main application window."""
         try:
-            # Создание окна через bootstrap: окно не принимает Database в конструктор
+            # Create window via bootstrap (window doesn't take Database in constructor)
             self.main_window = create_main_window(
                 self.settings, self.theme_controller, self.database
             )
@@ -128,56 +122,52 @@ class ApplicationInitializer:
                 self.theme_controller.main_window = self.main_window
             return True
         except (RuntimeError, TypeError, ValueError) as e:
-            logger.error("Ошибка создания главного окна: %s", e, exc_info=True)
+            logger.error("Error creating main window: %s", e, exc_info=True)
             return False
         except Exception as e:
-            logger.critical(
-                "Неожиданная ошибка при создании главного окна: %s", e, exc_info=True
-            )
+            logger.critical("Unexpected error creating main window: %s", e, exc_info=True)
             return False
 
     def apply_initial_theme(self) -> bool:
-        """Применяет начальную тему оформления."""
+        """Apply the initial theme."""
         try:
             theme_name = self.settings.get_theme()
             self.theme_controller.apply(theme_name)
             return True
         except (ValueError, RuntimeError, TypeError) as e:
-            logger.error("Ошибка применения темы: %s", e, exc_info=True)
+            logger.error("Error applying theme: %s", e, exc_info=True)
             return False
         except Exception as e:
-            logger.critical(
-                "Неожиданная ошибка при применении темы: %s", e, exc_info=True
-            )
+            logger.critical("Unexpected error applying theme: %s", e, exc_info=True)
             return False
 
     def initialize_all(self) -> bool:
-        """Выполняет полную инициализацию всех компонентов."""
-        # Применяем тему до создания главного окна, чтобы избежать "белой вспышки"
+        """Perform full initialization of all components."""
+        # Apply theme before creating main window to avoid white flash
         initialization_steps = [
-            ("настроек", self.initialize_settings),
-            ("базы данных", self.initialize_database),
-            ("контроллера темы", self.initialize_theme_controller),
-            ("темы оформления", self.apply_initial_theme),
-            ("главного окна", self.initialize_main_window),
+            ("settings", self.initialize_settings),
+            ("database", self.initialize_database),
+            ("theme controller", self.initialize_theme_controller),
+            ("theme", self.apply_initial_theme),
+            ("main window", self.initialize_main_window),
         ]
         for step_name, step_func in initialization_steps:
             if not step_func():
-                logger.critical("Критическая ошибка при инициализации %s", step_name)
+                logger.critical("Critical error during initialization of %s", step_name)
                 return False
         return True
 
 
 def main():
-    """Главная функция приложения."""
+    """Main application entry point."""
     # Парсинг аргументов командной строки
     args = parse_arguments()
     log_level = determine_log_level(args)
 
-    # Инициализируем систему логирования
+    # Initialize logging system
     setup_logging(log_level)
 
-    # Инициализируем инициализатор приложения заранее, чтобы cleanup() отработал даже при ранних ошибках
+    # Create initializer early so cleanup() runs even on early failures
     initializer = ApplicationInitializer()
     try:
         app = create_application()
@@ -185,27 +175,27 @@ def main():
         log_system_info()
 
         if not initializer.initialize_all():
-            logger.critical("Не удалось инициализировать приложение")
+            logger.critical("Failed to initialize application")
             if app:
                 app.quit()
             return 1
 
-        # Инициализация БД в фоне
+        # Initialize DB in background
         db_initializer = DatabaseInitializer(
             initializer.database, initializer.main_window
         )
         db_initializer.initialize_async()
 
-        # Настройка ленивой загрузки профилей браузеров
+        # Set up lazy loading of browser profiles
         profiles_loader = BrowserProfilesLoader(initializer.main_window)
         profiles_loader.setup_lazy_loading()
 
         startup_delay = app_config.get("startup.app_ready_delay_ms", 100)
-        QTimer.singleShot(startup_delay, lambda: logger.info("Приложение успешно запущено"))
+        QTimer.singleShot(startup_delay, lambda: logger.info("Application started successfully"))
         exit_code = app.exec()
         return exit_code
     except Exception as e:
-        logger.critical("Критическая ошибка в main(): %s", e, exc_info=True)
+        logger.critical("Critical error in main(): %s", e, exc_info=True)
         return 1
     finally:
         if initializer:

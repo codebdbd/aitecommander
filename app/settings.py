@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class AppSettings:
     def __init__(self):
-        # Хранение настроек в формате INI в профиле пользователя
+        # Store settings in INI format under the user's profile
         self._qs = QSettings(
             QSettings.Format.IniFormat,
             QSettings.Scope.UserScope,
@@ -22,10 +22,10 @@ class AppSettings:
 
     @staticmethod
     def _as_int(raw, default_value: int, key_name: str) -> int:
-        """Безопасно привести значение к int с логированием при ошибке.
+        """Safely cast a value to int with error logging.
 
-        - Возвращает default_value, если raw None или пустая строка.
-        - Логирует предупреждение при неудачном касте.
+        - Returns default_value if raw is None or empty string.
+        - Logs a warning on failed cast.
         """
         if raw is None or (isinstance(raw, str) and raw.strip() == ""):
             return int(default_value)
@@ -33,7 +33,7 @@ class AppSettings:
             return int(raw)
         except (ValueError, TypeError) as e:
             logger.warning(
-                "AppSettings: некорректное числовое значение для '%s' (%r), используется по умолчанию: %s. Ошибка: %s",
+                "AppSettings: invalid numeric value for '%s' (%r), using default: %s. Error: %s",
                 key_name,
                 raw,
                 default_value,

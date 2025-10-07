@@ -126,17 +126,17 @@ class BaseDialog(QDialog, ReTranslatable):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._styles_applied = False
-        self._context_menus: list = []  # ✅ ИСПРАВЛЕНИЕ: Трекинг context menu для cleanup
-        # Подключаемся к службе языков, но не вызываем retranslateUi здесь (делают наследники)
+        self._context_menus: list = []  # Track created context menus for cleanup
+        # Connect to language service, but do not call retranslateUi here (done by subclasses)
         try:
             ReTranslatable.__init__(self, call_retranslate=False)
         except Exception:
-            # Безопасно игнорируем, если наследник не QObject или нет слота destroyed
+            # Safely ignore if subclass is not a QObject or lacks destroyed slot
             logger.debug("BaseDialog: ReTranslatable init skipped", exc_info=True)
  
     def retranslateUi(self) -> None:
-        """Базовая реализация. Наследники должны переопределить и установить тексты.
-        Оставляем пустой метод, чтобы избежать NotImplementedError в миксине.
+        """Base implementation. Subclasses should override and set texts.
+        Keep empty to avoid NotImplementedError in the mixin.
         """
         pass
 
@@ -152,7 +152,7 @@ class BaseDialog(QDialog, ReTranslatable):
         super().showEvent(event)
 
     def closeEvent(self, event):
-        """✅ ИСПРАВЛЕНИЕ: Cleanup context menus для предотвращения утечек памяти."""
+        """Cleanup context menus to prevent memory leaks."""
         self._cleanup_context_menus()
         super().closeEvent(event)
     
@@ -172,7 +172,7 @@ class BaseDialog(QDialog, ReTranslatable):
         for widget in self.findChildren((QLineEdit, QTextEdit)):
             widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             widget.customContextMenuRequested.connect(
-                # ✅ ИСПРАВЛЕНИЕ: Трекинг созданных menu для cleanup
+                # Track created menus for cleanup
                 lambda pos, w=widget: self._show_context_menu(w, pos)
             )
 
@@ -212,7 +212,7 @@ class BaseDialog(QDialog, ReTranslatable):
             logger.exception("Failed to apply combo popup styles (outer)")
 
     def _show_context_menu(self, widget, pos):
-        """✅ ИСПРАВЛЕНИЕ: Show context menu с трекингом для cleanup."""
+        """Show context menu with tracking for cleanup."""
         try:
             menu = create_context_menu(widget)
             self._context_menus.append(menu)

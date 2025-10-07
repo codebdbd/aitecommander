@@ -53,7 +53,6 @@ class QuickAddPanelWidget(BaseTopPanelWidget):
     def _setup_quick_buttons(self) -> None:
         """Creates quick add buttons based on application configuration."""
         quick_types = app_config.settings.get_quick_types()
-        # Размеры кнопок берём из ui.quick_add_button_size (список [w, h]) с фолбэком на общий
         try:
             q_wh = app_config.ui.get_quick_add_button_size()
             bw = int(q_wh[0]) if isinstance(q_wh, (list, tuple)) and len(q_wh) >= 2 else None
@@ -61,18 +60,15 @@ class QuickAddPanelWidget(BaseTopPanelWidget):
         except Exception:
             bw = bh = None
         if not bw or bw <= 0 or not bh or bh <= 0:
-            # Фолбэк: квадратная кнопка по общему размеру
             fallback_btn = int(app_config.ui.get_top_panel_button_size())
             bw = bh = max(1, fallback_btn)
 
-        # Размер иконки: базово из общего top_panel_icon_size() с клампом не больше самой кнопки
         try:
-            icon_wh = app_config.ui.get_top_panel_icon_size()  # [w, h]
+            icon_wh = app_config.ui.get_top_panel_icon_size()
             iw = int(icon_wh[0]) if isinstance(icon_wh, (list, tuple)) and len(icon_wh) >= 2 else bw
             ih = int(icon_wh[1]) if isinstance(icon_wh, (list, tuple)) and len(icon_wh) >= 2 else bh
         except Exception:
             iw, ih = bw, bh
-        # Иконка не должна выходить за пределы кнопки
         iw = max(1, min(iw, bw))
         ih = max(1, min(ih, bh))
         quick_type_tooltips = app_config.settings.get_quick_type_tooltips()
@@ -108,7 +104,7 @@ class QuickAddPanelWidget(BaseTopPanelWidget):
                 category_id = self.category_provider.get_current_category_id()
             except Exception as exc:
                 logger.warning(
-                    "QuickAddPanelWidget: не удалось получить текущую категорию: %s",
+                    "QuickAddPanelWidget: failed to get current category: %s",
                     exc,
                 )
 

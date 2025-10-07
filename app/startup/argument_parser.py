@@ -1,4 +1,4 @@
-"""Модуль для парсинга аргументов командной строки."""
+"""Module for parsing command-line arguments."""
 
 import argparse
 import logging
@@ -6,7 +6,7 @@ from typing import NamedTuple
 
 
 class AppArguments(NamedTuple):
-    """Структура для хранения аргументов приложения."""
+    """Container for application arguments."""
 
     debug: bool
     log_level: str | None
@@ -14,29 +14,29 @@ class AppArguments(NamedTuple):
 
 def parse_arguments() -> AppArguments:
     """
-    Парсит аргументы командной строки.
+    Parse command-line arguments.
 
     Returns:
-        AppArguments: Структура с распарсенными аргументами
+        AppArguments: Parsed arguments container
     """
-    parser = argparse.ArgumentParser(description="Запуск приложения")
-    # Дополнительные флаги, не влияющие на возвращаемую структуру (сохранение совместимости)
+    parser = argparse.ArgumentParser(description="Run application")
+    # Additional flags that do not affect the returned structure (compatibility)
     parser.add_argument(
         "--version",
         action="version",
         version="MyPyQtApp 1.0.0",
-        help="Показать версию и выйти",
+        help="Show version and exit",
     )
-    parser.add_argument("--debug", action="store_true", help="Включить режим отладки")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument(
         "--log-level",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="Уровень логирования (перекрывает --debug)",
+        help="Logging level (overrides --debug)",
     )
     parser.add_argument(
         "--no-gui",
         action="store_true",
-        help="Запуск без инициализации GUI (для некоторых сценариев тестирования)",
+        help="Run without initializing GUI (for certain testing scenarios)",
     )
     args = parser.parse_args()
 
@@ -45,13 +45,13 @@ def parse_arguments() -> AppArguments:
 
 def determine_log_level(args: AppArguments) -> int:
     """
-    Определяет уровень логирования на основе аргументов.
+    Determine the logging level based on arguments.
 
     Args:
-        args: Аргументы приложения
+        args: Parsed application arguments
 
     Returns:
-        int: Уровень логирования
+        int: Logging level
     """
     if args.log_level:
         return getattr(logging, args.log_level)

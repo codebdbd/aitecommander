@@ -24,18 +24,18 @@ def _arg(template: str, *args: str) -> str:
 
 
 def setup_status_bar(window) -> QStatusBar:
-    """Создаёт и настраивает статус-бар главного окна.
+    """Create and configure the main window status bar.
 
-    Добавляет постоянные виджеты:
-    - db_status_label: статус соединения с БД
-    - path_label: путь по иерархии структуры
-    - links_count_label: количество ссылок в текущем представлении
+    Adds persistent widgets:
+    - db_status_label: database connection status
+    - path_label: path in the structure hierarchy
+    - links_count_label: number of links in the current view
 
-    Возвращает созданный QStatusBar.
+    Returns the created QStatusBar.
     """
     status = QStatusBar(window)
     window.setStatusBar(status)
-    # Внешние отступы статус-бара: слева/справа 6px
+    # External margins for the status bar: 6px left/right
     status.setContentsMargins(6, 0, 6, 0)
 
     window.db_status_label = QLabel()
@@ -47,7 +47,7 @@ def setup_status_bar(window) -> QStatusBar:
     window.links_count_label.setObjectName("linksCountLabel")
     window.message_label = QLabel()
 
-    # Отступы внутри элементов для ровного визуала
+    # Inner paddings for clean visuals
     window.message_label.setContentsMargins(6, 0, 12, 0)
     window.path_label.setContentsMargins(0, 0, 12, 0)
     window.db_status_label.setContentsMargins(12, 0, 6, 0)
@@ -56,8 +56,8 @@ def setup_status_bar(window) -> QStatusBar:
     language_selector = LanguageSelector(status)
     window.language_selector = language_selector
 
-    # Левая область: собственный контейнер с сообщением и путём, без перекрытия
-    # Создаём контейнер сразу с родителем статус-бара, чтобы исключить кратковременный top-level показ
+    # Left area: dedicated container with message and path, no overlap
+    # Create container with status bar as parent to avoid momentary top-level display
     left_container = QWidget(status)
     left_layout = QHBoxLayout(left_container)
     left_layout.setContentsMargins(0, 0, 0, 0)
@@ -65,7 +65,7 @@ def setup_status_bar(window) -> QStatusBar:
     left_layout.addWidget(window.message_label)
     left_layout.addWidget(window.path_label, 1)
     status.addWidget(left_container, 1)
-    # Правая область: статус БД, счётчик ссылок
+    # Right area: DB status, links counter
     status.addPermanentWidget(window.db_status_label)
     status.addPermanentWidget(window.links_count_label)
     status.addPermanentWidget(language_selector)
@@ -85,7 +85,7 @@ def setup_status_bar(window) -> QStatusBar:
     service.languageChanged.connect(lambda _code: _retranslate_status_bar())
 
     if hasattr(window, "destroyed"):
-        # Ensure connection is removed when window is destroyed to avoid dangling references
+        # Ensure the connection is removed when the window is destroyed to avoid dangling references
         def _cleanup():
             try:
                 service.languageChanged.disconnect(_retranslate_status_bar)
@@ -100,11 +100,11 @@ def setup_status_bar(window) -> QStatusBar:
 
 
 def update_status_bar(window) -> None:
-    """Обновляет содержимое статус-бара для переданного окна.
+    """Update the status bar contents for the given window.
 
-    - Обновляет счётчик ссылок
-    - Обновляет статус подключения к БД
-    - Формирует путь текущего элемента структуры и активной сферы
+    - Update links counter
+    - Update database connection status
+    - Build the path of the current structure item and active sphere
     """
     try:
         def _set_text_if_changed(label, text: str) -> None:
@@ -115,11 +115,11 @@ def update_status_bar(window) -> None:
                 if current != text:
                     label.setText(text)
             except Exception:
-                # Никогда не роняем UI из‑за статус‑бара
+                # Never crash the UI due to status bar issues
                 pass
 
-        # Счётчик: если активен режим плиток категорий — показываем количество категорий,
-        # иначе показываем количество ссылок в таблице
+        # Counter: if category tiles mode is active — show number of categories,
+        # otherwise show number of links in the table
         try:
             stack = getattr(window, "stack", None)
             tiles_active = False
@@ -152,13 +152,13 @@ def update_status_bar(window) -> None:
                         _arg(_tr("Links: %1"), format_number(0)),
                     )
         except Exception:
-            # На случай непредвиденных ошибок — не роняем UI и показываем 0
+            # On unexpected errors — do not crash UI and show 0
             _set_text_if_changed(
                 window.links_count_label,
                 _arg(_tr("Links: %1"), format_number(0)),
             )
 
-        # Статус БД (через DatabaseController)
+        # DB status (via DatabaseController)
         dc = getattr(window, "database_controller", None)
         db = getattr(dc, "db", None)
         if db is not None and getattr(db, "is_connected", lambda: False)():
@@ -166,12 +166,12 @@ def update_status_bar(window) -> None:
         else:
             _set_text_if_changed(window.db_status_label, _tr("Database: disconnected"))
 
-        # Путь в дереве + активная сфера (QTreeView-only)
+        # Path in tree + active sphere (QTreeView-only)
         parts = []
         tree = getattr(window, "tree", None)
         try:
             if tree is not None:
-                # Используем currentIndex и обходим родителей
+                # Use currentIndex and walk through parents
                 idx = tree.currentIndex()
                 if idx and idx.isValid():
                     cur = idx
@@ -181,10 +181,10 @@ def update_status_bar(window) -> None:
                             parts.insert(0, text)
                         cur = cur.parent()
         except Exception:
-            # Игнорируем сбои в построении пути
+            # Ignore failures while building path
             parts = []
 
-        # Префикс: активная сфера
+        # Prefix: active sphere
         try:
             sb = getattr(window, "structure_business", None)
             if sb is not None and getattr(sb, "current_sphere_id", None):
@@ -194,7 +194,7 @@ def update_status_bar(window) -> None:
         except Exception:
             pass
 
-        # Добавляем имя выбранной ссылки из таблицы (колонка 1 — name), если есть выделение
+        # Append selected link name from the table (column 1 — name), if any selection
         try:
             table = getattr(window, "table", None)
             if table is not None:
@@ -221,7 +221,7 @@ def update_status_bar(window) -> None:
             if hasattr(window, "path_label") and window.path_label:
                 _set_text_if_changed(window.path_label, _tr("Path: "))
     except Exception:
-        # В случае неожиданных ошибок не роняем UI, просто очищаем путь
+        # In case of unexpected errors do not crash UI, just clear path
         if hasattr(window, "path_label") and window.path_label:
             try:
                 _set_text_if_changed(window.path_label, _tr("Path: "))

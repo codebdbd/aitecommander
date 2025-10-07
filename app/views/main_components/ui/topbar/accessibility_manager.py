@@ -47,17 +47,23 @@ class AccessibilityManager(QObject):
         try:
             panel.setAccessibleName(panel_name)
             panel.setAccessibleDescription(
-                f"{panel_name} panel with {visible_count} visible items"
+                self.tr("{panel} panel with {count} visible items").format(
+                    panel=panel_name,
+                    count=visible_count,
+                )
             )
 
             for index, button in enumerate(buttons):
                 is_visible = index < visible_count
-                button.setAccessibleName(f"{panel_name} item {index + 1}")
+                button.setAccessibleName(
+                    self.tr("{panel} item {n}").format(panel=panel_name, n=index + 1)
+                )
 
                 if is_visible:
                     button.setAccessibleDescription(
-                        f"Button {index + 1} of {visible_count} in {panel_name}. "
-                        "Press Enter to activate, Arrow keys to navigate."
+                        self.tr(
+                            "Button {idx} of {total} in {panel}. Press Enter to activate, Arrow keys to navigate."
+                        ).format(idx=index + 1, total=visible_count, panel=panel_name)
                     )
                     button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
@@ -70,7 +76,9 @@ class AccessibilityManager(QObject):
                         )
                 else:
                     button.setAccessibleDescription(
-                        f"Hidden button {index + 1} in {panel_name}"
+                        self.tr("Hidden button {n} in {panel}").format(
+                            n=index + 1, panel=panel_name
+                        )
                     )
                     button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
@@ -98,7 +106,7 @@ class AccessibilityManager(QObject):
             self._shortcuts.append(shortcut)
 
             current_tooltip = button.toolTip() or ""
-            shortcut_info = f" (Alt+{number})"
+            shortcut_info = self.tr(" (Alt+{n})").format(n=number)
             if shortcut_info not in current_tooltip:
                 button.setToolTip(current_tooltip + shortcut_info)
         except (RuntimeError, AttributeError) as exc:

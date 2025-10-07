@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class ItemDeletionService(QObject):
-    """Инкапсулирует сценарии удаления разделов и категорий."""
+    """Encapsulates deletion scenarios for sections and categories."""
 
     def __init__(self, *, controller, tree, business, main_window, undo_stack):
         parent = controller if isinstance(controller, QObject) else None
@@ -28,7 +28,7 @@ class ItemDeletionService(QObject):
         self._main = main_window
         self._undo_stack = undo_stack
 
-    # ------------- Публичные сценарии -------------
+    # ------------- Public scenarios -------------
     def delete_item(self, item) -> None:
         if not item:
             return
@@ -55,7 +55,7 @@ class ItemDeletionService(QObject):
         if item:
             self.delete_item(item)
 
-    # ------------- Вспомогательные методы -------------
+    # ------------- Helper methods -------------
     def _delete_multiple_categories(self, indexes: Iterable) -> bool:
         category_ids = []
         for index in indexes:
@@ -69,14 +69,14 @@ class ItemDeletionService(QObject):
             self._delete_categories_without_confirmation(category_ids)
             return True
         message = (
-            f"Будут удалены {len(category_ids)} категори(я/ии/й) и {totals} ссыл(ка/ки/ок) в сумме.\n\n"
-            "Все вложенные ссылки будут удалены безвозвратно!\n\n"
-            "Вы уверены, что хотите продолжить?"
+            f"{len(category_ids)} categor(y/ies) and {totals} link(s) will be deleted in total.\n\n"
+            "All nested links will be permanently deleted!\n\n"
+            "Are you sure you want to continue?"
         )
         if DialogManager.ask_confirmation(
             self._main,
             message,
-            "Подтвердите удаление",
+            "Confirm deletion",
         ):
             self._delete_categories_without_confirmation(category_ids)
             return True
@@ -92,7 +92,7 @@ class ItemDeletionService(QObject):
                 cmd = DeleteCategoriesBatchCmd(categories_payload, self._main)
                 self._undo_stack.push(cmd)
         except Exception:  # pragma: no cover - UI protection
-            logger.exception("Ошибка пакетного удаления категорий")
+            logger.exception("Batch category deletion error")
 
     def _delete_section(self, section_id: int) -> None:
         section_data = self._business.get_section_data(section_id)
@@ -116,71 +116,71 @@ class ItemDeletionService(QObject):
         if self._confirm_category_deletion(category_data, links_count):
             self._push_category_delete(category_data)
 
-    # ------------- Подсчёты -------------
+    # ------------- Counters -------------
     def _count_nested_objects(self, section_id: int) -> tuple[int, int]:
         try:
             return self._business.structure_model.count_nested_objects_for_section(section_id)
-        except Exception:  # pragma: no cover - статистика не критична
+        except Exception:  # pragma: no cover - stats not critical
             categories = self._business.get_categories(section_id) or []
             return len(categories), 0
 
     def _count_links_for_category(self, category_id: int) -> int:
         try:
             return int(self._business.structure_model.count_links_by_category(category_id))
-        except Exception:  # pragma: no cover - статистика не критична
+        except Exception:  # pragma: no cover - stats not critical
             return 0
 
     def _count_links_for_categories(self, category_ids: Iterable[int]) -> int:
         try:
             counts_map = self._business.structure_model.count_links_by_categories(category_ids)
-        except Exception:  # pragma: no cover - статистика не критична
+        except Exception:  # pragma: no cover - stats not critical
             counts_map = {}
         return sum(int(value) for value in (counts_map or {}).values())
 
-    # ------------- Подтверждения -------------
+    # ------------- Confirmations -------------
     def _confirm_section_deletion(
         self, section_data: dict, cats_count: int, links_count: int
     ) -> bool:
-        section_name = section_data.get("name", "неизвестный раздел")
+        section_name = section_data.get("name", "unknown section")
         message = (
-            f"Раздел '{section_name}' содержит {cats_count} категори"
-            f"{'ю' if cats_count == 1 else 'и'} и {links_count} ссыл"
-            f"{'ку' if links_count == 1 else 'ок'}.\n\n"
-            "Все вложенные категории и ссылки будут удалены безвозвратно!\n\n"
-            "Вы уверены, что хотите продолжить?"
+            f"Section '{section_name}' contains {cats_count} categor"
+            f"{'y' if cats_count == 1 else 'ies'} and {links_count} link"
+            f"{'s' if links_count != 1 else ''}.\n\n"
+            "All nested categories and links will be permanently deleted!\n\n"
+            "Are you sure you want to continue?"
         )
         return DialogManager.ask_confirmation(
             self._main,
             message,
-            "Удалить раздел",
-            informative_text="Действие необратимо. Будут удалены все вложенные категории и ссылки.",
+            "Delete section",
+            informative_text="This action is irreversible. All nested categories and links will be deleted.",
             details=f"section_id={section_data.get('id')}, cats={cats_count}, links={links_count}",
         )
 
     def _confirm_category_deletion(self, category_data: dict, links_count: int) -> bool:
-        category_name = category_data.get("name", "неизвестная категория")
+        category_name = category_data.get("name", "unknown category")
         message = (
-            f"Категория '{category_name}' содержит {links_count} ссыл"
-            f"{'ку' if links_count == 1 else 'ок'}.\n\n"
-            "Все вложенные ссылки будут удалены безвозвратно!\n\n"
-            "Вы уверены, что хотите продолжить?"
+            f"Category '{category_name}' contains {links_count} link"
+            f"{'s' if links_count != 1 else ''}.\n\n"
+            "All nested links will be permanently deleted!\n\n"
+            "Are you sure you want to continue?"
         )
         return DialogManager.ask_confirmation(
             self._main,
             message,
-            "Подтвердите удаление",
-            informative_text="Действие необратимо. Все ссылки в категории будут удалены.",
+            "Confirm deletion",
+            informative_text="This action is irreversible. All links in the category will be deleted.",
             details=f"category_id={category_data.get('id')}, links={links_count}",
         )
 
-    # ------------- Прямые операции undo команд -------------
+    # ------------- Direct operations of undo commands -------------
     def _push_section_delete(self, section_data: dict) -> None:
         try:
             cmd = DeleteSectionCmd(section_data, self._main)
             if cmd:
                 self._undo_stack.push(cmd)
-        except Exception:  # pragma: no cover - защита UI
-            logger.exception("Ошибка удаления раздела")
+        except Exception:  # pragma: no cover - UI protection
+            logger.exception("Section deletion error")
 
     def _push_category_delete(self, category_data: dict) -> None:
         try:
@@ -192,8 +192,8 @@ class ItemDeletionService(QObject):
             )
             if cmd:
                 self._undo_stack.push(cmd)
-        except Exception:  # pragma: no cover - защита UI
-            logger.exception("Ошибка удаления категории")
+        except Exception:  # pragma: no cover - UI protection
+            logger.exception("Category deletion error")
 
     # ------------- Helpers -------------
     def _selected_tree_indexes(self) -> list:

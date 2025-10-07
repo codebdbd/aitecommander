@@ -11,7 +11,7 @@ class RowOperationsMixin:
     """Mixin with row-level operations for the links table."""
 
     def _link_cache(self) -> Dict[int, Dict[str, Any]]:
-        """Вспомогательный доступ к кешу текущих ссылок."""
+        """Helper access to current links cache."""
         cache = getattr(self, "_current_links", None)
         if cache is None:
             cache = {}

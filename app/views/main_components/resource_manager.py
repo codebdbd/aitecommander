@@ -1,4 +1,4 @@
-"""Совместимый слой для легаси-импорта `app.views.main_components.resource_manager`."""
+"""Compatibility layer for legacy import `app.views.main_components.resource_manager`."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from app.views.main_components.common.resource_manager import logger
 
 
 class ResourceManager:
-    """Упрощённая реализация менеджера ресурсов из прежнего API."""
+    """Simplified resource manager implementation from the legacy API."""
 
     def __init__(self, name: str = "ResourceManager") -> None:
         self._name = name
@@ -35,10 +35,10 @@ class ResourceManager:
         resource_name = name or f"{type(resource).__name__}@{id(resource)}"
         
         if cleanup_func is not None:
-            # Явная cleanup функция
+            # Explicit cleanup function
             self._resources.append((resource_name, None, None, cleanup_func))
         else:
-            # Автоопределение - сохраняем ресурс и имя метода
+            # Auto-detect: store resource and method name
             method_name = self._detect_cleanup_method_name(resource)
             if method_name is None:
                 logger.warning(
@@ -50,15 +50,15 @@ class ResourceManager:
             self._resources.append((resource_name, resource, method_name, None))
 
     def _detect_cleanup_method_name(self, resource: Any) -> Optional[str]:
-        """Определяет имя метода очистки для ресурса."""
+        """Determine the cleanup method name for the given resource."""
         for method_name in ("stop", "deleteLater", "close"):
             try:
-                # Проверяем существование атрибута БЕЗ создания через hasattr
+                # Check attribute existence WITHOUT creating via hasattr
                 method = object.__getattribute__(resource, method_name)
                 if callable(method):
                     return method_name
             except AttributeError:
-                # Атрибут не существует - пробуем следующий
+                # Attribute does not exist — try the next one
                 continue
         return None
 
@@ -74,10 +74,10 @@ class ResourceManager:
         for resource_name, resource_obj, method_name, cleanup_func in reversed(self._resources):
             try:
                 if cleanup_func is not None:
-                    # Явная cleanup функция
+                    # Explicit cleanup function
                     cleanup_func()
                 elif resource_obj is not None and method_name is not None:
-                    # Автоопределённый метод - вызываем через getattr
+                    # Auto-detected method — call via getattr
                     method = getattr(resource_obj, method_name, None)
                     if callable(method):
                         method()

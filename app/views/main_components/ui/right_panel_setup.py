@@ -30,26 +30,26 @@ class RightPanelBuilder:
         self.main_layout = ui.main_layout
 
     def build(self, mid: QHBoxLayout) -> None:
-        """Собирает и подключает правую панель (плитки + таблица + сплиттер).
+        """Build and attach the right panel (tiles + table + splitter).
 
-        Обязанности:
-        - Создать область плиток (scroll + обёртка плиток) и область таблицы (обёртка)
-        - Собрать `QStackedLayout` с плитками и таблицей, установить `window.table_container`
-        - Построить контейнер правой панели с отступами/spacing из UIConfig
-        - Создать и настроить `QSplitter`, добавить левую и правую панели, задать факторы/размеры
-        - Инициализировать фильтр авто‑скрытия дерева и политики фокуса в соответствии с прежним поведением
+        Responsibilities:
+        - Create tiles area (scroll + tiles wrapper) and table area (wrapper)
+        - Assemble `QStackedLayout` with tiles and table, set `window.table_container`
+        - Build the right panel container with margins/spacing from UIConfig
+        - Create and configure `QSplitter`, add left and right panels, set factors/sizes
+        - Initialize auto-hide tree filter and focus policies per existing behavior
 
-        Примечание: метод сохраняет существующее поведение и проводку к UI‑состоянию и метрикам.
+        Note: preserves existing behavior and UI-state wiring and metrics.
         """
-        # Контейнер для правой панели создаём сразу, чтобы быть родителем для обёрток
+        # Create the right panel container upfront to parent wrappers
         right_panel = QWidget()
 
-        # Плитки категорий — создаём с валидной иерархией родителей
+        # Category tiles — create with a valid parent hierarchy
         self.window.tiles_scroll = QScrollArea(parent=right_panel)
         self.window.tiles_scroll.setWidgetResizable(True)
         self.window.tiles = CategoryTiles(parent=self.window.tiles_scroll)
 
-        # Подключение к UIStateManager
+        # Connect to UIStateManager
         self.window.tiles.category_selected.connect(
             lambda cat_id: self.window.ui_state.load_category(
                 cat_id, source="CategoryTiles"
@@ -64,32 +64,32 @@ class RightPanelBuilder:
         tiles_layout.setSpacing(app_config.ui.get_tiles_layout_spacing())
         tiles_layout.addWidget(self.window.tiles_scroll)
 
-        # Таблица
+        # Table
         self.window.table = LinksTableView(self.window)
 
-        # Обертка для таблицы
+        # Table wrapper
         table_wrapper = QWidget(parent=right_panel)
         table_layout = QVBoxLayout(table_wrapper)
         table_layout.setContentsMargins(*app_config.ui.get_layout_margins("table"))
         table_layout.setSpacing(app_config.ui.get_table_layout_spacing())
         table_layout.addWidget(self.window.table)
 
-        # Стек
+        # Stack
         self.window.stack = QStackedLayout()
         self.window.stack.addWidget(tiles_wrapper)
-        # Совместимость с существующим API: либо сам виджет таблицы, либо её контейнер
+        # API compatibility: either the table widget itself or its container
         self.window.table_container = table_wrapper
         self.window.stack.addWidget(table_wrapper)
 
-        # Контейнер правой панели
+        # Right panel container
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(*app_config.ui.get_layout_margins("right"))
-        # Строго используем UIConfig API (релиз): метод гарантирован
+        # Strictly use UIConfig API (release): method is guaranteed
         spacing = int(app_config.ui.get_right_layout_spacing())
         right_layout.setSpacing(spacing)
         right_layout.addLayout(self.window.stack)
 
-        # Сплиттер
+        # Splitter
         self.window.splitter = self._create_splitter()
         self.window.splitter.addWidget(self.window.left_panel)
         self.window.splitter.addWidget(right_panel)
@@ -109,16 +109,16 @@ class RightPanelBuilder:
         self.window.splitter.setSizes(splitter_sizes)
         self.window._first_structure_load = True
 
-        # Автоскрытие дерева
+        # Auto-hide tree
         self.ui._setup_auto_hide_tree_filter(splitter_sizes)
 
-        # QStackedLayout ломает стандартную Tab-навигацию Qt — исключаем нижнюю панель из Tab
+        # QStackedLayout breaks standard Qt Tab navigation — exclude bottom panel from Tab
         if hasattr(self.window, "bottom_bar_container"):
             self.window.bottom_bar_container.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
     # --- Internals ---
     def _create_splitter(self):
-        # Импортируем здесь, чтобы избежать лишних зависимостей на уровне модуля
+        # Import here to avoid extra module-level dependencies
         from PyQt6.QtCore import Qt as _Qt
         from PyQt6.QtWidgets import QSplitter
 

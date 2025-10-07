@@ -3,8 +3,6 @@ from PyQt6.QtGui import QAction, QKeySequence, QUndoStack
 from PyQt6.QtWidgets import QMainWindow, QWidget
 
 import logging
-import weakref
-from contextlib import suppress
 from typing import TYPE_CHECKING, Optional
 
 from app.views.widgets.protocols import SystemDialogsProtocol
@@ -53,7 +51,6 @@ class MainWindow(QMainWindow, ReTranslatable):
     
     shown: pyqtSignal = pyqtSignal()
 
-    # Controllers initialized during bootstrap
     structure: "StructureUIController"
     menu_controller: "MenuController"
     action_controller: "ActionController"
@@ -63,24 +60,18 @@ class MainWindow(QMainWindow, ReTranslatable):
     ui_state: "UIStateManager"
     system_dialogs: SystemDialogsProtocol
     theme_ctrl: "ThemeController"
-    
-    # UI components
     table: LinksTableView
     left_panel: QWidget
-    
-    # Undo/Redo infrastructure
     undo_stack: Optional[QUndoStack]
     undo_action: Optional[QAction]
     redo_action: Optional[QAction]
-    
-    # Facade simplifies delegation logic
     facade: Optional[WindowFacade]
+    
+    _SEARCH_DEBOUNCE_MS = 300
 
     def handle_import_browser_bookmarks(self) -> None:
         self.system_dialogs.handle_import_browser_bookmarks()
 
-    # === Delegation via the facade ===
-    
     def get_current_category_id(self) -> Optional[int]:
         """Return the ID of the currently selected category."""
         return self.facade.get_current_category_id() if self.facade else None
@@ -117,21 +108,12 @@ class MainWindow(QMainWindow, ReTranslatable):
         return self.facade.get_selected_rows() if self.facade else []
 
     def get_available_themes(self) -> list[tuple[str, str]]:
-        """Return the list of available themes.
-
-        Note: accesses ``theme_ctrl`` directly because it is invoked before facade initialization.
-        """
-        # Menu is built early (before facade), hence direct access
-        return self.theme_ctrl.available() if hasattr(self, 'theme_ctrl') else []
+        """Return the list of available themes."""
+        return self.theme_ctrl.available()
 
     def apply_theme(self, theme_name: str) -> None:
-        """Apply a theme immediately.
-
-        Note: accesses ``theme_ctrl`` directly because it is invoked before facade initialization.
-        """
-        # Menu is used prior to facade availability, so keep direct access
-        if hasattr(self, 'theme_ctrl'):
-            self.theme_ctrl.apply(theme_name)
+        """Apply a theme immediately."""
+        self.theme_ctrl.apply(theme_name)
 
     def get_undo_stack(self) -> Optional[QUndoStack]:
         """Return the undo stack instance if available."""
@@ -157,105 +139,20 @@ class MainWindow(QMainWindow, ReTranslatable):
         self.undo_action = undo_action
         self.redo_action = redo_action
 
-        # Diagnostics: track undo/redo triggers and stack state for double-activation analysis
-        try:
-            # Log menu/shortcut triggers
-            undo_action.triggered.connect(
-                lambda checked=False: logging.getLogger(__name__).debug(
-                    "[UI] QAction.undo.triggered checked=%s", checked
-                )
-            )
-            redo_action.triggered.connect(
-                lambda checked=False: logging.getLogger(__name__).debug(
-                    "[UI] QAction.redo.triggered checked=%s", checked
-                )
-            )
-        except Exception:
-            logger.debug(
-                "MainWindow: failed to connect undo/redo triggered diagnostics",
-                exc_info=True,
-            )
-
-        try:
-            # Local safe callbacks via weakref to avoid touching deleted objects
-            _us_ref = weakref.ref(us)
-
-            def _on_index_changed(idx: int):
-                u = _us_ref()
-                if u is None:
-                    return
-                try:
-                    can_undo = bool(u.canUndo())
-                except RuntimeError:
-                    return
-                try:
-                    can_redo = bool(u.canRedo())
-                except RuntimeError:
-                    return
-                logging.getLogger(__name__).debug(
-                    "[UndoStack] indexChanged=%s canUndo=%s canRedo=%s",
-                    idx,
-                    can_undo,
-                    can_redo,
-                )
-
-            def _on_clean_changed(clean: bool):
-                u = _us_ref()
-                index_val = None
-                if u is not None:
-                    try:
-                        index_val = u.index()
-                    except RuntimeError:
-                        index_val = None
-                logging.getLogger(__name__).debug(
-                    "[UndoStack] cleanChanged=%s index=%s", clean, index_val
-                )
-
-            us.indexChanged.connect(_on_index_changed)
-            us.cleanChanged.connect(_on_clean_changed)
-        except Exception:
-            logger.debug(
-                "MainWindow: failed to connect undo stack diagnostics (index/clean)",
-                exc_info=True,
-            )
-        try:
-            us.canUndoChanged.connect(
-                lambda can: logging.getLogger(__name__).debug(
-                    "[UndoStack] canUndoChanged=%s", can
-                )
-            )
-        except Exception:
-            logger.debug(
-                "MainWindow: failed to connect canUndoChanged diagnostics",
-                exc_info=True,
-            )
-        try:
-            us.canRedoChanged.connect(
-                lambda can: logging.getLogger(__name__).debug(
-                    "[UndoStack] canRedoChanged=%s", can
-                )
-            )
-        except Exception:
-            logger.debug(
-                "MainWindow: failed to connect canRedoChanged diagnostics",
-                exc_info=True,
-            )
-
         return undo_action, redo_action
 
     def __init__(self, settings: AppSettings, theme_ctrl: "ThemeController"):
         super().__init__()
-        # Initialization moved to bootstrap; only accept core dependencies here.
         self.settings = settings
         self.theme_ctrl = theme_ctrl
-        self.facade = None  # Assigned in bootstrap after controllers initialize
+        self.facade = None
 
-        # Debounce timer for search
         self._search_timer = QTimer()
         self._search_timer.setSingleShot(True)
-        self._search_timer.setInterval(300)  # 300 ms delay
+        self._search_timer.setInterval(self._SEARCH_DEBOUNCE_MS)
         self._search_timer.timeout.connect(self._execute_search)
         self._pending_search = ""
+        self._current_sphere_id: Optional[int] = None
 
         ReTranslatable.__init__(self)
 
@@ -266,8 +163,6 @@ class MainWindow(QMainWindow, ReTranslatable):
         redo_action = getattr(self, "redo_action", None)
         if redo_action is not None:
             redo_action.setText(self.tr("&Redo"))
-
-
     def _init_spheres_ui(self) -> None:
         """Initialize the spheres UI asynchronously."""
         self.spheres_controller.init()
@@ -285,11 +180,6 @@ class MainWindow(QMainWindow, ReTranslatable):
         self.update_statusbar()
         return result
 
-    def show_link_dialog_for_category(
-        self, category_id: int | None = None, link: "LinkDict | None" = None
-    ) -> bool:
-        """Open the link dialog for the specified category."""
-        return self.show_link_dialog(link=link, category_id=category_id)
 
     def _get_selected_links(self) -> list["LinkDict"]:
         """Return the list of selected links."""
@@ -346,64 +236,44 @@ class MainWindow(QMainWindow, ReTranslatable):
         if self.facade:
             self.facade.update_theme()
 
-    def update_widget_font_size(self, widget, size: int) -> None:
-        """Apply a font size to a widget in a unified manner.
-
-        Assumes the widget provides ``update_font_size(int)``.
-        Safely handles missing attributes/methods and unexpected runtime errors.
-
-        Note: the logic can be migrated into tree/table controllers later, leaving
-        only delegation here.
-        """
-        try:
-            with suppress(AttributeError, RuntimeError, TypeError, ValueError):
-                if widget and hasattr(widget, "update_font_size"):
-                    widget.update_font_size(size)
-        except Exception:
-            # Log widget type for diagnosing unexpected errors
-            logger.exception(
-                "MainWindow: unexpected error updating font size for %s",
-                type(widget).__name__ if widget is not None else "<None>",
-            )
-
     def apply_font_size_to_content(self, fs: int) -> None:
-        """Apply font size to primary content widgets.
-
-        Affects only tree and table widgets (user-facing preference).
-        """
-        if isinstance(fs, bool):  # guard against incorrect types
-            return
+        """Apply font size to tree and table widgets."""
         try:
             size = int(fs)
         except (TypeError, ValueError):
+            logger.warning("MainWindow: invalid font size type: %s", type(fs).__name__)
             return
 
-        # Tree widget
         tree = getattr(self, "tree", None)
-        self.update_widget_font_size(tree, size)
+        if tree and hasattr(tree, "update_font_size"):
+            try:
+                tree.update_font_size(size)
+            except (AttributeError, RuntimeError) as e:
+                logger.debug("MainWindow: failed to update tree font size: %s", e)
 
-        # Table widget
         table = getattr(self, "table", None)
-        self.update_widget_font_size(table, size)
-
-        # Category tiles intentionally remain unchanged (independent font size)
+        if table and hasattr(table, "update_font_size"):
+            try:
+                table.update_font_size(size)
+            except (AttributeError, RuntimeError) as e:
+                logger.debug("MainWindow: failed to update table font size: %s", e)
 
     @signal_guard("_update_left_panel_style")
     def _update_left_panel_style(self, sphere_id: int) -> None:
         """Update left panel styling when the sphere changes."""
-        current_sphere = self.left_panel.property("sphere")
-        if current_sphere == str(sphere_id):
+        if self._current_sphere_id == sphere_id:
             return
 
+        self._current_sphere_id = sphere_id
         with suspend_updates(self.left_panel):
             self.left_panel.setProperty("sphere", str(sphere_id))
             self.left_panel.style().unpolish(self.left_panel)
             self.left_panel.style().polish(self.left_panel)
 
     def on_search(self, text: str) -> None:
-        """Schedule search execution after a 300 ms debounce."""
+        """Schedule search execution after debounce."""
         self._pending_search = text
-        self._search_timer.start()  # Restart timer on each keystroke
+        self._search_timer.start()
 
     def _execute_search(self) -> None:
         """Execute the search after the debounce interval."""
@@ -411,24 +281,19 @@ class MainWindow(QMainWindow, ReTranslatable):
         if la is None:
             logger.debug("MainWindow: links_actions not initialized yet")
             return
-        try:
-            la.on_search(self._pending_search)
-        except Exception:
-            logger.exception("MainWindow._execute_search failed")
+        la.on_search(self._pending_search)
 
     def showEvent(self, event: QEvent) -> None:
         """Emit ``shown`` signal the first time the window appears."""
         super().showEvent(event)
         if not hasattr(self, "_shown_emitted"):
             self._shown_emitted = True
-            # Use queued single-shot to avoid blocking rendering if slot is heavy
             QTimer.singleShot(0, self.shown.emit)
 
     def closeEvent(self, event: QEvent) -> None:
         """Shut down gracefully and release resources."""
         logger.info("MainWindow.closeEvent: initiating shutdown")
         
-        # ✅ ИСПРАВЛЕНИЕ: Comprehensive cleanup для предотвращения memory leaks
         self._cleanup_resources()
         
         if hasattr(self, "app_shutdown") and self.app_shutdown:
@@ -441,55 +306,59 @@ class MainWindow(QMainWindow, ReTranslatable):
         super().closeEvent(event)
     
     def _cleanup_resources(self) -> None:
-        """✅ ИСПРАВЛЕНИЕ: Централизованная очистка ресурсов для предотвращения утечек памяти."""
-        logger.debug("MainWindow._cleanup_resources: starting cleanup")
+        """Centralized resource cleanup to prevent memory leaks."""
+        logger.debug("MainWindow: starting cleanup")
         
-        # 1. Stop and cleanup search timer
-        try:
-            if hasattr(self, '_search_timer'):
-                self._search_timer.stop()
+        cleanup_tasks = [
+            ("search_timer", lambda: self._cleanup_timer()),
+            ("undo_stack", lambda: self._cleanup_undo_stack()),
+            ("facade", lambda: self._cleanup_facade()),
+            ("table", lambda: self._cleanup_table()),
+        ]
+        
+        for task_name, cleanup_func in cleanup_tasks:
+            try:
+                cleanup_func()
+            except Exception as e:
+                logger.debug("MainWindow: cleanup %s failed: %s", task_name, e)
+        
+        logger.debug("MainWindow: cleanup completed")
+    
+    def _cleanup_timer(self) -> None:
+        """Stop and disconnect search timer."""
+        if hasattr(self, '_search_timer'):
+            self._search_timer.stop()
+            try:
                 self._search_timer.timeout.disconnect()
-                self._search_timer.deleteLater()
-        except (AttributeError, RuntimeError):
-            pass
+            except TypeError:
+                pass
+            self._search_timer.deleteLater()
+    
+    def _cleanup_undo_stack(self) -> None:
+        """Disconnect undo/redo actions and stack signals."""
+        for action_name in ('undo_action', 'redo_action'):
+            action = getattr(self, action_name, None)
+            if action:
+                try:
+                    action.triggered.disconnect()
+                except TypeError:
+                    pass
         
-        # 2. Disconnect undo/redo actions to prevent dangling references
-        try:
-            if hasattr(self, 'undo_action') and self.undo_action:
-                self.undo_action.triggered.disconnect()
-        except (AttributeError, RuntimeError, TypeError):
-            pass
-        
-        try:
-            if hasattr(self, 'redo_action') and self.redo_action:
-                self.redo_action.triggered.disconnect()
-        except (AttributeError, RuntimeError, TypeError):
-            pass
-        
-        # 3. Cleanup undo stack connections
-        try:
-            if hasattr(self, 'undo_stack') and self.undo_stack:
-                # Disconnect all signals to prevent callbacks on deleted objects
-                self.undo_stack.indexChanged.disconnect()
-                self.undo_stack.cleanChanged.disconnect()
-                self.undo_stack.canUndoChanged.disconnect()
-                self.undo_stack.canRedoChanged.disconnect()
-        except (AttributeError, RuntimeError, TypeError):
-            pass
-        
-        # 4. Cleanup facade and controllers
-        try:
-            if hasattr(self, 'facade') and self.facade:
-                if hasattr(self.facade, 'cleanup'):
-                    self.facade.cleanup()
-        except Exception as e:
-            logger.warning("MainWindow._cleanup_resources: facade cleanup error: %s", e)
-        
-        # 5. Clear table model to prevent access to deleted data
-        try:
-            if hasattr(self, 'table') and self.table:
-                self.table.setModel(None)
-        except (AttributeError, RuntimeError):
-            pass
-        
-        logger.debug("MainWindow._cleanup_resources: cleanup completed")
+        us = getattr(self, 'undo_stack', None)
+        if us:
+            for signal in (us.undoTextChanged, us.redoTextChanged):
+                try:
+                    signal.disconnect()
+                except TypeError:
+                    pass
+    
+    def _cleanup_facade(self) -> None:
+        """Cleanup facade if cleanup method exists."""
+        if self.facade and hasattr(self.facade, 'cleanup'):
+            self.facade.cleanup()
+    
+    def _cleanup_table(self) -> None:
+        """Clear table model to prevent access to deleted data."""
+        table = getattr(self, 'table', None)
+        if table:
+            table.setModel(None)

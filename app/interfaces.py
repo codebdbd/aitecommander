@@ -7,23 +7,23 @@ from typing import Any, Optional, Protocol, runtime_checkable
 
 @runtime_checkable
 class SupportsUpdates(Protocol):
-    """Минимальный протокол для объектов, поддерживающих включение/выключение обновлений."""
+    """Minimal protocol for objects that support enabling/disabling updates."""
 
     def setUpdatesEnabled(self, enabled: bool) -> None: ...
 
 
 @runtime_checkable
 class MainWindowLike(Protocol):
-    """Минимальный протокол главного окна, используемый инициализатором.
+    """Minimal protocol of the main window used by the initializer.
 
-    Содержит только строго необходимые методы, которые вызываются напрямую в
-    `WindowInitializer`. Дополнительные методы UI-компонентов остаются
-    незафиксированными в этом контракте и проверяются через hasattr в рантайме.
+    Contains only strictly necessary methods called directly by
+    `WindowInitializer`. Additional UI-component methods are intentionally
+    not part of this contract and are checked via hasattr at runtime.
     """
 
     def setUpdatesEnabled(self, enabled: bool) -> None: ...
 
-    # Используются в WindowUISetup.setup_window_properties()
+    # Used in WindowUISetup.setup_window_properties()
     def setWindowTitle(self, title: str) -> None:  # noqa: N802 (Qt-style)
         ...
 
@@ -35,7 +35,7 @@ class MainWindowLike(Protocol):
     def setWindowIcon(self, icon: Any) -> None:  # noqa: N802
         ...
 
-    # Используются в WindowUISetup.setup_menu() / setup_central_widget()
+    # Used in WindowUISetup.setup_menu() / setup_central_widget()
     def setMenuBar(self, menu_bar: Any) -> None:  # noqa: N802
         ...
 
@@ -45,7 +45,7 @@ class MainWindowLike(Protocol):
 
 @runtime_checkable
 class SupportsFontSizeApply(Protocol):
-    """Опциональный протокол: окно умеет применять размер шрифта к контенту."""
+    """Optional protocol: window can apply font size to its content."""
 
     def apply_font_size_to_content(self, size: int) -> None:  # noqa: N802 (Qt-style)
         ...
@@ -53,17 +53,17 @@ class SupportsFontSizeApply(Protocol):
 
 @runtime_checkable
 class SettingsLike(Protocol):
-    """Протокол настроек приложения с доступом к размеру шрифта."""
+    """Protocol for application settings with access to font size."""
 
     def get_font_size(self) -> Optional[int]: ...
 
 
 @runtime_checkable
 class TopPanelDataLike(Protocol):
-    """Единый контракт верхних панелей: установка данных для отрисовки.
+    """Unified contract for top panels: provide data for rendering.
 
-    Виджеты не содержат бизнес-логики и не обращаются к БД, а только отображают
-    переданные элементы.
+    Widgets do not contain business logic and do not access the DB; they only
+    display the provided items.
     """
 
     def set_data(self, items: list[Any]) -> None: ...
@@ -71,13 +71,13 @@ class TopPanelDataLike(Protocol):
 
 @runtime_checkable
 class FavoritesPanelWithClear(TopPanelDataLike, Protocol):
-    """Избранное: поддерживает очистку на стороне виджета."""
+    """Favorites: supports clearing on the widget side."""
 
     def clear_favorites(self) -> None: ...
 
 
 @runtime_checkable
 class RecentsPanelWithLimit(TopPanelDataLike, Protocol):
-    """Недавние: может сообщать желаемый лимит элементов (опционально)."""
+    """Recents: can report a desired item limit (optional)."""
 
     def get_limit(self) -> Optional[int]: ...

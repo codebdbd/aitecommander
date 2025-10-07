@@ -9,18 +9,18 @@ from app.services import share_service
 
 
 class LinksActions:
-    """Фасад для ссылочных действий UI.
-    Делегирует операции существующим контроллерам: `LinksUIController` и `LinkOperationsController`.
+    """Facade for UI link actions.
+    Delegates operations to existing controllers: `LinksUIController` and `LinkOperationsController`.
     """
 
     def __init__(self, main_window, links, link_ops):
-        """Создаёт фасад действий со ссылками.
+        """Create link actions facade.
 
-        Обязательные зависимости передаются явно:
-        - links: экземпляр `LinksUIController`
-        - link_ops: экземпляр `LinkOperationsController`
+        Required dependencies passed explicitly:
+        - links: `LinksUIController` instance
+        - link_ops: `LinkOperationsController` instance
 
-        Исключены динамические getattr — при отсутствии зависимостей бросаем ValueError.
+        Dynamic getattr excluded — throw ValueError if dependencies missing.
         """
         self.main = main_window
         self.links = links
@@ -30,7 +30,7 @@ class LinksActions:
                 "LinksActions requires explicit 'links' and 'link_ops' instances"
             )
 
-    # --- Диалог ссылки ---
+    # --- Link dialog ---
     def show_link_dialog(
         self, link: Optional[Dict] = None, category_id: Optional[int] = None
     ) -> bool:
@@ -43,7 +43,7 @@ class LinksActions:
             return
         return self.link_ops.delete_links_with_confirmation(links)
 
-    # --- Действия над ссылками ---
+    # --- Link actions ---
     def open_link(self, link: Dict):
         if self.links:
             self.links.open_link(link)
@@ -72,7 +72,7 @@ class LinksActions:
         if self.links:
             self.links.show_note_dialog(link)
 
-    # --- Поделиться ссылкой ---
+    # --- Share link ---
     def share_via_telegram(self, link: Dict) -> bool:
         return self._share(link, share_service.share_via_telegram)
 
@@ -108,7 +108,7 @@ class LinksActions:
             return False
         return bool(handler(name, url))
 
-    # --- Соцсети: X(Twitter), Facebook, LinkedIn ---
+    # --- Social networks: X(Twitter), Facebook, LinkedIn ---
     def share_via_x(self, link: Dict) -> bool:
         return self._share(link, share_service.share_via_x)
 
@@ -121,7 +121,7 @@ class LinksActions:
     def share_via_pinterest(self, link: Dict) -> bool:
         return self._share(link, share_service.share_via_pinterest)
 
-    # --- Поиск и восстановление выбора ---
+    # --- Search and restore selection ---
     def on_search(self, text: str):
         if self.links:
             self.links.on_search(text)
@@ -131,20 +131,20 @@ class LinksActions:
             self.links.focus_on_link(link_id)
 
     def focus_on_link(self, link_id: int):
-        """Алиас для совместимости: фокус на ссылке по ID."""
+        """Alias for compatibility: focus on link by ID."""
         self.restore_selection(link_id)
 
     def schedule_restore_selection(self, link_id: int) -> None:
-        """Планирует восстановление выделения/фокуса на ссылке.
+        """Schedule selection/focus restore on link.
 
-        Инкапсулирует использование планировщика задач, чтобы вызовы из MainWindow
-        не зависели от импорта и не использовали getattr/lambda.
+        Encapsulates task scheduler usage so calls from MainWindow
+        don't depend on import and don't use getattr/lambda.
         """
         key = f"table_selection_{link_id}"
-        # Передаем явный коллбек на метод контроллера
+        # Pass explicit callback to controller method
         schedule_selection_restore(lambda: self.restore_selection(link_id), key)
 
-    # --- Доступ к данным виджета ссылок / выбор ---
+    # --- Access to link widget data / selection ---
     def get_link_at(self, row: int):
         if not self.links:
             return None
@@ -165,19 +165,19 @@ class LinksActions:
             return []
         return self.links.get_selected_links()
 
-    # --- Редактирование текущей ссылки ---
+    # --- Edit current link ---
     def edit_selected_link(self) -> bool:
         row = self.current_row()
         if row is None:
             return False
-        # Используем актуальный API получения ссылки по строке
+        # Use current API to get link by row
         link = self.get_link_at(row)
         if not link:
             return False
-        # Покажем диалог через существующий API, статусбар обновит MainWindow
+        # Show dialog via existing API, MainWindow will update statusbar
         result = self.show_link_dialog(link=link)
         if result:
-            # Уведомить статусбар через MainWindow
+            # Notify statusbar via MainWindow
             if hasattr(self.main, "update_statusbar"):
                 self.main.update_statusbar()
             return True
@@ -185,20 +185,20 @@ class LinksActions:
 
     # --- Unified action handler for new panel widgets ---
     def on_action_requested(self, action_data: Dict[str, Any] | None) -> None:
-        """Обработчик унифицированных действий от верхних панелей.
+        """Handler for unified actions from top panels.
 
-        Контракт action_data (dict):
-        - type: str — тип действия.
-            - "open_link": открыть ссылку из панели.
-            - "quick_add": быстро добавить ссылку заданного типа.
-        - link: dict | None — ссылка (для type == "open_link").
-        - link_type: str | None — тип быстрой ссылки (для type == "quick_add").
-        - category_id: int | None — категория назначения (опционально; если не указана,
-          используется текущая категория через LinksUIController).
+        action_data contract (dict):
+        - type: str — action type.
+            - "open_link": open link from panel.
+            - "quick_add": quickly add link of specified type.
+        - link: dict | None — link (for type == "open_link").
+        - link_type: str | None — quick link type (for type == "quick_add").
+        - category_id: int | None — target category (optional; if not specified,
+          current category via LinksUIController is used).
 
-        Поведение:
-        - open_link: делегирует в self.open_link(link).
-        - quick_add: делегирует в LinksUIController.quick_add_link(link_type, category_id).
+        Behavior:
+        - open_link: delegates to self.open_link(link).
+        - quick_add: delegates to LinksUIController.quick_add_link(link_type, category_id).
         """
         if not isinstance(action_data, dict):
             return
@@ -215,7 +215,7 @@ class LinksActions:
             if self.links and hasattr(self.links, "quick_add_link"):
                 self.links.quick_add_link(link_type, category_id)
 
-    # --- Делегаты для пассивных виджетов (Recent/Favorites) ---
+    # --- Delegates for passive widgets (Recent/Favorites) ---
     def on_recent_refresh_requested(self, limit: int):
         if self.links and hasattr(self.links, "on_recent_refresh_requested"):
             return self.links.on_recent_refresh_requested(limit)
