@@ -1,25 +1,25 @@
-"""Исключения для модуля links_ui."""
+"""Exceptions for links_ui module."""
 
 
 class LinksUIError(Exception):
-    """Базовое исключение для LinksUI."""
+    """Base exception for LinksUI."""
 
     pass
 
 
 class CategoryNotFoundError(LinksUIError):
-    """Категория не найдена."""
+    """Category not found."""
 
     pass
 
 
 class LinkValidationError(LinksUIError):
-    """Ошибка валидации ссылки."""
+    """Link validation error."""
 
     pass
 
 
 class DatabaseError(LinksUIError):
-    """Ошибка базы данных."""
+    """Database error."""
 
     pass

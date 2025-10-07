@@ -1,4 +1,4 @@
-"""Типы и константы для моделей."""
+"""Types and constants for models."""
 from .link_type import LinkType
 from .constants import (
     SQLITE_MAX_VARIABLES,

@@ -5,12 +5,12 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 from app.models import StructureModel
 
-# Модульный логгер для диагностических сообщений (не навязывает параметр logger)
+# Module logger for diagnostic messages (does not enforce logger parameter)
 logger = logging.getLogger(__name__)
 
 
 class UtilityService:
-    """Вспомогательные и совместимые операции для структуры."""
+    """Auxiliary and compatible operations for structure."""
 
     def get_links(
         self,
@@ -24,7 +24,7 @@ class UtilityService:
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
                 logger.error(
-                    "Ошибка валидации данных при получении ссылок для категории %s: %s",
+                    "Data validation error while getting links for category %s: %s",
                     category_id,
                     e,
                 )
@@ -32,9 +32,9 @@ class UtilityService:
         except Exception as e:
             if logger:
                 logger.exception(
-                    "Критическая ошибка получения ссылок для категории %s", category_id
+                    "Critical error getting links for category %s", category_id
                 )
-            raise  # Пробрасываем критические ошибки
+            raise  # Re-raise critical errors
 
     def get_item_for_editing(
         self,
@@ -55,7 +55,7 @@ class UtilityService:
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
                 logger.error(
-                    "Ошибка валидации данных при получении элемента %s типа %s: %s",
+                    "Data validation error while getting item %s of type %s: %s",
                     item_id,
                     item_type,
                     e,
@@ -64,9 +64,9 @@ class UtilityService:
         except Exception as e:
             if logger:
                 logger.exception(
-                    "Критическая ошибка получения элемента %s типа %s", item_id, item_type
+                    "Critical error getting item %s of type %s", item_id, item_type
                 )
-            raise  # Пробрасываем критические ошибки
+            raise  # Re-raise critical errors
 
     def get_category_hierarchy(
         self,
@@ -103,7 +103,7 @@ class UtilityService:
     ) -> Optional[int]:
         if current_sphere_id is None:
             return None
-        # Единый формат ключа кэша (per-sphere), согласованный с CacheManager: 'first_category_id:{sphere_id}'
+        # Unified cache key format (per-sphere), consistent with CacheManager: 'first_category_id:{sphere_id}'
         cache_key = f"first_category_id:{current_sphere_id}"
         cached = cache_get(cache_key)
         if cached is not None:
@@ -147,14 +147,13 @@ class UtilityService:
     def get_first_category_id(
         self,
         current_sphere_id: Optional[int],
-        get_sections: Callable[[int], List[Dict[str, Any]]],
         get_categories: Callable[[int], List[Dict[str, Any]]],
         cache_get: Callable[[str], Any],
         cache_set: Callable[[str, Any], None],
     ) -> Optional[int]:
-        """Алиас для get_target_section_id для обратной совместимости.
+        """Alias for get_target_section_id for backward compatibility.
         
-        Использует ту же логику, что и get_target_section_id.
+        Uses the same logic as get_target_section_id.
         """
         return self.get_target_section_id(
             current_sphere_id,
@@ -172,20 +171,20 @@ class UtilityService:
         cache_invalidate: Callable[[str], None],
         logger: Optional[logging.Logger] = None,
     ) -> bool:
-        """Обновляет позиции элементов.
+        """Update item positions.
 
-        Усилен контроль корректности имени таблицы: вместо молчаливого успеха при
-        неподдерживаемом table_name метод теперь логирует ошибку и возвращает False.
+        Strengthened table name validation: instead of silent success on
+        unsupported table_name, method now logs error and returns False.
 
-        Допустимые имена (вход → БД):
+        Valid names (input → DB):
           - "sections"  → "section"
           - "categories"→ "category"
           - "spheres"   → "sphere"
           - "links"     → "link"
 
-        Фактическое обновление делегируется в модель (`StructureModel.update_item_positions`),
-        которая проксирует вызов в `Database.update_item_positions` с полной валидацией и
-        корректной пересборкой позиций.
+        Actual update is delegated to model (`StructureModel.update_item_positions`),
+        which proxies call to `Database.update_item_positions` with full validation and
+        correct position reassembly.
         """
         try:
             name_map = {
@@ -198,15 +197,15 @@ class UtilityService:
             if not normalized:
                 if logger:
                     logger.error(
-                        "update_item_positions: неподдерживаемое имя таблицы: %s",
+                        "update_item_positions: unsupported table name: %s",
                         table_name,
                     )
                 return False
 
-            # Делегируем атомарное обновление порядков в слой БД через модель
+            # Delegate atomic order update to DB layer through model
             model.update_item_positions(normalized, ids_in_order)
 
-            # Инвалидируем кэш по исходному ключу и нормализованному имени (на всякий случай)
+            # Invalidate cache by original key and normalized name (just in case)
             try:
                 cache_invalidate(table_name)
             except Exception:
@@ -219,9 +218,9 @@ class UtilityService:
             return True
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
-                logger.error("Ошибка валидации данных при обновлении позиций в %s: %s", table_name, e)
+                logger.error("Data validation error while updating positions in %s: %s", table_name, e)
             return False
         except Exception as e:
             if logger:
-                logger.exception("Критическая ошибка обновления позиций в %s", table_name)
-            raise  # Пробрасываем критические ошибки
+                logger.exception("Critical error updating positions in %s", table_name)
+            raise  # Re-raise critical errors

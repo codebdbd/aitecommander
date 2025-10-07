@@ -1,5 +1,5 @@
 """
-Универсальный процессор для обработки профилей любых браузеров.
+Universal processor for handling profiles of any browsers.
 """
 
 import logging
@@ -18,18 +18,18 @@ logger = logging.getLogger(__name__)
 
 
 class UniversalProfileProcessor:
-    """Универсальный процессор для обработки профилей любых браузеров."""
+    """Universal processor for handling profiles of any browsers."""
 
     def __init__(self, database):
         """
-        Инициализация процессора.
+        Initialization of processor.
 
         Args:
-            database: Объект базы данных для работы с ссылками
+            database: Database object for working with links
         """
         self.database = database
         self.profile_manager = get_profile_manager()
-        logger.info("Инициализирован универсальный процессор профилей")
+        logger.info("Initialized universal profile processor")
 
     def process_profile_links(
         self,
@@ -46,31 +46,31 @@ class UniversalProfileProcessor:
         existing_links_in_category: List[Dict] = None,
     ) -> List[Dict]:
         """
-        Обрабатывает профили браузера и создает соответствующие ссылки.
+        Processes browser profiles and creates corresponding links.
 
         Args:
-            name: Базовое имя ссылки
-            url: URL ссылки
-            link_type: Тип ссылки
-            icon_name: Имя иконки
-            notes: Заметки
-            category_id: ID категории
-            browser_key: Ключ браузера
-            selected_profiles: Список выбранных профилей
-            existing_link: Существующая ссылка (при редактировании)
-            user_args: Пользовательские аргументы (если заданы вручную)
-            existing_links_in_category: Существующие ссылки в категории (для проверки дубликатов)
+            name: Base link name
+            url: Link URL
+            link_type: Link type
+            icon_name: Icon name
+            notes: Notes
+            category_id: Category ID
+            browser_key: Browser key
+            selected_profiles: List of selected profiles
+            existing_link: Existing link (when editing)
+            user_args: User arguments (if manually specified)
+            existing_links_in_category: Existing links in category (for duplicate checking)
 
         Returns:
-            List[Dict]: Список созданных записей ссылок
+            List[Dict]: List of created link records
         """
-        # Логируем сразу при входе в метод
+        # Log immediately upon entering method
         logger.debug(
             "ENTER process_profile_links: browser_key=%s, selected_profiles_count=%s",
             browser_key,
             len(selected_profiles),
         )
-        # Логируем входные параметры для отладки
+        # Log input parameters for debugging
         logger.debug(
             "process_profile_links called with: name='%s', url='%s', link_type='%s', browser_key='%s', selected_profiles_count=%s, existing_link=%s, user_args=%s",
             name,
@@ -90,33 +90,33 @@ class UniversalProfileProcessor:
         )
 
         if not selected_profiles:
-            logger.warning("Не выбрано ни одного профиля")
+            logger.warning("No profiles selected")
             return []
 
         finder = self.profile_manager.finders.get(browser_key)
         if not finder:
-            logger.error("Неизвестный браузер: %s", browser_key)
+            logger.error("Unknown browser: %s", browser_key)
             return []
 
         logger.info(
-            "Обработка %s профилей %s",
+            "Processing %s profiles of %s",
             len(selected_profiles),
             get_browser_display_name(finder, browser_key),
         )
         logger.debug("Selected profiles: %s", selected_profiles)
 
-        # Извлекаем базовое имя
+        # Extract base name
         base_name = extract_base_name_from_profile_name(name)
 
-        # Получаем существующие ссылки в категории
+        # Get existing links in category
         if existing_links_in_category is not None:
             existing_links = [dict(link) for link in existing_links_in_category]
         else:
             existing_links = [
                 dict(link) for link in self.database.links.get_links(category_id)
             ]
-        # Предварительно строим хэш-ключи для ускоренной проверки дубликатов
-        # Ключ: (url, type, args)
+        # Pre-build hash keys for faster duplicate checking
+        # Key: (url, type, args)
         try:
             existing_keys = {
                 (
@@ -145,38 +145,38 @@ class UniversalProfileProcessor:
             try:
                 logger.debug("Processing profile: %s", profile)
 
-                # Форматируем имя профиля
+                # Format profile name
                 prof_name = self._format_profile_name(finder, profile)
                 logger.debug("Formatted profile name: %s", prof_name)
 
-                # Определяем аргументы: пользовательские или автогенерированные
+                # Determine arguments: user-provided or auto-generated
                 if user_args is not None:
-                    # Используем пользовательские аргументы
+                    # Use user-provided arguments
                     prof_args = user_args
                     logger.debug("Using user-provided args: '%s'", prof_args)
                 else:
-                    # Генерируем аргументы через finder
+                    # Generate arguments via finder
                     prof_args = finder.get_profile_argument(profile)
                     logger.debug("Using auto-generated args: '%s'", prof_args)
 
-                # Проверяем, что аргументы не пустые
+                # Check that arguments are not empty
                 if not prof_args:
                     logger.info(
-                        "Пропускаем профиль '%s' — пустые аргументы (browser=%s)",
+                        "Skipping profile '%s' — empty arguments (browser=%s)",
                         prof_name,
                         browser_key,
                     )
                     continue
 
-                # Определяем, является ли это текущим редактируемым профилем
+                # Determine if this is the current edited profile
                 existing_args = existing_link.get("args", "") if existing_link else ""
                 existing_id = existing_link.get("id") if existing_link else None
                 is_current = is_edit and prof_args == existing_args
 
-                # Для профилей другого браузера при редактировании проверяем по ID
+                # For profiles of another browser when editing, check by ID
                 if is_edit and not is_current and existing_id:
-                    # Проверяем, есть ли уже ссылка с таким ID в результатах
-                    # Это нужно для корректной обработки смешанных профилей
+                    # Check if there's already a link with this ID in results
+                    # This is needed for correct processing of mixed profiles
                     is_current = any(
                         link.get("id") == existing_id for link in result_links
                     )
@@ -189,7 +189,7 @@ class UniversalProfileProcessor:
                     is_current,
                 )
 
-                # Генерируем имя ссылки
+                # Generate link name
                 link_name = self._generate_link_name(
                     base_name, prof_name, len(selected_profiles) == 1, is_current, name
                 )
@@ -200,20 +200,20 @@ class UniversalProfileProcessor:
                     prof_name,
                 )
 
-                # Проверяем на дубликаты
+                # Check for duplicates
 
-                # При редактировании смешанных профилей не проверяем на дубликаты профили другого браузера
+                # When editing mixed profiles, don't check for duplicates profiles of another browser
                 skip_duplicate_check = False
                 if is_edit and not is_current and existing_link:
-                    # Это профиль другого браузера при редактировании - пропускаем проверку дубликатов
+                    # This is a profile of another browser when editing - skip duplicate check
                     skip_duplicate_check = True
                     logger.debug(
-                        "Пропускаем проверку дубликатов для профиля другого браузера: %s",
+                        "Skipping duplicate check for profile of another browser: %s",
                         prof_name,
                     )
 
                 logger.debug(
-                    "Проверка дубликатов для %s: skip=%s, url=%s, type=%s, args=%s",
+                    "Duplicate check for %s: skip=%s, url=%s, type=%s, args=%s",
                     link_name,
                     skip_duplicate_check,
                     url,
@@ -223,7 +223,7 @@ class UniversalProfileProcessor:
                 if skip_duplicate_check:
                     duplicate_check_result = False
                 elif is_current:
-                    # Текущая редактируемая запись не считается дубликатом самой себя
+                    # Current edited record is not considered a duplicate of itself
                     duplicate_check_result = False
                 else:
                     duplicate_check_result = (
@@ -232,19 +232,19 @@ class UniversalProfileProcessor:
                         prof_args,
                     ) in existing_keys
                 logger.debug(
-                    "Результат проверки дубликатов: %s", duplicate_check_result
+                    "Duplicate check result: %s", duplicate_check_result
                 )
 
                 if not skip_duplicate_check and duplicate_check_result:
                     logger.info(
-                        "Пропускаем дубликат: name='%s', args='%s' (browser=%s)",
+                        "Skipping duplicate: name='%s', args='%s' (browser=%s)",
                         link_name,
                         prof_args,
                         browser_key,
                     )
                     continue
 
-                # Создаем запись ссылки
+                # Create link record
                 link_record = make_profile_link_record(
                     link_name=link_name,
                     url=url,
@@ -256,33 +256,33 @@ class UniversalProfileProcessor:
                     last_used=existing_link.get("last_used") if existing_link else None,
                     position=existing_link.get("position", 0) if existing_link else 0,
                     link_id=existing_link.get("id") if is_current else None,
-                    browser_key=browser_key,  # Добавляем browser_key для правильного запуска
+                    browser_key=browser_key,                    # Add browser_key for proper launch
                 )
 
                 result_links.append(link_record)
                 logger.debug(
-                    "Создана ссылка: %s с аргументами %s", link_name, prof_args
+                    "Created link: %s with arguments %s", link_name, prof_args
                 )
 
             except Exception as e:
                 logger.error(
-                    "Ошибка при обработке профиля %s: %s", profile, e, exc_info=True
+                    "Error processing profile %s: %s", profile, e, exc_info=True
                 )
                 continue
 
         logger.info(
-            "Создано %s ссылок для %s",
+            "Created %s links for %s",
             len(result_links),
             get_browser_display_name(finder, browser_key),
         )
         return result_links
 
     def _format_profile_name(self, finder, profile: Dict) -> str:
-        """Форматирует имя профиля для отображения."""
+        """Formats profile name for display."""
         if hasattr(finder, "format_profile_display_name"):
             return finder.format_profile_display_name(profile)
 
-        # Fallback для совместимости
+        # Fallback for compatibility
         profile_name = (
             profile.get("email")
             or profile.get("name")
@@ -298,7 +298,7 @@ class UniversalProfileProcessor:
         is_current_profile: bool,
         original_name: str,
     ) -> str:
-        """Генерирует имя ссылки для профиля."""
+        """Generates link name for profile."""
         logger.debug(
             "_generate_link_name: base_name='%s', profile_name='%s', is_single_profile=%s, is_current_profile=%s, original_name='%s'",
             base_name,
@@ -308,7 +308,7 @@ class UniversalProfileProcessor:
             original_name,
         )
 
-        # При редактировании текущего профиля всегда сохраняем пользовательское имя
+        # When editing current profile, always preserve user name
         if is_current_profile:
             logger.debug(
                 "_generate_link_name: returning original_name='%s' (current profile)",
@@ -316,7 +316,7 @@ class UniversalProfileProcessor:
             )
             return original_name
 
-        # Для новых ссылок используем стандартную логику генерации имени
+        # For new links use standard name generation logic
         if profile_name == "Chrome" or profile_name == "Firefox":
             logger.debug(
                 "_generate_link_name: returning base_name='%s' (default browser)",
@@ -333,13 +333,13 @@ class UniversalProfileProcessor:
 
     def parse_existing_profile(self, link: Dict) -> tuple[Optional[str], List[Dict]]:
         """
-        Парсит существующий профиль из ссылки и определяет браузер.
+        Parses existing profile from link and determines browser.
 
         Args:
-            link: Данные ссылки
+            link: Link data
 
         Returns:
-            tuple: (browser_key, [profile_data]) или (None, [])
+            tuple: (browser_key, [profile_data]) or (None, [])
         """
         logger.debug("parse_existing_profile: link=%s", link)
 
@@ -350,12 +350,12 @@ class UniversalProfileProcessor:
         args = link.get("args", "")
         logger.debug("parse_existing_profile: args=%s", args)
 
-        # Определяем браузер по аргументам
+        # Determine browser by arguments
         browser_key = self.profile_manager.detect_browser_from_args(args)
         logger.debug("parse_existing_profile: detected browser_key=%s", browser_key)
 
         if not browser_key:
-            logger.debug("Не удалось определить браузер по аргументам: %s", args)
+            logger.debug("Failed to determine browser by arguments: %s", args)
             return None, []
 
         finder = self.profile_manager.finders[browser_key]
@@ -365,7 +365,7 @@ class UniversalProfileProcessor:
         logger.debug("parse_existing_profile: parsed_profile=%s", parsed_profile)
 
         if parsed_profile:
-            logger.debug("Определен профиль %s: %s", browser_key, parsed_profile)
+            logger.debug("Determined profile %s: %s", browser_key, parsed_profile)
             return browser_key, [parsed_profile]
 
         logger.debug("parse_existing_profile: could not parse profile")
@@ -374,7 +374,7 @@ class UniversalProfileProcessor:
     def validate_profiles(
         self, browser_key: str, selected_profiles: List[Dict]
     ) -> bool:
-        """Валидирует выбранные профили."""
+        """Validates selected profiles."""
         if not selected_profiles:
             return False
 
@@ -382,7 +382,7 @@ class UniversalProfileProcessor:
         if not finder:
             return False
 
-        # Проверяем, что все профили имеют необходимые поля
+        # Check that all profiles have required fields
         for profile in selected_profiles:
             if not isinstance(profile, dict):
                 return False

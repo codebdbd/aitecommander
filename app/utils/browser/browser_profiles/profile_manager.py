@@ -1,5 +1,5 @@
 """
-Центральный менеджер для работы с профилями всех браузеров.
+Central manager for working with profiles of all browsers.
 """
 
 import logging
@@ -24,14 +24,14 @@ logger = logging.getLogger(__name__)
 class BrowserProfileManager:
     def get_profiles_by_browser(self, browser_key: str):
         """
-        Возвращает список профилей для указанного браузера.
+        Returns list of profiles for specified browser.
         """
         finder = self.finders.get(browser_key)
         if not finder:
             return []
         try:
             profiles = self._get_cached_profiles(browser_key)
-            # Если вдруг вернулся не список, а словарь — берем значения
+            # If somehow returned not a list but a dictionary — take values
             if isinstance(profiles, dict):
                 return list(profiles.values())
             return profiles or []
@@ -39,8 +39,8 @@ class BrowserProfileManager:
             return []
 
     def get_supported_browsers(self):
-        """Возвращает список поддерживаемых браузеров в формате [{'key': ..., 'name': ...}, ...]"""
-        # Получаем список поддерживаемых браузеров из конфигурации
+        """Returns list of supported browsers in format [{'key': ..., 'name': ...}, ...]"""
+        # Get list of supported browsers from configuration
         try:
             from app.config_data import app_config
 
@@ -51,16 +51,16 @@ class BrowserProfileManager:
                 if key in supported_browsers
             ]
         except Exception:
-            # fallback если конфигурация недоступна
+            # fallback if configuration is unavailable
             return [
                 {"key": key, "name": get_browser_display_name(finder, key)}
                 for key, finder in self.finders.items()
             ]
 
-    """Универсальный менеджер для работы с профилями всех браузеров."""
+    """Universal manager for working with profiles of all browsers."""
 
     def __init__(self):
-        """Инициализация менеджера с поддержкой всех браузеров."""
+        """Initialization of manager with support for all browsers."""
         self.finders: Dict[str, BaseBrowserProfileFinder] = {
             "chrome": ChromeProfileFinder(),
             "firefox": FirefoxProfileFinder(),
@@ -71,61 +71,60 @@ class BrowserProfileManager:
             "yandex": YandexProfileFinder(),
         }
 
-        # Единый кэш профилей: персистентный JSON + TTL
+        # Unified profile cache: persistent JSON + TTL
         self.cache = PersistentProfileCache(default_ttl=self._get_cache_timeout())
 
         logger.info(
-            "Инициализирован менеджер профилей для %s браузеров", len(self.finders)
+            "Initialized profile manager for %s browsers", len(self.finders)
         )
 
-        # Персистентный кэш сам загружает данные с диска при инициализации
+        # Persistent cache loads data from disk during initialization
 
     def _get_cache_timeout(self) -> int:
-        """Получает таймаут кеша из конфигурации."""
+        """Gets cache timeout from configuration."""
         try:
             from app.config_data import app_config
 
             settings = app_config.get_browser_profile_settings()
             return settings.get("cache_timeout", 300)
         except ImportError:
-            return 300  # 5 минут по умолчанию
+            return 300  # 5 minutes by default
 
     def get_all_profiles(self) -> Dict[str, List[Dict]]:
-        """Получает профили всех браузеров."""
+        """Gets profiles of all browsers."""
 
         all_profiles = {}
 
         for browser_key, finder in self.finders.items():
-            logger.debug("get_all_profiles: processing browser_key=%s", browser_key)
             try:
                 profiles = self._get_cached_profiles(browser_key)
                 if profiles:
                     all_profiles[browser_key] = profiles
             except Exception as e:
-                logger.error("Ошибка при поиске профилей %s: %s", browser_key, e)
+                logger.error("Error searching profiles for %s: %s", browser_key, e)
 
         return all_profiles
 
     def get_browser_profiles(self, browser_key: str) -> List[Dict]:
-        """Получает профили конкретного браузера."""
+        """Gets profiles of specific browser."""
         if browser_key not in self.finders:
             return []
         return self._get_cached_profiles(browser_key)
 
     def _get_cached_profiles(self, browser_key: str) -> List[Dict]:
-        """Получает профили с кешированием.
+        """Gets profiles with caching.
 
-        Сначала пробует вернуть из кэша (без проверки свежести), если отсутствует —
-        выполняет загрузку через finder и обновляет кэш.
+        First tries to return from cache (without freshness check), if absent —
+        performs loading via finder and updates cache.
         """
         logger.debug("_get_cached_profiles: browser_key=%s", browser_key)
 
-        # Пытаемся получить из кэша
+        # Try to get from cache
         cached = self.cache.get(browser_key)
         if cached is not None:
             return cached
 
-        # Загрузка и обновление кэша
+        # Loading and updating cache
         finder = self.finders.get(browser_key)
         if finder:
             try:
@@ -133,16 +132,16 @@ class BrowserProfileManager:
                 self.cache.set(browser_key, profiles)
                 return profiles
             except Exception as e:
-                logger.error("Ошибка при получении профилей %s: %s", browser_key, e)
+                logger.error("Error getting profiles for %s: %s", browser_key, e)
 
         return []
 
-    def get_cached_profiles(self, browser_key: str) -> Optional[List[Dict]]:
-        """Возвращает профили из кэша только если они свежие (TTL); не блокирует загрузку."""
+    def get_cached_profiles(self, browser_key: str) -> Optional[List[dict]]:
+        """Returns profiles from cache only if they are fresh (TTL); doesn't block loading."""
         return self.cache.get(browser_key)
 
     def get_available_browsers(self) -> List[Dict[str, str]]:
-        """Получает список доступных браузеров с профилями."""
+        """Gets list of available browsers with profiles."""
         available = []
 
         for browser_key, finder in self.finders.items():
@@ -157,12 +156,12 @@ class BrowserProfileManager:
                         }
                     )
             except Exception as e:
-                logger.debug("Браузер %s недоступен: %s", browser_key, e)
+                logger.debug("Browser %s unavailable: %s", browser_key, e)
 
         return available
 
     def detect_browser_from_args(self, args: str) -> Optional[str]:
-        """Определяет браузер по аргументам командной строки."""
+        """Detects browser from command line arguments."""
         logger.debug("detect_browser_from_args: args=%s", args)
 
         if not args:
@@ -186,7 +185,7 @@ class BrowserProfileManager:
                     return browser_key
             except Exception as e:
                 logger.debug(
-                    "Ошибка определения браузера %s из аргументов: %s",
+                    "Error detecting browser %s from arguments: %s",
                     browser_key,
                     e,
                 )
@@ -196,20 +195,20 @@ class BrowserProfileManager:
         return None
 
     def clear_cache(self):
-        """Очищает кеш профилей."""
+        """Clears profile cache."""
         self.cache.clear()
-        logger.info("Кеш профилей очищен")
+        logger.info("Profile cache cleared")
 
     def update_profiles_bulk(self, data: Dict[str, List[dict]]) -> None:
-        """Пакетно обновляет кэш профилей для нескольких браузеров.
+        """Bulk updates profile cache for multiple browsers.
 
-        Аргумент `data` — словарь вида {browser_key: [profiles...]}
-        Данные сразу попадают в персистентный кэш через публичный API `PersistentProfileCache.set`.
+        Argument `data` — dictionary of form {browser_key: [profiles...]}
+        Data immediately goes to persistent cache via public API `PersistentProfileCache.set`.
         """
         if not isinstance(data, dict):
             return
         try:
-            # Используем контекст для гарантированного сброса на диск
+            # Use context for guaranteed disk flush
             with self.cache:
                 for key, profiles in data.items():
                     if not isinstance(key, str):
@@ -217,21 +216,21 @@ class BrowserProfileManager:
                     try:
                         self.cache.set(key, profiles)
                     except Exception:
-                        # Не срываем общий апдейт из-за одной неудачной записи
+                        # Don't spoil general update due to one failed write
                         continue
         except Exception:
-            # Безопасный фолбэк: ничего не делаем
+            # Safe fallback: do nothing
             pass
 
 
-# Модульный синглтон для переиспользования одного экземпляра менеджера
+# Module singleton for reusing one manager instance
 _PROFILE_MANAGER: Optional[BrowserProfileManager] = None
 
 
 def get_profile_manager() -> BrowserProfileManager:
     """
-    Возвращает общий экземпляр BrowserProfileManager для всего приложения.
-    Гарантирует единичную инициализацию на процесс.
+    Returns common BrowserProfileManager instance for entire application.
+    Guarantees single initialization per process.
     """
     global _PROFILE_MANAGER
     if _PROFILE_MANAGER is None:

@@ -1,4 +1,4 @@
-"""Модуль для инициализации базы данных в фоновом режиме."""
+"""Module for initializing database in background."""
 
 import logging
 from typing import Callable, Optional
@@ -8,20 +8,20 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 from app.models.db import Database
 from app.utils.db.api import run_db
 
-# Модульный логгер
+# Module logger
 logger = logging.getLogger(__name__)
 
 
 class DatabaseInitializer:
-    """Класс для управления инициализацией базы данных."""
+    """Class for managing database initialization."""
 
     def __init__(self, database: Database, main_window=None):
         """
-        Инициализирует DatabaseInitializer.
+        Initializes DatabaseInitializer.
 
         Args:
-            database: Экземпляр базы данных
-            main_window: Главное окно приложения (опционально)
+            database: Database instance
+            main_window: Main application window (optional)
         """
         self.database = database
         self.main_window = main_window
@@ -32,19 +32,19 @@ class DatabaseInitializer:
         on_error: Optional[Callable[[Exception], None]] = None,
     ) -> None:
         """
-        Запускает асинхронную инициализацию базы данных.
+        Starts asynchronous database initialization.
 
         Args:
-            on_success: Колбэк при успешной инициализации
-            on_error: Колбэк при ошибке инициализации
+            on_success: Callback on successful initialization
+            on_error: Callback on initialization error
         """
-        # Показать статус в строке состояния (если доступно)
-        self._update_status_message("Инициализация базы данных…")
+        # Show status in status bar (if available)
+        self._update_status_message("Database initialization…")
 
-        # Временно заблокировать взаимодействие с UI на время инициализации БД
+        # Temporarily block UI interaction during DB initialization
         self._set_ui_enabled(False)
 
-        # Запуск тяжёлых операций инициализации в пуле потоков
+        # Run heavy initialization operations in thread pool
         run_db(
             self._do_db_init,
             use_lock=True,
@@ -55,89 +55,89 @@ class DatabaseInitializer:
 
     def _do_db_init(self) -> bool:
         """
-        Выполняет инициализацию базы данных.
+        Performs database initialization.
 
         Returns:
-            bool: True при успехе, False при ошибке
+            bool: True on success, False on error
         """
         try:
             self.database.prepare_dirs()
             self.database.initialize_or_migrate()
             return True
         except Exception:
-            # Не выбрасываем исключение, чтобы результат обработался в on_finished(res)
+            # Don't raise exception so result is handled in on_finished(res)
             return False
 
     def _on_db_init_finished(
         self, result: bool, on_success: Optional[Callable] = None
     ) -> None:
         """
-        Обработчик завершения инициализации БД.
+        Handler for DB initialization completion.
 
         Args:
-            result: Результат инициализации
-            on_success: Колбэк при успехе
+            result: Initialization result
+            on_success: Success callback
         """
         if not result:
-            # Разблокировать UI при ошибке
+            # Unlock UI on error
             self._set_ui_enabled(True)
 
-            # Сообщаем пользователю и завершаем приложение
+            # Inform user and exit application
             self._show_critical_error(
-                "Ошибка инициализации БД",
-                "Произошла ошибка при инициализации базы данных. Приложение будет закрыто.",
+                "Database initialization error",
+                "An error occurred during database initialization. Application will be closed.",
             )
             self._quit_application()
             return
 
-        # При успехе — завершаем штатные действия
+        # On success — complete standard actions
         try:
-            # Создаём соединение в главном потоке по требованию
+            # Create connection in main thread on demand
             _ = self.database.connection
         except Exception as e:
-            logger.warning("Не удалось открыть соединение в главном потоке: %s", e)
+            logger.warning("Failed to open connection in main thread: %s", e)
 
-        # Обновить статус-бар и разблокировать UI
+        # Update status bar and unlock UI
         self._update_status_message("Готово")
         self._update_statusbar()
         self._set_ui_enabled(True)
 
-        # Вызвать колбэк успеха
+        # Call success callback
         if on_success:
             try:
                 on_success()
             except Exception as e:
                 logger.error(
-                    "Ошибка в колбэке успешной инициализации БД: %s", e, exc_info=True
+                    "Error in DB initialization success callback: %s", e, exc_info=True
                 )
 
     def _on_db_init_error(
         self, error: Exception, on_error: Optional[Callable[[Exception], None]] = None
     ) -> None:
         """
-        Обработчик ошибки инициализации БД.
+        Handler for DB initialization error.
 
         Args:
-            error: Исключение
-            on_error: Колбэк при ошибке
+            error: Exception
+            on_error: Error callback
         """
-        logger.error("Ошибка инициализации БД в фоне: %s", error, exc_info=True)
+        logger.error("Database initialization error in background: %s", error, exc_info=True)
 
-        self._update_status_message("Ошибка инициализации БД")
+        self._update_status_message("Database initialization error")
         self._update_statusbar()
         self._set_ui_enabled(True)
 
-        # Вызвать колбэк ошибки
+        # Call error callback
         if on_error:
             try:
                 on_error(error)
             except Exception as e:
                 logger.error(
-                    "Ошибка в колбэке ошибки инициализации БД: %s", e, exc_info=True
+                    "Error in DB initialization error callback: %s", e, exc_info=True
                 )
 
     def _update_status_message(self, message: str) -> None:
-        """Обновляет сообщение в статус-баре."""
+        """Updates message in status bar."""
         try:
             if (
                 self.main_window
@@ -147,43 +147,43 @@ class DatabaseInitializer:
                 self.main_window.message_label.setText(message)
         except Exception as e:
             logger.warning(
-                "[DatabaseInitializer] Не удалось обновить статус-сообщение '%s': %s",
+                "[DatabaseInitializer] Failed to update status message '%s': %s",
                 message,
                 e,
                 exc_info=True,
             )
 
     def _update_statusbar(self) -> None:
-        """Обновляет статус-бар."""
+        """Updates status bar."""
         try:
             if self.main_window and hasattr(self.main_window, "update_statusbar"):
                 self.main_window.update_statusbar()
         except Exception as e:
             logger.warning(
-                "[DatabaseInitializer] Не удалось обновить статус-бар: %s",
+                "[DatabaseInitializer] Failed to update status bar: %s",
                 e,
                 exc_info=True,
             )
 
     def _set_ui_enabled(self, enabled: bool) -> None:
-        """Включает/отключает UI."""
+        """Enables/disables UI."""
         try:
             if self.main_window:
                 self.main_window.setEnabled(enabled)
         except Exception as e:
             logger.warning(
-                "[DatabaseInitializer] Не удалось %sключить UI: %s",
-                "в" if enabled else "от",
+                "[DatabaseInitializer] Failed to %sable UI: %s",
+                "en" if enabled else "dis",
                 e,
                 exc_info=True,
             )
 
     def _show_critical_error(self, title: str, message: str) -> None:
-        """Показывает критическую ошибку."""
+        """Shows critical error."""
         try:
             if self.main_window is None:
                 logger.critical(
-                    "Главное окно отсутствует при показе ошибки инициализации БД; диалог будет показан без родителя"
+                    "Main window missing when showing DB initialization error; dialog will be shown without parent"
                 )
 
             QMessageBox.critical(
@@ -193,21 +193,21 @@ class DatabaseInitializer:
             )
         except Exception as e:
             logger.error(
-                "[DatabaseInitializer] Не удалось показать критический диалог '%s': %s",
+                "[DatabaseInitializer] Failed to show critical dialog '%s': %s",
                 title,
                 e,
                 exc_info=True,
             )
 
     def _quit_application(self) -> None:
-        """Завершает приложение."""
+        """Quits application."""
         try:
             app_inst = QApplication.instance()
             if app_inst is not None:
                 app_inst.quit()
         except Exception as e:
             logger.error(
-                "[DatabaseInitializer] Не удалось завершить приложение: %s",
+                "[DatabaseInitializer] Failed to quit application: %s",
                 e,
                 exc_info=True,
             )

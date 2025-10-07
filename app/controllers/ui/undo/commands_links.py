@@ -22,10 +22,10 @@ class SaveLinkCmd(BaseCommand):
 
     @log_command
     def redo(self):
-        # Заполним отсутствующие поля из старых данных, если диалог вернул частичный payload
+        # Fill missing fields from old_data if dialog returned partial payload
         try:
             if self.old_data:
-                # Ключевые поля для корректного апдейта
+                # Key fields required for correct update
                 for k in (
                     "id",
                     "category_id",
@@ -34,29 +34,29 @@ class SaveLinkCmd(BaseCommand):
                 ):
                     if k not in self.new_data and k in self.old_data:
                         self.new_data[k] = self.old_data[k]
-                # Базовые данные, которые могли не изменяться и отсутствовать в new_data
+                # Base fields that may be unchanged and absent in new_data
                 for k in ("name", "url", "args", "icon_path"):
                     if k not in self.new_data and k in self.old_data:
                         self.new_data[k] = self.old_data[k]
         except Exception as exc:
             logger.exception("SaveLinkCmd.redo: failed to merge old/new data: %s", exc)
 
-        # Сохраняем ссылку через сервисный слой (UnitOfWork внутри)
+        # Save link via service layer (UnitOfWork inside)
         if hasattr(self.main, "links_business") and self.main.links_business:
             result = self.main.links_business.links.create_or_update_link(self.new_data)
         else:
-            # Фоллбек через сервисный слой
+            # Fallback via service layer
             result = LinksService(self.db).create_or_update_link(self.new_data)
         if result and not self.new_data.get("id"):
             self.new_data["id"] = result
             self.created_id = result
-        # UI сигнал обновления через LinksBusinessLogic, если есть
+        # UI update signal via LinksBusinessLogic, if available
         if hasattr(self.main, "links_business") and self.main.links_business:
             try:
                 self.main.links_business.link_updated.emit(self.new_data)
             except Exception as exc:
                 logger.warning("SaveLinkCmd.redo: link_updated emit failed: %s", exc)
-            # Перезагружаем таблицу текущей категории, если не подавлено
+            # Reload table for current category if not suppressed
             try:
                 if not getattr(self, "_suppress_ui", False):
                     cat_id = self.new_data.get("category_id") or (
@@ -67,7 +67,7 @@ class SaveLinkCmd(BaseCommand):
                         if ctrl:
                             ctrl.reload(cat_id)
                         else:
-                            # Фолбэк без прямого UI: грузим данные через бизнес-слой
+                            # Fallback without direct UI: load data via business layer
                             links_business = getattr(self.main, "links_business", None)
                             if links_business:
                                 try:
@@ -87,7 +87,7 @@ class SaveLinkCmd(BaseCommand):
 
     @log_command
     def undo(self):
-        # Если создавали новую — удаляем
+        # If newly created — delete
         link_id = self.new_data.get("id")
         if self.old_data is None and link_id:
             if hasattr(self.main, "links_business") and self.main.links_business:
@@ -95,7 +95,7 @@ class SaveLinkCmd(BaseCommand):
             else:
                 LinksService(self.db).delete_link(link_id)
         else:
-            # Иначе восстанавливаем старые данные
+            # Otherwise restore old data
             if self.old_data:
                 if hasattr(self.main, "links_business") and self.main.links_business:
                     self.main.links_business.links.create_or_update_link(self.old_data)
@@ -108,7 +108,7 @@ class SaveLinkCmd(BaseCommand):
                         logger.warning(
                             "SaveLinkCmd.undo: link_updated emit failed: %s", exc
                         )
-        # Перезагружаем таблицу соответствующей категории, если не подавлено
+        # Reload table for corresponding category if not suppressed
         try:
             if not getattr(self, "_suppress_ui", False):
                 cat_id = (self.old_data or {}).get("category_id") or self.new_data.get(
@@ -143,7 +143,7 @@ class BatchDeleteLinksCmd(BaseCommand):
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
-        # Храним полные данные для возможного восстановления
+        # Store full data for potential restore
         self.links: List[Dict] = [dict(x) for x in (links_to_delete or [])]
 
     @log_command
@@ -151,9 +151,9 @@ class BatchDeleteLinksCmd(BaseCommand):
         ids = [x.get("id") for x in self.links if isinstance(x.get("id"), int)]
         if not ids:
             return
-        # Пакетное удаление через сервисный слой
+        # Batch deletion via service layer
         LinksService(self.db).batch_delete_links(ids)
-        # Разовая перезагрузка таблицы, если не подавлено
+        # Single table reload if not suppressed
         try:
             if not getattr(self, "_suppress_ui", False):
                 cat_id = (self.links[0] if self.links else {}).get("category_id")
@@ -176,11 +176,11 @@ class BatchDeleteLinksCmd(BaseCommand):
 
     @log_command
     def undo(self):
-        # Восстанавливаем все удалённые записи (batch upsert)
+        # Restore all deleted records (batch upsert)
         try:
             LinksService(self.db).batch_create_or_update_links(self.links)
         except Exception as exc:
-            # Fallback: поштучно
+            # Fallback: per-link
             logger.warning(
                 "BatchDeleteLinksCmd.undo: batch upsert failed, fallback to single: %s",
                 exc,
@@ -189,14 +189,14 @@ class BatchDeleteLinksCmd(BaseCommand):
                 try:
                     LinksService(self.db).create_or_update_link(link)
                 except Exception as exc:
-                    # продолжаем попытки для остальных
+                    # continue attempts for the rest
                     logger.debug(
                         "BatchDeleteLinksCmd.undo: per-link upsert failed for id=%s: %s",
                         link.get("id"),
                         exc,
                         exc_info=True,
                     )
-        # Обновление UI после восстановления (игнорируем подавление для Undo)
+        # UI update after restore (ignore suppression for Undo)
         try:
             cat_id = (self.links[0] if self.links else {}).get("category_id")
             if isinstance(cat_id, int) and cat_id > 0:
@@ -229,13 +229,13 @@ class DeleteLinkCmd(BaseCommand):
     def redo(self):
         link_id = self.link.get("id")
         if link_id:
-            # Удаляем через сервисный слой, если доступен
+            # Delete via service layer if available
             if hasattr(self.main, "links_business") and self.main.links_business:
                 self.main.links_business.links.delete_link(link_id)
             else:
-                # Фоллбек через сервисный слой
+                # Fallback via service layer
                 LinksService(self.db).delete_link(link_id)
-        # После удаления перезагружаем таблицу соответствующей категории, если не подавлено
+        # After deletion, reload table for category if not suppressed
         try:
             if not getattr(self, "_suppress_ui", False):
                 cat_id = self.link.get("category_id")
@@ -258,18 +258,18 @@ class DeleteLinkCmd(BaseCommand):
 
     @log_command
     def undo(self):
-        # Восстанавливаем удалённую ссылку
+        # Restore deleted link
         if hasattr(self.main, "links_business") and self.main.links_business:
             self.main.links_business.links.create_or_update_link(self.link)
         else:
-            # Фоллбек через сервисный слой
+            # Fallback via service layer
             LinksService(self.db).create_or_update_link(self.link)
         if hasattr(self.main, "links_business") and self.main.links_business:
             try:
                 self.main.links_business.link_updated.emit(self.link)
             except Exception as exc:
                 logger.warning("DeleteLinkCmd.undo: link_updated emit failed: %s", exc)
-            # Перезагружаем таблицу после undo (игнорируем подавление для Undo)
+            # Reload table after undo (ignore suppression for Undo)
             try:
                 cat_id = self.link.get("category_id")
                 if isinstance(cat_id, int) and cat_id > 0:

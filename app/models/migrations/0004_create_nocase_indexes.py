@@ -4,11 +4,11 @@ from typing import Any
 
 def migrate(conn: sqlite3.Connection, logger: Any) -> None:
     """
-    Создаёт case-insensitive уникальные индексы для sphere/section/category.
+    Creates case-insensitive unique indexes for sphere/section/category.
 
-    Важно: Если данные содержат дубликаты по регистру, создание индексов упадёт
-    с OperationalError. В этом случае миграция прерывается исключением, версия
-    схемы НЕ будет повышена. После устранения дубликатов повторный запуск пройдёт.
+    Important: If data contains case duplicates, index creation will fail
+    with OperationalError. In this case migration is interrupted by exception, schema
+    version will NOT be increased. After eliminating duplicates, re-run will succeed.
     """
     try:
         conn.execute(
@@ -30,11 +30,11 @@ def migrate(conn: sqlite3.Connection, logger: Any) -> None:
             """
         )
         logger.info(
-            "Миграция 0004: NOCASE-индексы для sphere/section/category созданы (если отсутствовали)"
+            "Migration 0004: NOCASE indexes for sphere/section/category created (if missing)"
         )
     except sqlite3.OperationalError as e:
         logger.warning(
-            "Миграция 0004: не удалось создать NOCASE-индексы (возможны дубликаты): %s",
+            "Migration 0004: failed to create NOCASE indexes (possible duplicates): %s",
             e,
         )
         raise

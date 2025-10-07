@@ -11,10 +11,10 @@ class CategoryTilesLike(Protocol):
 
 
 class CategoryTilesController:
-    """Единая точка управления плитками категорий.
+    """Single control point for category tiles.
 
-    Обязательные зависимости: `ui_state`, `structure_business`.
-    Прямая работа с виджетом плиток опциональна и может быть подключена через
+    Required dependencies: `ui_state`, `structure_business`.
+    Direct interaction with tiles widget is optional and can be attached via
     `attach_tiles_widget()`.
     """
 
@@ -28,11 +28,11 @@ class CategoryTilesController:
         self._tiles: Optional[CategoryTilesLike] = None
 
     def attach_tiles_widget(self, tiles_widget: CategoryTilesLike) -> None:
-        """Опционально задать виджет плиток для прямых операций обновления."""
+        """Optionally set tiles widget for direct update operations."""
         self._tiles = tiles_widget
 
     def refresh(self, section_id: int) -> None:
-        """Обновить плитки для указанного раздела."""
+        """Refresh tiles for the specified section."""
         if not isinstance(section_id, int) or section_id <= 0:
             logger.warning(
                 "CategoryTilesController.refresh: invalid section_id=%s", section_id
@@ -42,14 +42,14 @@ class CategoryTilesController:
         try:
             categories = self.business.get_categories(int(section_id))
         except (ValueError, RuntimeError):
-            # Ожидаемые ошибки получения данных — журналируем и завершаем без исключения
+            # Expected data retrieval errors — log and finish without raising
             logger.exception(
                 "CategoryTilesController.refresh: get_categories failed for section #%s",
                 section_id,
             )
             return
 
-        # Основной путь: через ui_state (централизует переключение стека)
+        # Primary path: via ui_state (centralizes stack switching)
         try:
             self.ui_state.switch_to_category_tiles(categories or [])
         except (ValueError, RuntimeError):
@@ -58,7 +58,7 @@ class CategoryTilesController:
                 section_id,
             )
             return
-        # Опционально: прямое обновление, если виджет подключён
+        # Optional: direct update if widget is attached
         if self._tiles is not None:
             try:
                 self._tiles.set_categories(categories or [])
@@ -70,7 +70,7 @@ class CategoryTilesController:
                 return
 
     def clear(self) -> None:
-        """Очистить плитки категорий (показать пустой набор)."""
+        """Clear category tiles (show empty set)."""
         try:
             self.ui_state.switch_to_category_tiles([])
         except (ValueError, RuntimeError):

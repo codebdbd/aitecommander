@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class SelectionActions(QObject):
-    """Инкапсулирует побочные эффекты при выборе элементов структуры."""
+    """Encapsulates side effects when selecting structure items."""
 
     def __init__(
         self,

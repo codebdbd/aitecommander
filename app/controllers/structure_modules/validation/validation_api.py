@@ -1,6 +1,6 @@
 # app/controllers/structure_modules/validation_api.py
 
-"""Публичный API для системы валидации."""
+"""Public API for validation system."""
 
 import logging
 from typing import Any, Dict
@@ -13,12 +13,12 @@ from .validation_rules import StructureDataValidator
 logger = logging.getLogger(__name__)
 
 
-# Глобальный экземпляр валидатора
+# Global validator instance
 _validator = StructureDataValidator()
 
 
 def validate_create_data(data: Dict[str, Any], item_type: StructureItemType) -> DetailedValidationResult:
-    """Валидирует данные для создания элемента структуры."""
+    """Validate data for creating structure element."""
     if item_type == StructureItemType.SPHERE:
         return _validator.validate_sphere_create_data(data)
     elif item_type == StructureItemType.SECTION:
@@ -30,12 +30,12 @@ def validate_create_data(data: Dict[str, Any], item_type: StructureItemType) -> 
 
 
 def validate_update_data(data: Dict[str, Any], item_type: StructureItemType) -> DetailedValidationResult:
-    """Валидирует данные для обновления элемента структуры."""
+    """Validate data for updating structure element."""
     return _validator.validate_update_data(data, item_type)
 
 
 def validate_and_raise(data: Dict[str, Any], item_type: StructureItemType, is_update: bool = False) -> None:
-    """Валидирует данные и выбрасывает исключение при ошибках."""
+    """Validate data and raise exception on errors."""
     if is_update:
         result = validate_update_data(data, item_type)
     else:
@@ -47,7 +47,7 @@ def validate_and_raise(data: Dict[str, Any], item_type: StructureItemType, is_up
             f"Validation failed for {item_type.value}: {'; '.join(error_messages)}"
         )
 
-    # Логируем предупреждения
+    # Log warnings
     if result.warnings:
         warning_messages = [issue.message for issue in result.warnings]
         logger.warning(
@@ -58,7 +58,7 @@ def validate_and_raise(data: Dict[str, Any], item_type: StructureItemType, is_up
 
 
 def safe_validate(data: Dict[str, Any], item_type: StructureItemType, is_update: bool = False) -> ValidationResult:
-    """Безопасная валидация, возвращающая результат без исключений."""
+    """Safe validation, returning result without exceptions."""
     try:
         if is_update:
             result = validate_update_data(data, item_type)

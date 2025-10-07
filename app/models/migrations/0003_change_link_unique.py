@@ -4,10 +4,10 @@ from typing import Any
 
 def migrate(conn: sqlite3.Connection, logger: Any) -> None:
     """
-    Пересоздание таблицы link с UNIQUE(category_id, name, url, args),
-    если обнаружен старый уникальный индекс по (category_id, url, args, type).
+    Recreate link table with UNIQUE(category_id, name, url, args),
+    if old unique index found on (category_id, url, args, type).
     """
-    # Проверяем текущие уникальные индексы таблицы link
+    # Check current unique indexes of link table
     idx_list = conn.execute("PRAGMA index_list('link')").fetchall()
     need_migrate = False
     for idx in idx_list:
@@ -31,10 +31,10 @@ def migrate(conn: sqlite3.Connection, logger: Any) -> None:
                 break
 
     if not need_migrate:
-        logger.debug("Миграция 0003: пересоздание link не требуется — пропуск")
+        logger.debug("Migration 0003: link recreation not required — skipping")
         return
 
-    logger.info("Миграция 0003: пересоздание link с UNIQUE(category_id,name,url,args)")
+    logger.info("Migration 0003: recreating link with UNIQUE(category_id,name,url,args)")
     conn.execute("BEGIN TRANSACTION")
     try:
         conn.execute(
@@ -69,8 +69,8 @@ def migrate(conn: sqlite3.Connection, logger: Any) -> None:
         conn.execute("DROP TABLE link")
         conn.execute("ALTER TABLE link_new RENAME TO link")
         conn.commit()
-        logger.info("Миграция 0003: таблица link успешно пересоздана")
+        logger.info("Migration 0003: link table successfully recreated")
     except Exception as e:
         conn.rollback()
-        logger.exception("Ошибка миграции 0003 (пересоздание link): %s", e)
+        logger.exception("Migration 0003 error (link recreation): %s", e)
         raise

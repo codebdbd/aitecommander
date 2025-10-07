@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class TreeTilesService:
-    """Сгруппированные операции обновления плиток категорий."""
+    """Grouped operations for updating category tiles."""
 
     def __init__(self, manager: "TreeManagement") -> None:
         self._manager = manager

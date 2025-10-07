@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 class TreeUpdateService(QObject):
-    """Инкапсулирует операции вставки/обновления/удаления элементов дерева."""
+    """Encapsulates insert/update/delete operations for tree items."""
 
     def __init__(self, manager: "TreeManagement", tree, model) -> None:
         parent = manager if isinstance(manager, QObject) else None

@@ -15,18 +15,18 @@ from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
 
-# Модульный логгер
+# Module logger
 logger = logging.getLogger(__name__)
 
-# Политика завершения приложения:
-# - UI-слой НЕ вызывает напрямую quit()/exit().
-# - Завершение производится ТОЛЬКО через AppShutdownController (perform_shutdown)
-#   либо косвенно через закрытие главного окна (MainWindow.close()), что триггерит контроллер.
-# - Функция emergency_shutdown() — исключительно для фатальных аварийных ситуаций.
+# Application shutdown policy:
+# - UI layer does NOT directly call quit()/exit().
+# - Shutdown is performed ONLY through AppShutdownController (perform_shutdown)
+#   or indirectly through closing the main window (MainWindow.close()), which triggers the controller.
+# - emergency_shutdown() function is exclusively for fatal emergency situations.
 
 
 class ShutdownPriority(Enum):
-    """Приоритеты выполнения операций shutdown."""
+    """Shutdown operation priorities."""
 
     CRITICAL = 1  # Сохранение данных, критичные операции
     HIGH = 2  # Остановка контроллеров
@@ -35,13 +35,13 @@ class ShutdownPriority(Enum):
 
 
 class ShutdownTimeoutError(Exception):
-    """Исключение для таймаутов shutdown операций."""
+    """Exception for shutdown operation timeouts."""
 
     pass
 
 
 class ShutdownHandler:
-    """Обертка для операций shutdown с метаданными."""
+    """Wrapper for shutdown operations with metadata."""
 
     def __init__(
         self,
@@ -55,20 +55,20 @@ class ShutdownHandler:
         self.handler = handler
         self.priority = priority
         self.timeout = timeout or app_config.get("shutdown.default_timeout", 2000)
-        self.critical = critical  # Если True, ошибка прервет shutdown
+        self.critical = critical  # If True, error will interrupt shutdown
 
 
 class AppShutdownController:
-    """Улучшенный контроллер корректного завершения приложения.
+    """Enhanced application shutdown controller.
 
-    ✅ ИСПРАВЛЕНИЕ: Добавлена строгая типизация и cleanup метод.
+    ✅ FIX: Added strict typing and cleanup method.
 
-    Особенности:
-    - Поддержка приоритетов операций
-    - Улучшенная обработка ошибок с реальными таймаутами
-    - Конфигурируемые таймауты
-    - Полная обратная совместимость с существующим кодом
-    - Безопасное завершение в многопоточной среде
+    Features:
+    - Operation priority support
+    - Improved error handling with real timeouts
+    - Configurable timeouts
+    - Full backward compatibility with existing code
+    - Safe shutdown in multithreaded environment
     """
 
     def __init__(self, main_window: 'QMainWindow'):
@@ -79,25 +79,24 @@ class AppShutdownController:
         self._shutdown_started_ts: float | None = None
         self._register_default_handlers()
 
-        # Настройки из конфигурации
+        # Settings from configuration
         self.max_shutdown_time = app_config.get("shutdown.max_total_time", 10000)
         self.parallel_execution = app_config.get("shutdown.parallel_execution", False)
         
-        # ✅ Флаг для отслеживания cleanup
+        # ✅ Flag for tracking cleanup
         self._cleaned_up = False
 
     def perform_shutdown(self, event: 'QCloseEvent') -> None:
-        """Основной метод - полностью совместим с оригинальным интерфейсом.
+        """Main method - fully compatible with original interface.
         
-        ✅ ИСПРАВЛЕНИЕ: Добавлена типизация параметров.
+        ✅ FIX: Added parameter typing.
         
-        Args:
-            event: Событие закрытия окна
+            event: Window close event
         """
         with self._shutdown_lock:
             if self.shutdown_in_progress:
                 logger.warning(
-                    "Shutdown already in progress, ignoring duplicate request"
+                    "Shutdown is already in progress, ignoring duplicate request"
                 )
                 return
 
@@ -112,40 +111,40 @@ class AppShutdownController:
         except Exception as exc:
             logger.error("Critical error during shutdown: %s", exc, exc_info=True)
         finally:
-            # Безопасный вызов родительского closeEvent (обратная совместимость)
+            # Safe call to parent closeEvent (backward compatibility)
             self._safe_close_event(event)
-            # ✅ Cleanup ресурсов
+            # ✅ Resource cleanup
             self.cleanup()
 
     def _safe_close_event(self, event):
-        """Безопасный вызов родительского closeEvent с fallback."""
+        """Safe call to parent closeEvent with fallback."""
         try:
-            # Пытаемся найти родительский класс с closeEvent
+            # Try to find parent class with closeEvent
             for base_class in self.window.__class__.__mro__[1:]:
                 if hasattr(base_class, "closeEvent"):
                     base_class.closeEvent(self.window, event)
                     return
 
-            # Если не нашли, просто принимаем событие
+            # If not found, just accept the event
             event.accept()
 
         except Exception as exc:
             logger.error("Error in base closeEvent: %s", exc, exc_info=True)
-            # В любом случае принимаем событие, чтобы приложение могло закрыться
+            # In any case accept the event so the application can close
             try:
                 event.accept()
             except Exception:
                 pass
 
     def _execute_shutdown_sequence(self):
-        """Выполнить последовательность операций shutdown по приоритетам с учетом общего дедлайна."""
+        """Execute shutdown operations sequence by priorities with global deadline consideration."""
         handlers_by_priority = self._group_handlers_by_priority()
 
         for priority in ShutdownPriority:
             if priority not in handlers_by_priority:
                 continue
 
-            # Проверка общего дедлайна перед уровнем приоритета
+            # Check global deadline before priority level
             remaining = self._remaining_time_ms()
             if remaining is not None and remaining <= 0:
                 logger.error(
@@ -181,7 +180,7 @@ class AppShutdownController:
     def _group_handlers_by_priority(
         self,
     ) -> Dict[ShutdownPriority, List[ShutdownHandler]]:
-        """Группировка handlers по приоритетам."""
+        """Group handlers by priorities."""
         groups = {}
         for handler in self.shutdown_handlers:
             if handler.priority not in groups:
@@ -192,7 +191,7 @@ class AppShutdownController:
     def _execute_handlers_sequential(
         self, handlers: List[ShutdownHandler], remaining_ms: int | None = None
     ):
-        """Последовательное выполнение handlers с учетом общего дедлайна."""
+        """Sequential execution of handlers with global deadline consideration."""
         for handler in handlers:
             rem = self._remaining_time_ms() if remaining_ms is None else remaining_ms
             if rem is not None and rem <= 0:
@@ -208,9 +207,9 @@ class AppShutdownController:
     def _execute_handlers_parallel(
         self, handlers: List[ShutdownHandler], remaining_ms: int | None = None
     ):
-        """Параллельное выполнение handlers (для некритичных операций) с учетом общего дедлайна."""
+        """Parallel execution of handlers (for non-critical operations) with global deadline consideration."""
         max_workers = min(len(handlers), 4)
-        # Эффективный таймаут — минимум из максимального таймаута handlers и оставшегося времени
+        # Effective timeout — minimum of maximum handler timeout and remaining time
         max_handler_timeout = max(h.timeout for h in handlers) if handlers else 0
         eff_ms = (
             min(max_handler_timeout + 1000, remaining_ms)
@@ -258,7 +257,7 @@ class AppShutdownController:
 
     @contextmanager
     def _timeout_context(self, timeout_ms: int, handler_name: str):
-        """Контекстный менеджер для установки таймаута операции."""
+        """Context manager for setting operation timeout."""
         timeout_seconds = timeout_ms / 1000.0
         timer = None
         timeout_occurred = False
@@ -267,7 +266,7 @@ class AppShutdownController:
             nonlocal timeout_occurred
             timeout_occurred = True
 
-        # Используем threading.Timer вместо signal (совместимость с Windows и PyQt)
+        # Use threading.Timer instead of signal (Windows and PyQt compatibility)
         timer = threading.Timer(timeout_seconds, timeout_handler)
         timer.start()
 
@@ -284,10 +283,10 @@ class AppShutdownController:
     def _execute_single_handler(
         self, handler: ShutdownHandler, override_timeout_ms: int | None = None
     ):
-        """Выполнение одного handler с реальным таймаутом и расширенным логированием.
+        """Execute single handler with real timeout and extended logging.
 
-        Исполняем обработчик в отдельном потоке и ждём завершения через Thread.join(timeout).
-        В случае таймаута — логируем и продолжаем (или прерываем для critical) без создания ThreadPoolExecutor.
+        Execute handler in separate thread and wait for completion via Thread.join(timeout).
+        In case of timeout — log and continue (or interrupt for critical) without creating ThreadPoolExecutor.
         """
         eff_timeout_ms = (
             override_timeout_ms if override_timeout_ms is not None else handler.timeout
@@ -368,9 +367,9 @@ class AppShutdownController:
                 return
 
     def _register_default_handlers(self):
-        """Регистрация стандартных handlers (совместимость с оригинальным кодом)."""
-        # Порядок как раньше: controllers -> wait threads -> backup
-        # 1) Остановка контроллеров (строгий, критичный)
+        """Register default handlers (compatibility with original code)."""
+        # Order as before: controllers -> wait threads -> backup
+        # 1) Controller shutdown (strict, critical)
         self.add_shutdown_handler(
             "controllers_shutdown",
             self._shutdown_controllers,
@@ -378,12 +377,12 @@ class AppShutdownController:
             timeout=3000,
             critical=True,
         )
-        # 2) Ожидание пулов потоков (строгий, критичный)
-        # Согласуем таймаут обработчика с конфигом ui.thread_pool_shutdown_timeout, добавив буфер
+        # 2) Thread pool waiting (strict, critical)
+        # Align handler timeout with ui.thread_pool_shutdown_timeout config, adding buffer
         tp_timeout = app_config.ui.get_thread_pool_shutdown_timeout()
         handler_timeout = max(
             tp_timeout + 1000, 3000
-        )  # небольшой буфер во избежание ложных таймаутов
+        )  # small buffer to avoid false timeouts
         self.add_shutdown_handler(
             "thread_pools_wait",
             self._wait_for_thread_pools,
@@ -391,7 +390,7 @@ class AppShutdownController:
             timeout=handler_timeout,
             critical=True,
         )
-        # 3) Бэкап базы (некритичный, последний)
+        # 3) Database backup (non-critical, last)
         self.add_shutdown_handler(
             "database_backup",
             self._backup_database,
@@ -401,7 +400,7 @@ class AppShutdownController:
         )
 
     def _remaining_time_ms(self) -> int | None:
-        """Сколько миллисекунд осталось до общего дедлайна. None — если дедлайн не настроен."""
+        """How many milliseconds remain until global deadline. None — if deadline not set."""
         if not self.max_shutdown_time:
             return None
         if self._shutdown_started_ts is None:
@@ -418,8 +417,8 @@ class AppShutdownController:
         timeout: int = None,
         critical: bool = False,
     ):
-        """Добавить пользовательский shutdown handler."""
-        # Проверяем, нет ли уже handler'а с таким именем
+        """Add custom shutdown handler."""
+        # Check if handler with this name already exists
         self.remove_shutdown_handler(name)
 
         shutdown_handler = ShutdownHandler(name, handler, priority, timeout, critical)
@@ -429,7 +428,7 @@ class AppShutdownController:
         )
 
     def remove_shutdown_handler(self, name: str) -> bool:
-        """Удалить shutdown handler по имени. Возвращает True, если handler был найден и удален."""
+        """Remove shutdown handler by name. Returns True if handler was found and removed."""
         initial_count = len(self.shutdown_handlers)
         self.shutdown_handlers = [h for h in self.shutdown_handlers if h.name != name]
         removed = len(self.shutdown_handlers) < initial_count
@@ -438,7 +437,7 @@ class AppShutdownController:
         return removed
 
     def get_shutdown_handlers(self) -> List[Dict[str, Any]]:
-        """Получить информацию о всех зарегистрированных handlers (для отладки)."""
+        """Get information about all registered handlers (for debugging)."""
         return [
             {
                 "name": h.name,
@@ -449,10 +448,10 @@ class AppShutdownController:
             for h in self.shutdown_handlers
         ]
 
-    # =================== ОРИГИНАЛЬНЫЕ МЕТОДЫ (рефакторинг) ===================
+    # =================== ORIGINAL METHODS (refactoring) ===================
 
     def _shutdown_controllers(self):
-        """Остановить фоновые контроллеры - улучшенная версия оригинала."""
+        """Stop background controllers - improved version of original."""
         controllers_to_shutdown = [
             ("links", "Links controller"),
             ("links_business", "Links business controller"),
@@ -487,10 +486,10 @@ class AppShutdownController:
                 )
 
     def _wait_for_thread_pools(self):
-        """Ожидание завершения потоков - улучшенная версия оригинала."""
+        """Wait for thread completion - improved version of original."""
         timeout = app_config.ui.get_thread_pool_shutdown_timeout()
 
-        # Глобальный thread pool
+        # Global thread pool
         try:
             pool = QThreadPool.globalInstance()
             if pool and pool.activeThreadCount() > 0:
@@ -534,7 +533,7 @@ class AppShutdownController:
             logger.error("Error waiting for local thread pool: %s", exc, exc_info=True)
 
     def _backup_database(self):
-        """Создание бэкапа БД - улучшенная версия оригинала."""
+        """Create database backup - improved version of original."""
         try:
             if not hasattr(self.window, "db"):
                 logger.debug("No 'db' attribute found on window, skipping backup")
@@ -559,30 +558,30 @@ class AppShutdownController:
             logger.info("Database backup completed successfully")
 
         except Exception as exc:
-            # Для бэкапа ошибка не критична, но логируем
+            # Backup error is not critical, but we log it
             logger.error("Database backup failed: %s", exc, exc_info=True)
 
     def cleanup(self) -> None:
-        """Освобождает ресурсы контроллера.
+        """Release controller resources.
         
-        ✅ ИСПРАВЛЕНИЕ: Добавлен метод cleanup для предотвращения утечек памяти.
+        ✅ FIX: Added cleanup method to prevent memory leaks.
         
-        Вызывается автоматически после завершения shutdown sequence.
-        Идемпотентен - можно вызывать многократно.
+        Called automatically after shutdown sequence completion.
+        Idempotent - can be called multiple times.
         """
         if self._cleaned_up:
             return
         
         try:
-            # Освобождаем RLock
+            # Release RLock
             if hasattr(self, '_shutdown_lock') and self._shutdown_lock:
                 try:
-                    # RLock не требует явного освобождения, но обнуляем ссылку
+                    # RLock doesn't require explicit release, but we clear the reference
                     self._shutdown_lock = None
                 except Exception as e:
                     logger.debug("Error clearing shutdown lock: %s", e)
             
-            # Очищаем handlers
+            # Clear handlers
             if hasattr(self, 'shutdown_handlers'):
                 self.shutdown_handlers.clear()
             
@@ -593,30 +592,30 @@ class AppShutdownController:
             logger.error("Error during AppShutdownController cleanup: %s", exc, exc_info=True)
 
 
-# ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
+# ===================== HELPER FUNCTIONS =====================
 
 
 def create_shutdown_controller(main_window: 'QMainWindow') -> AppShutdownController:
-    """Фабричная функция для создания контроллера с настройками по умолчанию.
+    """Factory function to create controller with default settings.
     
-    ✅ ИСПРАВЛЕНИЕ: Добавлена типизация параметров.
+    ✅ FIX: Added parameter typing.
     
     Args:
-        main_window: Главное окно приложения
+        main_window: Application main window
         
     Returns:
-        Настроенный экземпляр AppShutdownController
+        Configured AppShutdownController instance
     """
     controller = AppShutdownController(main_window)
 
-    # Дополнительные handlers можно добавить здесь
+    # Additional handlers can be added here
     # controller.add_shutdown_handler("custom_cleanup", custom_cleanup_function, ShutdownPriority.LOW)
 
     return controller
 
 
 def emergency_shutdown():
-    """Экстренное завершение приложения в случае критических ошибок."""
+    """Emergency application shutdown in case of critical errors."""
     logger.critical("Emergency shutdown initiated")
     try:
         app = QApplication.instance()

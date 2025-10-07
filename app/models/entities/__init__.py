@@ -1,4 +1,4 @@
-"""Domain модели для работы с сущностями БД."""
+"""Domain models for DB entities operations."""
 from .sphere_model import SphereModel
 from .section_model import SectionModel
 from .category_model import CategoryModel

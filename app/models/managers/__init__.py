@@ -1,4 +1,4 @@
-"""Менеджеры для работы с базой данных."""
+"""Managers for working with database."""
 from .backup_manager import BackupManager
 from .import_export_manager import ImportExportManager
 from .duplicate_resolver import DuplicateResolver

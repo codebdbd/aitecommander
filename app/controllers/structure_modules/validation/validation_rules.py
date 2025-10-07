@@ -1,6 +1,6 @@
 # app/controllers/structure_modules/validation_rules.py
 
-"""Правила валидации для структурных данных."""
+"""Validation rules for structural data."""
 
 import logging
 from typing import Any, Dict, List
@@ -13,16 +13,16 @@ logger = logging.getLogger(__name__)
 
 
 class StructureDataValidator:
-    """Валидатор для структурных данных."""
+    """Validator for structural data."""
 
     def __init__(self):
         self.type_validator = TypeValidator()
 
     def validate_sphere_create_data(self, data: Dict[str, Any]) -> DetailedValidationResult:
-        """Валидирует данные для создания сферы."""
+        """Validate data for sphere creation."""
         issues = []
 
-        # Обязательные поля
+        # Required fields
         issues.extend(self.type_validator.validate_string(
             data.get("name"), "name", required=True, min_length=1, max_length=255
         ))
@@ -30,7 +30,7 @@ class StructureDataValidator:
             data.get("is_active"), "is_active", required=True
         ))
 
-        # Опциональные поля
+        # Optional fields
         if "description" in data and data["description"] is not None:
             issues.extend(self.type_validator.validate_string(
                 data["description"], "description", required=False, max_length=1000
@@ -50,10 +50,10 @@ class StructureDataValidator:
         )
 
     def validate_section_create_data(self, data: Dict[str, Any]) -> DetailedValidationResult:
-        """Валидирует данные для создания раздела."""
+        """Validate data for section creation."""
         issues = []
 
-        # Обязательные поля
+        # Required fields
         issues.extend(self.type_validator.validate_string(
             data.get("name"), "name", required=True, min_length=1, max_length=255
         ))
@@ -64,7 +64,7 @@ class StructureDataValidator:
             data.get("is_active"), "is_active", required=True
         ))
 
-        # Опциональные поля
+        # Optional fields
         if "description" in data and data["description"] is not None:
             issues.extend(self.type_validator.validate_string(
                 data["description"], "description", required=False, max_length=1000
@@ -81,10 +81,10 @@ class StructureDataValidator:
         )
 
     def validate_category_create_data(self, data: Dict[str, Any]) -> DetailedValidationResult:
-        """Валидирует данные для создания категории."""
+        """Validate data for category creation."""
         issues = []
 
-        # Обязательные поля
+        # Required fields
         issues.extend(self.type_validator.validate_string(
             data.get("name"), "name", required=True, min_length=1, max_length=255
         ))
@@ -95,7 +95,7 @@ class StructureDataValidator:
             data.get("is_active"), "is_active", required=True
         ))
 
-        # Опциональные поля
+        # Optional fields
         if "description" in data and data["description"] is not None:
             issues.extend(self.type_validator.validate_string(
                 data["description"], "description", required=False, max_length=1000
@@ -120,10 +120,10 @@ class StructureDataValidator:
         )
 
     def validate_update_data(self, data: Dict[str, Any], item_type: StructureItemType) -> DetailedValidationResult:
-        """Валидирует данные для обновления (все поля опциональны)."""
+        """Validate data for update (all fields optional)."""
         issues = []
 
-        # Для update операций все поля опциональны, но если присутствуют - должны быть валидными
+        # For update operations all fields are optional, but if present - must be valid
         if "name" in data:
             issues.extend(self.type_validator.validate_string(
                 data["name"], "name", required=False, min_length=1, max_length=255
@@ -139,7 +139,7 @@ class StructureDataValidator:
                 data["description"], "description", required=False, max_length=1000
             ))
 
-        # Специфичные для типа поля
+        # Type-specific fields
         if item_type in (StructureItemType.SECTION, StructureItemType.CATEGORY):
             if "position" in data:
                 issues.extend(self.type_validator.validate_integer(
@@ -171,7 +171,7 @@ class StructureDataValidator:
         )
 
     def _validate_color(self, value: Any, field_name: str) -> List[ValidationIssue]:
-        """Валидирует цветовое поле (hex код)."""
+        """Validate color field (hex code)."""
         issues = []
 
         if not isinstance(value, str):
@@ -184,7 +184,7 @@ class StructureDataValidator:
             ))
             return issues
 
-        # Проверяем формат hex цвета
+        # Check hex color format
         if not (value.startswith("#") and len(value) in (4, 7) and
                 all(c in "0123456789ABCDEFabcdef" for c in value[1:])):
             issues.append(ValidationIssue(

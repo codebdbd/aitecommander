@@ -14,13 +14,13 @@ from app.controllers.ui.links import LinksUIController
 from app.controllers.ui.structure.structure_ui_controller import StructureUIController
 
 
-# ✅ Добавлен протокол для валидации входных параметров
+# ✅ Added protocol for input parameter validation
 @runtime_checkable
 class WindowWithRequiredAttributes(Protocol):
-    """Протокол для окна с обязательными атрибутами.
+    """Protocol for window with required attributes.
     
-    Определяет минимальный интерфейс, который должно предоставлять главное окно
-    для корректной работы контроллеров.
+    Defines minimal interface that main window must provide
+    for correct controller operation.
     """
     db: Any  # Database instance
     tree: Any  # QTreeView for structure
@@ -42,27 +42,27 @@ class ControllersFacade:
 
 def build_controllers(window: WindowWithRequiredAttributes) -> ControllersFacade:
     """
-    Создаёт и возвращает фасад контроллеров/бизнес-логики для главного окна.
-    Ожидает, что у окна есть: db, tree, table, undo_stack.
+    Creates and returns controller/business logic facade for main window.
+    Expects window to have: db, tree, table, undo_stack.
     
     Args:
-        window: Окно с обязательными атрибутами (db, tree, table, undo_stack)
+        window: Window with required attributes (db, tree, table, undo_stack)
         
     Returns:
-        ControllersFacade: Фасад со всеми настроенными контроллерами
+        ControllersFacade: Facade with all configured controllers
         
     Raises:
-        AttributeError: Если у окна отсутствуют обязательные атрибуты
+        AttributeError: If window is missing required attributes
     """
-    # ✅ Валидация обязательных атрибутов
+    # ✅ Required attribute validation
     _validate_window_attributes(window)
-    # Бизнес-логика
+    # Business logic
     structure_business = StructureBusinessLogic(window.db)
     links_business = LinksBusinessLogic(window.db)
 
-    # UI-контроллеры и специализированные контроллеры
+    # UI controllers and specialized controllers
     structure_ctrl = StructureUIController(window.tree, structure_business, window)
-    # Создаём link_operations до LinksUIController и передаём как явную зависимость
+    # Create link_operations before LinksUIController and pass as explicit dependency
     link_ops = LinkOperationsController(window.db, window.undo_stack, window)
     links_ctrl = LinksUIController(
         window.table, links_business, window, link_operations=link_ops
@@ -70,7 +70,7 @@ def build_controllers(window: WindowWithRequiredAttributes) -> ControllersFacade
     db_ctrl = DatabaseController(window.db, window)
     sys_dialogs = SystemDialogController(window)
 
-    # Контроллер завершения
+    # Shutdown controller
     app_shutdown = AppShutdownController(window)
 
     return ControllersFacade(
@@ -86,7 +86,7 @@ def build_controllers(window: WindowWithRequiredAttributes) -> ControllersFacade
 
 
 def _validate_window_attributes(window: Any) -> None:
-    """Валидация обязательных атрибутов окна."""
+    """Validate required window attributes."""
     required_attrs = ["db", "tree", "table", "undo_stack"]
     missing_attrs = []
     
@@ -103,20 +103,20 @@ def _validate_window_attributes(window: Any) -> None:
 
 def create_main_window(settings, theme_ctrl, db):
     """
-    Создаёт главное окно без передачи Database в конструктор и запускает инициализацию UI.
+    Creates main window without passing Database to constructor and runs UI initialization.
 
-    Это соответствует требованию: окно принимает только готовые зависимости верхнего уровня,
-    а низкоуровневые детали (Database) не проходят через конструктор окна.
+    This meets the requirement: window accepts only ready high-level dependencies,
+    while low-level details (Database) don't pass through window constructor.
     """
     from app.views.main_components.initialization.window_initializer import (
         WindowInitializer,
     )
     from app.views.windows.main_window import MainWindow
 
-    # 1) Создаём окно с безопасной сигнатурой (без Database)
+    # 1) Create window with safe signature (without Database)
     window = MainWindow(settings, theme_ctrl)
 
-    # 2) Выполняем инициализацию UI и контроллеров через WindowInitializer
+    # 2) Perform UI and controller initialization through WindowInitializer
     initializer = WindowInitializer(window, db, settings, theme_ctrl)
     initializer.initialize_window()
 

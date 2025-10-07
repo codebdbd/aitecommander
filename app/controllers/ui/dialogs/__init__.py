@@ -1,6 +1,6 @@
 # app/controllers/ui/dialogs/__init__.py
-# Фасад для диалоговых контроллеров. Экспорты ленивые, чтобы избежать
-# кольцевых импортов при ранней загрузке низкоуровневых модулей.
+# Facade for dialog controllers. Lazy exports to avoid
+# circular imports when loading low-level modules early.
 
 __all__ = [
     "DatabaseController",

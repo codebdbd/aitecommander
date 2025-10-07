@@ -19,19 +19,19 @@ logger = logging.getLogger(__name__)
 
 
 class SpheresBarController(QObject):
-    """Контроллер UI панели сфер.
+    """UI controller for the spheres bar.
 
-    Перенесено из методов MainWindow:
+    Moved from MainWindow methods:
       - _init_spheres_ui
       - _on_spheres_loaded_ui
       - _update_active_sphere_button
-      - _switch_sphere (как приватная логика вызова structure.switch_sphere)
+      - _switch_sphere (private logic calling structure.switch_sphere)
     """
 
     def __init__(self, window: Any):
         parent = window if isinstance(window, QObject) else None
         super().__init__(parent=parent)
-        self.w = window  # Главное окно (QMainWindow с нужными атрибутами)
+        self.w = window  # Main window (QMainWindow with required attributes)
 
         required_attrs = [
             "structure_business",
@@ -47,7 +47,7 @@ class SpheresBarController(QObject):
             )
 
     def init(self) -> None:
-        """Подписка на сигнал загрузки сфер и запуск асинхронной загрузки."""
+        """Subscribe to spheres_loaded and start async loading."""
         sb = getattr(self.w, "structure_business", None)
         if sb is None:
             raise AttributeError("Window must expose structure_business")
@@ -60,7 +60,7 @@ class SpheresBarController(QObject):
 
     @pyqtSlot(int)
     def switch_sphere(self, sphere_id: int) -> None:
-        """Переключить активную сферу через контроллер структуры."""
+        """Switch active sphere via structure controller."""
         try:
             self.w.structure.switch_sphere(sphere_id)
         except Exception:
@@ -69,13 +69,13 @@ class SpheresBarController(QObject):
             )
 
     def _clear_spheres_bar(self) -> None:
-        # Очистка группы кнопок
+        # Clear button group
         group = getattr(self.w, "sphere_group", None)
         if group is None:
             raise AttributeError("Window must expose sphere_group")
         for button in list(group.buttons()):
             group.removeButton(button)
-        # Очистка лейаута
+        # Clear layout
         s_layout = self.w.spheres_bar.layout()
         if s_layout is None:
             raise AttributeError("spheres_bar.layout() must not be None")
@@ -104,14 +104,14 @@ class SpheresBarController(QObject):
                 btn.setIcon(QIcon())
         else:
             btn.setIcon(QIcon())
-        # Фиксируем квадратный размер кнопки сфер
+        # Enforce square size for sphere buttons
         btn.setFixedSize(62, 62)
-        # Убираем внутренние отступы на уровне виджета
+        # Remove internal margins at widget level
         try:
             btn.setContentsMargins(0, 0, 0, 0)
         except Exception:
             pass
-        # Размер иконки берём из конфигурации UI, отступ 4px задан QSS padding'ом
+        # Icon size from UI config; 4px padding is controlled by QSS padding
         try:
             _sz = app_config.get_sphere_button_icon_size()
             btn.setIconSize(QSize(int(_sz[0]), int(_sz[1])))
@@ -120,7 +120,7 @@ class SpheresBarController(QObject):
         btn.setToolTip(sphere["name"])
         self.w.sphere_group.addButton(btn, sphere_id)
         btn.clicked.connect(partial(self._on_button_clicked, sphere_id))
-        # Убедимся, что на кнопке нет графических эффектов (неон и т.п.)
+        # Ensure there are no graphics effects (neon, etc.) on the button
         try:
             btn.setGraphicsEffect(None)
         except Exception:
@@ -130,17 +130,17 @@ class SpheresBarController(QObject):
 
     @pyqtSlot(list)
     def on_spheres_loaded_ui(self, spheres: List[Dict[str, Any]]):
-        """Построение кнопок сфер в панели."""
+        """Build sphere buttons in the bar."""
         with suspend_updates(self.w.spheres_bar):
             self._clear_spheres_bar()
             s_layout = self.w.spheres_bar.layout()
             for sp in spheres:
                 btn = self._build_button(sp)
                 s_layout.addWidget(btn)
-            # Явное обновление после массовых операций
+            # Explicit update after batch operations
             self.w.spheres_bar.update()
 
-        # Устанавливаем визуальное состояние и/или активную сферу
+        # Set visual state and/or active sphere
         if not spheres:
             return
 
@@ -155,7 +155,7 @@ class SpheresBarController(QObject):
             current_id = None
 
         if isinstance(current_id, int) and current_id > 0:
-            # Сфера уже выбрана — только обновим кнопку и фокус
+            # Sphere already selected — only update button and focus
             self.update_active_sphere_button(int(current_id))
             return
 
@@ -166,10 +166,10 @@ class SpheresBarController(QObject):
     @signal_guard("update_active_sphere_button")
     @pyqtSlot(int)
     def update_active_sphere_button(self, sphere_id: int):
-        """Обновляет состояние кнопок сфер и фокус."""
+        """Update state of sphere buttons and focus."""
         buttons = self._iter_sphere_buttons()
         for button in buttons:
-            # Снимаем любые графические эффекты, чтобы неон не оставался на активной кнопке
+            # Remove any graphics effects so neon doesn't remain on the active button
             try:
                 button.setGraphicsEffect(None)
             except Exception:

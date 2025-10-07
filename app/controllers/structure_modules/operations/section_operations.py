@@ -20,7 +20,7 @@ from .base import BaseOperations, StructureItemType
 
 @dataclass
 class DeletionInfo:
-    """Информация об удалении раздела."""
+    """Information about section deletion."""
 
     success: bool
     section_data: SectionData
@@ -29,7 +29,7 @@ class DeletionInfo:
 
     @classmethod
     def create_empty(cls) -> "DeletionInfo":
-        """Создаёт пустой объект для случаев ошибок."""
+        """Creates an empty object for error cases."""
         empty_section: SectionData = {  # type: ignore
             "id": 0,
             "name": "",
@@ -55,110 +55,110 @@ class SectionOperations(BaseOperations):
         emit_signal_callback: Callable,
     ):
         """
-        Инициализация операций с разделами.
+        Initialize section operations.
 
         Args:
-            structure_model: Модель для работы со структурой данных
-            logger: Логгер для записи событий
-            execute_with_error_handling: Функция обработки ошибок
-            execute_with_validation: Функция валидации
-            emit_signal_callback: Функция эмиссии сигналов
+            structure_model: Model for working with structure data
+            logger: Logger for recording events
+            execute_with_error_handling: Error handling function
+            execute_with_validation: Validation function
+            emit_signal_callback: Signal emission function
         """
         super().__init__(structure_model, logger, execute_with_error_handling)
         self._execute_with_validation = execute_with_validation
         self._emit_signal = emit_signal_callback
-        # Сервисный слой для транзакционных операций и чтений
+        # Service layer for transactional operations and reads
         try:
             self._structure_service = StructureService(structure_model.db)
         except Exception:
-            # Фоллбек на прямую модель (не должен использоваться при нормальной конфигурации)
+            # Fallback to direct model (should not be used with normal configuration)
             self._structure_service = None
 
     def create_section(self, data: SectionCreateData) -> bool:
         """
-        Создает новый раздел.
+        Create a new section.
 
         Args:
-            data: Данные для создания раздела
+            data: Data for creating a section
 
         Returns:
-            bool: True если раздел создан успешно, False иначе
+            bool: True if section created successfully, False otherwise
         """
-        self._log_operation_start("создание раздела")
-        # Делегируем в универсальный метод базового класса
+        self._log_operation_start("creating section")
+        # Delegate to universal method of base class
         return self.create_item(StructureItemType.SECTION, data)
 
     def update_section(self, section_id: int, data: SectionUpdateData) -> bool:
         """
-        Обновляет существующий раздел.
+        Update an existing section.
 
         Args:
-            section_id: ID раздела для обновления
-            data: Новые данные раздела
+            section_id: ID of section to update
+            data: New section data
 
         Returns:
-            bool: True если раздел обновлен успешно, False иначе
+            bool: True if section updated successfully, False otherwise
         """
-        self._log_operation_start(f"обновление раздела {section_id}")
-        # Делегируем в универсальный метод базового класса
+        self._log_operation_start(f"updating section {section_id}")
+        # Delegate to universal method of base class
         return self.update_item(StructureItemType.SECTION, section_id, data)
 
     def delete_section(self, section_id: int) -> DeletionInfo:
-        """Удаляет раздел. Возвращает информацию об удалении.
+        """Delete a section. Returns deletion information.
 
         Args:
-            section_id: ID раздела для удаления
+            section_id: ID of section to delete
 
         Returns:
-            DeletionInfo: Информация об удалении (успех, данные, количество категорий, количество ссылок)
+            DeletionInfo: Deletion information (success, data, category count, link count)
         """
-        self._log_operation_start(f"подготовка удаления раздела {section_id}")
+        self._log_operation_start(f"preparing deletion of section {section_id}")
 
         return self._prepare_section_deletion(section_id)
 
     def confirm_delete_section(self, section_id: int) -> bool:
         """
-        Подтверждает и выполняет удаление раздела.
+        Confirm and execute section deletion.
 
         Args:
-            section_id: ID раздела для удаления
+            section_id: ID of section to delete
 
         Returns:
-            bool: True если раздел удален успешно, False иначе
+            bool: True if section deleted successfully, False otherwise
         """
-        self._log_operation_start(f"подтверждение удаления раздела {section_id}")
+        self._log_operation_start(f"confirming deletion of section {section_id}")
         return self._execute_section_deletion(section_id)
 
     def get_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
         """
-        Получает данные раздела с гарантированной нормализацией.
+        Get section data with guaranteed normalization.
 
         Args:
-            section_id: ID раздела
+            section_id: Section ID
 
         Returns:
-            Optional[Dict[str, Any]]: Данные раздела или None если не найден
+            Optional[Dict[str, Any]]: Section data or None if not found
         """
-        self._log_operation_start(f"получение данных раздела {section_id}")
+        self._log_operation_start(f"fetching data for section {section_id}")
         return self._fetch_section_data(section_id)
 
     def get_sections(self, sphere_id: int) -> List[Dict[str, Any]]:
         """
-        Получает список разделов для указанной сферы.
+        Get list of sections for specified sphere.
 
         Args:
-            sphere_id: ID сферы
+            sphere_id: Sphere ID
 
         Returns:
-            List[Dict[str, Any]]: Список разделов
+            List[Dict[str, Any]]: List of sections
         """
-        self._log_operation_start(f"получение разделов для сферы {sphere_id}")
+        self._log_operation_start(f"fetching sections for sphere {sphere_id}")
         return self._fetch_sections_for_sphere(sphere_id)
 
     # Приватные методы для улучшения читаемости и тестируемости
 
     def _prepare_section_deletion(self, section_id: int) -> DeletionInfo:
-        """Подготавливает данные для удаления раздела."""
+        """Prepare data for section deletion."""
 
         def _deletion_preparation():
             section_data = (
@@ -192,19 +192,19 @@ class SectionOperations(BaseOperations):
 
         return self._execute_with_error_handling(
             _deletion_preparation,
-            f"получить данные раздела {section_id}",
+            f"fetch data for section {section_id}",
             default_return=DeletionInfo.create_empty(),
         )
 
     def _execute_section_deletion(self, section_id: int) -> bool:
-        """Выполняет фактическое удаление раздела."""
+        """Execute actual section deletion."""
         if not self._structure_service:
             def _raise_service_error():
-                raise RuntimeError("StructureService недоступен для удаления раздела")
+                raise RuntimeError("StructureService unavailable for section deletion")
             
             return self._execute_with_error_handling(
                 _raise_service_error,
-                f"удалить раздел {section_id}",
+                f"delete section {section_id}",
                 default_return=False,
             )
 
@@ -222,7 +222,7 @@ class SectionOperations(BaseOperations):
         return result
 
     def _fetch_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
-        """Получает данные раздела."""
+        """Fetch section data."""
 
         def _fetch_operation():
             section_data = (
@@ -239,12 +239,12 @@ class SectionOperations(BaseOperations):
 
         return self._exec_with_norm(
             _fetch_operation,
-            f"загрузить данные раздела {section_id}",
+            f"load data for section {section_id}",
             default_return=None,
         )
 
     def _fetch_sections_for_sphere(self, sphere_id: int) -> List[Dict[str, Any]]:
-        """Получает разделы для сферы."""
+        """Fetch sections for sphere."""
 
         def _fetch_operation():
             sections_data = (
@@ -258,7 +258,7 @@ class SectionOperations(BaseOperations):
 
         return self._exec_with_norm(
             _fetch_operation,
-            f"загрузить разделы для сферы {sphere_id}",
+            f"load sections for sphere {sphere_id}",
             default_return=[],
         )
 
@@ -271,17 +271,17 @@ class SectionOperations(BaseOperations):
         *,
         require_parent: bool = True,
     ) -> bool:
-        """Переопределяем обработку для разделов: используем StructureService для мутаций.
+        """Override processing for sections: use StructureService for mutations.
 
-        Для других типов элементов передаём выполнение базовой реализации.
+        For other item types, delegate to base implementation.
         """
-        # Если это не раздел — используем базовую реализацию
+        # If not a section — use base implementation
         if item_type is not StructureItemType.SECTION:
             return super()._process_item(
                 data, item_type, item_id, is_update, require_parent=require_parent
             )
 
-        # Если сервис недоступен — фоллбек на базовую реализацию (upsert в модели)
+        # If service unavailable — fallback to base implementation (upsert in model)
         if not getattr(self, "_structure_service", None):
             return super()._process_item(
                 data, item_type, item_id, is_update, require_parent=require_parent
@@ -298,10 +298,10 @@ class SectionOperations(BaseOperations):
                 )  # type: ignore[arg-type]
                 # Логирование
                 self.slogger.log_operation(
-                    "обновлен",
+                    "updated",
                     item_type.value,
-                    current.get("name", "без имени"),
-                    "раздел",
+                    current.get("name", "unnamed"),
+                    "section",
                 )
                 return True
             else:
@@ -324,14 +324,14 @@ class SectionOperations(BaseOperations):
                 )
                 # Логирование
                 self.slogger.log_operation(
-                    "создан",
+                    "created",
                     item_type.value,
-                    current.get("name", "без имени"),
-                    "раздел",
+                    current.get("name", "unnamed"),
+                    "section",
                 )
                 return True
 
-        operation_name = "обновления" if is_update else "создания"
+        operation_name = "update" if is_update else "create"
         result = self._execute_with_validation(
             _operation,
             data,
@@ -343,64 +343,64 @@ class SectionOperations(BaseOperations):
 
     def _count_nested_objects(self, section_id: int) -> tuple[int, int]:
         """
-        Подсчитывает категории и ссылки в разделе.
+        Count categories and links in section.
 
         Args:
-            section_id: ID раздела
+            section_id: Section ID
 
         Returns:
-            tuple[int, int]: Количество категорий и ссылок
+            tuple[int, int]: Number of categories and links
         """
         return self.structure_model.count_nested_objects_for_section(section_id)
 
     def _count_nested_objects_for_section(self, section_id: int) -> tuple[int, int]:
         """
-        Подсчитывает категории и ссылки в разделе через единый интерфейс модели.
+        Count categories and links in section through unified model interface.
 
-        Этот метод сохранен для полной совместимости с оригинальным кодом.
+        This method is preserved for full compatibility with original code.
 
         Args:
-            section_id: ID раздела
+            section_id: Section ID
 
         Returns:
-            tuple[int, int]: Количество категорий и ссылок
+            tuple[int, int]: Number of categories and links
         """
         return self.structure_model.count_nested_objects_for_section(section_id)
 
     def _emit_section_deleted_signal(self, section_id: int) -> None:
-        """Отправляет сигнал об удалении раздела."""
+        """Emit section deletion signal."""
         self._emit_signal("item_deleted", StructureItemType.SECTION.value, section_id)
 
     # Методы логирования для централизации и улучшения читаемости
 
     def _log_operation_start(self, operation_name: str) -> None:
-        """Логирует начало операции."""
-        self.logger.debug("Начало операции: %s", operation_name)
+        """Log operation start."""
+        self.logger.debug("Starting operation: %s", operation_name)
 
     def _log_section_found(self, section_id: int) -> None:
-        """Логирует успешное нахождение раздела."""
-        self.logger.debug("Найден раздел %s", section_id)
+        """Log successful section finding."""
+        self.logger.debug("Found section %s", section_id)
 
     def _log_section_not_found(self, section_id: int) -> None:
-        """Логирует ненахождение раздела."""
-        error_msg = f"Раздел с ID {section_id} не найден"
+        """Log section not found."""
+        error_msg = f"Section with ID {section_id} not found"
         self.logger.error(error_msg)
 
     def _log_deletion_preparation(
         self, section_id: int, cats_count: int, links_count: int
     ) -> None:
-        """Логирует подготовку к удалению раздела."""
+        """Log section deletion preparation."""
         self.logger.info(
-            "Подготовка к удалению раздела %s: %s категорий, %s ссылок",
+            "Preparing to delete section %s: %s categories, %s links",
             section_id,
             cats_count,
             links_count,
         )
 
     def _log_successful_deletion(self, section_id: int) -> None:
-        """Логирует успешное удаление раздела."""
-        self.logger.info("Удален раздел %s", section_id)
+        """Log successful section deletion."""
+        self.logger.info("Deleted section %s", section_id)
 
     def _log_sections_loaded(self, count: int, sphere_id: int) -> None:
-        """Логирует загрузку разделов."""
-        self.logger.debug("Загружено %s разделов для сферы %s", count, sphere_id)
+        """Log sections loading."""
+        self.logger.debug("Loaded %s sections for sphere %s", count, sphere_id)

@@ -1,6 +1,6 @@
 # app/controllers/structure_modules/positioning_operations.py
 
-"""Модуль для операций с позиционированием элементов."""
+"""Module for element positioning operations."""
 
 import logging
 import time
@@ -10,10 +10,10 @@ from app.services.structure_service import StructureService
 
 from .base import BaseOperations
 
-# Тип-алиас для батч-обновлений: (имя_таблицы, список_ID)
+# Type alias for batch updates: (table_name, list_of_ids)
 UpdateSpec = Tuple[str, List[int]]
 
-# Ленивый доступ к конфигурации приложения (без прямой зависимости от config_loader)
+# Lazy access to app configuration (without direct dependency on config_loader)
 try:
     from app.config_data import app_config  # type: ignore
 except Exception:  # pragma: no cover - на случай проблем с импортом
@@ -21,13 +21,13 @@ except Exception:  # pragma: no cover - на случай проблем с им
 
 
 class PositioningOperations(BaseOperations):
-    """Класс для операций с позиционированием элементов."""
+    """Class for element positioning operations."""
 
     def __init__(
         self, structure_model, logger: logging.Logger, execute_with_error_handling
     ):
         super().__init__(structure_model, logger, execute_with_error_handling)
-        # Порог медленного обновления (секунды), читаем из конфига с безопасным фолбэком
+        # Slow update threshold (seconds), read from config with safe fallback
         self._slow_threshold: float = 1.0
         try:
             if app_config is not None:
@@ -35,9 +35,9 @@ class PositioningOperations(BaseOperations):
                 if isinstance(val, (int, float)) and val > 0:
                     self._slow_threshold = float(val)
         except Exception:
-            # Тихо используем значение по умолчанию, чтобы не ломать выполнение
+            # Quietly use default value to avoid breaking execution
             pass
-        # Используем сервис структуры для атомарных перестановок (UnitOfWork)
+        # Use structure service for atomic reordering (UnitOfWork)
         try:
             self._structure_service: Optional[StructureService] = (
                 StructureService(structure_model.db)
@@ -45,42 +45,42 @@ class PositioningOperations(BaseOperations):
                 else None
             )
         except Exception:
-            # На случай проблем инициализации сервиса — сохраняем совместимость
+            # In case of service initialization issues — maintain compatibility
             self._structure_service = None
 
     def update_item_positions(self, table_name: str, ids_in_order: List[int]) -> bool:
-        """Обновляет позиции элементов в указанной таблице.
+        """Update element positions in the specified table.
 
         Args:
-            table_name (str): Название таблицы для обновления позиций.
-                            Не может быть None или пустой строкой.
-            ids_in_order (List[int]): Список ID элементов в желаемом порядке.
-                                    Должен содержать уникальные положительные числа.
+            table_name (str): Table name for position updates.
+                            Cannot be None or empty string.
+            ids_in_order (List[int]): List of element IDs in desired order.
+                                    Must contain unique positive numbers.
 
         Returns:
-            bool: True при успешном обновлении позиций, False при ошибке.
+            bool: True on successful position update, False on error.
 
         Note:
-            Метод сохраняет обратную совместимость - возвращает False при любых
-            ошибках валидации или выполнения, чтобы не нарушить работу других модулей.
+            Method maintains backward compatibility - returns False on any
+            validation or execution errors to avoid breaking other modules.
 
         Example:
             >>> pos_ops = PositioningOperations()
             >>> pos_ops.update_item_positions("users", [3, 1, 5, 2])
             True
         """
-        # Начальное логирование
+        # Initial logging
         self.logger.debug(
-            "Запуск update_item_positions для таблицы '%s' с %s элементами",
+            "Starting update_item_positions for table '%s' with %s elements",
             table_name,
             (len(ids_in_order) if ids_in_order else 0),
         )
 
-        # Валидация входных данных с возвратом False для обратной совместимости
+        # Validate input data with False return for backward compatibility
         validation_error = self._validate_positioning_params(table_name, ids_in_order)
         if validation_error:
             self.logger.warning(
-                "Ошибка валидации при обновлении позиций: %s",
+                "Validation error during position update: %s",
                 validation_error,
             )
             return False
@@ -88,40 +88,40 @@ class PositioningOperations(BaseOperations):
         def _update_positions_operation():
             start_time = time.time()
 
-            # Дополнительное логирование для отладки
-            self.logger.debug("Порядок ID для обновления: %s", ids_in_order)
+            # Additional logging for debugging
+            self.logger.debug("ID order for update: %s", ids_in_order)
 
-            # Проверка существования записей (если метод доступен)
+            # Check record existence (if method is available)
             if hasattr(self.structure_model, "validate_ids_exist"):
                 if not self.structure_model.validate_ids_exist(
                     table_name, ids_in_order
                 ):
                     self.logger.warning(
-                        "Некоторые ID не найдены в таблице %s: %s",
+                        "Some IDs not found in table %s: %s",
                         table_name,
                         ids_in_order,
                     )
-                    # Продолжаем выполнение для обратной совместимости
+                    # Continue execution for backward compatibility
 
-            # Основная операция обновления через сервисный слой
+            # Main update operation through service layer
             if not self._structure_service:
-                raise RuntimeError("StructureService недоступен для обновления позиций")
+                raise RuntimeError("StructureService unavailable for position updates")
             self._structure_service.update_item_positions(table_name, ids_in_order)
 
-            # Расчет времени выполнения
+            # Calculate execution time
             duration = time.time() - start_time
 
-            # Детальное логирование результата
+            # Detailed result logging
             self.logger.info(
-                "Успешно обновлены позиции в таблице '%s': %s элементов за %.3fс",
+                "Successfully updated positions in table '%s': %s elements in %.3fs",
                 table_name,
                 len(ids_in_order),
                 duration,
             )
 
-            if duration > self._slow_threshold:  # Предупреждение о медленном выполнении
+            if duration > self._slow_threshold:  # Slow execution warning
                 self.logger.warning(
-                    "Медленное обновление позиций в таблице '%s': %.3fс (порог %.3fс)",
+                    "Slow position update in table '%s': %.3fs (threshold %.3fs)",
                     table_name,
                     duration,
                     self._slow_threshold,
@@ -139,12 +139,12 @@ class PositioningOperations(BaseOperations):
         # Логирование итогового результата
         if result:
             self.logger.debug(
-                "update_item_positions завершен успешно для таблицы '%s'",
+                "update_item_positions completed successfully for table '%s'",
                 table_name,
             )
         else:
             self.logger.error(
-                "update_item_positions завершился с ошибкой для таблицы '%s'",
+                "update_item_positions failed for table '%s'",
                 table_name,
             )
 
@@ -153,68 +153,68 @@ class PositioningOperations(BaseOperations):
     def _validate_positioning_params(
         self, table_name: str, ids_in_order: List[int]
     ) -> Optional[str]:
-        """Валидирует параметры для операций с позиционированием.
+        """Validate parameters for positioning operations.
 
         Args:
-            table_name (str): Название таблицы
-            ids_in_order (List[int]): Список ID для проверки
+            table_name (str): Table name
+            ids_in_order (List[int]): List of IDs to check
 
         Returns:
-            Optional[str]: Сообщение об ошибке если валидация не прошла, None если все корректно
+            Optional[str]: Error message if validation failed, None if all correct
         """
         # Проверка table_name
         if not table_name:
-            return "Название таблицы не может быть None"
+            return "Table name cannot be None"
 
         if not isinstance(table_name, str):
-            return f"Название таблицы должно быть строкой, получено: {type(table_name).__name__}"
+            return f"Table name must be a string, received: {type(table_name).__name__}"
 
         if not table_name.strip():
-            return "Название таблицы не может быть пустой строкой"
+            return "Table name cannot be an empty string"
 
         # Проверка ids_in_order
         if not ids_in_order:
-            return "Список ID не может быть пустым или None"
+            return "ID list cannot be empty or None"
 
         if not isinstance(ids_in_order, list):
-            return f"ids_in_order должен быть списком, получено: {type(ids_in_order).__name__}"
+            return f"ids_in_order must be a list, received: {type(ids_in_order).__name__}"
 
         # Проверка типов элементов списка
         for i, id_val in enumerate(ids_in_order):
             if not isinstance(id_val, int):
-                return f"Элемент {i} должен быть целым числом, получено: {type(id_val).__name__}"
+                return f"Element {i} must be an integer, received: {type(id_val).__name__}"
 
             if id_val <= 0:
-                return f"ID должны быть положительными числами, получено: {id_val} в позиции {i}"
+                return f"IDs must be positive numbers, received: {id_val} at position {i}"
 
         # Проверка на дубликаты
         if len(set(ids_in_order)) != len(ids_in_order):
             duplicates = [
                 id_val for id_val in set(ids_in_order) if ids_in_order.count(id_val) > 1
             ]
-            return f"Список ID содержит дубликаты: {duplicates}"
+            return f"ID list contains duplicates: {duplicates}"
 
         # Проверка разумного размера списка
         if len(ids_in_order) > 10000:  # Настраиваемый лимит
-            return f"Слишком много элементов для обновления позиций: {len(ids_in_order)} (максимум 10000)"
+            return f"Too many elements for position updates: {len(ids_in_order)} (maximum 10000)"
 
         return None  # Валидация прошла успешно
 
     def batch_update_positions(self, updates: List[UpdateSpec]) -> bool:
-        """Пакетное обновление позиций для нескольких таблиц.
+        """Batch update positions for multiple tables.
 
         Args:
-            updates (List[UpdateSpec]): Список кортежей (table_name, ids_in_order)
+            updates (List[UpdateSpec]): List of tuples (table_name, ids_in_order)
 
         Returns:
-            bool: True если все обновления прошли успешно, False если была хотя бы одна ошибка
+            bool: True if all updates succeeded, False if there was at least one error
         """
         if not updates:
-            self.logger.warning("Пустой список обновлений для batch_update_positions")
+            self.logger.warning("Empty update list for batch_update_positions")
             return False
 
         self.logger.info(
-            "Начинается пакетное обновление позиций для %s таблиц",
+            "Starting batch position update for %s tables",
             len(updates),
         )
 
@@ -224,7 +224,7 @@ class PositioningOperations(BaseOperations):
         for i, update_data in enumerate(updates):
             if not isinstance(update_data, tuple) or len(update_data) != 2:
                 self.logger.error(
-                    "Некорректный формат данных в позиции %s: ожидается кортеж (table_name, ids)",
+                    "Incorrect data format at position %s: expected tuple (table_name, ids)",
                     i,
                 )
                 continue
@@ -235,12 +235,12 @@ class PositioningOperations(BaseOperations):
                 success_count += 1
             else:
                 self.logger.error(
-                    "Ошибка при обновлении позиций для таблицы '%s'",
+                    "Error updating positions for table '%s'",
                     table_name,
                 )
 
         self.logger.info(
-            "Пакетное обновление завершено: %s/%s таблиц обновлено успешно",
+            "Batch update completed: %s/%s tables updated successfully",
             success_count,
             total_count,
         )

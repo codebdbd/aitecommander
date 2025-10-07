@@ -1,4 +1,4 @@
-"""CLI инструменты для работы с базой данных."""
+"""CLI tools for database operations."""
 from .db_cli import main
 
 __all__ = ["main"]

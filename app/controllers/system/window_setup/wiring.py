@@ -1,5 +1,5 @@
 """
-Подключение сигналов и обработчики событий.
+Signal connections and event handlers.
 """
 
 import logging
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 def _on_structure_changed_schedule_refresh(
     top_ctrl: TopPanelsController, *_args: Any
 ) -> None:
-    """Поставить отложенное обновление топ-панелей при структурном событии."""
+    """Schedule deferred update of top panels on structural event."""
     try:
         top_ctrl.schedule_structure_refresh()
     except (AttributeError, TypeError) as e:
@@ -43,7 +43,7 @@ def _connect_top_panels_signals_explicit(
     auto_hide_tree_filter: Any | None = None,
     topbar_manager: Any | None = None,
 ) -> None:
-    """Подключить сигналы верхних панелей с явной передачей зависимостей."""
+    """Connect top panel signals with explicit dependency passing."""
     _connect_quick_add_widget(quick_add_widget, links_actions)
     _connect_favorites_widget(fav_widget, top_panels_controller, links_actions)
     _connect_recent_widget(recent_links_widget, top_panels_controller, links_actions)
@@ -51,7 +51,7 @@ def _connect_top_panels_signals_explicit(
 
 
 def _connect_quick_add_widget(quick_add_widget: Any | None, links_actions: Any) -> None:
-    """Подключить QuickAddWidget."""
+    """Connect QuickAddWidget."""
     if quick_add_widget is not None:
         try:
             quick_add_widget.actionRequested.connect(links_actions.on_action_requested)
@@ -62,7 +62,7 @@ def _connect_quick_add_widget(quick_add_widget: Any | None, links_actions: Any) 
 def _connect_favorites_widget(
     fav_widget: Any, top_panels_controller: TopPanelsController, links_actions: Any
 ) -> None:
-    """Подключить виджет избранного."""
+    """Connect favorites widget."""
     if not fav_widget:
         raise SetupError("Favorites widget is required for wiring")
     if not top_panels_controller:
@@ -93,7 +93,7 @@ def _connect_favorites_widget(
 def _connect_recent_widget(
     recent_links_widget: Any, top_panels_controller: TopPanelsController, links_actions: Any
 ) -> None:
-    """Подключить виджет недавних ссылок."""
+    """Connect recent links widget."""
     if not recent_links_widget:
         raise SetupError("Recent links widget is required for wiring")
     if not top_panels_controller:
@@ -117,7 +117,7 @@ def _connect_recent_widget(
 
 
 def _connect_widget_action_signal(widget: Any, links_actions: Any, widget_name: str) -> None:
-    """Подключить actionRequested сигнал виджета к links_actions."""
+    """Connect widget's actionRequested signal to links_actions."""
     try:
         if hasattr(widget, "actionRequested"):
             action_signal = widget.actionRequested
@@ -136,7 +136,7 @@ def _connect_widget_action_signal(widget: Any, links_actions: Any, widget_name: 
 
 
 def _setup_ui_adjustments(auto_hide_tree_filter: Any | None, topbar_manager: Any | None) -> None:
-    """Настроить дополнительные UI корректировки."""
+    """Set up additional UI adjustments."""
     if auto_hide_tree_filter is not None:
         if not hasattr(auto_hide_tree_filter, "_apply") or not callable(
             auto_hide_tree_filter._apply
@@ -155,7 +155,7 @@ def setup_signal_connections(
     *,
     top_panels_controller: TopPanelsController,
 ) -> None:
-    """Подключить сигналы контроллеров и UI."""
+    """Connect controller and UI signals."""
     if not top_panels_controller:
         raise SetupError(
             "TopPanelsController must be provided to setup_signal_connections"
@@ -171,7 +171,7 @@ def setup_signal_connections(
     _connect_database_signals(window)
     QTimer.singleShot(0, partial(_connect_ui_signals, window))
     
-    # Refresh вызывается в window_ui_setup._finalize_topbar_startup(), убран дубль
+    # Refresh is called in window_ui_setup._finalize_topbar_startup(), duplicate removed
 
 
 def _connect_structure_signals(
@@ -182,7 +182,7 @@ def _connect_structure_signals(
     structure: StructureUIController,
     spheres_controller: SpheresBarController,
 ) -> None:
-    """Подключить сигналы структуры."""
+    """Connect structure signals."""
     if (
         hasattr(window, "_structure_signals_connected")
         and window._structure_signals_connected
@@ -278,7 +278,7 @@ def _connect_structure_signals(
 
 
 def _connect_database_signals(window: Any) -> None:
-    """Подключить сигналы базы данных."""
+    """Connect database signals."""
     if (
         hasattr(window, "_database_signals_connected")
         and window._database_signals_connected
@@ -313,7 +313,7 @@ def _connect_database_signals(window: Any) -> None:
 
 
 def _connect_ui_signals(window: Any) -> None:
-    """Подключить сигналы UI."""
+    """Connect UI signals."""
     if hasattr(window, "_ui_signals_connected") and window._ui_signals_connected:
         return
     if hasattr(window, "tree") and window.tree:
@@ -372,12 +372,12 @@ def _connect_ui_signals(window: Any) -> None:
 
 
 class DatabaseEventHandler:
-    """Обработчик событий базы данных."""
+    """Database event handler."""
 
     @staticmethod
     @pyqtSlot(object)
     def handle_database_restored(window: Any, new_db: Any):
-        """Обработать восстановление базы данных."""
+        """Handle database restoration."""
         window.db = new_db
         links_actions = getattr(window, "links_actions", None)
         DatabaseEventHandler._update_controllers_with_new_db(
@@ -389,7 +389,7 @@ class DatabaseEventHandler:
     @staticmethod
     @pyqtSlot(object)
     def handle_database_connected(window: Any, new_db: Any):
-        """Обработать подключение новой базы данных."""
+        """Handle new database connection."""
         window.db = new_db
         links_actions = getattr(window, "links_actions", None)
         DatabaseEventHandler._update_controllers_with_new_db(
@@ -405,7 +405,7 @@ class DatabaseEventHandler:
         top_panels_controller: TopPanelsController,
         links_table_controller: LinksTableController,
     ):
-        """Обработать очистку избранного."""
+        """Handle favorites clearing."""
         if not top_panels_controller:
             raise SetupError("TopPanelsController is required to clear favorites")
         if not links_table_controller:
@@ -424,7 +424,7 @@ class DatabaseEventHandler:
     def _update_controllers_with_new_db(
         window: WindowProtocol, new_db: DatabaseProtocol, *, links_actions: Any = None
     ):
-        """Обновить все контроллеры новой БД."""
+        """Update all controllers with new DB."""
         DatabaseEventHandler._update_structure_controllers(window, new_db)
         DatabaseEventHandler._update_links_controllers(window, new_db, links_actions)
         DatabaseEventHandler._update_business_logic(window, new_db)
@@ -432,7 +432,7 @@ class DatabaseEventHandler:
 
     @staticmethod
     def _update_structure_controllers(window: WindowProtocol, new_db: DatabaseProtocol):
-        """Обновить контроллеры структуры новой БД."""
+        """Update structure controllers with new DB."""
         if hasattr(window, "structure"):
             window.structure.db = new_db
             window.structure.spheres = new_db.spheres
@@ -441,7 +441,7 @@ class DatabaseEventHandler:
 
     @staticmethod
     def _update_links_controllers(window: WindowProtocol, new_db: DatabaseProtocol, links_actions: Any):
-        """Обновить контроллеры ссылок новой БД."""
+        """Update link controllers with new DB."""
         if links_actions is None:
             raise SetupError("links_actions is required when switching database")
 
@@ -491,7 +491,7 @@ class DatabaseEventHandler:
 
     @staticmethod
     def _update_business_logic(window: WindowProtocol, new_db: DatabaseProtocol):
-        """Обновить бизнес-логику новой БД."""
+        """Update business logic with new DB."""
         if hasattr(window, "structure_business"):
             sb = window.structure_business
             sb.db = new_db
@@ -570,7 +570,7 @@ class DatabaseEventHandler:
 
     @staticmethod
     def _trigger_reload_if_needed(window: WindowProtocol):
-        """Запустить перезагрузку данных если необходимо."""
+        """Trigger data reload if necessary."""
         if hasattr(window, "structure_business"):
             sb = window.structure_business
             try:
@@ -596,7 +596,7 @@ class DatabaseEventHandler:
 
     @staticmethod
     def _restore_ui_state(window: Any):
-        """Восстановить состояние UI после смены БД."""
+        """Restore UI state after DB switch."""
         category_id = window.get_current_category_id()
         if category_id:
             if (
@@ -632,28 +632,28 @@ class DatabaseEventHandler:
 
 
 class MessageHandler:
-    """Обработчик сообщений пользователю."""
+    """User message handler."""
 
     @staticmethod
     def show_success_message(window: Any, title: str, message: str):
-        """Показать сообщение об успехе."""
+        """Show success message."""
         from app.controllers.ui.dialogs import DialogManager
 
         DialogManager.show_info(
             window,
             title,
             message,
-            informative_text="Операция выполнена успешно.",
+            informative_text="Operation completed successfully.",
         )
 
     @staticmethod
     def show_error_message(window: Any, title: str, message: str):
-        """Показать сообщение об ошибке."""
+        """Show error message."""
         from app.controllers.ui.dialogs import DialogManager
 
         DialogManager.show_error(
             window,
             title,
             message,
-            informative_text="Попробуйте повторить действие или обратитесь в поддержку.",
+            informative_text="Try repeating the action or contact support.",
         )

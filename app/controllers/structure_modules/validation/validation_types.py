@@ -1,6 +1,6 @@
 # app/controllers/structure_modules/validation_types.py
 
-"""Базовые типы и исключения для системы валидации."""
+"""Basic types and exceptions for validation system."""
 
 from typing import Any, List, Optional
 from dataclasses import dataclass
@@ -10,7 +10,7 @@ from .validation_result import ValidationResult
 
 
 class ValidationError(Exception):
-    """Исключение для ошибок валидации."""
+    """Exception for validation errors."""
 
     def __init__(self, message: str, field: Optional[str] = None, value: Any = None):
         super().__init__(message)
@@ -20,7 +20,7 @@ class ValidationError(Exception):
 
 
 class ValidationSeverity(Enum):
-    """Уровни серьезности ошибок валидации."""
+    """Validation error severity levels."""
     ERROR = "error"
     WARNING = "warning"
     INFO = "info"
@@ -28,7 +28,7 @@ class ValidationSeverity(Enum):
 
 @dataclass
 class ValidationIssue:
-    """Отдельная проблема валидации."""
+    """Individual validation issue."""
     field: str
     message: str
     severity: ValidationSeverity
@@ -38,22 +38,22 @@ class ValidationIssue:
 
 @dataclass
 class DetailedValidationResult:
-    """Детальный результат валидации."""
+    """Detailed validation result."""
     is_valid: bool
     issues: List[ValidationIssue]
 
     @property
     def errors(self) -> List[ValidationIssue]:
-        """Только ошибки."""
+        """Errors only."""
         return [issue for issue in self.issues if issue.severity == ValidationSeverity.ERROR]
 
     @property
     def warnings(self) -> List[ValidationIssue]:
-        """Только предупреждения."""
+        """Warnings only."""
         return [issue for issue in self.issues if issue.severity == ValidationSeverity.WARNING]
 
     def to_simple_result(self) -> ValidationResult:
-        """Преобразует в простой ValidationResult для обратной совместимости."""
+        """Converts to simple ValidationResult for backward compatibility."""
         return ValidationResult(
             is_valid=self.is_valid,
             errors=[issue.message for issue in self.errors],

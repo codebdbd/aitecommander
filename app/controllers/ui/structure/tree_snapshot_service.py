@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class TreeSnapshotService(QObject):
-    """Асинхронное применение снапшотов модели дерева структуры."""
+    """Asynchronous application of structure tree model snapshots."""
 
     def __init__(self, *, manager, model) -> None:
         parent = manager if isinstance(manager, QObject) else None
@@ -30,8 +30,8 @@ class TreeSnapshotService(QObject):
         on_success: Optional[Callable[[], None]] = None,
         on_error: Optional[Callable[[], None]] = None,
     ) -> None:
-        """Отложить применение снапшота до следующего цикла событий Qt."""
-        # Создаём копию, чтобы изменения исходного списка не повлияли на применение
+        """Defer snapshot application until the next Qt event loop cycle."""
+        # Create a copy so changes to the original list won't affect application
         self._pending = list(snapshot or [])
         self._on_success = on_success
         self._on_error = on_error
@@ -42,7 +42,7 @@ class TreeSnapshotService(QObject):
         snapshot = self._pending or []
         on_success = self._on_success
         on_error = self._on_error
-        # Сбрасываем ссылки перед выполнением, чтобы избежать повторных вызовов
+        # Reset references before execution to avoid repeated calls
         self._pending = None
         self._on_success = None
         self._on_error = None
@@ -50,7 +50,7 @@ class TreeSnapshotService(QObject):
             self._model.set_snapshot(snapshot)
         except Exception:
             logger.exception(
-                "TreeSnapshotService: модель не смогла принять снапшот",
+                "TreeSnapshotService: model failed to accept snapshot",
             )
             if on_error:
                 try:

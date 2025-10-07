@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class SaveSectionCmd(BaseCommand):
-    """Сохранение (создание/редактирование) раздела.
-    Тонкая обёртка над DB с эмиссией сигналов business-слоя для UI.
+    """Save (create/edit) section.
+    Thin wrapper over DB with business-layer signal emission for UI.
     """
 
     def __init__(self, new_data: Dict, old_data: Optional[Dict], main_window):
@@ -35,7 +35,7 @@ class SaveSectionCmd(BaseCommand):
                     business.item_added.emit("section", self.new_id, self.new_data)
                 else:
                     business.item_updated.emit("section", self.new_id, self.new_data)
-                # Полная перезагрузка больше не требуется — модель обновится через сигналы
+                # Full reload is no longer required — model will update via signals
         except Exception as exc:
             logger.warning(
                 "SaveSectionCmd._emit_reload: failed to emit update signals: %s",
@@ -45,7 +45,7 @@ class SaveSectionCmd(BaseCommand):
 
     @log_command
     def redo(self):
-        # Глобальная защита от удалений на время чувствительных операций (например, вставки)
+        # Global delete guard during sensitive operations (e.g., insert)
         try:
             if getattr(self.main, "_suppress_deletes", False):
                 logger.debug(
@@ -60,12 +60,12 @@ class SaveSectionCmd(BaseCommand):
                 self.new_id = result
                 self.new_data["id"] = result
         else:
-            # update возвращает bool; ID уже известен
+            # update returns bool; ID is already known
             self.structure_service.update_section(
                 self.new_data.get("id"), self.new_data
             )
             self.new_id = self.new_data.get("id")
-        # Наводим фокус на раздел через бизнес-логику
+        # Set focus to section via business logic
         try:
             business = getattr(self.main, "structure_business", None)
             if business:
@@ -77,7 +77,7 @@ class SaveSectionCmd(BaseCommand):
     @log_command
     def undo(self):
         if self.is_new:
-            # отменяем создание – удаляем раздел
+            # Cancel creation — delete section
             try:
                 self.structure_service.delete_section(self.new_id)
             finally:
@@ -85,13 +85,13 @@ class SaveSectionCmd(BaseCommand):
                     business = getattr(self.main, "structure_business", None)
                     if business:
                         business.item_deleted.emit("section", self.new_id)
-                        # Инкрементальное обновление — без полной перезагрузки
+                        # Incremental update — without full reload
                 except Exception as exc:
                     logger.warning(
                         "SaveSectionCmd.undo: item_deleted emit failed: %s", exc
                     )
         else:
-            # откат редактирования – восстанавливаем старые данные
+            # Rollback edit — restore previous data
             if self.old_data:
                 self.structure_service.update_section(
                     self.old_data["id"], self.old_data
@@ -110,7 +110,7 @@ class SaveSectionCmd(BaseCommand):
                         business.item_updated.emit(
                             "section", self.old_data["id"], self.old_data
                         )
-                        # Инкрементальное обновление — без полной перезагрузки
+                        # Incremental update — without full reload
                 except Exception as exc:
                     logger.warning(
                         "SaveSectionCmd.undo: item_updated emit failed: %s", exc
@@ -118,7 +118,7 @@ class SaveSectionCmd(BaseCommand):
 
 
 class DeleteSectionCmd(BaseCommand):
-    """Удаление раздела с поддержкой полноценного восстановления (раздел+категории+ссылки)."""
+    """Delete section with full restore support (section+categories+links)."""
 
     def __init__(self, section_data: Dict, main_window):
         super().__init__("Delete section", main_window)
@@ -127,7 +127,7 @@ class DeleteSectionCmd(BaseCommand):
         self.db = getattr(dc, "db", None)
         self.structure_service = StructureService(self.db)
         self.section = dict(section_data) if section_data else {}
-        # Бэкап полного дерева раздела
+        # Backup full section tree
         self._backup_tree = self.structure_service.export_section_tree(
             self.section.get("id")
         )
@@ -141,7 +141,7 @@ class DeleteSectionCmd(BaseCommand):
             business = getattr(self.main, "structure_business", None)
             if business:
                 business.item_deleted.emit("section", section_id)
-                # Инкрементальное обновление — без полной перезагрузки
+                # Incremental update — without full reload
         except Exception as exc:
             logger.debug(
                 "DeleteSectionCmd.redo: item_deleted emit failed: %s",
@@ -153,7 +153,7 @@ class DeleteSectionCmd(BaseCommand):
         try:
             self.structure_service.import_section_tree(self._backup_tree)
             section_id = self._backup_tree["section"]["id"]
-            # Если есть восстановленные категории — выберем первую
+            # If restored categories exist — select the first one
             try:
                 categories = self._backup_tree.get("categories") or []
                 first_cat = None
@@ -190,21 +190,21 @@ class DeleteSectionCmd(BaseCommand):
                     business.item_added.emit(
                         "section", section_id, self._backup_tree["section"]
                     )
-                    # Инкрементальное обновление — без полной перезагрузки
+                    # Incremental update — without full reload
             except Exception as exc:
                 logger.debug(
                     "DeleteSectionCmd.undo: item_added emit failed: %s",
                     exc,
                     exc_info=True,
                 )
-            # Полной перезагрузки структуры не требуется: выше отправлены необходимые сигналы
+            # Full structure reload not required: necessary signals were emitted above
         except Exception as exc:
-            # В случае сбоя восстановления — оставляем как есть, без исключений в UI
+            # On restore failure — leave as is without raising in UI
             logger.exception("DeleteSectionCmd.undo: restore failed: %s", exc)
 
 
 class SaveCategoryCmd(BaseCommand):
-    """Сохранение (создание/редактирование) категории."""
+    """Save (create/edit) category."""
 
     def __init__(
         self,
@@ -231,7 +231,7 @@ class SaveCategoryCmd(BaseCommand):
         try:
             business = getattr(self.main, "structure_business", None)
             if business:
-                # Иконки категорий могли измениться — очищаем кэш, чтобы плитки перерисовали актуальные
+                # Category icons might have changed — clear cache so tiles redraw actual icons
                 try:
                     clear_icon_cache()
                 except Exception as exc:
@@ -239,12 +239,12 @@ class SaveCategoryCmd(BaseCommand):
                         "SaveCategoryCmd._emit_reload: clear_icon_cache failed: %s", exc
                     )
                 if self.is_new:
-                    # Для категорий второй аргумент — parent_id (section_id)
+                    # For categories, second argument is parent_id (section_id)
                     parent_id = self.new_data.get("section_id")
                     business.item_added.emit("category", parent_id, self.new_data)
                 else:
                     business.item_updated.emit("category", self.new_id, self.new_data)
-                # Полная перезагрузка больше не требуется — модель обновится через сигналы
+                # Full reload is no longer required — model will update via signals
         except Exception as exc:
             logger.warning("SaveCategoryCmd._emit_reload: emit failed: %s", exc)
 
@@ -256,14 +256,14 @@ class SaveCategoryCmd(BaseCommand):
                 self.new_id = result
                 self.new_data["id"] = result
         else:
-            # Диалог может вернуть неполный payload. Для корректного апдейта
-            # гарантируем наличие обязательных полей.
+            # Dialog may return a partial payload. For correct update
+            # ensure presence of required fields.
             try:
                 if self.old_data:
                     for k in ("id", "section_id", "position", "icon_path"):
                         if k not in self.new_data and k in self.old_data:
                             self.new_data[k] = self.old_data[k]
-                    # Подставим name, если диалог его не вернул вовсе
+                    # Fill in name if dialog didn't return it
                     if "name" not in self.new_data and "name" in self.old_data:
                         self.new_data["name"] = self.old_data["name"]
             except Exception as exc:
@@ -302,7 +302,7 @@ class SaveCategoryCmd(BaseCommand):
                 business = getattr(self.main, "structure_business", None)
                 if business:
                     business.item_deleted.emit("category", self.new_id)
-                    # Инкрементальное обновление — без полной перезагрузки
+                    # Incremental update — without full reload
             except Exception as exc:
                 logger.warning(
                     "SaveCategoryCmd.undo: item_deleted emit failed: %s", exc
@@ -327,7 +327,7 @@ class SaveCategoryCmd(BaseCommand):
                         business.item_updated.emit(
                             "category", self.old_data["id"], self.old_data
                         )
-                        # Инкрементальное обновление — без полной перезагрузки
+                        # Incremental update — without full reload
                 except Exception as exc:
                     logger.warning(
                         "SaveCategoryCmd.undo: item_updated emit failed: %s", exc
@@ -335,7 +335,7 @@ class SaveCategoryCmd(BaseCommand):
 
 
 class DeleteCategoryCmd(BaseCommand):
-    """Удаление категории с восстановлением поддерева (категория+ссылки)."""
+    """Delete category with subtree restore (category+links)."""
 
     def __init__(
         self,
@@ -353,14 +353,14 @@ class DeleteCategoryCmd(BaseCommand):
         self.category = dict(category_data) if category_data else {}
         self.skip_reload = bool(skip_reload)
         self.lightweight_reload = bool(lightweight_reload)
-        # Бэкап поддерева категории
+        # Backup of category subtree
         self._backup_tree = self.structure_service.export_category_tree(
             self.category.get("id")
         )
 
     @log_command
     def redo(self):
-        # Глобальная защита от удалений на время чувствительных операций (например, вставки)
+        # Global delete guard during sensitive operations (e.g., insert)
         try:
             if getattr(self.main, "_suppress_deletes", False):
                 logger.debug(
@@ -381,10 +381,10 @@ class DeleteCategoryCmd(BaseCommand):
         business = getattr(self.main, "structure_business", None)
 
         if self.skip_reload:
-            # Минимальные события без тяжёлых перезагрузок
+            # Minimal events without heavy reloads
             try:
                 if business:
-                    # Точечно уведомляем UI о удалении
+                    # Notify UI about deletion (point update)
                     business.item_deleted.emit("category", category_id)
             except Exception as exc:
                 logger.warning(
@@ -394,8 +394,8 @@ class DeleteCategoryCmd(BaseCommand):
             return
 
         if self.lightweight_reload:
-            # Облегчённый режим: точечные обновления без полной перезагрузки структуры
-            # Фокус на раздел без полной перезагрузки дерева
+            # Lightweight mode: point updates without full structure reload
+            # Focus section without reloading the whole tree
             try:
                 if business:
                     business.section_selected.emit(section_id)
@@ -414,7 +414,7 @@ class DeleteCategoryCmd(BaseCommand):
                             exc,
                         )
                     business.section_selected.emit(section_id)
-                    # В lightweight-режиме не вызываем clear_icon_cache() и load_structure()
+                    # In lightweight mode do not call clear_icon_cache() or load_structure()
                     business.item_deleted.emit("category", category_id)
             except Exception as exc:
                 logger.warning(
@@ -422,13 +422,13 @@ class DeleteCategoryCmd(BaseCommand):
                 )
             return
 
-        # Обычный одиночный сценарий: корректно обновляем UI и данные
+        # Regular single scenario: properly update UI and data
         try:
             if business:
-                # Критично: инвалидируем кэш категорий раздела, иначе select_section
-                # может взять устаревшие данные из categories_{section_id}
+                # Critical: invalidate section categories cache, otherwise select_section
+                # may take stale data from categories_{section_id}
                 try:
-                    # внутренний метод, но безопасен для вызова из команды
+                    # internal method, safe to call from command
                     business._invalidate_categories_cache(section_id)
                 except Exception as exc:
                     logger.debug(
@@ -439,7 +439,7 @@ class DeleteCategoryCmd(BaseCommand):
             logger.warning("DeleteCategoryCmd.redo: select_section failed: %s", exc)
         try:
             if business:
-                # При удалении также сбрасываем кэш иконок категорий
+                # On deletion also clear category icons cache
                 try:
                     clear_icon_cache()
                 except Exception as exc:
@@ -447,7 +447,7 @@ class DeleteCategoryCmd(BaseCommand):
                         "DeleteCategoryCmd.redo: clear_icon_cache failed: %s", exc
                     )
                 business.item_deleted.emit("category", category_id)
-                # Инкрементальное обновление — без полной перезагрузки
+                # Incremental update — without full reload
         except Exception as exc:
             logger.warning("DeleteCategoryCmd.redo: item_deleted emit failed: %s", exc)
 
@@ -456,7 +456,7 @@ class DeleteCategoryCmd(BaseCommand):
         try:
             self.structure_service.import_category_tree(self._backup_tree)
             category_id = self.category.get("id")
-            # После восстановления выбираем категорию через бизнес-логику (UI обновится через подписчиков)
+            # After restore select category via business logic (UI updates via subscribers)
             try:
                 business = getattr(self.main, "structure_business", None)
                 if business:
@@ -466,12 +466,12 @@ class DeleteCategoryCmd(BaseCommand):
             try:
                 business = getattr(self.main, "structure_business", None)
                 if business:
-                    # После восстановления сбрасываем кэш, чтобы обновились иконки восстановленной категории
+                    # After restore clear cache to update restored category icons
                     try:
                         clear_icon_cache()
                     except Exception:
                         pass
-                    # Проставим флаг '__from_undo__' в данные, чтобы UI не переключал фокус
+                    # Set '__from_undo__' flag in payload so UI doesn't switch focus
                     cat_payload = dict(self._backup_tree.get("category") or {})
                     try:
                         cat_payload["__from_undo__"] = True
@@ -482,21 +482,21 @@ class DeleteCategoryCmd(BaseCommand):
                         self.category.get("section_id"),
                         cat_payload,
                     )
-                    # Инкрементальное обновление — без полной перезагрузки
+                    # Incremental update — without full reload
             except Exception:
                 pass
-            # Полной перезагрузки структуры не требуется: выше отправлены точечные сигналы и выполнены выборы
+            # Full structure reload not required: point signals and selections done above
         except Exception as exc:
-            # В случае сбоя восстановления — оставляем как есть
+            # On restore failure — leave as is
             logger.exception("DeleteCategoryCmd.undo: restore failed: %s", exc)
 
 
 class DeleteCategoriesBatchCmd(BaseCommand):
-    """Пакетное удаление нескольких категорий одной операцией.
+    """Batch delete multiple categories in one operation.
 
-    - Удаляет категории по списку ID через сервис одной транзакцией без промежуточных перезагрузок UI
-    - Не эмитит per-item события удаления; выполняет одну финальную перезагрузку UI/плиток
-    - Поддерживает undo через восстановление сохранённых бэкапов поддеревьев
+    - Deletes categories by list of IDs via service in one transaction without intermediate UI reloads
+    - Does not emit per-item deletion events; performs a single final UI/tiles refresh
+    - Supports undo by restoring saved subtree backups
     """
 
     def __init__(self, categories_data: list[Dict], main_window):
@@ -505,7 +505,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
         self.structure_service = StructureService(self.db)
-        # Сохраним плоский список данных категорий и их бэкапы для undo
+        # Save flat list of category data and their backups for undo
         self.categories = [dict(c) for c in (categories_data or [])]
         self._backups = []
         for cat in self.categories:
@@ -520,7 +520,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
 
     @log_command
     def redo(self):
-        # Глобальная защита от удалений на время чувствительных операций (например, вставки)
+        # Global delete guard during sensitive operations (e.g., insert)
         try:
             if getattr(self.main, "_suppress_deletes", False):
                 logger.debug(
@@ -531,7 +531,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
             pass
         business = getattr(self.main, "structure_business", None)
         section_id_for_focus = None
-        # Подавляем всплеск сигналов выбора на время пакетной операции
+        # Suppress selection signal storm during batch operation
         tree = None
         selection = None
         try:
@@ -566,9 +566,9 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                 "DeleteCategoriesBatchCmd.redo: suppress selection failed: %s", exc
             )
         try:
-            # 1) Удаляем все категории одной операцией БЕЗ per-item сигналов
+            # 1) Delete all categories in one operation WITHOUT per-item signals
             ids = [c.get("id") for c in self.categories if c.get("id") is not None]
-            # Сохраним section_id для финального фокуса (берём последний валидный)
+            # Save section_id for final focus (take last valid)
             for cat in self.categories:
                 sid = cat.get("section_id")
                 if sid is not None:
@@ -581,7 +581,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                     len(ids),
                 )
             except Exception:
-                # Если bulk не удался, пробуем поштучно как fallback
+                # If bulk failed, try per-item as fallback
                 for cid in ids:
                     try:
                         self.structure_service.delete_category(cid)
@@ -596,10 +596,10 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                     hex(id(self)),
                     len(ids),
                 )
-            # ВАЖНО: не эмитим per-item item_deleted, чтобы redo был пакетным, как undo
+            # IMPORTANT: do not emit per-item item_deleted, keep redo batch-like as undo
         finally:
-            # 2) Одна финальная перезагрузка/фокус
-            # ВАЖНО: перед финальными обновлениями возвращаем сигналы/обработку
+            # 2) Single final reload/focus
+            # IMPORTANT: before final updates restore signals/handling
             try:
                 if tree is not None:
                     tree.blockSignals(False)
@@ -618,7 +618,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                     exc,
                     exc_info=True,
                 )
-        # Убираем ранний вызов select_section: фокус устанавливается ниже, после очистки кэша
+        # Remove early select_section: focus will be set below after cache clear
         try:
             if business:
                 try:
@@ -637,7 +637,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                             exc,
                         )
                     business.select_section(section_id_for_focus)
-                # Единый батч-сигнал вместо per-item и вместо ручной глобальной перезагрузки
+                # Single batch signal instead of per-item and instead of manual global reload
                 try:
                     ids_payload = [
                         c.get("id") for c in self.categories if c.get("id") is not None
@@ -666,12 +666,12 @@ class DeleteCategoriesBatchCmd(BaseCommand):
 
     @log_command
     def undo(self):
-        # Восстанавливаем категории из бэкапов одним bulk-вызовом (одна транзакция),
-        # без тяжёлых перезагрузок/сигналов на каждом элементе
+        # Restore categories from backups with single bulk call (one transaction),
+        # without heavy reloads/signals per item
         business = getattr(self.main, "structure_business", None)
         section_id_for_focus = None
         category_id_for_focus = None
-        # Подавляем сигналы выбора на время восстановления
+        # Suppress selection signals during restore
         tree = None
         selection = None
         try:
@@ -708,7 +708,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                 exc_info=True,
             )
         try:
-            # 1) Импорт всех деревьев в одной транзакции
+            # 1) Import all trees in one transaction
             try:
                 self.structure_service.import_category_trees_bulk(self._backups)
                 logger.debug(
@@ -717,50 +717,44 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                     len(self._backups),
                 )
             except Exception as exc:
-                # Если bulk не удался, частично ничего не делаем (UI продолжит жить)
+                # If bulk import failed, partially do nothing (UI will keep working)
                 logger.warning(
                     "DeleteCategoriesBatchCmd.undo: import bulk failed: %s", exc
                 )
-            # 2) Определим раздел для финального фокуса (берём из первого валидного бэкапа)
+            # 2) Determine section for final focus (take from first valid backup)
             for backup in self._backups:
                 if backup and backup.get("category"):
                     section_id_for_focus = backup["category"].get("section_id")
-                    category_id_for_focus = backup["category"].get("id")
                     if section_id_for_focus is not None:
                         break
         finally:
-            # Одна финальная перезагрузка/фокус и очистка кэша
-            # Перед финальными действиями возвращаем сигналы и обработку
+            # Single final reload/focus and cache clear
+            # Before final actions restore signals and handling
             try:
                 if tree is not None:
                     tree.blockSignals(False)
             except Exception:
                 pass
-            try:
-                if selection is not None:
-                    selection.end_suppress_selection()
-            except Exception:
-                pass
         try:
-            # Иконки могли измениться — очищаем кэш один раз
+            # Icons might have changed — clear cache once
             clear_icon_cache()
         except Exception:
             pass
 
         try:
-            # Фокусируем раздел без полной перезагрузки дерева
+            # Focus section without full tree reload
             if section_id_for_focus is not None and business:
                 business.section_selected.emit(section_id_for_focus)
         except Exception as exc:
             logger.debug(
-                "DeleteCategoriesBatchCmd.undo: section_selected emit failed: %s",
+                "DeleteCategoriesBatchCmd.undo: select_section failed: %s",
                 exc,
                 exc_info=True,
             )
 
         try:
             if business:
-                # По аналогии с redo: инвалидация кэша категорий выбранного раздела
+                # By analogy with redo: invalidate cache of categories of selected section
                 if section_id_for_focus is not None:
                     try:
                         business._invalidate_categories_cache(section_id_for_focus)
@@ -771,7 +765,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                             exc_info=True,
                         )
                     business.section_selected.emit(section_id_for_focus)
-                # ВАЖНО: также выберем одну из восстановленных категорий, чтобы таблица ссылок обновилась сразу
+                # IMPORTANT: also select one of restored categories so links table updates immediately
                 try:
                     if category_id_for_focus is not None:
                         business.select_category(category_id_for_focus)
@@ -781,7 +775,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                         exc,
                         exc_info=True,
                     )
-                # Инкрементальное обновление — без полной перезагрузки
+                # Incremental update — without full reload
         except Exception as exc:
             logger.debug(
                 "DeleteCategoriesBatchCmd.undo: final updates failed: %s",
@@ -789,18 +783,20 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                 exc_info=True,
             )
 
-        # ВАЖНО: дерево должно получить событие полной перезагрузки
+        # IMPORTANT: tree should receive a full reload event
         try:
             if business:
                 try:
-                    business._invalidate_structure_cache()
+                    business.items_batch_deleted.emit("category", [
+                        c.get("id") for c in self.categories if c.get("id") is not None
+                    ])
                 except Exception as exc:
                     logger.debug(
-                        "DeleteCategoriesBatchCmd.undo: invalidate structure cache failed: %s",
+                        "DeleteCategoriesBatchCmd.undo: items_batch_deleted emit failed: %s",
                         exc,
                         exc_info=True,
                     )
-                # Немедленная перезагрузка структуры сферы -> придёт structure_loaded
+                # Non-incremental reload of the structure of the sphere -> structure_loaded
                 business._schedule_structure_reload(0)
                 logger.debug(
                     "[BatchUndo:reload] cmd_id=%s section_focus=%s category_focus=%s",

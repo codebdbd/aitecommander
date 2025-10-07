@@ -18,11 +18,11 @@ from app.utils.ui.qt.roles import get_tree_tuple
 logger = logging.getLogger(__name__)
 
 # =====================
-# Встроенные обработчики
+# Built-in handlers
 # =====================
 T = TypeVar("T")
 
-# Константы для идентификации виджетов по классам/именам
+# Constants for identifying widgets by classes/names
 WIDGET_CLASSES = {
     "STRUCTURE_TREE": "StructureTreeView",
     "LINKS_TABLE": "LinksTableView",
@@ -33,9 +33,9 @@ WIDGET_OBJECT_NAMES = {"CATEGORY_TILES": "tiles"}
 
 
 class MainWindowProtocol(Protocol):
-    """Протокол для главного окна с необходимыми атрибутами.
+    """Protocol for main window with required attributes.
     
-    ✅ ИСПРАВЛЕНИЕ: Добавлен протокол для строгой типизации.
+    ✅ FIX: Added protocol for strict typing.
     """
     structure: Any  # StructureUIController
     table: Any  # LinksTableView
@@ -44,16 +44,16 @@ class MainWindowProtocol(Protocol):
 
 
 class BaseKeyHandler:
-    """Базовый класс для обработчиков клавиш.
+    """Base class for key handlers.
     
-    ✅ ИСПРАВЛЕНИЕ: Добавлена типизация через Protocol.
+    ✅ FIX: Added typing via Protocol.
     """
 
     def __init__(self, main_window: MainWindowProtocol) -> None:
-        """Инициализирует обработчик клавиш.
+        """Initializes key handler.
         
         Args:
-            main_window: Главное окно приложения
+            main_window: Main application window
         """
         self.main_window = main_window
 
@@ -98,15 +98,15 @@ class BaseKeyHandler:
 
 
 class ClipboardKeyHandler(BaseKeyHandler):
-    """Обработчик клавиш буфера обмена."""
+    """Clipboard key handler."""
 
     def handle_select_all(self) -> None:
-        """Обрабатывает Ctrl+A в зависимости от контекста.
+        """Handles Ctrl+A depending on context.
         
-        ✅ ИСПРАВЛЕНИЕ: Добавлена документация.
+        ✅ FIX: Added documentation.
         
-        - Дерево: выделяет все категории текущего раздела
-        - Таблица: выделяет все строки
+        - Tree: selects all categories of current section
+        - Table: selects all rows
         """
         focused_widget = QApplication.focusWidget()
         if self._is_tree_focused(focused_widget):
@@ -114,7 +114,7 @@ class ClipboardKeyHandler(BaseKeyHandler):
             return
         table = self._safe_getattr(self.main_window, "table")
         if table:
-            # Эксклюзивность: при выделении в таблице снимаем выделение в дереве
+            # Exclusivity: when selecting in table, clear selection in tree
             try:
                 structure = self._safe_getattr(self.main_window, "structure")
                 tree = self._safe_getattr(structure, "tree") if structure else None
@@ -128,14 +128,13 @@ class ClipboardKeyHandler(BaseKeyHandler):
             self._safe_call(table, "selectAll")
 
     def _handle_tree_select_all(self) -> None:
-        """Выделяет все категории текущего раздела в дереве структуры."""
-        structure = self._safe_getattr(self.main_window, "structure")
+        """Selects all categories of current section in structure tree."""
         if not structure:
             return
         tree = self._safe_getattr(structure, "tree")
         if not tree:
             return
-        # Эксклюзивность: при выделении в дереве снимаем выделение в таблице
+            # Exclusivity: when selecting in tree, clear selection in table
         try:
             table = self._safe_getattr(self.main_window, "table")
             if table and hasattr(table, "clearSelection"):
@@ -145,7 +144,7 @@ class ClipboardKeyHandler(BaseKeyHandler):
                 "ClipboardKeyHandler._handle_tree_select_all: failed to clear table selection",
                 exc_info=e,
             )
-        # QTreeView: используем модель и selectionModel
+        # QTreeView: use model and selectionModel
         try:
             if hasattr(tree, "currentIndex") and callable(
                 tree.currentIndex
@@ -167,7 +166,7 @@ class ClipboardKeyHandler(BaseKeyHandler):
                 rows = model.rowCount(parent_idx)
                 if rows <= 0:
                     return
-                # Очистить текущее выделение и выделить все строки-раздела (категории)
+                # Clear current selection and select all section rows (categories)
                 try:
                     sel_model = tree.selectionModel()
                     if sel_model:
@@ -193,9 +192,9 @@ class ClipboardKeyHandler(BaseKeyHandler):
             )
 
     def handle_copy(self) -> None:
-        """Обрабатывает Ctrl+C - копирование выделенных ссылок.
+        """Handles Ctrl+C - copying selected links.
         
-        ✅ ИСПРАВЛЕНИЕ: Добавлена документация.
+        ✅ FIX: Added documentation.
         """
         la = self._safe_getattr(self.main_window, "links_actions")
         if la:
@@ -206,9 +205,9 @@ class ClipboardKeyHandler(BaseKeyHandler):
             self._safe_call(links_controller, "copy_selected_links")
 
     def handle_cut(self) -> None:
-        """Обрабатывает Ctrl+X - вырезание выделенных ссылок.
+        """Handles Ctrl+X - cutting selected links.
         
-        ✅ ИСПРАВЛЕНИЕ: Добавлена документация.
+        ✅ FIX: Added documentation.
         """
         la = self._safe_getattr(self.main_window, "links_actions")
         if la:
@@ -219,9 +218,9 @@ class ClipboardKeyHandler(BaseKeyHandler):
             self._safe_call(links_controller, "cut_selected_links")
 
     def handle_paste(self) -> None:
-        """Обрабатывает Ctrl+V - вставка ссылок из буфера.
+        """Handles Ctrl+V - pasting links from clipboard.
         
-        ✅ ИСПРАВЛЕНИЕ: Добавлена документация.
+        ✅ FIX: Added documentation.
         """
         la = self._safe_getattr(self.main_window, "links_actions")
         if la:
@@ -233,7 +232,7 @@ class ClipboardKeyHandler(BaseKeyHandler):
 
 
 class EditingKeyHandler(BaseKeyHandler):
-    """Обработчик клавиш редактирования."""
+    """Editing key handler."""
 
     def handle_key(self, event: QKeyEvent, focused_widget: Optional[QWidget]) -> bool:
         key = event.key()
@@ -244,29 +243,29 @@ class EditingKeyHandler(BaseKeyHandler):
         return False
 
     def _handle_enter_key(self, focused_widget: Optional[QWidget]) -> bool:
-        # В дереве - ничего не делаем
+        # In tree - do nothing
         if self._is_tree_focused(focused_widget):
             return False
-        # В плитках - открытие категории
+        # In tiles - open category
         elif self._is_tiles_focused(focused_widget):
             return self._handle_tiles_enter()
-        # В таблице - открытие ссылки
+        # In table - open link
         elif self._is_table_focused(focused_widget):
             return self._handle_table_enter()
         return False
 
     def _handle_escape_key(self, focused_widget: Optional[QWidget]) -> bool:
-        # В плитках - очистка фильтра
+        # In tiles - clear filter
         if self._is_tiles_focused(focused_widget):
             return self._handle_tiles_escape()
-        # Глобально - очистка поиска
+        # Globally - clear search
         return self._handle_global_escape()
 
     def _handle_table_enter(self) -> bool:
         table = self._safe_getattr(self.main_window, "table")
         if not table:
             return False
-        # Для QTableView: используем текущий индекс и размер модели
+        # For QTableView: use current index and model size
         try:
             idx = table.currentIndex() if hasattr(table, "currentIndex") else None
             current_row = idx.row() if idx and idx.isValid() else -1
@@ -287,7 +286,7 @@ class EditingKeyHandler(BaseKeyHandler):
             row_count = 0
 
         if 0 <= current_row < row_count:
-            # get_link_at(row) унифицировано для QTableView и возвращает dict
+            # get_link_at(row) unified for QTableView and returns dict
             link = self._safe_call(table, "get_link_at", current_row)
             if link:
                 la = self._safe_getattr(self.main_window, "links_actions")
@@ -362,7 +361,7 @@ class EditingKeyHandler(BaseKeyHandler):
 
 
 class GlobalKeyHandler(BaseKeyHandler):
-    """Обработчик глобальных горячих клавиш."""
+    """Global hotkey handler."""
 
     def handle_f1(self) -> None:
         self._safe_call(self.main_window, "show_link_dialog")
@@ -374,7 +373,7 @@ class GlobalKeyHandler(BaseKeyHandler):
         self._safe_call(self.main_window, "show_section_dialog")
 
     def handle_f4(self) -> None:
-        # Добавление категории (ранее метод назывался show_category_dialog)
+        # Add category (previously method was called show_category_dialog)
         self._safe_call(self.main_window, "add_new_category")
 
     def handle_f6(self) -> None:
@@ -387,14 +386,14 @@ class GlobalKeyHandler(BaseKeyHandler):
 
 
 class SearchKeyHandler(BaseKeyHandler):
-    """Обработчик клавиш поиска."""
+    """Search key handler."""
 
     SEARCH_TIMEOUT = 1000
 
     def __init__(self, main_window: Any) -> None:
         super().__init__(main_window)
         self._search_text: str = ""
-        self._search_timer: QTimer = QTimer(parent=main_window)  # ✅ Исправлено: parent=main_window
+        self._search_timer: QTimer = QTimer(parent=main_window)  # ✅ Fixed: parent=main_window
         self._search_timer.setSingleShot(True)
         self._search_timer.timeout.connect(self._reset_search)
 
@@ -430,12 +429,12 @@ class SearchKeyHandler(BaseKeyHandler):
 
 
 class KeyboardManager(QObject):
-    """Централизованный менеджер горячих клавиш."""
+    """Centralized hotkey manager."""
 
     ENTER_COOLDOWN = 150
 
     def __init__(self, main_window):
-        super().__init__(parent=main_window)  # ✅ Исправлено: добавлен parent
+        super().__init__(parent=main_window)  # ✅ Fixed: added parent
         self.main_window = main_window
         self.shortcuts = []
 
@@ -450,7 +449,7 @@ class KeyboardManager(QObject):
         self._setup_shortcuts()
 
     def _setup_shortcuts(self):
-        """Настройка QShortcut для комбинаций клавиш."""
+        """Setup QShortcut for key combinations."""
 
         global_shortcuts = [
             ("F1", self.global_handler.handle_f1),
@@ -477,14 +476,14 @@ class KeyboardManager(QObject):
             ("Ctrl+D", self.editing_handler.handle_toggle_favorite),
         ]
 
-        # Регистрируем на главном окне, чтобы сработало даже если table ещё не создан
+        # Register on main window so it works even if table is not yet created
         for key_seq, handler in table_shortcuts:
             shortcut = QShortcut(QKeySequence(key_seq), self.main_window)
-            # Область действия: на виджете и его детях (таблица внутри окна)
+            # Scope: on widget and its children (table inside window)
             try:
                 shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
             except Exception as e:
-                # На случай несовместимости — оставим контекст по умолчанию
+                # In case of incompatibility — leave default context
                 logger.debug(
                     "KeyboardManager._setup_shortcuts: setContext not supported",
                     exc_info=e,
@@ -493,7 +492,7 @@ class KeyboardManager(QObject):
             self.shortcuts.append(shortcut)
 
     def eventFilter(self, obj, event):
-        """Фильтр событий для перехвата клавиш."""
+        """Event filter for intercepting keys."""
         if event.type() == event.Type.KeyPress:
             if self._is_enter_duplicate(event):
                 return True
@@ -508,7 +507,7 @@ class KeyboardManager(QObject):
         return super().eventFilter(obj, event)
 
     def _is_enter_duplicate(self, event):
-        """Проверка на двойное нажатие Enter."""
+        """Check for double Enter press."""
         if event.key() in (Qt.Key.Key_Enter, Qt.Key.Key_Return):
             current_time = int(time.time() * 1000)
 
@@ -520,7 +519,7 @@ class KeyboardManager(QObject):
         return False
 
     def _handle_editing_keys(self, event, focused_widget):
-        """Обработка клавиш редактирования."""
+        """Handle editing keys."""
         key = event.key()
 
         if key in (Qt.Key.Key_Enter, Qt.Key.Key_Return, Qt.Key.Key_Escape):
@@ -529,7 +528,7 @@ class KeyboardManager(QObject):
         return False
 
     def _handle_search_keys(self, event, focused_widget):
-        """Обработка клавиш поиска."""
+        """Handle search keys."""
         if (
             event.text().isalnum()
             and len(event.text()) == 1
@@ -540,11 +539,11 @@ class KeyboardManager(QObject):
         return False
 
     def cleanup(self):
-        """Очистка ресурсов."""
+        """Resource cleanup."""
         for shortcut in self.shortcuts:
             shortcut.setEnabled(False)
             shortcut.deleteLater()
         self.shortcuts.clear()
 
-        # Удаляем фильтр событий
+        # Remove event filter
         self.main_window.removeEventFilter(self)

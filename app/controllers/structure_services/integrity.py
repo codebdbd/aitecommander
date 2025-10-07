@@ -3,12 +3,12 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
-# Модульный логгер для диагностических сообщений
+# Module logger for diagnostic messages
 logger = logging.getLogger(__name__)
 
 
 class IntegrityService:
-    """Сервис проверки целостности и статистики структуры."""
+    """Structure integrity and statistics service."""
 
     def get_statistics(
         self,
@@ -30,13 +30,13 @@ class IntegrityService:
             spheres = get_spheres() or []
             stats["spheres_count"] = len(spheres)
 
-            # Оптимизация: собираем статистику за один проход
+            # Optimization: collect statistics in one pass
             total_sections = 0
             total_categories = 0
             current_sphere_sections = 0
             current_sphere_categories = 0
             
-            # Кэш для секций, чтобы не вызывать get_sections дважды для current_sphere
+            # Cache for sections to avoid calling get_sections twice for current_sphere
             sections_cache = {}
             
             for sphere in spheres:
@@ -48,7 +48,7 @@ class IntegrityService:
                 sections_cache[sphere_id] = sections
                 total_sections += len(sections)
                 
-                # Подсчитываем категории для всех секций сферы
+                # Count categories for all sections of sphere
                 sphere_categories = sum(
                     len(get_categories(section.get("id")) or [])
                     for section in sections
@@ -56,7 +56,7 @@ class IntegrityService:
                 )
                 total_categories += sphere_categories
                 
-                # Если это текущая сфера, сохраняем статистику
+                # If this is the current sphere, save statistics
                 if sphere_id == current_sphere_id:
                     current_sphere_sections = len(sections)
                     current_sphere_categories = sphere_categories
@@ -69,7 +69,7 @@ class IntegrityService:
             return stats
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
-                logger.error("Ошибка валидации данных при получении статистики: %s", e)
+                logger.error("Data validation error while getting statistics: %s", e)
             return {
                 "spheres_count": 0,
                 "sections_count": 0,
@@ -79,8 +79,8 @@ class IntegrityService:
             }
         except Exception as e:
             if logger:
-                logger.exception("Критическая ошибка получения статистики")
-            raise  # Пробрасываем критические ошибки
+                logger.exception("Critical error getting statistics")
+            raise  # Re-raise critical errors
 
     def validate_structure_integrity(
         self,
@@ -100,7 +100,7 @@ class IntegrityService:
 
             spheres = get_spheres() or []
             
-            # Оптимизация: собираем все ошибки за один проход
+            # Optimization: collect all errors in one pass
             errors = []
             
             for sphere in spheres:
@@ -112,7 +112,7 @@ class IntegrityService:
                 if not sections:
                     continue
                     
-                # Проверяем связи секций со сферой
+                # Check section-sphere relationships
                 invalid_sections = [
                     section for section in sections
                     if section.get("sphere_id") != sphere_id
@@ -120,10 +120,10 @@ class IntegrityService:
                 
                 for section in invalid_sections:
                     errors.append(
-                        f"Раздел {section.get('id')} имеет неверную связь со сферой"
-                    )
+                    f"Section {section.get('id')} has invalid sphere relationship"
+                )
                 
-                # Проверяем связи категорий с разделами
+                # Check category-section relationships
                 for section in sections:
                     section_id = section.get("id")
                     if section_id is None:
@@ -133,7 +133,7 @@ class IntegrityService:
                     if not categories:
                         continue
                         
-                    # Находим категории с неверными связями
+                    # Find categories with invalid relationships
                     invalid_categories = [
                         category for category in categories
                         if category.get("section_id") != section_id
@@ -141,10 +141,10 @@ class IntegrityService:
                     
                     for category in invalid_categories:
                         errors.append(
-                            f"Категория {category.get('id')} имеет неверную связь с разделом"
+                            f"Category {category.get('id')} has invalid section relationship"
                         )
             
-            # Устанавливаем результаты
+            # Set results
             integrity_report["errors"] = errors
             integrity_report["is_valid"] = len(errors) == 0
             integrity_report["statistics"] = get_statistics()
@@ -152,14 +152,15 @@ class IntegrityService:
             return integrity_report
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
-                logger.error("Ошибка валидации данных при проверке целостности: %s", e)
+                logger.error("Data validation error during integrity check: %s", e)
             return {
                 "is_valid": False,
-                "errors": [f"Ошибка валидации: {str(e)}"],
+                "errors": [
+                    f"Validation error: {str(e)}",
+                ],
                 "warnings": [],
                 "statistics": {},
             }
         except Exception as e:
             if logger:
-                logger.exception("Критическая ошибка проверки целостности структуры")
-            raise  # Пробрасываем критические ошибки
+                logger.exception("Critical error checking structure integrity")

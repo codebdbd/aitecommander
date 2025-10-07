@@ -6,7 +6,7 @@ from PyQt6.QtCore import QModelIndex, pyqtBoundSignal
 
 
 class TopPanelActionData(TypedDict, total=False):
-    """Payload унифицированных действий верхних панелей."""
+    """Payload for unified actions from top panels."""
 
     type: str
     link: dict[str, Any]

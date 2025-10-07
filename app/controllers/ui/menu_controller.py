@@ -1,4 +1,4 @@
-"""Контроллер для управления всеми меню в приложении и обработки пользовательских действий."""
+"""Controller for managing all application menus and handling user actions."""
 
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class MenuController:
-    """Контроллер для управления всеми меню в приложении."""
+    """Controller for managing all application menus."""
 
     def __init__(self, main_window: "MainWindow"):
         self.main_window = main_window
@@ -37,20 +37,20 @@ class MenuController:
             self.main_window.destroyed.connect(self._cleanup)
 
     def create_main_menu(self) -> QMenuBar:
-        """Создаёт главное меню."""
+        """Create the main menu bar."""
         if not self._main_menu_builder:
             self._main_menu_builder = MainMenuBuilder(self.main_window)
         return self._main_menu_builder.build()
 
     def _on_language_changed(self, _lang_code: str) -> None:
-        """Пересоздаёт главное меню при смене языка."""
+        """Rebuild the main menu when language changes."""
         try:
             self.rebuild_after_language_change()
         except Exception:
             pass
 
     def _cleanup(self) -> None:
-        """Отключает сигналы при уничтожении окна."""
+        """Disconnect signals when window is destroyed."""
         try:
             self._language_service.languageChanged.disconnect(self._on_language_changed)
         except Exception:
@@ -64,7 +64,7 @@ class MenuController:
         add_new_section_cb: Callable,
         sort_tree_cb: Callable,
     ) -> QMenu:
-        """Создаёт контекстное меню для дерева структуры."""
+        """Create context menu for the structure tree."""
         if not self._structure_menu_builder:
             self._structure_menu_builder = StructureMenuBuilder(
                 tree_widget, self.main_window
@@ -76,7 +76,7 @@ class MenuController:
     def create_links_context_menu(
         self, table_widget: QWidget, idx: QModelIndex, paste_link_cb: Callable
     ) -> QMenu:
-        """Создаёт контекстное меню для таблицы ссылок."""
+        """Create context menu for the links table."""
         if not self._links_menu_builder:
             self._links_menu_builder = LinksMenuBuilder(table_widget, self.main_window)
         return self._links_menu_builder.build(idx, paste_link_cb)
@@ -89,7 +89,7 @@ class MenuController:
         delete_cb: Callable,
         add_cb: Callable,
     ) -> Tuple[QMenu, QAction, QAction, QAction]:
-        """Создаёт контекстное меню для плитки категории."""
+        """Create context menu for a category tile."""
         if not self._category_menu_builder:
             self._category_menu_builder = CategoryMenuBuilder(
                 list_widget, self.main_window
@@ -97,50 +97,50 @@ class MenuController:
         return self._category_menu_builder.build(item_id, edit_cb, delete_cb, add_cb)
 
     def clear_cache(self):
-        """Очищает кеш строителей меню (например, при смене темы)."""
+        """Clear menu builders cache (e.g., after theme change)."""
         from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 
         icon_cache.clear_cache()
 
-        # Пересоздаём строители при следующем использовании
+        # Recreate builders on next use
         self._main_menu_builder = None
         self._structure_menu_builder = None
         self._links_menu_builder = None
         self._category_menu_builder = None
 
     def rebuild_after_theme_change(self) -> None:
-        """Пересобирает главное меню после смены темы.
-        Инкапсулирует очистку кеша и пересоздание меню.
+        """Rebuild the main menu after theme change.
+        Encapsulates cache clearing and menu recreation.
         """
         try:
             old_menu = self.main_window.menuBar()
             if old_menu is not None:
                 old_menu.deleteLater()
         except Exception as e:
-            # В случае, если меню ещё не инициализировалось или уже удалено
+            # If the menu hasn't been initialized yet or already removed
             logger.warning(
-                "MenuController: не удалось корректно удалить старое меню при смене темы",
+                "MenuController: failed to properly remove old menu on theme change",
                 exc_info=e,
             )
-            # Мягкая подсказка пользователю (если есть статус-бар)
+            # Soft hint to the user (if there is a status bar)
             try:
                 status_bar = getattr(self.main_window, "statusBar", None)
                 if callable(status_bar):
                     sb = status_bar()
                     if sb is not None and hasattr(sb, "showMessage"):
                         sb.showMessage(
-                            "Не удалось обновить старое меню, пытаемся пересобрать...",
+                            "Failed to update the old menu, attempting to rebuild...",
                             3000,
                         )
             except Exception:
-                # Не препятствуем дальнейшей пересборке меню
-                logger.debug("MenuController: подсказка в статус-бар не отображена")
+                # Do not block further menu rebuild
+                logger.debug("MenuController: status bar hint not shown")
 
         self.clear_cache()
         self.main_window.setMenuBar(self.create_main_menu())
 
     def rebuild_after_language_change(self) -> None:
-        """Пересобирает главное меню после смены языка."""
+        """Rebuild the main menu after language change."""
         try:
             old_menu = self.main_window.menuBar()
             if old_menu is not None:

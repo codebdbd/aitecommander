@@ -1,4 +1,4 @@
-"""Модуль для управления резервным копированием базы данных."""
+"""Module for managing database backups."""
 import datetime
 import logging
 import os
@@ -13,47 +13,47 @@ logger = logging.getLogger(__name__)
 
 
 class BackupManager:
-    """Управление резервным копированием базы данных."""
+    """Database backup management."""
 
     def __init__(self, db):
         """
         Args:
-            db: Экземпляр Database для доступа к соединению и сигналам
+            db: Database instance for accessing connection and signals
         """
         self.db = db
 
     def backup(self, backup_dir: Path):
-        """Создаёт резервную копию базы данных и удаляет старые копии при превышении лимита.
+        """Creates database backup and deletes old copies when limit is exceeded.
         
         Args:
-            backup_dir: Директория для хранения резервных копий
+            backup_dir: Directory for storing backups
             
         Raises:
-            DatabaseError: При ошибке создания резервной копии
+            DatabaseError: When backup creation fails
         """
         operation = "backup"
         try:
             self.db.operation_started.emit(operation, 2)
             max_bak = self._get_max_backups()
             
-            # 1) Создаём новый бэкап
-            self.db.operation_progress.emit(operation, 0, 2, "Создание резервной копии...")
+            # 1) Create new backup
+            self.db.operation_progress.emit(operation, 0, 2, "Creating backup...")
             now = datetime.datetime.now()
             timestamp = now.strftime("%Y%m%d_%H%M%S_%f")
             dst = backup_dir / f"links_{timestamp}.db"
             
             with sqlite3.connect(self.db.db_path) as src, sqlite3.connect(dst) as dest:
                 src.backup(dest)
-            logger.info("Создана резервная копия: %s", dst)
+            logger.info("Backup created: %s", dst)
             
-            # Явно обновляем метку времени файла
+            # Explicitly update file timestamp
             try:
                 os.utime(dst, None)
             except Exception:
                 pass
 
-            # 2) Очистка сверх лимита
-            self.db.operation_progress.emit(operation, 1, 2, "Очистка старых копий...")
+            # 2) Cleanup beyond limit
+            self.db.operation_progress.emit(operation, 1, 2, "Cleaning up old copies...")
             files = sorted(backup_dir.glob("links_*.db"))
             
             if len(files) > max_bak:
@@ -76,7 +76,7 @@ class BackupManager:
                                 candidates.remove(old_file)
                         except Exception as del_err:
                             logger.warning(
-                                "Не удалось удалить старую резервную копию %s: %s",
+                                "Failed to delete old backup %s: %s",
                                 old_file,
                                 del_err,
                                 exc_info=False,
@@ -87,25 +87,25 @@ class BackupManager:
             
             self.db.operation_finished.emit(operation, True)
             
-            # Уведомляем UI об успешном создании резервной копии
+            # Notify UI about successful backup creation
             try:
                 self.db.backup_created.emit(str(dst))
             except Exception as signal_err:
                 logger.debug(
-                    "Ошибка отправки сигнала backup_created: %s",
+                    "Error sending backup_created signal: %s",
                     signal_err,
                     exc_info=True,
                 )
         except Exception as e:
-            logger.error("Ошибка создания резервной копии: %s", e, exc_info=True)
+            logger.error("Error creating backup: %s", e, exc_info=True)
             self.db.operation_finished.emit(operation, False)
             try:
-                self.db.error_occurred.emit("Ошибка бэкапа", str(e))
+                self.db.error_occurred.emit("Backup error", str(e))
             except Exception:
                 pass
-            raise DatabaseError(f"Не удалось создать резервную копию: {e}")
+            raise DatabaseError(f"Failed to create backup: {e}")
 
     def _get_max_backups(self) -> int:
-        """Возвращает максимальное количество резервных копий из пользовательских настроек."""
+        """Returns maximum number of backups from user settings."""
         from app.config_data import app_config
         return app_config.settings.get_max_backups()

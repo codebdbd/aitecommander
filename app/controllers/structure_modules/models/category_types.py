@@ -1,13 +1,13 @@
 # app/controllers/structure_modules/category_types.py
 
-"""Типы данных и константы для операций с категориями."""
+"""Data types and constants for category operations."""
 
 from dataclasses import dataclass
 from .types import CategoryData
 
 
 class SignalTypes:
-    """Константы для типов сигналов."""
+    """Constants for signal types."""
 
     ITEM_ADDED = "item_added"
     ITEM_DELETED = "item_deleted"
@@ -16,7 +16,7 @@ class SignalTypes:
 
 @dataclass
 class CategoryDeletionInfo:
-    """Информация об удалении категории."""
+    """Information about category deletion."""
 
     success: bool
     category_data: CategoryData
@@ -24,7 +24,7 @@ class CategoryDeletionInfo:
 
     @classmethod
     def create_empty(cls) -> "CategoryDeletionInfo":
-        """Создает пустую информацию об удалении."""
+        """Create empty deletion info."""
         empty_category: CategoryData = {
             "id": 0,
             "name": "",

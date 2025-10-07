@@ -1,4 +1,4 @@
-"""Модуль для обнаружения и разрешения дубликатов в базе данных."""
+"""Module for detecting and resolving duplicates in database."""
 import logging
 
 from ..base.db_base import db_lock
@@ -7,27 +7,27 @@ logger = logging.getLogger(__name__)
 
 
 class DuplicateResolver:
-    """Управление обнаружением и разрешением дубликатов записей."""
+    """Management of duplicate record detection and resolution."""
 
     def __init__(self, db):
         """
         Args:
-            db: Экземпляр Database для доступа к соединению
+            db: Database instance for accessing connection
         """
         self.db = db
 
     def detect_case_insensitive_duplicates(self) -> dict:
-        """Ищет case-insensitive дубликаты имён.
+        """Searches for case-insensitive name duplicates.
 
-        Возвращает dict с ключами 'sphere', 'section', 'category'. Значения — список групп,
-        где каждая группа описана как dict с полями:
+        Returns dict with keys 'sphere', 'section', 'category'. Values — list of groups,
+        where each group is described as dict with fields:
           - scope: None | sphere_id | section_id
-          - lname: нижний регистр имени
-          - ids: список int ID записей в конфликте (в произвольном порядке)
+          - lname: name in lower case
+          - ids: list of int IDs of conflicting records (in arbitrary order)
         """
         result = {"sphere": [], "section": [], "category": []}
         with db_lock:
-            # Сферы: глобальная область
+            # Spheres: global scope
             rows = self.db.connection.execute(
                 """
                 SELECT LOWER(name) AS lname, GROUP_CONCAT(id) AS ids, COUNT(*) AS cnt
@@ -42,7 +42,7 @@ class DuplicateResolver:
                     {"scope": None, "lname": r["lname"], "ids": ids}
                 )
 
-            # Разделы: внутри одной сферы
+            # Sections: within one sphere
             rows = self.db.connection.execute(
                 """
                 SELECT sphere_id AS scope, LOWER(name) AS lname, GROUP_CONCAT(id) AS ids, COUNT(*) AS cnt
@@ -57,7 +57,7 @@ class DuplicateResolver:
                     {"scope": int(r["scope"]), "lname": r["lname"], "ids": ids}
                 )
 
-            # Категории: внутри одного раздела
+            # Categories: within one section
             rows = self.db.connection.execute(
                 """
                 SELECT section_id AS scope, LOWER(name) AS lname, GROUP_CONCAT(id) AS ids, COUNT(*) AS cnt
@@ -75,30 +75,30 @@ class DuplicateResolver:
         return result
 
     def resolve_case_insensitive_duplicates(self, strategy: str = "rename") -> dict:
-        """Разрешает case-insensitive дубликаты.
+        """Resolves case-insensitive duplicates.
 
         strategy:
-          - 'rename': оставить запись с минимальным id, остальные переименовать, добавив ' (#{id})'.
-          - 'remove': удалить все кроме записи с минимальным id.
+          - 'rename': keep record with minimum id, rename others by adding ' (#{id})'.
+          - 'remove': delete all except record with minimum id.
 
-        Возвращает отчёт: dict с количеством обработанных записей по таблицам.
+        Returns report: dict with number of processed records per table.
         """
         if strategy not in {"rename", "remove"}:
-            raise ValueError("Недопустимая стратегия: 'rename' или 'remove'")
+            raise ValueError("Invalid strategy: 'rename' or 'remove'")
 
         report = {"sphere": 0, "section": 0, "category": 0}
         dups = self.detect_case_insensitive_duplicates()
 
         with db_lock:
             with self.db.connection:
-                # Вспомогательная функция получить текущее имя по id/таблице
+                # Helper function to get current name by id/table
                 def get_name(table: str, rec_id: int) -> str:
                     row = self.db.connection.execute(
                         f"SELECT name FROM {table} WHERE id=?", (rec_id,)
                     ).fetchone()
                     return (dict(row)["name"] if row else "")
 
-                # Обработчик группы
+                # Group handler
                 def process_group(table: str, ids: list[int]):
                     ids_sorted = sorted(int(i) for i in ids)
                     _keep = ids_sorted[0]
@@ -130,9 +130,9 @@ class DuplicateResolver:
         return report
 
     def create_nocase_unique_indexes(self) -> None:
-        """Пере-создаёт case-insensitive уникальные индексы для sphere/section/category.
+        """Re-creates case-insensitive unique indexes for sphere/section/category.
 
-        Полезно вызвать после устранения дубликатов, если индексы ранее не удалось создать.
+        Useful to call after eliminating duplicates if indexes couldn't be created earlier.
         """
         with db_lock:
             self.db.connection.execute(

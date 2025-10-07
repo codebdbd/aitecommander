@@ -1,5 +1,5 @@
 """
-Обёртка над QUndoStack с удобными методами и контекст-менеджером макрокоманд.
+Wrapper over QUndoStack with convenient methods and a macro-command context manager.
 """
 
 from __future__ import annotations
@@ -14,17 +14,17 @@ logger = logging.getLogger(__name__)
 
 
 class UndoManager:
-    """Управляет undo/redo стеком приложения.
+    """Manages the application's undo/redo stack.
 
-    Предоставляет удобные методы push(), clear(), begin_macro()/end_macro(),
-    а также контекст-менеджер macro(name).
+    Provides convenient methods push(), clear(), begin_macro()/end_macro(),
+    and a context manager macro(name).
     """
 
     def __init__(self, parent: Optional[object] = None) -> None:
         self.stack = QUndoStack(parent)
 
     def push(self, cmd) -> None:
-        """Добавляет команду в стек c логированием."""
+        """Push a command into the stack with logging."""
         logger.debug("push: %s", getattr(cmd, "text", lambda: str(cmd))())
         self.stack.push(cmd)
 
@@ -56,13 +56,13 @@ class UndoManager:
 
     @contextmanager
     def macro(self, text: str) -> Iterator[None]:
-        """Контекст-менеджер для группировки нескольких операций в одну."""
+        """Context manager to group multiple operations into one."""
         self.begin_macro(text)
         try:
             yield
         finally:
             self.end_macro()
 
-    # Делегирование всех остальных атрибутов к внутреннему QUndoStack
+    # Delegate all other attributes to the inner QUndoStack
     def __getattr__(self, name):
         return getattr(self.stack, name)

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class TreeStateService(QObject):
-    """Утилиты сохранения/восстановления состояния дерева структуры."""
+    """Utilities to save/restore structure tree state."""
 
     def __init__(self, *, controller, tree, model):
         parent = controller if isinstance(controller, QObject) else None
@@ -20,7 +20,7 @@ class TreeStateService(QObject):
         self._tree = tree
         self._model = model
 
-    # --- Сохранение/восстановление разворота ---
+    # --- Save/restore expansion ---
     def capture_expanded_state(self) -> Dict[Tuple[str, int], bool]:
         state: Dict[Tuple[str, int], bool] = {}
         try:
@@ -48,7 +48,7 @@ class TreeStateService(QObject):
                 "TreeStateService.restore_expanded_state: failed to restore expanded state"
             )
 
-    # --- Выделение ---
+    # --- Selection ---
     def capture_current_selection(self) -> Optional[Tuple[str, int]]:
         try:
             current = self._tree.currentIndex()
@@ -88,7 +88,7 @@ class TreeStateService(QObject):
                 exc_info=True,
             )
 
-    # --- Вспомогательные методы ---
+    # --- Helper methods ---
     def _iter_indexes(self, parent: QModelIndex = QModelIndex()):
         rows = self._model.rowCount(parent)
         for row in range(rows):

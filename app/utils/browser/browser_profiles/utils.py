@@ -5,8 +5,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_browser_display_name(finder: Any, fallback_key: str) -> str:
-    """Безопасно получить читаемое имя браузера.
-    Падает обратно на ключ браузера при ошибке/отсутствии метода.
+    """Safely get readable browser name.
+    Falls back to browser key on error/missing method.
     """
     try:
         if hasattr(finder, "get_browser_name"):
