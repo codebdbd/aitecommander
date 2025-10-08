@@ -4,7 +4,6 @@ from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QStatusBar, QWidget
 
 from app.config_data import app_config
-from app.views.widgets.language_selector import LanguageSelector
 from i18n.language_service import LanguageService
 from i18n.locale_utils import format_number
 
@@ -53,9 +52,6 @@ def setup_status_bar(window) -> QStatusBar:
     window.db_status_label.setContentsMargins(12, 0, 6, 0)
     window.links_count_label.setContentsMargins(6, 0, 6, 0)
 
-    language_selector = LanguageSelector(status)
-    window.language_selector = language_selector
-
     # Left area: dedicated container with message and path, no overlap
     # Create container with status bar as parent to avoid momentary top-level display
     left_container = QWidget(status)
@@ -68,15 +64,12 @@ def setup_status_bar(window) -> QStatusBar:
     # Right area: DB status, links counter
     status.addPermanentWidget(window.db_status_label)
     status.addPermanentWidget(window.links_count_label)
-    status.addPermanentWidget(language_selector)
 
     def _retranslate_status_bar() -> None:
         window.message_label.setText(_tr("Ready"))
         window.path_label.setText(_tr("Path: "))
         window.db_status_label.setText(_tr("Database: connected"))
         window.links_count_label.setText(_arg(_tr("Links: %1"), format_number(0)))
-        language_selector.setToolTip(_tr("Switch application language"))
-        language_selector.setAccessibleName(_tr("Language Selector"))
         update_status_bar(window)
 
     window._retranslate_status_bar = _retranslate_status_bar  # type: ignore[attr-defined]

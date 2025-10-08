@@ -906,16 +906,20 @@
   <context>
     <name>SettingsDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="646" />
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="616" />
+      <location filename="..\app\views\windows\ dialogs\entity_dialogs.py" line="653" />
+      <source>Language:</source>
+      <translation>Langue :</translation>
+    </message>
+    <message>
+      <location filename="..\app\views\windows\ dialogs\entity_dialogs.py" line="646" />
+      <location filename="..\app\views\windows\ dialogs\entity_dialogs.py" line="616" />
       <source>Max backups:</source>
       <translation>Sauvegardes max :</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="649" />
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="629" />
+      <location filename="..\app\views\windows\ dialogs\entity_dialogs.py" line="649" />
+      <location filename="..\app\views\windows\ dialogs\entity_dialogs.py" line="629" />
       <source>Font size:</source>
-      <translation>Taille de la police :</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="642" />

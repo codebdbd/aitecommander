@@ -907,6 +907,11 @@
   <context>
     <name>SettingsDialog</name>
     <message>
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="653" />
+      <source>Language:</source>
+      <translation>Мова:</translation>
+    </message>
+    <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="646" />
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="616" />
       <source>Max backups:</source>
