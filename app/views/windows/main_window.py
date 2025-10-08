@@ -6,13 +6,12 @@ import logging
 from typing import TYPE_CHECKING, Optional
 
 from app.views.widgets.protocols import SystemDialogsProtocol
-from app.ui.retranslatable import ReTranslatable
+from app.views.common.retranslatable import ReTranslatable
 from app.views.widgets.link import LinksTableView
 
 if TYPE_CHECKING:
     # Narrowly scoped types for static analysis only
     from typing import Any, Dict, Protocol
-
     class StructureItem(Protocol):
         """Structure (tree) item protocol used solely for static checks.
 

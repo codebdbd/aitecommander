@@ -12,12 +12,10 @@ from PyQt6.QtWidgets import (
     QTextEdit,
     QToolButton,
 )
-
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
 from app.utils.ui.icon.path_service import get_current_theme
 from app.utils.ui.qt.delegates.combo_row_height_delegate import ComboRowHeightDelegate
-
-from app.ui.retranslatable import ReTranslatable
+from app.views.common.retranslatable import ReTranslatable
 
 logger = logging.getLogger(__name__)
 

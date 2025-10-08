@@ -170,21 +170,30 @@ class LanguageService(QObject):
         self._detach_translator()
         translator = QTranslator(self._app)
 
-        resource_path = f":/i18n/app_{descriptor.code}.qm"
-        if translator.load(resource_path):
-            self._app.installTranslator(translator)
-            self._translator = translator
-            logger.info("LanguageService: loaded translation from resource: %s", resource_path)
-            return True
-
+        # Prefer filesystem .qm during development (updated quickly) and fall back to resource
         file_path = self._translations_root / f"app_{descriptor.code}.qm"
+        resource_path = f":/i18n/app_{descriptor.code}.qm"
+
+        # Try filesystem first
         if translator.load(str(file_path)):
             self._app.installTranslator(translator)
             self._translator = translator
             logger.info("LanguageService: loaded translation from file: %s", file_path)
             return True
 
-        logger.warning("Translation file not found for '%s' (searched %s and %s)", descriptor.code, resource_path, file_path)
+        # Fallback to resource (packaged builds)
+        if translator.load(resource_path):
+            self._app.installTranslator(translator)
+            self._translator = translator
+            logger.info("LanguageService: loaded translation from resource: %s", resource_path)
+            return True
+
+        logger.warning(
+            "Translation file not found for '%s' (searched %s and %s)",
+            descriptor.code,
+            resource_path,
+            file_path,
+        )
         self._translator = None
         return False
 
