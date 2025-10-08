@@ -1,45 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<TS version="2.1">
+<TS version="2.1" language="es">
   <context>
     <name>AsyncOperationDialog</name>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="123" />
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="98" />
       <source>Cancel</source>
-      <translation type="unfinished" />
+      <translation>Cancelar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="156" />
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="132" />
       <source>{percentage}% ({current}/{total})</source>
-      <translation type="unfinished" />
+      <translation>{percentage}% ({current}/{total})</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="174" />
       <source>✅ Operation completed successfully</source>
-      <translation type="unfinished" />
+      <translation>✅ Operación completada con éxito</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="207" />
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="186" />
       <source>Close</source>
-      <translation type="unfinished" />
+      <translation>Cerrar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="201" />
       <source>❌ Error: {error}</source>
-      <translation type="unfinished" />
+      <translation>❌ Error: {error}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="216" />
       <source>⚠️ Operation cancelled</source>
-      <translation type="unfinished" />
+      <translation>⚠️ Operación cancelada</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\async_operation_dialog.py" line="224" />
       <source>Cancelling operation…</source>
-      <translation type="unfinished" />
+      <translation>Cancelando operación…</translation>
     </message>
   </context>
   <context>
@@ -47,22 +47,22 @@
     <message>
       <location filename="..\app\views\windows\dialogs\base_dialog.py" line="235" />
       <source>Information</source>
-      <translation type="unfinished" />
+      <translation>Información</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\base_dialog.py" line="258" />
       <source>Warning</source>
-      <translation type="unfinished" />
+      <translation>Advertencia</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\base_dialog.py" line="281" />
       <source>Error</source>
-      <translation type="unfinished" />
+      <translation>Error</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\base_dialog.py" line="303" />
       <source>Confirmation</source>
-      <translation type="unfinished" />
+      <translation>Confirmación</translation>
     </message>
   </context>
   <context>
@@ -70,8 +70,9 @@
     <message numerus="yes">
       <location filename="..\app\views\widgets\base\base_widgets.py" line="582" />
       <source>%n item selected</source>
-      <translation type="unfinished">
-        <numerusform />
+      <translation>
+        <numerusform>%n elemento seleccionado</numerusform>
+        <numerusform>%n elementos seleccionados</numerusform>
       </translation>
     </message>
   </context>
@@ -80,77 +81,77 @@
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="173" />
       <source>Edit</source>
-      <translation type="unfinished" />
+      <translation>Editar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="173" />
       <source>Add</source>
-      <translation type="unfinished" />
+      <translation>Agregar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="175" />
       <source>section</source>
-      <translation type="unfinished" />
+      <translation>sección</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="176" />
       <source>category</source>
-      <translation type="unfinished" />
+      <translation>categoría</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="178" />
       <source>entity</source>
-      <translation type="unfinished" />
+      <translation>entidad</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="182" />
       <source>Name:</source>
-      <translation type="unfinished" />
+      <translation>Nombre:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="184" />
       <source>Icon</source>
-      <translation type="unfinished" />
+      <translation>Ícono</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="190" />
       <source>Save</source>
-      <translation type="unfinished" />
+      <translation>Guardar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="192" />
       <source>Cancel</source>
-      <translation type="unfinished" />
+      <translation>Cancelar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="238" />
       <source>Unable to set selected icon.</source>
-      <translation type="unfinished" />
+      <translation>No se pudo establecer el ícono seleccionado.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="239" />
       <source>Icon selection error</source>
-      <translation type="unfinished" />
+      <translation>Error de selección de ícono</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="240" />
       <source>Choose another image file (.png, .ico, .jpg, .svg) and try again.</source>
-      <translation type="unfinished" />
+      <translation>Elige otro archivo de imagen (.png, .ico, .jpg, .svg) y vuelve a intentarlo.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="251" />
       <source>Name cannot be empty.</source>
-      <translation type="unfinished" />
+      <translation>El nombre no puede estar vacío.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="252" />
       <source>Invalid input</source>
-      <translation type="unfinished" />
+      <translation>Entrada no válida</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="253" />
       <source>Please provide a name for the entity.</source>
-      <translation type="unfinished" />
+      <translation>Por favor, proporciona un nombre para la entidad.</translation>
     </message>
   </context>
   <context>
@@ -159,84 +160,84 @@
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="110" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="32" />
       <source>Select browser profile</source>
-      <translation type="unfinished" />
+      <translation>Seleccionar perfil del navegador</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="112" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="48" />
       <source>Browsers:</source>
-      <translation type="unfinished" />
+      <translation>Navegadores:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="114" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="53" />
       <source>Refresh</source>
-      <translation type="unfinished" />
+      <translation>Actualizar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="116" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="61" />
       <source>Search by name/email…</source>
-      <translation type="unfinished" />
+      <translation>Buscar por nombre/correo electrónico…</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="118" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="79" />
       <source>Add all</source>
-      <translation type="unfinished" />
+      <translation>Agregar todos</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="120" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="82" />
       <source>Clear selection</source>
-      <translation type="unfinished" />
+      <translation>Borrar selección</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="125" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="98" />
       <source>Save</source>
-      <translation type="unfinished" />
+      <translation>Guardar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="127" />
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="102" />
       <source>Cancel</source>
-      <translation type="unfinished" />
+      <translation>Cancelar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="187" />
       <source>No profiles found</source>
-      <translation type="unfinished" />
+      <translation>No se encontraron perfiles</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="197" />
       <source>Unnamed</source>
-      <translation type="unfinished" />
+      <translation>Sin nombre</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="199" />
       <source>{profile} ({browser})</source>
-      <translation type="unfinished" />
+      <translation>{profile} ({browser})</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="222" />
       <source>Loading profiles…</source>
-      <translation type="unfinished" />
+      <translation>Cargando perfiles…</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="274" />
       <source>{operation} ({current}/{total})…</source>
-      <translation type="unfinished" />
+      <translation>{operation} ({current}/{total})…</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="286" />
       <source>Failed to load profiles</source>
-      <translation type="unfinished" />
+      <translation>Error al cargar perfiles</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\browser_profile_dialog.py" line="294" />
       <source>Failed to start loading</source>
-      <translation type="unfinished" />
+      <translation>Error al iniciar la carga</translation>
     </message>
   </context>
   <context>
@@ -245,58 +246,58 @@
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="496" />
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="403" />
       <source>Sphere:</source>
-      <translation type="unfinished" />
+      <translation>Esfera:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="499" />
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="406" />
       <source>Section:</source>
-      <translation type="unfinished" />
+      <translation>Sección:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="431" />
       <source>Failed to load sections.</source>
-      <translation type="unfinished" />
+      <translation>Error al cargar secciones.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="432" />
       <source>Error loading sections</source>
-      <translation type="unfinished" />
+      <translation>Error al cargar secciones</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="433" />
       <source>Check database connection and try again.</source>
-      <translation type="unfinished" />
+      <translation>Verifica la conexión a la base de datos y vuelve a intentarlo.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="443" />
       <source>Category not found.</source>
-      <translation type="unfinished" />
+      <translation>Categoría no encontrada.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="444" />
       <source>Category unavailable</source>
-      <translation type="unfinished" />
+      <translation>Categoría no disponible</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="445" />
       <source>The category might have been deleted. ID: %1</source>
-      <translation type="unfinished" />
+      <translation>La categoría podría haber sido eliminada. ID: %1</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="481" />
       <source>Section not selected.</source>
-      <translation type="unfinished" />
+      <translation>Sección no seleccionada.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="482" />
       <source>Section selection required</source>
-      <translation type="unfinished" />
+      <translation>Se requiere selección de sección</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="483" />
       <source>Choose a section from the list and press "Save".</source>
-      <translation type="unfinished" />
+      <translation>Elige una sección de la lista y presiona "Guardar".</translation>
     </message>
   </context>
   <context>
@@ -304,53 +305,53 @@
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="788" />
       <source>Select Chrome profile</source>
-      <translation type="unfinished" />
+      <translation>Seleccionar perfil de Chrome</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="790" />
       <source>Choose a Chrome profile:</source>
-      <translation type="unfinished" />
+      <translation>Elige un perfil de Chrome:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="791" />
       <source>Select all</source>
-      <translation type="unfinished" />
+      <translation>Seleccionar todos</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="792" />
       <source>Deselect all</source>
-      <translation type="unfinished" />
+      <translation>Deseleccionar todos</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="807" />
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="793" />
       <source>Refresh profiles</source>
-      <translation type="unfinished" />
+      <translation>Actualizar perfiles</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="798" />
       <source>Save</source>
-      <translation type="unfinished" />
+      <translation>Guardar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="800" />
       <source>Cancel</source>
-      <translation type="unfinished" />
+      <translation>Cancelar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="805" />
       <source>Loading…</source>
-      <translation type="unfinished" />
+      <translation>Cargando…</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="829" />
       <source>Chrome profiles not found</source>
-      <translation type="unfinished" />
+      <translation>Perfiles de Chrome no encontrados</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="836" />
       <source>(no email)</source>
-      <translation type="unfinished" />
+      <translation>(sin correo)</translation>
     </message>
   </context>
   <context>
@@ -359,183 +360,183 @@
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="380" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="132" />
       <source>Advanced file search</source>
-      <translation type="unfinished" />
+      <translation>Búsqueda avanzada de archivos</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="382" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="152" />
       <source>Search location:</source>
-      <translation type="unfinished" />
+      <translation>Ubicación de búsqueda:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="156" />
       <source>Browse</source>
-      <translation type="unfinished" />
+      <translation>Explorar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="384" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="163" />
       <source>Name (regex):</source>
-      <translation type="unfinished" />
+      <translation>Nombre (regex):</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="386" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="173" />
       <source>Pattern:</source>
-      <translation type="unfinished" />
+      <translation>Patrón:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="396" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="233" />
       <source>Quickly apply an extension mask</source>
-      <translation type="unfinished" />
+      <translation>Aplicar rápidamente una máscara de extensión</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="388" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="244" />
       <source>Content:</source>
-      <translation type="unfinished" />
+      <translation>Contenido:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="398" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="248" />
       <source>Regex</source>
-      <translation type="unfinished" />
+      <translation>Regex</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="400" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="249" />
       <source>Case sensitive</source>
-      <translation type="unfinished" />
+      <translation>Sensible a mayúsculas</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="402" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="251" />
       <source>Search</source>
-      <translation type="unfinished" />
+      <translation>Buscar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="404" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="253" />
       <source>Stop</source>
-      <translation type="unfinished" />
+      <translation>Detener</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="390" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="270" />
       <source>Size (KB):</source>
-      <translation type="unfinished" />
+      <translation>Tamaño (KB):</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="414" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="276" />
       <source>from</source>
-      <translation type="unfinished" />
+      <translation>desde</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="416" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="282" />
       <source>to</source>
-      <translation type="unfinished" />
+      <translation>hasta</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="392" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="288" />
       <source>Modified:</source>
-      <translation type="unfinished" />
+      <translation>Modificado:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="304" />
       <source>Hidden files</source>
-      <translation type="unfinished" />
+      <translation>Archivos ocultos</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="305" />
       <source>Read-only</source>
-      <translation type="unfinished" />
+      <translation>Solo lectura</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="410" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="342" />
       <source>Ready to search</source>
-      <translation type="unfinished" />
+      <translation>Listo para buscar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="406" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="347" />
       <source>Add as link</source>
-      <translation type="unfinished" />
+      <translation>Agregar como enlace</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="408" />
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="351" />
       <source>Open in file explorer</source>
-      <translation type="unfinished" />
+      <translation>Abrir en el explorador de archivos</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="355" />
       <source>Close</source>
-      <translation type="unfinished" />
+      <translation>Cerrar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="487" />
       <source>File not found: {path}</source>
-      <translation type="unfinished" />
+      <translation>Archivo no encontrado: {path}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="525" />
       <source>Failed to open file in explorer: {error}</source>
-      <translation type="unfinished" />
+      <translation>Error al abrir archivo en el explorador: {error}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="529" />
       <source>Unexpected error: {error}</source>
-      <translation type="unfinished" />
+      <translation>Error inesperado: {error}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="544" />
       <source>Select folder for search</source>
-      <translation type="unfinished" />
+      <translation>Seleccionar carpeta para búsqueda</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="553" />
       <source>Specify a folder to search.</source>
-      <translation type="unfinished" />
+      <translation>Especifica una carpeta para buscar.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="558" />
       <source>The folder does not exist: {path}</source>
-      <translation type="unfinished" />
+      <translation>La carpeta no existe: {path}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="564" />
       <source>The specified path is not a folder: {path}</source>
-      <translation type="unfinished" />
+      <translation>La ruta especificada no es una carpeta: {path}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="577" />
       <source>Invalid regular expression for name: {error}</source>
-      <translation type="unfinished" />
+      <translation>Expresión regular inválida para nombre: {error}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="591" />
       <source>Invalid regular expression for content: {error}</source>
-      <translation type="unfinished" />
+      <translation>Expresión regular inválida para contenido: {error}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="615" />
       <source>Searching…</source>
-      <translation type="unfinished" />
+      <translation>Buscando…</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="684" />
       <source>Search error</source>
-      <translation type="unfinished" />
+      <translation>Error de búsqueda</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="700" />
       <source>Search finished. Files found: {count}</source>
-      <translation type="unfinished" />
+      <translation>Búsqueda finalizada. Archivos encontrados: {count}</translation>
     </message>
   </context>
   <context>
@@ -544,122 +545,122 @@
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="85" />
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="30" />
       <source>Import from browser</source>
-      <translation type="unfinished" />
+      <translation>Importar desde el navegador</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="87" />
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="46" />
       <source>Select where to import links:</source>
-      <translation type="unfinished" />
+      <translation>Selecciona dónde importar los enlaces:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="98" />
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="54" />
       <source>Sphere:</source>
-      <translation type="unfinished" />
+      <translation>Esfera:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="101" />
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="58" />
       <source>Section:</source>
-      <translation type="unfinished" />
+      <translation>Sección:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="109" />
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="69" />
       <source>Import</source>
-      <translation type="unfinished" />
+      <translation>Importar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="111" />
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="72" />
       <source>Cancel</source>
-      <translation type="unfinished" />
+      <translation>Cancelar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="121" />
       <source>No spheres found</source>
-      <translation type="unfinished" />
+      <translation>No se encontraron esferas</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="137" />
       <source>Select a sphere first</source>
-      <translation type="unfinished" />
+      <translation>Selecciona una esfera primero</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="142" />
       <source>The selected sphere has no sections</source>
-      <translation type="unfinished" />
+      <translation>La esfera seleccionada no tiene secciones</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="157" />
       <source>No data</source>
-      <translation type="unfinished" />
+      <translation>Sin datos</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="170" />
       <source>Error: {error}</source>
-      <translation type="unfinished" />
+      <translation>Error: {error}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="174" />
       <source>Failed to load sections.</source>
-      <translation type="unfinished" />
+      <translation>Error al cargar secciones.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="175" />
       <source>Sections load error</source>
-      <translation type="unfinished" />
+      <translation>Error al cargar secciones</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="176" />
       <source>Check the database connection and try again.</source>
-      <translation type="unfinished" />
+      <translation>Verifica la conexión a la base de datos y vuelve a intentarlo.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="214" />
       <source>No section selected for import.</source>
-      <translation type="unfinished" />
+      <translation>No se seleccionó ninguna sección para importar.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="215" />
       <source>Section selection required</source>
-      <translation type="unfinished" />
+      <translation>Se requiere selección de sección</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="216" />
       <source>Choose a section from the dropdown, then click 'Import'.</source>
-      <translation type="unfinished" />
+      <translation>Elige una sección desde el menú desplegable y haz clic en "Importar".</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="227" />
       <source>The selected section is unavailable.</source>
-      <translation type="unfinished" />
+      <translation>La sección seleccionada no está disponible.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="228" />
       <source>Section not found</source>
-      <translation type="unfinished" />
+      <translation>Sección no encontrada</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="229" />
       <source>The section may have been removed. Refresh sections and select another.</source>
-      <translation type="unfinished" />
+      <translation>La sección podría haber sido eliminada. Actualiza las secciones y selecciona otra.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="248" />
       <source>Failed to confirm section selection.</source>
-      <translation type="unfinished" />
+      <translation>Error al confirmar la selección de sección.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="249" />
       <source>Confirmation error</source>
-      <translation type="unfinished" />
+      <translation>Error de confirmación</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\import_browser_dialog.py" line="250" />
       <source>Try selecting the section again or refresh the sections list.</source>
-      <translation type="unfinished" />
+      <translation>Intenta seleccionar la sección nuevamente o actualiza la lista de secciones.</translation>
     </message>
   </context>
   <context>
@@ -667,12 +668,12 @@
     <message>
       <location filename="..\app\views\widgets\language_selector.py" line="37" />
       <source>Change application language</source>
-      <translation type="unfinished" />
+      <translation>Cambiar el idioma de la aplicación</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\language_selector.py" line="38" />
       <source>Language Selector</source>
-      <translation type="unfinished" />
+      <translation>Selector de idioma</translation>
     </message>
   </context>
   <context>
@@ -680,74 +681,74 @@
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="275" />
       <source>Icon configuration is invalid.</source>
-      <translation type="unfinished" />
+      <translation>La configuración del ícono es inválida.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="276" />
       <source>Configuration error</source>
-      <translation type="unfinished" />
+      <translation>Error de configuración</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="277" />
       <source>Icons directory is not set. Specify the path in the application settings or config.</source>
-      <translation type="unfinished" />
+      <translation>El directorio de íconos no está configurado. Especifica la ruta en los ajustes de la aplicación o en la configuración.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="280" />
       <source>Configuration parameter for icons is missing or empty.</source>
-      <translation type="unfinished" />
+      <translation>El parámetro de configuración para íconos está ausente o vacío.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="366" />
       <source>Default icon not found.</source>
-      <translation type="unfinished" />
+      <translation>Ícono predeterminado no encontrado.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="367" />
       <source>Icon issue</source>
-      <translation type="unfinished" />
+      <translation>Problema con el ícono</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="368" />
       <source>The button will be shown without an icon. Provide a valid icons path in settings.</source>
-      <translation type="unfinished" />
+      <translation>El botón se mostrará sin ícono. Proporciona una ruta válida para íconos en los ajustes.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="371" />
       <source>Expected file: {path}</source>
-      <translation type="unfinished" />
+      <translation>Archivo esperado: {path}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="557" />
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="556" />
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="500" />
       <source>Profile</source>
-      <translation type="unfinished" />
+      <translation>Perfil</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="502" />
       <source>Profile: {email}</source>
-      <translation type="unfinished" />
+      <translation>Perfil: {email}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="504" />
       <source>Profiles: {first}, {second}</source>
-      <translation type="unfinished" />
+      <translation>Perfiles: {first}, {second}</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="507" />
       <source>Profiles: {first}, {second} and {rest} more</source>
-      <translation type="unfinished" />
+      <translation>Perfiles: {first}, {second} y {rest} más</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="545" />
       <source>Edit link</source>
-      <translation type="unfinished" />
+      <translation>Editar enlace</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="545" />
       <source>Add link</source>
-      <translation type="unfinished" />
+      <translation>Agregar enlace</translation>
     </message>
   </context>
   <context>
@@ -755,12 +756,12 @@
     <message>
       <location filename="..\app\views\windows\main_window.py" line="165" />
       <source>&amp;Undo</source>
-      <translation type="unfinished" />
+      <translation>&amp;Deshacer</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\main_window.py" line="168" />
       <source>&amp;Redo</source>
-      <translation type="unfinished" />
+      <translation>&amp;Rehacer</translation>
     </message>
   </context>
   <context>
@@ -768,61 +769,61 @@
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="94" />
       <source>Undo history is unavailable. Move canceled.</source>
-      <translation type="unfinished" />
+      <translation>El historial de deshacer no está disponible. Movimiento cancelado.</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="262" />
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="137" />
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="95" />
       <source>Undo history unavailable</source>
-      <translation type="unfinished" />
+      <translation>Historial de deshacer no disponible</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="263" />
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="138" />
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="96" />
       <source>Enable undo/redo support or initialize undo_stack in the main window.</source>
-      <translation type="unfinished" />
+      <translation>Habilita el soporte de deshacer/rehacer o inicializa undo_stack en la ventana principal.</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="136" />
       <source>Undo history is unavailable. Batch move canceled.</source>
-      <translation type="unfinished" />
+      <translation>El historial de deshacer no está disponible. Movimiento por lotes cancelado.</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="261" />
       <source>History is unavailable. Move between sections canceled.</source>
-      <translation type="unfinished" />
+      <translation>El historial no está disponible. Movimiento entre secciones cancelado.</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="385" />
       <source>A category with the same name already exists in the selected section.</source>
-      <translation type="unfinished" />
+      <translation>Ya existe una categoría con el mismo nombre en la sección seleccionada.</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="386" />
       <source>Category duplicate</source>
-      <translation type="unfinished" />
+      <translation>Categoría duplicada</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="387" />
       <source>Rename the category or choose another section.</source>
-      <translation type="unfinished" />
+      <translation>Renombra la categoría o elige otra sección.</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="397" />
       <source>Failed to update item positions.</source>
-      <translation type="unfinished" />
+      <translation>Error al actualizar las posiciones de los elementos.</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="398" />
       <source>Database error during move</source>
-      <translation type="unfinished" />
+      <translation>Error de base de datos durante el movimiento</translation>
     </message>
     <message>
       <location filename="..\app\views\widgets\tree_components\move_operations_handler.py" line="399" />
       <source>Position changes were not saved.</source>
-      <translation type="unfinished" />
+      <translation>Los cambios de posición no se guardaron.</translation>
     </message>
   </context>
   <context>
@@ -830,37 +831,37 @@
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="556" />
       <source>Notes</source>
-      <translation type="unfinished" />
+      <translation>Notas</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="558" />
       <source>Enter notes here</source>
-      <translation type="unfinished" />
+      <translation>Ingresa notas aquí</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="563" />
       <source>Save</source>
-      <translation type="unfinished" />
+      <translation>Guardar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="565" />
       <source>Cancel</source>
-      <translation type="unfinished" />
+      <translation>Cancelar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="575" />
       <source>Failed to update notes.</source>
-      <translation type="unfinished" />
+      <translation>Error al actualizar notas.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="576" />
       <source>Notes update error</source>
-      <translation type="unfinished" />
+      <translation>Error al actualizar notas</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="577" />
       <source>Close and reopen the dialog, then try again.</source>
-      <translation type="unfinished" />
+      <translation>Cierra y vuelve a abrir el diálogo, luego intenta de nuevo.</translation>
     </message>
   </context>
   <context>
@@ -869,82 +870,86 @@
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="362" />
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="305" />
       <source>Sphere:</source>
-      <translation type="unfinished" />
+      <translation>Esfera:</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="325" />
       <source>Section not found.</source>
-      <translation type="unfinished" />
+      <translation>Sección no encontrada.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="326" />
       <source>Section unavailable</source>
-      <translation type="unfinished" />
+      <translation>Sección no disponible</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="327" />
       <source>The section might have been deleted. ID: %1</source>
-      <translation type="unfinished" />
+      <translation>La sección podría haber sido eliminada. ID: %1</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="347" />
       <source>Sphere not selected.</source>
-      <translation type="unfinished" />
+      <translation>Esfera no seleccionada.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="348" />
       <source>Sphere selection required</source>
-      <translation type="unfinished" />
+      <translation>Se requiere selección de esfera</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="349" />
       <source>Choose a sphere from the list and press "Save".</source>
-      <translation type="unfinished" />
+      <translation>Elige una esfera de la lista y presiona "Guardar".</translation>
     </message>
   </context>
   <context>
     <name>SettingsDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="646" />
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="616" />
-      <source>Max backups:</source>
-      <translation type="unfinished" />
+      <location filename="..\app\views\windows\ dialogs\entity_dialogs.py" line="653" />
+      <source>Language:</source>
+      <translation>Idioma:</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="649" />
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="629" />
+      <location filename="..\app\views\windows\ dialogs\entity_dialogs.py" line="646" />
+      <location filename="..\app\views\windows\ dialogs\entity_dialogs.py" line="616" />
+      <source>Max backups:</source>
+      <translation>Máximo de copias de seguridad:</translation>
+    </message>
+    <message>
+      <location filename="..\app\views\windows\ dialogs\entity_dialogs.py" line="649" />
+      <location filename="..\app\views\windows\ dialogs\entity_dialogs.py" line="629" />
       <source>Font size:</source>
-      <translation type="unfinished" />
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="642" />
       <source>Settings</source>
-      <translation type="unfinished" />
+      <translation>Ajustes</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="654" />
       <source>Save</source>
-      <translation type="unfinished" />
+      <translation>Guardar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="656" />
       <source>Cancel</source>
-      <translation type="unfinished" />
+      <translation>Cancelar</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="681" />
       <source>Failed to save settings.</source>
-      <translation type="unfinished" />
+      <translation>Error al guardar ajustes.</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="682" />
       <source>Settings save error</source>
-      <translation type="unfinished" />
+      <translation>Error al guardar ajustes</translation>
     </message>
     <message>
       <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="683" />
       <source>Check the values and try again.</source>
-      <translation type="unfinished" />
+      <translation>Verifica los valores y vuelve a intentarlo.</translation>
     </message>
   </context>
 </TS>

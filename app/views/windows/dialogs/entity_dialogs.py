@@ -23,6 +23,7 @@ from app.controllers.business import StructureBusinessLogic
 from app.controllers.ui.theme_controller import ThemeController
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
+from app.views.widgets.language_selector import LanguageSelector
 from app.views.windows.dialogs.link_dialog.icon_utils import make_icon
 
 
@@ -587,9 +588,10 @@ class SettingsDialog(BaseDialog):
         self.theme_ctrl = theme_ctrl  # Keep reference to reapply theme
         self._form_layout: QFormLayout | None = None
         self._button_box: QDialogButtonBox | None = None
+        self.language_selector: LanguageSelector | None = None
 
         super().__init__(parent)
-        self.resize(400, 200)
+        self.resize(400, 250)
         self._init_ui()
 
         # Translate after widgets are created
@@ -601,6 +603,10 @@ class SettingsDialog(BaseDialog):
         form = QFormLayout()
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         self._form_layout = form
+
+        # Language selector
+        self.language_selector = LanguageSelector(self)
+        form.addRow(self.tr("Language:"), self.language_selector)
 
         # Configure maximum number of backups via combo box
         self.max_backups_combo = QComboBox()
@@ -641,9 +647,16 @@ class SettingsDialog(BaseDialog):
     def retranslateUi(self) -> None:
         self.setWindowTitle(self.tr("Settings"))
         if self._form_layout is not None:
+            # Language selector label
+            if self.language_selector is not None:
+                lang_label = self._form_layout.labelForField(self.language_selector)
+                if lang_label is not None:
+                    lang_label.setText(self.tr("Language:"))
+            # Max backups label
             max_label = self._form_layout.labelForField(self.max_backups_combo)
             if max_label is not None:
                 max_label.setText(self.tr("Max backups:"))
+            # Font size label
             font_label = self._form_layout.labelForField(self.font_size_combo)
             if font_label is not None:
                 font_label.setText(self.tr("Font size:"))
