@@ -679,72 +679,76 @@
   <context>
     <name>LinkDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="276" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="275" />
       <source>Icon configuration is invalid.</source>
       <translation>Icon configuration is invalid.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="277" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="276" />
       <source>Configuration error</source>
       <translation>Configuration error</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="278" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="277" />
       <source>Icons directory is not set. Specify the path in the application settings or config.</source>
       <translation>Icons directory is not set. Specify the path in the application settings or config.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="281" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="280" />
       <source>Configuration parameter for icons is missing or empty.</source>
       <translation>Configuration parameter for icons is missing or empty.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="367" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="366" />
       <source>Default icon not found.</source>
       <translation>Default icon not found.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="368" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="367" />
       <source>Icon issue</source>
       <translation>Icon issue</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="369" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="368" />
       <source>The button will be shown without an icon. Provide a valid icons path in settings.</source>
       <translation>The button will be shown without an icon. Provide a valid icons path in settings.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="372" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="371" />
       <source>Expected file: {path}</source>
       <translation>Expected file: {path}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="501" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="557" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="556" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="500" />
       <source>Profile</source>
       <translation>Profile</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="503" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="502" />
       <source>Profile: {email}</source>
       <translation>Profile: {email}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="505" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="504" />
       <source>Profiles: {first}, {second}</source>
       <translation>Profiles: {first}, {second}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="508" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="507" />
       <source>Profiles: {first}, {second} and {rest} more</source>
       <translation>Profiles: {first}, {second} and {rest} more</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="545" />
       <source>Edit link</source>
-      <translation type="vanished">Edit link</translation>
+      <translation>Edit link</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="545" />
       <source>Add link</source>
-      <translation type="vanished">Add link</translation>
+      <translation>Add link</translation>
     </message>
   </context>
   <context>

@@ -3,11 +3,9 @@
 import logging
 from typing import Callable, Optional
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QCoreApplication, QT_TRANSLATE_NOOP, Qt
 from PyQt6.QtGui import QAction, QIcon, QKeySequence
 from PyQt6.QtWidgets import QWidget
-
-from PyQt6.QtCore import QCoreApplication
 
 _TR_CONTEXT = "MenuActions"
 
@@ -75,60 +73,60 @@ class Shortcuts:
 
 
 class MenuTexts:
-    ADD_SECTION = "Add section"
-    ADD_CATEGORY = "Add category"
-    ADD_LINK = "Add link"
-    CLEAR_FAVORITES = "Clear favorites"
-    EXIT = "Exit"
-    SETTINGS = "Settings"
-    SAVE_DATABASE = "Save database"
-    RESTORE_DATABASE = "Restore database"
-    CONNECT_DATABASE = "Connect database"
-    IMPORT_BROWSER = "Import from browser"
-    EXPORT_ICONS = "Export icons"
-    IMPORT_ICONS = "Import icons"
-    SEARCH_FILES = "Search files"
-    ABOUT = "About"
-    EDIT_SECTION = "Edit section"
-    EDIT_CATEGORY = "Edit category"
-    PASTE_CATEGORY = "Paste"
-    DELETE_SECTION = "Delete section"
-    COPY_CATEGORY = "Copy"
-    CUT_CATEGORY = "Cut"
-    PASTE_LINK = "Paste"
-    DELETE_CATEGORY = "Delete category"
-    DELETE_SELECTED = "Delete selected"
-    SELECT_ALL_CATEGORIES = "Select all"
-    SORT_CATEGORIES = "Sort categories"
+    ADD_SECTION = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Add section")
+    ADD_CATEGORY = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Add category")
+    ADD_LINK = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Add link")
+    CLEAR_FAVORITES = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Clear favorites")
+    EXIT = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Exit")
+    SETTINGS = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Settings")
+    SAVE_DATABASE = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Save database")
+    RESTORE_DATABASE = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Restore database")
+    CONNECT_DATABASE = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Connect database")
+    IMPORT_BROWSER = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Import from browser")
+    EXPORT_ICONS = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Export icons")
+    IMPORT_ICONS = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Import icons")
+    SEARCH_FILES = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Search files")
+    ABOUT = QT_TRANSLATE_NOOP(_TR_CONTEXT, "About")
+    EDIT_SECTION = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Edit section")
+    EDIT_CATEGORY = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Edit category")
+    PASTE_CATEGORY = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Paste")
+    DELETE_SECTION = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Delete section")
+    COPY_CATEGORY = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Copy")
+    CUT_CATEGORY = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Cut")
+    PASTE_LINK = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Paste")
+    DELETE_CATEGORY = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Delete category")
+    DELETE_SELECTED = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Delete selected")
+    SELECT_ALL_CATEGORIES = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Select all")
+    SORT_CATEGORIES = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Sort categories")
     # Undo/Redo
-    UNDO = "&Undo"
-    REDO = "&Redo"
+    UNDO = QT_TRANSLATE_NOOP(_TR_CONTEXT, "&Undo")
+    REDO = QT_TRANSLATE_NOOP(_TR_CONTEXT, "&Redo")
     # Links context menu
-    OPEN = "Open"
-    EDIT = "Edit"
-    DELETE = "Delete"
-    COPY = "Copy"
-    PASTE = "Paste"
-    CUT = "Cut"
-    ADD_LINK = "Add link"
-    SELECT_ALL = "Select all"
-    EDIT_NOTE = "Edit note"
+    OPEN = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Open")
+    EDIT = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Edit")
+    DELETE = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Delete")
+    COPY = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Copy")
+    PASTE = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Paste")
+    CUT = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Cut")
+    ADD_LINK = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Add link")
+    SELECT_ALL = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Select all")
+    EDIT_NOTE = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Edit note")
     # Favorites toggle
-    ADD_TO_FAVORITES = "Add to favorites"
-    REMOVE_FROM_FAVORITES = "Remove from favorites"
+    ADD_TO_FAVORITES = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Add to favorites")
+    REMOVE_FROM_FAVORITES = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Remove from favorites")
     # Share submenu and items
-    SHARE = "Share"
-    EMAIL = "Email"
-    SHARE_TELEGRAM = "Telegram"
-    SHARE_WHATSAPP = "WhatsApp"
-    SHARE_VIBER = "Viber"
-    SHARE_X = "X (Twitter)"
-    SHARE_FACEBOOK = "Facebook"
-    SHARE_LINKEDIN = "LinkedIn"
-    SHARE_PINTEREST = "Pinterest"
-    EMAIL_VIA_GMAIL = "Via Gmail"
-    EMAIL_VIA_CLIENT = "Via default client (mailto)"
-    EMAIL_COPY_AS_MESSAGE = "Copy as email message"
+    SHARE = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Share")
+    EMAIL = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Email")
+    SHARE_TELEGRAM = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Telegram")
+    SHARE_WHATSAPP = QT_TRANSLATE_NOOP(_TR_CONTEXT, "WhatsApp")
+    SHARE_VIBER = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Viber")
+    SHARE_X = QT_TRANSLATE_NOOP(_TR_CONTEXT, "X (Twitter)")
+    SHARE_FACEBOOK = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Facebook")
+    SHARE_LINKEDIN = QT_TRANSLATE_NOOP(_TR_CONTEXT, "LinkedIn")
+    SHARE_PINTEREST = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Pinterest")
+    EMAIL_VIA_GMAIL = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Via Gmail")
+    EMAIL_VIA_CLIENT = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Via default client (mailto)")
+    EMAIL_COPY_AS_MESSAGE = QT_TRANSLATE_NOOP(_TR_CONTEXT, "Copy as email message")
 
 
 class StructureItemType:
