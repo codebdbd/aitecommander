@@ -680,72 +680,76 @@
   <context>
     <name>LinkDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="276" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="275" />
       <source>Icon configuration is invalid.</source>
       <translation>Конфігурація іконки недійсна.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="277" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="276" />
       <source>Configuration error</source>
       <translation>Помилка конфігурації</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="278" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="277" />
       <source>Icons directory is not set. Specify the path in the application settings or config.</source>
       <translation>Папка іконок не вказана. Вкажіть шлях у налаштуваннях програми або конфігурації.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="281" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="280" />
       <source>Configuration parameter for icons is missing or empty.</source>
       <translation>Параметр конфігурації для іконок відсутній або порожній.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="367" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="366" />
       <source>Default icon not found.</source>
       <translation>Іконку за замовчуванням не знайдено.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="368" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="367" />
       <source>Icon issue</source>
       <translation>Проблема з іконкою</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="369" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="368" />
       <source>The button will be shown without an icon. Provide a valid icons path in settings.</source>
       <translation>Кнопка буде відображена без іконки. Вкажіть правильний шлях до іконок у налаштуваннях.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="372" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="371" />
       <source>Expected file: {path}</source>
       <translation>Очікуваний файл: {path}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="501" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="557" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="556" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="500" />
       <source>Profile</source>
       <translation>Профіль</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="503" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="502" />
       <source>Profile: {email}</source>
       <translation>Профіль: {email}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="505" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="504" />
       <source>Profiles: {first}, {second}</source>
       <translation>Профілі: {first}, {second}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="508" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="507" />
       <source>Profiles: {first}, {second} and {rest} more</source>
       <translation>Профілі: {first}, {second} та ще {rest}</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="545" />
       <source>Edit link</source>
-      <translation type="vanished">Редагувати посилання</translation>
+      <translation>Редагувати посилання</translation>
     </message>
     <message>
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="545" />
       <source>Add link</source>
-      <translation type="vanished">Додати посилання</translation>
+      <translation>Додати посилання</translation>
     </message>
   </context>
   <context>
@@ -877,10 +881,6 @@
       <translation type="vanished">Вирізати</translation>
     </message>
     <message>
-      <source>Paste</source>
-      <translation type="vanished">Вставити</translation>
-    </message>
-    <message>
       <source>Delete category</source>
       <translation type="vanished">Видалити категорію</translation>
     </message>
@@ -931,10 +931,6 @@
     <message>
       <source>Add link</source>
       <translation type="vanished">Додати посилання</translation>
-    </message>
-    <message>
-      <source>Select all</source>
-      <translation type="vanished">Вибрати всі</translation>
     </message>
     <message>
       <source>Edit note</source>
