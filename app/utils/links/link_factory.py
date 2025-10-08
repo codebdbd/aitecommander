@@ -2,7 +2,7 @@ from typing import Any, Dict, Optional
 
 
 class LinkRecordFactory:
-    """Фабрика для создания записей ссылок в стандартизированном формате."""
+    """Factory for creating link records in standardized format."""
 
     @staticmethod
     def create_link_record(
@@ -20,24 +20,24 @@ class LinkRecordFactory:
         browser_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Создает запись ссылки со всеми необходимыми полями.
+        Creates link record with all required fields.
 
         Args:
-            name: Название ссылки
-            url: URL или путь к ссылке
-            link_type: Тип ссылки (web, file, folder, script, program, chromeapp)
-            icon_name: Путь к иконке
-            notes: Заметки к ссылке
-            last_used: Время последнего использования
-            position: Позиция в списке
-            category_id: ID категории
-            args: Аргументы командной строки
-            is_favorite: Флаг избранного (0 или 1)
-            link_id: ID ссылки (для обновления существующей)
-            browser_key: Ключ браузера для веб-ссылок
+            name: Link name
+            url: URL or path to link
+            link_type: Link type (web, file, folder, script, program, chromeapp)
+            icon_name: Path to icon
+            notes: Link notes
+            last_used: Last used time
+            position: Position in list
+            category_id: Category ID
+            args: Command line arguments
+            is_favorite: Favorite flag (0 or 1)
+            link_id: Link ID (for updating existing)
+            browser_key: Browser key for web links
 
         Returns:
-            Словарь с данными ссылки
+            Dictionary with link data
         """
         record = {
             "name": name,
@@ -52,18 +52,18 @@ class LinkRecordFactory:
             "is_favorite": is_favorite,
         }
 
-        # Добавляем browser_key если указан
+        # Add browser_key if provided
         if browser_key is not None:
             record["browser_key"] = browser_key
 
-        # Добавляем ID если указан
+        # Add ID if provided
         if link_id is not None:
             record["id"] = link_id
 
         return record
 
 
-# Функции обратной совместимости
+# Backward compatibility functions
 def make_link_record(
     name: str,
     url: str,
@@ -77,7 +77,7 @@ def make_link_record(
     is_favorite: int,
     link_id: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Создает обычную запись ссылки (функция обратной совместимости)."""
+    """Creates regular link record (backward compatibility function)."""
     return LinkRecordFactory.create_link_record(
         name=name,
         url=url,
@@ -106,7 +106,7 @@ def make_profile_link_record(
     link_id: Optional[int] = None,
     browser_key: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Создает запись ссылки с профилем браузера (функция обратной совместимости)."""
+    """Creates link record with browser profile (backward compatibility function)."""
     return LinkRecordFactory.create_link_record(
         name=link_name,
         url=url,
@@ -117,7 +117,7 @@ def make_profile_link_record(
         position=position,
         category_id=category_id,
         args=prof_args,
-        is_favorite=0,  # Профильные ссылки по умолчанию не в избранном
+        is_favorite=0,  # Profile links not in favorites by default
         link_id=link_id,
         browser_key=browser_key,
     )

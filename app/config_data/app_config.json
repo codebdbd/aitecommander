@@ -4,15 +4,15 @@
     "org_name": "Codebdbd",
     "version": "1.0.0",
     "about_title": "Aite Commander",
-    "about_text": "Профессиональный менеджер ссылок\n\nВерсия 1.0.0\n\nОрганизуйте свои ссылки, файлы и приложения\nв удобной структуре с мощным поиском.\n\n© 2025 Codebdbd"
+    "about_text": "Professional link manager\n\nVersion 1.0.0\n\nOrganize your links, files and applications\nin a convenient structure with powerful search.\n\n© 2025 Codebdbd"
   },
   "threading": {
     "max_db_threads": 4,
-    "comment": "Максимальное количество потоков для асинхронных операций БД"
+    "comment": "Maximum number of threads for asynchronous DB operations"
   },
   "startup": {
     "app_ready_delay_ms": 100,
-    "comment": "Задержка перед сигналом о готовности приложения"
+    "comment": "Delay before signaling application readiness"
   },
   "ui": {
     "icon_size": 24,
@@ -25,9 +25,9 @@
     "fixed_button_width": 100,
     "links_table_headers": [
       "♥",
-      "Название",
-      "Открывалась",
-      "Заметки"
+      "Name",
+      "Last Used",
+      "Notes"
     ],
     "links_table_columns": {
       "favorite": 0,
@@ -36,13 +36,13 @@
       "notes": 3
     },
     "links_table_messages": {
-      "no_categories": "Нет доступных категорий. Создай категорию сначала.",
-      "select_category": "Выберите категорию для вставки ссылки",
-      "error_saving": "Ошибка сохранения заметки",
-      "database_error": "Ошибка базы данных",
-      "validation_error": "Ошибка валидации",
-      "warning_title": "Предупреждение",
-      "error_title": "Ошибка"
+      "no_categories": "No categories available. Create a category first.",
+      "select_category": "Select a category to insert the link",
+      "error_saving": "Error saving note",
+      "database_error": "Database error",
+      "validation_error": "Validation error",
+      "warning_title": "Warning",
+      "error_title": "Error"
     },
     "max_favorites": 10,
     "top_bar_height": 40,
@@ -53,10 +53,10 @@
     "structure_reload_delay_ms": 200,
     "structure_reload_immediate_delay_ms": 0,
     "thread_pool_shutdown_timeout": 2000,
-    "delete_confirm_title": "Подтверждение удаления",
-    "delete_confirm_text": "Вы уверены, что хотите удалить {count} ссылк(и/у)?",
-    "yes_text": "Да",
-    "no_text": "Нет",
+    "delete_confirm_title": "Delete Confirmation",
+    "delete_confirm_text": "Are you sure you want to delete {count} link(s)?",
+    "yes_text": "Yes",
+    "no_text": "No",
     "quick_add_button_size": 32,
     "sphere_button_icon_size": 48,
     "tile_icon_size": 64,
@@ -77,7 +77,7 @@
     "spheres_bar_margin_right": 8,
     "spheres_bar_spacing": 8,
     
-    "search_placeholder": "Поиск… (Ctrl+F)",
+    "search_placeholder": "Search… (Ctrl+F)",
     "central_frame_shape": "StyledPanel",
     "default_icon_size": 24,
     "application_font": {
@@ -112,10 +112,10 @@
       }
     ],
     "main_window_title": "Aite Commander",
-    "db_connected_text": "БД: Подключена",
-    "db_disconnected_text": "БД: Отключена",
-    "links_count_text": "Ссылок: 0",
-    "status_ready_text": "Готово",
+    "db_connected_text": "DB: Connected",
+    "db_disconnected_text": "DB: Disconnected",
+    "links_count_text": "Links: 0",
+    "status_ready_text": "Ready",
     "path_label_min_width": 350,
     "link_dialog_width": 600,
     "link_dialog_height": 520,
@@ -257,19 +257,19 @@
     "link_types": [
       [
         "web",
-        "Веб-ссылка"
+        "Web Link"
       ],
       [
         "script",
-        "Скрипт"
+        "Script"
       ],
       [
         "file",
-        "Файл"
+        "File"
       ],
       [
         "program",
-        "Программа"
+        "Program"
       ],
       [
         "chromeapp",
@@ -277,29 +277,29 @@
       ],
       [
         "folder",
-        "Папка"
+        "Folder"
       ]
     ],
     "quick_types": [
       [
         "web",
         "web_icon.png",
-        "Веб-ссылка"
+        "Web Link"
       ],
       [
         "file",
         "documents_icon.png",
-        "Файл"
+        "File"
       ],
       [
         "program",
         "program_icon.png",
-        "Программа"
+        "Program"
       ],
       [
         "script",
         "script_icon.png",
-        "Скрипт"
+        "Script"
       ],
       [
         "chromeapp",
@@ -309,13 +309,13 @@
       [
         "folder",
         "folder_icon.png",
-        "Папка"
+        "Folder"
       ]
     ],
     "quick_type_tooltips": {
-      "web": "Веб-ссылка",
-      "file": "Файл",
-      "program": "Программа",
+      "web": "Web Link",
+      "file": "File",
+      "program": "Program",
       "chromeapp": "Chrome App",
       "folder": ""
     },
@@ -324,7 +324,7 @@
       "folder": "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
       "program": "%PROGRAMDATA%\\Microsoft\\Windows\\Start Menu\\Programs",
       "script": "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
-      "chromeapp": "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Приложения Chrome"
+      "chromeapp": "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Chrome Apps"
     },
     "default_icons": {
       "default": "default.ico",

@@ -1,13 +1,13 @@
 # validation.py
-"""Валидация иконок и проверочные утилиты.
+"""Icon validation and verification utilities.
 
-Особенности:
-- Жёсткая фильтрация имён иконок без слэшей для защиты от traversal.
-- Акуратная проверка SVG/SVGZ (по содержимому, с ограничением размера чтения).
-- Проверка растров через PIL без лишних открытий файлов.
-- Поддержка конфигурации через app_config.
+Features:
+- Strict filtering of icon names without slashes to protect against traversal.
+- Careful SVG/SVGZ validation (by content, with read size limit).
+- Raster validation through PIL without unnecessary file openings.
+- Configuration support via app_config.
 
-Соответствует PEP 8.
+Complies with PEP 8.
 """
 
 from __future__ import annotations
@@ -26,29 +26,29 @@ from app.config_data import app_config
 logger = logging.getLogger(__name__)
 
 
-# === Конфигурационные прокси (обновляются динамически) ===
+# === Configuration proxies (updated dynamically) ===
 
 
 def get_max_icon_size() -> int:
-    """Максимальный размер файла иконки в байтах (из конфигурации)."""
+    """Maximum icon file size in bytes (from configuration)."""
     return int(app_config.get_max_icon_size())
 
 
 def get_supported_icon_formats() -> Iterable[str]:
-    """Набор поддерживаемых растровых расширений (включая .png, .jpg и т.п.)."""
+    """Set of supported raster extensions (including .png, .jpg, etc.)."""
     return app_config.get_supported_icon_formats()
 
 
 def get_valid_themes() -> Iterable[str]:
-    """Список валидных названий тем."""
+    """List of valid theme names."""
     return app_config.get_valid_themes()
 
 
-# === Перечисления / исключения ===
+# === Enums / exceptions ===
 
 
 class Theme(Enum):
-    """Тема оформления."""
+    """Appearance theme."""
 
     LIGHT = "light"
     DARK = "dark"
@@ -60,38 +60,37 @@ class Theme(Enum):
 
 
 class IconError(Exception):
-    """Базовое исключение для ошибок иконок."""
+    """Base exception for icon errors."""
 
 
 class IconNotFoundError(IconError):
-    """Иконка не найдена."""
+    """Icon not found."""
 
 
 class InvalidIconError(IconError):
-    """Файл иконки/параметры некорректны."""
+    """Icon file/parameters are incorrect."""
 
 
-# === Внутренние валидаторы для векторных форматов ===
+# === Internal validators for vector formats ===
 
 
 def _safe_decode_bytes_preview(data: bytes) -> str | None:
-    """Попытка декодирования первых байт файла в строку.
+    """Attempt to decode the first bytes of a file into a string.
 
-    Порядок кодировок: utf-8 → utf-16 → latin-1.
-    Возвращает None, если декодировать не удалось.
+    Encoding order: utf-8 → utf-16 → latin-1.
+    Returns None if decoding failed.
     """
     for enc in ("utf-8", "utf-16", "latin-1"):
         try:
             return data.decode(enc, errors="strict")
         except UnicodeDecodeError:
             continue
-    return None
 
 
 def _is_valid_svg(path: Path) -> bool:
-    """Проверка корректности SVG по структуре тегов."""
+    """Check if an SVG file is valid by its tag structure."""
     try:
-        max_read_size = min(get_max_icon_size(), 1024 * 1024)  # не более 1 МБ
+        max_read_size = min(get_max_icon_size(), 1024 * 1024)  # no more than 1 MB
         with path.open("rb") as f:
             content = f.read(max_read_size)
 
@@ -112,11 +111,11 @@ def _is_valid_svg(path: Path) -> bool:
 
 
 def _is_valid_svgz(path: Path) -> bool:
-    """Проверка корректности SVGZ (gzip + валидный SVG внутри)."""
+    """SVGZ validity check (gzip + valid SVG inside)."""
     import gzip
 
     try:
-        # быстрая сигнатура gzip
+        # fast gzip signature
         with path.open("rb") as f:
             sig = f.read(2)
             if len(sig) < 2 or sig[0] != 0x1F or sig[1] != 0x8B:
@@ -142,25 +141,25 @@ def _is_valid_svgz(path: Path) -> bool:
         logger.warning("Unexpected SVGZ error for %s: %s", path, exc)
         return False
 
-
-# === Публичные валидаторы ===
+# === Public validators ===
 
 
 def _validate_icon_name(icon_name: str) -> bool:
-    """Проверка имени иконки.
+    """Icon name validation.
 
-    Требования:
-    - Строка непустая.
-    - Разрешённые символы: латиница, цифры, `_`, `-`, `.`.
-    - Запрещены пути/подпапки и traversal (`/`, `\\`, `..`), чтобы не обращаться вне ожидаемой папки.
+    Requirements:
+    - String is not empty.
+    - Allowed characters: Latin letters, digits, `_`, `-`, `.`.
+    - Paths/subfolders and traversal (`/`, `\`, `..`) are forbidden to avoid accessing outside the expected folder.
     """
     if not icon_name or not isinstance(icon_name, str):
         return False
 
     if "../" in icon_name or "..\\" in icon_name:
+        # Forbidden traversal
         return False
 
-    # никаких слэшей — иконки ищутся только в ожидаемых темовых папках сервисом путей
+    # no slashes — icons are searched only in expected theme folders by path service
     if "/" in icon_name or "\\" in icon_name:
         return False
 
@@ -168,7 +167,7 @@ def _validate_icon_name(icon_name: str) -> bool:
 
 
 def validate_theme(theme: str) -> str:
-    """Нормализация названия темы. Non-str или неизвестная → 'light'."""
+    """Theme name normalization. Non-str or unknown → 'light'."""
     if not theme or not isinstance(theme, str):
         return "light"
     t = theme.lower().strip()
@@ -179,15 +178,15 @@ def validate_theme(theme: str) -> str:
 
 
 def is_valid_icon_file(file_path: str | Path) -> bool:
-    """Проверка, является ли путь допустимым файлом иконки.
+    """Check if path is a valid icon file.
 
-    Поддержка:
-    - SVG / SVGZ (структурная проверка).
-    - Растровые форматы из конфигурации (через PIL.Image.verify()).
-    - Ограничение размера файла из конфигурации.
+    Support:
+    - SVG / SVGZ (structural validation).
+    - Raster formats from configuration (via PIL.Image.verify()).
+    - File size limit from configuration.
 
-    Возвращает:
-        True, если файл приемлем; False — иначе.
+    Returns:
+        True if file is acceptable; False otherwise.
     """
     if not file_path:
         return False
@@ -196,7 +195,7 @@ def is_valid_icon_file(file_path: str | Path) -> bool:
     if not (path.exists() and path.is_file()):
         return False
 
-    # лимит размера
+    # size limit
     try:
         file_size = path.stat().st_size
     except OSError as exc:
@@ -220,10 +219,10 @@ def is_valid_icon_file(file_path: str | Path) -> bool:
         logger.debug("Unsupported raster format %s for %s", ext, path)
         return False
 
-    # Растры: быстрая проверка целостности
+    # Rasters: quick integrity check
     try:
         with Image.open(path) as img:
-            img.verify()  # не загружает в память полностью
+            img.verify()  # does not load fully into memory
         return True
     except (UnidentifiedImageError, OSError) as exc:
         logger.debug("PIL verify failed for %s: %s", path, exc)
@@ -234,19 +233,19 @@ def is_valid_icon_file(file_path: str | Path) -> bool:
 
 
 def validate_config_for_icons(config) -> bool:
-    """Проверяет, что конфиг поддерживает директории иконок.
+    """Checks if config supports icon directories.
 
-    Минимальная проверка UI-иконок: наличие метода get_link_icons_dir.
-    Держим в UI-слое, чтобы не тянуть UI-зависимость в общий validators.
+    Minimal UI icon check: presence of get_link_icons_dir method.
+    Keep in UI layer to avoid pulling UI dependency into general validators.
     """
     return hasattr(config, "get_link_icons_dir")
 
 
 def is_cached_icon_valid(save_path: str | Path, source_path: str | Path) -> bool:
-    """Проверяет, актуальна ли кэшированная иконка по времени модификации.
+    """Checks if cached icon is up-to-date by modification time.
 
-    Возвращает True, если save_path существует, является валидным файлом иконки
-    и его mtime не меньше, чем у исходного файла.
+    Returns True if save_path exists, is a valid icon file
+    and its mtime is not less than the source file's.
     """
     try:
         save_path = str(save_path)
@@ -258,72 +257,72 @@ def is_cached_icon_valid(save_path: str | Path, source_path: str | Path) -> bool
         return False
 
 
-# === Стартап-валидация окружения иконок ===
+# === Icon environment startup validation ===
 
 
 def validate_ui_icon_environment() -> bool:
-    """Проверяет базовую готовность окружения иконок.
+    """Checks basic readiness of icon environment.
 
-    Проверки:
-    - Существует базовая директория UI-иконок из конфигурации (`app_config.paths.get_ui_icons_dir()`).
-    - Существуют подпапки для всех валидных тем (`app_config.get_valid_themes()`).
+    Checks:
+    - Base UI icons directory exists from configuration (`app_config.paths.get_ui_icons_dir()`).
+    - Subfolders exist for all valid themes (`app_config.get_valid_themes()`).
 
-    Возвращает True, если все проверки пройдены; иначе False.
-    Логи пишет сам (error/warning/info).
+    Returns True if all checks passed; otherwise False.
+    Logs itself (error/warning/info).
     """
     ok = True
     try:
         base_dir = app_config.paths.get_ui_icons_dir()
     except Exception as exc:  # noqa: BLE001
-        logger.error("Не удалось получить путь к UI-иконкам из конфигурации: %s", exc)
+        logger.error("Failed to get UI icons path from configuration: %s", exc)
         return False
 
     if not base_dir or not isinstance(base_dir, (str, Path)):
-        logger.error("Некорректный путь к UI-иконкам в конфигурации: %r", base_dir)
+        logger.error("Invalid UI icons path in configuration: %r", base_dir)
         return False
 
     base_dir = Path(base_dir)
     if not base_dir.exists() or not base_dir.is_dir():
-        logger.error("Директория UI-иконок не найдена: %s", base_dir)
+        logger.error("UI icons directory not found: %s", base_dir)
         ok = False
     else:
-        logger.info("Директория UI-иконок: %s", base_dir)
+        logger.info("UI icons directory: %s", base_dir)
 
-    # Проверка тем
+    # Theme check
     try:
         themes = list(get_valid_themes())
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Не удалось получить список валидных тем: %s", exc)
+        logger.warning("Failed to get list of valid themes: %s", exc)
         themes = ["light", "dark"]
 
     for t in themes:
         theme_dir = base_dir / t
         if not theme_dir.exists() or not theme_dir.is_dir():
-            logger.error("Папка темы не найдена: %s", theme_dir)
+            logger.error("Theme folder not found: %s", theme_dir)
             ok = False
         else:
-            # Небольшая информационная сводка
+            # Small informational summary
             try:
                 count = sum(1 for _ in theme_dir.iterdir())
-                logger.info("Тема '%s': %s (элементов: %d)", t, theme_dir, count)
+                logger.info("Theme '%s': %s (elements: %d)", t, theme_dir, count)
             except OSError as exc:  # noqa: BLE001
                 logger.debug(
-                    "Не удалось просканировать папку темы %s: %s", theme_dir, exc
+                    "Failed to scan theme folder %s: %s", theme_dir, exc
                 )
 
     return ok
 
 
 def validate_and_log_ui_icons_startup() -> bool:
-    """Запускает проверку окружения иконок на старте и пишет сводку в лог.
+    """Runs icon environment check at startup and writes summary to log.
 
-    Возвращает результат `validate_ui_icon_environment()` без прерывания запуска.
+    Returns result of `validate_ui_icon_environment()` without interrupting startup.
     """
     result = validate_ui_icon_environment()
     if result:
-        logger.info("Проверка окружения UI-иконок: OK")
+        logger.info("UI icons environment check: OK")
     else:
         logger.warning(
-            "Проверка окружения UI-иконок завершена с ошибками. Проверьте путь и темы."
+            "UI icons environment check completed with errors. Check path and themes."
         )
     return result

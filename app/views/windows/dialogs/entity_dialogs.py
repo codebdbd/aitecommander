@@ -522,13 +522,15 @@ class CategoryDialog(BaseEntityDialog):
 
 class NoteDialog(BaseDialog):
     def __init__(self, link: dict, parent=None):
-        super().__init__(parent)
         self.link = link
         self._button_box: QDialogButtonBox | None = None
+        self.notes_te: QTextEdit | None = None
+
+        super().__init__(parent)
         self.resize(400, 300)
         self._init_ui()
 
-        # Initial translate pass
+        # Translate after widgets are created
         self.retranslateUi()
 
     def _init_ui(self):
@@ -581,15 +583,16 @@ class NoteDialog(BaseDialog):
 
 class SettingsDialog(BaseDialog):
     def __init__(self, settings, theme_ctrl: ThemeController, parent=None):
-        super().__init__(parent)
         self.settings = settings
         self.theme_ctrl = theme_ctrl  # Keep reference to reapply theme
-        self.resize(400, 200)
         self._form_layout: QFormLayout | None = None
         self._button_box: QDialogButtonBox | None = None
+
+        super().__init__(parent)
+        self.resize(400, 200)
         self._init_ui()
 
-        # Initial translate pass
+        # Translate after widgets are created
         self.retranslateUi()
 
     def _init_ui(self):
@@ -709,15 +712,20 @@ class ChromeProfileDialog(BaseDialog):
     """Dialog to select Chrome profiles with bulk controls and save/cancel actions."""
 
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setModal(True)
         self.result = []
         self.profile_checkboxes = []
         self._title_label: QLabel | None = None
         self._button_box: QDialogButtonBox | None = None
+        self.select_all_btn: QPushButton | None = None
+        self.deselect_all_btn: QPushButton | None = None
+        self.refresh_btn: QPushButton | None = None
+
+        super().__init__(parent)
+        self.setModal(True)
         self._setup_size()
         self._setup_ui()
         
+        # Translate after widgets are created
         self.retranslateUi()
         self.threadpool = QThreadPool.globalInstance()
         self.profiles_loaded.connect(self._populate_profiles)

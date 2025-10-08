@@ -1,8 +1,8 @@
-"""Модуль для работы с иконками (кеш, валидация, метрики)"""
+"""Module for working with icons (cache, validation, metrics)"""
 
-# Импорт всех публичных функций и классов из модулей
+# Import all public functions and classes from modules
 
-# Управление кешем
+# Cache management
 from .cache_manager import (
     IconManager,
     ThreadSafeIconCache,
@@ -13,12 +13,12 @@ from .cache_manager import (
     reset_icon_cache_stats,
 )
 
-# Разрешение путей категорий — из icon_resolver, чтобы избежать циклических импортов
+# Category path resolution - from icon_resolver to avoid circular imports
 from .icon_resolver import (
     resolve_category_icon_path,
 )
 
-# Централизованная система блокировок
+# Centralized locking system
 from .lock_manager import (
     LockLevel,
     acquire_cache_lock,
@@ -28,13 +28,13 @@ from .lock_manager import (
     acquire_multiple_locks,
 )
 
-# LRU-политика
+# LRU policy
 from .lru_policy import LRUPolicy
 
-# Метрики кэша
+# Cache metrics
 from .metrics import CacheMetrics
 
-# Централизованный сервис путей к иконкам
+# Centralized icon path service
 from .path_service import (
     IconPathService,
     get_current_theme,
@@ -43,8 +43,8 @@ from .path_service import (
     icon_path_service,
 )
 
-# Импорт is_valid_icon_file из локального валидатора
-# Валидация и проверки
+# Import is_valid_icon_file from local validator
+# Validation and checks
 from .validation import (
     IconError,
     IconNotFoundError,
@@ -56,25 +56,25 @@ from .validation import (
     validate_theme,
 )
 
-# Операции с иконками (новая модульная структура)
-# ВАЖНО: избегаем тяжёлых ре-экспортов из icon_operations, чтобы не провоцировать циклические импорты.
-# Используйте явные импорты из подпакетов, например:
+# Icon operations (new modular structure)
+# IMPORTANT: Avoid heavy re-exports from icon_operations to prevent circular imports.
+# Use explicit imports from subpackages, for example:
 #   from app.utils.ui.icon.icon_operations.creators import themed_icon, create_icon_from_path
 
-# Импорт функций конвертации напрямую из converters
-# Конвертеры больше не ре-экспортируются из корневого пакета.
+# Import conversion functions directly from converters
+# Converters are no longer re-exported from the root package.
 #   from app.utils.ui.icon.icon_operations.converters import copy_icon_smart, convert_icon_to_png_128, ...
 
-# UI утилиты для работы с иконками
-# UI-хелперы не ре-экспортируются.
+# UI utilities for working with icons
+# UI helpers are not re-exported.
 #   from app.utils.ui.icon.ui_helpers import set_icon_to_button
 
-# Кеш иконок меню
-# (функциональность перемещена в icon_operations.py)
+# Menu icon cache
+# (functionality moved to icon_operations.py)
 
-# Экспорт всех публичных функций и классов
+# Export all public functions and classes
 __all__ = [
-    # Валидация и проверки
+    # Validation and checks
     "Theme",
     "IconError",
     "IconNotFoundError",
@@ -83,15 +83,15 @@ __all__ = [
     "is_valid_icon_file",
     "is_cached_icon_valid",
     "validate_config_for_icons",
-    # Централизованный сервис путей
+    # Centralized path service
     "IconPathService",
     "icon_path_service",
-    # Работа с путями
+    # Working with paths
     "get_icon_path",
     "get_current_theme",
     "get_qss_dir",
     "resolve_category_icon_path",
-    # Управление кешем
+    # Cache management
     "ThreadSafeIconCache",
     "IconManager",
     "clear_icon_cache",
@@ -99,17 +99,17 @@ __all__ = [
     "reset_icon_cache_stats",
     "log_icon_cache_stats",
     "get_cached_category_icon",
-    # Метрики кэша (только из metrics.py)
+    # Cache metrics (only from metrics.py)
     "CacheMetrics",
-    # LRU-политика
+    # LRU policy
     "LRUPolicy",
-    # Централизованная система блокировок
+    # Centralized locking system
     "LockLevel",
     "acquire_global_lock",
     "acquire_cache_lock",
     "acquire_metrics_lock",
     "acquire_lru_lock",
     "acquire_multiple_locks",
-    # Обратите внимание: функции создания/конвертации иконок и UI-хелперы
-    # доступны через явные подпакеты и не ре-экспортируются здесь, чтобы избежать циклов импорта.
+    # Note: icon creation/conversion functions and UI helpers
+    # are available through explicit subpackages and are not re-exported here to avoid import cycles.
 ]

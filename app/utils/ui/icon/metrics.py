@@ -1,4 +1,4 @@
-"""Модуль для работы с метриками кэша иконок"""
+"""Module for working with icon cache metrics"""
 
 import time
 from collections import deque
@@ -8,29 +8,29 @@ from .lock_manager import acquire_metrics_lock
 
 
 class CacheMetrics:
-    """Метрики кеша иконок."""
+    """Icon cache metrics."""
 
     def __init__(self):
         self.hits = 0
         self.misses = 0
-        self.disk_loads = 0  # Счетчик успешных загрузок с диска
-        self.not_found = 0  # Счетчик файлов, которые не были найдены
-        # Оптимизируем хранение времени загрузки для уменьшения нагрузки
+        self.disk_loads = 0  # Counter of successful disk loads
+        self.not_found = 0  # Counter of files that were not found
+        # Optimize load time storage to reduce load
         self.load_times = deque(maxlen=100)
-        # Добавляем агрегированные метрики для более точного подсчета среднего времени
+        # Add aggregated metrics for more accurate average time calculation
         self.total_load_time = 0.0
         self.load_count = 0
         self.start_time = time.time()
-        # Используем централизованную систему блокировок
-        # self._lock заменен на lock_manager
+        # Use centralized locking system
+        # self._lock replaced with lock_manager
 
     def record_hit(self) -> None:
-        """Записать хит."""
+        """Record a hit."""
         with acquire_metrics_lock():
             self.hits += 1
 
     def record_miss(self, load_time=0.0) -> None:
-        """Записать промах."""
+        """Record a miss."""
         with acquire_metrics_lock():
             self.misses += 1
             if load_time > 0:
@@ -39,7 +39,7 @@ class CacheMetrics:
                 self.load_count += 1
 
     def record_miss_without_increment(self, load_time=0.0) -> None:
-        """Записать время загрузки без увеличения счетчика miss."""
+        """Record load time without incrementing miss counter."""
         with acquire_metrics_lock():
             if load_time > 0:
                 self.load_times.append(load_time)
@@ -47,7 +47,7 @@ class CacheMetrics:
                 self.load_count += 1
 
     def record_actual_miss(self, load_time=0.0) -> None:
-        """Записать реальный промах (увеличиваем счетчик miss)."""
+        """Record actual miss (increment miss counter)."""
         with acquire_metrics_lock():
             self.misses += 1
             if load_time > 0:
@@ -56,23 +56,23 @@ class CacheMetrics:
                 self.load_count += 1
 
     def record_disk_load(self) -> None:
-        """Записать успешную загрузку с диска."""
+        """Record successful disk load."""
         with acquire_metrics_lock():
             self.disk_loads += 1
 
     def record_not_found(self) -> None:
-        """Записать файл, который не был найден."""
+        """Record file that was not found."""
         with acquire_metrics_lock():
             self.not_found += 1
 
     def get_stats(self) -> dict[str, Any]:
-        """Получить статистику кеша."""
+        """Get cache statistics."""
         with acquire_metrics_lock():
             total_requests = self.hits + self.misses
             hit_rate = (self.hits / total_requests * 100) if total_requests > 0 else 0
 
-            # Вычисляем среднее время загрузки с использованием агрегированных метрик
-            # Это дает более точный результат, особенно при большом количестве запросов
+            # Calculate average load time using aggregated metrics
+            # This gives a more accurate result, especially with a large number of requests
             if self.load_count > 0:
                 avg_load_time = self.total_load_time / self.load_count
             else:
@@ -92,7 +92,7 @@ class CacheMetrics:
             }
 
     def reset(self) -> None:
-        """Сбросить метрики."""
+        """Reset metrics."""
         with acquire_metrics_lock():
             self.hits = 0
             self.misses = 0

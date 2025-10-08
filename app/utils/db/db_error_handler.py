@@ -1,5 +1,5 @@
 # app/utils/db_error_handler.py
-"""Централизованный обработчик ошибок базы данных"""
+"""Centralised database error handler."""
 
 import logging
 import sqlite3
@@ -17,16 +17,16 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseErrorHandler:
-    """Централизованный обработчик ошибок базы данных"""
+    """Centralised database error handler."""
 
     def __init__(self):
         self.user_messages = {
-            "section_duplicate": "Раздел с таким именем уже существует в выбранной сфере.",
-            "category_duplicate": "Категория с таким именем уже существует в выбранном разделе.",
+            "section_duplicate": "A section with this name already exists in the selected sphere.",
+            "category_duplicate": "A category with this name already exists in the selected section.",
             "link_duplicate": (
-                "Такая ссылка уже сохранена в этой категории.\n"
-                "Хотите ещё одну? Поменяйте категорию или добавьте аргументы запуска.\n"
-                'Пример (Chrome): --incognito, --new-window, --profile-directory="Profile 2".'
+                "This link is already saved in this category.\n"
+                "Want another one? Change the category or add launch arguments.\n"
+                'Example (Chrome): --incognito, --new-window, --profile-directory="Profile 2".'
             ),
         }
 
@@ -37,7 +37,7 @@ class DatabaseErrorHandler:
         }
 
     def handle_error(self, error: Exception, context: Any = None) -> bool:
-        """Обработать ошибку базы данных"""
+        """Handle a database error."""
         logger.error(
             f"Database error in {type(context).__name__ if context else 'unknown'}: {error}"
         )
@@ -47,11 +47,11 @@ class DatabaseErrorHandler:
         elif isinstance(error, DatabaseError):
             return self._handle_database_error(error_msg, context)
         else:
-            self._show_error("Ошибка базы данных", str(error), context)
+            self._show_error("Database error", str(error), context)
             return False
 
     def _handle_sqlite_integrity_error(self, error_msg: str, context: Any) -> bool:
-        """Обработка ошибок целостности SQLite"""
+        """Handle SQLite integrity errors."""
         if "unique constraint failed" in error_msg:
             return self._handle_duplicate(error_msg, context)
         elif "foreign key constraint failed" in error_msg:
@@ -60,14 +60,14 @@ class DatabaseErrorHandler:
             return self._handle_validation(error_msg, context)
         else:
             self._show_error(
-                "Ошибка целостности данных",
-                "Нарушено ограничение целостности базы данных.",
+                "Integrity constraint violation",
+                "A database integrity constraint was violated.",
                 context,
             )
             return False
 
     def _handle_database_error(self, error_msg: str, context: Any) -> bool:
-        """Обработка ошибок DatabaseError"""
+        """Handle ``DatabaseError`` instances."""
         if "unique constraint failed" in error_msg:
             return self._handle_duplicate(error_msg, context)
         elif "foreign key constraint" in error_msg:
@@ -75,54 +75,54 @@ class DatabaseErrorHandler:
         elif "not null" in error_msg or "check constraint" in error_msg:
             return self._handle_validation(error_msg, context)
         else:
-            self._show_error("Ошибка базы данных", str(error_msg), context)
+            self._show_error("Database error", str(error_msg), context)
             return False
 
     def _handle_duplicate(self, error_msg: str, context: Any) -> bool:
-        """Обработка ошибок дубликатов"""
+        """Handle duplicate constraint violations."""
         if "link" in error_msg:
             self._show_info(
-                "Дубликат ссылки", self.user_messages["link_duplicate"], context
+                "Duplicate link", self.user_messages["link_duplicate"], context
             )
         elif "category" in error_msg:
             self._show_info(
-                "Информация", self.user_messages["category_duplicate"], context
+                "Information", self.user_messages["category_duplicate"], context
             )
         elif "section" in error_msg:
             self._show_info(
-                "Информация", self.user_messages["section_duplicate"], context
+                "Information", self.user_messages["section_duplicate"], context
             )
         else:
             self._show_info(
-                "Информация", "Запись с такими параметрами уже существует.", context
+                "Information", "A record with the same parameters already exists.", context
             )
         return False
 
     def _handle_foreign_key(self, error_msg: str, context: Any) -> bool:
-        """Обработка ошибок внешних ключей"""
+        """Handle foreign-key constraint issues."""
         self._show_error(
-            "Ошибка ссылочной целостности",
-            "Невозможно выполнить операцию: связанные данные отсутствуют.",
+            "Referential integrity error",
+            "Operation cannot be completed because related data is missing.",
             context,
         )
         return False
 
     def _handle_validation(self, error_msg: str, context: Any) -> bool:
-        """Обработка ошибок валидации"""
+        """Handle validation constraint issues."""
         self._show_error(
-            "Ошибка валидации данных", "Введены некорректные данные.", context
+            "Validation error", "Incorrect data was provided.", context
         )
         return False
 
     def _show_info(self, title: str, message: str, context: Any):
-        """Показать информационное сообщение"""
+        """Display an informational message."""
         # Локальный импорт, чтобы избежать ранних кольцевых импортов
         from app.controllers.ui.dialogs.dialog_manager import DialogManager
 
         DialogManager.show_info(parent=None, message=message, title=title, silent=True)
 
     def _show_error(self, title: str, message: str, context: Any):
-        """Показать сообщение об ошибке"""
+        """Display an error message."""
         if context and hasattr(context, "show_error"):
             context.show_error(title, message)
         else:
@@ -136,5 +136,5 @@ default_error_handler = DatabaseErrorHandler()
 
 
 def handle_db_error(error: Exception, context: Any = None) -> bool:
-    """Удобная функция для обработки ошибок БД"""
+    """Convenience function for handling database errors."""
     return default_error_handler.handle_error(error, context)

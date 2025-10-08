@@ -13,7 +13,7 @@ def validate_section_data(
     section_id: Optional[int] = None,
     get_sections: Callable[[int], list],
 ) -> ValidationResult:
-    """Валидация раздела через ValidationService. Возвращает ValidationResult."""
+    """Section validation via ValidationService. Returns ValidationResult."""
     return _service.validate_section_data(
         data=data, section_id=section_id, get_sections=get_sections
     )
@@ -25,7 +25,7 @@ def validate_category_data(
     category_id: Optional[int] = None,
     has_duplicate_category: Callable[[int, str, Optional[int]], bool],
 ) -> ValidationResult:
-    """Валидация категории через ValidationService. Возвращает ValidationResult."""
+    """Category validation via ValidationService. Returns ValidationResult."""
     return _service.validate_category_data(
         data=data,
         category_id=category_id,
@@ -33,14 +33,14 @@ def validate_category_data(
     )
 
 
-# Универсальные проверки для имён сущностей структуры (оставляем как утилиты)
+# Universal checks for structure entity names (kept as utilities)
 def is_non_empty_name(name: str) -> bool:
-    """Имя не пустое после trim."""
+    """Name is not empty after trim."""
     return isinstance(name, str) and name.strip() != ""
 
 
 def is_name_length_ok(name: str, max_len: int = 255) -> bool:
-    """Имя не превышает ограничение длины."""
+    """Name does not exceed length limit."""
     try:
         return len(name) <= max_len
     except Exception:
@@ -48,16 +48,16 @@ def is_name_length_ok(name: str, max_len: int = 255) -> bool:
 
 
 def has_no_forbidden_chars(name: str, forbidden: str = '\\/:*?"<>|') -> bool:
-    """Имя не содержит запрещённых символов для Windows-путей и файлов."""
+    """Name does not contain forbidden characters for Windows paths and files."""
     if not isinstance(name, str):
         return False
     return not any(ch in name for ch in forbidden)
 
 
-# Совместимость: устаревшие bool-валидаторы
+# Compatibility: deprecated bool validators
 def validate_section_ok_bool(*args, **kwargs) -> bool:  # pragma: no cover
     warnings.warn(
-        "validate_section_ok_bool устарел. Используйте validate_section_data (ValidationResult)",
+        "validate_section_ok_bool is deprecated. Use validate_section_data (ValidationResult)",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -70,7 +70,7 @@ def validate_section_ok_bool(*args, **kwargs) -> bool:  # pragma: no cover
 
 def validate_category_ok_bool(*args, **kwargs) -> bool:  # pragma: no cover
     warnings.warn(
-        "validate_category_ok_bool устарел. Используйте validate_category_data (ValidationResult)",
+        "validate_category_ok_bool is deprecated. Use validate_category_data (ValidationResult)",
         DeprecationWarning,
         stacklevel=2,
     )

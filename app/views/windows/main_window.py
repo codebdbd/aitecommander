@@ -38,6 +38,7 @@ from app.settings import AppSettings
 from app.utils.db.synchronization import signal_guard
 from app.utils.ui.updates import suspend_updates
 from app.views.widgets.status_bar import update_status_bar as _update_status_bar
+from app.views.main_components.ui.bottom_panel_setup import retranslate_bottom_panel
 
 logger = logging.getLogger(__name__)
 
@@ -125,16 +126,18 @@ class MainWindow(QMainWindow, ReTranslatable):
         if us is None:
             return None, None
 
+        from app.utils.ui.menu_builders.menu_actions import MenuTexts
+        
         undo_action = us.createUndoAction(self)
-        undo_action.setText(self.tr("&Undo"))
+        undo_action.setText(self.tr(MenuTexts.UNDO))
         undo_action.setShortcut(QKeySequence.StandardKey.Undo)
 
         redo_action = us.createRedoAction(self)
-        redo_action.setText(self.tr("&Redo"))
+        redo_action.setText(self.tr(MenuTexts.REDO))
         redo_action.setShortcut(QKeySequence.StandardKey.Redo)
 
-        us.undoTextChanged.connect(lambda *_: undo_action.setText(self.tr("&Undo")))
-        us.redoTextChanged.connect(lambda *_: redo_action.setText(self.tr("&Redo")))
+        us.undoTextChanged.connect(lambda *_: undo_action.setText(self.tr(MenuTexts.UNDO)))
+        us.redoTextChanged.connect(lambda *_: redo_action.setText(self.tr(MenuTexts.REDO)))
 
         self.undo_action = undo_action
         self.redo_action = redo_action
@@ -163,6 +166,7 @@ class MainWindow(QMainWindow, ReTranslatable):
         redo_action = getattr(self, "redo_action", None)
         if redo_action is not None:
             redo_action.setText(self.tr("&Redo"))
+        retranslate_bottom_panel(self)
     def _init_spheres_ui(self) -> None:
         """Initialize the spheres UI asynchronously."""
         self.spheres_controller.init()

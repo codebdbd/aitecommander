@@ -6,8 +6,8 @@ logger = logging.getLogger(__name__)
 
 
 class TreeHandlerBase:
-    """Базовый класс для обработчиков дерева StructureTreeView.
-    Инкапсулирует общую инициализацию: ссылку на виджет и логгер.
+    """Base class for StructureTreeView handlers.
+    Encapsulates common initialization: widget reference and logger.
     """
 
     def __init__(self, tree_widget):

@@ -23,11 +23,11 @@ class _Span:
 
 
 class StartupMetrics:
-    """Простой сборщик метрик старта приложения.
+    """Simple application startup metrics collector.
 
-    - Поддерживает именованные спаны (start/stop) и контекстный менеджер time_span().
-    - Потокобезопасен (на случай фоновых операций).
-    - Может вывести сводку в лог в конце старта.
+    - Supports named spans (start/stop) and context manager time_span().
+    - Thread-safe (for background operations).
+    - Can output summary to log at startup end.
     """
 
     def __init__(self) -> None:
@@ -48,7 +48,7 @@ class StartupMetrics:
         now = time.perf_counter()
         with self._lock:
             if name in self._open_spans:
-                # Позволяем вложенные одинаковые имена: добавляем суффикс
+                # Allow nested identical names: add suffix
                 i = 2
                 base = name
                 while name in self._open_spans:
@@ -80,17 +80,17 @@ class StartupMetrics:
     def flush_log(
         self, logger: Optional[logging.Logger] = None, *, level: int = logging.INFO
     ) -> None:
-        """Вывести сводку метрик старта в лог.
+        """Output startup metrics summary to log.
 
-        Формат:
+        Format:
         - Total startup time
-        - Список спанов по убыванию времени
-        - Маркеры (события)
+        - List of spans sorted by descending time
+        - Markers (events)
         """
         lg = logger or logging.getLogger(__name__)
         with self._lock:
             total = time.perf_counter() - self._t0
-            # Отсортируем по длительности, неопределённые (незакрытые) в конец
+            # Sort by duration, undefined (open) at the end
             completed = sorted(
                 self._completed,
                 key=lambda s: (s.duration if s.duration is not None else -1.0),
@@ -114,7 +114,7 @@ class StartupMetrics:
                 )
 
 
-# Глобальный синглтон
+# Global singleton
 _metrics_singleton: Optional[StartupMetrics] = None
 _metrics_lock = threading.Lock()
 

@@ -1,4 +1,4 @@
-"""Совместимый слой для легаси-импорта `app.utils.resource_manager`."""
+"""Compatible layer for legacy import `app.utils.resource_manager`."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from app.views.main_components.common.resource_manager import (
 
 
 class ResourceManager(_ModernResourceManager):
-    """Адаптер, предоставляющий легаси-методы (`register`, `cleanup`)."""
+    """Adapter providing legacy methods (`register`, `cleanup`)."""
 
     def register(  # type: ignore[override]
         self,
@@ -19,7 +19,7 @@ class ResourceManager(_ModernResourceManager):
         name: str = "",
         use_finalize: bool = True,
     ) -> None:
-        """Совместимость со старым API, делегирует в `register_resource`."""
+        """Compatibility with old API, delegates to `register_resource`."""
 
         self.register_resource(
             resource=resource,
@@ -29,7 +29,7 @@ class ResourceManager(_ModernResourceManager):
         )
 
     def cleanup(self) -> None:
-        """Старое имя метода очистки."""
+        """Old method name for cleanup."""
 
         self.cleanup_all()
 

@@ -1,6 +1,6 @@
 """
-Модуль валидации данных для приложения Osteen Path.
-Разделен на специализированные модули по типам валидации.
+Data validation module for Osteen Path application.
+Divided into specialized modules by validation types.
 """
 
 from .basic_validators import (
@@ -41,7 +41,7 @@ __all__ = [
     "validate_link_form_data",
     "validate_chrome_profile_name",
     "extract_base_name_from_profile_name",
-    # File validators (без UI-иконок) — пусто после инлайнинга
+    # File validators (without UI icons) — empty after inlining
     # Structure validators
     "validate_section_data",
     "is_non_empty_name",

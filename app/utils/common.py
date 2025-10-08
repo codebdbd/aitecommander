@@ -1,5 +1,5 @@
 """
-Общие утилиты, используемые по всему приложению.
+Common utilities used throughout the application.
 """
 
 import logging
@@ -11,19 +11,19 @@ logger = logging.getLogger(__name__)
 
 
 def get_value(obj: Any, key: str, default: Any = None) -> Any:
-    """Безопасно извлекает значение по ключу/атрибуту из объекта.
+    """Safely extracts a value by key/attribute from an object.
 
-    Поддерживает:
-    - словареподобные объекты (имеющие метод .get)
-    - обычные объекты (через getattr)
+    Supports:
+    - dict-like objects (having a .get method)
+    - regular objects (via getattr)
 
     Args:
-        obj: источник данных (словарь, dataclass, объект и т.п.)
-        key: ключ/имя атрибута
-        default: значение по умолчанию, если ключ/атрибут отсутствует
+        obj: data source (dict, dataclass, object, etc.)
+        key: key/attribute name
+        default: default value if key/attribute is missing
 
     Returns:
-        Значение по ключу/атрибуту или default
+        Value by key/attribute or default
     """
     try:
         if hasattr(obj, "get"):
@@ -31,22 +31,22 @@ def get_value(obj: Any, key: str, default: Any = None) -> Any:
         return getattr(obj, key, default)
     except (AttributeError, TypeError, KeyError):
         return default
-    except Exception as unexpected_error:  # pragma: no cover - диагностический сценарий
+    except Exception as unexpected_error:  # pragma: no cover - diagnostic scenario
         logger.warning("get_value: unexpected error for key %s: %s", key, unexpected_error)
         return default
 
 
 def safe_getattr(obj: Any, attr: str, default: T | None = None) -> T | None:
-    """Безопасно получить атрибут у объекта, возвращая default при ошибке.
+    """Safely get an attribute from an object, returning default on error.
 
-    Обрабатывает AttributeError/TypeError и любые неожиданные исключения,
-    чтобы не ронять UI‑код при обращении к заглушкам/тестовым объектам.
+    Handles AttributeError/TypeError and any unexpected exceptions,
+    to prevent UI code from crashing when accessing stubs/test objects.
     """
     try:
         return getattr(obj, attr) if obj is not None else default
     except (AttributeError, TypeError):
         return default
-    except Exception as unexpected_error:  # pragma: no cover - диагностический сценарий
+    except Exception as unexpected_error:  # pragma: no cover - diagnostic scenario
         logger.warning("safe_getattr: unexpected error for attr %s: %s", attr, unexpected_error)
         return default
 
@@ -58,10 +58,10 @@ def safe_call(
     default: T | None = None,
     **kwargs: Any,
 ) -> T | None:
-    """Безопасно вызвать метод объекта по имени.
+    """Safely call an object method by name.
 
-    Если метода нет или он выбросил ожидаемые ошибки, возвращает default.
-    Непредвиденные исключения проглатываются для защиты UI‑потока.
+    If the method doesn't exist or throws expected errors, returns default.
+    Unexpected exceptions are swallowed to protect the UI thread.
     """
     try:
         method = getattr(obj, method_name, None)
@@ -70,7 +70,7 @@ def safe_call(
             return result if result is not None else default
     except (AttributeError, TypeError):
         return default
-    except Exception as unexpected_error:  # pragma: no cover - диагностический сценарий
+    except Exception as unexpected_error:  # pragma: no cover - diagnostic scenario
         logger.warning(
             "safe_call: unexpected error calling %s on %s: %s",
             method_name,

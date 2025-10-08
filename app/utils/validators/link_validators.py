@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 
 
 def validate_name_and_url(name: str, url: str) -> bool:
-    """Проверка: имя и путь/URL не пустые."""
+    """Check: name and path/URL are not empty."""
     return bool(name) and bool(url)
 
 
@@ -29,13 +29,13 @@ def validate_link_duplicate(
     existing_links: list,
     current_link_id: int = None,
 ) -> bool:
-    """Проверяет, нет ли дубликата ссылки в категории."""
+    """Checks if there is no duplicate link in the category."""
     for link in existing_links:
-        # Пропускаем текущую редактируемую ссылку
+        # Skip current edited link
         if current_link_id and link["id"] == current_link_id:
             continue
 
-        # Проверяем совпадение URL, типа и аргументов
+        # Check URL, type and arguments match
         link_args = (
             link.get("args")
             if hasattr(link, "get")
@@ -46,22 +46,22 @@ def validate_link_duplicate(
         if link["url"] == url and link["type"] == link_type and (link_args == args):
             try:
                 logger.info(
-                    f"validate_link_duplicate: найден дубликат id={link.get('id')} name='{link.get('name', '')}' "
+                    f"validate_link_duplicate: duplicate found id={link.get('id')} name='{link.get('name', '')}' "
                     f"url='{url}' type='{link_type}' args='{args}' (current_link_id={current_link_id})"
                 )
             except Exception:
                 pass
-            return True  # Найден дубликат
+            return True  # Duplicate found
 
-    return False  # Дубликат не найден
+    return False  # Duplicate not found
 
 
 def validate_chrome_profile_name(profile_name: str) -> str:
-    """Очищает и валидирует имя Chrome профиля."""
+    """Cleans and validates Chrome profile name."""
     if not profile_name:
         return "Chrome"
 
-    # Убираем email домен если есть
+    # Remove email domain if present
     if "@" in profile_name:
         profile_name = profile_name.split("@")[0]
 
@@ -69,7 +69,7 @@ def validate_chrome_profile_name(profile_name: str) -> str:
 
 
 def extract_base_name_from_profile_name(name: str) -> str:
-    """Извлекает базовое имя из имени с профилем."""
+    """Extracts base name from name with profile."""
     import re
 
     match = re.match(r"^(.*?)\s*\(.*\)$", name)
@@ -79,23 +79,23 @@ def extract_base_name_from_profile_name(name: str) -> str:
 
 
 def validate_link_form_data(name: str, url: str, link_type: str) -> bool:
-    """Комплексная валидация данных формы ссылки."""
-    # 1. Проверяем обязательные поля
+    """Comprehensive validation of link form data."""
+    # 1. Check required fields
     if not validate_name_and_url(name, url):
         return False
 
-    # 2. Проверяем тип ссылки
+    # 2. Check link type
     from .basic_validators import validate_link_type, validate_path
 
     if not validate_link_type(link_type):
         return False
 
-    # 3. Проверяем путь для файловых ссылок
+    # 3. Check path for file links
     if link_type in ("file", "folder"):
         if not validate_path(url):
             return False
 
-    # 4. Проверяем web URL
+    # 4. Check web URL
     if link_type == "web" and not validate_web_url(url):
         return False
 

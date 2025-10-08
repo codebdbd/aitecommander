@@ -1,27 +1,27 @@
 # inflight.py
-"""Лёгкие helper-ы для дедупликации параллельных загрузок (in-flight).
+"""Light helpers for deduplication of parallel loads (in-flight).
 
-Использование в sync/async коде позволяет гарантировать, что для одного ключа
-будет выполняться не более одной реальной загрузки, а остальные ожидатели
-получат результат из кэша.
+Using in sync/async code ensures that for a single key
+no more than one real load will be performed, and other waiters
+will get the result from the cache.
 """
 
 import asyncio
 import threading
 
-# Sync: ключ -> Event
+# Sync: key -> Event
 _sync_lock = threading.RLock()
 _sync_events: dict[tuple[str, str], threading.Event] = {}
 
-# Async: ключ -> Future
+# Async: key -> Future
 _async_lock = threading.RLock()
 _async_futures: dict[tuple[str, str], asyncio.Future] = {}
 
 
 def enter_sync(key: tuple[str, str]) -> tuple[bool, threading.Event]:
-    """Войти в критическую секцию для sync-загрузки.
-    Возвращает (leader, event). Leader=True означает, что текущий поток должен выполнить загрузку.
-    Остальные ждут event.set().
+    """Enter critical section for sync loading.
+    Returns (leader, event). Leader=True means the current thread should perform the load.
+    Others wait for event.set().
     """
     with _sync_lock:
         ev = _sync_events.get(key)
@@ -34,7 +34,7 @@ def enter_sync(key: tuple[str, str]) -> tuple[bool, threading.Event]:
 
 
 def leave_sync(key: tuple[str, str]) -> None:
-    """Завершить sync-загрузку: разбудить ожидающих и убрать ключ."""
+    """Finish sync loading: wake up waiters and remove key."""
     with _sync_lock:
         ev = _sync_events.pop(key, None)
         if ev is not None:
@@ -42,9 +42,9 @@ def leave_sync(key: tuple[str, str]) -> None:
 
 
 def enter_async(key: tuple[str, str]) -> tuple[bool, asyncio.Future]:
-    """Войти в критическую секцию для async-загрузки.
-    Возвращает (leader, future). Leader=True означает, что текущая корутина должна выполнить загрузку
-    и установить результат future. Остальные просто await этого future.
+    """Enter critical section for async loading.
+    Returns (leader, future). Leader=True means the current coroutine should perform the load
+    and set the future result. Others just await this future.
     """
     loop = asyncio.get_event_loop()
     with _async_lock:
@@ -58,7 +58,7 @@ def enter_async(key: tuple[str, str]) -> tuple[bool, asyncio.Future]:
 
 
 def leave_async_success(key: tuple[str, str], result) -> None:
-    """Установить успешный результат и очистить ключ."""
+    """Set successful result and clear key."""
     with _async_lock:
         fut = _async_futures.pop(key, None)
         if fut is not None and not fut.done():
@@ -66,7 +66,7 @@ def leave_async_success(key: tuple[str, str], result) -> None:
 
 
 def leave_async_error(key: tuple[str, str], exc: Exception | None = None) -> None:
-    """Установить ошибку или пустой результат и очистить ключ."""
+    """Set error or empty result and clear key."""
     with _async_lock:
         fut = _async_futures.pop(key, None)
         if fut is not None and not fut.done():

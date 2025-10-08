@@ -1,6 +1,4 @@
-"""
-Базовые типы и классы для фоновых задач работы с БД.
-"""
+"""Basic types and helpers for background database tasks."""
 
 from __future__ import annotations
 
@@ -13,12 +11,12 @@ T = TypeVar("T")
 
 
 class TaskSignals(QObject):
-    """Сигналы для фоновых задач.
+    """Signals emitted by background tasks.
 
-    - finished(object): эмитится с результатом при успешном завершении
-    - error(object): эмитится с исключением при ошибке
-    - progress(int): опциональный прогресс 0..100
-    - canceled(): задача была отменена
+    - ``finished(object)``: emitted with result on success
+    - ``error(object)``: emitted with raised exception
+    - ``progress(int)``: optional progress indicator 0..100
+    - ``canceled()``: task was canceled
     """
 
     finished = pyqtSignal(object)
@@ -28,9 +26,9 @@ class TaskSignals(QObject):
 
 
 class DatabaseTask(QRunnable, Generic[T]):
-    """Обёртка QRunnable для выполнения произвольной функции в пуле потоков.
+    """QRunnable wrapper that executes an arbitrary callable in the thread pool.
 
-    Никаких зависимостей от UI. Вся обработка ошибок/локов снаружи.
+    Contains no UI dependencies. All error/lock handling happens externally.
     """
 
     def __init__(
@@ -45,25 +43,25 @@ class DatabaseTask(QRunnable, Generic[T]):
         self.signals = TaskSignals()
         self._canceled = False
         self.description = description
-        # Внешний колбэк прогресса; может быть None
+        # External progress callback; may be ``None``
         self._external_reporter: Optional[Callable[[int], None]] = reporter
 
     def report_progress(self, value: int) -> None:
-        """Сообщить о прогрессе задачи (0..100).
+        """Report task progress (0..100).
 
-        Всегда эмитит сигнал `signals.progress`, а затем (если передан)
-        вызывает внешний колбэк, переданный через `run_db(..., on_progress=...)`.
+        Always emits ``signals.progress`` first, then (if provided) calls the
+        external callback passed via ``run_db(..., on_progress=...)``.
         """
         try:
             self.signals.progress.emit(int(value))
         except Exception:
-            # Гарантируем, что внешний колбэк вызовется даже при проблемах с сигналом
+            # Ensure external callback is still called even if signal emission fails
             pass
         try:
             if self._external_reporter is not None:
                 self._external_reporter(int(value))
         except Exception:
-            # Не прерываем выполнение задачи из-за ошибок пользовательского колбэка
+            # Do not interrupt the task due to errors in user callbacks
             pass
 
     def cancel(self) -> None:
@@ -78,7 +76,7 @@ class DatabaseTask(QRunnable, Generic[T]):
             self.signals.canceled.emit()
             return
         try:
-            # Определяем сигнатуру: поддерживаем функции с 0 или 1 позиционным аргументом
+            # Determine signature: support callables with 0 or 1 positional argument
             try:
                 sig = inspect.signature(self.func)
                 params = list(sig.parameters.values())
@@ -100,7 +98,7 @@ class DatabaseTask(QRunnable, Generic[T]):
                 else:
                     result = self.func()  # type: ignore[call-arg]
             except ValueError:
-                # Сигнатура недоступна (встроенная/С-функция): по умолчанию вызываем без аргументов
+                # Signature unavailable (built-in/C function): call without arguments by default
                 result = self.func()  # type: ignore[call-arg]
             if self._canceled:
                 self.signals.canceled.emit()

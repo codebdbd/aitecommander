@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 def format_last_used(last_used: str) -> str:
     if not last_used:
-        return "Никогда"
+        return "Never"
 
     def pluralize(n, one, few, many):
         if n % 10 == 1 and n % 100 != 11:
@@ -21,26 +21,26 @@ def format_last_used(last_used: str) -> str:
         now = datetime.now(last_time.tzinfo)
         delta = now - last_time
         if delta.total_seconds() < 60:
-            return "Только что"
+            return "Just now"
         minutes = int(delta.total_seconds() / 60)
         if minutes < 60:
-            unit = pluralize(minutes, "мин.", "мин.", "мин.")
-            return f"{minutes} {unit} назад"
+            unit = pluralize(minutes, "min", "min", "min")
+            return f"{minutes} {unit} ago"
         hours = int(minutes / 60)
         if hours < 24:
-            unit = pluralize(hours, "ч.", "ч.", "ч.")
-            return f"{hours} {unit} назад"
+            unit = pluralize(hours, "hr", "hr", "hr")
+            return f"{hours} {unit} ago"
         days = delta.days
         if days < 7:
-            unit = pluralize(days, "д.", "д.", "д.")
-            return f"{days} {unit} назад"
+            unit = pluralize(days, "day", "days", "days")
+            return f"{days} {unit} ago"
         elif days < 30:
             weeks = days // 7
-            unit = pluralize(weeks, "нед.", "нед.", "нед.")
-            return f"{weeks} {unit} назад"
+            unit = pluralize(weeks, "week", "weeks", "weeks")
+            return f"{weeks} {unit} ago"
         return last_time.strftime("%d.%m.%Y")
     except (ValueError, TypeError) as e:
         logger.error(
-            f"[format_last_used] Ошибка форматирования времени: {e}", exc_info=True
+            f"[format_last_used] Time formatting error: {e}", exc_info=True
         )
-        return "Неизвестно"
+        return "Unknown"

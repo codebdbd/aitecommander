@@ -1,25 +1,26 @@
-"""Публичный фасад для запуска фоновых задач работы с БД.
+"""Public facade for running database tasks in background threads.
 
-Примеры:
+Examples::
     from app.utils.db.api import run_db
 
-    # Базовый запуск без прогресса
+    # Basic run without progress reporting
     handle = run_db(lambda: db.links.upsert_link(data), on_finished=cb)
 
-    # Отмена задачи
+    # Cancel the task
     handle.cancel()
 
-    # Репортинг прогресса (0..100):
-    # 1) Передайте обработчик on_progress, чтобы получать значения в колбэке.
-    # 2) Подпишитесь на handle.signals.progress, чтобы получать Qt-сигналы в UI.
-    # 3) Передайте в исполняемую функцию позиционный аргумент-репортёр и вызывайте его.
-    #    Если функция принимает один аргумент, run_db передаст в неё callable report_progress.
-    #    Иначе функция будет вызвана как есть (обратная совместимость).
+    # Progress reporting (0..100):
+    # 1) Provide `on_progress` to receive updates in a Python callback.
+    # 2) Subscribe to `handle.signals.progress` to react inside Qt UI code.
+    # 3) Accept a positional reporter argument in the callable and invoke it.
+    #    If the callable accepts one positional parameter, ``run_db`` will pass
+    #    ``report_progress``. Otherwise the callable is invoked as-is for
+    #    backwards compatibility.
     #
-    # Пример с явным репортингом внутри функции:
+    # Example with explicit progress reporting inside the callable:
     def long_job(report_progress):
         for i in range(101):
-            # ... работа ...
+            # ... work ...
             report_progress(i)
         return "ok"
 
@@ -70,18 +71,18 @@ def run_db(
     on_error: Optional[Callable[[Exception], None]] = None,
     on_progress: Optional[Callable[[int], None]] = None,
 ) -> TaskHandle:
-    """Запустить функцию БД в пуле потоков.
+    """Run a database callable inside the thread pool.
 
-    - use_lock: выполнить под глобальным db_lock
-    - description: описание для логирования/диагностики
-    - on_finished/on_error/on_progress: необязательные колбэки на сигналы
-    - pool: опционально указать свой QThreadPool
+    - ``use_lock``: execute under the global ``db_lock``
+    - ``description``: optional text for logging/diagnostics
+    - ``on_finished`` / ``on_error`` / ``on_progress``: optional signal callbacks
+    - ``pool``: custom ``QThreadPool`` if provided
 
-    Отчёт о прогрессе:
-    - Внутри задачи можно вызывать переданный позиционный аргумент `report_progress(value: int)`
-      (если функция объявлена с одним позиционным параметром). Это эмитит Qt-сигнал
-      `signals.progress` и вызывает `on_progress`, если он передан.
-    - Либо можно подписаться на `handle.signals.progress` из UI.
+    Progress reporting:
+    - Inside the task you may call the positional argument ``report_progress(value: int)``
+      (when the callable declares one positional parameter). This emits the Qt signal
+      ``signals.progress`` and invokes ``on_progress`` if supplied.
+    - Alternatively, subscribe to ``handle.signals.progress`` from the UI layer.
     """
 
     def _expects_reporter(callable_obj: Callable[..., T]) -> bool:

@@ -1,15 +1,15 @@
 """
-Базовые абстракции для кэширования.
+Base abstractions for caching.
 
-Единый API:
+Unified API:
 - get(key) -> Optional[Any]
 - set(key, value, *, ttl: Optional[float] = None) -> None
 - invalidate(key: Optional[str] = None) -> None
 - clear() -> None
 
-Примечания:
-- TTL (секунды) можно задавать на запись; реализация может также иметь дефолтный TTL.
-- Реализации должны быть потокобезопасны, если предполагается многопоточность.
+Notes:
+- TTL (seconds) can be provided per record; implementations may also define a default TTL.
+- Implementations must be thread-safe when used in multi-threaded scenarios.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ class CacheRecord:
 
 
 class BaseCache(abc.ABC):
-    """Абстрактный базовый класс кэша."""
+    """Abstract base class for cache implementations."""
 
     @abc.abstractmethod
     def get(self, key: str) -> Optional[Any]:  # pragma: no cover - контракт
@@ -60,28 +60,28 @@ class BaseCache(abc.ABC):
         raise NotImplementedError
 
     def clear(self) -> None:
-        """Синоним invalidate(None)."""
+        """Alias for ``invalidate(None)``."""
         self.invalidate(None)
 
 
 class InMemoryCache(BaseCache):
-    """Простая потокобезопасная in-memory реализация с опциональным дефолтным TTL и лимитом размера (LRU).
+    """Thread-safe in-memory cache with optional default TTL and LRU size limit.
 
-    Вытеснение: при вставке, если достигнут ``max_size``, удаляется самый старый ключ по последнему доступу.
+    Eviction: when inserting and the cache reaches ``max_size``, the least recently used key is removed.
 
-    Очистка протухших записей (TTL):
-    - При ``get`` протухшие записи удаляются лениво.
-    - Дополнительно доступен метод ``prune_expired()``, который удаляет все протухшие записи за один проход.
-    - Чтобы не делать полный проход по ключам на каждый вызов, используется оппортунистическая стратегия:
-      при ``set``/``invalidate`` очистка вызывается не чаще, чем раз в ``_prune_interval_sec`` секунд.
-    - Значение интервала по умолчанию — 60 секунд; можно изменить через свойство ``_prune_interval_sec``.
+    Expired record cleanup (TTL):
+    - ``get`` lazily removes expired records.
+    - ``prune_expired()`` performs a full sweep and removes all expired records at once.
+    - To avoid scanning all keys on every call, an opportunistic strategy runs cleanup on ``set``/``invalidate``
+      no more often than once per ``_prune_interval_sec`` seconds.
+    - Default interval is 60 seconds; it can be adjusted via ``_prune_interval_sec``.
     """
 
     def __init__(
         self, *, default_ttl: Optional[float] = None, max_size: Optional[int] = None
     ) -> None:
         self._default_ttl = default_ttl
-        # Валидируем max_size: допускаем None или целое число >= 0; отрицательные — ошибка
+        # Validate ``max_size``: allow None or integer >= 0; negative values raise an error
         if max_size is None:
             self._max_size = None
         else:
@@ -93,15 +93,15 @@ class InMemoryCache(BaseCache):
                 raise ValueError("max_size must be >= 0 or None")
             self._max_size = ms
         self._lock = threading.RLock()
-        # Порядок LRU хранится в OrderedDict: самый свежий справа (конце)
+        # LRU order is stored in OrderedDict: most recent items stay on the right (end)
         # key -> CacheRecord
         self._store: OrderedDict[str, CacheRecord] = OrderedDict()
-        # Параметры фоновой/периодической очистки
+        # Periodic cleanup parameters
         self._last_prune_ts: float = 0.0
         self._prune_interval_sec: float = 60.0
 
     def _touch(self, key: str) -> None:
-        # Перемещаем ключ в конец как самый недавно использованный
+        # Move key to the end to mark it as most recently used
         if key in self._store:
             self._store.move_to_end(key, last=True)
 
@@ -109,7 +109,7 @@ class InMemoryCache(BaseCache):
         if self._max_size is None:
             return
         while len(self._store) > self._max_size:
-            # Удалить самый старый (слева)
+            # Remove the oldest entry (leftmost)
             try:
                 self._store.popitem(last=False)
             except KeyError:
@@ -121,7 +121,7 @@ class InMemoryCache(BaseCache):
             if rec is None:
                 return None
             if not rec.is_valid():
-                # устарело — удалить
+                # Expired — remove
                 self._store.pop(key, None)
                 return None
             self._touch(key)
@@ -135,7 +135,7 @@ class InMemoryCache(BaseCache):
                 ttl=ttl if ttl is not None else self._default_ttl,
             )
             self._store[key] = rec
-            # Переместим в конец как самый свежий
+            # Move to the end as the most recent entry
             self._store.move_to_end(key, last=True)
             self._evict_if_needed()
             self._maybe_prune_expired_locked()
@@ -145,22 +145,22 @@ class InMemoryCache(BaseCache):
             if key is None:
                 if self._store:
                     self._store.clear()
-                # После полной очистки обновим время последней очистки
+                # After full cleanup update the last prune timestamp
                 self._last_prune_ts = time.time()
                 return
             self._store.pop(key, None)
             self._maybe_prune_expired_locked()
 
-    # --- Очистка протухших записей ---
+    # --- Expired record cleanup ---
     def prune_expired(self) -> int:
-        """Удаляет все устаревшие записи (TTL истёк). Возвращает число удалённых ключей.
+        """Remove all expired records (TTL exceeded). Returns the number of removed keys.
 
-        Выполняет полный проход по ключам под блокировкой. Безопасно вызывать в любое время.
+        Performs a full sweep under the lock. Safe to call at any time.
         """
         removed = 0
         with self._lock:
             now = time.time()
-            # Собираем список, чтобы не модифицировать dict во время итерации
+            # Create a list to avoid mutating the dict while iterating
             for k, rec in list(self._store.items()):
                 if rec is None:
                     continue
@@ -178,15 +178,16 @@ class InMemoryCache(BaseCache):
         return removed
 
     def _maybe_prune_expired_locked(self) -> None:
-        """Оппортунистическая очистка: запускаем ``prune_expired`` не чаще,
-        чем раз в ``_prune_interval_sec`` секунд. Требует внешней блокировки ``_lock``.
+        """Opportunistic cleanup: run ``prune_expired`` at most once per ``_prune_interval_sec`` seconds.
+
+        Requires the caller to hold ``_lock``.
         """
         try:
             now = time.time()
             if (now - self._last_prune_ts) >= self._prune_interval_sec:
-                # Вызов без повторного захвата, так как мы уже под _lock
+                # Call without re-locking because ``_lock`` is already held
                 removed = 0
-                # Лёгкая оптимизация: если мало ключей, просто пройдёмся
+                # Light optimisation: iterate directly when there are few keys
                 for k, rec in list(self._store.items()):
                     if rec is None:
                         continue
@@ -202,5 +203,5 @@ class InMemoryCache(BaseCache):
                         removed += 1
                 self._last_prune_ts = now
         except Exception:
-            # Никогда не мешаем пользовательскому коду из-за ошибок в очистке
+            # Never disrupt user code due to cleanup errors
             pass

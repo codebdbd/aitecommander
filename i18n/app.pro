@@ -81,15 +81,27 @@ SOURCES += ../app/controllers/ui/undo/commands.py \
            ../app/controllers/ui/undo/commands_links.py \
            ../app/controllers/ui/undo/commands_structure.py
 
-# Main components
-SOURCES += ../app/views/main_components/ui/bottom_panel_setup.py \
-           ../app/views/main_components/ui/right_panel_setup.py \
-           ../app/views/main_components/ui/topbar/top_bar_setup.py
+# Utils - Links parser
+SOURCES += ../app/utils/links/parser/__init__.py \
+           ../app/utils/links/parser/cache.py \
+           ../app/utils/links/parser/constants.py \
+           ../app/utils/links/parser/domain.py \
+           ../app/utils/links/parser/favicon_cache.py \
+           ../app/utils/links/parser/fetcher.py \
+           ../app/utils/links/parser/http_client.py \
+           ../app/utils/links/parser/icon_candidates.py \
+           ../app/utils/links/parser/icon_downloader.py \
+           ../app/utils/links/parser/js_renderer.py \
+           ../app/utils/links/parser/svg_convert.py \
+           ../app/utils/links/parser/title_parser.py
 
 # Translation files
 TRANSLATIONS = app_en.ts \
                app_ru.ts \
-               app_uk.ts
+               app_uk.ts \
+               app_de.ts \
+               app_es.ts \
+               app_fr.ts
 
 # Encoding settings
 CODECFORTR = UTF-8

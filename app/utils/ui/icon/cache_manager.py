@@ -1,4 +1,4 @@
-"""Менеджер кэша иконок со стандартным API (пути, QIcon, LRU, TTL, метрики)."""
+"""Icon cache manager with standard API (paths, QIcon, LRU, TTL, metrics)."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class _FallbackCacheMetrics:
-    """Простая реализация метрик, если .metrics недоступен."""
+    """Simple metrics implementation if .metrics is unavailable."""
 
     def __init__(self) -> None:
         self._lock = threading.RLock()
@@ -79,24 +79,21 @@ except Exception:  # noqa: BLE001
     _RuntimeCacheMetrics = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
-    # Для статической типизации: mypy увидит корректный класс
+    # For static typing: mypy will see the correct class
     from .metrics import CacheMetrics as CacheMetrics  # noqa: F401
 else:
-    # Рантайм: используем внешнюю реализацию, если доступна, иначе фолбэк
     if _RuntimeCacheMetrics is not None:
         CacheMetrics = _RuntimeCacheMetrics  # type: ignore[assignment]
     else:
-        class CacheMetrics(_FallbackCacheMetrics):  # type: ignore[misc]
+        class CacheMetrics(_FallbackCacheMetrics):
             pass
 
 
- 
-
-# --- Типы записей кэша ---
+# --- Cache entry types ---
 
 
 def _is_entry_valid(timestamp: float, ttl_seconds: float | None) -> bool:
-    """Проверяет валидность записи по TTL."""
+    """Checks entry validity by TTL."""
     if ttl_seconds is None:
         return True
     try:
@@ -111,7 +108,7 @@ def _is_entry_valid(timestamp: float, ttl_seconds: float | None) -> bool:
 
 @dataclass
 class PathCacheEntry:
-    """Запись кэша для путей к иконкам."""
+    """Cache entry for icon paths."""
 
     path: str | None
     timestamp: float
@@ -123,7 +120,7 @@ class PathCacheEntry:
 
 @dataclass
 class IconCacheEntry:
-    """Запись кэша для QIcon."""
+    """Cache entry for QIcon."""
 
     icon: QIcon | None
     timestamp: float
@@ -134,11 +131,11 @@ class IconCacheEntry:
         return _is_entry_valid(self.timestamp, ttl_seconds)
 
 
-# --- Потокобезопасный кэш ---
+# --- Thread-safe cache ---
 
 
 class ThreadSafeIconCache:
-    """Потокобезопасный LRU-кэш путей и QIcon."""
+    """Thread-safe LRU cache for paths and QIcon."""
 
     def __init__(self, maxsize: int | None = None) -> None:
         capacity = (
@@ -174,7 +171,7 @@ class ThreadSafeIconCache:
         self._getter_abs = getattr(app_config, "get_abs_icon_cache_ttl", None)
         self._getter_negative = getattr(app_config, "get_negative_cache_ttl", None)
 
-    # --- ключи ---
+    # --- keys ---
 
     @staticmethod
     def _key(icon_name: str, theme: str) -> str:
@@ -182,9 +179,9 @@ class ThreadSafeIconCache:
 
     @staticmethod
     def _parse_unified_key(key: str) -> tuple[str, str, str]:
-        """Разобрать единый ключ формата 'path:icon::theme' или 'qicon:icon::theme'.
+        """Parse a unified key in the format 'path:icon::theme' or 'qicon:icon::theme'.
 
-        Возвращает кортеж (prefix, icon_name, theme). Бросает ValueError при неверном формате.
+        Returns a tuple (prefix, icon_name, theme). Raises ValueError on invalid format.
         """
         if ":" not in key:
             raise ValueError("Unified key must contain prefix 'path:' or 'qicon:'")
@@ -198,7 +195,7 @@ class ThreadSafeIconCache:
             raise ValueError("Unsupported prefix, expected 'path' or 'qicon'")
         return prefix, icon_name, theme
 
-    # --- служебное для ресинхронизации ---
+    # --- utility for resynchronization ---
 
     def _sync_path_structs(self) -> None:
         self._path_lru.sync_with_cache(self._path_cache)
@@ -206,10 +203,10 @@ class ThreadSafeIconCache:
     def _sync_qicon_structs(self) -> None:
         self._qicon_lru.sync_with_cache(self._qicon_cache)
 
-    # --- обновление TTL при monkeypatch ---
+    # --- TTL update during monkeypatch ---
 
     def _ensure_fresh_ttls(self) -> None:
-        """Обновляет кешированные TTL при изменении геттеров в app_config."""
+        """Updates cached TTLs when getters change in app_config."""
         try:
             if getattr(app_config, "get_icon_cache_ttl", None) is not self._getter_icon:
                 self._getter_icon = getattr(app_config, "get_icon_cache_ttl", None)
@@ -238,7 +235,7 @@ class ThreadSafeIconCache:
                 except Exception:  # noqa: BLE001
                     self._ttl_negative = None
         except Exception as exc:
-            # Никогда не мешаем основному пути исполнения из-за ошибок конфигурации
+            # Never interfere with the main execution path due to configuration errors
             logger.debug(
                 "IconCache: TTL refresh failed, using previous values: %s",
                 exc,
@@ -248,7 +245,7 @@ class ThreadSafeIconCache:
     # --- PATH API ---
 
     def get_path(self, icon_name: str, theme: str) -> str | None:
-        """Возвращает путь к иконке из кэша путей."""
+        """Returns the path to an icon from the path cache."""
         with acquire_cache_lock():
             self._ensure_fresh_ttls()
             self._sync_path_structs()
@@ -263,7 +260,7 @@ class ThreadSafeIconCache:
                     )
                 return None
 
-            # Персональный TTL имеет приоритет над глобальным TTL для путей
+            # Personal TTL takes precedence over global TTL for paths
             ttl = (
                 entry.ttl_override if entry.ttl_override is not None else self._ttl_icon
             )
@@ -286,7 +283,7 @@ class ThreadSafeIconCache:
             return entry.path
 
     def set_path(self, icon_name: str, theme: str, path: str | None) -> None:
-        """Сохраняет путь к иконке в кэше путей."""
+        """Stores the path to an icon in the path cache."""
         with acquire_cache_lock():
             self._sync_path_structs()
             key = self._key(icon_name, theme)
@@ -305,7 +302,7 @@ class ThreadSafeIconCache:
     # --- QICON API ---
 
     def get_qicon(self, icon_name: str, theme: str) -> QIcon | None:
-        """Возвращает QIcon из кэша иконок."""
+        """Returns QIcon from the icon cache."""
         with acquire_cache_lock():
             self._ensure_fresh_ttls()
             self._sync_qicon_structs()
@@ -318,7 +315,7 @@ class ThreadSafeIconCache:
                     pass
                 return None
 
-            # Базовый TTL по типу записи, затем приоритет per-entry override
+            # Base TTL by entry type, then per-entry override priority
             if entry.negative:
                 base_ttl = self._ttl_negative
             else:
@@ -348,7 +345,7 @@ class ThreadSafeIconCache:
         *,
         negative: bool = False,
     ) -> None:
-        """Сохраняет QIcon в кэше иконок."""
+        """Stores QIcon in the icon cache."""
         with acquire_cache_lock():
             self._sync_qicon_structs()
             key = self._key(icon_name, theme)
@@ -365,10 +362,10 @@ class ThreadSafeIconCache:
             self._qicon_lru.access(key)
             logger.debug("Set QICON: %s", key)
 
-    # --- BaseCache-совместимый API (унифицированные ключи) ---
+    # --- BaseCache-compatible API (unified keys) ---
 
     def get(self, key: str) -> str | QIcon | None:  # noqa: C901
-        """Возвращает значение по ключу 'path:...'/ 'qicon:...'."""
+        """Returns the value by key 'path:...'/ 'qicon:...'."""
         with acquire_cache_lock():
             self._ensure_fresh_ttls()
             prefix, icon_name, theme = self._parse_unified_key(key)
@@ -445,7 +442,7 @@ class ThreadSafeIconCache:
         *,
         ttl: float | None = None,
     ) -> None:
-        """Устанавливает значение по ключу (для qicon None означает негативную запись)."""
+        """Sets the value by key (for qicon, None means a negative entry)."""
         prefix, icon_name, theme = self._parse_unified_key(key)
         with acquire_cache_lock():
             if prefix == "path":
@@ -483,10 +480,10 @@ class ThreadSafeIconCache:
                 self._qicon_lru.access(k)
 
     def invalidate(self, key: str | None = None) -> None:
-        """Инвалидирует запись по ключу или весь кэш при key=None."""
+        """Invalidates an entry by key or the entire cache when key=None."""
         with acquire_cache_lock():
             if key is None:
-                # Полная очистка без пересоздания LRU и метрик
+                # Complete cleanup without recreating LRU and metrics
                 self._path_cache.clear()
                 self._qicon_cache.clear()
                 self._path_lru.sync_with_cache(self._path_cache)
@@ -509,7 +506,7 @@ class ThreadSafeIconCache:
                 self._qicon_lru.remove(k)
 
     def clear(self) -> None:
-        """Полная очистка кэшей и метрик."""
+        """Complete cache and metrics cleanup."""
         with acquire_multiple_locks(LockLevel.CACHE, LockLevel.METRICS):
             self._path_cache.clear()
             self._qicon_cache.clear()
@@ -540,7 +537,7 @@ class ThreadSafeIconCache:
             self._getter_negative = getattr(app_config, "get_negative_cache_ttl", None)
 
     def get_cache_stats(self) -> dict[str, int | float]:
-        """Агрегированная статистика по кэшу и метрикам."""
+        """Aggregated cache and metrics statistics."""
         with acquire_multiple_locks(LockLevel.CACHE, LockLevel.METRICS):
             base = self.metrics.get_stats()
             more = {
@@ -557,11 +554,11 @@ class ThreadSafeIconCache:
             return {**base, **more}
 
 
-# --- Менеджер (Singleton) ---
+# --- Manager (Singleton) ---
 
 
 class IconManager:
-    """Синглтон-обёртка над ThreadSafeIconCache."""
+    """Singleton wrapper over ThreadSafeIconCache."""
 
     _instance: IconManager | None = None
     _lock = threading.Lock()
@@ -580,7 +577,7 @@ class IconManager:
         self._cache = cache if cache is not None else ThreadSafeIconCache()
         self._initialized = True
 
-    # Унифицированный API (совместимый с BaseCache)
+    # Unified API (compatible with BaseCache)
     def get(self, key: str) -> str | QIcon | None:
         return self._cache.get(key)
 
@@ -596,14 +593,14 @@ class IconManager:
     def invalidate(self, key: str | None = None) -> None:
         self._cache.invalidate(key)
 
-    # PATH (новые стандартизированные имена)
+    # PATH (new standardized names)
     def get_path(self, icon_name: str, theme: str) -> str | None:
         return self._cache.get_path(icon_name, theme)
 
     def set_path(self, icon_name: str, theme: str, path: str | None) -> None:
         self._cache.set_path(icon_name, theme, path)
 
-    # QICON (новые стандартизированные имена)
+    # QICON (new standardized names)
     def get_icon(self, icon_name: str, theme: str) -> QIcon | None:
         return self._cache.get_qicon(icon_name, theme)
 
@@ -624,7 +621,7 @@ class IconManager:
     def get_cache_stats(self) -> dict[str, int | float]:
         return self._cache.get_cache_stats()
 
-    # Метрики (без прямого доступа к внутренним локам)
+    # Metrics (without direct access to internal locks)
     def record_miss_without_increment(self, load_time: float = 0.0) -> None:
         self._cache.metrics.record_miss_without_increment(load_time)
 
@@ -642,22 +639,22 @@ _icon_manager = IconManager()
 
 
 def clear_icon_cache() -> None:
-    """Очищает кэш иконок."""
+    """Clears the icon cache."""
     _icon_manager.clear_cache()
 
 
 def get_icon_cache_stats() -> dict[str, int | float]:
-    """Возвращает статистику кэша."""
+    """Returns cache statistics."""
     return _icon_manager.get_cache_stats()
 
 
 def reset_icon_cache_stats() -> None:
-    """Сбрасывает метрики."""
+    """Resets metrics."""
     _icon_manager._cache.metrics.reset()
 
 
 def log_icon_cache_stats() -> None:
-    """Логирует статистику кэша."""
+    """Logs cache statistics."""
     logger.info("Icon Cache Stats: %s", get_icon_cache_stats())
 
 
@@ -717,13 +714,13 @@ def clear() -> None:
 
 
 def get_cached_category_icon(path: str) -> QIcon:
-    """Получить кэшированную иконку категории из общего кэша без зависимостей от icon_operations."""
+    """Get a cached category icon from the general cache without dependencies on icon_operations."""
     cache_key = f"category::{path}"
     cached_icon = _icon_manager.get_icon(cache_key, "__category__")
     if cached_icon is not None:
         return cached_icon
 
-    # Создаем QIcon напрямую по пути, без вызова create_icon_from_path, чтобы избежать циклов импорта
+    # Create QIcon directly by path, without calling create_icon_from_path, to avoid import cycles
     icon = QIcon(str(path)) if Path(path).exists() else QIcon()
 
     _icon_manager.set_icon(cache_key, "__category__", icon)

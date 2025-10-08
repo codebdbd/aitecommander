@@ -1,8 +1,8 @@
 # app/utils/dnd/tree.py
 
-"""Централизованный обработчик drag & drop для дерева структуры.
+"""Centralized drag & drop handler for structure tree.
 
-Поддерживается `StructureTreeView` (QTreeView) с моделью и индексами.
+Supports `StructureTreeView` (QTreeView) with model and indexes.
 """
 
 import logging
@@ -22,29 +22,29 @@ logger = logging.getLogger(__name__)
 
 
 class DragDropHandler(TreeHandlerBase):
-    """Обработчик drag & drop операций в дереве структуры."""
+    """Drag & drop operations handler in structure tree."""
 
     def accepts_mime_type(self, mime) -> bool:
-        """Проверяет, принимает ли виджет данный MIME тип."""
+        """Checks if widget accepts given MIME type."""
         return mime.hasFormat(app_config.get_link_mime_type()) or mime.hasFormat(
             app_config.get_category_mime_type()
         )
 
     def handle_drag_enter_event(self, event) -> None:
-        """Обработка входа drag операции."""
+        """Handle drag enter event."""
         mime = event.mimeData()
         if self.accepts_mime_type(mime):
             event.acceptProposedAction()
         else:
-            # Передаем обработку родительскому классу для внутренних операций
+            # Delegate to parent class for internal operations
             super(type(self.tree_widget), self.tree_widget).dragEnterEvent(event)
 
     def handle_drag_move_event(self, event) -> None:
-        """Визуальная обратная связь во время перетаскивания."""
+        """Visual feedback during dragging."""
         mime = event.mimeData()
         is_internal_move = event.source() == self.tree_widget
 
-        # Путь для QTreeView (модель/индексы)
+        # Path for QTreeView (model/indexes)
         src_index = self.tree_widget.currentIndex()
         if is_internal_move:
             if (
@@ -60,11 +60,11 @@ class DragDropHandler(TreeHandlerBase):
         return
 
     def handle_drag_leave_event(self, event) -> None:
-        """Обработка выхода из drag зоны."""
+        """Handle drag leave event."""
         event.accept()
 
     def handle_drop_event(self, event) -> None:
-        """Основной обработчик drop событий."""
+        """Main drop event handler."""
         mime = event.mimeData()
 
         target_index: QModelIndex = self.tree_widget.indexAt(event.position().toPoint())
@@ -81,7 +81,7 @@ class DragDropHandler(TreeHandlerBase):
             return
         event.ignore()
 
-    # --- Индексная версия внешнего dragMove ---
+    # --- Index version of external dragMove ---
     def _handle_external_drag_move_index(self, event, mime) -> None:
         target_index: QModelIndex = self.tree_widget.indexAt(event.position().toPoint())
         if not target_index or not target_index.isValid():
@@ -119,7 +119,7 @@ class DragDropHandler(TreeHandlerBase):
             self._focus_target_category_index(target_index)
 
     def _focus_target_category_index(self, target_index: QModelIndex):
-        """Фокусировка на целевой категории (QTreeView)."""
+        """Focus on target category (QTreeView)."""
         if target_index and target_index.isValid():
             self.tree_widget.setCurrentIndex(target_index)
             ttuple = get_tree_tuple(target_index, 0)
@@ -137,16 +137,16 @@ class DragDropHandler(TreeHandlerBase):
                     )
                 except Exception as e:
                     logger.warning(
-                        "Не удалось отправить dragFeedback для категории %s: %s",
+                        "Failed to send dragFeedback for category %s: %s",
                         target_id,
                         e,
                     )
 
     # --- Helpers extracted from internal DnD flow ---
     def get_selected_categories(self) -> list[QModelIndex]:
-        """Возвращает список выбранных индексов категорий (колонка 0).
+        """Returns list of selected category indexes (column 0).
 
-        Фолбэк: если множественный выбор пуст — используется текущий индекс.
+        Fallback: if multiple selection is empty — uses current index.
         """
         selection_model = getattr(self.tree_widget, "selectionModel", lambda: None)()
         selected_indexes: list[QModelIndex] = []
@@ -166,14 +166,14 @@ class DragDropHandler(TreeHandlerBase):
             t = get_tree_tuple(idx, 0)
             if t and t[0] == "category":
                 category_indices.append(idx)
-        # Стабильный порядок: по возрастанию row в текущем представлении
+        # Stable order: by ascending row in current view
         category_indices.sort(key=lambda i: i.row())
         return category_indices
 
     def determine_target(self, event: QDropEvent) -> tuple[int, int]:
-        """Определяет целевой раздел и базовую позицию вставки.
+        """Determines target section and base insertion position.
 
-        Возвращает (section_id, base_row) или бросает ValueError для игнорируемых случаев.
+        Returns (section_id, base_row) or raises ValueError for ignored cases.
         """
         target_index: QModelIndex = self.tree_widget.indexAt(event.position().toPoint())
         drop_pos = self.tree_widget.dropIndicatorPosition()
@@ -215,7 +215,7 @@ class DragDropHandler(TreeHandlerBase):
         else:
             raise ValueError("invalid target")
 
-        # Нормализация base_row в [0..rowCount]
+        # Normalize base_row to [0..rowCount]
         total_rows = (
             model.rowCount(parent_for_count)
             if parent_for_count and parent_for_count.isValid()
@@ -236,18 +236,18 @@ class DragDropHandler(TreeHandlerBase):
     def move_categories(
         self, category_ids: list[int], section_id: int, base_row: int
     ) -> int:
-        """Перемещает список категорий в указанный раздел и позицию.
+        """Moves list of categories to specified section and position.
 
-        Пытается использовать атомарную команду для нескольких элементов.
-        Возвращает число реально перемещённых элементов. В одиночном пути
-        генерирует сигнал itemsMoved по каждому успешному переносу.
+        Attempts to use atomic command for multiple items.
+        Returns number of actually moved items. In single path
+        generates itemsMoved signal for each successful move.
         """
         if not category_ids:
             return 0
 
         model = self.tree_widget.model()
 
-        # Атомарная команда для множественного переноса
+        # Atomic command for multiple moves
         if len(category_ids) > 1 and hasattr(
             self.tree_widget, "move_operations_handler"
         ):
@@ -258,7 +258,7 @@ class DragDropHandler(TreeHandlerBase):
                 # Поведение сохраняем: при командном переносе отдельных itemsMoved не шлём
                 return len(category_ids)
             except Exception:
-                # Fallback — поштучные перемещения ниже
+                # Fallback — individual moves below
                 pass
 
         moved_count = 0
@@ -276,7 +276,7 @@ class DragDropHandler(TreeHandlerBase):
             if ok:
                 moved_count += 1
                 insert_offset += 1
-                # Сигнал по успешному переносу элемента
+                # Signal for successful item move
                 try:
                     self.tree_widget.itemsMoved.emit(
                         {
@@ -293,16 +293,16 @@ class DragDropHandler(TreeHandlerBase):
         return moved_count
 
     def _handle_internal_drop_event_index(self, event) -> None:
-        """Внутренний drop для QTreeView: перенос категорий между/внутри разделов.
+        """Internal drop for QTreeView: moving categories between/within sections.
 
-        Упрощён до оркестрации: выбор, расчёт цели, выполнение переноса,
-        базовая обработка ошибок и сигналов.
+        Simplified to orchestration: selection, target calculation, move execution,
+        basic error handling and signals.
         """
         # 1) Выбор категорий
         category_indices = self.get_selected_categories()
         if not category_indices:
             try:
-                self.tree_widget.invalidDrop.emit("Перемещать можно только категории")
+                self.tree_widget.invalidDrop.emit("Only categories can be moved")
             except Exception:
                 pass
             event.ignore()
@@ -334,16 +334,16 @@ class DragDropHandler(TreeHandlerBase):
             event.accept()
         else:
             try:
-                self.tree_widget.invalidDrop.emit("Недопустимая операция перемещения")
+                self.tree_widget.invalidDrop.emit("Invalid move operation")
             except Exception:
                 pass
             event.ignore()
 
     def _handle_category_drop_index(self, mime, target_index: QModelIndex) -> None:
-        """Перенос одной или нескольких категорий (из плиток) на раздел для QTreeView."""
+        """Moving one or multiple categories (from tiles) to section for QTreeView."""
         ids = MimeDataParser.extract_item_ids(mime, app_config.get_category_mime_type())
         if not ids:
-            logger.warning("Не удалось извлечь ID категории из MIME данных")
+            logger.warning("Failed to extract category ID from MIME data")
             return
         ttuple = get_tree_tuple(target_index, 0)
         if not (ttuple and ttuple[0] == "section" and isinstance(ttuple[1], int)):
@@ -372,10 +372,10 @@ class DragDropHandler(TreeHandlerBase):
             except Exception:
                 pass
         if moved_count > 1:
-            logger.info("Перенесено категорий: %s в раздел %s", moved_count, section_id)
+            logger.info("Moved categories: %s to section %s", moved_count, section_id)
 
     def _handle_link_drop_index(self, mime, target_index: QModelIndex) -> None:
-        """Перенос ссылок на категорию (QTreeView)."""
+        """Moving links to category (QTreeView)."""
         ttuple = get_tree_tuple(target_index, 0)
         if not (ttuple and ttuple[0] == "category"):
             return
@@ -403,13 +403,13 @@ class DragDropHandler(TreeHandlerBase):
             pass
 
     def _extract_link_ids_from_mime(self, mime) -> List[int]:
-        """Извлекает ID ссылок из MIME данных."""
+        """Extracts link IDs from MIME data."""
         ids = MimeDataParser.extract_item_ids(mime, app_config.get_link_mime_type())
         if not ids:
-            logger.warning("Не удалось извлечь ID ссылок из MIME данных")
+            logger.warning("Failed to extract link IDs from MIME data")
         return ids
 
-    # Индексная версия проверки валидности DnD (QTreeView)
+    # Index version of DnD validity check (QTreeView)
     def _is_valid_drop_index(
         self, source_index: QModelIndex, event: QDropEvent
     ) -> bool:
@@ -420,7 +420,7 @@ class DragDropHandler(TreeHandlerBase):
         target_index = self.tree_widget.indexAt(event.position().toPoint())
         drop_pos = self.tree_widget.dropIndicatorPosition()
         if source_type == "section":
-            # Разделы не поддерживаем к перемещению пока
+            # Sections not supported for moving yet
             return False
         elif source_type == "category":
             if not target_index or not target_index.isValid():
@@ -432,9 +432,9 @@ class DragDropHandler(TreeHandlerBase):
             if drop_pos == QAbstractItemView.DropIndicatorPosition.OnItem:
                 return target_type in ("section", "category")
             else:
-                # Между элементами разрешаем только между категориями одного раздела
+                # Between elements only allowed between categories of same section
                 if target_type != "category":
                     return False
-                # Один и тот же родитель
+                # Same parent
                 return source_index.parent() == target_index.parent()
         return False

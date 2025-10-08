@@ -1,5 +1,5 @@
 """
-Централизованные Undo/Redo команды для drag-and-drop ссылок и категорий.
+Centralized Undo/Redo commands for drag-and-drop links and categories.
 """
 
 import logging
@@ -9,27 +9,27 @@ from app.utils.common import get_value
 
 logger = logging.getLogger(__name__)
 
-# get_value импортируется из app.utils.common
+# get_value imported from app.utils.common
 
 
 class MoveLinksCommand(BaseCommand):
-    """Перемещение одной или нескольких ссылок в другую категорию с корректным undo/redo."""
+    """Moving one or multiple links to another category with proper undo/redo."""
 
     def __init__(self, link_ids, new_category_id, main_window):
-        super().__init__(f"Перемещение {len(link_ids)} ссылок", main_window)
+        super().__init__(f"Moving {len(link_ids)} links", main_window)
         self.link_ids = link_ids
         self.new_category_id = new_category_id
-        self._old_states = []  # состояние до перемещения
-        self._new_states = []  # состояние после перемещения
+        self._old_states = []  # state before moving
+        self._new_states = []  # state after moving
         self.old_category_id = None
-        self._prepared = False  # флаг подготовки данных
+        self._prepared = False  # data preparation flag
 
     def _prepare_data(self):
-        """Подготавливает данные для операции (вызывается в redo)."""
+        """Prepares data for operation (called in redo)."""
         if self._prepared:
             return
 
-        # Получаем исходные данные через бизнес-логику
+        # Get original data via business logic
         links_business = self.main.links_business
         for lid in self.link_ids:
             link_data = links_business.get_link_by_id(lid)
@@ -41,33 +41,33 @@ class MoveLinksCommand(BaseCommand):
             self._old_states[0]["category_id"] if self._old_states else None
         )
 
-        # Получаем следующую позицию через бизнес-логику
+        # Get next position via business logic
         start_pos = links_business.get_next_position(self.new_category_id)
 
-        # Получаем существующие ссылки для проверки дубликатов
+        # Get existing links for duplicate check
         existing_links = links_business.get_links(self.new_category_id)
 
-        # Подготавливаем новые состояния
+        # Prepare new states
         temp_new_states = []
         for offset, st in enumerate(self._old_states):
             ns = st.copy()
             ns["category_id"] = self.new_category_id
             ns["position"] = start_pos + offset
-            # Проверка на дубликат
+            # Check for duplicate
             if not self._is_duplicate(ns, existing_links):
                 temp_new_states.append(ns)
                 existing_links.append(
                     ns
-                )  # Предотвращаем дубли при множественном копировании
+                )  # Prevent duplicates during multiple copying
 
         self._new_states = temp_new_states
         self._prepared = True
 
     def _is_duplicate(self, candidate, links):
-        """Проверяет, является ли ссылка дубликатом."""
+        """Checks if link is a duplicate."""
         for link in links:
-            # Дубликат по требованию пользователя: совпадают name, url, args в рамках категории
-            # Тип (type) не учитывается
+            # Duplicate per user requirement: name, url, args match within category
+            # Type is not considered
             if (
                 get_value(link, "name", "") == get_value(candidate, "name", "")
                 and get_value(link, "url", "") == get_value(candidate, "url", "")
@@ -77,21 +77,21 @@ class MoveLinksCommand(BaseCommand):
         return False
 
     def _execute_batch_operation(self, states):
-        """Выполняет пакетную операцию с ссылками через бизнес-логику."""
+        """Executes batch operation with links via business logic."""
         if not states:
             return
 
         links_business = self.main.links_business
         try:
-            # Используем транзакционную пакетную операцию
+            # Use transactional batch operation
             links_business.batch_update_links(states)
         except Exception as e:
-            logger.error("Ошибка при пакетном обновлении ссылок: %s", e)
+            logger.error("Error during batch link update: %s", e)
             raise
 
     def _refresh_ui(self, old_category=None, new_category=None):
-        """Обновляет UI после операции."""
-        # Обновляем обе категории, если они разные
+        """Updates UI after operation."""
+        # Update both categories if they are different
         categories_to_update = set()
         if old_category:
             categories_to_update.add(old_category)
@@ -111,10 +111,10 @@ class MoveLinksCommand(BaseCommand):
                         except Exception:
                             pass
             except Exception:
-                # Не роняем команду из-за UI
+                # Don't fail command due to UI
                 pass
 
-        # Переключаем фокус на целевую категорию после перемещения
+        # Switch focus to target category after moving
         if (
             new_category
             and hasattr(self.main, "structure_business")
@@ -123,38 +123,38 @@ class MoveLinksCommand(BaseCommand):
             try:
                 self.main.structure_business.select_category(new_category)
                 logger.info(
-                    "Переключен фокус на целевую категорию %s после перемещения ссылок",
+                    "Switched focus to target category %s after moving links",
                     new_category,
                 )
             except Exception as e:
                 logger.warning(
-                    "Не удалось переключить фокус на категорию %s: %s",
+                    "Failed to switch focus to category %s: %s",
                     new_category,
                     e,
                 )
 
     def redo(self):
-        """Выполнение перемещения ссылок."""
-        self._prepare_data()  # Подготавливаем данные при первом выполнении
+        """Execute link moving."""
+        self._prepare_data()  # Prepare data on first execution
         self._execute_batch_operation(self._new_states)
         self._refresh_ui(
             old_category=self.old_category_id, new_category=self.new_category_id
         )
 
     def undo(self):
-        """Отмена перемещения ссылок."""
+        """Undo link moving."""
         self._execute_batch_operation(self._old_states)
-        # При undo меняем местами категории - фокус должен вернуться на исходную
+        # On undo swap categories - focus should return to original
         self._refresh_ui(
             old_category=self.new_category_id, new_category=self.old_category_id
         )
 
 
 class MoveCategoryCommand(BaseCommand):
-    """Перемещение категории между разделами."""
+    """Moving category between sections."""
 
     def __init__(self, category_id, new_section_id, main_window):
-        super().__init__("Перемещение категории", main_window)
+        super().__init__("Moving category", main_window)
         self.category_id = category_id
         self.new_section_id = new_section_id
         self.old_section_id = None
@@ -162,11 +162,11 @@ class MoveCategoryCommand(BaseCommand):
         self._prepared = False
 
     def _prepare_data(self):
-        """Подготавливает данные для операции."""
+        """Prepares data for operation."""
         if self._prepared:
             return
 
-        # Получаем данные категории через бизнес-логику
+        # Get category data via business logic
         structure_business = self.main.structure_business
         category_data = structure_business.get_category_data(self.category_id)
         if category_data is None:
@@ -177,24 +177,24 @@ class MoveCategoryCommand(BaseCommand):
         self._prepared = True
 
     def _set_section(self, section_id):
-        """Устанавливает раздел для категории через бизнес-логику."""
+        """Sets section for category via business logic."""
         structure_business = self.main.structure_business
-        # Получаем полные данные категории для обновления
+        # Get full category data for update
         current_category = structure_business.get_category_data(self.category_id)
         if current_category is None:
             raise ValueError(f"Category {self.category_id} not found")
 
-        # Обновляем только section_id, сохраняя остальные данные
+        # Update only section_id, keeping other data
         category_data = {
             "name": current_category["name"],
             "section_id": section_id,
             "icon_path": current_category.get("icon_path", ""),
             "position": current_category.get("position", 0),
         }
-        # Теперь обновление делегируется в бизнес-слой, который вызывает StructureService
+        # Now update is delegated to business layer which calls StructureService
         updated = structure_business.update_category(self.category_id, category_data)
         if updated is None:
-            raise ValueError(f"Не удалось обновить категорию {self.category_id}")
+            raise ValueError(f"Failed to update category {self.category_id}")
 
     def redo(self):
         try:
@@ -203,12 +203,12 @@ class MoveCategoryCommand(BaseCommand):
             if self.old_section_id == self.new_section_id:
                 return
 
-            # Проверяем дубликаты через бизнес-логику
+            # Check duplicates via business logic
             structure_business = self.main.structure_business
             if structure_business.has_duplicate_category(
                 self.new_section_id, self.cat_name, self.category_id
             ):
-                # Молча игнорируем дубликаты - не показываем ошибку пользователю
+                # Silently ignore duplicates - don't show error to user
                 logger.debug(
                     "Duplicate category '%s' found in target section %s, ignoring move",
                     self.cat_name,
@@ -220,7 +220,7 @@ class MoveCategoryCommand(BaseCommand):
             self._set_section(self.new_section_id)
             self._refresh_structure_ui()
         except Exception as e:
-            logger.error("Ошибка при перемещении категории: %s", e)
+            logger.error("Error during category moving: %s", e)
             raise
 
     def undo(self):
@@ -228,57 +228,57 @@ class MoveCategoryCommand(BaseCommand):
             self._set_section(self.old_section_id)
             self._refresh_structure_ui()
         except Exception as e:
-            logger.error("Ошибка при отмене перемещения категории: %s", e)
+            logger.error("Error during category move undo: %s", e)
             raise
 
     def _refresh_structure_ui(self):
-        """Обновляет UI структуры после операции."""
-        # Полная перезагрузка дерева больше не требуется — модель обновляется инкрементально
-        # через сигналы бизнес-логики (item_updated и пр.). Сфокусируем нужную категорию.
+        """Updates structure UI after operation."""
+        # Full tree reload no longer required — model updates incrementally
+        # through business logic signals (item_updated etc.). Focus needed category.
         if hasattr(self.main, "structure_business") and self.main.structure_business:
             try:
                 self.main.structure_business.select_category(self.category_id)
                 logger.info(
-                    "Переключен фокус на перемещенную категорию %s", self.category_id
+                    "Switched focus to moved category %s", self.category_id
                 )
             except Exception as e:
                 logger.warning(
-                    "Не удалось переключить фокус на категорию %s: %s",
+                    "Failed to switch focus to category %s: %s",
                     self.category_id,
                     e,
                 )
 
 
 class MoveCategoriesCommand(BaseCommand):
-    """Пакетное перемещение нескольких категорий в один раздел с единым undo/redo.
+    """Batch moving multiple categories to one section with unified undo/redo.
 
-    - Сохраняет исходные состояния (section_id, position, name, icon_path)
-    - Redo: переносит в целевой раздел, проставляя позиции base_row + i
-    - Undo: восстанавливает исходные section_id и position
-    - Дубликаты в целевом разделе пропускаются молча (DEBUG)
+    - Saves original states (section_id, position, name, icon_path)
+    - Redo: moves to target section, setting positions base_row + i
+    - Undo: restores original section_id and position
+    - Duplicates in target section are silently skipped (DEBUG)
     """
 
     def __init__(self, category_ids, new_section_id, base_row, main_window):
-        super().__init__(f"Перемещение {len(category_ids)} категорий", main_window)
+        super().__init__(f"Moving {len(category_ids)} categories", main_window)
         self.category_ids = list(category_ids or [])
         self.new_section_id = (
             int(new_section_id) if isinstance(new_section_id, int) else new_section_id
         )
         self.base_row = int(base_row) if isinstance(base_row, int) else 0
         self._old_states = []  # [{id, name, section_id, position, icon_path}]
-        self._new_states = []  # такой же формат, но с целевыми section/position
+        self._new_states = []  # same format but with target section/position
         self._prepared = False
 
     def _prepare_data(self):
         if self._prepared:
             return
         sb = self.main.structure_business
-        # Загружаем исходные состояния
+        # Load original states
         old_states = []
         for cid in self.category_ids:
             data = sb.get_category_data(cid)
             if not data:
-                logger.debug("Категория %s не найдена, пропуск", cid)
+                logger.debug("Category %s not found, skipping", cid)
                 continue
             old_states.append(
                 {
@@ -289,16 +289,16 @@ class MoveCategoriesCommand(BaseCommand):
                     "icon_path": data.get("icon_path", ""),
                 }
             )
-        # Стабильный порядок по исходной позиции, затем по id
+        # Stable order by original position, then by id
         old_states.sort(key=lambda x: (x.get("position", 0), x.get("id", 0)))
 
-        # Формируем целевые состояния с проверкой дубликатов имени в целевом разделе
+        # Form target states with name duplicate check in target section
         new_states = []
         offset = 0
         for st in old_states:
             cid = st["id"]
             name = st.get("name", "")
-            # Дубликаты имени в целевом разделе — пропускаем
+            # Name duplicates in target section — skip
             try:
                 if sb.has_duplicate_category(self.new_section_id, name, cid):
                     logger.debug(
@@ -309,7 +309,7 @@ class MoveCategoriesCommand(BaseCommand):
                     )
                     continue
             except Exception:
-                # В случае ошибки проверки — не блокируем операцию, пробуем переместить
+                # If check fails — don't block operation, try to move
                 pass
             ns = {
                 "id": cid,
@@ -351,7 +351,7 @@ class MoveCategoriesCommand(BaseCommand):
                 except Exception:
                     pass
 
-            # Попытка использовать настоящую батч-операцию, если все элементы переносятся в один раздел
+            # Attempt to use real batch operation if all elements move to one section
             try:
                 target_ids = [
                     int(st.get("id")) for st in states if isinstance(st.get("id"), int)
@@ -383,30 +383,29 @@ class MoveCategoriesCommand(BaseCommand):
                     batch_done = True
                     if len(moved) != len(target_ids):
                         logger.debug(
-                            "Часть категорий пропущена батч-переносом (дубликаты имён в целевом разделе)"
+                            "Some categories skipped by batch move (name duplicates in target section)"
                         )
                 except Exception:
-                    # Безопасный фолбэк на поштучное обновление
+                    # Safe fallback to individual category updates
                     batch_done = False
 
-            if not batch_done:
-                # Фолбэк: поштучное обновление категорий (старое поведение)
-                for st in states:
-                    try:
-                        cid = st["id"]
-                        payload = {
-                            "name": st.get("name", ""),
-                            "section_id": st.get("section_id"),
-                            "icon_path": st.get("icon_path", ""),
-                            "position": st.get("position", 0),
-                        }
-                        sb.update_category(cid, payload)
-                    except Exception as e:
-                        logger.error(
-                            "Ошибка обновления категории %s: %s", st.get("id"), e
-                        )
+            # Fallback: individual category updates (old behavior)
+            for st in states:
+                try:
+                    cid = st["id"]
+                    payload = {
+                        "name": st.get("name", ""),
+                        "section_id": st.get("section_id"),
+                        "icon_path": st.get("icon_path", ""),
+                        "position": st.get("position", 0),
+                    }
+                    sb.update_category(cid, payload)
+                except Exception as e:
+                    logger.error(
+                        "Error updating category %s: %s", st.get("id"), e
+                    )
         finally:
-            # Возвращаем обычную обработку сигналов
+            # Restore normal signal processing
             try:
                 if tree is not None:
                     tree.blockSignals(False)
@@ -417,7 +416,7 @@ class MoveCategoriesCommand(BaseCommand):
                     selection.end_suppress_selection()
             except Exception:
                 pass
-            # Завершаем батч-режим, чтобы выполнить одну консолидацию перезагрузок
+            # End batch mode to perform single reload consolidation
             try:
                 if hasattr(sb, "end_batch"):
                     sb.end_batch()
@@ -428,7 +427,7 @@ class MoveCategoriesCommand(BaseCommand):
         sb = getattr(self.main, "structure_business", None)
         if not sb:
             return
-        # Подавляем лавину selection-событий на время финального переключения фокуса
+        # Suppress selection event flood during final focus switch
         struct = getattr(self.main, "structure", None)
         selection = getattr(struct, "selection_handler", None)
         tree = getattr(struct, "tree", None)
@@ -466,10 +465,10 @@ class MoveCategoriesCommand(BaseCommand):
                 except Exception:
                     pass
 
-        # Информативный лог
+        # Informative log
         try:
             logger.info(
-                "Переключен фокус на раздел %s после пакетного перемещения категорий",
+                "Switched focus to section %s after batch category moving",
                 focus_section_id,
             )
         except Exception:
@@ -477,16 +476,16 @@ class MoveCategoriesCommand(BaseCommand):
 
     def redo(self):
         self._prepare_data()
-        # Применяем новые состояния
+        # Apply new states
         self._apply_states(self._new_states)
-        # Фокус на целевом разделе и первой успешно перенесённой категории
+        # Focus on target section and first successfully moved category
         first_new_id = self._new_states[0]["id"] if self._new_states else None
         self._refresh_ui(self.new_section_id, first_new_id)
 
     def undo(self):
-        # Восстановление исходных состояний
+        # Restore original states
         self._apply_states(self._old_states)
-        # Фокус на исходном разделе первой категории (если доступен)
+        # Focus on original section of first category (if available)
         focus_section = None
         focus_category = None
         for st in self._old_states:

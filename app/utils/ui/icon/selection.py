@@ -13,21 +13,21 @@ from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 def choose_icon_and_copy(
     parent: QWidget,
     user_icons_dir: Path,
-    title: str = "Выбрать иконку",
+    title: str = "Select Icon",
     file_filter: str | None = None,
 ) -> tuple[str | None, QIcon | None]:
-    """Открывает диалог выбора иконки, копирует её в user_icons_dir (без дублей)
-    и возвращает (имя_файла, QIcon). Если отменено — (None, None).
+    """Opens icon selection dialog, copies it to user_icons_dir (without duplicates)
+    and returns (filename, QIcon). If cancelled — (None, None).
     """
     start_dir = str(user_icons_dir)
 
-    # Формируем фильтр по конфигурации, если явно не передан
+    # Form filter by configuration if not explicitly passed
     if not file_filter:
         exts = list(app_config.get_supported_icon_formats())
-        # Убедимся, что расширения начинаются с точки и составим шаблоны *.ext
+        # Ensure extensions start with a dot and compose *.ext patterns
         patterns = [f"*{ext if ext.startswith('.') else '.' + ext}" for ext in exts]
-        # Человекочитаемая подпись
-        file_filter = "Изображения (" + " ".join(patterns) + ")"
+        # Human-readable label
+        file_filter = "Images (" + " ".join(patterns) + ")"
 
     path, _ = QFileDialog.getOpenFileName(parent, title, start_dir, file_filter)
     if not path:

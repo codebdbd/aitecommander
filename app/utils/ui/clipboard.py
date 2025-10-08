@@ -53,10 +53,10 @@ def _sanitize_for_clipboard(data: LinkData) -> LinkData:
 
 
 def copy_link_to_clipboard(link_or_links: LinkData) -> bool:
-    """Копирует ссылку или список ссылок в системный буфер обмена.
+    """Copies a link or list of links to the system clipboard.
 
-    Возвращает True при успехе, False при ошибке. Перед копированием удаляет несерилизуемые
-    поля (QIcon, приватные ключи с подчеркиванием и т.п.).
+    Returns True on success, False on error. Before copying, removes non-serializable
+    fields (QIcon, private keys with underscores, etc.).
     """
     app = QApplication.instance()
     if app is None:
@@ -75,17 +75,17 @@ def copy_link_to_clipboard(link_or_links: LinkData) -> bool:
         try:
             clipboard.clear()
         except Exception:
-            # Игнорируем вторичную ошибку очистки
+            # Ignore secondary cleanup error
             pass
         return False
 
 
 def get_link_from_clipboard() -> Optional[LinkData]:
-    """Читает ссылку/список ссылок из системного буфера обмена.
+    """Reads a link/list of links from the system clipboard.
 
-    Возвращает:
-      - dict или list[dict] при успешном чтении
-      - None при ошибке, пустом буфере, отсутствии QApplication или неверном формате
+    Returns:
+      - dict or list[dict] on successful read
+      - None on error, empty clipboard, missing QApplication, or invalid format
     """
     app = QApplication.instance()
     if app is None:
@@ -102,11 +102,11 @@ def get_link_from_clipboard() -> Optional[LinkData]:
 
         data = json.loads(text)
         if isinstance(data, dict):
-            # Базовая валидация структуры словаря (минимальная)
+            # Basic dictionary structure validation (minimal)
             return data
         if isinstance(data, list):
             return data
-        # Неподдерживаемый формат
+        # Unsupported format
         return None
     except json.JSONDecodeError:
         return None

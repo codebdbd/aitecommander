@@ -47,10 +47,9 @@ cd i18n
 pylupdate6 app.pro
 ```
 
-Это обновит файлы `app_en.ts` и `app_uk.ts` с новыми строками для перевода.
+Это обновит файлы `app_en.ts`, `app_ru.ts`, `app_uk.ts`, `app_de.ts`, `app_es.ts` и `app_fr.ts` с новыми строками для перевода.
 
 **Что происходит:**
-- Сканируются все Python-файлы, указанные в `app.pro`
 - Извлекаются все вызовы `self.tr()` и `QCoreApplication.translate()`
 - Обновляются .ts файлы с сохранением существующих переводов
 
@@ -59,7 +58,11 @@ pylupdate6 app.pro
 Откройте файлы .ts в Qt Linguist:
 ```bash
 linguist app_en.ts
+linguist app_ru.ts
 linguist app_uk.ts
+linguist app_de.ts
+linguist app_es.ts
+linguist app_fr.ts
 ```
 
 **В Qt Linguist:**
@@ -79,7 +82,11 @@ linguist app_uk.ts
 
 ```bash
 lrelease app_en.ts -qm app_en.qm
+lrelease app_ru.ts -qm app_ru.qm
 lrelease app_uk.ts -qm app_uk.qm
+lrelease app_de.ts -qm app_de.qm
+lrelease app_es.ts -qm app_es.qm
+lrelease app_fr.ts -qm app_fr.qm
 ```
 
 Или используйте batch-файл:
@@ -106,9 +113,17 @@ compile_translations.bat
 i18n/
 ├── app.pro                      # Конфигурация проекта для pylupdate6
 ├── app_en.ts                    # Переводы на английский (XML)
+├── app_ru.ts                    # Переводы на русский (XML)
 ├── app_uk.ts                    # Переводы на украинский (XML)
+├── app_de.ts                    # Переводы на немецкий (XML)
+├── app_es.ts                    # Переводы на испанский (XML)
+├── app_fr.ts                    # Переводы на французский (XML)
 ├── app_en.qm                    # Скомпилированные переводы EN (бинарные)
+├── app_ru.qm                    # Скомпилированные переводы RU (бинарные)
 ├── app_uk.qm                    # Скомпилированные переводы UK (бинарные)
+├── app_de.qm                    # Скомпилированные переводы DE (бинарные)
+├── app_es.qm                    # Скомпилированные переводы ES (бинарные)
+├── app_fr.qm                    # Скомпилированные переводы FR (бинарные)
 ├── language_service.py          # Сервис управления языками
 ├── locale_utils.py              # Утилиты форматирования (даты, числа)
 ├── update_and_report.py         # Helper-скрипт для автоматизации
@@ -182,7 +197,7 @@ class MyDialog(QDialog, ReTranslatable):
 from i18n import language_service
 
 # Установить язык
-language_service().set_language("en")  # или "uk", "ru"
+language_service().set_language("en")  # или "ru", "uk", "de", "es", "fr"
 
 # Получить текущий язык
 current = language_service().current_language()
@@ -290,6 +305,10 @@ pip install --upgrade PyQt6-tools
 
 **Поддерживаемые языки:**
 - 🇬🇧 English (en)
+- 🇷🇺 Русский (ru)
 - 🇺🇦 Українська (uk)
+- 🇩🇪 Deutsch (de)
+- 🇪🇸 Español (es)
+- 🇫🇷 Français (fr)
 
 **Статистика:** Запустите `python update_and_report.py --report` для актуальных данных.

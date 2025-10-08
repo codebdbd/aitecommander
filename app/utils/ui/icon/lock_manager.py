@@ -1,8 +1,8 @@
 # lock_manager.py
-"""Совместимый слой для иконок, делегирующий в единый `app.utils.locking`.
+"""Compatible layer for icons, delegating to unified `app.utils.locking`.
 
-Сохраняет публичный API (LockLevel и acquire_*), но вся логика
-реализована через общий модуль блокировок, чтобы исключить дублирование.
+Preserves public API (LockLevel and acquire_*), but all logic
+is implemented through a common locking module to eliminate duplication.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class LockLevel(IntEnum):
-    """Уровни блокировок в порядке приоритета (совместимость API)."""
+    """Lock levels in priority order (API compatibility)."""
 
     GLOBAL = 1
     CACHE = 2
@@ -35,7 +35,7 @@ class LockLevel(IntEnum):
 
 
 def acquire_lock(level: LockLevel) -> AbstractContextManager[None]:
-    """Контекстный менеджер для единичной блокировки (совм. API)."""
+    """Context manager for single lock (API compatibility)."""
     if level == LockLevel.GLOBAL:
         return acquire_icon_global()
     if level == LockLevel.CACHE:
@@ -64,11 +64,11 @@ def acquire_lru_lock() -> AbstractContextManager[None]:
 
 
 def acquire_multiple_locks(*levels: LockLevel):
-    """Контекстный менеджер для множественных блокировок (совм. API).
+    """Context manager for multiple locks (API compatibility).
 
-    Упорядочивает уровни по приоритету и делегирует в общий модуль.
+    Orders levels by priority and delegates to the common module.
     """
-    # Удаляем дубликаты и сортируем по значению Enum
+    # Remove duplicates and sort by Enum value
     unique_sorted: list[LockLevel] = sorted(set(levels), key=int)
     names = [
         ICON_LOCK_NAMES["GLOBAL"]

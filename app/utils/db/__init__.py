@@ -1,9 +1,9 @@
 # app/utils/db/__init__.py
-"""Утилиты для безопасного и единообразного запуска БД-операций в потоках.
+"""Utilities for safely and consistently running database operations in threads.
 
-Поддерживаемый API:
-- run_db: запуск функции БД в пуле потоков с обработкой ошибок и блокировкой
-- get_thread_pool/set_thread_pool: управление пулом потоков (для тестов)
+Supported API:
+- ``run_db``: execute a database callable in the thread pool with error handling and locking
+- ``get_thread_pool`` / ``set_thread_pool``: manage the thread pool (useful in tests)
 """
 
 from __future__ import annotations

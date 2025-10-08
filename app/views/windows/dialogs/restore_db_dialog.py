@@ -43,14 +43,16 @@ class RestoreDbDialog(BaseDialog):
     """Dialog that allows restoring the database from backups."""
 
     def __init__(self, backup_dir: Optional[Path] = None, parent=None):
+        self.paths = app_config.paths
+        self.backup_dir = backup_dir or self.paths.get_backups_dir()
+        self.selected_backup: Optional[Path] = None
+        self.list_widget: QListWidget | None = None
+        self.buttons: QDialogButtonBox | None = None
+
         super().__init__(parent)
 
         self.resize(500, 300)
         self.setModal(True)
-
-        self.paths = app_config.paths
-        self.backup_dir = backup_dir or self.paths.get_backups_dir()
-        self.selected_backup: Optional[Path] = None
 
         self._init_ui()
         self._load_backups()
@@ -60,6 +62,7 @@ class RestoreDbDialog(BaseDialog):
         LanguageService.instance().languageChanged.connect(self._on_language_changed)
         self.destroyed.connect(self._disconnect_language_service)
         
+        # Translate after widgets are created
         self.retranslateUi()
     
     def _on_language_changed(self, _lang_code: str) -> None:
@@ -218,14 +221,16 @@ class RestoreDbDialog(BaseDialog):
 
     def retranslateUi(self) -> None:
         self.setWindowTitle(_tr("Restore Database from Backup"))
-        ok_btn = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
-        cancel_btn = self.buttons.button(QDialogButtonBox.StandardButton.Cancel)
-        if ok_btn is not None:
-            ok_btn.setText(_tr("Restore"))
-        if cancel_btn is not None:
-            cancel_btn.setText(_tr("Cancel"))
-        self.list_widget.setAccessibleName(_tr("Backups list"))
-        self._refresh_items()
+        if self.buttons is not None:
+            ok_btn = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
+            cancel_btn = self.buttons.button(QDialogButtonBox.StandardButton.Cancel)
+            if ok_btn is not None:
+                ok_btn.setText(_tr("Restore"))
+            if cancel_btn is not None:
+                cancel_btn.setText(_tr("Cancel"))
+        if self.list_widget is not None:
+            self.list_widget.setAccessibleName(_tr("Backups list"))
+            self._refresh_items()
 
     def get_selected_backup(self) -> Optional[Path]:
         if not self.list_widget.isEnabled():

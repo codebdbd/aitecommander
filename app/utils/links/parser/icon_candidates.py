@@ -236,17 +236,17 @@ def _detect_format(href: str, type_attr: str | None) -> str:
 def _collect_link_icons(
     soup: BeautifulSoup, base_url: str
 ) -> tuple[list[IconCandidate], list[str], bool]:
-    """Собирает кандидатов из <link> и ссылки на манифесты.
+    """Collects candidates from <link> elements and manifest references.
 
-    Аргументы:
-    - soup: разобранный документ BeautifulSoup.
-    - base_url: базовый URL для резолвинга относительных путей.
+    Arguments:
+    - soup: BeautifulSoup parsed document.
+    - base_url: base URL for resolving relative paths.
 
-    Возвращает:
-    - tuple: (candidates, manifest_urls, has_primary), где
-      candidates — список объектов IconCandidate,
-      manifest_urls — ссылки на манифесты,
-      has_primary — есть ли первичные link-иконки.
+    Returns:
+    - tuple: (candidates, manifest_urls, has_primary), where
+      candidates — list of IconCandidate objects,
+      manifest_urls — manifest links,
+      has_primary — whether primary link-icons are present.
     """
     candidates: list[IconCandidate] = []
     manifest_urls: list[str] = []
@@ -328,15 +328,15 @@ def _handle_manifests(
     on_manifest_icons: Callable[[list[str]], None] | None,
     candidates: list[IconCandidate],
 ):
-    """Обрабатывает манифесты: асинхронно вызывает колбэк или синхронно дополняет кандидатов.
+    """Processes manifests: asynchronously invokes callback or synchronously enriches candidates.
 
-    Аргументы:
-    - manifest_urls: список URL манифестов.
-    - base_url: базовый URL для резолвинга относительных путей.
-    - config: конфигурация HTTP-клиента.
-    - on_manifest_icons: Callable[[list[str]], None] | None — если задан, будет вызван с URL иконок;
-      иначе иконки из манифестов добавляются в candidates синхронно.
-    - candidates: коллекция, которую можно дополнить.
+    Arguments:
+    - manifest_urls: list of manifest URLs.
+    - base_url: base URL for resolving relative paths.
+    - config: HTTP client configuration.
+    - on_manifest_icons: Callable[[list[str]], None] | None — if provided, will be called with icon URLs;
+      otherwise, icons from manifests are added to candidates synchronously.
+    - candidates: collection that can be extended.
     """
     # Разрешаем обработку манифестов даже если config не передан: http_request
     # корректно работает с None, подставляя значения по умолчанию из constants.
@@ -487,18 +487,18 @@ def _handle_manifests(
 
 
 def _add_fallback_paths(base_url: str, candidates: list[IconCandidate]):
-    """Добавляет стандартные fallback-пути (favicon.ico и др.) для основного и www-хоста.
+    """Adds standard fallback paths (favicon.ico, etc.) for main and www-hosts.
 
-    Из особенностей: формирует варианты хостов с/без префикса www. и добавляет
-    кандидатов с нулевым размером и вычисленным форматом.
+    Features: generates host variants with/without www. prefix and adds
+    candidates with zero size and computed format.
     """
     p = urlparse(base_url)
     host = p.netloc
     hosts = {host}
-    # Хосты для fallback:
-    # - Если начинается с www., добавляем базовый хост без www.
-    # - Если это вероятный корневой домен (ровно одна точка), добавляем www.<host>.
-    # - Если явный поддомен (>=2 точек и не начинается с www.), НЕ добавляем www.<host>, чтобы не плодить шумные 404.
+    # Hosts for fallback:
+    # - If starts with www., add base host without www.
+    # - If it's a likely root domain (exactly one dot), add www.<host>.
+    # - If explicit subdomain (>=2 dots and doesn't start with www.), DO NOT add www.<host> to avoid noisy 404s.
     if host.startswith("www."):
         hosts.add(host[4:])
     else:
@@ -532,12 +532,12 @@ def _add_fallback_paths(base_url: str, candidates: list[IconCandidate]):
 def _add_external_services(
     base_url: str, use_external: bool, candidates: list[IconCandidate]
 ):
-    """Добавляет внешние fallback-сервисы (Google, DuckDuckGo), если разрешено.
+    """Adds external fallback services (Google, DuckDuckGo) if allowed.
 
-    Аргументы:
-    - base_url: URL страницы, используется только для извлечения хоста.
-    - use_external: флаг включения внешних сервисов.
-    - candidates: список кандидатов для дополнения.
+    Arguments:
+    - base_url: page URL, used only for host extraction.
+    - use_external: flag enabling external services.
+    - candidates: list of candidates to extend.
     """
     if not use_external:
         return
@@ -572,16 +572,16 @@ def _add_external_services(
 def _append_og_image(
     soup: BeautifulSoup, base_url: str, candidates: list[IconCandidate]
 ) -> list[str]:
-    """Возвращает URL из og:image, если нет первичных link-иконок и URL похож на иконку.
+    """Returns URLs from og:image if no primary link-icons are present and URL looks like an icon.
 
-    Фильтрует по запрещённым маркерам (OG_IMAGE_BANNED_MARKERS) и ключевым словам
-    (icon/favicon). Возвращает список подходящих URL.
+    Filters by banned markers (OG_IMAGE_BANNED_MARKERS) and keywords
+    (icon/favicon). Returns list of suitable URLs.
     """
     og_urls: list[str] = []
     # Append og:image only when there are no primary link-icons present.
     # Primary icons are those with base_priority == 0 (link-icon/mask/apple).
     if not any(getattr(c, "base_priority", 9) == 0 for c in candidates):
-        # Управляем строгостью фильтрации через конфиг. По умолчанию строгий режим.
+        # Control filtering strictness via config. Default to strict mode.
         try:
             strict = bool(getattr(app_config, "ICONS_OG_IMAGE_STRICT", True))
         except Exception:
@@ -594,7 +594,7 @@ def _append_og_image(
                 og_url = urljoin(base_url, og_content)
                 low = og_url.lower()
                 if not any(m in low for m in OG_IMAGE_BANNED_MARKERS):
-                    # В строгом режиме требуем ключевые слова; в мягком — достаточно отсутствия запрещённых маркеров.
+                    # In strict mode, require keywords; in soft mode, absence of banned markers is sufficient.
                     if (not strict) or any(k in low for k in ["icon", "favicon"]):
                         og_urls.append(og_url)
 
@@ -604,7 +604,7 @@ def _append_og_image(
 
 
 def _sort_candidates(candidates: list[IconCandidate]):
-    """Сортирует кандидатов по приоритетам: base_priority, format_rank, size, media_priority."""
+    """Sorts candidates by priorities: base_priority, format_rank, size, media_priority."""
 
     def sort_key(c: IconCandidate):
         size = getattr(c, "size", 0)
@@ -625,34 +625,7 @@ def find_favicon_candidates(
     on_manifest_icons: Callable[[list[str]], None] | None = None,
     use_external: bool = False,
 ) -> list[str]:
-    """Собирает кандидатов на иконку страницы и возвращает список URL в порядке приоритета.
-
-    Назначение:
-    - Парсит `<link rel="icon"|"mask-icon"|"apple-touch-icon">` и формирует кандидатов.
-    - Находит `<link rel="manifest">` и:
-      - если `on_manifest_icons` передан — асинхронно загружает манифесты в глобальном пуле
-        и по готовности вызывает колбэк с URL иконок из манифестов (основной список
-        возвращаемого значения при этом не дополняется);
-      - если `on_manifest_icons` не передан — синхронно добавляет иконки из манифестов в
-        общий список кандидатов.
-    - Добавляет запасные пути (`/favicon.ico`, `apple-touch-icon*.png`) для основного хоста и `www.`-варианта.
-    - При `use_external=True` добавляет fallback сервисы (Google, DuckDuckGo).
-    - Если нет первичных link-иконок, дополнительно может добавить `og:image`, если он похож на иконку
-      и не содержит запрещённых маркеров (`OG_IMAGE_BANNED_MARKERS`).
-
-    Аргументы:
-    - soup: разобранный BeautifulSoup HTML-документ.
-    - base_url: базовый URL страницы для разрешения относительных ссылок.
-    - config: объект конфигурации, передаваемый HTTP-клиенту.
-    - on_manifest_icons: необязательный колбэк `Callable[[list[str]], None]`, который будет вызван
-      асинхронно с URL иконок из манифестов.
-    - use_external: добавлять ли внешние fallback-сервисы.
-
-    Возвращает:
-    - Список URL (list[str]) в порядке приоритета: сначала кандидаты из link/manifest/sync,
-      потом fallback пути, затем внешние сервисы (если включены), затем допустимые og:image.
-      Список дедуплицирован, относительные пути резолвятся относительно `base_url`.
-    """
+   
     candidates, manifest_urls, has_primary = _collect_link_icons(soup, base_url)
     _handle_manifests(manifest_urls, base_url, config, on_manifest_icons, candidates)
 

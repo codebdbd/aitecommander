@@ -313,10 +313,10 @@ class TopPanelsController(QObject):
         """
         # 1) Business clear
         try:
-            self.links_business.clear_favorites()
+            self.links_business.clear_favorites_async()
         except Exception:
             logger.exception(
-                "TopPanelsController.clear_favorites: error in links_business.clear_favorites"
+                "TopPanelsController.clear_favorites: error in links_business.clear_favorites_async"
             )
 
         # 2) Update widget via controlled path without re-emitting clear_requested

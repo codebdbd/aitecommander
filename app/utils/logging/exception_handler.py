@@ -12,44 +12,44 @@ logger = logging.getLogger(__name__)
 
 
 class ExceptionHandler:
-    """Обработчик глобальных исключений."""
+    """Global exception handler."""
 
     def __init__(self):
         self.original_excepthook = sys.excepthook
         sys.excepthook = self.handle_exception
 
     def handle_exception(self, exc_type, exc_value, exc_traceback):
-        """Обрабатывает непойманные исключения."""
+        """Handles uncaught exceptions."""
         if issubclass(exc_type, KeyboardInterrupt):
-            # Возвращаем стандартное поведение для прерывания
+            # Return standard behavior for interruption
             self.original_excepthook(exc_type, exc_value, exc_traceback)
             return
 
-        # Логируем критическую ошибку
+        # Log critical error
         logger.critical(
-            "Непойманное исключение", exc_info=(exc_type, exc_value, exc_traceback)
+            "Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback)
         )
 
-        # Показываем пользователю информацию об ошибке
+        # Show error information to user
         self._show_error_dialog(exc_type, exc_value, exc_traceback)
 
     def _show_error_dialog(self, exc_type, exc_value, exc_traceback):
-        """Показывает диалог с информацией об ошибке."""
+        """Shows error information dialog."""
         try:
-            # Проверяем, существует ли QApplication
+            # Check if QApplication exists
             if QApplication.instance() is None:
-                error_text = f"Произошла критическая ошибка: {exc_type.__name__}"
+                error_text = f"Critical error occurred: {exc_type.__name__}"
                 error_info = str(exc_value)
                 error_details = "".join(
                     traceback.format_exception(exc_type, exc_value, exc_traceback)
                 )
                 logger.error("%s", error_text)
                 logger.error("%s", error_info)
-                logger.error("Подробности:")
+                logger.error("Details:")
                 logger.error("%s", error_details)
                 return
 
-            error_text = f"Произошла критическая ошибка: {exc_type.__name__}"
+            error_text = f"Critical error occurred: {exc_type.__name__}"
             error_info = str(exc_value)
             error_details = "".join(
                 traceback.format_exception(exc_type, exc_value, exc_traceback)
@@ -57,12 +57,12 @@ class ExceptionHandler:
 
             DialogManager.show_error(
                 None,
-                "Критическая ошибка",
+                "Critical error",
                 error_text,
-                informative_text=f"{error_info}\n\nПриложение будет закрыто.",
+                informative_text=f"{error_info}\n\nApplication will be closed.",
                 details=error_details,
             )
         except Exception as e:
-            # Если даже диалог не удается показать
-            logger.critical("Критическая ошибка: %s: %s", exc_type.__name__, exc_value)
-            logger.critical("Ошибка показа диалога: %s", e, exc_info=True)
+            # If even dialog cannot be shown
+            logger.critical("Critical error: %s: %s", exc_type.__name__, exc_value)
+            logger.critical("Error showing dialog: %s", e, exc_info=True)

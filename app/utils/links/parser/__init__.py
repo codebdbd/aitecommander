@@ -1,11 +1,11 @@
 """Parser package facade.
 
-Актуальная фасад-обёртка для получения метаданных веб‑ссылок.
+Current facade-wrapper for fetching web link metadata.
 
-Содержимое:
-- `fetcher` — сетевой слой и высокоуровневый API `fetch_web_link_info()` для
-  извлечения метаданных (заголовок страницы, иконка, др.).
-- `title_parser` — утилиты извлечения и нормализации заголовка (`get_title`).
+Contents:
+- `fetcher` — networking layer and high-level API `fetch_web_link_info()` to
+  extract metadata (page title, icon, etc.).
+- `title_parser` — helpers for extracting and normalising titles (`get_title`).
 """
 
 from .fetcher import fetch_web_link_info  # re-export

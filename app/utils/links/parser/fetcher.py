@@ -55,7 +55,7 @@ def fetch_web_link_info(
         return s
 
     url = _sanitize_url(url)
-    # Подготовим host и путь до уже сохранённой иконки домена (если есть)
+    # Prepare host and path to previously saved domain icon (if any)
     try:
         parsed_for_host = urlparse(url)
         host = base_domain(parsed_for_host.netloc)
@@ -73,7 +73,7 @@ def fetch_web_link_info(
     if not force_refresh:
         cached = read_cache(url, config)
         if cached:
-            # Если в кэше дефолтная иконка, но в папке уже есть сохранённая — подставим её (без перезаписи кэша)
+            # If cache has default icon but the folder contains saved one — reuse it (without overwriting cache)
             try:
                 default_icon_path = (
                     resolve_icon_for_link({"type": "web", "icon_path": ""}) or ""
@@ -106,7 +106,7 @@ def fetch_web_link_info(
             enc = getattr(resp, "encoding", None)
             if not enc or str(enc).lower() == "iso-8859-1":
                 try:
-                    # Попытка детектировать кодировку через charset-normalizer
+                    # Attempt to detect encoding via charset-normalizer
                     try:
                         from charset_normalizer import from_bytes  # type: ignore
 
@@ -127,7 +127,7 @@ def fetch_web_link_info(
                     txt = resp.text
             else:
                 txt = resp.text
-            # Безопасное создание soup с запасным парсером
+            # Create soup safely with fallback parser
             try:
                 soup = BeautifulSoup(txt, BS_PARSER)
             except Exception:
@@ -148,7 +148,7 @@ def fetch_web_link_info(
         pass
 
     # 4) Icon (sync or deferred)
-    # host рассчитан выше
+    # host computed above
     icon_path = None
 
     def _resolve_icon_async(html_soup: Optional[BeautifulSoup]) -> None:
@@ -216,7 +216,7 @@ def fetch_web_link_info(
         try:
             logger.debug("[fetch] picking icon sync for host=%s", host)
             soup_for_icon = soup or BeautifulSoup("", BS_PARSER)
-            # Если иконка для домена уже есть — используем её и не скачиваем заново
+            # If a domain icon already exists — reuse it and skip download
             if existing_icon_path:
                 icon_path = existing_icon_path
             else:
@@ -227,7 +227,7 @@ def fetch_web_link_info(
             logger.debug("pick_icon failed for %s: %s", url, e)
 
     # 5) Defaults and result
-    # Если подбор не дал результата, но иконка уже сохранена ранее для домена — используем её
+    # If picking failed but domain icon exists — reuse it
     if icon_path is None and existing_icon_path:
         icon_path = existing_icon_path
     try:

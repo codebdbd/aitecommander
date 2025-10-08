@@ -1,8 +1,7 @@
-"""
-Файловый кэш для фавиконок с TTL и файловой блокировкой.
+"""File-backed favicon cache with TTL support and file locking.
 
-Использует shelve для хранения. Блокировка реализована через lock-файл .lock рядом с БД.
-Совместим по данным с предыдущей версией (ключи = URL, значения = dict с полями icon/title/...)
+Uses ``shelve`` for storage; locking relies on a ``.lock`` file next to the DB.
+Data-compatible with the legacy version (keys = URL, values = dict with icon/title/etc.).
 """
 
 from __future__ import annotations
@@ -22,7 +21,7 @@ from app.utils.ui.icon.path_service import icon_path_service
 
 from .constants import CACHE_TTL, SHORT_NEGATIVE_TTL, logger
 
-# Опционально используем resolve_icon_for_link, как и раньше, чтобы определять negative TTL
+# Optionally use ``resolve_icon_for_link`` to determine negative TTL, same as before
 try:  # noqa: SIM105
     from app.utils.ui.icon.icon_resolver import resolve_icon_for_link  # type: ignore
 except Exception:  # noqa: BLE001
@@ -45,19 +44,19 @@ def _get_lock_backend() -> str:
 
 @contextmanager
 def _file_lock(lock_path: str, *, timeout: float = 5.0, poll_interval: float = 0.05):
-    """Кроссплатформенная файловая блокировка без активного ожидания.
+    """Cross-platform file lock without busy waiting.
 
-    Порядок механизмов:
-    1) portalocker.Lock(..., timeout=timeout)
-    2) filelock.FileLock(...).acquire(timeout=timeout)
-    Если ни один из бэкендов недоступен — работаем без межпроцессной блокировки (логируем предупреждение).
+    Backend order:
+    1) ``portalocker.Lock(..., timeout=timeout)``
+    2) ``filelock.FileLock(...).acquire(timeout=timeout)``
+    If none of the backends are available, continue without interprocess locking (log a warning).
 
-    Семантика сохранена: при истечении таймаута — логируем предупреждение и продолжаем без фактической блокировки.
-    Таймаут можно настроить через app_config.FAVICON_LOCK_TIMEOUT (секунды). Переданный аргумент
-    ``timeout`` имеет приоритет над конфигом.
+    Semantics preserved: when timeout expires, log a warning and continue without an actual lock.
+    Timeout can be configured via ``app_config.FAVICON_LOCK_TIMEOUT`` (seconds). The function argument
+    ``timeout`` takes precedence over config.
     """
     backend = _get_lock_backend()
-    # Эффективный таймаут: параметр функции имеет приоритет, иначе берём из конфига
+    # Effective timeout: function argument overrides config value
     try:
         cfg_timeout = getattr(app_config, "FAVICON_LOCK_TIMEOUT", timeout)
         eff_timeout = float(timeout if timeout is not None else cfg_timeout)
@@ -66,18 +65,18 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, poll_interval: float = 0
     except Exception:
         eff_timeout = timeout
 
-    # 1) portalocker (если доступен и разрешён)
+    # 1) portalocker (if available and allowed)
     if backend in ("auto", "portalocker"):
         try:
             import portalocker  # type: ignore
 
-            # Блокирующая попытка с внутренним таймаутом — используем контекстный менеджер
+            # Blocking attempt with internal timeout — use context manager
             try:
                 with portalocker.Lock(lock_path, timeout=max(0.0, float(eff_timeout))):
                     yield
                 return
             except Exception as e:
-                # Для таймаута portalocker бросает LockException; логируем как предупреждение
+                # portalocker raises LockException on timeout; log as warning
                 try:
                     from portalocker import exceptions as _pl_exc  # type: ignore
                     if isinstance(e, getattr(_pl_exc, "LockException", tuple())):
@@ -87,19 +86,19 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, poll_interval: float = 0
                 except Exception:
                     pass
                 logger.debug("portalocker lock error: %s", e, exc_info=True)
-                # Переходим к следующему бэкенду
+                # Fall through to the next backend
         except Exception:
             if backend == "portalocker":
-                # Явно выбранный бэкенд недоступен — продолжаем без блокировки
+                # Selected backend unavailable — proceed without locking
                 logger.warning(
                     "favicon lock backend unavailable; proceeding without interprocess lock: %s",
                     lock_path,
                 )
                 yield
                 return
-            # auto: продолжаем к filelock
+            # auto: continue to filelock
 
-    # 2) filelock (если доступен и разрешён; сработает и для auto при отсутствии portalocker)
+    # 2) filelock (if available/allowed; also for auto when portalocker is missing)
     if backend in ("auto", "filelock"):
         try:
             from filelock import FileLock, Timeout as FileLockTimeout  # type: ignore
@@ -121,10 +120,10 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, poll_interval: float = 0
                 return
             except Exception as e:
                 logger.debug("filelock error: %s", e, exc_info=True)
-                # Падать не будем — перейдём к фоллбеку
+                # Do not abort — fall back
         except Exception:
             if backend == "filelock":
-                # Явно выбранный бэкенд недоступен — продолжаем без блокировки
+                # Selected backend unavailable — proceed without locking
                 logger.warning(
                     "favicon lock backend unavailable; proceeding without interprocess lock: %s",
                     lock_path,
@@ -132,7 +131,7 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, poll_interval: float = 0
                 yield
                 return
 
-    # Нет доступных бэкендов — продолжаем без межпроцессной блокировки
+    # No available backends — continue without interprocess locking
     logger.warning("favicon lock backend unavailable; proceeding without interprocess lock: %s", lock_path)
     yield
 
@@ -145,11 +144,11 @@ class FaviconCache(BaseCache):
     def __init__(self, *, default_ttl: Optional[float] = CACHE_TTL) -> None:
         self._default_ttl = default_ttl
         self._lock = threading.RLock()
-        # Кэшируем результат _get_default_icon(), чтобы не дергать resolver повторно
+        # Cache default icon lookup to avoid repeated resolver calls
         self._default_icon_cached: Optional[str] = None
-        # Параметры очистки (интервал фиксируем, а max_size читаем динамически из конфигурации)
+        # Cleanup parameters (interval fixed, max_size read dynamically from config)
         self._cleanup_interval_sec = self._get_cleanup_interval()
-        # Постоянное соединение с shelve (включается конфигом)
+        # Persistent shelve connection (enabled via configuration)
         self._db_path_str: Optional[str] = None
         self._db: Optional[shelve.Shelf] = None
         try:
@@ -163,14 +162,14 @@ class FaviconCache(BaseCache):
         except Exception:
             pass
 
-    # Управление shelve
+    # Shelve handling
     def _get_db_path(self) -> str:
-        # Всегда вычисляем путь из текущего icon_path_service (важно для тестов и динамики)
+        # Always compute path from current icon_path_service (important for tests/dynamic usage)
         return str(icon_path_service.get_user_icons_dir() / "favicon_cache.db")
 
     def _open_db(self) -> None:
         current_path = self._get_db_path()
-        # Если путь изменился — закрываем и переоткрываем
+        # If path changed, close and reopen
         if self._db_path_str and self._db_path_str != current_path:
             self._close_db()
         if self._db is None:
@@ -202,7 +201,7 @@ class FaviconCache(BaseCache):
         except Exception:
             pass
 
-    # Вспомогательные методы
+    # Helpers
     def _get_default_icon(self) -> str:
         if self._default_icon_cached is not None:
             return self._default_icon_cached
@@ -218,18 +217,18 @@ class FaviconCache(BaseCache):
         return self._default_icon_cached
 
     def _compute_effective_ttl(self, item: dict[str, Any]) -> float:
-        # Совместимость с прежней логикой: отсутствие "ttl" и default_icon => короткий негативный TTL
+        # Compatibility with legacy logic: missing "ttl" and default icon => short negative TTL
         if "ttl" not in item and item.get("icon", "") == self._get_default_icon():
             return float(SHORT_NEGATIVE_TTL)
         return float(item.get("ttl", self._default_ttl or CACHE_TTL))
 
-    # --- Конфигурация и очистка ---
+    # --- Configuration & cleanup ---
     @staticmethod
     def _get_max_size() -> int:
-        """Максимальный размер БД кэша. Должен быть >=1.
+        """Maximum cache DB size (>=1).
 
-        Пытаемся получить из app_config: метод get_favicon_cache_max_size() или атрибут favicon_cache_max_size.
-        По умолчанию 5000.
+        Attempt to read from `app_config` via `get_favicon_cache_max_size()` or attribute `favicon_cache_max_size`.
+        Defaults to 5000.
         """
         default = 5000
         try:
@@ -243,7 +242,7 @@ class FaviconCache(BaseCache):
 
     @staticmethod
     def _get_cleanup_interval() -> float:
-        """Интервал периодической очистки (сек). По умолчанию 5 минут."""
+        """Periodic cleanup interval in seconds (default 5 minutes)."""
         default = 300.0
         try:
             getter = getattr(app_config, "get_favicon_cache_cleanup_interval", None)
@@ -259,10 +258,9 @@ class FaviconCache(BaseCache):
         return float(time.time())
 
     def _maybe_cleanup(self, db: shelve.Shelf, *, now: Optional[float] = None) -> None:
-        """Периодическая очистка: удаление протухших и, при необходимости, самых старых записей.
+        """Periodic cleanup: purge expired entries and, if needed, oldest records.
 
-        Чтобы избежать частых полных проходов, используем метку времени последней очистки,
-        хранимую в специальном ключе "__last_cleanup_ts__".
+        To avoid frequent full scans, store timestamp of last cleanup in ``__last_cleanup_ts__``.
         """
         try:
             last_ts = float(db.get("__last_cleanup_ts__", 0.0))
@@ -277,14 +275,14 @@ class FaviconCache(BaseCache):
 
         removed = 0
         try:
-            # Загружаем/создаём упорядоченный индекс по времени: key -> ts (по возрастанию вставок)
+            # Load/create ordered timestamp index: key -> ts (ascending insertion order)
             index: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
-            # 1) Удаляем протухшие и несогласованные записи, проходя по индексу (не по всей БД)
+            # 1) Remove expired or inconsistent entries by iterating over the index
             for k, ts in list(index.items()):
                 try:
                     item = db.get(k)
                     if not isinstance(item, dict):
-                        # отсутствует или невалиден — удалить
+                        # Missing or invalid — delete
                         index.pop(k, None)
                         try:
                             if k in db:
@@ -316,7 +314,7 @@ class FaviconCache(BaseCache):
                         exc_info=True,
                     )
 
-            # 2) ограничиваем размер БД, удаляя самые старые по минимальному timestamp
+            # 2) Enforce max size by removing entries with smallest timestamp
             max_size = self._get_max_size()
             while len(index) > max_size:
                 try:
@@ -340,7 +338,6 @@ class FaviconCache(BaseCache):
                 db["__last_cleanup_ts__"] = now
                 db["__ts_index__"] = index
                 try:
-                    # Для постоянного соединения — синхронизируем на диск
                     sync = getattr(db, "sync", None)
                     if callable(sync):
                         sync()
@@ -355,15 +352,15 @@ class FaviconCache(BaseCache):
                     exc_info=True,
                 )
 
-    # Реализация BaseCache
+    # BaseCache implementation
     def get(self, key: str) -> Optional[Any]:
         with self._lock:
-            # Лочим межпроцессно через lock-файл на время операции
+            # Use file lock for interprocess safety during operation
             current_path = self._get_db_path()
             lock_path = f"{current_path}.lock"
             with _file_lock(lock_path):
                 if self._persistent_enabled:
-                    # Гарантируем, что db открыта
+                    # Ensure db is open
                     if self._db is None:
                         self._open_db()
                     db = self._db
@@ -375,10 +372,10 @@ class FaviconCache(BaseCache):
                     ts = float(item.get("timestamp", 0.0))
                     ttl = self._compute_effective_ttl(item)
                     if ttl <= 0 or (self._now() - ts) >= ttl:
-                        # Удаляем протухшую запись, чтобы база не разрасталась
+                        # Remove expired entry to prevent database growth
                         try:
                             del db[key]
-                            # удаляем из индекса
+                            # Remove from index
                             try:
                                 idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
                                 if key in idx:
@@ -402,7 +399,7 @@ class FaviconCache(BaseCache):
                         return None
                     return item
                 else:
-                    # Непостоянный режим: открываем/закрываем на каждую операцию (поведение как прежде)
+                    # Non-persistent mode: open/close on every operation (legacy behaviour)
                     try:
                         icon_path_service.ensure_user_icons_dir()
                     except Exception:
@@ -416,7 +413,7 @@ class FaviconCache(BaseCache):
                         if ttl <= 0 or (self._now() - ts) >= ttl:
                             try:
                                 del db2[key]
-                                # удалить из индекса
+                                # Remove from index
                                 try:
                                     idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
                                     if key in idx:
@@ -442,7 +439,7 @@ class FaviconCache(BaseCache):
 
     def set(self, key: str, value: Any, *, ttl: Optional[float] = None) -> None:
         with self._lock:
-            # Лочим межпроцессно через lock-файл на время операции
+            # Use file lock for interprocess safety during operation
             current_path = self._get_db_path()
             lock_path = f"{current_path}.lock"
             with _file_lock(lock_path):
@@ -453,7 +450,7 @@ class FaviconCache(BaseCache):
                     db = self._db
                     if db is None:
                         return
-                    # Предочистку перед записью не выполняем; ограничение размера делаем индексом ниже
+                    # Do not pre-clean before write; enforce size limit via index below
                     if isinstance(value, dict):
                         to_store = dict(value)
                     else:
@@ -463,7 +460,7 @@ class FaviconCache(BaseCache):
                     if ttl is not None:
                         to_store["ttl"] = float(ttl)
                     db[key] = to_store
-                    # Обновляем индекс времени: перемещаем ключ в конец как самый новый
+                    # Update timestamp index: move key to end as newest
                     try:
                         idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
                         if key in idx:
@@ -479,15 +476,15 @@ class FaviconCache(BaseCache):
                             sync()
                     except Exception:
                         pass
-                    # Мгновенное ограничение размера через индекс (без полной сортировки)
+                    # Enforce size limit immediately using index (avoid full sort)
                     try:
                         max_size = self._get_max_size()
                         idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
-                        # Удалим фантомные ключи, которых нет в БД
-                        for k in list(idx.keys()):
-                            if k not in db or k.startswith("__"):
-                                idx.pop(k, None)
-                        # Эвикт по индексу
+                        # Remove phantom keys not present in DB
+                        for idx_key in list(idx.keys()):
+                            if idx_key not in db or idx_key.startswith("__"):
+                                idx.pop(idx_key, None)
+                        # Evict based on index ordering
                         while len(idx) > max_size:
                             try:
                                 oldest_key = min(idx.items(), key=lambda kv: kv[1])[0]
@@ -500,25 +497,29 @@ class FaviconCache(BaseCache):
                             except Exception:
                                 pass
                         db["__ts_index__"] = idx
-                        # Фоллбек: если индекс пуст/неполон и лимит не соблюден — разовый лёгкий проход по БД
+                        # Fallback: if index is empty/incomplete and limit exceeded, perform a light pass through DB
                         try:
-                            non_service = [k for k in db.keys() if not k.startswith("__")]
+                            non_service = [candidate for candidate in db.keys() if not candidate.startswith("__")]
                             if len(non_service) > max_size:
                                 items: list[tuple[str, float]] = []
-                                for k in non_service:
+                                for candidate_key in non_service:
                                     try:
-                                        it = db.get(k)
-                                        ts = float(it.get("timestamp", 0.0)) if isinstance(it, dict) else 0.0
+                                        entry = db.get(candidate_key)
+                                        ts_val = (
+                                            float(entry.get("timestamp", 0.0))
+                                            if isinstance(entry, dict)
+                                            else 0.0
+                                        )
                                     except Exception:
-                                        ts = 0.0
-                                    items.append((k, ts))
-                                items.sort(key=lambda x: x[1])
-                                for k, _ in items[: len(non_service) - max_size]:
+                                        ts_val = 0.0
+                                    items.append((candidate_key, ts_val))
+                                items.sort(key=lambda kv: kv[1])
+                                for victim_key, _ in items[max_size:]:
                                     try:
-                                        if k in db:
-                                            del db[k]
-                                        if k in idx:
-                                            idx.pop(k, None)
+                                        if victim_key in db:
+                                            del db[victim_key]
+                                        if victim_key in idx:
+                                            idx.pop(victim_key, None)
                                     except Exception:
                                         pass
                                 db["__ts_index__"] = idx
@@ -532,19 +533,14 @@ class FaviconCache(BaseCache):
                             pass
                     except Exception:
                         pass
-                    # Установим маркер последней очистки (для тестов и отложенной периодической очистки)
-                    try:
-                        db["__last_cleanup_ts__"] = ts_now
-                    except Exception:
-                        pass
                 else:
-                    # Непостоянный режим: открываем/закрываем на каждую операцию (поведение как прежде)
+                    # Non-persistent mode: open/close on every operation (legacy behaviour)
                     try:
                         icon_path_service.ensure_user_icons_dir()
                     except Exception:
                         pass
-                    with closing(shelve.open(current_path)) as db2:
-                        # Предочистку перед записью не выполняем; ограничение размера делаем индексом ниже
+                    with closing(shelve.open(current_path)) as db:
+                        # Do not pre-clean before write; enforce size limit via index below
                         if isinstance(value, dict):
                             to_store = dict(value)
                         else:
@@ -553,26 +549,26 @@ class FaviconCache(BaseCache):
                         to_store.setdefault("timestamp", ts_now)
                         if ttl is not None:
                             to_store["ttl"] = float(ttl)
-                        db2[key] = to_store
-                        # Обновляем индекс времени в непостоянном режиме
+                        db[key] = to_store
+                        # Update timestamp index: move key to end as newest
                         try:
-                            idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
+                            idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
                             if key in idx:
                                 idx.pop(key, None)
                             idx[key] = float(to_store.get("timestamp", ts_now))
-                            db2["__ts_index__"] = idx
+                            db["__ts_index__"] = idx
                         except Exception:
                             pass
                         logger.debug("[cache] SAVE %s", key)
-                        # Мгновенное ограничение размера через индекс (без полной сортировки)
+                        # Enforce size limit immediately via index (no full sort)
                         try:
                             max_size = self._get_max_size()
-                            idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
-                            # Удалим фантомные ключи, которых нет в БД
-                            for k in list(idx.keys()):
-                                if k not in db2 or k.startswith("__"):
-                                    idx.pop(k, None)
-                            # Эвикт по индексу
+                            idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                            # Remove phantom keys absent in DB
+                            for idx_key in list(idx.keys()):
+                                if idx_key not in db or idx_key.startswith("__"):
+                                    idx.pop(idx_key, None)
+                            # Evict using index
                             while len(idx) > max_size:
                                 try:
                                     oldest_key = min(idx.items(), key=lambda kv: kv[1])[0]
@@ -580,61 +576,65 @@ class FaviconCache(BaseCache):
                                     break
                                 idx.pop(oldest_key, None)
                                 try:
-                                    if oldest_key in db2:
-                                        del db2[oldest_key]
+                                    if oldest_key in db:
+                                        del db[oldest_key]
                                 except Exception:
                                     pass
-                            db2["__ts_index__"] = idx
-                            # Фоллбек: если индекс пуст/неполон и лимит не соблюден — разовый лёгкий проход по БД
+                            db["__ts_index__"] = idx
+                            # Fallback: if index is empty/incomplete and limit exceeded, perform a light pass through DB
                             try:
-                                non_service = [k for k in db2.keys() if not k.startswith("__")]
+                                non_service = [candidate for candidate in db.keys() if not candidate.startswith("__")]
                                 if len(non_service) > max_size:
                                     items: list[tuple[str, float]] = []
-                                    for k in non_service:
+                                    for candidate_key in non_service:
                                         try:
-                                            it = db2.get(k)
-                                            ts = float(it.get("timestamp", 0.0)) if isinstance(it, dict) else 0.0
+                                            entry = db.get(candidate_key)
+                                            ts_val = (
+                                                float(entry.get("timestamp", 0.0))
+                                                if isinstance(entry, dict)
+                                                else 0.0
+                                            )
                                         except Exception:
-                                            ts = 0.0
-                                        items.append((k, ts))
-                                    items.sort(key=lambda x: x[1])
-                                    for k, _ in items[: len(non_service) - max_size]:
+                                            ts_val = 0.0
+                                        items.append((candidate_key, ts_val))
+                                    items.sort(key=lambda kv: kv[1])
+                                    for victim_key, _ in items[max_size:]:
                                         try:
-                                            if k in db2:
-                                                del db2[k]
-                                            if k in idx:
-                                                idx.pop(k, None)
+                                            if victim_key in db:
+                                                del db[victim_key]
+                                            if victim_key in idx:
+                                                idx.pop(victim_key, None)
                                         except Exception:
                                             pass
-                                    db2["__ts_index__"] = idx
+                                    db["__ts_index__"] = idx
                             except Exception:
                                 pass
                         except Exception:
                             pass
-                        # Установим маркер последней очистки (для тестов и отложенной периодической очистки)
+                        # Set last cleanup marker (for tests/deferred cleanup)
                         try:
-                            db2["__last_cleanup_ts__"] = ts_now
+                            db["__last_cleanup_ts__"] = ts_now
                         except Exception:
                             pass
 
     def _get_max_size(self) -> int:
-        """Возвращает максимально допустимый размер кэша.
-        Поддерживает как новый get_* API, так и старый атрибут `favicon_cache_max_size` (для обратной совместимости тестов).
+        """Return allowed cache size.
+        Supports both the new ``get_*`` API and legacy `favicon_cache_max_size` attribute (test compatibility).
         """
         values: list[int] = []
-        # Атрибут
+        # Attribute
         if hasattr(app_config, "favicon_cache_max_size"):
             try:
                 values.append(int(getattr(app_config, "favicon_cache_max_size")))
             except Exception:
                 pass
-        # Метод
+        # Method
         if hasattr(app_config, "get_favicon_cache_max_size"):
             try:
                 values.append(int(getattr(app_config, "get_favicon_cache_max_size")()))  # type: ignore[misc]
             except Exception:
                 pass
-        # Выбираем наиболее строгий (минимальный) валидный предел
+        # Pick the strictest (smallest) valid limit
         values = [v for v in values if v is not None]
         if values:
             return max(1, min(values))
@@ -646,7 +646,7 @@ class FaviconCache(BaseCache):
             lock_path = f"{current_path}.lock"
             with _file_lock(lock_path):
                 if key is None:
-                    # Полная очистка: закрыть shelve, удалить файлы, заново открыть
+                    # Full purge: close shelve, delete files, reopen
                     try:
                         self._close_db()
                         base = self._get_db_path()
@@ -676,7 +676,7 @@ class FaviconCache(BaseCache):
                         try:
                             del db[key]
                             logger.debug("[cache] INVALIDATE %s", key)
-                            # убрать из индекса
+                            # Remove from index
                             try:
                                 idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
                                 if key in idx:

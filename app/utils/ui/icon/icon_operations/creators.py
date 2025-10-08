@@ -1,5 +1,5 @@
 # creators.py
-"""Функции создания иконок с async поддержкой и thread safety."""
+"""Icon creation functions with async support and thread safety."""
 
 from __future__ import annotations
 
@@ -48,54 +48,52 @@ logger = logging.getLogger(__name__)
 
 
 def _ensure_gui_thread(context: str = "") -> bool:
-    """Убедиться, что код выполняется в GUI-потоке. True, если в GUI-потоке.
+    """Ensure code runs in GUI thread. True if in GUI thread.
 
     Note:
-      QImage и QPainter могут использоваться вне GUI-потока для рендеринга в QImage.
-      QPixmap и QIcon должны создаваться только в GUI-потоке.
+      QImage and QPainter can be used outside GUI thread for QImage rendering.
+      QPixmap and QIcon must only be created in GUI thread.
     """
     if not is_gui_thread():
         try:
             app = QApplication.instance()
             if app:
                 logger.debug(
-                    "Попытка выполнения %s не в GUI-потоке. Current thread: %s, GUI thread: %s",
+                    "Attempt to execute %s not in GUI thread. Current thread: %s, GUI thread: %s",
                     context,
                     QThread.currentThread(),
                     app.thread(),
                 )
-                # Откладываем выполнение в GUI-поток
-                # Возвращаем False, чтобы вызывающая функция могла принять решение
+                # Defer execution to GUI thread
+                # Return False so the calling function can make a decision
                 return False
             logger.warning(
-                "Попытка выполнения %s до инициализации QApplication", context
+                "Attempt to execute %s before QApplication initialization", context
             )
         except (ImportError, RuntimeError):
             logger.warning(
-                "Попытка выполнения %s до инициализации QApplication (ImportError/RuntimeError)",
-                context,
+                "Attempt to execute %s before QApplication initialization (ImportError/RuntimeError)",
             )
         return False
     return True
 
 
-# === СОЗДАНИЕ SVG ИКОНОК ===
-
+# === SVG ICON CREATION ===
 
 def _create_svg_icon(svg_path: str) -> QIcon:
-    """Создать QIcon из SVG файла.
+    """Create QIcon from SVG file.
 
     Note:
-        QImage и QPainter могут использоваться вне GUI-потока для рендеринга в QImage.
-        QPixmap и QIcon должны создаваться только в GUI-потоке.
+        QImage and QPainter can be used outside GUI thread for QImage rendering.
+        QPixmap and QIcon must only be created in GUI thread.
     """
     try:
         renderer = QSvgRenderer(svg_path)
         if not renderer.isValid():
             raise InvalidIconError(f"Invalid SVG file: {svg_path}")
 
-        # Рендерим в QImage вместо QPixmap для потокобезопасности
-        # Учитываем HiDPI: растеризуем в физических пикселях и выставляем DPR у Pixmap
+        # Render to QImage instead of QPixmap for thread safety
+        # Account for HiDPI: rasterize in physical pixels and set DPR for Pixmap
         base_size = app_config.get_default_icon_size()
         try:
             screen = QGuiApplication.primaryScreen()
@@ -120,7 +118,7 @@ def _create_svg_icon(svg_path: str) -> QIcon:
 
         try:
             renderer.render(painter, QRectF(0, 0, render_w, render_h))
-            # Конвертируем QImage в QPixmap и выставляем DPR
+            # Convert QImage to QPixmap and set DPR
             pixmap = QPixmap.fromImage(image)
             try:
                 pixmap.setDevicePixelRatio(dpr)
@@ -141,17 +139,17 @@ def _create_svg_icon(svg_path: str) -> QIcon:
 
 
 async def _create_svg_icon_async(svg_path: str) -> QIcon:
-    """Асинхронно создать QIcon из SVG файла."""
-    # Создание QPixmap/QIcon должно происходить в GUI-потоке
+    """Asynchronously create QIcon from SVG file."""
+    # QPixmap/QIcon creation must happen in GUI thread
     return await run_in_gui_thread_async(lambda: _create_svg_icon(svg_path))
 
 
 def _create_icon_from_file_path(file_path: str) -> QIcon:
-    """Общая функция создания иконки из файла с высоким качеством."""
+    """General function for creating high-quality icon from file."""
     path_obj = Path(file_path)
 
     if path_obj.suffix.lower() == ".svg":
-        # Специальная обработка SVG
+        # Special SVG handling
         try:
             icon = _create_svg_icon(str(path_obj))
             if not icon.isNull():
@@ -159,7 +157,7 @@ def _create_icon_from_file_path(file_path: str) -> QIcon:
         except InvalidIconError as exc:
             logger.debug("Error creating SVG icon from %s: %s", file_path, exc)
 
-        # Fallback на PNG версию иконки
+        # Fallback to PNG version of icon
         png_path = path_obj.with_suffix(".png")
         if png_path.exists() and is_valid_icon_file(str(png_path)):
             logger.debug("Falling back to PNG version: %s", png_path)
@@ -167,9 +165,9 @@ def _create_icon_from_file_path(file_path: str) -> QIcon:
 
         return QIcon()
     else:
-        # Обычные форматы изображений - создаем QIcon напрямую
+        # Regular image formats - create QIcon directly
         if path_obj.exists() and is_valid_icon_file(str(path_obj)):
-            # Простое создание иконки без масштабирования
+            # Simple icon creation without scaling
             return QIcon(str(path_obj))
         else:
             logger.debug("Invalid or non-existent icon file: %s", path_obj)
@@ -177,11 +175,11 @@ def _create_icon_from_file_path(file_path: str) -> QIcon:
 
 
 async def _create_icon_from_file_path_async(file_path: str) -> QIcon:
-    """Асинхронная версия общей функции создания иконки из файла."""
+    """Asynchronous version of general function for creating icon from file."""
     path_obj = Path(file_path)
 
     if path_obj.suffix.lower() == ".svg":
-        # Специальная обработка SVG
+        # Special SVG handling
         try:
             icon = await _create_svg_icon_async(str(path_obj))
             if not icon.isNull():
@@ -189,43 +187,43 @@ async def _create_icon_from_file_path_async(file_path: str) -> QIcon:
         except InvalidIconError as exc:
             logger.debug("Error creating SVG icon from %s: %s", file_path, exc)
 
-        # Fallback на PNG версию иконки
+        # Fallback to PNG version of icon
         png_path = path_obj.with_suffix(".png")
         if png_path.exists() and is_valid_icon_file(str(png_path)):
             logger.debug("Falling back to PNG version: %s", png_path)
-            # Создаем иконку строго в GUI-потоке
+            # Create icon strictly in GUI thread
             return await run_in_gui_thread_async(lambda: QIcon(str(png_path)))
 
-        # Если PNG версия недоступна, возвращаем пустую иконку
+        # If PNG version unavailable, return empty icon
         return QIcon()
     else:
-        # Обычные форматы изображений - создаем строго в GUI-потоке
+        # Regular image formats - create strictly in GUI thread
         return await run_in_gui_thread_async(
             lambda: _create_icon_from_file_path(str(path_obj))
         )
 
 
-# === ОСНОВНЫЕ ФУНКЦИИ СОЗДАНИЯ ИКОНОК ===
+# === MAIN ICON CREATION FUNCTIONS ===
 
 
 def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -> QIcon:
-    """Создать QIcon с кешированием и поддержкой SVG."""
-    # Проверка на потокобезопасность: QIcon должен создаваться только в GUI-потоке
-    if not _ensure_gui_thread(f"создания themed_icon ({icon_name})"):
+    """Create QIcon with caching and SVG support."""
+    # Thread safety check: QIcon must be created only in the GUI thread
+    if not _ensure_gui_thread(f"creating themed_icon ({icon_name})"):
         logger.warning(
             "themed_icon called from non-GUI thread for %s, returning empty icon",
             icon_name,
         )
         return QIcon()
 
-    # Валидация параметров
+    # Parameter validation
     if not _validate_icon_name(icon_name):
         logger.warning("Invalid icon name provided from %s", source)
         return QIcon()
 
     theme = validate_theme(theme)
 
-    # Проверяем кеш
+    # Check cache
     cached_icon = get_icon(icon_name, theme)
     if cached_icon is not None:
         try:
@@ -234,10 +232,10 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
             pass
         return cached_icon
 
-    # Начинаем замер времени загрузки
+    # Start measuring load time
     start_time = time.time()
 
-    # In-flight дедупликация (sync)
+    # In-flight deduplication (sync)
     key = (icon_name, theme)
     leader, ev = enter_sync(key)
     if not leader:
@@ -246,33 +244,32 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
         return cached_after if cached_after is not None else QIcon()
 
     try:
-        # Получаем путь к иконке
+        # Get icon path
         path = get_icon_path(icon_name, theme)
         if not path:
-            # Файл не найден — записываем промах и кэшируем негативную запись
+            # File not found - record miss and cache negative entry
             load_time = time.time() - start_time
             record_actual_miss(load_time)
             record_not_found()
             logger.debug(
                 "Icon not found: %s (theme: %s, source: %s)", icon_name, theme, source
             )
-            # Кэшируем пустую иконку как негативную, чтобы повторные запросы
-            # быстро отдавали результат до истечения короткого TTL
+            # Cache empty icon as negative to make repeated requests
+            # quickly return result before short TTL expires
             set_icon(icon_name, theme, None, negative=True)
             return QIcon()
 
-        # Используем общую функцию создания иконки
+        # Use common icon creation function
         icon = _create_icon_from_file_path(path)
 
-        # Замеряем время загрузки и записываем успешную загрузку с диска
+        # Measure load time and record successful disk load
         load_time = time.time() - start_time
         metrics_record_disk_load(load_time)
-
-        # Кешируем результат
+        # Cache the result
         set_icon(icon_name, theme, icon)
         if (
             load_time > 0.1
-        ):  # Если загрузка заняла более 100 мс, логируем на уровне INFO
+        ):  # If load took more than 100 ms, log at INFO level
             logger.info(
                 "Slow disk load: icon '%s' for theme '%s' took %.2fms",
                 icon_name,
@@ -289,23 +286,23 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
         return icon
 
     except InvalidIconError as exc:
-        # Замеряем время неудачной загрузки
+        # Measure failed load time
         load_time = time.time() - start_time
         metrics_record_not_found(load_time)
 
         logger.error("Error creating icon '%s' from %s: %s", icon_name, source, exc)
-        # Кэшируем пустую иконку с флагом negative=True и отдельным TTL
+        # Cache empty icon with negative=True flag and separate TTL
         set_icon(icon_name, theme, None, negative=True)
         return QIcon()
     except Exception as exc:
-        # Замеряем время неудачной загрузки
+        # Measure failed load time
         load_time = time.time() - start_time
         metrics_record_miss(load_time)
 
         logger.error(
             "Unexpected error creating icon '%s' from %s: %s", icon_name, source, exc
         )
-        # Кэшируем пустую иконку с флагом negative=True и отдельным TTL
+        # Cache empty icon with negative=True flag and separate TTL
         set_icon(icon_name, theme, None, negative=True)
         return QIcon()
     finally:
@@ -315,15 +312,15 @@ def themed_icon(icon_name: str, theme: str = "light", source: str = "unknown") -
 async def themed_icon_async(
     icon_name: str, theme: str = "light", source: str = "unknown"
 ) -> QIcon:
-    """Асинхронно создать QIcon с кешированием и поддержкой SVG."""
-    # Валидация параметров
+    """Asynchronously create QIcon with caching and SVG support."""
+    # Parameter validation
     if not _validate_icon_name(icon_name):
         logger.warning("Invalid icon name provided from %s", source)
         return QIcon()
 
     theme = validate_theme(theme)
 
-    # Проверяем кеш (синхронно, так как это быстрая операция)
+    # Check cache (synchronously, as this is a fast operation)
     cached_icon = get_icon(icon_name, theme)
     if cached_icon is not None:
         try:
@@ -332,10 +329,10 @@ async def themed_icon_async(
             pass
         return cached_icon
 
-    # Начинаем замер времени загрузки
+    # Start measuring load time
     start_time = time.time()
 
-    # In-flight дедупликация (async)
+    # In-flight deduplication (async)
     akey = (icon_name, theme)
     leader, fut = enter_async(akey)
     if not leader:
@@ -351,7 +348,7 @@ async def themed_icon_async(
         )
 
     try:
-        # Асинхронно получаем путь к иконке
+        # Asynchronously get icon path
         loop = asyncio.get_event_loop()
         path = await loop.run_in_executor(None, get_icon_path, icon_name, theme)
         if not path:
@@ -363,14 +360,14 @@ async def themed_icon_async(
             leave_async_success(akey, None)
             return QIcon()
 
-        # Используем общую асинхронную функцию создания иконки
+        # Use common asynchronous icon creation function
         icon = await _create_icon_from_file_path_async(path)
 
-        # Замеряем время загрузки и записываем успешную загрузку с диска
+        # Measure load time and record successful disk load
         load_time = time.time() - start_time
         metrics_record_disk_load(load_time)
 
-        # Кешируем результат
+        # Cache the result
         set_icon(icon_name, theme, icon)
         if load_time > 0.1:
             logger.info(
@@ -390,7 +387,7 @@ async def themed_icon_async(
         return icon
 
     except InvalidIconError as exc:
-        # Замеряем время неудачной загрузки
+        # Measure failed load time
         load_time = time.time() - start_time
         record_actual_miss(load_time)
         record_not_found()
@@ -398,12 +395,12 @@ async def themed_icon_async(
         logger.error(
             "Error creating async icon '%s' from %s: %s", icon_name, source, exc
         )
-        # Кэшируем пустую иконку с флагом negative=True и отдельным TTL
+        # Cache empty icon with negative=True flag and separate TTL
         set_icon(icon_name, theme, None, negative=True)
         leave_async_error(akey, exc)
         return QIcon()
     except Exception as exc:
-        # Замеряем время неудачной загрузки
+        # Measure failed load time
         load_time = time.time() - start_time
         record_actual_miss(load_time)
         record_not_found()
@@ -414,28 +411,28 @@ async def themed_icon_async(
             source,
             exc,
         )
-        # Кэшируем пустую иконку с флагом negative=True и отдельным TTL
+        # Cache empty icon with negative=True flag and separate TTL
         set_icon(icon_name, theme, None, negative=True)
         leave_async_error(akey, exc)
         return QIcon()
 
 
-# === СОЗДАНИЕ ИКОНОК ИЗ АБСОЛЮТНЫХ ПУТЕЙ ===
+# === CREATING ICONS FROM ABSOLUTE PATHS ===
 
 
 def create_icon_from_path(icon_path: str) -> QIcon:
-    """Создать QIcon из пути к файлу с кэшированием."""
-    # Проверка на потокобезопасность: QIcon должен создаваться только в GUI-потоке
-    if not _ensure_gui_thread(f"создания иконки из пути ({icon_path})"):
+    """Create QIcon from file path with caching."""
+    # Thread safety check: QIcon must be created only in the GUI thread
+    if not _ensure_gui_thread(f"creating icon from path ({icon_path})"):
         logger.warning(
             "create_icon_from_path called from non-GUI thread for %s, returning empty icon",
             icon_path,
         )
         return QIcon()
 
-    # Используем namespaced ключ чтобы избежать коллизий
+    # Use namespaced key to avoid collisions
     cache_key = f"abspath::{icon_path}"
-    # Проверяем кэш - логика TTL уже реализована в cache_manager
+    # Check cache - TTL logic already implemented in cache_manager
     cached_icon = get_icon(cache_key, "__abs__")
 
     if cached_icon is not None:
@@ -443,10 +440,10 @@ def create_icon_from_path(icon_path: str) -> QIcon:
         return cached_icon
     logger.debug("Cache MISS for absolute path icon: %s", icon_path)
 
-    # Замеряем время загрузки
+    # Measure load time
     start_time = time.time()
 
-    # Создаем новую иконку с высоким качеством
+    # Create new icon with high quality
     exists = Path(icon_path).exists()
     if exists:
         icon = _create_icon_from_file_path(icon_path)
@@ -455,15 +452,15 @@ def create_icon_from_path(icon_path: str) -> QIcon:
         icon = QIcon()
         logger.debug("Created empty icon for non-existent file: %s", icon_path)
 
-    # Замеряем время загрузки и записываем успешную загрузку с диска
+    # Measure load time and record successful disk load
     load_time = time.time() - start_time
     record_disk_load()
 
-    # Кэшируем результат с отметкой negative для отсутствующих файлов
+    # Cache result with negative flag for missing files
     set_icon(cache_key, "__abs__", icon, negative=not exists)
 
-    # Логируем медленные операции
-    if load_time > 0.1:  # Если загрузка заняла более 100 мс, логируем на уровне INFO
+    # Log slow operations
+    if load_time > 0.1:  # If load took more than 100 ms, log at INFO level
         logger.info(
             "Slow disk load: absolute path icon '%s' took %.2fms",
             icon_path,
@@ -479,10 +476,10 @@ def create_icon_from_path(icon_path: str) -> QIcon:
 
 
 async def create_icon_from_path_async(icon_path: str) -> QIcon:
-    """Асинхронно создать QIcon из пути к файлу с кэшированием."""
-    # Используем namespaced ключ чтобы избежать коллизий
+    """Asynchronously create QIcon from file path with caching."""
+    # Use namespaced key to avoid collisions
     cache_key = f"abspath::{icon_path}"
-    # Проверяем кэш - логика TTL уже реализована в cache_manager
+    # Check cache - TTL logic already implemented in cache_manager
     cached_icon = get_icon(cache_key, "__abs__")
 
     if cached_icon is not None:
@@ -490,10 +487,10 @@ async def create_icon_from_path_async(icon_path: str) -> QIcon:
         return cached_icon
     logger.debug("Cache MISS for absolute path icon: %s", icon_path)
 
-    # Замеряем время загрузки
+    # Measure load time
     start_time = time.time()
 
-    # Асинхронно создаем новую иконку
+    # Asynchronously create new icon
     loop = asyncio.get_event_loop()
 
     def create_icon():
@@ -505,14 +502,14 @@ async def create_icon_from_path_async(icon_path: str) -> QIcon:
 
     icon = await loop.run_in_executor(None, create_icon)
 
-    # Замеряем время загрузки и записываем успешную загрузку с диска
+    # Measure load time and record successful disk load
     load_time = time.time() - start_time
     record_disk_load()
 
-    # Кэшируем результат с отметкой negative для отсутствующих файлов
+    # Cache result with negative flag for missing files
     set_icon(cache_key, "__abs__", icon, negative=not Path(icon_path).exists())
 
-    # Логируем медленные операции
+    # Log slow operations
     if load_time > 0.1:
         logger.info(
             "Slow async disk load: absolute path icon '%s' took %.2fms",
@@ -529,10 +526,10 @@ async def create_icon_from_path_async(icon_path: str) -> QIcon:
 
 
 def _create_icon_from_path_deferred(icon_path: str) -> QIcon:
-    """Отложенная версия create_icon_from_path для выполнения в GUI-потоке."""
-    # Используем namespaced ключ чтобы избежать коллизий
+    """Deferred version of create_icon_from_path for execution in GUI thread."""
+    # Use namespaced key to avoid collisions
     cache_key = f"abspath::{icon_path}"
-    # Проверяем кэш - логика TTL уже реализована в cache_manager
+    # Check cache - TTL logic already implemented in cache_manager
     cached_icon = get_icon(cache_key, "__abs__")
 
     if cached_icon is not None:
@@ -540,26 +537,26 @@ def _create_icon_from_path_deferred(icon_path: str) -> QIcon:
         return cached_icon
     logger.debug("Cache MISS for absolute path icon: %s", icon_path)
 
-    # Замеряем время загрузки
+    # Measure load time
     start_time = time.time()
 
-    # Создаем новую иконку
+    # Create new icon
     exists = Path(icon_path).exists()
     if exists:
         icon = QIcon(icon_path)
     else:
         logger.warning("Icon file not found: %s", icon_path)
-        icon = QIcon()  # Возвращаем пустую иконку если файл не найден
+        icon = QIcon()  # Return empty icon if file not found
 
-    # Замеряем время загрузки и записываем успешную загрузку с диска
+    # Measure load time and record successful disk load
     load_time = time.time() - start_time
     record_disk_load()
 
-    # Кэшируем результат с отметкой negative для отсутствующих файлов
+    # Cache result with negative flag for missing files
     set_icon(cache_key, "__abs__", icon, negative=not exists)
 
-    # Логируем медленные операции
-    if load_time > 0.1:  # Если загрузка заняла более 100 мс, логируем на уровне INFO
+    # Log slow operations
+    if load_time > 0.1:  # If load took more than 100 ms, log at INFO level
         logger.info(
             "Slow disk load: absolute path icon '%s' took %.2fms",
             icon_path,
@@ -572,3 +569,4 @@ def _create_icon_from_path_deferred(icon_path: str) -> QIcon:
             load_time * 1000,
         )
     return icon
+
