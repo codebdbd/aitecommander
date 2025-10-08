@@ -31,14 +31,14 @@ def create_text_pixmap(text: str, single_row: bool = True) -> QPixmap:
     width = max(40, text_rect.width() + padding * 2)
     height = max(20, text_rect.height() + padding * 2)
 
-    # Используем QImage как устройство рисования, затем конвертируем в QPixmap —
-    # это устойчиво на Windows/PyQt6 и исключает 'Painter not active' при некоторых конфигурациях.
+    # Use QImage as drawing device, then convert to QPixmap —
+    # this is robust on Windows/PyQt6 and prevents 'Painter not active' in some configurations.
     image = QImage(width, height, QImage.Format.Format_ARGB32_Premultiplied)
     image.fill(Qt.GlobalColor.transparent)
 
     painter = QPainter()
     if not painter.begin(image):
-        # Fallback: возвращаем прозрачный pixmap нужного размера
+        # Fallback: return transparent pixmap of required size
         pm = QPixmap(width, height)
         pm.fill(Qt.GlobalColor.transparent)
         return pm
@@ -58,8 +58,8 @@ def create_text_pixmap(text: str, single_row: bool = True) -> QPixmap:
 
 
 def create_multi_row_pixmap(count: int) -> QPixmap:
-    return create_text_pixmap(f"{count} элементов", single_row=False)
+    return create_text_pixmap(f"{count} items", single_row=False)
 
 
 def create_default_pixmap() -> QPixmap:
-    return create_text_pixmap("Перемещение...", single_row=True)
+    return create_text_pixmap("Moving...", single_row=True)

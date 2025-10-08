@@ -144,6 +144,11 @@ class LinkDialog(BaseDialog):
         parent: Optional[QWidget] = None,
         link_controller: Optional[LinkDataControllerProtocol] = None,
     ):
+        # Prepare core properties before BaseDialog/ReTranslatable hooks
+        self._init_core_properties(
+            initialization_data, dialog_controller, link, category_id
+        )
+
         super().__init__(parent)
 
         # Ensure user icons directory exists (moved from module scope to avoid import side-effects)
@@ -151,11 +156,6 @@ class LinkDialog(BaseDialog):
 
         # Obtain link types from configuration
         self.link_types = app_config.settings.get_link_types()
-
-        # Init core properties
-        self._init_core_properties(
-            initialization_data, dialog_controller, link, category_id
-        )
 
         # Optional MVC controller
         self.link_controller = link_controller

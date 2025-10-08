@@ -82,13 +82,13 @@ class ThemeController:
         self._themes = [
             {
                 "name": "light",
-                "display_name": "Светлая",
+                "display_name": "Light",
                 "qss_file": "light.qss",
                 "is_dark": False,
             },
             {
                 "name": "dark",
-                "display_name": "Тёмная",
+                "display_name": "Dark",
                 "qss_file": "dark.qss",
                 "is_dark": True,
             },
@@ -133,7 +133,8 @@ class ThemeController:
         try:
             if not self._themes:
                 logger.warning("Theme list is empty, returning default themes")
-                return [("light", "Светлая"), ("dark", "Тёмная")]
+                # Return theme identifiers that can be translated via QCoreApplication.translate
+                return [("light", "light"), ("dark", "dark")]
             result: List[Tuple[str, str]] = []
             for theme in self._themes:
                 name = theme.get("name")
@@ -143,11 +144,11 @@ class ThemeController:
                     continue
                 display_name = theme.get("display_name")
                 if not display_name:
-                    # Fallback for known themes, otherwise pretty name
+                    # Fallback for known themes, return theme identifier for translation
                     if name == "light":
-                        display_name = "Светлая"
+                        display_name = "light"
                     elif name == "dark":
-                        display_name = "Тёмная"
+                        display_name = "dark"
                     else:
                         display_name = str(name).replace("_", " ").title()
                     logger.warning(
@@ -159,8 +160,8 @@ class ThemeController:
             return result
         except Exception as exc:
             logger.error("Error getting theme list: %s", exc, exc_info=True)
-            # Return default themes on error
-            return [("light", "Светлая"), ("dark", "Тёмная")]
+            # Return default theme identifiers on error
+            return [("light", "light"), ("dark", "dark")]
 
     def apply(self, name: str) -> bool:
         """Apply theme by name and save to settings."""

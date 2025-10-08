@@ -1,6 +1,6 @@
 """Cache helpers for link metadata (title/icon).
 
-Переход на файловый кэш `FaviconCache`, сохраняя прежний API.
+Migrated to file-based `FaviconCache` while preserving the legacy API.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from .favicon_cache import favicon_cache
 
 
 def get_cache_path(config=None) -> str:
-    # Путь совместим с прежней реализацией
+    # Path remains compatible with the previous implementation
     return str(icon_path_service.get_user_icons_dir() / "favicon_cache.db")
 
 
@@ -26,7 +26,7 @@ def read_cache(url: str, config) -> Optional[Dict[str, Any]]:
 
 
 def write_cache(url: str, data: Dict[str, Any], config):
-    # ttl может быть задан в data["ttl"], FaviconCache учтёт его
+    # ttl can be provided via data["ttl"], FaviconCache accounts for it
     favicon_cache.set(url, data, ttl=data.get("ttl"))
     logger.debug("[cache] SAVE %s", url)
 

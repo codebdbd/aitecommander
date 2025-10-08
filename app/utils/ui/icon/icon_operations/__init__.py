@@ -1,23 +1,23 @@
 # __init__.py
 """
-Модуль операций с иконками - разделенный на логические компоненты с async поддержкой.
+Icon operations module - split into logical components with async support.
 
-Структура:
-- cache_proxy.py: Класс IconCache для кэширования иконок меню
-- converters.py: Функции конвертации и копирования иконок
-- creators.py: Функции создания QIcon с thread safety
+Structure:
+- cache_proxy.py: IconCache class for menu icon caching
+- converters.py: Icon conversion and copying functions
+- creators.py: QIcon creation functions with thread safety
 """
 
 from __future__ import annotations
 
-# Импорт из validation (для совместимости)
+# Import from validation (for compatibility)
 from ..validation import is_valid_icon_file
 
-# Импорт из cache_proxy
+# Import from cache_proxy
 from .cache_proxy import IconCache, icon_cache
 
-# Импорт из converters
-from .converters import (  # Синхронные функции копирования; Синхронные функции конвертации; Асинхронные функции копирования; Асинхронные функции конвертации; Пакетная конвертация
+# Import from converters
+from .converters import (  # Synchronous copy functions; Synchronous conversion functions; Asynchronous copy functions; Asynchronous conversion functions; Batch conversion
     batch_convert_icons_async,
     convert_icon_to_png_32,
     convert_icon_to_png_32_async,
@@ -32,8 +32,8 @@ from .converters import (  # Синхронные функции копиров�
     copy_icon_to_path_async,
 )
 
-# Импорт из creators
-from .creators import (  # Основные функции создания иконок; Создание иконок из абсолютных путей; Внутренние функции (для совместимости)
+# Import from creators
+from .creators import (  # Main icon creation functions; Creating icons from absolute paths; Internal functions (for compatibility)
     _create_svg_icon,
     _ensure_gui_thread,
     create_icon_from_path,
@@ -42,37 +42,37 @@ from .creators import (  # Основные функции создания ик
     themed_icon_async,
 )
 
-# Экспорт всех публичных функций и классов
+# Export all public functions and classes
 __all__ = [
-    # Кэш иконок
+    # Icon cache
     "IconCache",
     "icon_cache",
-    # Синхронные функции копирования
+    # Synchronous copy functions
     "copy_icon",
     "copy_icon_smart",
     "copy_icon_to_path",
-    # Синхронные функции конвертации
+    # Synchronous conversion functions
     "convert_icon_to_png_128",
     "convert_icon_to_png_32",
     "convert_raster_icon_to_png",
-    # Асинхронные функции копирования
+    # Asynchronous copy functions
     "copy_icon_async",
     "copy_icon_to_path_async",
-    # Асинхронные функции конвертации
+    # Asynchronous conversion functions
     "convert_icon_to_png_128_async",
     "convert_icon_to_png_32_async",
     "convert_raster_icon_to_png_async",
-    # Пакетная конвертация
+    # Batch conversion
     "batch_convert_icons_async",
-    # Основные функции создания иконок
+    # Main icon creation functions
     "themed_icon",
     "themed_icon_async",
-    # Создание иконок из абсолютных путей
+    # Creating icons from absolute paths
     "create_icon_from_path",
     "create_icon_from_path_async",
-    # Внутренние функции (для совместимости)
+    # Internal functions (for compatibility)
     "_create_svg_icon",
     "_ensure_gui_thread",
-    # Функции валидации (для совместимости)
+    # Validation functions (for compatibility)
     "is_valid_icon_file",
 ]

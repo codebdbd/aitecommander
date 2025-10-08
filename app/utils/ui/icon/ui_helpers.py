@@ -1,6 +1,6 @@
 """
-UI утилиты для работы с иконками.
-Функции для установки иконок на UI элементы.
+UI utilities for working with icons.
+Functions for setting icons on UI elements.
 """
 
 from pathlib import Path
@@ -14,14 +14,14 @@ from .validation import is_valid_icon_file
 
 def set_icon_to_button(button, icon_path: Union[str, Path]) -> None:
     """
-    Установить высококачественную иконку на кнопку.
+    Set a high-quality icon on a button.
 
     Args:
-        button: Кнопка для установки иконки
-        icon_path: Путь к файлу иконки
+        button: Button to set the icon on
+        icon_path: Path to the icon file
     """
     if icon_path and is_valid_icon_file(icon_path):
         icon = create_icon_from_path(str(icon_path))
         button.setIcon(icon)
     else:
-        button.setIcon(QIcon())  # Пустая иконка
+        button.setIcon(QIcon())  # Empty icon

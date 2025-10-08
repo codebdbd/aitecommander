@@ -466,6 +466,15 @@ class WindowInitializer:
         Flushes and logs startup metrics, then delegates to deferred-init error logic.
         """
         try:
+            logger.error(
+                "WindowInitializer: initialization failed during async steps",
+                exc_info=(type(exc), exc, exc.__traceback__),
+            )
+        except Exception:
+            logger.debug(
+                "WindowInitializer: failed to log initialization error", exc_info=True
+            )
+        try:
             self._metrics.flush_log(logger)
         except Exception:
             logger.exception("WindowInitializer: failed to flush startup metrics")

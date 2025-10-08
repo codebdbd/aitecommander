@@ -116,10 +116,6 @@ class FileSearchDialog(BaseDialog):
     files_selected = pyqtSignal(list)
 
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(self.tr("Advanced file search"))
-        self.resize(900, 700)
-
         # Search control state
         self.search_worker = None
         self.is_searching = False
@@ -132,11 +128,18 @@ class FileSearchDialog(BaseDialog):
         self.lbl_size = None
         self.lbl_modified = None
 
+        super().__init__(parent)
+        self.setWindowTitle(self.tr("Advanced file search"))
+        self.resize(900, 700)
+
         self._setup_ui()
         self._setup_defaults()
 
         # ThreadPool for running background search workers
         self.threadpool = QThreadPool()
+
+        # Translate after widgets are created
+        self.retranslateUi()
 
     def _setup_ui(self):
         """Configure dialog widgets and layout."""
@@ -371,9 +374,6 @@ class FileSearchDialog(BaseDialog):
             )
         except Exception:
             pass
-
-        # Initial translation pass
-        self.retranslateUi()
 
     def retranslateUi(self) -> None:  # type: ignore[override]
         """Update all texts on language change."""

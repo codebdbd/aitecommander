@@ -1,18 +1,18 @@
 """
-Негативный кэш для путей иконок, реализованный как класс `NegativeCache`,
-совместимый с общим API `BaseCache`.
+Negative cache for icon paths, implemented as `NegativeCache` class,
+compatible with the common `BaseCache` API.
 
-Публичный API модуля:
-- объект `negative_cache: NegativeCache`
-- функции-обёртки: `is_negative(key)`, `mark_negative(key)`, `clear()`
+Module public API:
+- object `negative_cache: NegativeCache`
+- wrapper functions: `is_negative(key)`, `mark_negative(key)`, `clear()`
 
-Контракт `BaseCache`:
-- get(key) -> Optional[Any]   # возвращает True, если ключ негативен и ещё валиден; иначе None
-- set(key, value, *, ttl: Optional[float] = None) -> None  # помечает ключ как негативный (value игнорируется)
-- invalidate(key: Optional[str] = None) -> None            # снять метку для ключа или очистить всё
-- clear() -> None                                          # синоним invalidate(None)
+`BaseCache` contract:
+- get(key) -> Optional[Any]   # returns True if key is negative and still valid; otherwise None
+- set(key, value, *, ttl: Optional[float] = None) -> None  # marks key as negative (value is ignored)
+- invalidate(key: Optional[str] = None) -> None            # remove mark for key or clear everything
+- clear() -> None                                          # synonym for invalidate(None)
 
-Ключ формируется на верхнем уровне (например, f"{theme}:{icon_name.lower()}").
+Key is formed at the upper level (e.g., f"{theme}:{icon_name.lower()}").
 """
 
 from __future__ import annotations
@@ -27,8 +27,8 @@ from app.utils.cache.base import BaseCache
 
 _DEFAULT_TTL: float = 60.0
 _MAX_TTL: float = 600.0
-_MAX_STRIKES: int = 5  # дефолт на случай отсутствия конфига
-_DEFAULT_MAX_SIZE: int = 1000  # предохранитель от неограниченного роста
+_MAX_STRIKES: int = 5  # default in case config is missing
+_DEFAULT_MAX_SIZE: int = 1000  # safeguard against unlimited growth
 
 
 def _base_ttl() -> float:
@@ -46,11 +46,11 @@ def _max_ttl() -> float:
 
 
 def _max_size() -> int:
-    """Максимальный размер негативного кэша.
+    """Maximum size of negative cache.
 
-    Пытаемся получить из конфига, если доступен метод/атрибут
-    `get_negative_cache_max_size` или `negative_cache_max_size`.
-    Иначе используем дефолт.
+    Try to get from config if method/attribute
+    `get_negative_cache_max_size` or `negative_cache_max_size` is available.
+    Otherwise use default.
     """
     try:
         getter = getattr(app_config, "get_negative_cache_max_size", None)
@@ -63,10 +63,10 @@ def _max_size() -> int:
 
 
 def _max_strikes() -> int:
-    """Максимальное число накапливаемых промахов (strikes) на ключ.
+    """Maximum number of accumulated misses (strikes) per key.
 
-    Управляет ростом эффективного TTL. Делается конфигурируемым, чтобы
-    ограничить агрессивность негативного кэширования.
+    Controls effective TTL growth. Made configurable to
+    limit the aggressiveness of negative caching.
     """
     try:
         getter = getattr(app_config, "get_negative_cache_max_strikes", None)
@@ -81,34 +81,34 @@ def _max_strikes() -> int:
 def get_ttl(strikes: int) -> float:
     base = _base_ttl()
     max_t = _max_ttl()
-    # Первый strike использует базовый TTL; рост начинается со второго
+    # First strike uses base TTL; growth starts from the second
     ttl = base * (2 ** max(0, strikes - 1))
     return min(ttl, max_t)
 
 
 class NegativeCache(BaseCache):
-    """Расширяемый негативный кэш, совместимый с BaseCache.
+    """Extensible negative cache, compatible with BaseCache.
 
-    Поведение:
-    - set(key, value, ttl=None): помечает ключ как негативный; value игнорируется.
-    - get(key): возвращает True, если ключ негативен и TTL не истёк; иначе None.
-    - invalidate(key): снимает метку с ключа; invalidate(None)/clear() — очистка всего кэша.
+    Behavior:
+    - set(key, value, ttl=None): marks key as negative; value is ignored.
+    - get(key): returns True if key is negative and TTL has not expired; otherwise None.
+    - invalidate(key): removes mark from key; invalidate(None)/clear() — clears entire cache.
     """
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._ts: dict[str, float] = {}  # ключ -> timestamp последней отметки
-        self._strikes: dict[str, int] = {}  # ключ -> количество накопленных промахов
-        # Генерации для предотвращения эффекта "висячих" элементов в кучах
-        self._gen: dict[str, int] = {}  # ключ -> текущая версия записи
-        # Куча по сроку истечения: (expire_ts, key, gen)
+        self._ts: dict[str, float] = {}  # key -> timestamp of last mark
+        self._strikes: dict[str, int] = {}  # key -> number of accumulated misses
+        # Generations to prevent "dangling" elements effect in heaps
+        self._gen: dict[str, int] = {}  # key -> current version of record
+        # Heap by expiration time: (expire_ts, key, gen)
         self._expire_heap: list[tuple[float, str, int]] = []
-        # Куча по времени отметки (для вытеснения самых старых при переполнении): (ts, key, gen)
+        # Heap by mark time (for evicting oldest when overflow): (ts, key, gen)
         self._ts_heap: list[tuple[float, str, int]] = []
 
-    # --- Конфиг ---
+    # --- Config ---
     @staticmethod
-    def base_ttl() -> float:  # для тестов и ясности
+    def base_ttl() -> float:  # for tests and clarity
         return _base_ttl()
 
     @staticmethod
@@ -137,8 +137,8 @@ class NegativeCache(BaseCache):
             strikes = self._strikes.get(key, 0)
             if now - ts < get_ttl(strikes):
                 return True
-            # Протухло — мягкая декрементация strike и очистка отметки
-            # Инвалидируем все запланированные события через bump generation
+            # Expired — soft decrement of strike and cleanup of mark
+            # Invalidate all scheduled events through bump generation
             self._gen[key] = self._gen.get(key, 0) + 1
             if strikes > 0:
                 self._strikes[key] = strikes - 1
@@ -146,43 +146,43 @@ class NegativeCache(BaseCache):
             return None
 
     def set(self, key: str, value: Any, *, ttl: float | None = None) -> None:
-        # ttl игнорируется: TTL управляется на основе strike и конфигурации
+        # ttl is ignored: TTL is controlled based on strike and configuration
         now = time.time()
         with self._lock:
-            # Инкрементальная очистка просроченных по куче истечений
+            # Incremental cleanup of expired items by expiration heap
             while self._expire_heap:
                 exp_ts, k, g = self._expire_heap[0]
                 if exp_ts > now:
                     break
                 heapq.heappop(self._expire_heap)
-                # Проверяем актуальность записи
+                # Check record relevance
                 if self._gen.get(k) != g:
                     continue
-                # Просрочено: удаляем отметку и мягко уменьшаем strikes
+                # Expired: remove mark and softly decrease strikes
                 self._ts.pop(k, None)
                 s = self._strikes.get(k, 0)
                 if s > 0:
                     self._strikes[k] = s - 1
 
-            # Обновляем текущий ключ
+            # Update current key
             new_gen = self._gen.get(key, 0) + 1
             self._gen[key] = new_gen
             self._ts[key] = now
             self._strikes[key] = min(self._strikes.get(key, 0) + 1, _max_strikes())
-            # Планируем срок истечения и добавляем в кучу
+            # Schedule expiration time and add to heap
             expire_ts = now + get_ttl(self._strikes[key])
             heapq.heappush(self._expire_heap, (expire_ts, key, new_gen))
-            # Добавляем в кучу по времени отметки для вытеснения самых старых
+            # Add to mark time heap for evicting oldest
             heapq.heappush(self._ts_heap, (now, key, new_gen))
 
-            # Контроль размера: вытесняем самые старые по ts при переполнении
+            # Size control: evict oldest by ts when overflow
             max_size = _max_size()
             while len(self._ts) > max_size and self._ts_heap:
                 ts_old, k_old, g_old = heapq.heappop(self._ts_heap)
                 if self._gen.get(k_old) != g_old:
-                    continue  # устаревшая запись в куче
-                # Удаляем ключ
-                # Сначала bump generation, чтобы инвалидировать отложенные события
+                    continue  # outdated record in heap
+                # Remove key
+                # First bump generation to invalidate pending events
                 self._gen[k_old] = self._gen.get(k_old, 0) + 1
                 self._ts.pop(k_old, None)
                 s = self._strikes.get(k_old, 0)
@@ -198,12 +198,12 @@ class NegativeCache(BaseCache):
                 self._expire_heap.clear()
                 self._ts_heap.clear()
                 return
-            # bump generation для инвалидизации событий
+            # bump generation to invalidate events
             self._gen[key] = self._gen.get(key, 0) + 1
             self._ts.pop(key, None)
             self._strikes.pop(key, None)
 
-    # удобные методы
+    # convenience methods
     def is_negative(self, key: str) -> bool:
         return bool(self.get(key))
 
@@ -214,7 +214,7 @@ class NegativeCache(BaseCache):
         self.invalidate(None)
 
 
-# --- Глобальный экземпляр и функции-обёртки ---
+# --- Global instance and wrapper functions ---
 negative_cache = NegativeCache()
 
 

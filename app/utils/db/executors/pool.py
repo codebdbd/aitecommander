@@ -1,4 +1,4 @@
-"""Пул потоков для задач БД с возможностью подмены (для тестов)."""
+"""Thread pool for database tasks with override support (useful in tests)."""
 
 from __future__ import annotations
 
@@ -8,22 +8,22 @@ from PyQt6.QtCore import QThreadPool
 
 __all__ = ["get_thread_pool", "set_thread_pool"]
 
-# Храним пользовательский пул для тестов/особых случаев
+# Store custom pool for tests / special cases
 _CUSTOM_POOL: Optional[QThreadPool] = None
 
 
 def set_thread_pool(pool: Optional[QThreadPool]) -> None:
-    """Установить пользовательский пул потоков (например, для тестов).
+    """Set custom thread pool (e.g., for tests).
 
-    Передайте None, чтобы вернуться к глобальному пулу Qt.
+    Pass ``None`` to revert to the global Qt pool.
     """
     global _CUSTOM_POOL
     _CUSTOM_POOL = pool
 
 
 def get_thread_pool() -> QThreadPool:
-    """Получить пул потоков для запуска задач.
+    """Return thread pool used for scheduling tasks.
 
-    По умолчанию — глобальный пул Qt.
+    Defaults to the global Qt pool.
     """
     return _CUSTOM_POOL or QThreadPool.globalInstance()

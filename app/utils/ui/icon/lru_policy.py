@@ -1,13 +1,13 @@
 # lru_policy.py
 """
-LRU-политика кэширования для иконок.
+LRU caching policy for icons.
 
-Назначение:
-- Отслеживает порядок использования ключей.
-- Удаляет наименее недавно использованные при переполнении.
-- Синхронизируется с внешним словарём кэша.
+Purpose:
+- Tracks key usage order.
+- Removes least recently used items when overflow occurs.
+- Synchronizes with external cache dictionary.
 
-Соответствует PEP 8.
+Complies with PEP 8.
 """
 
 from __future__ import annotations
@@ -19,18 +19,18 @@ from .lock_manager import acquire_lru_lock
 
 
 class LRUPolicy:
-    """Потокобезопасная реализация LRU-политики."""
+    """Thread-safe implementation of LRU policy."""
 
     def __init__(self, maxsize: int) -> None:
-        self.maxsize = max(1, int(maxsize))  # защита от 0 и отрицательных
+        self.maxsize = max(1, int(maxsize))  # protection from 0 and negative values
         self.access_order: OrderedDict[str, None] = OrderedDict()
-        # Используем централизованную систему блокировок
-        # self._lock заменен на lock_manager
+        # Use centralized locking system
+        # self._lock replaced with lock_manager
 
-    # --- API доступа ---
+    # --- Access API ---
 
     def access(self, key: str) -> None:
-        """Зарегистрировать обращение к ключу (перенести в конец)."""
+        """Register key access (move to end)."""
         with acquire_lru_lock():
             self.access_order[key] = None
             self.access_order.move_to_end(key)
@@ -38,11 +38,11 @@ class LRUPolicy:
     def evict_if_needed(
         self, cache: dict[str, Any], key: str
     ) -> tuple[bool, str | None]:
-        """Проверить переполнение и вернуть ключ для удаления.
+        """Check for overflow and return key for removal.
 
-        Возвращает:
-            (True, ключ) — если надо удалить элемент.
-            (False, None) — если удаление не требуется.
+        Returns:
+            (True, key) — if an element needs to be removed.
+            (False, None) — if removal is not required.
         """
         with acquire_lru_lock():
             if len(cache) >= self.maxsize and key not in cache:
@@ -50,29 +50,29 @@ class LRUPolicy:
                     old_key, _ = self.access_order.popitem(last=False)
                     return True, old_key
                 except KeyError:
-                    # рассинхрон между cache и access_order
+                    # desynchronization between cache and access_order
                     return True, None
             return False, None
 
     def remove(self, key: str) -> None:
-        """Удалить ключ из порядка доступа."""
+        """Remove key from access order."""
         with acquire_lru_lock():
             self.access_order.pop(key, None)
 
     def sync_with_cache(self, cache: dict[str, Any]) -> None:
-        """Синхронизировать порядок доступа с фактическим содержимым кэша."""
+        """Synchronize access order with actual cache content."""
         with acquire_lru_lock():
-            # удалить отсутствующие
+            # remove missing keys
             keys_to_remove = [k for k in self.access_order if k not in cache]
             for k in keys_to_remove:
                 self.access_order.pop(k, None)
 
-            # добавить новые
+            # add new keys
             for k in cache:
                 if k not in self.access_order:
                     self.access_order[k] = None
 
     def size(self) -> int:
-        """Текущее количество отслеживаемых ключей."""
+        """Current number of tracked keys."""
         with acquire_lru_lock():
             return len(self.access_order)

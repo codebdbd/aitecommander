@@ -55,7 +55,7 @@ class ActionBuilder:
                 self.parent.show_error_message(_tr("Error: %1").replace("%1", str(e)))
 
 
-# Константы горячих клавиш
+# Hotkey constants
 class Shortcuts:
     EDIT = "F2"
     ADD_LINK = "F1"
@@ -100,6 +100,9 @@ class MenuTexts:
     DELETE_SELECTED = "Delete selected"
     SELECT_ALL_CATEGORIES = "Select all"
     SORT_CATEGORIES = "Sort categories"
+    # Undo/Redo
+    UNDO = "&Undo"
+    REDO = "&Redo"
     # Links context menu
     OPEN = "Open"
     EDIT = "Edit"

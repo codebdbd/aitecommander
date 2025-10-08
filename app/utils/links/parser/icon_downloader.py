@@ -1,13 +1,13 @@
 """Icon downloading and saving utilities.
 
-Выделены чистые функции и класс `IconDownloader`:
-- read/write метаданных
-- построение условных заголовков
-- проверка типа/размера/аспекта изображения
-- преобразование SVG
-- сохранение файла и обновление метаданных
+Separated pure functions and `IconDownloader` class:
+- read/write metadata
+- build conditional headers
+- validate image type/size/aspect ratio
+- convert SVG
+- save file and update metadata
 
-`save_icon` оставлен как тонкий фасад поверх `IconDownloader`.
+`save_icon` is kept as a thin facade over `IconDownloader`.
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ _PIL_MAX_PIXELS_GUARD = threading.Lock()
 
 # Shared executor for icon downloads (singleton)
 _ICON_EXECUTOR = None
-_ICON_EXECUTOR_SIZE = 0  # текущий размер пула
+_ICON_EXECUTOR_SIZE = 0  # current pool size
 _ICON_EXECUTOR_GUARD = threading.Lock()
 
 def _shutdown_icon_executor(wait: bool = False):  # pragma: no cover - atexit path
@@ -69,21 +69,21 @@ def _shutdown_icon_executor(wait: bool = False):  # pragma: no cover - atexit pa
         _ICON_EXECUTOR_SIZE = 0
 
 def _get_icon_executor(max_workers_hint: int) -> ThreadPoolExecutor:
-    """Возвращает общий ThreadPoolExecutor для скачивания иконок.
+    """Returns shared ThreadPoolExecutor for icon downloads.
 
-    Пул создаётся лениво и может динамически увеличиваться при возрастании `max_workers_hint`.
-    При расширении старый пул аккуратно останавливается без ожидания (running tasks завершаются там).
-    Верхняя граница — `app_config.ICON_MAX_WORKERS` (по умолчанию 6).
+    Pool is created lazily and can dynamically grow when `max_workers_hint` increases.
+    On expansion, old pool is gracefully stopped without waiting (running tasks finish there).
+    Upper bound is `app_config.ICON_MAX_WORKERS` (default 6).
     """
     global _ICON_EXECUTOR, _ICON_EXECUTOR_SIZE
 
-    # Быстрая безблокировочная проверка
+    # Fast lock-free check
     ex = _ICON_EXECUTOR
     if ex is not None and _ICON_EXECUTOR_SIZE >= max(1, int(max_workers_hint or 1)):
         return ex
 
     with _ICON_EXECUTOR_GUARD:
-        # Пересчитываем эффективные размеры под блокировкой
+        # Recalculate effective sizes under lock
         try:
             cfg_limit = int(getattr(app_config, "ICON_MAX_WORKERS", 6) or 6)
         except Exception:
@@ -91,7 +91,7 @@ def _get_icon_executor(max_workers_hint: int) -> ThreadPoolExecutor:
         desired = max(1, int(min(max_workers_hint or 1, cfg_limit)))
 
         if _ICON_EXECUTOR is None:
-            # Первичное создание
+            # Initial creation
             _ICON_EXECUTOR = ThreadPoolExecutor(max_workers=desired)
             _ICON_EXECUTOR_SIZE = desired
             try:
@@ -100,7 +100,7 @@ def _get_icon_executor(max_workers_hint: int) -> ThreadPoolExecutor:
                 logger.debug("failed to register icon executor shutdown: %s", e)
             return _ICON_EXECUTOR
 
-        # Есть существующий пул. Если новый размер больше — расширяем посредством пересоздания
+        # Existing pool present. If new size is larger — expand by recreating
         if desired > _ICON_EXECUTOR_SIZE:
             old = _ICON_EXECUTOR
             try:
@@ -108,17 +108,17 @@ def _get_icon_executor(max_workers_hint: int) -> ThreadPoolExecutor:
                 _ICON_EXECUTOR_SIZE = desired
             except Exception as e:
                 logger.debug("failed to resize icon executor: %s", e, exc_info=True)
-                # Возвращаем старый пул при неудаче
+                # Return old pool on failure
                 _ICON_EXECUTOR = old
                 return _ICON_EXECUTOR
-            # Не блокируемся на завершении старого пула; не отменяем уже запущенные задачи
+            # Don't block on old pool shutdown; don't cancel already running tasks
             try:
                 old.shutdown(wait=False)
             except Exception:
                 pass
             return _ICON_EXECUTOR
 
-        # Текущий размер достаточен
+        # Current size is sufficient
         return _ICON_EXECUTOR
 
 
@@ -148,7 +148,7 @@ def _pil_max_pixels(limit: int):
         _PIL_MAX_PIXELS_GUARD.release()
 
 
-# === Метаданные и пути ===
+# === Metadata and paths ===
 def get_icon_meta_path(domain: str) -> str:
     d = (domain or "").replace(".", "_")
     return str(icon_path_service.get_user_icons_dir() / f"web_{d}.meta.json")
@@ -190,25 +190,25 @@ def _get_icon_lock(domain: str) -> threading.Lock:
         if lock is None:
             lock = threading.Lock()
             _ICON_LOCKS[d] = lock
-        # Помечаем как недавно использованный
+        # Mark as recently used
         try:
             _ICON_LOCKS.move_to_end(d)
         except Exception:
             pass
 
-        # LRU-очистка при превышении лимита
+        # LRU cleanup when limit exceeded
         try:
             max_locks = int(getattr(app_config, "ICON_LOCKS_MAX", 1024) or 1024)
         except Exception:
             max_locks = 1024
         if len(_ICON_LOCKS) > max_locks:
-            # Пытаемся удалить самый старый незахваченный замок
+            # Try to remove oldest unlocked lock
             keys_to_check = list(_ICON_LOCKS.keys())
             for k in keys_to_check:
                 if len(_ICON_LOCKS) <= max_locks:
                     break
                 if k == d:
-                    # не трогаем только что использованный ключ
+                    # don't touch just-used key
                     continue
                 lock_var = _ICON_LOCKS.get(k)
                 if lock_var is None:
@@ -218,23 +218,23 @@ def _get_icon_lock(domain: str) -> threading.Lock:
                         _ICON_LOCKS.pop(k, None)
                     except Exception:
                         pass
-            # Если все были захвачены, размер временно может оставаться > max_locks
+            # If all were locked, size may temporarily remain > max_locks
         return lock
 
 
 class IconDownloader:
-    """Логика скачивания/валидации/сохранения иконок, разбитая на шаги."""
+    """Icon download/validation/save logic, broken down into steps."""
 
     def __init__(self, config):
         self.config = config
-        # Поддержка тестового клиента
+        # Support for test client
         self.http_get = getattr(config, "HTTP_GET", None) or (
             lambda u, headers, timeout: requests.get(
                 u, headers=headers, timeout=timeout
             )
         )
 
-    # === Валидация и декодирование ===
+    # === Validation and decoding ===
     @staticmethod
     def is_non_image_data(ct: str, data: bytes) -> bool:
         if (
@@ -355,7 +355,7 @@ class IconDownloader:
                 )
         return path
 
-    # === Публичный метод ===
+    # === Public method ===
     def save_icon(
         self,
         icon_url: str,
@@ -366,7 +366,7 @@ class IconDownloader:
         meta = read_icon_meta(domain)
         cond_headers = build_conditional_headers(domain, meta, force_refresh)
 
-        # Единый streaming GET с условными заголовками
+        # Single streaming GET with conditional headers
         headers = {k: v for k, v in cond_headers.items() if v}
 
         try:
@@ -393,7 +393,7 @@ class IconDownloader:
             # http_request exhausted retries / permanent error
             return None
 
-        # Обработка статусов до чтения тела
+        # Handle status codes before reading body
         if getattr(resp, "status_code", 0) == 304 and not force_refresh:
             logger.info("[conditional] 304 Not Modified for %s", icon_url)
             icon_filename = f"web_{domain.replace('.', '_')}.png"
@@ -427,7 +427,7 @@ class IconDownloader:
         )
         url_lower = icon_url.lower().split("?")[0].split("#")[0]
         ext = url_lower.rsplit(".", 1)[-1] if "." in url_lower else ""
-        # Проверка контент-тайпа до чтения
+        # Check content-type before reading
         if not ct_header.startswith("image/"):
             img_ext = url_lower.endswith(
                 (".png", ".ico", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg")
@@ -447,7 +447,7 @@ class IconDownloader:
             resp.close()
             return None
 
-        # Проверка Content-Length (если есть) до чтения
+        # Check Content-Length (if present) before reading
         max_size = app_config.get_max_web_icon_size()
         if "Content-Length" in resp.headers:
             try:
@@ -464,7 +464,7 @@ class IconDownloader:
                 resp.close()
                 return None
 
-        # Стриминг тела с ограничением размера
+        # Stream body with size limit
         body = bytearray()
         try:
             for chunk in resp.iter_content(chunk_size=8192):
@@ -498,7 +498,7 @@ class IconDownloader:
             logger.info("[icon] skip reason=non_image ct=%s url=%s", ct, icon_url)
             return None
 
-        # Дополнительная страховка после стрим-лимита
+        # Additional safety check after stream limit
         if len(data) > max_size:
             logger.info(
                 "[icon] skip reason=body_too_large size=%s url=%s", len(data), icon_url
@@ -509,7 +509,7 @@ class IconDownloader:
         if not data2:
             return None
 
-        # Безопасное открытие изображения с ограничением на количество пикселей и проверкой содержимого
+        # Safe image opening with pixel count limit and content verification
         try:
             try:
                 max_pixels_limit = int(
@@ -519,14 +519,14 @@ class IconDownloader:
                 max_pixels_limit = 2_000_000
 
             with _pil_max_pixels(max_pixels_limit):
-                # Первая фаза: быстрая проверка контейнера без декодирования пикселей
+                # Phase 1: fast container check without pixel decoding
                 with Image.open(BytesIO(data2)) as _probe:
                     _probe.verify()
 
-                # Вторая фаза: повторно открываем для реального чтения/обработки
+                # Phase 2: reopen for actual reading/processing
                 with Image.open(BytesIO(data2)) as _img:
                     img = self.select_best_frame(_img)
-                    # На случай ленивой загрузки делаем копию в память
+                    # Make in-memory copy in case of lazy loading
                     img = img.copy()
                     if not self.validate_image_geometry(img, icon_url):
                         return None
@@ -558,7 +558,7 @@ class IconDownloader:
             logger.error("Save icon error %s: %s", icon_url, e, exc_info=True)
             return None
         finally:
-            # MAX_IMAGE_PIXELS восстанавливается контекстным менеджером
+            # MAX_IMAGE_PIXELS is restored by context manager
             pass
 
 
@@ -569,7 +569,7 @@ def save_icon(
     is_fallback: bool = False,
     force_refresh: bool = False,
 ) -> Optional[str]:
-    """Тонкий фасад поверх IconDownloader.save_icon."""
+    """Thin facade over IconDownloader.save_icon."""
     return IconDownloader(config).save_icon(
         icon_url, domain, is_fallback, force_refresh
     )
@@ -582,14 +582,14 @@ def pick_icon_parallel(
     config,
     force_refresh: bool = False,
 ) -> Optional[str]:
-    # Сначала только локальные и fallback-кандидаты (без сторонних сервисов)
+    # First, only local and fallback candidates (without external services)
     candidates = find_favicon_candidates(soup, page_url, config, use_external=False)[
         :10
     ]
     logger.debug("Trying %s favicon candidates for %s", len(candidates), domain)
 
     max_elapsed = float(getattr(config, "ICON_PICK_MAX_SECONDS", 6.0))
-    # Уважаем заданный тайм-аут без принудительного минимума 1s
+    # Respect specified timeout without forcing 1s minimum
     finish_by = time.monotonic() + max(0.05, max_elapsed)
 
     def _try_candidates_parallel(icon_urls, is_fallback: bool) -> Optional[str]:
@@ -609,7 +609,7 @@ def pick_icon_parallel(
             is_fallback,
             domain,
         )
-        # Используем общий пул потоков и неблокирующее ожидание первого завершившегося future
+        # Use shared thread pool and non-blocking wait for first completed future
         executor = _get_icon_executor(max_workers)
         try:
             futures = [
@@ -622,7 +622,7 @@ def pick_icon_parallel(
                 remaining = max(0.0, finish_by - time.monotonic())
                 if remaining <= 0:
                     logger.debug("Parallel wait timeout: cancelled pending futures")
-                    # Отменяем все незавершенные задачи
+                    # Cancel all pending tasks
                     for f in futures:
                         if not f.done():
                             f.cancel()
@@ -630,7 +630,7 @@ def pick_icon_parallel(
                 done, not_done = wait(
                     futures, timeout=remaining, return_when=FIRST_COMPLETED
                 )
-                # Проверяем завершившиеся задачи
+                # Check completed tasks
                 any_completed = False
                 for fut in list(done):
                     any_completed = True
@@ -640,17 +640,17 @@ def pick_icon_parallel(
                         logger.debug("Parallel fetch error: %s", e, exc_info=True)
                         continue
                     if saved:
-                        # Отменяем остальные
+                        # Cancel remaining tasks
                         for f in futures:
                             if f is not fut and not f.done():
                                 f.cancel()
                         return saved
-                # Если кто-то завершился, но результата нет — продолжаем ждать оставшиеся до дедлайна
+                # If someone completed but no result — continue waiting for remaining until deadline
                 if not not_done:
-                    # Все задачи завершились, ни одна не дала результат
+                    # All tasks completed, none gave result
                     return None
                 if not any_completed:
-                    # Ничего не завершилось в заданный таймаут — цикл пересчитает оставшееся время
+                    # Nothing completed in given timeout — loop will recalculate remaining time
                     continue
         except Exception as e:
             logger.debug("Parallel wait error: %s", e, exc_info=True)
@@ -675,7 +675,7 @@ def pick_icon_parallel(
             "Successfully saved fallback icon %s for domain %s", saved_path, domain
         )
         return saved_path
-    # После неудачи локальных попыток — подключаем внешние источники при разрешении в конфиге
+    # After local attempts fail — enable external sources if allowed in config
     if bool(getattr(config, "ICON_USE_EXTERNAL", False)):
         ext_all = find_favicon_candidates(soup, page_url, config, use_external=True)[
             :12

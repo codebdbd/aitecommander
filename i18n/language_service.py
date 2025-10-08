@@ -32,6 +32,9 @@ class LanguageService(QObject):
         "en": LanguageDescriptor(code="en", name="English", locale_name="en_US"),
         "ru": LanguageDescriptor(code="ru", name="Русский", locale_name="ru_RU"),
         "uk": LanguageDescriptor(code="uk", name="Українська", locale_name="uk_UA"),
+        "de": LanguageDescriptor(code="de", name="Deutsch", locale_name="de_DE"),
+        "es": LanguageDescriptor(code="es", name="Español", locale_name="es_ES"),
+        "fr": LanguageDescriptor(code="fr", name="Français", locale_name="fr_FR"),
     }
     _SETTINGS_KEY = "ui/lang"
     _DEFAULT_LANGUAGE = "en"

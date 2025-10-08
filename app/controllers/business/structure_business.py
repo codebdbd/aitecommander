@@ -384,6 +384,11 @@ class StructureBusinessLogic(QObject):
         return self.query_service.get_category_for_editing(category_id)
 
     @handle_exceptions()
+    def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, Any]]:
+        """Return category hierarchy (sphere_id, section_id)."""
+        return self.structure_model.get_category_hierarchy(category_id)
+
+    @handle_exceptions()
     def create_category_for_import(
         self, category_data: Dict[str, Any]
     ) -> Optional[int]:

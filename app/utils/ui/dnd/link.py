@@ -1,13 +1,13 @@
 # app/utils/ui/dnd/link.py
 
-"""Централизованные утилиты DnD для таблиц/списков ссылок (Model/View).
+"""Centralized DnD utilities for link tables/lists (Model/View).
 
-Содержит:
-- Миксин для таблиц ссылок, работающий с QModelIndex и моделью;
-- Хелперы для извлечения выбранных строк и восстановления строк-источников из MIME через данные модели.
+Contains:
+- Mixin for link tables working with QModelIndex and model;
+- Helpers for extracting selected rows and restoring source rows from MIME via model data.
 
-Примечание: API ориентирован на QTableView + QAbstractItemModel. Прямых
-зависимостей от QTableWidget/QTableWidgetItem не осталось.
+Note: API is oriented towards QTableView + QAbstractItemModel. Direct
+dependencies on QTableWidget/QTableWidgetItem have been removed.
 """
 
 import logging
@@ -17,19 +17,19 @@ from PyQt6.QtCore import Qt
 
 from app.utils.ui.qt.roles import get_selected_rows as get_selected_rows_util
 
-# Модульный логгер
+# Module logger
 logger = logging.getLogger(__name__)
 
 
 class DragDropHandlerMixin:
-    """Миксин для обработки Drag & Drop в таблице ссылок (QTableView)."""
+    """Mixin for handling Drag & Drop in link table (QTableView)."""
 
     def _extract_item_ids_from_items(self, items) -> List[int]:
-        """Извлекает ID ссылок из выбранных индексов (QModelIndex).
+        """Extracts link IDs from selected indexes (QModelIndex).
 
-        Ожидается, что ``items`` — это последовательность ``QModelIndex``
-        (например, из ``selectionModel().selectedIndexes()``). Идентификаторы
-        извлекаются через ``self.get_link_at(row)`` и роль ``UserRole`` модели.
+        Expects ``items`` to be a sequence of ``QModelIndex``
+        (e.g., from ``selectionModel().selectedIndexes()``). Identifiers
+        are extracted via ``self.get_link_at(row)`` and model's ``UserRole``.
         """
         try:
             if not items:
@@ -46,26 +46,26 @@ class DragDropHandlerMixin:
             )
 
             for row in rows:
-                # Проверка границ
+                # Check boundaries
                 if not (0 <= row < total):
-                    logger.warning("[DRAG] Некорректный индекс строки: %s", row)
+                    logger.warning("[DRAG] Invalid row index: %s", row)
                     continue
 
                 link_data = self.get_link_at(row)
                 if link_data and "id" in link_data:
                     ids.append(link_data["id"])
                 else:
-                    logger.warning("[DRAG] Отсутствует ID в строке %s", row)
+                    logger.warning("[DRAG] Missing ID in row %s", row)
 
             return ids
         except Exception as e:
-            logger.error("[DRAG] Ошибка извлечения ID из элементов: %s", e)
+            logger.error("[DRAG] Error extracting IDs from items: %s", e)
             return []
 
     def _rebuild_current_links(self):
-        """Очищает и перестраивает кэш _current_links из модели.
+        """Clears and rebuilds _current_links cache from model.
 
-        Вызывается после операций, изменяющих порядок строк (сортировка, DnD).
+        Called after operations changing row order (sorting, DnD).
         """
         try:
             self._current_links.clear()
@@ -78,33 +78,33 @@ class DragDropHandlerMixin:
                 if link_data:
                     self._current_links[row] = link_data
         except Exception as e:
-            logger.error("[DRAG] Ошибка перестроения кэша ссылок: %s", e)
-            self._current_links.clear()  # В случае ошибки кэш должен быть пустым
+            logger.error("[DRAG] Error rebuilding links cache: %s", e)
+            self._current_links.clear()  # On error cache should be empty
 
     def _move_row_visually(self, source_row: int, target_row: int):
-        """Перемещает строку через модель и перестраивает кэш.
+        """Moves row via model and rebuilds cache.
 
-        Использует `finally`, чтобы гарантировать перестроение кэша.
+        Uses `finally` to guarantee cache rebuilding.
         """
         try:
             model = getattr(self, "model", lambda: None)()
             if model is None:
                 return
-            # Вызываем `move_rows` из модели, который должен вызвать begin/endMoveRows
+            # Call `move_rows` from model which should trigger begin/endMoveRows
             model.move_rows([source_row], target_row)
         except Exception as e:
             logger.error(
-                "[LinksTableView] Ошибка визуального перемещения строки %s -> %s: %s",
+                "[LinksTableView] Error visual moving row %s -> %s: %s",
                 source_row,
                 target_row,
                 e,
             )
         finally:
-            # Кэш перестраивается в любом случае, чтобы отразить фактическое состояние модели
+            # Cache is rebuilt in any case to reflect actual model state
             self._rebuild_current_links()
 
     def _get_current_order(self) -> List[int]:
-        """Получает текущий порядок ID ссылок по фактическому порядку строк модели."""
+        """Gets current order of link IDs by actual model row order."""
         try:
             model = getattr(self, "model", lambda: None)()
             total = model.rowCount() if model is not None else 0
@@ -115,24 +115,24 @@ class DragDropHandlerMixin:
                     ids_in_order.append(link_data["id"])
             return ids_in_order
         except Exception as e:
-            logger.error("[DRAG] Ошибка получения текущего порядка ссылок: %s", e)
+            logger.error("[DRAG] Error getting current links order: %s", e)
             return []
 
 
-# --- Переиспользуемые хелперы для таблиц ---
+# --- Reusable table helpers ---
 
 
 def get_selected_rows(view) -> List[int]:
-    """Получает отсортированный список уникальных выбранных строк через общую утилиту."""
+    """Gets sorted list of unique selected rows via common utility."""
     return get_selected_rows_util(view)
 
 
 def extract_source_rows_from_mime(table, event, mime_type: str) -> List[int]:
-    """Восстанавливает номера строк-источников из MIME-данных с ID.
+    """Restores source row numbers from MIME data with IDs.
 
-    Идентификаторы извлекаются через ``MimeDataParser`` и сопоставляются с
-    данными модели (``UserRole``) по первой колонке. При ошибке возвращает
-    ``get_selected_rows(table)`` как фолбэк.
+    Identifiers are extracted via ``MimeDataParser`` and matched with
+    model data (``UserRole``) by first column. On error returns
+    ``get_selected_rows(table)`` as fallback.
     """
     try:
         from app.utils.ui.dnd.mime import MimeDataParser
@@ -158,15 +158,15 @@ def extract_source_rows_from_mime(table, event, mime_type: str) -> List[int]:
                 source_rows.append(row)
         return sorted(source_rows)
     except Exception as e:
-        logger.warning("[DROP] Ошибка извлечения строк из MIME: %s", e)
+        logger.warning("[DROP] Error extracting rows from MIME: %s", e)
         return get_selected_rows(table)
 
 
 def move_row_visually(table, source_row: int, target_row: int) -> None:
-    """Централизованно перемещает одну строку и инициирует обновление кэша.
+    """Centrally moves one row and initiates cache update.
 
-    Если у `table` есть метод `_rebuild_current_links`, он будет вызван.
-    Это позволяет избежать дублирования логики перестроения кэша.
+    If `table` has method `_rebuild_current_links`, it will be called.
+    This avoids duplicating cache rebuilding logic.
     """
     try:
         model = getattr(table, "model", lambda: None)()
@@ -175,27 +175,27 @@ def move_row_visually(table, source_row: int, target_row: int) -> None:
         model.move_rows([source_row], target_row)
     except Exception as e:
         logger.error(
-            "[DnD] Ошибка визуального перемещения строки %s->%s: %s",
+            "[DnD] Error visual moving row %s->%s: %s",
             source_row,
             target_row,
             e,
         )
     finally:
-        # Если у таблицы есть метод для перестройки кэша, используем его.
-        # Это основной сценарий при использовании DragDropHandlerMixin.
+        # If table has cache rebuilding method, use it.
+        # This is main scenario when using DragDropHandlerMixin.
         if hasattr(table, "_rebuild_current_links") and callable(
             getattr(table, "_rebuild_current_links")
         ):
             table._rebuild_current_links()
         else:
             logger.warning(
-                "[DnD] Объект %s не имеет метода _rebuild_current_links. Кэш может быть неактуален.",
+                "[DnD] Object %s has no _rebuild_current_links method. Cache may be outdated.",
                 type(table).__name__,
             )
 
 
 def move_rows_visually(table, source_rows: List[int], target_row: int) -> None:
-    """Перемещает набор строк через модель, сохраняя относительный порядок."""
+    """Moves set of rows via model, preserving relative order."""
     if not source_rows:
         return
     model = getattr(table, "model", lambda: None)()
@@ -205,7 +205,7 @@ def move_rows_visually(table, source_rows: List[int], target_row: int) -> None:
 
 
 def get_current_order(table) -> List[int]:
-    """Возвращает ID всех элементов в текущем порядке строк таблицы."""
+    """Returns IDs of all elements in current table row order."""
     try:
         ids: List[int] = []
         model = getattr(table, "model", lambda: None)()
@@ -219,5 +219,5 @@ def get_current_order(table) -> List[int]:
                 ids.append(link_data["id"])
         return ids
     except Exception as e:
-        logger.error("[DnD] Ошибка получения порядка IDs: %s", e)
+        logger.error("[DnD] Error getting IDs order: %s", e)
         return []

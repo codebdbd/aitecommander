@@ -51,8 +51,8 @@ _HTML_TITLE_SEPARATORS = [" | ", " - ", " :: ", " • ", " — ", " – ", " : "
 
 
 def _build_soup_index(soup: BeautifulSoup) -> dict:
-    """Предварительно индексирует часто используемые элементы, чтобы избежать повторных find().
-    Возвращает словарь с заранее выбранными тегами/значениями.
+    """Pre-index frequently used elements to avoid repeated find() calls.
+    Returns dictionary with pre-selected tags/values.
     """
     try:
         metas = soup.find_all("meta")
@@ -92,7 +92,7 @@ def _build_soup_index(soup: BeautifulSoup) -> dict:
 
 
 def _looks_js_heavy(soup: BeautifulSoup, html_text: str) -> bool:
-    """Простая эвристика для определения страниц, зависящих от JS/SPA."""
+    """Simple heuristic to identify JS/SPA-dependent pages."""
     try:
         text_len = len(html_text or "")
         scripts_count = len(soup.find_all("script")) if soup else 0
@@ -110,7 +110,7 @@ def _looks_js_heavy(soup: BeautifulSoup, html_text: str) -> bool:
             and soup.title
             and soup.title.get_text(strip=True)
         )
-        # Мало текста, много скриптов, нет нормального <title> или есть SPA-маркеры
+        # Little text, many scripts, no proper <title> or SPA markers present
         if (text_len < 15000 and scripts_count > 20 and not title_ok) or marker_hit:
             return True
     except Exception:
@@ -129,7 +129,7 @@ def _decode_response_text(resp, config) -> str:
         enc = getattr(resp, "encoding", None)
         if not enc or str(enc).lower() == "iso-8859-1":
             try:
-                # Попытка детектировать кодировку через charset-normalizer
+                # Attempt to detect encoding via charset-normalizer
                 try:
                     from charset_normalizer import from_bytes  # type: ignore
 
@@ -594,7 +594,7 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
         retries_override,
     )
 
-    # HEAD preflight: выяснить content-type/length, не тратя трафик (диагностика и эвристики)
+    # HEAD preflight: determine content-type/length without wasting traffic (diagnostics and heuristics)
     try:
         head_resp = http_request(
             url,
@@ -622,7 +622,7 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
         try:
             txt = _decode_response_text(resp, config)
             s = _make_soup(txt)
-            # Эвристика: страница может требовать JS-рендера
+            # Heuristic: page may require JS rendering
             js_suspected = False
             try:
                 js_suspected = _looks_js_heavy(s, txt)
@@ -631,7 +631,7 @@ def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
             except Exception:
                 js_suspected = False
             title = _extract_title(s, url)
-            # Пробуем лёгкий JS-рендер перед Selenium, если заголовок пуст/плохой или страница js-heavy
+            # Try lightweight JS render before Selenium if title is empty/bad or page is js-heavy
             try:
                 use_playwright = _use_playwright_for_title(config)
             except Exception:

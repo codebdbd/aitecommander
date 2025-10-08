@@ -160,7 +160,7 @@ class ApplicationInitializer:
 
 def main():
     """Main application entry point."""
-    # Парсинг аргументов командной строки
+    # Parse command line arguments
     args = parse_arguments()
     log_level = determine_log_level(args)
 

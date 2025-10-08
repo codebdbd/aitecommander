@@ -14,7 +14,7 @@ def convert_svg(svg_data: bytes, target_size: int | None = None) -> bytes | None
     if not renderer.isValid():
         return None
 
-    # Определяем целевой размер и исходный размер SVG
+    # Determine target size and original SVG size
     ts = int(target_size or TARGET_SIZE or 64)
     if ts <= 0:
         ts = 64
@@ -22,25 +22,25 @@ def convert_svg(svg_data: bytes, target_size: int | None = None) -> bytes | None
     bw = max(1, int(base_size.width()) if base_size.isValid() else 64)
     bh = max(1, int(base_size.height()) if base_size.isValid() else 64)
 
-    # Масштабируем пропорционально, вписывая в квадрат ts x ts
+    # Scale proportionally to fit within ts x ts square
     scale = min(ts / bw, ts / bh)
     dw = max(1, int(round(bw * scale)))
     dh = max(1, int(round(bh * scale)))
-    # Центрируем растеризованный результат в квадрате ts x ts
+    # Center rendered result within ts x ts square
     offset_x = (ts - dw) // 2
     offset_y = (ts - dh) // 2
 
     image = QImage(QSize(ts, ts), QImage.Format.Format_ARGB32_Premultiplied)
     image.fill(0)
     painter = QPainter()
-    # Важно: проверяем успешность begin(), иначе QPainter останется неактивным
+    # Important: check begin() success, otherwise QPainter remains inactive
     if not painter.begin(image):
         return None
     try:
-        # Качество рендера
+        # Render quality
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
-        # Рендерим в прямоугольник нужного размера с сохранением пропорций
+        # Render into rectangle of required size while preserving proportions
         target_rect = QRectF(float(offset_x), float(offset_y), float(dw), float(dh))
         renderer.render(painter, target_rect)
     finally:

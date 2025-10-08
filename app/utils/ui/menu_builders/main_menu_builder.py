@@ -209,8 +209,10 @@ class MainMenuBuilder:
             def make_theme_handler(theme_name):
                 return lambda: self.main_window.apply_theme(theme_name)
 
+            # Translate theme name using QCoreApplication.translate
+            translated_name = QCoreApplication.translate("Themes", display_name)
             action = self.actions.create(
-                display_name, make_theme_handler(name), icon=icon
+                translated_name, make_theme_handler(name), icon=icon
             )
             themes_menu.addAction(action)
 

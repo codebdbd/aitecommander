@@ -127,6 +127,7 @@ def _inject_to_category_tiles(window: Any, controllers: Dict[str, Any]) -> None:
             menu, edit_action, add_link_action, delete_action = builder.build(
                 category_id,
                 edit_cb=structure_ctrl.handle_edit_category,
+                delete_cb=structure_ctrl.handle_delete_category,
                 add_link_cb=dialog_provider.show_link_dialog_for_category,
             )
             menu.popup(global_pos)

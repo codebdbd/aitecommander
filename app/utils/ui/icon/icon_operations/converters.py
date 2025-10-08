@@ -1,5 +1,5 @@
 # converters.py
-"""Функции конвертации иконок с async поддержкой для I/O операций."""
+"""Icon conversion functions with async support for I/O operations."""
 
 from __future__ import annotations
 
@@ -20,17 +20,17 @@ logger = logging.getLogger(__name__)
 
 
 def _resize_image(img: Image.Image, size: int) -> Image.Image:
-    """Вспомогательная функция для ресайза изображений с высоким качеством."""
+    """Helper function for high-quality image resizing."""
     if img.mode != "RGBA":
         img = img.convert("RGBA")
     return img.resize((size, size), Resampling.LANCZOS)
 
 
-# === СИНХРОННЫЕ ФУНКЦИИ КОПИРОВАНИЯ ===
+# === SYNCHRONOUS COPY FUNCTIONS ===
 
 
 def _calculate_file_hash(file_path: Path) -> str:
-    """Вычисляет SHA-256 хеш файла для проверки дублирования."""
+    """Calculates SHA-256 file hash for duplicate checking."""
     import hashlib
 
     hash_sha256 = hashlib.sha256()
@@ -40,14 +40,14 @@ def _calculate_file_hash(file_path: Path) -> str:
                 hash_sha256.update(chunk)
         return hash_sha256.hexdigest()[
             :16
-        ]  # Используем первые 16 символов для краткости
+        ]  # Use first 16 characters for brevity
     except OSError as exc:
         logger.warning("Failed to calculate hash for %s: %s", file_path, exc)
         return ""
 
 
 def _find_existing_icon_by_content(src_path: Path, dest_dir: Path) -> str | None:
-    """Ищет существующую иконку с таким же содержимым в целевой директории."""
+    """Finds existing icon with same content in target directory."""
     if not dest_dir.exists():
         return None
 
@@ -55,7 +55,7 @@ def _find_existing_icon_by_content(src_path: Path, dest_dir: Path) -> str | None
     if not src_hash:
         return None
 
-    # Проверяем все файлы в директории пользовательских иконок
+    # Check all files in user icons directory
     for existing_file in dest_dir.iterdir():
         if existing_file.is_file() and existing_file.suffix.lower() in {
             ".png",
@@ -76,37 +76,37 @@ def _find_existing_icon_by_content(src_path: Path, dest_dir: Path) -> str | None
 def copy_icon_smart(  # noqa: C901
     src_path: str, dest_dir: Path, avoid_duplicates: bool = True
 ) -> str:
-    """Умное копирование иконки с проверкой дублирования по содержимому.
+    """Smart icon copying with content-based duplicate checking.
 
     Args:
-        src_path: Путь к исходной иконке
-        dest_dir: Директория назначения
-        avoid_duplicates: Если True, проверяет существующие файлы по содержимому
+        src_path: Source icon path
+        dest_dir: Destination directory
+        avoid_duplicates: If True, checks existing files by content
 
     Returns:
-        str: Имя файла в директории назначения
+        str: File name in destination directory
     """
     if not is_valid_icon_file(src_path):
         raise InvalidIconError(
-            f"Невозможно скопировать невалидный файл иконки: {src_path}"
+            f"Cannot copy invalid icon file: {src_path}"
         )
 
-    # Создаем директорию если она не существует
+    # Create directory if it doesn't exist
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     src_path_obj = Path(src_path)
 
-    # Проверяем дублирование по содержимому
+    # Check for content-based duplication
     if avoid_duplicates:
         existing_icon = _find_existing_icon_by_content(src_path_obj, dest_dir)
         if existing_icon:
             logger.debug("Reusing existing icon: %s", existing_icon)
             return existing_icon
 
-    # Если файл с таким именем уже существует, генерируем уникальное имя
+    # If file with this name exists, generate unique name
     dst = dest_dir / src_path_obj.name
     if dst.exists():
-        # Генерируем уникальное имя с суффиксом
+        # Generate unique name with suffix
         base_name = src_path_obj.stem
         extension = src_path_obj.suffix
         counter = 1
@@ -118,69 +118,69 @@ def copy_icon_smart(  # noqa: C901
         shutil.copyfile(src_path_obj, dst)
         logger.debug("Copied icon to: %s", dst.name)
     except OSError as exc:
-        raise InvalidIconError(f"Ошибка копирования файла: {exc}") from exc
+        raise InvalidIconError(f"Error copying file: {exc}") from exc
 
-    # Автоматическая конвертация SVG в PNG при копировании
+    # Automatic SVG to PNG conversion when copying
     if src_path_obj.suffix.lower() == ".svg":
         png_dst = dest_dir / (dst.stem + ".png")
         if not png_dst.exists():
-            # Конвертируем SVG в PNG размером 128x128
+            # Convert SVG to PNG 128x128
             if not convert_icon_to_png_128(str(dst), str(png_dst)):
                 logger.warning("Failed to convert SVG to PNG: %s -> %s", dst, png_dst)
-                # Если конвертация не удалась, возвращаем оригинальный SVG файл
+                # If conversion failed, return original SVG file
                 return dst.name
-        # Возвращаем имя PNG файла для SVG
+        # Return PNG file name for SVG
         return png_dst.name
 
-    # Автоконвертация распространённых растров в PNG (для унификации и независимости от плагинов)
+    # Auto-convert common rasters to PNG (for unification and plugin independence)
     ext = src_path_obj.suffix.lower()
     if ext in {".jpg", ".jpeg", ".webp", ".bmp", ".gif"}:
         png_dst = dest_dir / (dst.stem + ".png")
         if png_dst.exists():
-            # Если PNG уже есть (например, ранее конвертировали) — используем его
+            # If PNG already exists (e.g., previously converted) — use it
             try:
-                # Удаляем только что скопированный исходник, чтобы не дублировать хранение
+                # Remove just copied source to avoid duplicate storage
                 dst.unlink(missing_ok=True)
             except Exception:
                 logger.debug("Failed to remove temp copied raster: %s", dst, exc_info=True)
             return png_dst.name
 
-        # Конвертируем растровую иконку в PNG
+        # Convert raster icon to PNG
         if convert_raster_icon_to_png(str(dst), str(png_dst), size=128):
             try:
-                # Удаляем исходник после успешной конвертации
+                # Remove source after successful conversion
                 dst.unlink(missing_ok=True)
             except Exception:
                 logger.debug("Failed to remove source raster after conversion: %s", dst, exc_info=True)
             return png_dst.name
         else:
             logger.warning("Failed to convert raster icon to PNG: %s -> %s", dst, png_dst)
-            # Возвращаем исходное имя, если конвертация не удалась
+            # Return original name if conversion failed
             return dst.name
 
     return dst.name
 
 
 def copy_icon(src_path: str, dest_dir: Path) -> str:
-    """Копировать иконку в директорию (обратная совместимость).
+    """Copy icon to directory (backward compatibility).
 
-    Использует умное копирование с проверкой дублирования.
+    Uses smart copying with duplicate checking.
     """
     return copy_icon_smart(src_path, dest_dir, avoid_duplicates=True)
 
 
 def copy_icon_to_path(src_path: str, dst_path: str) -> bool:
-    """Копировать иконку из одного пути в другой.
+    """Copy icon from one path to another.
 
     Args:
-        src_path: Путь к исходной иконке
-        dst_path: Путь к целевой иконке
+        src_path: Source icon path
+        dst_path: Destination icon path
 
     Returns:
-        bool: True если копирование успешно, False в противном случае.
+        bool: True if copy successful, False otherwise.
     """
     try:
-        # Создаем родительскую директорию если она не существует
+        # Create parent directory if it doesn't exist
         dst_path_obj = Path(dst_path)
         dst_path_obj.parent.mkdir(parents=True, exist_ok=True)
 
@@ -197,38 +197,38 @@ def copy_icon_to_path(src_path: str, dst_path: str) -> bool:
         return False
 
 
-# === АСИНХРОННЫЕ ФУНКЦИИ КОПИРОВАНИЯ ===
+# === ASYNCHRONOUS COPY FUNCTIONS ===
 
 
 async def copy_icon_async(src_path: str, dest_dir: Path) -> str:
-    """Асинхронно копировать иконку в директорию."""
+    """Asynchronously copy icon to directory."""
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, copy_icon, src_path, dest_dir)
 
 
 async def copy_icon_to_path_async(src_path: str, dst_path: str) -> bool:
-    """Асинхронно копировать иконку из одного пути в другой."""
+    """Asynchronously copy icon from one path to another."""
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, copy_icon_to_path, src_path, dst_path)
 
 
-# === СИНХРОННЫЕ ФУНКЦИИ КОНВЕРТАЦИИ ===
+# === SYNCHRONOUS CONVERSION FUNCTIONS ===
 
 
 def convert_icon_to_png_128(src_path: str, dst_path: str, size: int = 128) -> bool:
-    """Конвертировать иконку в PNG заданного размера (по умолчанию 128x128).
+    """Convert icon to PNG of specified size (default 128x128).
 
     Note:
-        Эта функция работает с QImage и QPainter вне GUI-потока, что допустимо
-        для операций рендеринга в QImage. Это отличается от создания QPixmap/QIcon,
-        которые должны создаваться только в GUI-потоке.
+        This function works with QImage and QPainter outside GUI thread, which is acceptable
+        for QImage rendering operations. This differs from creating QPixmap/QIcon,
+        which must only be created in GUI thread.
     """
     try:
         src_path_obj = Path(src_path)
         ext = src_path_obj.suffix.lower()
 
         if ext == ".svg":
-            # SVG → QImage → PNG (допустимо вне GUI-потока)
+            # SVG → QImage → PNG (allowed outside GUI thread)
             with open(src_path, "rb") as f:
                 svg_data = f.read()
 
@@ -239,7 +239,7 @@ def convert_icon_to_png_128(src_path: str, dst_path: str, size: int = 128) -> bo
                 logger.error("Invalid SVG file: %s", src_path)
                 return False
 
-            # Создаем изображение с нужным размером и высоким качеством
+            # Create image with required size and high quality
             image = QImage(QSize(size, size), QImage.Format.Format_ARGB32_Premultiplied)
             image.fill(0)
 
@@ -254,35 +254,35 @@ def convert_icon_to_png_128(src_path: str, dst_path: str, size: int = 128) -> bo
             painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
 
             try:
-                # Рендерим SVG в изображение нужного размера
+                # Render SVG to image of required size
                 logger.debug("Rendering SVG to image with size %dx%d", size, size)
                 result = renderer.render(painter, QRectF(0, 0, size, size))
                 logger.debug("SVG rendering result: %s", result)
             finally:
                 painter.end()
 
-            # Сохраняем изображение в буфер с высоким качеством
+            # Save image to buffer with high quality
             buffer = QBuffer()
             buffer.open(QIODevice.OpenModeFlag.WriteOnly)
 
-            # Используем максимальное качество PNG
+            # Use maximum PNG quality
             logger.debug("Saving image to buffer")
             if not image.save(buffer, "PNG", 100):
                 logger.error("Failed to save image to buffer")
                 return False
 
-            # Создаем родительскую директорию если она не существует
+            # Create parent directory if it doesn't exist
             dst_path_obj = Path(dst_path)
             dst_path_obj.parent.mkdir(parents=True, exist_ok=True)
 
-            # Записываем данные в файл
+            # Write data to file
             logger.debug("Writing image data to %s", dst_path)
             with open(dst_path, "wb") as out:
                 out.write(bytes(buffer.data()))
             logger.debug("Successfully converted SVG to PNG: %s", dst_path)
             return True
 
-        # Любой другой формат через PIL
+        # Any other format via PIL
         dst_path_obj = Path(dst_path)
         dst_path_obj.parent.mkdir(parents=True, exist_ok=True)
 
@@ -300,36 +300,36 @@ def convert_icon_to_png_128(src_path: str, dst_path: str, size: int = 128) -> bo
 
 
 def convert_icon_to_png_32(src_path: str, dst_path: str, size: int = 32) -> bool:
-    """Конвертировать иконку в PNG заданного размера (по умолчанию 32x32).
+    """Convert icon to PNG of specified size (default 32x32).
 
     Note:
-        Это устаревшая функция для обратной совместимости.
-        Используйте convert_icon_to_png_128.
+        This is deprecated function for backward compatibility.
+        Use convert_icon_to_png_128.
     """
     return convert_icon_to_png_128(src_path, dst_path, size=size)
 
 
 def convert_raster_icon_to_png(src_path: str, dst_path: str, size: int = 32) -> bool:
-    """Конвертировать растровую иконку в PNG заданного размера (по умолчанию 32x32).
+    """Convert raster icon to PNG of specified size (default 32x32).
 
     Args:
-        src_path: Путь к исходной иконке.
-        dst_path: Путь к целевой иконке (должен заканчиваться на .png).
-        size: Размер иконки (по умолчанию 32).
+        src_path: Source icon path.
+        dst_path: Destination icon path (must end with .png).
+        size: Icon size (default 32).
 
     Returns:
-        bool: True если конвертация успешна, False в противном случае.
+        bool: True if conversion successful, False otherwise.
     """
     try:
         with Image.open(src_path) as img:
-            # Ресайзим изображение
+            # Resize image
             img = _resize_image(img, size)
 
-            # Создаем родительскую директорию если она не существует
+            # Create parent directory if it doesn't exist
             dst_path_obj = Path(dst_path)
             dst_path_obj.parent.mkdir(parents=True, exist_ok=True)
 
-            # Сохраняем в PNG
+            # Save as PNG
             img.save(dst_path, "PNG")
 
         logger.debug(
@@ -351,13 +351,13 @@ def convert_raster_icon_to_png(src_path: str, dst_path: str, size: int = 32) -> 
         return False
 
 
-# === АСИНХРОННЫЕ ФУНКЦИИ КОНВЕРТАЦИИ ===
+# === ASYNCHRONOUS CONVERSION FUNCTIONS ===
 
 
 async def convert_icon_to_png_128_async(
     src_path: str, dst_path: str, size: int = 128
 ) -> bool:
-    """Асинхронно конвертировать иконку в PNG заданного размера."""
+    """Asynchronously convert icon to PNG of specified size."""
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(
         None, convert_icon_to_png_128, src_path, dst_path, size
@@ -367,7 +367,7 @@ async def convert_icon_to_png_128_async(
 async def convert_icon_to_png_32_async(
     src_path: str, dst_path: str, size: int = 32
 ) -> bool:
-    """Асинхронно конвертировать иконку в PNG 32x32."""
+    """Asynchronously convert icon to PNG 32x32."""
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(
         None, convert_icon_to_png_32, src_path, dst_path, size
@@ -377,37 +377,37 @@ async def convert_icon_to_png_32_async(
 async def convert_raster_icon_to_png_async(
     src_path: str, dst_path: str, size: int = 32
 ) -> bool:
-    """Асинхронно конвертировать растровую иконку в PNG."""
+    """Asynchronously convert raster icon to PNG."""
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(
         None, convert_raster_icon_to_png, src_path, dst_path, size
     )
 
 
-# === ПАКЕТНАЯ КОНВЕРТАЦИЯ ===
+# === BATCH CONVERSION ===
 
 
 async def batch_convert_icons_async(
     conversions: list[tuple[str, str, int]], max_concurrent: int = 5
 ) -> dict[str, bool]:
-    """Пакетная асинхронная конвертация иконок.
+    """Batch asynchronous icon conversion.
 
     Args:
-        conversions: Список кортежей (src_path, dst_path, size)
-        max_concurrent: Максимальное количество одновременных конвертаций
+        conversions: List of tuples (src_path, dst_path, size)
+        max_concurrent: Maximum number of simultaneous conversions
 
     Returns:
-        dict: Словарь {src_path: success_status}
+        dict: Dictionary {src_path: success_status}
     """
-    # Очередь задач, чтобы не создавать все корутины сразу
+    # Task queue to avoid creating all coroutines at once
     queue: asyncio.Queue[tuple[str, str, int]] = asyncio.Queue()
     result_dict: dict[str, bool] = {}
 
-    # Предзаполняем очередь входными заданиями
+    # Pre-fill queue with input tasks
     for item in conversions:
         try:
             src_path, dst_path, size = item
-        except Exception:  # защита от неправильного входа
+        except Exception:  # protect against invalid input
             logger.error("Invalid conversion tuple: %s", item)
             continue
         queue.put_nowait((src_path, dst_path, size))
@@ -427,15 +427,15 @@ async def batch_convert_icons_async(
             finally:
                 queue.task_done()
 
-    # Поднимаем ограниченное число воркеров
+    # Start limited number of workers
     workers = [
         asyncio.create_task(worker(i)) for i in range(max(1, int(max_concurrent)))
     ]
 
-    # Ждём завершения всех задач в очереди
+    # Wait for all tasks in queue to complete
     await queue.join()
 
-    # Останавливаем воркеров
+    # Stop workers
     for w in workers:
         w.cancel()
     await asyncio.gather(*workers, return_exceptions=True)

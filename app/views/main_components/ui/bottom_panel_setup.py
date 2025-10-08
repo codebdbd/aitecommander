@@ -2,14 +2,130 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Optional, Protocol, runtime_checkable
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QCoreApplication, QT_TRANSLATE_NOOP, Qt
 from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QWidget
 
 from app.config_data import app_config
 
 logger = logging.getLogger(__name__)
+
+
+_BOTTOM_PANEL_CONTEXT = "BottomPanel"
+
+_BOTTOM_ACTION_TEXTS: dict[str, str] = {
+    "add_section": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Add Section"),
+    "add_category": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Add Category"),
+    "add_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Add Link"),
+    "edit_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Edit"),
+    "delete_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Delete"),
+}
+
+_BOTTOM_ACTION_TOOLTIPS: dict[str, str] = {
+    "add_section": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Create a new section."),
+    "add_category": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Create a new category in the selected section."),
+    "add_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Create a new link."),
+    "edit_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Edit the selected item."),
+    "delete_link": QT_TRANSLATE_NOOP(_BOTTOM_PANEL_CONTEXT, "Delete the selected item."),
+}
+
+_ACTION_BUTTON_DESC_TEMPLATE = QT_TRANSLATE_NOOP(
+    _BOTTOM_PANEL_CONTEXT, "Action button: {label}"
+)
+
+
+def _format_with_shortcut(label: str, shortcut: Optional[str]) -> str:
+    label = label or ""
+    shortcut_clean = (shortcut or "").strip()
+    if shortcut_clean and shortcut_clean not in label:
+        return f"{label} ({shortcut_clean})"
+    return label
+
+
+def _resolve_label(action_id: Optional[str], fallback_label: Optional[str]) -> str:
+    if action_id and action_id in _BOTTOM_ACTION_TEXTS:
+        return QCoreApplication.translate(
+            _BOTTOM_PANEL_CONTEXT, _BOTTOM_ACTION_TEXTS[action_id]
+        )
+    if fallback_label:
+        return fallback_label
+    if action_id:
+        return action_id.replace("_", " ").title()
+    return ""
+
+
+def _resolve_tooltip(action_id: Optional[str], fallback_tooltip: Optional[str]) -> str:
+    if fallback_tooltip:
+        return fallback_tooltip
+    if action_id and action_id in _BOTTOM_ACTION_TOOLTIPS:
+        return QCoreApplication.translate(
+            _BOTTOM_PANEL_CONTEXT, _BOTTOM_ACTION_TOOLTIPS[action_id]
+        )
+    return ""
+
+
+def _apply_translations_to_button(
+    button: QPushButton, action: dict[str, Optional[str]]
+) -> None:
+    action_id = action.get("id")
+    fallback_label = action.get("label")
+    shortcut = action.get("shortcut")
+    tooltip_fallback = action.get("tooltip")
+
+    label = _resolve_label(action_id, fallback_label)
+    display_text = _format_with_shortcut(label, shortcut)
+    button.setText(display_text)
+    button.setAccessibleName(label)
+
+    desc_template = QCoreApplication.translate(
+        _BOTTOM_PANEL_CONTEXT, _ACTION_BUTTON_DESC_TEMPLATE
+    )
+    try:
+        button.setAccessibleDescription(desc_template.format(label=label))
+    except Exception:
+        button.setAccessibleDescription(label)
+
+    tooltip = _resolve_tooltip(action_id, tooltip_fallback)
+    button.setToolTip(tooltip)
+
+    if shortcut:
+        try:
+            button.setShortcut(shortcut)
+        except Exception:
+            logger.debug(
+                "BottomPanel: failed to apply shortcut '%s' during translation",
+                shortcut,
+                exc_info=True,
+            )
+
+
+def retranslate_bottom_panel(window: QWidget) -> None:
+    bindings = getattr(window, "_bottom_bar_bindings", None)
+    if not bindings:
+        return
+
+    for binding in list(bindings):
+        button = binding.get("button")
+        action = binding.get("action")
+
+        if not isinstance(button, QPushButton) or action is None:
+            continue
+
+        try:
+            _apply_translations_to_button(button, action)
+        except RuntimeError:
+            logger.debug(
+                "BottomPanel: button for action '%s' is not available",
+                action.get("id"),
+                exc_info=True,
+            )
+        except Exception:
+            logger.debug(
+                "BottomPanel: failed to retranslate action '%s'",
+                action.get("id"),
+                exc_info=True,
+            )
 
 
 @runtime_checkable
@@ -60,13 +176,24 @@ class BottomPanelBuilder:
 
         # Additional buttons from configuration (cached for performance)
         bottom_actions = app_config.ui.get_bottom_actions()
+        parsed_actions = [
+            self._normalize_action_spec(spec, index)
+            for index, spec in enumerate(bottom_actions)
+        ]
+        parsed_actions = [action for action in parsed_actions if action is not None]
+        setattr(self.window, "_bottom_bar_bindings", [])
         bottom_btns: list[QPushButton] = []
-        for text, fn_name in bottom_actions:
-            btn = QPushButton(text)
+        for action in parsed_actions:
+            handler_name = action["handler"]
+            action_id = action.get("id")
+            log_label = action.get("label") or action_id or handler_name
+
+            btn = QPushButton()
             btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             # Accessibility: add accessible name for screen readers
-            btn.setAccessibleName(text)
-            btn.setAccessibleDescription(f"Action button: {text}")
+            if action_id:
+                btn.setObjectName(f"bottomBarButton_{action_id}")
+                btn.setProperty("action_id", action_id)
             # Allow horizontal shrink below sizeHint
             try:
                 btn.setMinimumWidth(0)
@@ -74,15 +201,17 @@ class BottomPanelBuilder:
             except (RuntimeError, TypeError) as e:
                 logger.debug(
                     "BottomPanel: failed to apply size policy to bottom button '%s': %s",
-                    text, e,
+                    log_label,
                     exc_info=True,
                 )
+
             # Connect click handler and add to the panel
-            handler = getattr(self.window, fn_name, None)
+            handler = getattr(self.window, handler_name, None)
             if not callable(handler):
                 logger.warning(
                     "BottomPanel: click handler '%s' not found for button '%s' — skipping",
-                    fn_name, text,
+                    handler_name,
+                    log_label,
                 )
                 continue
             try:
@@ -90,12 +219,16 @@ class BottomPanelBuilder:
             except (TypeError, RuntimeError) as e:
                 logger.warning(
                     "BottomPanel: failed to connect handler '%s' for button '%s': %s — skipping",
-                    fn_name, text, e,
+                    handler_name,
+                    log_label,
+                    e,
                     exc_info=True,
                 )
                 continue
             bottom_layout.addWidget(btn)
             bottom_btns.append(btn)
+            self._register_bottom_button(btn, action)
+            self._apply_localized_text(btn, action)
 
         # Mark the last button to remove its right border via QSS
         if bottom_btns:
@@ -146,6 +279,116 @@ class BottomPanelBuilder:
                 logger.warning("BottomPanel: failed to remove bottom separator: %s", e)
         else:
             logger.debug("BottomPanel: no bottom separator found to remove")
+
+    @staticmethod
+    def _coerce_to_str(value: Any) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return value
+        try:
+            return str(value)
+        except Exception:
+            return None
+
+    def _normalize_action_spec(
+        self,
+        spec: Any,
+        index: int,
+    ) -> Optional[dict[str, Optional[str]]]:
+        """Convert config entry into a unified action descriptor."""
+        action_id: Optional[str] = None
+        handler_name: Optional[str] = None
+        label: Optional[str] = None
+        shortcut: Optional[str] = None
+        tooltip: Optional[str] = None
+
+        if isinstance(spec, dict):
+            action_id = self._coerce_to_str(spec.get("id"))
+            handler_name = self._coerce_to_str(spec.get("handler"))
+            label = self._coerce_to_str(
+                spec.get("label")
+                or spec.get("text")
+                or spec.get("title")
+            )
+            shortcut = self._coerce_to_str(spec.get("shortcut"))
+            tooltip = self._coerce_to_str(spec.get("tooltip") or spec.get("description"))
+        elif isinstance(spec, (list, tuple)):
+            parts = list(spec)
+            if len(parts) < 2:
+                logger.warning(
+                    "BottomPanel: action spec at index %s has insufficient data: %s",
+                    index,
+                    spec,
+                )
+                return None
+            label = self._coerce_to_str(parts[0])
+            handler_name = self._coerce_to_str(parts[1])
+            if len(parts) >= 3:
+                shortcut = self._coerce_to_str(parts[2])
+            if len(parts) >= 4 and action_id is None:
+                action_id = self._coerce_to_str(parts[3])
+            if len(parts) >= 5 and tooltip is None:
+                tooltip = self._coerce_to_str(parts[4])
+        else:
+            logger.warning(
+                "BottomPanel: unsupported action spec type '%s' at index %s",
+                type(spec).__name__,
+                index,
+            )
+            return None
+
+        if not handler_name:
+            logger.warning(
+                "BottomPanel: action spec at index %s is missing handler: %s",
+                index,
+                spec,
+            )
+            return None
+
+        if not label:
+            label = action_id or handler_name.replace("_", " ").title()
+
+        display_text = label
+        if shortcut:
+            shortcut_clean = shortcut.strip()
+            if shortcut_clean and shortcut_clean not in display_text:
+                display_text = f"{display_text} ({shortcut_clean})"
+
+        action_id = action_id.strip() if action_id else None
+        shortcut = shortcut.strip() if shortcut else None
+        label = label.strip() if label else None
+        tooltip = tooltip.strip() if tooltip else None
+
+        return {
+            "id": action_id,
+            "handler": handler_name,
+            "label": label,
+            "shortcut": shortcut,
+            "tooltip": tooltip,
+        }
+
+    def _register_bottom_button(
+        self, button: QPushButton, action: dict[str, Optional[str]]
+    ) -> None:
+        bindings = getattr(self.window, "_bottom_bar_bindings", None)
+        if bindings is None:
+            bindings = []
+            setattr(self.window, "_bottom_bar_bindings", bindings)
+        bindings.append({"button": button, "action": dict(action)})
+
+    def _apply_localized_text(
+        self, button: QPushButton, action: dict[str, Optional[str]]
+    ) -> None:
+        try:
+            _apply_translations_to_button(button, action)
+        except Exception as exc:
+            logger.debug(
+                "BottomPanel: failed to apply translations for action '%s': %s",
+                action.get("id"),
+                exc,
+                exc_info=True,
+            )
 
     def _find_separator_in_layout(self, layout: Any) -> QWidget | None:
         """Helper: find a separator in the layout by objectName."""

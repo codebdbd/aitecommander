@@ -11,6 +11,39 @@ from PyQt6.QtGui import QFont
 logger = logging.getLogger(__name__)
 
 
+_DEFAULT_BOTTOM_ACTIONS: tuple[dict[str, str], ...] = (
+    {
+        "id": "add_section",
+        "handler": "show_section_dialog",
+        "shortcut": "F3",
+    },
+    {
+        "id": "add_category",
+        "handler": "add_new_category",
+        "shortcut": "F4",
+    },
+    {
+        "id": "add_link",
+        "handler": "show_link_dialog",
+        "shortcut": "F1",
+    },
+    {
+        "id": "edit_link",
+        "handler": "edit_current",
+        "shortcut": "F2",
+    },
+    {
+        "id": "delete_link",
+        "handler": "delete_current",
+        "shortcut": "Del",
+    },
+)
+
+
+def _default_bottom_actions() -> list[dict[str, str]]:
+    return [dict(item) for item in _DEFAULT_BOTTOM_ACTIONS]
+
+
 class UIConfig(BaseConfig):
     """Expose typed accessors for UI-related settings."""
 
@@ -364,18 +397,58 @@ class UIConfig(BaseConfig):
 
     # === Bottom panel ===
 
-    def get_bottom_actions(self) -> list:
-        """Return the configured actions displayed on the bottom panel."""
-        return self.get(
-            "ui.bottom_actions",
-            [
-                ["Add Section (F3)", "show_section_dialog"],
-                ["Add Category (F4)", "add_new_category"],
-                ["Add Link (F1)", "show_link_dialog"],
-                ["Edit (F2)", "edit_current"],
-                ["Delete (Del)", "delete_current"],
-            ],
-        )
+    def get_bottom_actions(self) -> list[dict[str, str]]:
+        """Return normalized configuration for bottom panel actions."""
+        raw_actions = self.get("ui.bottom_actions", _default_bottom_actions())
+        normalized: list[dict[str, str]] = []
+
+        for item in raw_actions or []:
+            if isinstance(item, dict):
+                handler = str(item.get("handler", "") or "").strip()
+                if not handler:
+                    continue
+                action_id = str(item.get("id", "") or "").strip() or handler
+                shortcut = str(item.get("shortcut", "") or "").strip()
+                normalized.append(
+                    {
+                        "id": action_id,
+                        "handler": handler,
+                        "shortcut": shortcut,
+                    }
+                )
+                continue
+
+            if isinstance(item, (list, tuple)) and len(item) >= 2:
+                handler_raw = item[1]
+                handler = str(handler_raw or "").strip()
+                if not handler:
+                    continue
+
+                template = next(
+                    (
+                        action
+                        for action in _DEFAULT_BOTTOM_ACTIONS
+                        if action["handler"] == handler
+                    ),
+                    None,
+                )
+                if template is not None:
+                    normalized.append(dict(template))
+                else:
+                    label_raw = item[0] if len(item) >= 1 else ""
+                    shortcut_raw = item[2] if len(item) >= 3 else ""
+                    normalized.append(
+                        {
+                            "id": str(label_raw or "").strip() or handler,
+                            "handler": handler,
+                            "shortcut": str(shortcut_raw or "").strip(),
+                        }
+                    )
+
+        if not normalized:
+            normalized = _default_bottom_actions()
+
+        return normalized
 
     def get_links_table_headers(self) -> list:
         """Return the header labels for the links table."""

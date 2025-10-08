@@ -33,8 +33,8 @@ def _init_browser(config) -> bool:
     try:
         _pl = sync_playwright().start()
         headless = bool(getattr(config, "PLAYWRIGHT_HEADLESS", True))
-        # По умолчанию используем встроенный Chromium, не указывая channel.
-        # Если в конфиге явно задан PLAYWRIGHT_CHANNEL, применяем его.
+        # By default use built-in Chromium without specifying channel.
+        # If PLAYWRIGHT_CHANNEL is explicitly set in config, use it.
         launch_kwargs = {"headless": headless}
         cfg_channel = getattr(config, "PLAYWRIGHT_CHANNEL", None)
         if cfg_channel:

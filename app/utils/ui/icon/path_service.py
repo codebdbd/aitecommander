@@ -1,5 +1,5 @@
 # path_service.py
-"""Централизованный сервис путей для иконок и ресурсов."""
+"""Centralized path service for icons and resources."""
 
 from __future__ import annotations
 
@@ -23,16 +23,16 @@ from .validation import (
 logger = logging.getLogger(__name__)
 
 
-# Негативный кеш перенесён в unified модуль negative_cache
+# Negative cache moved to unified negative_cache module
 
-# Индекс иконок по темам: theme -> {lower_name: Path}
+# Icon index by themes: theme -> {lower_name: Path}
 _THEME_ICON_INDEX: dict[str, dict[str, Path]] = {}
 _INDEX_LOCK = threading.RLock()
 _INDEX_TTL: float = 60.0
 _THEME_INDEX_TS: dict[str, float] = {}
 _THEME_DIR_MTIME: dict[str, float] = {}
 
-# --- Метрики ---
+# --- Metrics ---
 _ICON_METRICS = CacheMetrics()
 _METRICS_LAST_LOG: float = 0.0
 _metrics_lock = threading.Lock()
@@ -40,14 +40,14 @@ _metrics_lock = threading.Lock()
 
 def _maybe_log_metrics() -> None:
     global _METRICS_LAST_LOG
-    # Получаем интервал логирования метрик с узкой обработкой ошибок
+    # Get metrics logging interval with narrow error handling
     try:
         raw_interval = getattr(app_config, "icon_metrics_report_interval_s", 60.0)
     except AttributeError:
         raw_interval = 60.0
     except Exception:
         logger.exception(
-            "_maybe_log_metrics: неожиданная ошибка доступа к app_config.icon_metrics_report_interval_s"
+            "_maybe_log_metrics: unexpected error accessing app_config.icon_metrics_report_interval_s"
         )
         raw_interval = 60.0
     try:
@@ -56,20 +56,20 @@ def _maybe_log_metrics() -> None:
         interval = 60.0
     except Exception:
         logger.exception(
-            "_maybe_log_metrics: неожиданная ошибка преобразования интервала в float"
+            "_maybe_log_metrics: unexpected error converting interval to float"
         )
         interval = 60.0
     now = time.time()
-    # Критическая секция: проверка окна и обновление таймштампа
+    # Critical section: window check and timestamp update
     with _metrics_lock:
         if now - _METRICS_LAST_LOG < interval:
             return
         _METRICS_LAST_LOG = now
 
-    # Логирование выполняем вне блокировки, чтобы не блокировать другие потоки
+    # Logging is performed outside the lock to avoid blocking other threads
     try:
         stats = _ICON_METRICS.get_stats()
-        # Используем безопасный доступ к ключам, чтобы не падать по KeyError
+        # Use safe key access to avoid KeyError
         logger.info(
             "Icon metrics: hits=%s misses=%s hit_rate=%s disk_loads=%s not_found=%s avg_load_time=%s load_count=%s uptime=%s",
             stats.get("hits"),
@@ -83,17 +83,17 @@ def _maybe_log_metrics() -> None:
         )
     except (AttributeError, TypeError, ValueError):
         logger.exception(
-            "_maybe_log_metrics: некорректный формат статистики метрик"
+            "_maybe_log_metrics: incorrect metrics statistics format"
         )
     except Exception:
         logger.exception(
-            "_maybe_log_metrics: неожиданная ошибка при логировании метрик"
+            "_maybe_log_metrics: unexpected error when logging metrics"
         )
 
 
 def _build_theme_index(theme: str) -> None:
-    """Построить индекс иконок для темы.
-    Кладёт только валидные файлы. Никаких побочных эффектов.
+    """Build icon index for theme.
+    Stores only valid files. No side effects.
     """
     ui_dir = _icon_path_service.get_ui_icons_dir()
     theme_dir = ui_dir / theme
@@ -110,18 +110,18 @@ def _build_theme_index(theme: str) -> None:
         mapping = {}
     except Exception:
         logger.exception(
-            "_build_theme_index: неожиданная ошибка при обходе директории темы '%s'",
+            "_build_theme_index: unexpected error when traversing theme directory '%s'",
             theme,
         )
         mapping = {}
-    # Получаем mtime директории темы (если есть)
+    # Get theme directory mtime (if available)
     try:
         dir_mtime = theme_dir.stat().st_mtime if theme_dir.is_dir() else 0.0
     except (OSError, PermissionError):
         dir_mtime = 0.0
     except Exception:
         logger.exception(
-            "_build_theme_index: неожиданная ошибка получения mtime для темы '%s'",
+            "_build_theme_index: unexpected error getting mtime for theme '%s'",
             theme,
         )
         dir_mtime = 0.0
@@ -132,16 +132,16 @@ def _build_theme_index(theme: str) -> None:
 
 
 def _get_indexed_icon(theme: str, icon_name: str) -> Path | None:
-    """Вернуть Path из индекса или None. Создаёт/обновляет индекс по TTL."""
+    """Return Path from index or None. Creates/updates index by TTL."""
     name_key = icon_name.lower()
-    # Читаем состояние индексов под общей блокировкой
+    # Read index state under common lock
     with _INDEX_LOCK:
         ts = _THEME_INDEX_TS.get(theme, 0.0)
         stored_mtime = _THEME_DIR_MTIME.get(theme, -1.0)
         has_index = theme in _THEME_ICON_INDEX
         index_ttl = getattr(app_config, "icon_index_ttl", _INDEX_TTL)
 
-    # Проверяем изменение содержимого директории темы по mtime (вне блокировки)
+    # Check theme directory content change by mtime (outside lock)
     ui_dir = _icon_path_service.get_ui_icons_dir()
     theme_dir = ui_dir / theme
     try:
@@ -155,7 +155,7 @@ def _get_indexed_icon(theme: str, icon_name: str) -> Path | None:
         )
         current_mtime = 0.0
 
-    # Решение о перестроении индекса принимаем на базе снимка, чтение было под локом
+    # Decision to rebuild index is made based on snapshot, reading was under lock
     if ((time.time() - ts) > index_ttl) or (not has_index) or (current_mtime != stored_mtime):
         _build_theme_index(theme)
     with _INDEX_LOCK:
@@ -164,7 +164,7 @@ def _get_indexed_icon(theme: str, icon_name: str) -> Path | None:
 
 
 class IconPathService:
-    """Singleton-сервис для управления путями к иконкам и ресурсам."""
+    """Singleton service for managing icon and resource paths."""
 
     _instance: IconPathService | None = None
 
@@ -182,38 +182,38 @@ class IconPathService:
         self._ui_icons_dir: Path | None = None
         self._user_data_dir: Path | None = None
 
-    # --- Папки пользователя и UI ---
+    # --- User and UI folders ---
 
     def get_user_icons_dir(self) -> Path:
-        """Путь к папке пользовательских иконок (делегирует в PathConfig)."""
+        """Path to user icons folder (delegates to PathConfig)."""
         if self._user_icons_dir is None:
-            # Единый источник истины — PathConfig
+            # Single source of truth — PathConfig
             self._user_icons_dir = app_config.paths.get_link_icons_dir()
         return self._user_icons_dir
 
     def ensure_user_icons_dir(self) -> Path:
-        """Создать папку пользовательских иконок (делегирует в PathConfig)."""
+        """Create user icons folder (delegates to PathConfig)."""
         app_config.paths.ensure_user_data_dirs()
         return self.get_user_icons_dir()
 
     def get_user_icon_path(self, filename: str) -> Path:
-        """Полный путь к пользовательской иконке."""
+        """Full path to user icon."""
         return self.get_user_icons_dir() / filename
 
     def get_ui_icons_dir(self) -> Path:
-        """Путь к каталогу UI-иконок (делегирует в PathConfig)."""
+        """Path to UI icons directory (delegates to PathConfig)."""
         if self._ui_icons_dir is None:
             self._ui_icons_dir = app_config.paths.get_ui_icons_dir()
         return self._ui_icons_dir
 
-    # --- Вспомогательные адреса ---
+    # --- Helper addresses ---
 
     def get_themed_icon_path(self, icon_name: str, theme: str = "light") -> Path:
-        """Путь к иконке в указанной теме (без проверки существования)."""
+        """Path to icon in specified theme (without existence check)."""
         return self.get_ui_icons_dir() / theme / icon_name
 
     def get_ui_icon_path(self, icon_name: str, theme: str = "light") -> Path | None:
-        """Путь к существующей UI-иконке с fallback на light."""
+        """Path to existing UI icon with fallback to light."""
         themed_path = self.get_themed_icon_path(icon_name, theme)
         if themed_path.exists():
             return themed_path
@@ -226,65 +226,65 @@ class IconPathService:
         return None
 
     def get_web_icon_path(self, domain: str) -> Path:
-        """Путь к пользовательской иконке сайта (кеш favicons)."""
+        """Path to user website icon (favicon cache)."""
         filename = f"web_{domain.replace('.', '_')}.png"
         return self.get_user_icon_path(filename)
 
     def get_favicon_cache_path(self) -> Path:
-        """Путь к файлу кеша favicon."""
+        """Path to favicon cache file."""
         return self.get_user_icon_path("favicon_cache.db")
 
     def get_folder_icon_path(self) -> Path:
-        """Путь к иконке папки (предупреждает, если файла нет)."""
+        """Path to folder icon (warns if file doesn't exist)."""
         folder_icon = self.get_ui_icons_dir() / "folder_icon.png"
         if not folder_icon.exists():
             logger.warning("Folder icon file does not exist: %s", folder_icon)
         return folder_icon
 
-    # --- Директории приложения / ресурсов ---
+    # --- Application / resource directories ---
 
     def _get_user_data_dir(self) -> Path:
-        """Папка пользовательских данных (делегирует в PathConfig)."""
+        """User data folder (delegates to PathConfig)."""
         if self._user_data_dir is None:
             self._user_data_dir = app_config.paths.get_user_data_dir()
         return self._user_data_dir
 
     def clear_cache(self) -> None:
-        """Сбросить внутренние кеши путей."""
+        """Reset internal path caches."""
         self._user_icons_dir = None
         self._ui_icons_dir = None
         self._user_data_dir = None
         logger.debug("Icon path service caches cleared")
 
 
-# --- Глобальный экземпляр и удобные прокси-функции ---
+# --- Global instance and convenient proxy functions ---
 
 _icon_path_service = IconPathService()
 
 
-# --- Разделение обязанностей: Resolver для кеша/поиска/конвертации ---
+# --- Separation of responsibilities: Resolver for cache/search/conversion ---
 
 
 class IconPathResolver:
-    """Отвечает за этапы: кеш/негативный кеш/метрики, поиск по индексам тем, конвертацию SVG→PNG.
+    """Responsible for stages: cache/negative cache/metrics, search by theme indexes, SVG→PNG conversion.
 
-    Методы:
-    - resolve_from_cache: валидация имени, негативный кеш, hits/misses в кэше путей.
-      Возвращает (path_or_none, terminal). Если terminal=True — результат окончательный.
-    - find_source: быстрый поиск файлов иконок по индексам тем (с fallback на light).
-    - convert_svg: попытка сконвертировать SVG в PNG (в теме и/или из light).
+    Methods:
+    - resolve_from_cache: name validation, negative cache, hits/misses in path cache.
+      Returns (path_or_none, terminal). If terminal=True — result is final.
+    - find_source: fast search for icon files by theme indexes (with fallback to light).
+    - convert_svg: attempt to convert SVG to PNG (in theme and/or from light).
     """
 
     def __init__(self, service: IconPathService) -> None:
         self.service = service
 
-    # --- Управление кешем и статистикой ---
+    # --- Cache and statistics management ---
     def resolve_from_cache(
         self, icon_name: str, theme: str
     ) -> tuple[str | None, bool]:
         if not _validate_icon_name(icon_name):
             logger.warning("Invalid icon name provided: %r", icon_name)
-            set_path(icon_name, theme, None)  # негативное кеширование
+            set_path(icon_name, theme, None)  # negative caching
             try:
                 _ICON_METRICS.record_not_found()
                 _ICON_METRICS.record_miss_without_increment(0.0)
@@ -295,7 +295,7 @@ class IconPathResolver:
         norm_theme = validate_theme(theme)
         key = f"{norm_theme}:{icon_name.lower()}"
 
-        # быстрый негативный кеш (единый модуль)
+        # fast negative cache (unified module)
         if negative_cache.is_negative(key):
             logger.debug("Negative cache HIT: %s", key)
             try:
@@ -317,7 +317,7 @@ class IconPathResolver:
         logger.debug("Path cache MISS: %s (%s)", icon_name, norm_theme)
         return None, False
 
-    # --- Поиск пути по индексу/темам ---
+    # --- Path search by index/themes ---
     def find_source(self, icon_name: str, theme: str) -> str | None:
         norm_theme = validate_theme(theme)
         idx_hit = _get_indexed_icon(norm_theme, icon_name)
@@ -342,9 +342,9 @@ class IconPathResolver:
                 return path_str
         return None
 
-    # --- Конвертация иконок ---
+    # --- Icon conversion ---
     def convert_svg(self, icon_name: str, theme: str) -> str | None:  # noqa: C901
-        # Локальный импорт для избежания циклических зависимостей
+        # Local import to avoid circular dependencies
         from .icon_operations.converters import convert_icon_to_png_128
 
         norm_theme = validate_theme(theme)
@@ -462,29 +462,29 @@ class IconPathResolver:
         return None
 
 
-# --- Поиск и кеширование пути к иконке ---
+# --- Icon path search and caching ---
 
 
 def get_icon_path(icon_name: str, theme: str = "light") -> str | None:
-    """Получить строковый путь к иконке. Тонкая обёртка вокруг IconPathResolver."""
+    """Get string path to icon. Thin wrapper around IconPathResolver."""
     resolver = IconPathResolver(_icon_path_service)
 
-    # 1) кеш/негативный кеш/валидация/метрики
+    # 1) cache/negative cache/validation/metrics
     cached_or_none, terminal = resolver.resolve_from_cache(icon_name, theme)
     if terminal:
         return cached_or_none
 
-    # 2) поиск по индексам тем
+    # 2) search by theme indexes
     found = resolver.find_source(icon_name, theme)
     if found is not None:
         return found
 
-    # 3) конвертация SVG→PNG
+    # 3) SVG→PNG conversion
     converted = resolver.convert_svg(icon_name, theme)
     if converted is not None:
         return converted
 
-    # 4) негативное кеширование при полном отсутстви
+    # 4) negative caching when completely absent
     norm_theme = validate_theme(theme)
     key = f"{norm_theme}:{icon_name.lower()}"
     set_path(icon_name, norm_theme, None)
@@ -499,7 +499,7 @@ def get_icon_path(icon_name: str, theme: str = "light") -> str | None:
 
 
 def get_qss_dir() -> Path:
-    """Путь к директории QSS-тем."""
+    """Path to QSS themes directory."""
     return app_config.paths.get_qss_dir()
 
 
@@ -510,11 +510,11 @@ _theme_lock = threading.RLock()
 
 
 def get_current_theme() -> str:
-    """Получить текущую тему с кешем, при недоступности вернуть 'light'."""
+    """Get current theme with cache, return 'light' if unavailable."""
     global _CURRENT_THEME_CACHE, _LAST_THEME_CHECK
 
     now = time.time()
-    # Быстрый путь: читаем кэш под блокировкой
+    # Fast path: read cache under lock
     with _theme_lock:
         if (
             _CURRENT_THEME_CACHE is not None
@@ -522,14 +522,14 @@ def get_current_theme() -> str:
         ):
             return _CURRENT_THEME_CACHE
 
-    # Медленный путь: пытаемся получить из GUI без удержания блокировки
+    # Slow path: try to get from GUI without holding lock
     try:
-        from PyQt6.QtWidgets import QApplication  # локальный импорт
+        from PyQt6.QtWidgets import QApplication  # local import
 
         app = QApplication.instance()
         if app:
             for widget in app.topLevelWidgets():
-                # ожидаем наличие settings.get_theme()
+                # expect settings.get_theme() to be available
                 settings = getattr(widget, "settings", None)
                 if settings and hasattr(settings, "get_theme"):
                     theme = validate_theme(settings.get_theme())
@@ -540,29 +540,29 @@ def get_current_theme() -> str:
     except Exception as exc:  # noqa: BLE001
         logger.debug("Could not get current theme from GUI: %s", exc)
 
-    # Фолбэк: записываем 'light' в кэш под блокировкой
+    # Fallback: write 'light' to cache under lock
     with _theme_lock:
         _CURRENT_THEME_CACHE = "light"
         _LAST_THEME_CHECK = now
     return "light"
 
 
-# Экспорт глобального сервиса
+# Global service export
 icon_path_service = _icon_path_service
 
 
-# --- Публичные хелперы метрик ---
+# --- Public metrics helpers ---
 def get_icon_metrics_stats() -> dict[str, Any]:
-    """Вернуть текущую сводку метрик подсистемы иконок."""
+    """Return current icon subsystem metrics summary."""
     return _ICON_METRICS.get_stats()
 
 
 def reset_icon_metrics() -> None:
-    """Сбросить метрики подсистемы иконок."""
+    """Reset icon subsystem metrics."""
     _ICON_METRICS.reset()
 
 
-# --- Вспомогательные функции записи метрик для других модулей ---
+# --- Helper functions for writing metrics for other modules ---
 def metrics_record_hit() -> None:
     try:
         _ICON_METRICS.record_hit()

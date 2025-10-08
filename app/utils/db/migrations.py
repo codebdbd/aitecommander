@@ -23,12 +23,12 @@ class MigrationError(Exception):
 
 
 class MigrationRunner:
-    """Простой раннер миграций для SQLite на базе PRAGMA user_version.
+    """Simple migration runner for SQLite based on ``PRAGMA user_version``.
 
-    - Ищет файлы миграций в каталоге migrations_dir.
-    - Поддерживает .sql (executescript) и .py (функция migrate(conn, logger)).
-    - Применяет последовательно, повышая user_version после успешной миграции.
-    - Потокобезопасность обеспечивается через db_lock (одна большая секция на миграции).
+    - Searches for migration files in ``migrations_dir``.
+    - Supports ``.sql`` (via ``executescript``) and ``.py`` (expects ``migrate(conn, logger)``).
+    - Applies migrations sequentially, incrementing ``user_version`` after success.
+    - Thread safety is provided via ``db_lock`` (single critical section per batch).
     """
 
     def __init__(self, connection: sqlite3.Connection, migrations_dir: Path):
@@ -66,14 +66,14 @@ class MigrationRunner:
             else:
                 continue
             migrations.append(Migration(version=version, name=name, path=entry, kind=kind))
-        # сортировка по version, а затем по имени (стабильность)
+     
         migrations.sort(key=lambda m: (m.version, m.name))
         return migrations
 
     def run_all_pending(self) -> int:
-        """Применяет все миграции с версии (user_version + 1) по последнюю.
+        """Apply all pending migrations starting from ``user_version + 1``.
 
-        Возвращает количество фактически применённых миграций.
+        Returns the number of applied migrations.
         """
         with db_lock:
             applied = 0
@@ -82,13 +82,13 @@ class MigrationRunner:
             for mig in all_migs:
                 if mig.version <= current:
                     continue
-                logger.info("Миграция v%04d: %s", mig.version, mig.name)
+                logger.info("Migration v%04d: %s", mig.version, mig.name)
                 self._apply_one(mig)
                 self.set_version(mig.version)
                 self.connection.commit()
                 applied += 1
                 current = mig.version
-                logger.info("Миграция v%04d применена", mig.version)
+                logger.info("Migration v%04d applied", mig.version)
             return applied
 
     def _apply_one(self, mig: Migration) -> None:
@@ -98,15 +98,17 @@ class MigrationRunner:
         elif mig.kind == "py":
             self._run_python_migration(mig.path)
         else:
-            raise MigrationError(f"Неизвестный тип миграции: {mig.kind}")
+            raise MigrationError(f"Unknown migration type: {mig.kind}")
 
     def _run_python_migration(self, path: Path) -> None:
         spec = importlib.util.spec_from_file_location(path.stem, str(path))
         if spec is None or spec.loader is None:
-            raise MigrationError(f"Не удалось загрузить миграцию: {path}")
+            raise MigrationError(f"Failed to load migration: {path}")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)  # type: ignore
         migrate_func: Optional[Callable] = getattr(module, "migrate", None)
         if not callable(migrate_func):
-            raise MigrationError(f"В python-миграции {path.name} отсутствует функция migrate(conn, logger)")
+            raise MigrationError(
+                f"Python migration {path.name} does not define migrate(conn, logger)"
+            )
         migrate_func(self.connection, logger)
