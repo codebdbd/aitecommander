@@ -10,9 +10,10 @@ from PyQt6.QtWidgets import QWidget
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.views.widgets.link.item_builders import ItemBuildersMixin
+from app.views.common.retranslatable import ReTranslatable
 
 
-class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
+class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     """Data model for the links table.
 
     Default columns: ["♥", "Name", "Last opened", "Notes"].
@@ -24,11 +25,12 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
     MAX_ICON_CACHE = 500  # Icon cache size limit
 
     def __init__(self, links: Optional[Sequence[Dict[str, Any]]] = None, parent: Optional[QWidget] = None) -> None:
-        super().__init__(parent)
+        QAbstractTableModel.__init__(self, parent)
+        ReTranslatable.__init__(self)
         self._headers: List[str] = []
         self._links: List[Dict[str, Any]] = []
         # Initialize while cleaning potential icon cache entries
-        self.retranslate()
+        self.retranslateUi()
         if links:
             self.set_links(links)
 
@@ -37,7 +39,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin):
     def _tr(text: str) -> str:
         return QCoreApplication.translate("LinksTableModel", text)
 
-    def retranslate(self) -> None:
+    def retranslateUi(self) -> None:
         """Refresh localized headers (call on language change)."""
         self._headers = [
             self._tr("♥"),

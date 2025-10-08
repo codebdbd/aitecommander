@@ -679,76 +679,72 @@
   <context>
     <name>LinkDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="275" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="276" />
       <source>Icon configuration is invalid.</source>
       <translation>Symbolkonfiguration ist ungültig.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="276" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="277" />
       <source>Configuration error</source>
       <translation>Konfigurationsfehler</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="277" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="278" />
       <source>Icons directory is not set. Specify the path in the application settings or config.</source>
       <translation>Verzeichnis für Symbole ist nicht festgelegt. Geben Sie den Pfad in den Anwendungseinstellungen oder der Konfiguration an.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="280" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="281" />
       <source>Configuration parameter for icons is missing or empty.</source>
       <translation>Konfigurationsparameter für Symbole fehlt oder ist leer.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="366" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="367" />
       <source>Default icon not found.</source>
       <translation>Standardsymbol nicht gefunden.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="367" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="368" />
       <source>Icon issue</source>
       <translation>Problem mit Symbol</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="368" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="369" />
       <source>The button will be shown without an icon. Provide a valid icons path in settings.</source>
       <translation>Der Button wird ohne Symbol angezeigt. Geben Sie einen gültigen Pfad für Symbole in den Einstellungen an.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="371" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="372" />
       <source>Expected file: {path}</source>
       <translation>Erwartete Datei: {path}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="557" />
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="556" />
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="500" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="501" />
       <source>Profile</source>
       <translation>Profil</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="502" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="503" />
       <source>Profile: {email}</source>
       <translation>Profil: {email}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="504" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="505" />
       <source>Profiles: {first}, {second}</source>
       <translation>Profile: {first}, {second}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="507" />
+      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="508" />
       <source>Profiles: {first}, {second} and {rest} more</source>
       <translation>Profile: {first}, {second} und {rest} weitere</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="545" />
       <source>Edit link</source>
-      <translation>Link bearbeiten</translation>
+      <translation type="vanished">Link bearbeiten</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\link_dialog\link_dialog.py" line="545" />
       <source>Add link</source>
-      <translation>Link hinzufügen</translation>
+      <translation type="vanished">Link hinzufügen</translation>
     </message>
   </context>
   <context>
@@ -800,229 +796,32 @@
   <context>
     <name>MenuActions</name>
     <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="72" />
-      <source>Add section</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="73" />
-      <source>Add category</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="74" />
       <source>Add link</source>
-      <translation type="unfinished">Link hinzufügen</translation>
+      <translation type="vanished">Link hinzufügen</translation>
     </message>
     <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="75" />
-      <source>Clear favorites</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="76" />
-      <source>Exit</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="77" />
       <source>Settings</source>
-      <translation type="unfinished">Einstellungen</translation>
+      <translation type="vanished">Einstellungen</translation>
     </message>
     <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="78" />
-      <source>Save database</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="79" />
-      <source>Restore database</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="80" />
-      <source>Connect database</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="81" />
       <source>Import from browser</source>
-      <translation type="unfinished">Aus Browser importieren</translation>
+      <translation type="vanished">Aus Browser importieren</translation>
     </message>
     <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="82" />
-      <source>Export icons</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="83" />
-      <source>Import icons</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="84" />
-      <source>Search files</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="85" />
-      <source>About</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="86" />
-      <source>Edit section</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="87" />
-      <source>Edit category</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="88" />
-      <source>Paste</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="89" />
-      <source>Delete section</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="90" />
-      <source>Copy</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="91" />
-      <source>Cut</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="92" />
-      <source>Delete category</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="93" />
-      <source>Delete selected</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="94" />
       <source>Select all</source>
-      <translation type="unfinished">Alle auswählen</translation>
+      <translation type="vanished">Alle auswählen</translation>
     </message>
     <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="95" />
-      <source>Sort categories</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="96" />
       <source>&amp;Undo</source>
-      <translation type="unfinished">&amp;Rückgängig</translation>
+      <translation type="vanished">&amp;Rückgängig</translation>
     </message>
     <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="97" />
       <source>&amp;Redo</source>
-      <translation type="unfinished">&amp;Wiederholen</translation>
+      <translation type="vanished">&amp;Wiederholen</translation>
     </message>
     <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="98" />
-      <source>Open</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="99" />
       <source>Edit</source>
-      <translation type="unfinished">Bearbeiten</translation>
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="100" />
-      <source>Delete</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="101" />
-      <source>Edit note</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="102" />
-      <source>Add to favorites</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="103" />
-      <source>Remove from favorites</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="104" />
-      <source>Share</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="105" />
-      <source>Email</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="106" />
-      <source>Telegram</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="107" />
-      <source>WhatsApp</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="108" />
-      <source>Viber</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="109" />
-      <source>X (Twitter)</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="110" />
-      <source>Facebook</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="111" />
-      <source>LinkedIn</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="112" />
-      <source>Pinterest</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="113" />
-      <source>Via Gmail</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="114" />
-      <source>Via default client (mailto)</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="115" />
-      <source>Copy as email message</source>
-      <translation type="unfinished" />
-    </message>
-    <message>
-      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="116" />
-      <source>Error: %1</source>
-      <translation type="unfinished" />
+      <translation type="vanished">Bearbeiten</translation>
     </message>
   </context>
   <context>
@@ -1242,6 +1041,16 @@
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="223" />
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="190" />
       <source>Quick Add</source>
+      <translation type="unfinished" />
+    </message>
+  </context>
+  <context>
+    <name>WindowUISetup</name>
+    <message>
+      <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="592" />
+      <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="427" />
+      <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="38" />
+      <source>Search… (Ctrl+F)</source>
       <translation type="unfinished" />
     </message>
   </context>

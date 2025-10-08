@@ -110,7 +110,7 @@ class MenuTexts:
     COPY = "Copy"
     PASTE = "Paste"
     CUT = "Cut"
-    ADD_LINK = "Add link"  # duplicate key kept for consistency
+    ADD_LINK = "Add link"
     SELECT_ALL = "Select all"
     EDIT_NOTE = "Edit note"
     # Favorites toggle

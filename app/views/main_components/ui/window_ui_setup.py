@@ -29,8 +29,13 @@ from app.views.models.structure_tree_model import StructureTreeModel
 from app.views.widgets.panels.quick_add_panel_widget import QuickAddPanelWidget
 from app.views.widgets.panels.recent_panel_widget import RecentPanelWidget
 from app.views.widgets.status_bar import setup_status_bar as init_status_bar
+from i18n.language_service import LanguageService
+from PyQt6.QtCore import QT_TRANSLATE_NOOP
 
 logger = logging.getLogger(__name__)
+
+# Mark strings for translation extraction
+_SEARCH_PLACEHOLDER = QT_TRANSLATE_NOOP("WindowUISetup", "Search… (Ctrl+F)")
 
 
 class _AutoHideTreeFilter(QObject):
@@ -188,6 +193,18 @@ class WindowUISetup:
         self.theme_ctrl = window_initializer.theme_ctrl
 
         self.main_layout = None
+
+        # Subscribe to language changes
+        self._language_service = LanguageService.instance()
+        try:
+            self._language_service.languageChanged.connect(self._on_language_changed)
+        except Exception:
+            logger.exception("WindowUISetup: failed to connect to languageChanged")
+        if hasattr(self.window, "destroyed"):
+            try:
+                self.window.destroyed.connect(self._disconnect_language_service)
+            except Exception:
+                logger.debug("WindowUISetup: failed to connect destroyed cleanup", exc_info=True)
 
     def setup_basic_attributes(self) -> None:
         self.window.settings = self.window_initializer.settings
@@ -399,6 +416,33 @@ class WindowUISetup:
 
         QTimer.singleShot(0, _refresh)
 
+    def _on_language_changed(self, _lang_code: str) -> None:
+        """Update UI texts when language changes."""
+        # Update search placeholder
+        try:
+            from PyQt6.QtCore import QCoreApplication
+            search = getattr(self.window, "search", None)
+            if search is not None and hasattr(search, "setPlaceholderText"):
+                # Use translated placeholder instead of hardcoded config value
+                placeholder = QCoreApplication.translate("WindowUISetup", "Search… (Ctrl+F)")
+                search.setPlaceholderText(placeholder)
+        except Exception:
+            logger.debug("WindowUISetup: failed to update search placeholder", exc_info=True)
+
+        # Update status bar
+        try:
+            retranslate_cb = getattr(self.window, "_retranslate_status_bar", None)
+            if callable(retranslate_cb):
+                retranslate_cb()
+        except Exception:
+            logger.exception("WindowUISetup: failed to retranslate status bar")
+
+    def _disconnect_language_service(self) -> None:
+        try:
+            self._language_service.languageChanged.disconnect(self._on_language_changed)
+        except Exception:
+            pass
+
     def _log_setup_top_panel_total(self, t_total_start: float) -> None:
         try:
             t_total_dur = (time.perf_counter() - t_total_start) * 1000.0
@@ -541,9 +585,12 @@ class WindowUISetup:
         return sep
 
     def setup_search_widget(self, top_bar: QHBoxLayout) -> None:
+        from PyQt6.QtCore import QCoreApplication
         t_start = time.perf_counter()
         self.window.search = QLineEdit()
-        self.window.search.setPlaceholderText(app_config.ui.get_search_placeholder())
+        # Use translated placeholder
+        placeholder = QCoreApplication.translate("WindowUISetup", "Search… (Ctrl+F)")
+        self.window.search.setPlaceholderText(placeholder)
         self.window.search.setClearButtonEnabled(True)
         try:
             self.window.search.setFixedHeight(
