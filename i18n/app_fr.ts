@@ -45,22 +45,22 @@
   <context>
     <name>BaseDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="235" />
+      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="233" />
       <source>Information</source>
       <translation>Information</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="258" />
+      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="256" />
       <source>Warning</source>
       <translation>Avertissement</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="281" />
+      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="279" />
       <source>Error</source>
       <translation>Erreur</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="303" />
+      <location filename="..\app\views\windows\dialogs\base_dialog.py" line="301" />
       <source>Confirmation</source>
       <translation>Confirmation</translation>
     </message>
@@ -79,77 +79,77 @@
   <context>
     <name>BaseEntityDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="173" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="174" />
       <source>Edit</source>
       <translation>Modifier</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="173" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="174" />
       <source>Add</source>
       <translation>Ajouter</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="175" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="176" />
       <source>section</source>
       <translation>section</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="176" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="177" />
       <source>category</source>
       <translation>catégorie</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="178" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="179" />
       <source>entity</source>
       <translation>entité</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="182" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="183" />
       <source>Name:</source>
       <translation>Nom :</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="184" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="185" />
       <source>Icon</source>
       <translation>Icône</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="190" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="191" />
       <source>Save</source>
       <translation>Enregistrer</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="192" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="193" />
       <source>Cancel</source>
       <translation>Annuler</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="238" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="239" />
       <source>Unable to set selected icon.</source>
       <translation>Impossible de définir l'icône sélectionnée.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="239" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="240" />
       <source>Icon selection error</source>
       <translation>Erreur de sélection d'icône</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="240" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="241" />
       <source>Choose another image file (.png, .ico, .jpg, .svg) and try again.</source>
       <translation>Choisissez un autre fichier image (.png, .ico, .jpg, .svg) et réessayez.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="251" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="252" />
       <source>Name cannot be empty.</source>
       <translation>Le nom ne peut pas être vide.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="252" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="253" />
       <source>Invalid input</source>
       <translation>Entrée invalide</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="253" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="254" />
       <source>Please provide a name for the entity.</source>
       <translation>Veuillez fournir un nom pour l'entité.</translation>
     </message>
@@ -243,59 +243,59 @@
   <context>
     <name>CategoryDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="496" />
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="403" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="497" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="404" />
       <source>Sphere:</source>
       <translation>Sphère :</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="499" />
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="406" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="500" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="407" />
       <source>Section:</source>
       <translation>Section :</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="431" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="432" />
       <source>Failed to load sections.</source>
       <translation>Échec du chargement des sections.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="432" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="433" />
       <source>Error loading sections</source>
       <translation>Erreur de chargement des sections</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="433" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="434" />
       <source>Check database connection and try again.</source>
       <translation>Vérifiez la connexion à la base de données et réessayez.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="443" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="444" />
       <source>Category not found.</source>
       <translation>Catégorie non trouvée.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="444" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="445" />
       <source>Category unavailable</source>
       <translation>Catégorie indisponible</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="445" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="446" />
       <source>The category might have been deleted. ID: %1</source>
       <translation>La catégorie a peut-être été supprimée. ID : %1</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="481" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="482" />
       <source>Section not selected.</source>
       <translation>Section non sélectionnée.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="482" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="483" />
       <source>Section selection required</source>
       <translation>Sélection de section requise</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="483" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="484" />
       <source>Choose a section from the list and press "Save".</source>
       <translation>Choisissez une section dans la liste et cliquez sur « Enregistrer ».</translation>
     </message>
@@ -303,53 +303,53 @@
   <context>
     <name>ChromeProfileDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="788" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="801" />
       <source>Select Chrome profile</source>
       <translation>Sélectionner un profil Chrome</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="790" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="803" />
       <source>Choose a Chrome profile:</source>
       <translation>Choisir un profil Chrome :</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="791" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="804" />
       <source>Select all</source>
       <translation>Tout sélectionner</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="792" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="805" />
       <source>Deselect all</source>
       <translation>Tout désélectionner</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="807" />
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="793" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="820" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="806" />
       <source>Refresh profiles</source>
       <translation>Actualiser les profils</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="798" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="811" />
       <source>Save</source>
       <translation>Enregistrer</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="800" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="813" />
       <source>Cancel</source>
       <translation>Annuler</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="805" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="818" />
       <source>Loading…</source>
       <translation>Chargement…</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="829" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="842" />
       <source>Chrome profiles not found</source>
       <translation>Profils Chrome non trouvés</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="836" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="849" />
       <source>(no email)</source>
       <translation>(aucun email)</translation>
     </message>
@@ -666,12 +666,12 @@
   <context>
     <name>LanguageSelector</name>
     <message>
-      <location filename="..\app\views\widgets\language_selector.py" line="37" />
+      <location filename="..\app\views\widgets\language_selector.py" line="41" />
       <source>Change application language</source>
       <translation>Changer la langue de l'application</translation>
     </message>
     <message>
-      <location filename="..\app\views\widgets\language_selector.py" line="38" />
+      <location filename="..\app\views\widgets\language_selector.py" line="42" />
       <source>Language Selector</source>
       <translation>Sélecteur de langue</translation>
     </message>
@@ -752,16 +752,277 @@
     </message>
   </context>
   <context>
+    <name>MainMenu</name>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="49" />
+      <source>&amp;Actions</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="128" />
+      <source>&amp;File</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="143" />
+      <source>&amp;Data</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="190" />
+      <source>&amp;Search</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="201" />
+      <source>&amp;Themes</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="221" />
+      <source>&amp;Help</source>
+      <translation type="unfinished" />
+    </message>
+  </context>
+  <context>
     <name>MainWindow</name>
     <message>
-      <location filename="..\app\views\windows\main_window.py" line="165" />
+      <location filename="..\app\views\windows\main_window.py" line="164" />
       <source>&amp;Undo</source>
       <translation>&amp;Annuler</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\main_window.py" line="168" />
+      <location filename="..\app\views\windows\main_window.py" line="167" />
       <source>&amp;Redo</source>
       <translation>&amp;Rétablir</translation>
+    </message>
+  </context>
+  <context>
+    <name>MenuActions</name>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="72" />
+      <source>Add section</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="73" />
+      <source>Add category</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="74" />
+      <source>Add link</source>
+      <translation type="unfinished">Ajouter un lien</translation>
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="75" />
+      <source>Clear favorites</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="76" />
+      <source>Exit</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="77" />
+      <source>Settings</source>
+      <translation type="unfinished">Paramètres</translation>
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="78" />
+      <source>Save database</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="79" />
+      <source>Restore database</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="80" />
+      <source>Connect database</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="81" />
+      <source>Import from browser</source>
+      <translation type="unfinished">Importer depuis le navigateur</translation>
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="82" />
+      <source>Export icons</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="83" />
+      <source>Import icons</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="84" />
+      <source>Search files</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="85" />
+      <source>About</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="86" />
+      <source>Edit section</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="87" />
+      <source>Edit category</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="88" />
+      <source>Paste</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="89" />
+      <source>Delete section</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="90" />
+      <source>Copy</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="91" />
+      <source>Cut</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="92" />
+      <source>Delete category</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="93" />
+      <source>Delete selected</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="94" />
+      <source>Select all</source>
+      <translation type="unfinished">Tout sélectionner</translation>
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="95" />
+      <source>Sort categories</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="96" />
+      <source>&amp;Undo</source>
+      <translation type="unfinished">&amp;Annuler</translation>
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="97" />
+      <source>&amp;Redo</source>
+      <translation type="unfinished">&amp;Rétablir</translation>
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="98" />
+      <source>Open</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="99" />
+      <source>Edit</source>
+      <translation type="unfinished">Modifier</translation>
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="100" />
+      <source>Delete</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="101" />
+      <source>Edit note</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="102" />
+      <source>Add to favorites</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="103" />
+      <source>Remove from favorites</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="104" />
+      <source>Share</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="105" />
+      <source>Email</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="106" />
+      <source>Telegram</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="107" />
+      <source>WhatsApp</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="108" />
+      <source>Viber</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="109" />
+      <source>X (Twitter)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="110" />
+      <source>Facebook</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="111" />
+      <source>LinkedIn</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="112" />
+      <source>Pinterest</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="113" />
+      <source>Via Gmail</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="114" />
+      <source>Via default client (mailto)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="115" />
+      <source>Copy as email message</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\utils\ui\menu_builders\menu_actions.py" line="116" />
+      <source>Error: %1</source>
+      <translation type="unfinished" />
     </message>
   </context>
   <context>
@@ -829,37 +1090,37 @@
   <context>
     <name>NoteDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="556" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="557" />
       <source>Notes</source>
       <translation>Notes</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="558" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="559" />
       <source>Enter notes here</source>
       <translation>Entrez les notes ici</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="563" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="564" />
       <source>Save</source>
       <translation>Enregistrer</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="565" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="566" />
       <source>Cancel</source>
       <translation>Annuler</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="575" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="576" />
       <source>Failed to update notes.</source>
       <translation>Échec de la mise à jour des notes.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="576" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="577" />
       <source>Notes update error</source>
       <translation>Erreur de mise à jour des notes</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="577" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="578" />
       <source>Close and reopen the dialog, then try again.</source>
       <translation>Fermez et rouvrez la boîte de dialogue, puis réessayez.</translation>
     </message>
@@ -867,38 +1128,38 @@
   <context>
     <name>SectionDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="362" />
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="305" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="363" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="306" />
       <source>Sphere:</source>
       <translation>Sphère :</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="325" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="326" />
       <source>Section not found.</source>
       <translation>Section non trouvée.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="326" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="327" />
       <source>Section unavailable</source>
       <translation>Section indisponible</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="327" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="328" />
       <source>The section might have been deleted. ID: %1</source>
       <translation>La section a peut-être été supprimée. ID : %1</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="347" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="348" />
       <source>Sphere not selected.</source>
       <translation>Sphère non sélectionnée.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="348" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="349" />
       <source>Sphere selection required</source>
       <translation>Sélection de sphère requise</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="349" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="350" />
       <source>Choose a sphere from the list and press "Save".</source>
       <translation>Choisissez une sphère dans la liste et cliquez sur « Enregistrer ».</translation>
     </message>
@@ -906,50 +1167,82 @@
   <context>
     <name>SettingsDialog</name>
     <message>
-      <location filename="..\app\views\windows\ dialogs\entity_dialogs.py" line="653" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="654" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="609" />
       <source>Language:</source>
       <translation>Langue :</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\ dialogs\entity_dialogs.py" line="646" />
-      <location filename="..\app\views\windows\ dialogs\entity_dialogs.py" line="616" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="658" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="622" />
       <source>Max backups:</source>
       <translation>Sauvegardes max :</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\ dialogs\entity_dialogs.py" line="649" />
-      <location filename="..\app\views\windows\ dialogs\entity_dialogs.py" line="629" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="662" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="635" />
       <source>Font size:</source>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="642" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="648" />
       <source>Settings</source>
       <translation>Paramètres</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="654" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="667" />
       <source>Save</source>
       <translation>Enregistrer</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="656" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="669" />
       <source>Cancel</source>
       <translation>Annuler</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="681" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="694" />
       <source>Failed to save settings.</source>
       <translation>Échec de l'enregistrement des paramètres.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="682" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="695" />
       <source>Settings save error</source>
       <translation>Erreur d'enregistrement des paramètres</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="683" />
+      <location filename="..\app\views\windows\dialogs\entity_dialogs.py" line="696" />
       <source>Check the values and try again.</source>
       <translation>Vérifiez les valeurs et réessayez.</translation>
+    </message>
+  </context>
+  <context>
+    <name>TopBarPanels</name>
+    <message>
+      <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="140" />
+      <source>Button {idx} of {total} visible buttons</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="147" />
+      <source>Hidden button</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="221" />
+      <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="188" />
+      <source>Recent Links</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="222" />
+      <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="189" />
+      <source>Favorites</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="223" />
+      <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="190" />
+      <source>Quick Add</source>
+      <translation type="unfinished" />
     </message>
   </context>
 </TS>

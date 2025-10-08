@@ -178,6 +178,9 @@ class LanguageService(QObject):
         if translator.load(str(file_path)):
             self._app.installTranslator(translator)
             self._translator = translator
+            # Force Qt to update translation cache
+            from PyQt6.QtCore import QCoreApplication
+            QCoreApplication.processEvents()
             logger.info("LanguageService: loaded translation from file: %s", file_path)
             return True
 
@@ -185,6 +188,9 @@ class LanguageService(QObject):
         if translator.load(resource_path):
             self._app.installTranslator(translator)
             self._translator = translator
+            # Force Qt to update translation cache
+            from PyQt6.QtCore import QCoreApplication
+            QCoreApplication.processEvents()
             logger.info("LanguageService: loaded translation from resource: %s", resource_path)
             return True
 
