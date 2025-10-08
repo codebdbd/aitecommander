@@ -3,7 +3,7 @@
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
 
-from PyQt6.QtCore import QModelIndex
+from PyQt6.QtCore import QModelIndex, QObject, pyqtSlot
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QListWidget, QMenu, QMenuBar, QWidget
 
@@ -22,17 +22,20 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class MenuController:
+class MenuController(QObject):
     """Controller for managing all application menus."""
 
     def __init__(self, main_window: "MainWindow"):
+        super().__init__(main_window)
         self.main_window = main_window
         self._main_menu_builder = None
         self._structure_menu_builder = None
         self._links_menu_builder = None
         self._category_menu_builder = None
         self._language_service = LanguageService.instance()
+        logger.info("MenuController: connecting to languageChanged signal")
         self._language_service.languageChanged.connect(self._on_language_changed)
+        logger.info("MenuController: connected to languageChanged signal")
         if hasattr(self.main_window, "destroyed"):
             self.main_window.destroyed.connect(self._cleanup)
 
@@ -42,12 +45,16 @@ class MenuController:
             self._main_menu_builder = MainMenuBuilder(self.main_window)
         return self._main_menu_builder.build()
 
+    @pyqtSlot(str)
     def _on_language_changed(self, _lang_code: str) -> None:
         """Rebuild the main menu when language changes."""
+        logger.info("MenuController._on_language_changed called with lang_code=%s", _lang_code)
         try:
+            logger.info("MenuController: rebuilding menu after language change")
             self.rebuild_after_language_change()
+            logger.info("MenuController: menu rebuilt successfully")
         except Exception:
-            pass
+            logger.exception("MenuController: failed to rebuild menu after language change")
 
     def _cleanup(self) -> None:
         """Disconnect signals when window is destroyed."""
