@@ -89,10 +89,12 @@ lrelease app_es.ts -qm app_es.qm
 lrelease app_fr.ts -qm app_fr.qm
 ```
 
-Или используйте batch-файл:
+Или используйте Python-скрипт (рекомендуется):
 ```bash
-compile_translations.bat
+python update_and_report.py --compile
 ```
+
+При необходимости установите Qt Linguist (`lrelease`). На Windows можно воспользоваться подсказками из `get_lrelease.bat`.
 
 **Результат:**
 - Создаются .qm файлы (бинарные, оптимизированные)
@@ -173,7 +175,7 @@ text = self.tr("User {name} logged in").format(name=name)
 ### Динамическое обновление UI при смене языка:
 
 ```python
-from app.ui.retranslatable import ReTranslatable
+from app.views.common.retranslatable import ReTranslatable
 
 class MyDialog(QDialog, ReTranslatable):
     def __init__(self):

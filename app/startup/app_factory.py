@@ -2,12 +2,11 @@
 
 import sys
 
-from PyQt6.QtCore import QLocale, Qt, QTranslator
+from PyQt6.QtCore import QLocale, Qt
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
-from app.config_data.qt_adapters import load_and_install_translator
 
 
 def create_application() -> QApplication:
@@ -22,7 +21,6 @@ def create_application() -> QApplication:
 
     cfg = app_config
     settings_cfg = cfg.settings
-    paths_cfg = cfg.paths
     ui_cfg = cfg.ui
 
     try:
@@ -31,26 +29,10 @@ def create_application() -> QApplication:
         app.setApplicationVersion(settings_cfg.get_app_version())
     except Exception:
         pass
-
     try:
         preferred_locale = settings_cfg.get_preferred_locale()
-        fallback_locale = settings_cfg.get_fallback_locale()
-        translator_base = settings_cfg.get_qt_translator_base()
-        translations_dir = paths_cfg.get_translations_dir()
-
         if preferred_locale:
             QLocale.setDefault(QLocale(preferred_locale))
-
-        if translator_base:
-            translator = load_and_install_translator(
-                base_name=translator_base,
-                locale=preferred_locale,
-                translations_dir=translations_dir,
-                application=app,
-                fallback_locale=fallback_locale,
-            )
-            if translator is not None:
-                app._translator = translator  # type: ignore[attr-defined]
     except (RuntimeError, AttributeError, TypeError, ValueError):
         pass
 

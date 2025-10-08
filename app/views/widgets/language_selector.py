@@ -5,7 +5,7 @@ from typing import Optional
 
 from PyQt6.QtWidgets import QComboBox
 
-from app.ui.retranslatable import ReTranslatable
+from app.views.common.retranslatable import ReTranslatable
 from i18n.language_service import LanguageDescriptor, LanguageService
 
 logger = logging.getLogger(__name__)

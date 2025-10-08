@@ -81,6 +81,19 @@ SOURCES += ../app/controllers/ui/undo/commands.py \
            ../app/controllers/ui/undo/commands_links.py \
            ../app/controllers/ui/undo/commands_structure.py
 
+# Utils - Menu builders (ensure menu texts are extracted)
+SOURCES += ../app/utils/ui/menu_builders/menu_actions.py \
+           ../app/utils/ui/menu_builders/main_menu_builder.py \
+           ../app/utils/ui/menu_builders/links_menu_builder.py \
+           ../app/utils/ui/menu_builders/structure_menu_builder.py \
+           ../app/utils/ui/menu_builders/category_menu_builder.py
+
+# Views - Topbar utilities with translatable labels
+SOURCES += ../app/views/main_components/ui/topbar/panel_visibility_manager.py
+
+# Utils - UI validators (translate validation messages)
+SOURCES += ../app/utils/ui/validators.py
+
 # Utils - Links parser
 SOURCES += ../app/utils/links/parser/__init__.py \
            ../app/utils/links/parser/cache.py \
