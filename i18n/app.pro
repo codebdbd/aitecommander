@@ -88,8 +88,10 @@ SOURCES += ../app/utils/ui/menu_builders/menu_actions.py \
            ../app/utils/ui/menu_builders/structure_menu_builder.py \
            ../app/utils/ui/menu_builders/category_menu_builder.py
 
-# Views - Topbar utilities with translatable labels
-SOURCES += ../app/views/main_components/ui/topbar/panel_visibility_manager.py
+# Views - UI setup and panels
+SOURCES += ../app/views/main_components/ui/window_ui_setup.py \
+           ../app/views/main_components/ui/bottom_panel_setup.py \
+           ../app/views/main_components/ui/topbar/panel_visibility_manager.py
 
 # Utils - UI validators (translate validation messages)
 SOURCES += ../app/utils/ui/validators.py
