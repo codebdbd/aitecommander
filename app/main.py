@@ -26,6 +26,7 @@ import platform
 import threading
 import time
 from contextlib import contextmanager
+from enum import IntEnum
 from typing import Any, Callable, Optional, Tuple, Type, Protocol, runtime_checkable, TypeVar, Generator
 from PyQt6.QtCore import QTimer, QThreadPool, QCoreApplication
 from PyQt6.QtWidgets import QApplication, QMainWindow
@@ -55,6 +56,15 @@ SIGNAL_EXIT_CODE_BASE = 128
 # Timeouts
 THREAD_POOL_SHUTDOWN_TIMEOUT_MS = 1000
 
+# Exit codes
+class ExitCode(IntEnum):
+    """Application exit codes following Unix conventions."""
+    SUCCESS = 0
+    INITIALIZATION_FAILURE = 1
+    RUNTIME_ERROR = 2
+    SIGNAL_BASE = 128
+
+
 # Retry configuration
 T = TypeVar('T')
 
@@ -63,15 +73,17 @@ def retry_on_failure(
     func: Callable[[], T],
     max_attempts: int = 3,
     delay: float = 0.5,
-    exponential_backoff: bool = True
+    exponential_backoff: bool = True,
+    on_retry: Optional[Callable[[int, Exception], None]] = None
 ) -> Optional[T]:
-    """Retry function on failure with optional exponential backoff.
+    """Retry function on failure with optional exponential backoff and metrics.
     
     Args:
         func: Function to retry
         max_attempts: Maximum number of retry attempts
         delay: Base delay between attempts in seconds
         exponential_backoff: Whether to use exponential backoff
+        on_retry: Optional callback for retry metrics/monitoring
         
     Returns:
         Function result on success, None on failure
@@ -86,6 +98,13 @@ def retry_on_failure(
             if attempt == max_attempts - 1:
                 logger.error("All retry attempts failed: %s", e)
                 raise
+            
+            # Call callback for metrics/monitoring
+            if on_retry:
+                try:
+                    on_retry(attempt, e)
+                except Exception as callback_error:
+                    logger.warning("Retry callback failed: %s", callback_error)
             
             wait_time = delay * (2 ** attempt if exponential_backoff else 1)
             logger.warning(
@@ -198,19 +217,90 @@ class ApplicationInitializer:
         self._cleanup_lock = threading.Lock()
         self._shutdown_controller: Optional[AppShutdownController] = None
     
+    def __enter__(self) -> ApplicationInitializer:
+        """Context manager entry - initialize application.
+        
+        Returns:
+            Self for use in with statement
+            
+        Raises:
+            RuntimeError: If initialization fails
+        """
+        if not self.initialize_all():
+            raise RuntimeError("Failed to initialize application")
+        return self
+    
+    def __exit__(self, exc_type: Optional[Type[BaseException]], 
+                 exc_val: Optional[BaseException], 
+                 exc_tb: Optional[Any]) -> bool:
+        """Context manager exit - cleanup application.
+        
+        Args:
+            exc_type: Exception type if any
+            exc_val: Exception value if any
+            exc_tb: Exception traceback if any
+            
+        Returns:
+            False to not suppress exceptions
+        """
+        self.cleanup(async_cleanup=False)
+        return False  # Don't suppress exceptions
+    
     def is_healthy(self) -> bool:
         """Check if all critical components are initialized and ready.
         
+        Performs both basic and deep health checks for comprehensive validation.
+        
         Returns:
-            True if all components are properly initialized, False otherwise
+            True if all components are properly initialized and functional, False otherwise
         """
-        return all([
-            self.settings is not None,
-            self.database is not None,
-            self.theme_controller is not None,
-            self.main_window is not None,
-            not self._cleanup_done
-        ])
+        try:
+            # Basic checks
+            if self._cleanup_done:
+                return False
+            
+            basic_checks = all([
+                self.settings is not None,
+                self.database is not None,
+                self.theme_controller is not None,
+                self.main_window is not None,
+            ])
+            
+            if not basic_checks:
+                return False
+            
+            # Deep health checks
+            if self.database and hasattr(self.database, 'is_connected'):
+                try:
+                    if not self.database.is_connected():
+                        logger.warning("Database connection is not healthy")
+                        return False
+                except Exception as e:
+                    logger.warning("Database health check failed: %s", e)
+                    return False
+            
+            if self.main_window and hasattr(self.main_window, 'isVisible'):
+                try:
+                    if not self.main_window.isVisible():
+                        logger.debug("Main window is not visible (may be normal during startup)")
+                        # Don't fail health check for invisible window - it may be intentional
+                except Exception as e:
+                    logger.warning("Main window visibility check failed: %s", e)
+            
+            # Check ResourceManager health
+            if hasattr(self._resource_manager, 'is_healthy'):
+                try:
+                    if not self._resource_manager.is_healthy():
+                        logger.warning("ResourceManager is not healthy")
+                        return False
+                except Exception as e:
+                    logger.warning("ResourceManager health check failed: %s", e)
+            
+            return True
+            
+        except Exception as e:
+            logger.error("Health check failed with exception: %s", e, exc_info=True)
+            return False
     
     def get_status(self) -> dict[str, Any]:
         """Get detailed initialization status for debugging and monitoring.
@@ -227,35 +317,74 @@ class ApplicationInitializer:
             "healthy": self.is_healthy()
         }
 
-    def cleanup(self, async_cleanup: bool = False) -> None:
-        """Cleanup resources using ResourceManager.
+    def cleanup(self, async_cleanup: bool = False, timeout: float = 5.0) -> bool:
+        """Cleanup resources using ResourceManager with optional timeout.
         
         Note: If shutdown controller is available, cleanup is handled there.
         This method is kept for backward compatibility and emergency cleanup.
 
         Args:
             async_cleanup: If True, schedule cleanup via QTimer (unsafe during shutdown)
+            timeout: Maximum time to wait for cleanup completion (0 = no timeout)
+            
+        Returns:
+            True if cleanup completed successfully, False if timed out or failed
         """
         # Quick check without lock for performance
         if self._cleanup_done:
-            return
+            return True
         
         # If shutdown controller exists and handles cleanup, delegate to it
         if self._shutdown_controller and not async_cleanup:
             logger.debug("Delegating cleanup to AppShutdownController")
-            return
+            return True
 
         # Default to synchronous cleanup (safer)
         if not async_cleanup:
-            self._cleanup_sync()
+            if timeout > 0:
+                # Use threading for timeout control
+                cleanup_done = threading.Event()
+                cleanup_success = [False]  # Mutable container for thread communication
+                
+                def timed_cleanup() -> None:
+                    try:
+                        self._cleanup_sync()
+                        cleanup_success[0] = True
+                    except Exception as e:
+                        logger.error("Cleanup failed in timeout thread: %s", e)
+                        cleanup_success[0] = False
+                    finally:
+                        cleanup_done.set()
+                
+                cleanup_thread = threading.Thread(target=timed_cleanup, daemon=True)
+                cleanup_thread.start()
+                
+                if cleanup_done.wait(timeout):
+                    return cleanup_success[0]
+                else:
+                    logger.error("Cleanup timed out after %.2fs", timeout)
+                    return False
+            else:
+                try:
+                    self._cleanup_sync()
+                    return True
+                except Exception as e:
+                    logger.error("Cleanup failed: %s", e)
+                    return False
         else:
             # Verify event loop is still running
             app = QCoreApplication.instance()
             if app and not app.closingDown():
                 QTimer.singleShot(0, self._cleanup_sync)
+                return True  # Assume success for async
             else:
                 logger.warning("Event loop not running, forcing sync cleanup")
-                self._cleanup_sync()
+                try:
+                    self._cleanup_sync()
+                    return True
+                except Exception as e:
+                    logger.error("Forced sync cleanup failed: %s", e)
+                    return False
 
     def _cleanup_sync(self) -> None:
         """Synchronous cleanup implementation using ResourceManager.
@@ -323,11 +452,21 @@ class ApplicationInitializer:
     )
     def initialize_database(self) -> bool:
         # Type narrowing for better IDE support and type safety with retry mechanism
+        retry_count = [0]  # Mutable container for callback
+        
+        def on_db_retry(attempt: int, error: Exception) -> None:
+            retry_count[0] = attempt + 1
+            logger.info("Database initialization retry %d: %s", attempt + 1, error)
+        
         db = retry_on_failure(
             lambda: _create_component(Database),
             max_attempts=3,
-            delay=0.5
+            delay=0.5,
+            on_retry=on_db_retry
         )
+        
+        if retry_count[0] > 0:
+            logger.info("Database initialized successfully after %d retries", retry_count[0])
         
         if db is None or not isinstance(db, Database):
             logger.error("Database component creation failed or returned unexpected type: %s", type(db))
@@ -571,16 +710,16 @@ def main() -> int:
 
         exit_code = app.exec()
 
-        # Handle Qt-specific exit codes
+        # Handle Qt-specific exit codes using enum
         if exit_code == -1:
             logger.critical("QApplication exec() failed with error code -1")
-            return 2  # Map to application error code
+            return ExitCode.RUNTIME_ERROR
         elif exit_code < 0:
             logger.error("QApplication returned unexpected negative code: %d", exit_code)
-            return 2
+            return ExitCode.RUNTIME_ERROR
         else:
             logger.info("Application exited with code: %d", exit_code)
-            return 0 if exit_code == 0 else 1
+            return ExitCode.SUCCESS if exit_code == 0 else ExitCode.INITIALIZATION_FAILURE
 
     except (KeyboardInterrupt, SystemExit):
         logger.info("Application interrupted by user")

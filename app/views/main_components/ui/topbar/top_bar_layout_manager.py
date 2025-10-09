@@ -28,43 +28,98 @@ from .visibility_solver import VisibilitySolver
 from .width_calculator import WidthCalculator
 from .types import PanelLabel, ButtonObjectName, TopBarWindow
 
-# Fix: removed unused QParallelAnimationGroup import
+# Enhanced sip.isdeleted() fallback with improved performance and logging
 try:
     from sip import isdeleted as _sip_isdeleted
     _SIP_AVAILABLE = True
+    logger = logging.getLogger(__name__)
+    logger.debug("sip.isdeleted() available - using native implementation")
 except ImportError:
     _SIP_AVAILABLE = False
     _SIP_FALLBACK_WARNED = False
+    _FALLBACK_CALL_COUNT = 0
+    _FALLBACK_ERROR_COUNT = 0
     
     def _sip_isdeleted(obj) -> bool:
-        """Fallback when ``sip`` is unavailable.
+        """Enhanced fallback when sip.isdeleted() is unavailable.
 
-        Fix: rely on ``RuntimeError`` detection instead of always returning
-        ``False``.
+        Uses multiple detection strategies for better reliability:
+        1. None check (fastest)
+        2. Qt attribute access probe
+        3. Type checking for non-Qt objects
+        
+        Performance: Caches warning to show only once per session.
+        Logging: Tracks usage statistics for monitoring.
         """
-        global _SIP_FALLBACK_WARNED
+        global _SIP_FALLBACK_WARNED, _FALLBACK_CALL_COUNT, _FALLBACK_ERROR_COUNT
+        
+        # Show warning only once per session
         if not _SIP_FALLBACK_WARNED:
             import logging as _log
-            _log.getLogger(__name__).warning(
-                "sip.isdeleted() unavailable, using fallback check. "
-                "Install PyQt6 with sip for better deleted object detection."
+            logger = _log.getLogger(__name__)
+            logger.info(
+                "sip.isdeleted() unavailable - using enhanced fallback detection. "
+                "For optimal performance, install PyQt6 with sip: pip install PyQt6[sip]"
             )
             _SIP_FALLBACK_WARNED = True
         
+        _FALLBACK_CALL_COUNT += 1
+        
+        # Fast path: None check
         if obj is None:
             return True
         
-        # Try to probe object access
+        # Fast path: Non-QObject types are never "deleted" in Qt sense
+        if not hasattr(obj, 'parent'):
+            return False
+        
+        # Qt object deletion detection
         try:
-            # Any Qt attribute access raises ``RuntimeError`` if the object is deleted
-            _ = obj.parent  # or any other Qt attribute
+            # Multiple attribute probes for better detection
+            # Different Qt objects may have different available attributes
+            for attr in ('parent', 'objectName', 'isVisible'):
+                if hasattr(obj, attr):
+                    _ = getattr(obj, attr)
+                    if callable(_):
+                        _ = _()  # Call method if it's callable
+                    break
+            else:
+                # No recognizable Qt attributes - assume not deleted
+                return False
             return False
-        except RuntimeError:
-            # "wrapped C/C++ object has been deleted"
-            return True
-        except AttributeError:
-            # Not a Qt object or no attribute available
+        except RuntimeError as e:
+            # Qt object deleted: "wrapped C/C++ object has been deleted"
+            if "deleted" in str(e).lower():
+                return True
+            # Other RuntimeError - object might still be valid
+            _FALLBACK_ERROR_COUNT += 1
             return False
+        except (AttributeError, TypeError):
+            # Not a Qt object or attribute unavailable
+            return False
+        except Exception:
+            # Unexpected error - assume object is valid to be safe
+            _FALLBACK_ERROR_COUNT += 1
+            return False
+    
+    # Add statistics reporting for monitoring
+    def _get_fallback_stats() -> dict:
+        """Get fallback usage statistics for monitoring."""
+        return {
+            'sip_available': False,
+            'total_calls': _FALLBACK_CALL_COUNT,
+            'error_count': _FALLBACK_ERROR_COUNT,
+            'success_rate': ((_FALLBACK_CALL_COUNT - _FALLBACK_ERROR_COUNT) / max(_FALLBACK_CALL_COUNT, 1)) * 100
+        }
+else:
+    def _get_fallback_stats() -> dict:
+        """Get sip usage statistics."""
+        return {
+            'sip_available': True,
+            'total_calls': 0,
+            'error_count': 0,
+            'success_rate': 100.0
+        }
 
 logger = logging.getLogger(__name__)
 
@@ -496,6 +551,14 @@ class TopBarLayoutManager(QObject):
             with self._adjust_lock:
                 self._adjust_running = False
     
+    def get_sip_statistics(self) -> dict:
+        """Get sip.isdeleted() usage statistics for monitoring.
+        
+        Returns:
+            Dictionary with statistics about sip usage and fallback performance
+        """
+        return _get_fallback_stats()
+    
     def cleanup(self) -> None:
         """Release resources before the manager is destroyed.
 
@@ -504,6 +567,13 @@ class TopBarLayoutManager(QObject):
         """
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug("TopBarLM: starting cleanup")
+            # Log sip statistics during cleanup for monitoring
+            stats = self.get_sip_statistics()
+            if not stats['sip_available'] and stats['total_calls'] > 0:
+                logger.debug(
+                    "TopBarLM: sip fallback stats - calls: %d, errors: %d, success_rate: %.1f%%",
+                    stats['total_calls'], stats['error_count'], stats['success_rate']
+                )
         
         # Improvement note: `ResourceManager` will clean up the timer automatically
         self._resource_manager.cleanup_all()
