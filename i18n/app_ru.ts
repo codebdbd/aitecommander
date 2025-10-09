@@ -358,184 +358,184 @@
   <context>
     <name>FileSearchDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="380" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="132" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="381" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="133" />
       <source>Advanced file search</source>
       <translation>Расширенный поиск файлов</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="382" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="152" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="383" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="153" />
       <source>Search location:</source>
       <translation>Где искать:</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="156" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="157" />
       <source>Browse</source>
       <translation>Обзор</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="384" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="163" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="385" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="164" />
       <source>Name (regex):</source>
       <translation>Имя (регекс):</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="386" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="173" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="387" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="174" />
       <source>Pattern:</source>
       <translation>Шаблон:</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="396" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="233" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="397" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="234" />
       <source>Quickly apply an extension mask</source>
       <translation>Быстро применить маску расширений</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="388" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="244" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="389" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="245" />
       <source>Content:</source>
       <translation>Содержимое:</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="398" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="248" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="399" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="249" />
       <source>Regex</source>
       <translation>Регулярное выражение</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="400" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="249" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="401" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="250" />
       <source>Case sensitive</source>
       <translation>С учетом регистра</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="402" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="251" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="403" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="252" />
       <source>Search</source>
       <translation>Поиск</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="404" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="253" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="405" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="254" />
       <source>Stop</source>
       <translation>Остановить</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="390" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="270" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="391" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="271" />
       <source>Size (KB):</source>
       <translation>Размер (КБ):</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="414" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="276" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="415" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="277" />
       <source>from</source>
       <translation>от</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="416" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="282" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="417" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="283" />
       <source>to</source>
       <translation>до</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="392" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="288" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="393" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="289" />
       <source>Modified:</source>
       <translation>Изменено:</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="304" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="305" />
       <source>Hidden files</source>
       <translation>Скрытые файлы</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="305" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="306" />
       <source>Read-only</source>
       <translation>Только чтение</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="410" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="342" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="411" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="343" />
       <source>Ready to search</source>
       <translation>Готово к поиску</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="406" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="347" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="407" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="348" />
       <source>Add as link</source>
       <translation>Добавить как ссылку</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="408" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="351" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="409" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="352" />
       <source>Open in file explorer</source>
       <translation>Открыть в проводнике</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="355" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="356" />
       <source>Close</source>
       <translation>Закрыть</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="487" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="488" />
       <source>File not found: {path}</source>
       <translation>Файл не найден: {path}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="525" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="526" />
       <source>Failed to open file in explorer: {error}</source>
       <translation>Не удалось открыть файл в проводнике: {error}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="529" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="530" />
       <source>Unexpected error: {error}</source>
       <translation>Неожиданная ошибка: {error}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="544" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="545" />
       <source>Select folder for search</source>
       <translation>Выбор папки для поиска</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="553" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="554" />
       <source>Specify a folder to search.</source>
       <translation>Укажите папку для поиска.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="558" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="560" />
       <source>The folder does not exist: {path}</source>
       <translation>Папка не существует: {path}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="564" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="566" />
       <source>The specified path is not a folder: {path}</source>
       <translation>Указанный путь не является папкой: {path}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="577" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="579" />
       <source>Invalid regular expression for name: {error}</source>
       <translation>Некорректное регулярное выражение для имени: {error}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="591" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="593" />
       <source>Invalid regular expression for content: {error}</source>
       <translation>Некорректное регулярное выражение для содержимого: {error}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="615" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="617" />
       <source>Searching…</source>
       <translation>Поиск…</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="684" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="687" />
       <source>Search error</source>
       <translation>Ошибка поиска</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="700" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="703" />
       <source>Search finished. Files found: {count}</source>
       <translation>Поиск завершен. Найдено файлов: {count}</translation>
     </message>
@@ -802,203 +802,203 @@
     <name>MenuActions</name>
     <message>
       <source>Add section</source>
-      <translation>Добавить раздел</translation>
+      <translation type="vanished">Добавить раздел</translation>
     </message>
     <message>
       <source>Add category</source>
-      <translation>Добавить категорию</translation>
+      <translation type="vanished">Добавить категорию</translation>
     </message>
     <message>
       <source>Add link</source>
-      <translation>Добавить ссылку</translation>
+      <translation type="vanished">Добавить ссылку</translation>
     </message>
     <message>
       <source>Clear favorites</source>
-      <translation>Очистить избранное</translation>
+      <translation type="vanished">Очистить избранное</translation>
     </message>
     <message>
       <source>Exit</source>
-      <translation>Выход</translation>
+      <translation type="vanished">Выход</translation>
     </message>
     <message>
       <source>Settings</source>
-      <translation>Настройки</translation>
+      <translation type="vanished">Настройки</translation>
     </message>
     <message>
       <source>Save database</source>
-      <translation>Сохранить базу данных</translation>
+      <translation type="vanished">Сохранить базу данных</translation>
     </message>
     <message>
       <source>Restore database</source>
-      <translation>Восстановить базу данных</translation>
+      <translation type="vanished">Восстановить базу данных</translation>
     </message>
     <message>
       <source>Connect database</source>
-      <translation>Подключить базу данных</translation>
+      <translation type="vanished">Подключить базу данных</translation>
     </message>
     <message>
       <source>Import from browser</source>
-      <translation>Импорт из браузера</translation>
+      <translation type="vanished">Импорт из браузера</translation>
     </message>
     <message>
       <source>Export icons</source>
-      <translation>Экспорт иконок</translation>
+      <translation type="vanished">Экспорт иконок</translation>
     </message>
     <message>
       <source>Import icons</source>
-      <translation>Импорт иконок</translation>
+      <translation type="vanished">Импорт иконок</translation>
     </message>
     <message>
       <source>Search files</source>
-      <translation>Поиск файлов</translation>
+      <translation type="vanished">Поиск файлов</translation>
     </message>
     <message>
       <source>About</source>
-      <translation>О программе</translation>
+      <translation type="vanished">О программе</translation>
     </message>
     <message>
       <source>Edit section</source>
-      <translation>Редактировать раздел</translation>
+      <translation type="vanished">Редактировать раздел</translation>
     </message>
     <message>
       <source>Edit category</source>
-      <translation>Редактировать категорию</translation>
+      <translation type="vanished">Редактировать категорию</translation>
     </message>
     <message>
       <source>Paste</source>
-      <translation>Вставить</translation>
+      <translation type="vanished">Вставить</translation>
     </message>
     <message>
       <source>Delete section</source>
-      <translation>Удалить раздел</translation>
+      <translation type="vanished">Удалить раздел</translation>
     </message>
     <message>
       <source>Copy</source>
-      <translation>Копировать</translation>
+      <translation type="vanished">Копировать</translation>
     </message>
     <message>
       <source>Cut</source>
-      <translation>Вырезать</translation>
+      <translation type="vanished">Вырезать</translation>
     </message>
     <message>
       <source>Paste</source>
-      <translation>Вставить</translation>
+      <translation type="vanished">Вставить</translation>
     </message>
     <message>
       <source>Delete category</source>
-      <translation>Удалить категорию</translation>
+      <translation type="vanished">Удалить категорию</translation>
     </message>
     <message>
       <source>Delete selected</source>
-      <translation>Удалить выбранное</translation>
+      <translation type="vanished">Удалить выбранное</translation>
     </message>
     <message>
       <source>Select all</source>
-      <translation>Выбрать все</translation>
+      <translation type="vanished">Выбрать все</translation>
     </message>
     <message>
       <source>Sort categories</source>
-      <translation>Сортировать категории</translation>
+      <translation type="vanished">Сортировать категории</translation>
     </message>
     <message>
       <source>&amp;Undo</source>
-      <translation>&amp;Отменить</translation>
+      <translation type="vanished">&amp;Отменить</translation>
     </message>
     <message>
       <source>&amp;Redo</source>
-      <translation>&amp;Повторить</translation>
+      <translation type="vanished">&amp;Повторить</translation>
     </message>
     <message>
       <source>Open</source>
-      <translation>Открыть</translation>
+      <translation type="vanished">Открыть</translation>
     </message>
     <message>
       <source>Edit</source>
-      <translation>Редактировать</translation>
+      <translation type="vanished">Редактировать</translation>
     </message>
     <message>
       <source>Delete</source>
-      <translation>Удалить</translation>
+      <translation type="vanished">Удалить</translation>
     </message>
     <message>
       <source>Copy</source>
-      <translation>Копировать</translation>
+      <translation type="vanished">Копировать</translation>
     </message>
     <message>
       <source>Paste</source>
-      <translation>Вставить</translation>
+      <translation type="vanished">Вставить</translation>
     </message>
     <message>
       <source>Cut</source>
-      <translation>Вырезать</translation>
+      <translation type="vanished">Вырезать</translation>
     </message>
     <message>
       <source>Add link</source>
-      <translation>Добавить ссылку</translation>
+      <translation type="vanished">Добавить ссылку</translation>
     </message>
     <message>
       <source>Select all</source>
-      <translation>Выбрать все</translation>
+      <translation type="vanished">Выбрать все</translation>
     </message>
     <message>
       <source>Edit note</source>
-      <translation>Редактировать заметку</translation>
+      <translation type="vanished">Редактировать заметку</translation>
     </message>
     <message>
       <source>Add to favorites</source>
-      <translation>Добавить в избранное</translation>
+      <translation type="vanished">Добавить в избранное</translation>
     </message>
     <message>
       <source>Remove from favorites</source>
-      <translation>Удалить из избранного</translation>
+      <translation type="vanished">Удалить из избранного</translation>
     </message>
     <message>
       <source>Share</source>
-      <translation>Поделиться</translation>
+      <translation type="vanished">Поделиться</translation>
     </message>
     <message>
       <source>Email</source>
-      <translation>Email</translation>
+      <translation type="vanished">Email</translation>
     </message>
     <message>
       <source>Telegram</source>
-      <translation>Telegram</translation>
+      <translation type="vanished">Telegram</translation>
     </message>
     <message>
       <source>WhatsApp</source>
-      <translation>WhatsApp</translation>
+      <translation type="vanished">WhatsApp</translation>
     </message>
     <message>
       <source>Viber</source>
-      <translation>Viber</translation>
+      <translation type="vanished">Viber</translation>
     </message>
     <message>
       <source>X (Twitter)</source>
-      <translation>X (Twitter)</translation>
+      <translation type="vanished">X (Twitter)</translation>
     </message>
     <message>
       <source>Facebook</source>
-      <translation>Facebook</translation>
+      <translation type="vanished">Facebook</translation>
     </message>
     <message>
       <source>LinkedIn</source>
-      <translation>LinkedIn</translation>
+      <translation type="vanished">LinkedIn</translation>
     </message>
     <message>
       <source>Pinterest</source>
-      <translation>Pinterest</translation>
+      <translation type="vanished">Pinterest</translation>
     </message>
     <message>
       <source>Via Gmail</source>
-      <translation>Через Gmail</translation>
+      <translation type="vanished">Через Gmail</translation>
     </message>
     <message>
       <source>Via default client (mailto)</source>
-      <translation>Через клиент по умолчанию (mailto)</translation>
+      <translation type="vanished">Через клиент по умолчанию (mailto)</translation>
     </message>
     <message>
       <source>Copy as email message</source>
-      <translation>Копировать как email-сообщение</translation>
+      <translation type="vanished">Копировать как email-сообщение</translation>
     </message>
   </context>
   <context>
@@ -1225,11 +1225,8 @@
   <context>
     <name>WindowUISetup</name>
     <message>
-      <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="592" />
-      <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="427" />
-      <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="38" />
       <source>Search… (Ctrl+F)</source>
-      <translation>Поиск… (Ctrl+F)</translation>
+      <translation type="vanished">Поиск… (Ctrl+F)</translation>
     </message>
   </context>
 </TS>

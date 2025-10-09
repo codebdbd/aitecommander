@@ -69,15 +69,16 @@ SOURCES += ../app/controllers/ui/links/controller.py \
            ../app/controllers/ui/links/link_operations.py \
            ../app/controllers/ui/links/table_controller.py
 
-# UI Controllers - Structure
-SOURCES += ../app/controllers/ui/structure/structure_ui_controller.py \
+# Startup - Application initialization and argument parsing
+SOURCES += ../app/startup/argument_parser.py \
            ../app/controllers/ui/structure/tree_management.py \
            ../app/controllers/ui/structure/item_dialogs_service.py \
            ../app/controllers/ui/structure/item_deletion_service.py \
-           ../app/controllers/ui/structure/item_operations.py
+           ../app/controllers/ui/dialogs/data_import_export_controller.py \
 
-# UI Controllers - Undo
-SOURCES += ../app/controllers/ui/undo/commands.py \
+
+# Models - Workers (async operations with user messages)
+SOURCES += ../app/models/workers/README.md \
            ../app/controllers/ui/undo/commands_links.py \
            ../app/controllers/ui/undo/commands_structure.py
 
@@ -88,16 +89,16 @@ SOURCES += ../app/utils/ui/menu_builders/menu_actions.py \
            ../app/utils/ui/menu_builders/structure_menu_builder.py \
            ../app/utils/ui/menu_builders/category_menu_builder.py
 
-# Views - UI setup and panels
-SOURCES += ../app/views/main_components/ui/window_ui_setup.py \
+# Views - Main components initialization (window initializer with user messages)
+SOURCES += ../app/views/main_components/initialization/window_initializer.py \
            ../app/views/main_components/ui/bottom_panel_setup.py \
            ../app/views/main_components/ui/topbar/panel_visibility_manager.py
 
 # Utils - UI validators (translate validation messages)
 SOURCES += ../app/utils/ui/validators.py
 
-# Utils - Links parser
-SOURCES += ../app/utils/links/parser/__init__.py \
+# Services - Share functionality and other services with user messages
+SOURCES += ../app/services/share_service.py
            ../app/utils/links/parser/cache.py \
            ../app/utils/links/parser/constants.py \
            ../app/utils/links/parser/domain.py \

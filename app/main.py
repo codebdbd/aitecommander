@@ -1,6 +1,8 @@
 import logging
+import signal
 import sqlite3
 import sys
+import os
 
 from PyQt6.QtCore import QTimer
 
@@ -36,8 +38,17 @@ class ApplicationInitializer:
         self.theme_controller = None
         self.main_window = None
 
-    def cleanup(self):
+    def cleanup(self, async_cleanup=True):
         """Clean up application resources."""
+        if async_cleanup:
+            # Schedule cleanup in GUI thread to avoid blocking
+            QTimer.singleShot(0, lambda: self._cleanup_sync())
+        else:
+            # Direct cleanup for non-GUI contexts
+            self._cleanup_sync()
+
+    def _cleanup_sync(self):
+        """Synchronous cleanup implementation."""
         try:
             # Close DB connection if available
             if self.database and hasattr(self.database, "close"):
@@ -45,7 +56,6 @@ class ApplicationInitializer:
         except (sqlite3.Error, AttributeError) as e:
             # Log expected connection/attribute errors
             logger.error("Error while closing DB connection: %s", e)
-        # Do not suppress unexpected exceptions
 
         # Wait for background DB tasks to finish (run_db)
         try:
@@ -120,6 +130,10 @@ class ApplicationInitializer:
                 self.theme_controller.set_main_window(self.main_window)
             else:
                 self.theme_controller.main_window = self.main_window
+
+            # Show the main window - critical for desktop GUI applications
+            self.main_window.show()
+
             return True
         except (RuntimeError, TypeError, ValueError) as e:
             logger.error("Error creating main window: %s", e, exc_info=True)
@@ -143,19 +157,59 @@ class ApplicationInitializer:
 
     def initialize_all(self) -> bool:
         """Perform full initialization of all components."""
-        # Apply theme before creating main window to avoid white flash
+        # Apply theme after creating main window to ensure styles are applied correctly
         initialization_steps = [
             ("settings", self.initialize_settings),
             ("database", self.initialize_database),
             ("theme controller", self.initialize_theme_controller),
-            ("theme", self.apply_initial_theme),
             ("main window", self.initialize_main_window),
+            ("theme", self.apply_initial_theme),
         ]
         for step_name, step_func in initialization_steps:
             if not step_func():
                 logger.critical("Critical error during initialization of %s", step_name)
                 return False
         return True
+
+
+def signal_handler(signum, frame, initializer):
+    """Handle system signals (SIGINT, SIGTERM) for graceful shutdown."""
+    signal_name = "SIGINT" if signum == signal.SIGINT else "SIGTERM"
+    logger.info("Received %s signal, initiating graceful shutdown...", signal_name)
+
+    try:
+        # Perform cleanup synchronously for immediate response to signals
+        if initializer:
+            initializer.cleanup(async_cleanup=False)
+    except Exception as e:
+        logger.error("Error during signal cleanup: %s", e)
+
+    # Exit with appropriate code based on signal type
+    exit_code = 128 + signum if signum in (signal.SIGINT, signal.SIGTERM) else 1
+    sys.exit(exit_code)
+
+
+def should_install_signal_handlers():
+    """Determine if signal handlers should be installed.
+
+    Returns False for GUI applications where Ctrl+C should work as copy,
+    True for headless/console applications where Ctrl+C should interrupt.
+    """
+    # If stdin is not a terminal (piped input, redirected, etc.), install handlers
+    if not sys.stdin.isatty():
+        return True
+
+    # If stdout is not a terminal (redirected output), install handlers
+    if not sys.stdout.isatty():
+        return True
+
+    # Check if we're running in a headless mode (no display)
+    if os.environ.get('DISPLAY') == '' or os.environ.get('WAYLAND_DISPLAY') == '':
+        return True
+
+    # For GUI applications with terminal input, don't install handlers
+    # Let PyQt6 handle input naturally or ignore terminal signals
+    return False
 
 
 def main():
@@ -169,10 +223,22 @@ def main():
 
     # Create initializer early so cleanup() runs even on early failures
     initializer = ApplicationInitializer()
+
+    # Install signal handlers only for appropriate contexts
+    if should_install_signal_handlers():
+        logger.info("Installing signal handlers for console/headless mode")
+        signal.signal(signal.SIGINT, lambda s, f: signal_handler(s, f, initializer))
+        signal.signal(signal.SIGTERM, lambda s, f: signal_handler(s, f, initializer))
+    else:
+        logger.info("Running in GUI mode, signal handlers disabled for natural Ctrl+C behavior")
+
     try:
         app = create_application()
         LanguageService.instance().install_translator(app)
         log_system_info()
+
+        # Connect cleanup to application's aboutToQuit signal for proper lifecycle management
+        app.aboutToQuit.connect(lambda: initializer.cleanup() if initializer else None)
 
         if not initializer.initialize_all():
             logger.critical("Failed to initialize application")
@@ -198,8 +264,12 @@ def main():
         logger.critical("Critical error in main(): %s", e, exc_info=True)
         return 1
     finally:
+        # Emergency cleanup only - normal cleanup handled by aboutToQuit signal
         if initializer:
-            initializer.cleanup()
+            try:
+                initializer.cleanup(async_cleanup=False)
+            except Exception as e:
+                logger.error("Error in emergency cleanup: %s", e)
         log_shutdown()
 
 
