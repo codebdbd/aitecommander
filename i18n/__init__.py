@@ -1,11 +1,27 @@
-"""Internationalization package entry point."""
+"""Internationalization (i18n) package for Aite Commander.
 
-from .language_service import LanguageService  # noqa: F401
-from .language_service import language_service  # noqa: F401
-from . import locale_utils  # noqa: F401
+This package provides comprehensive localization support for the PyQt6 application,
+including language switching, translation management, and locale-specific formatting.
+
+Key Components:
+    - LanguageService: Singleton for managing UI languages and translations
+    - locale_utils: Formatting utilities for dates, numbers, and currency
+    - Translation files: .ts and .qm files for different languages
+
+Supported Languages:
+    - en (English) - source language
+    - uk (Ukrainian)
+    - ru (Russian)
+    - fr (French)
+    - es (Spanish)
+    - de (German)
+"""
+
+from __future__ import annotations
 
 __all__ = [
     "LanguageService",
-    "language_service",
-    "locale_utils",
+    "format_datetime",
+    "format_decimal",
+    "format_currency",
 ]
