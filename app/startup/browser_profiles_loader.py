@@ -140,7 +140,7 @@ class BrowserProfilesLoader:
                 loaded_any = False
                 profiles_by_key: dict[str, Any] = {}
                 try:
-                    keys = list(cache.keys())  # type: ignore[attr-defined]
+                    keys = list(cache.keys())
                 except Exception:
                     keys = []
                 for key in keys:

@@ -23,7 +23,7 @@ class PathConfig(BaseConfig):
         # New key: ``paths.ui_icons_dir``; backwards compatibility: ``settings.paths.ui_icons``
         rel = self.get("paths.ui_icons_dir")
         if rel is None:
-            rel = self.get("settings.paths.ui_icons", "views/resources/ui_icons")
+            rel = self.get("settings.paths.ui_icons", "resources/ui_icons")
         p = Path(rel)
         return p if p.is_absolute() else self.get_base_path() / p
 

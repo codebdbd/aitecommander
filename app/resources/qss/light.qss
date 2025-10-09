@@ -123,14 +123,14 @@ QLineEdit, QTextEdit, QComboBox, QSpinBox {
 
 /* Down arrow icon for comboboxes (light theme) */
 QComboBox::down-arrow {
-    image: url("app/views/resources/ui_icons/light/chevron_down.svg");
+    image: url("app/resources/ui_icons/light/chevron_down.svg");
     width: 12px;
     height: 12px;
     margin-right: 6px;
     margin-top: 1px;
 }
 QDialog QComboBox::down-arrow {
-    image: url("app/views/resources/ui_icons/light/chevron_down.svg");
+    image: url("app/resources/ui_icons/light/chevron_down.svg");
     width: 12px;
     height: 12px;
     margin-right: 6px;

@@ -58,16 +58,67 @@ def test_persistent_profile_cache_basic(temp_config_dir: Path):
     assert cache.get(browser) is None
 
 
-def test_persistent_profile_cache_ttl(temp_config_dir: Path):
-    cache = PersistentProfileCache(default_ttl=1.0)
+def test_persistent_profile_cache_keys_method(temp_config_dir: Path):
+    """Test keys() method returns valid keys."""
+    cache = PersistentProfileCache(default_ttl=60)
 
-    browser = "firefox"
-    profiles = [{"name": "Personal"}]
+    # Set multiple browser profiles
+    cache.set("chrome", [{"name": "Default"}])
+    cache.set("firefox", [{"name": "Personal"}])
+    cache.set("edge", [{"name": "Work"}])
 
-    cache.set(browser, profiles)
-    assert cache.get(browser) == profiles
+    # Test keys() method
+    keys = cache.keys()
+    assert len(keys) == 3
+    assert "chrome" in keys
+    assert "firefox" in keys
+    assert "edge" in keys
 
-    # Ждем протухания TTL
-    time.sleep(1.1)
-    assert cache.get(browser) is None
-    cache.flush()
+    # Test __iter__ method
+    keys_from_iter = list(cache)
+    assert len(keys_from_iter) == 3
+    assert "chrome" in keys_from_iter
+    assert "firefox" in keys_from_iter
+    assert "edge" in keys_from_iter
+
+    # Test __len__ method
+    assert len(cache) == 3
+
+    # Test with expired entry
+    cache.set("opera", [{"name": "Temp"}], ttl=0.1)
+    assert len(cache) == 4  # Still 4, not yet expired
+
+    time.sleep(0.2)  # Wait for expiration
+    assert len(cache) == 3  # Should be 3 now (opera expired)
+    keys_after_expiry = cache.keys()
+    assert "opera" not in keys_after_expiry
+
+    # Test empty cache
+    cache.invalidate()  # Clear all
+    assert len(cache) == 0
+    assert list(cache.keys()) == []
+    assert list(cache) == []
+
+
+def test_persistent_profile_cache_keys_persistence(temp_config_dir: Path):
+    """Test that keys() works correctly with persisted data."""
+    # Create cache and add data
+    cache1 = PersistentProfileCache(default_ttl=60)
+    cache1.set("chrome", [{"name": "Default"}])
+    cache1.set("firefox", [{"name": "Personal"}])
+    cache1.flush()
+
+    # Create new cache instance (simulates app restart)
+    cache2 = PersistentProfileCache(default_ttl=60)
+
+    # Test that keys are loaded correctly
+    keys = cache2.keys()
+    assert len(keys) == 2
+    assert "chrome" in keys
+    assert "firefox" in keys
+
+    # Test iteration
+    for key in cache2:
+        assert key in ["chrome", "firefox"]
+        profiles = cache2.get(key)
+        assert profiles is not None
