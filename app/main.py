@@ -1,12 +1,34 @@
+"""
+Main application module for Aite Commander.
+
+This module serves as the primary entry point and initialization hub for the application.
+It handles application lifecycle management, component initialization, graceful shutdown,
+and signal handling for both GUI and console modes.
+
+Key Components:
+    - ApplicationInitializer: Orchestrates the initialization of all application components
+    - Signal handlers: Manage graceful shutdown on system signals
+    - Main function: Entry point that coordinates startup, execution, and cleanup
+
+The module follows a robust initialization pattern with proper error handling,
+resource cleanup, and support for both interactive and headless execution modes.
+"""
+
+from __future__ import annotations
+
 import logging
 import signal
 import sqlite3
 import sys
 import os
-
-from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QApplication
-
+import functools
+import platform
+import threading
+import time
+from contextlib import contextmanager
+from typing import Any, Callable, Optional, Tuple, Type, Protocol, runtime_checkable, TypeVar, Generator
+from PyQt6.QtCore import QTimer, QThreadPool, QCoreApplication
+from PyQt6.QtWidgets import QApplication, QMainWindow
 from app.config_data import app_config
 from app.controllers.system.bootstrap import create_main_window
 from app.controllers.system.db_init import DatabaseInitializer
@@ -16,164 +38,359 @@ from app.settings import AppSettings
 from app.startup.app_factory import create_application
 from i18n.language_service import LanguageService
 from app.startup.argument_parser import determine_log_level, parse_arguments
-
-# Register Qt resources for translations (:/i18n/app_*.qm) if available
-try:  # noqa: SIM105 - best-effort import, optional in dev mode
-    from i18n import resources_rc  # type: ignore  # noqa: F401
+try:
+    from i18n import resources_rc
 except Exception:
-    # Fallback: LanguageService will try filesystem i18n/app_*.qm
     pass
 from app.startup.browser_profiles_loader import BrowserProfilesLoader
 from app.startup.logging_setup import log_shutdown, log_system_info, setup_logging
+from app.views.main_components.resource_manager import ResourceManager
+from app.controllers.system.app_shutdown_controller import AppShutdownController, ShutdownPriority
 
-# Module logger
 logger = logging.getLogger(__name__)
 
+# Constants for signal handling
+SIGNAL_EXIT_CODE_BASE = 128
+
+# Timeouts
+THREAD_POOL_SHUTDOWN_TIMEOUT_MS = 1000
+
+# Retry configuration
+T = TypeVar('T')
+
+
+def retry_on_failure(
+    func: Callable[[], T],
+    max_attempts: int = 3,
+    delay: float = 0.5,
+    exponential_backoff: bool = True
+) -> Optional[T]:
+    """Retry function on failure with optional exponential backoff.
+    
+    Args:
+        func: Function to retry
+        max_attempts: Maximum number of retry attempts
+        delay: Base delay between attempts in seconds
+        exponential_backoff: Whether to use exponential backoff
+        
+    Returns:
+        Function result on success, None on failure
+        
+    Raises:
+        Last exception if all attempts fail
+    """
+    for attempt in range(max_attempts):
+        try:
+            return func()
+        except Exception as e:
+            if attempt == max_attempts - 1:
+                logger.error("All retry attempts failed: %s", e)
+                raise
+            
+            wait_time = delay * (2 ** attempt if exponential_backoff else 1)
+            logger.warning(
+                "Attempt %d/%d failed, retrying in %.2fs: %s",
+                attempt + 1, max_attempts, wait_time, e
+            )
+            time.sleep(wait_time)
+    return None
+
+
+@runtime_checkable
+class Cleanable(Protocol):
+    """Protocol for objects that can be cleaned up."""
+    
+    def close(self) -> None:
+        """Close/cleanup the resource."""
+        ...
+
+
+@runtime_checkable
+class Shutdownable(Protocol):
+    """Protocol for objects that can be shut down."""
+    
+    def shutdown(self) -> None:
+        """Shutdown the component."""
+        ...
+
+
+@runtime_checkable
+class Stoppable(Protocol):
+    """Protocol for objects that can be stopped."""
+    
+    def stop(self) -> None:
+        """Stop the component."""
+        ...
+
+def initialization_method(
+    expected_errors: Tuple[Type[Exception], ...],
+    error_message: str,
+    critical_message: Optional[str] = None,
+) -> Callable[[Callable[..., bool]], Callable[..., bool]]:
+    """Decorator for initialization methods with error handling.
+
+    Args:
+        expected_errors: Tuple of expected exception types
+        error_message: Error message for expected exceptions
+        critical_message: Optional message for unexpected exceptions
+
+    Returns:
+        Decorated function that returns bool (True=success, False=failure)
+    """
+    def decorator(func: Callable[..., bool]) -> Callable[..., bool]:
+        @functools.wraps(func)
+        def wrapper(self: ApplicationInitializer) -> bool:
+            try:
+                return func(self)
+            except expected_errors as e:
+                logger.error(f"{error_message}: %s", e, exc_info=True)
+                return False
+            except (KeyboardInterrupt, SystemExit):
+                raise
+            except Exception as e:
+                message = critical_message or f"Unexpected error in {func.__name__}: %s"
+                logger.critical(message, e, exc_info=True)
+                return False
+        return wrapper
+    return decorator
+
+def _create_component(component_class: Type[Any], *args: Any, **kwargs: Any) -> Any:
+    """Factory function for creating components."""
+    return component_class(*args, **kwargs)
+
+
+def _setup_main_window_post_creation(main_window: QMainWindow, theme_controller: Any) -> QMainWindow:
+    """Configure main window after creation."""
+    if hasattr(theme_controller, "set_main_window"):
+        theme_controller.set_main_window(main_window)
+    else:
+        theme_controller.main_window = main_window
+    main_window.show()
+    return main_window
+
+def _apply_theme_post_creation(theme_controller: Any, settings: AppSettings) -> bool:
+    """Apply theme after window creation."""
+    theme_name = settings.get_theme()
+    theme_controller.apply(theme_name)
+    return True
 
 class ApplicationInitializer:
-    """Initializer for application components."""
+    """Orchestrates application component initialization and cleanup.
+    
+    Uses ResourceManager for proper resource lifecycle management
+    and follows PyQt6 2025 best practices.
+    """
 
-    def __init__(self, settings=None):
+    def __init__(
+        self,
+        settings: Optional[AppSettings] = None,
+        thread_pool: Optional[QThreadPool] = None,
+    ) -> None:
         self.settings = settings
-        self.database = None
-        self.theme_controller = None
-        self.main_window = None
+        self.database: Optional[Database] = None
+        self.theme_controller: Optional[ThemeController] = None
+        self.main_window: Optional[QMainWindow] = None
+        self.thread_pool = thread_pool or QThreadPool.globalInstance()
+        
+        # Use ResourceManager for proper cleanup
+        self._resource_manager = ResourceManager("ApplicationInitializer")
+        self._cleanup_done = False
+        self._cleanup_lock = threading.Lock()
+        self._shutdown_controller: Optional[AppShutdownController] = None
+    
+    def is_healthy(self) -> bool:
+        """Check if all critical components are initialized and ready.
+        
+        Returns:
+            True if all components are properly initialized, False otherwise
+        """
+        return all([
+            self.settings is not None,
+            self.database is not None,
+            self.theme_controller is not None,
+            self.main_window is not None,
+            not self._cleanup_done
+        ])
+    
+    def get_status(self) -> dict[str, Any]:
+        """Get detailed initialization status for debugging and monitoring.
+        
+        Returns:
+            Dictionary with component status and overall health
+        """
+        return {
+            "settings_initialized": self.settings is not None,
+            "database_connected": self.database is not None,
+            "theme_loaded": self.theme_controller is not None,
+            "window_created": self.main_window is not None,
+            "cleanup_done": self._cleanup_done,
+            "healthy": self.is_healthy()
+        }
 
-    def cleanup(self, async_cleanup=True):
-        """Clean up application resources."""
-        if async_cleanup:
-            # Schedule cleanup in GUI thread to avoid blocking
-            QTimer.singleShot(0, lambda: self._cleanup_sync())
-        else:
-            # Direct cleanup for non-GUI contexts
+    def cleanup(self, async_cleanup: bool = False) -> None:
+        """Cleanup resources using ResourceManager.
+        
+        Note: If shutdown controller is available, cleanup is handled there.
+        This method is kept for backward compatibility and emergency cleanup.
+
+        Args:
+            async_cleanup: If True, schedule cleanup via QTimer (unsafe during shutdown)
+        """
+        # Quick check without lock for performance
+        if self._cleanup_done:
+            return
+        
+        # If shutdown controller exists and handles cleanup, delegate to it
+        if self._shutdown_controller and not async_cleanup:
+            logger.debug("Delegating cleanup to AppShutdownController")
+            return
+
+        # Default to synchronous cleanup (safer)
+        if not async_cleanup:
             self._cleanup_sync()
-
-    def _cleanup_sync(self):
-        """Synchronous cleanup implementation."""
-        try:
-            # Close DB connection if available
-            if self.database and hasattr(self.database, "close"):
-                self.database.close()
-        except (sqlite3.Error, AttributeError) as e:
-            # Log expected connection/attribute errors
-            logger.error("Error while closing DB connection: %s", e)
-
-        # Wait for background DB tasks to finish (run_db)
-        try:
-            from app.utils.db.executors.pool import get_thread_pool
-
-            pool = get_thread_pool()
-            try:
-                # Try waiting with timeout if supported
-                if hasattr(pool, "waitForDone"):
-                    try:
-                        pool.waitForDone(5000)  # 5 seconds for graceful shutdown
-                    except TypeError:
-                        # Fallback: signature without args in some versions
-                        pool.waitForDone()
-            except AttributeError as e:
-                # Pool has no expected method — not critical
-                logger.debug("Exception while waiting for thread pool completion: %s", e)
-        except AttributeError as e:
-            # Pool object missing/without expected attributes — not critical
-            logger.debug("Failed to get thread pool for DB tasks: %s", e)
-
-    def initialize_settings(self) -> bool:
-        """Initialize application settings."""
-        try:
-            if self.settings is None:
-                self.settings = AppSettings()
-            return True
-        except (ValueError, OSError, RuntimeError) as e:
-            # Expected environment/settings configuration errors
-            logger.error("Error loading settings: %s", e, exc_info=True)
-            return False
-        except (KeyboardInterrupt, SystemExit):
-            # Re-raise system control exceptions
-            raise
-        except Exception as e:
-            # Unexpected error — mark CRITICAL for quick diagnostics
-            logger.critical("Unexpected error initializing settings: %s", e, exc_info=True)
-            return False
-
-    def initialize_database(self) -> bool:
-        """Initialize database connection."""
-        try:
-            self.database = Database()
-            return True
-        except (sqlite3.Error, OSError, RuntimeError) as e:
-            logger.error("Error connecting to database: %s", e, exc_info=True)
-            return False
-        except (KeyboardInterrupt, SystemExit):
-            # Re-raise system control exceptions
-            raise
-        except Exception as e:
-            logger.critical("Unexpected error initializing database: %s", e, exc_info=True)
-            return False
-
-    def initialize_theme_controller(self) -> bool:
-        """Initialize theme controller."""
-        try:
-            self.theme_controller = ThemeController(
-                self.settings,
-                top_panels_controller=None,
-            )
-            return True
-        except (ValueError, TypeError, RuntimeError) as e:
-            logger.error("Error creating ThemeController: %s", e, exc_info=True)
-            return False
-        except (KeyboardInterrupt, SystemExit):
-            # Re-raise system control exceptions
-            raise
-        except Exception as e:
-            logger.critical("Unexpected error creating ThemeController: %s", e, exc_info=True)
-            return False
-
-    def initialize_main_window(self) -> bool:
-        """Initialize the main application window."""
-        try:
-            # Create window via bootstrap (window doesn't take Database in constructor)
-            self.main_window = create_main_window(
-                self.settings, self.theme_controller, self.database
-            )
-            if hasattr(self.theme_controller, "set_main_window"):
-                self.theme_controller.set_main_window(self.main_window)
+        else:
+            # Verify event loop is still running
+            app = QCoreApplication.instance()
+            if app and not app.closingDown():
+                QTimer.singleShot(0, self._cleanup_sync)
             else:
-                self.theme_controller.main_window = self.main_window
+                logger.warning("Event loop not running, forcing sync cleanup")
+                self._cleanup_sync()
 
-            # Show the main window - critical for desktop GUI applications
-            self.main_window.show()
-
-            return True
-        except (RuntimeError, TypeError, ValueError) as e:
-            logger.error("Error creating main window: %s", e, exc_info=True)
-            return False
-        except (KeyboardInterrupt, SystemExit):
-            # Re-raise system control exceptions
-            raise
-        except Exception as e:
-            logger.critical("Unexpected error creating main window: %s", e, exc_info=True)
-            return False
-
-    def apply_initial_theme(self) -> bool:
-        """Apply the initial theme."""
+    def _cleanup_sync(self) -> None:
+        """Synchronous cleanup implementation using ResourceManager.
+        
+        This method can be called directly or through AppShutdownController.
+        """
+        # Check and set cleanup flag atomically
+        with self._cleanup_lock:
+            if self._cleanup_done:
+                logger.debug("Cleanup already performed, skipping")
+                return
+            self._cleanup_done = True
+            
+        # Perform cleanup without holding lock
+        start_time = time.perf_counter()
         try:
-            theme_name = self.settings.get_theme()
-            self.theme_controller.apply(theme_name)
-            return True
-        except (ValueError, RuntimeError, TypeError) as e:
-            logger.error("Error applying theme: %s", e, exc_info=True)
-            return False
-        except (KeyboardInterrupt, SystemExit):
-            # Re-raise system control exceptions
-            raise
+            logger.debug("Starting ApplicationInitializer cleanup")
+            
+            # Use ResourceManager for proper cleanup
+            self._resource_manager.cleanup_all()
+            
+            # Additional thread pool cleanup (if not handled by shutdown controller)
+            if self.thread_pool and hasattr(self.thread_pool, "waitForDone"):
+                active_count = getattr(self.thread_pool, 'activeThreadCount', lambda: 0)()
+                if active_count > 0:
+                    logger.debug("Waiting for %d threads to complete", active_count)
+                    self.thread_pool.waitForDone(THREAD_POOL_SHUTDOWN_TIMEOUT_MS)
+                
         except Exception as e:
-            logger.critical("Unexpected error applying theme: %s", e, exc_info=True)
+            logger.error("Error during ApplicationInitializer cleanup: %s", e, exc_info=True)
+        finally:
+            duration = time.perf_counter() - start_time
+            logger.debug("ApplicationInitializer cleanup completed in %.2fms", duration * 1000)
+
+    def _register_if_cleanable(self, resource: Any, name: str) -> None:
+        """Helper to safely register cleanable resources using duck typing."""
+        if resource is not None:
+            try:
+                # Check if it has close method (duck typing)
+                if hasattr(resource, 'close') and callable(resource.close):
+                    self._resource_manager.register_resource(resource, name=name)
+                # Also check for shutdown
+                elif hasattr(resource, 'shutdown') and callable(resource.shutdown):
+                    self._resource_manager.register_resource(resource, name=name)
+                # Check for stop method
+                elif hasattr(resource, 'stop') and callable(resource.stop):
+                    self._resource_manager.register_resource(resource, name=name)
+            except Exception as e:
+                logger.warning("Failed to register resource %s: %s", name, e)
+
+    @initialization_method(
+        expected_errors=(ValueError, OSError, RuntimeError),
+        error_message="Error loading settings",
+        critical_message="Unexpected error initializing settings"
+    )
+    def initialize_settings(self) -> bool:
+        self.settings = _create_component(AppSettings) if self.settings is None else self.settings
+        self._register_if_cleanable(self.settings, "settings")
+        return True
+
+    @initialization_method(
+        expected_errors=(sqlite3.Error, OSError, RuntimeError),
+        error_message="Error connecting to database",
+        critical_message="Unexpected error initializing database"
+    )
+    def initialize_database(self) -> bool:
+        # Type narrowing for better IDE support and type safety with retry mechanism
+        db = retry_on_failure(
+            lambda: _create_component(Database),
+            max_attempts=3,
+            delay=0.5
+        )
+        
+        if db is None or not isinstance(db, Database):
+            logger.error("Database component creation failed or returned unexpected type: %s", type(db))
             return False
+        
+        self.database = db
+        self._register_if_cleanable(self.database, "database")
+        return True
+
+    @initialization_method(
+        expected_errors=(ValueError, TypeError, RuntimeError),
+        error_message="Error creating ThemeController",
+        critical_message="Unexpected error creating ThemeController"
+    )
+    def initialize_theme_controller(self) -> bool:
+        self.theme_controller = _create_component(
+            ThemeController,
+            self.settings,
+            top_panels_controller=None,
+        )
+        self._register_if_cleanable(self.theme_controller, "theme_controller")
+        return True
+
+    @initialization_method(
+        expected_errors=(RuntimeError, TypeError, ValueError),
+        error_message="Error creating main window",
+        critical_message="Unexpected error creating main window"
+    )
+    def initialize_main_window(self) -> bool:
+        self.main_window = _create_component(
+            create_main_window,
+            self.settings, self.theme_controller, self.database
+        )
+        _setup_main_window_post_creation(self.main_window, self.theme_controller)
+        self._register_if_cleanable(self.main_window, "main_window")
+        
+        # Initialize shutdown controller after main window is created
+        if self.main_window:
+            self._shutdown_controller = AppShutdownController(self.main_window)
+            # Register ApplicationInitializer cleanup with shutdown controller
+            self._shutdown_controller.add_shutdown_handler(
+                "application_initializer_cleanup",
+                self._cleanup_sync,
+                priority=ShutdownPriority.HIGH,
+                timeout=3000,
+                critical=True
+            )
+        return True
+
+    @initialization_method(
+        expected_errors=(ValueError, RuntimeError, TypeError),
+        error_message="Error applying theme",
+        critical_message="Unexpected error applying theme"
+    )
+    def apply_initial_theme(self) -> bool:
+        return _apply_theme_post_creation(self.theme_controller, self.settings)
 
     def initialize_all(self) -> bool:
-        """Perform full initialization of all components."""
-        # Apply theme after creating main window to ensure styles are applied correctly
+        """Initialize all components in correct order.
+
+        Returns:
+            True if all initialization steps succeeded, False otherwise
+        """
         initialization_steps = [
             ("settings", self.initialize_settings),
             ("database", self.initialize_database),
@@ -181,130 +398,238 @@ class ApplicationInitializer:
             ("main window", self.initialize_main_window),
             ("theme", self.apply_initial_theme),
         ]
-        for step_name, step_func in initialization_steps:
-            if not step_func():
-                logger.critical("Critical error during initialization of %s", step_name)
-                return False
+        created_components = []
+        try:
+            for step_name, step_func in initialization_steps:
+                if not step_func():
+                    logger.critical("Critical error during initialization of %s", step_name)
+                    self._cleanup_created_components(created_components)
+                    return False
+                if step_name == "settings" and self.settings:
+                    created_components.append(("settings", self.settings))
+                elif step_name == "database" and self.database:
+                    created_components.append(("database", self.database))
+                elif step_name == "theme controller" and self.theme_controller:
+                    created_components.append(("theme_controller", self.theme_controller))
+                elif step_name == "main window" and self.main_window:
+                    created_components.append(("main_window", self.main_window))
+        except Exception as e:
+            logger.critical("Unexpected error during initialization: %s", e, exc_info=True)
+            self._cleanup_created_components(created_components)
+            return False
         return True
 
+    def _cleanup_created_components(self, created_components: list[tuple[str, Any]]) -> None:
+        """Cleanup components created during failed initialization.
+        
+        This method is kept for backward compatibility but delegates to ResourceManager.
+        """
+        # ResourceManager handles cleanup automatically, but we can force it here
+        try:
+            self._resource_manager.cleanup_all()
+        except Exception as e:
+            logger.error("Error during component cleanup: %s", e, exc_info=True)
 
-def signal_handler(signum, frame, initializer):
-    """Handle system signals (SIGINT, SIGTERM) for graceful shutdown."""
+def safe_signal_handler(
+    signum: int, frame: Any, initializer: ApplicationInitializer
+) -> None:
+    """Wrapper for signal handler with exception protection."""
+    try:
+        signal_handler(signum, frame, initializer)
+    except Exception as e:
+        logger.error("Error in signal handler: %s", e, exc_info=True)
+        sys.exit(1)
+
+
+def signal_handler(
+    signum: int, frame: Any, initializer: ApplicationInitializer
+) -> None:
+    """Handle SIGINT/SIGTERM signals.
+
+    Args:
+        signum: Signal number
+        frame: Current stack frame
+        initializer: Application initializer instance (unused, kept for compatibility)
+    """
     signal_name = "SIGINT" if signum == signal.SIGINT else "SIGTERM"
     logger.info("Received %s signal, initiating graceful shutdown...", signal_name)
+    # Use constant for exit code calculation
+    exit_code = (
+        SIGNAL_EXIT_CODE_BASE + signum
+        if signum in (signal.SIGINT, signal.SIGTERM)
+        else 1
+    )
+    QCoreApplication.exit(exit_code)
 
-    try:
-        # Perform cleanup synchronously for immediate response to signals
-        if initializer:
-            initializer.cleanup(async_cleanup=False)
-    except (KeyboardInterrupt, SystemExit):
-        # Re-raise system control exceptions during cleanup
-        raise
-    except Exception as e:
-        logger.error("Error during signal cleanup: %s", e)
-
-    # Exit with appropriate code based on signal type
-    exit_code = 128 + signum if signum in (signal.SIGINT, signal.SIGTERM) else 1
-    sys.exit(exit_code)
-
-
-def should_install_signal_handlers():
+def should_install_signal_handlers() -> bool:
     """Determine if signal handlers should be installed.
 
-    Returns False for GUI applications where Ctrl+C should work as copy,
-    True for headless/console applications where Ctrl+C should interrupt.
+    Returns:
+        True for console/headless mode, False for GUI mode
     """
-    # If stdin is not a terminal (piped input, redirected, etc.), install handlers
-    if not sys.stdin.isatty():
+    if platform.system() == "Windows":
+        return not sys.stdin.isatty() or not sys.stdout.isatty()
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
         return True
-
-    # If stdout is not a terminal (redirected output), install handlers
-    if not sys.stdout.isatty():
+    display_empty = os.environ.get('DISPLAY') in (None, '')
+    wayland_empty = os.environ.get('WAYLAND_DISPLAY') in (None, '')
+    if display_empty and wayland_empty:
         return True
-
-    # Check if we're running in a headless mode (no display)
-    if os.environ.get('DISPLAY') == '' or os.environ.get('WAYLAND_DISPLAY') == '':
-        return True
-
-    # For GUI applications with terminal input, don't install handlers
-    # Let PyQt6 handle input naturally or ignore terminal signals
     return False
 
 
-def main():
-    """Main application entry point."""
-    # Parse command line arguments
+# Type alias for signal handler functions
+SignalHandler = Callable[[int, Any], None]
+
+def setup_signal_handling(initializer: ApplicationInitializer) -> Optional[SignalHandler]:
+    """Setup cross-platform signal handling compatible with Qt.
+    
+    Args:
+        initializer: Application initializer instance for cleanup coordination
+        
+    Returns:
+        Signal handler callable on success, None if not installed
+    """
+    if platform.system() != "Windows":
+        # On Unix, allow Qt to handle Ctrl+C naturally
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        
+        # For SIGTERM, use traditional approach for now
+        # TODO(#signal-integration): Implement QSocketNotifier-based handling for better Qt integration
+        #  See: https://doc.qt.io/qt-6/qsocketnotifier.html
+        #  Benefits: True Qt event loop integration, no signal context restrictions
+        def sigterm_handler(signum: int, frame: Any) -> None:
+            logger.info("Received SIGTERM, initiating graceful shutdown...")
+            QCoreApplication.exit(SIGNAL_EXIT_CODE_BASE + signum)
+        
+        signal.signal(signal.SIGTERM, sigterm_handler)
+        return sigterm_handler
+    else:
+        # Windows: traditional approach with proper function reference
+        def signal_wrapper(signum: int, frame: Any) -> None:
+            safe_signal_handler(signum, frame, initializer)
+        
+        signal.signal(signal.SIGINT, signal_wrapper)
+        signal.signal(signal.SIGTERM, signal_wrapper)
+        return signal_wrapper
+
+def main() -> int:
+    """Application entry point.
+
+    Returns:
+        Exit code (0=success, 1=initialization failure, 2=runtime error)
+    """
     args = parse_arguments()
     log_level = determine_log_level(args)
-
-    # Initialize logging system
     setup_logging(log_level)
-
-    # Create initializer early so cleanup() runs even on early failures
     initializer = ApplicationInitializer()
-
-    # Install signal handlers only for appropriate contexts
+    signal_handler_obj: Optional[SignalHandler] = None
+    
     if should_install_signal_handlers():
         logger.info("Installing signal handlers for console/headless mode")
-        signal.signal(signal.SIGINT, lambda s, f: signal_handler(s, f, initializer))
-        signal.signal(signal.SIGTERM, lambda s, f: signal_handler(s, f, initializer))
+        signal_handler_obj = setup_signal_handling(initializer)
     else:
         logger.info("Running in GUI mode, signal handlers disabled for natural Ctrl+C behavior")
-
     try:
-        # Check for existing QApplication instance (PyQt6 singleton pattern)
+        # Safer QApplication creation
         app = QApplication.instance()
         if app is None:
             logger.info("Creating new QApplication instance")
             app = create_application()
+            if app is None:
+                logger.critical("Failed to create QApplication instance")
+                return 1
         else:
             logger.info("Using existing QApplication instance")
 
-        # Configure quit behavior based on application settings
         quit_on_last_window = app_config.get("ui.quit_on_last_window_closed", True)
         app.setQuitOnLastWindowClosed(quit_on_last_window)
         logger.info("Set quit on last window closed: %s", quit_on_last_window)
 
-        LanguageService.instance().install_translator(app)
+        # Load i18n resources with error handling
+        try:
+            LanguageService.instance().install_translator(app)
+        except Exception as e:
+            logger.warning("Failed to install translator: %s", e)
+
         log_system_info()
-
-        # Connect cleanup to application's aboutToQuit signal for proper lifecycle management
-        app.aboutToQuit.connect(lambda: initializer.cleanup() if initializer else None)
-
         if not initializer.initialize_all():
             logger.critical("Failed to initialize application")
             if app:
                 app.quit()
             return 1
-
-        # Initialize DB in background
         db_initializer = DatabaseInitializer(
             initializer.database, initializer.main_window
         )
         db_initializer.initialize_async()
-
-        # Set up lazy loading of browser profiles
         profiles_loader = BrowserProfilesLoader(initializer.main_window)
         profiles_loader.setup_lazy_loading()
-
         startup_delay = app_config.get("startup.app_ready_delay_ms", 100)
-        QTimer.singleShot(startup_delay, lambda: logger.info("Application started successfully"))
+        QTimer.singleShot(
+            startup_delay, lambda: logger.info("Application started successfully")
+        )
+
         exit_code = app.exec()
-        return exit_code
+
+        # Handle Qt-specific exit codes
+        if exit_code == -1:
+            logger.critical("QApplication exec() failed with error code -1")
+            return 2  # Map to application error code
+        elif exit_code < 0:
+            logger.error("QApplication returned unexpected negative code: %d", exit_code)
+            return 2
+        else:
+            logger.info("Application exited with code: %d", exit_code)
+            return 0 if exit_code == 0 else 1
+
     except (KeyboardInterrupt, SystemExit):
-        # Re-raise system control exceptions - let them propagate
+        logger.info("Application interrupted by user")
         raise
     except Exception as e:
         logger.critical("Critical error in main(): %s", e, exc_info=True)
-        return 1
+        return 2
     finally:
-        # Emergency cleanup only - normal cleanup handled by aboutToQuit signal
+        # Emergency cleanup only if shutdown controller wasn't used
         if initializer:
+            with initializer._cleanup_lock:
+                cleanup_needed = not initializer._cleanup_done
+            
+            if cleanup_needed:
+                try:
+                    logger.info("Performing emergency cleanup in finally block")
+                    # Always synchronous in finally
+                    initializer.cleanup(async_cleanup=False)
+                except Exception as e:
+                    logger.error("Error in emergency cleanup: %s", e)
+        
+        # Restore default signal handlers if they were installed
+        if signal_handler_obj:
             try:
-                initializer.cleanup(async_cleanup=False)
+                signal.signal(signal.SIGINT, signal.SIG_DFL)
+                signal.signal(signal.SIGTERM, signal.SIG_DFL)
+                logger.debug("Restored default signal handlers")
             except Exception as e:
-                logger.error("Error in emergency cleanup: %s", e)
+                logger.warning("Failed to restore signal handlers: %s", e)
+        
         log_shutdown()
+
+@contextmanager
+def application_context() -> Generator[ApplicationInitializer, None, None]:
+    """Context manager for application lifecycle (useful in tests).
+    
+    Yields:
+        Initialized ApplicationInitializer instance
+        
+    Raises:
+        RuntimeError: If application initialization fails
+    """
+    initializer = ApplicationInitializer()
+    try:
+        if not initializer.initialize_all():
+            raise RuntimeError("Failed to initialize application")
+        yield initializer
+    finally:
+        initializer.cleanup(async_cleanup=False)
 
 
 if __name__ == "__main__":

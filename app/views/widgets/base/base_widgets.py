@@ -55,10 +55,9 @@ class BasePanelWidget(QWidget):
 
 # DEPRECATED: Backward compatibility wrapper for tests
 # Use ``BaseTopPanelWidget`` directly in new code
-from app.views.widgets.base.base_panel_widgets import BaseTopPanelWidget
 
 
-class BaseLinksPanelWidget(BaseTopPanelWidget):
+class BaseLinksPanelWidget:
     """Deprecated shim that delegates to ``BaseTopPanelWidget``.
 
     The class exists solely for backward compatibility with legacy tests.
@@ -79,8 +78,11 @@ class BaseLinksPanelWidget(BaseTopPanelWidget):
         links_business: LinksBusinessProtocol = None,
         batch_size: int = 50
     ) -> None:
+        # Import locally to avoid circular import
+        from app.views.widgets.base.base_panel_widgets import BaseTopPanelWidget
+        
         # Call unified base with specified batch_size
-        super().__init__(main_window=main_window, config=None, batch_size=batch_size)
+        BaseTopPanelWidget.__init__(self, main_window=main_window, config=None, batch_size=batch_size)
         
         # Store for backward compatibility with older code/tests
         self.links_business = links_business

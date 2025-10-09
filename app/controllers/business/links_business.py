@@ -199,7 +199,7 @@ class LinksBusinessLogic(QObject):
         self.logger.debug("Searching links for query: %s", q)
 
         self._run_db_task(
-            lambda: self.links.search_links(q) or [],
+            lambda: self.links.search(q) or [],
             description=f"search_links(query={q!r})",
             on_finished=self._on_search_finished,
         )

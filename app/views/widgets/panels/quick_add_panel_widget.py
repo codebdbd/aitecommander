@@ -37,6 +37,7 @@ class QuickAddPanelWidget(BaseTopPanelWidget):
         super().__init__(main_window, config=config, batch_size=batch_size)
 
         # Store category provider for quick add payloads
+        # We'll get the category dynamically when needed, not during initialization
         self.category_provider = category_provider or main_window
 
         # Set object names for styling
@@ -96,17 +97,9 @@ class QuickAddPanelWidget(BaseTopPanelWidget):
 
     def _handle_quick_add(self, link_type: str) -> None:
         """Handles quick add button click."""
-        category_id = None
-        if self.category_provider and hasattr(
-            self.category_provider, "get_current_category_id"
-        ):
-            try:
-                category_id = self.category_provider.get_current_category_id()
-            except Exception as exc:
-                logger.warning(
-                    "QuickAddPanelWidget: failed to get current category: %s",
-                    exc,
-                )
+        # Get current category dynamically when the button is clicked
+        # This ensures we get the most up-to-date category selection
+        category_id = self._get_current_category_id()
 
         payload = {
             "type": "quick_add",
@@ -116,3 +109,36 @@ class QuickAddPanelWidget(BaseTopPanelWidget):
 
         # Emit unified signal
         self._emit_action_safely(payload)
+
+    def _get_current_category_id(self) -> Optional[int]:
+        """Get the current category ID dynamically."""
+        if not self.category_provider:
+            logger.debug("QuickAddPanelWidget: no category provider available")
+            return None
+
+        if hasattr(self.category_provider, "get_current_category_id"):
+            try:
+                category_id = self.category_provider.get_current_category_id()
+                if category_id is not None:
+                    logger.debug("QuickAddPanelWidget: got category_id=%s", category_id)
+                    return category_id
+                else:
+                    logger.debug("QuickAddPanelWidget: get_current_category_id() returned None")
+            except Exception as exc:
+                logger.warning(
+                    "QuickAddPanelWidget: failed to get current category: %s",
+                    exc,
+                )
+
+        # Fallback: try to get category from facade if category_provider has one
+        if hasattr(self.category_provider, "facade") and self.category_provider.facade:
+            try:
+                category_id = self.category_provider.facade.get_current_category_id()
+                if category_id is not None:
+                    logger.debug("QuickAddPanelWidget: got category_id from facade=%s", category_id)
+                    return category_id
+            except Exception as exc:
+                logger.debug("QuickAddPanelWidget: failed to get category from facade: %s", exc)
+
+        logger.debug("QuickAddPanelWidget: no category_id available, using None")
+        return None

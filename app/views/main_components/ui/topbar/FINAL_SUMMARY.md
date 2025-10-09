@@ -235,12 +235,12 @@
 ```python
 # Production
 from app.config_data import app_config
-from app.views.main_components.topbar.config_protocol import AppConfigAdapter
+from app.views.main_components.ui.topbar.config_protocol import AppConfigAdapter
 
 manager = TopBarLayoutManager(window, AppConfigAdapter(app_config))
 
 # Testing
-from app.views.main_components.topbar.config_protocol import MockTopBarConfig
+from app.views.main_components.ui.topbar.config_protocol import MockTopBarConfig
 
 config = MockTopBarConfig(button_size=24, search_min_width=100)
 manager = TopBarLayoutManager(window, config)

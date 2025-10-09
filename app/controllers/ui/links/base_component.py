@@ -94,11 +94,16 @@ class BaseLinksUIComponent:
             informative_text="Try again or contact support.",
         )
 
-    def _validate_category_exists(self, category_id: Optional[int]) -> int:
-        """Check category existence."""
+    def _validate_category_exists(self, category_id: Optional[int]) -> Optional[int]:
+        """Check category existence and return valid category ID.
+
+        Returns category_id if provided and valid, otherwise tries to get current category.
+        Returns None if no valid category found (instead of raising exception).
+        """
         if not category_id:
             current_category_id = self.main.get_current_category_id()
             if not current_category_id:
-                raise CategoryNotFoundError(self.get_message("no_categories"))
+                logger.debug("_validate_category_exists: no category available")
+                return None
             return current_category_id
         return category_id

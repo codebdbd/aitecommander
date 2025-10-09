@@ -88,13 +88,11 @@ class LanguageService(QObject):
         return QLocale(locale_name)
 
     def set_language(self, lang_code: str) -> None:
-        logger.info("LanguageService.set_language() called with: %s", lang_code)
         lang_code = self._normalize_code(lang_code)
-        logger.info("LanguageService: normalized code: %s, current: %s", lang_code, self._current_language)
         if lang_code == self._current_language:
-            logger.info("LanguageService: language unchanged, skipping")
+            logger.debug("LanguageService: language unchanged, skipping")
             return
-        logger.info("LanguageService: applying language %s", lang_code)
+        logger.info("LanguageService: changing language from %s to %s", self._current_language, lang_code)
         self._apply_language(lang_code)
 
     def install_translator(self, app: QApplication, lang_code: Optional[str] = None) -> None:
@@ -149,10 +147,7 @@ class LanguageService(QObject):
         self._update_text_direction(locale)
         logger.info("LanguageService: language changed to '%s' (locale: %s)", lang_code, descriptor.locale_name)
         if emit_signal:
-            logger.info("LanguageService: emitting languageChanged signal")
             self.languageChanged.emit(lang_code)
-        else:
-            logger.debug("LanguageService: signal emission suppressed")
 
     def _detach_translator(self) -> None:
         if self._app and self._translator:
@@ -181,7 +176,7 @@ class LanguageService(QObject):
             # Force Qt to update translation cache
             from PyQt6.QtCore import QCoreApplication
             QCoreApplication.processEvents()
-            logger.info("LanguageService: loaded translation from file: %s", file_path)
+            logger.debug("LanguageService: loaded translation from file: %s", file_path)
             return True
 
         # Fallback to resource (packaged builds)
@@ -191,7 +186,7 @@ class LanguageService(QObject):
             # Force Qt to update translation cache
             from PyQt6.QtCore import QCoreApplication
             QCoreApplication.processEvents()
-            logger.info("LanguageService: loaded translation from resource: %s", resource_path)
+            logger.debug("LanguageService: loaded translation from resource: %s", resource_path)
             return True
 
         logger.warning(

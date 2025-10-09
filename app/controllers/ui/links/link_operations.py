@@ -21,11 +21,9 @@ class LinksUILinkOperations(BaseLinksUIComponent):
 
     def quick_add_link(self, link_type: str, category_id: int = None):
         """Quick add link."""
-        try:
-            cat_id = self._validate_category_exists(category_id)
-        except CategoryNotFoundError as e:
-            self._show_warning(str(e))
-            return
+        # Always try to open dialog, even if no category is selected
+        # The dialog will handle the case when no category is available
+        cat_id = self._validate_category_exists(category_id)
 
         # Create dialog controller
         from PyQt6.QtWidgets import QDialog

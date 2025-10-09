@@ -129,6 +129,11 @@ i18n/
 ├── language_service.py          # Сервис управления языками
 ├── locale_utils.py              # Утилиты форматирования (даты, числа)
 ├── update_and_report.py         # Helper-скрипт для автоматизации
+├── validate_translations.py    # Валидация .ts файлов
+├── fix_critical_issues.py       # Исправление критических проблем
+├── complete_translations.py     # Завершение незавершенных переводов
+├── quality_validator.py         # Валидация качества переводов
+├── auto_translate.py            # Автоперевод (осторожно!)
 ├── update_translations.bat      # Batch для обновления .ts
 ├── compile_translations.bat     # Batch для компиляции .qm
 ├── resources.qrc                # Qt Resource Collection
