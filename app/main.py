@@ -28,7 +28,7 @@ import time
 from contextlib import contextmanager
 from enum import IntEnum
 from typing import Any, Callable, Optional, Tuple, Type, Protocol, runtime_checkable, TypeVar, Generator, List
-from PyQt6.QtCore import QTimer, QThreadPool, QCoreApplication, QSocketNotifier
+from PyQt6.QtCore import QTimer, QThreadPool, QCoreApplication, QSocketNotifier, Qt
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from app.config_data import app_config
 from app.controllers.system.bootstrap import create_main_window
@@ -41,8 +41,10 @@ from i18n.language_service import LanguageService
 from app.startup.argument_parser import determine_log_level, parse_arguments
 try:
     from i18n import resources_rc
-except Exception:
-    pass
+    # Initialize resources explicitly for PyQt6
+    resources_rc.qInitResources()
+except Exception as e:
+    logger.warning("Failed to load i18n resources: %s", e)
 from app.startup.browser_profiles_loader import BrowserProfilesLoader
 from app.startup.logging_setup import log_shutdown, log_system_info, setup_logging
 from app.views.main_components.resource_manager import ResourceManager
@@ -220,6 +222,8 @@ class ApplicationInitializer:
         self._cleanup_done = False
         self._cleanup_lock = threading.Lock()
         self._shutdown_controller: Optional[AppShutdownController] = None
+        # Store signal notifiers for proper shutdown
+        self._signal_notifiers: List[QSocketNotifier] = []
     
     def __enter__(self) -> ApplicationInitializer:
         """Context manager entry - initialize application.
@@ -406,6 +410,15 @@ class ApplicationInitializer:
         start_time = time.perf_counter()
         try:
             logger.debug("Starting ApplicationInitializer cleanup")
+            
+            # Disconnect signal notifiers to prevent memory leaks
+            for notifier in self._signal_notifiers:
+                try:
+                    if hasattr(notifier, 'activated'):
+                        notifier.activated.disconnect()
+                    notifier.setEnabled(False)
+                except Exception as e:
+                    logger.warning("Failed to disconnect signal notifier: %s", e)
             
             # Use ResourceManager for proper cleanup
             self._resource_manager.cleanup_all()
@@ -657,11 +670,14 @@ def main() -> int:
     log_level = determine_log_level(args)
     setup_logging(log_level)
     try:
-        # Safer QApplication creation
+        # Safer QApplication creation with HiDPI support
         app = QApplication.instance()
         if app is None:
             logger.info("Creating new QApplication instance")
             app = create_application()
+            if app is not None:
+                # Configure HiDPI support for PyQt6 2025 best practices
+                app.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
             if app is None:
                 logger.critical("Failed to create QApplication instance")
                 return 1
@@ -674,13 +690,13 @@ def main() -> int:
         if should_install_signal_handlers():
             logger.info("Installing signal handlers for console/headless mode")
             signal_notifiers = setup_signal_handling(app, initializer)
+            # Store signal notifiers in initializer for proper cleanup
+            initializer._signal_notifiers = signal_notifiers
         else:
             logger.info("Running in GUI mode, signal handlers disabled for natural Ctrl+C behavior")
         quit_on_last_window = app_config.get("ui.quit_on_last_window_closed", True)
         app.setQuitOnLastWindowClosed(quit_on_last_window)
         logger.info("Set quit on last window closed: %s", quit_on_last_window)
-
-        # Load i18n resources with error handling
         try:
             LanguageService.instance().install_translator(app)
         except Exception as e:
