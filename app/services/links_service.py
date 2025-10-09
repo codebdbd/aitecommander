@@ -37,6 +37,10 @@ class LinksService:
     def search(self, query: str) -> List[Dict[str, Any]]:
         return self.repo.search_links(query)
 
+    def search_links(self, query: str) -> List[Dict[str, Any]]:
+        """Alias for search method to maintain backward compatibility."""
+        return self.search(query)
+
     def count_links_by_category(self, category_id: int) -> int:
         return self.repo.count_links_by_category(category_id)
 

@@ -1,6 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
-<TS version="2.1" language="en">
+<?xml version='1.0' encoding='utf-8'?>
+<TS version="2.1" language="en" sourcelanguage="en">
   <context>
     <name>AsyncOperationDialog</name>
     <message>
@@ -756,32 +755,32 @@
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="49" />
       <source>&amp;Actions</source>
-      <translation type="unfinished" />
+      <translation>&amp;Actions</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="128" />
       <source>&amp;File</source>
-      <translation type="unfinished" />
+      <translation>&amp;File</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="143" />
       <source>&amp;Data</source>
-      <translation type="unfinished" />
+      <translation>&amp;Data</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="190" />
       <source>&amp;Search</source>
-      <translation type="unfinished" />
+      <translation>&amp;Search</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="201" />
       <source>&amp;Themes</source>
-      <translation type="unfinished" />
+      <translation>&amp;Themes</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="221" />
       <source>&amp;Help</source>
-      <translation type="unfinished" />
+      <translation>&amp;Help</translation>
     </message>
   </context>
   <context>
@@ -799,35 +798,7 @@
   </context>
   <context>
     <name>MenuActions</name>
-    <message>
-      <source>Add link</source>
-      <translation type="vanished">Add link</translation>
-    </message>
-    <message>
-      <source>Settings</source>
-      <translation type="vanished">Settings</translation>
-    </message>
-    <message>
-      <source>Import from browser</source>
-      <translation type="vanished">Import from browser</translation>
-    </message>
-    <message>
-      <source>Select all</source>
-      <translation type="vanished">Select all</translation>
-    </message>
-    <message>
-      <source>&amp;Undo</source>
-      <translation type="vanished">&amp;Undo</translation>
-    </message>
-    <message>
-      <source>&amp;Redo</source>
-      <translation type="vanished">&amp;Redo</translation>
-    </message>
-    <message>
-      <source>Edit</source>
-      <translation type="vanished">Edit</translation>
-    </message>
-  </context>
+    </context>
   <context>
     <name>MoveOperationsHandler</name>
     <message>

@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
+<?xml version='1.0' encoding='utf-8'?>
 <TS version="2.1" language="de_DE" sourcelanguage="en">
   <context>
     <name>AsyncOperationDialog</name>
@@ -756,32 +755,32 @@
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="49" />
       <source>&amp;Actions</source>
-      <translation type="unfinished" />
+      <translation>&amp;Aktionen</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="128" />
       <source>&amp;File</source>
-      <translation type="unfinished" />
+      <translation>&amp;Datei</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="143" />
       <source>&amp;Data</source>
-      <translation type="unfinished" />
+      <translation>&amp;Daten</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="190" />
       <source>&amp;Search</source>
-      <translation type="unfinished" />
+      <translation>&amp;Suchen</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="201" />
       <source>&amp;Themes</source>
-      <translation type="unfinished" />
+      <translation>&amp;Designs</translation>
     </message>
     <message>
       <location filename="..\app\utils\ui\menu_builders\main_menu_builder.py" line="221" />
       <source>&amp;Help</source>
-      <translation type="unfinished" />
+      <translation>&amp;Hilfe</translation>
     </message>
   </context>
   <context>
@@ -799,35 +798,7 @@
   </context>
   <context>
     <name>MenuActions</name>
-    <message>
-      <source>Add link</source>
-      <translation type="vanished">Link hinzufügen</translation>
-    </message>
-    <message>
-      <source>Settings</source>
-      <translation type="vanished">Einstellungen</translation>
-    </message>
-    <message>
-      <source>Import from browser</source>
-      <translation type="vanished">Aus Browser importieren</translation>
-    </message>
-    <message>
-      <source>Select all</source>
-      <translation type="vanished">Alle auswählen</translation>
-    </message>
-    <message>
-      <source>&amp;Undo</source>
-      <translation type="vanished">&amp;Rückgängig</translation>
-    </message>
-    <message>
-      <source>&amp;Redo</source>
-      <translation type="vanished">&amp;Wiederholen</translation>
-    </message>
-    <message>
-      <source>Edit</source>
-      <translation type="vanished">Bearbeiten</translation>
-    </message>
-  </context>
+    </context>
   <context>
     <name>MoveOperationsHandler</name>
     <message>
@@ -1022,30 +993,30 @@
     <message>
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="140" />
       <source>Button {idx} of {total} visible buttons</source>
-      <translation type="unfinished" />
+      <translation>Schaltfläche {idx} von {total} sichtbaren Schaltflächen</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="147" />
       <source>Hidden button</source>
-      <translation type="unfinished" />
+      <translation>Versteckte Schaltfläche</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="221" />
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="188" />
       <source>Recent Links</source>
-      <translation type="unfinished" />
+      <translation>Aktuelle Links</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="222" />
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="189" />
       <source>Favorites</source>
-      <translation type="unfinished" />
+      <translation>Favoriten</translation>
     </message>
     <message>
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="223" />
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="190" />
       <source>Quick Add</source>
-      <translation type="unfinished" />
+      <translation>Schnell hinzufügen</translation>
     </message>
   </context>
 </TS>

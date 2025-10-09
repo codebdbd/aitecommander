@@ -21,100 +21,106 @@ from xml.etree import ElementTree as ET
 # Very conservative placeholder pattern (Qt style)
 PLACEHOLDER_RE = re.compile(r"%(?:\d+|n)")
 
-# Minimal glossary for RU and UK. Keys are lowercase source tokens or phrases.
-# Order matters: longer phrases first.
-GLOSSARY_EN_RU = [
-    ("dark theme", "тёмная тема"),
-    ("light theme", "светлая тема"),
-    ("favorites", "избранное"),
-    ("recent", "недавние"),
-    ("settings", "настройки"),
-    ("search", "поиск"),
-    ("about", "о программе"),
-    ("file", "файл"),
-    ("open", "открыть"),
-    ("save", "сохранить"),
-    ("cancel", "отмена"),
-    ("delete", "удалить"),
-    ("edit", "изменить"),
-    ("apply", "применить"),
-    ("close", "закрыть"),
-    ("ok", "ок"),
-    ("yes", "да"),
-    ("no", "нет"),
-    ("undo", "отменить"),
-    ("redo", "повторить"),
-    ("import", "импорт"),
-    ("export", "экспорт"),
-    ("link", "ссылка"),
-    ("section", "раздел"),
-    ("category", "категория"),
-]
+# Централизованный словарь переводов для автоперевода
+# Структура: {source_lang: {target_lang: [(source_term, target_term), ...]}}
+TRANSLATION_GLOSSARIES = {
+    "en": {
+        "ru": [
+            ("dark theme", "тёмная тема"),
+            ("light theme", "светлая тема"),
+            ("favorites", "избранное"),
+            ("recent", "недавние"),
+            ("settings", "настройки"),
+            ("search", "поиск"),
+            ("about", "о программе"),
+            ("file", "файл"),
+            ("open", "открыть"),
+            ("save", "сохранить"),
+            ("cancel", "отмена"),
+            ("delete", "удалить"),
+            ("edit", "изменить"),
+            ("apply", "применить"),
+            ("close", "закрыть"),
+            ("ok", "ок"),
+            ("yes", "да"),
+            ("no", "нет"),
+            ("undo", "отменить"),
+            ("redo", "повторить"),
+            ("import", "импорт"),
+            ("export", "экспорт"),
+            ("link", "ссылка"),
+            ("section", "раздел"),
+            ("category", "категория"),
+        ],
+        "uk": [
+            ("dark theme", "темна тема"),
+            ("light theme", "світла тема"),
+            ("favorites", "обране"),
+            ("recent", "нещодавні"),
+            ("settings", "налаштування"),
+            ("search", "пошук"),
+            ("about", "про програму"),
+            ("file", "файл"),
+            ("open", "відкрити"),
+            ("save", "зберегти"),
+            ("cancel", "скасувати"),
+            ("delete", "видалити"),
+            ("edit", "редагувати"),
+            ("apply", "застосувати"),
+            ("close", "закрити"),
+            ("ok", "гаразд"),
+            ("yes", "так"),
+            ("no", "ні"),
+            ("undo", "скасувати"),
+            ("redo", "повторити"),
+            ("import", "імпорт"),
+            ("export", "експорт"),
+            ("link", "посилання"),
+            ("section", "розділ"),
+            ("category", "категорія"),
+        ],
+    },
+    "ru": {
+        "uk": [
+            ("тёмная тема", "темна тема"),
+            ("светлая тема", "світла тема"),
+            ("избранное", "обране"),
+            ("недавние", "нещодавні"),
+            ("настройки", "налаштування"),
+            ("поиск", "пошук"),
+            ("о программе", "про програму"),
+            ("файл", "файл"),
+            ("открыть", "відкрити"),
+            ("сохранить", "зберегти"),
+            ("отмена", "скасувати"),
+            ("удалить", "видалити"),
+            ("изменить", "редагувати"),
+            ("применить", "застосувати"),
+            ("закрыть", "закрити"),
+            ("да", "так"),
+            ("нет", "ні"),
+            ("отменить", "скасувати"),
+            ("повторить", "повторити"),
+            ("импорт", "імпорт"),
+            ("экспорт", "експорт"),
+            ("ссылка", "посилання"),
+            ("раздел", "розділ"),
+            ("категория", "категорія"),
+        ],
+    },
+}
 
-GLOSSARY_EN_UK = [
-    ("dark theme", "темна тема"),
-    ("light theme", "світла тема"),
-    ("favorites", "обране"),
-    ("recent", "нещодавні"),
-    ("settings", "налаштування"),
-    ("search", "пошук"),
-    ("about", "про програму"),
-    ("file", "файл"),
-    ("open", "відкрити"),
-    ("save", "зберегти"),
-    ("cancel", "скасувати"),
-    ("delete", "видалити"),
-    ("edit", "редагувати"),
-    ("apply", "застосувати"),
-    ("close", "закрити"),
-    ("ok", "гаразд"),
-    ("yes", "так"),
-    ("no", "ні"),
-    ("undo", "скасувати"),
-    ("redo", "повторити"),
-    ("import", "імпорт"),
-    ("export", "експорт"),
-    ("link", "посилання"),
-    ("section", "розділ"),
-    ("category", "категорія"),
-]
 
-# Russian to Ukrainian common UI terms (when source is RU)
-GLOSSARY_RU_UK = [
-    ("тёмная тема", "темна тема"),
-    ("светлая тема", "світла тема"),
-    ("избранное", "обране"),
-    ("недавние", "нещодавні"),
-    ("настройки", "налаштування"),
-    ("поиск", "пошук"),
-    ("о программе", "про програму"),
-    ("файл", "файл"),
-    ("открыть", "відкрити"),
-    ("сохранить", "зберегти"),
-    ("отмена", "скасувати"),
-    ("удалить", "видалити"),
-    ("изменить", "редагувати"),
-    ("применить", "застосувати"),
-    ("закрыть", "закрити"),
-    ("да", "так"),
-    ("нет", "ні"),
-    ("отменить", "скасувати"),
-    ("повторить", "повторити"),
-    ("импорт", "імпорт"),
-    ("экспорт", "експорт"),
-    ("ссылка", "посилання"),
-    ("раздел", "розділ"),
-    ("категория", "категорія"),
-]
+def _apply_glossary(text: str, target_lang: str, source_lang: str = "en") -> str:
+    """Применить словарь переводов к тексту.
 
+    Args:
+        text: Исходный текст для перевода
+        target_lang: Целевой язык (ru, uk)
+        source_lang: Исходный язык (по умолчанию en)
 
-def _apply_glossary(text: str, lang: str) -> str:
-    """Apply a small glossary to English or Russian UI terms.
-
-    Strategy:
-    - If lang == 'ru': try EN->RU; otherwise return original text.
-    - If lang == 'uk': try EN->UK, then RU->UK; otherwise return original text.
-    - Preserve placeholders and ampersands by not altering tokens like %n/%1 and '&'.
+    Returns:
+        Переведенный текст или оригинал, если перевод не найден
     """
     if not text:
         return text
@@ -122,6 +128,7 @@ def _apply_glossary(text: str, lang: str) -> str:
     lowered = text.lower()
 
     def replace_using(pairs: list[tuple[str, str]], src: str) -> tuple[str, bool]:
+        """Заменить термины в тексте используя словарь."""
         out = src
         hit = False
         for k, v in pairs:
@@ -130,20 +137,15 @@ def _apply_glossary(text: str, lang: str) -> str:
                 hit = True
         return out, hit
 
-    if lang == "ru":
-        # Try English-to-Russian mapping
-        out, hit = replace_using(GLOSSARY_EN_RU, lowered)
-        return text if not hit else _reconstruct_case(text, out)
+    # Получаем словарь для перевода
+    glossary = TRANSLATION_GLOSSARIES.get(source_lang, {}).get(target_lang, [])
+    
+    if not glossary:
+        return text
 
-    if lang == "uk":
-        out, hit1 = replace_using(GLOSSARY_EN_UK, lowered)
-        if not hit1:
-            out, hit2 = replace_using(GLOSSARY_RU_UK, lowered)
-            if not hit2:
-                return text
-        return _reconstruct_case(text, out)
-
-    return text
+    # Применяем перевод
+    out, hit = replace_using(glossary, lowered)
+    return text if not hit else _reconstruct_case(text, out)
 
 
 def _reconstruct_case(original: str, lowered_out: str) -> str:

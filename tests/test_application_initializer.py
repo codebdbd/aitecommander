@@ -101,11 +101,12 @@ class TestApplicationInitializer(unittest.TestCase):
 
         init = ApplicationInitializer()
         init.database = Mock()
-        # Неожиданная ошибка не должна подавляться
+        # Неожиданная ошибка не должна подавляться при синхронном вызове
         init.database.close.side_effect = RuntimeError("unexpected")
 
+        # Вызываем cleanup синхронно, чтобы исключения пробрасывались
         with self.assertRaises(RuntimeError):
-            init.cleanup()
+            init.cleanup(async_cleanup=False)
 
 
 if __name__ == "__main__":
