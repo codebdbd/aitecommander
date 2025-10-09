@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -83,7 +82,7 @@ def resolve_link_type_icon(link_type: Optional[str]) -> str:
         lt = ((link_type or "file").strip() or "file").lower()
         icon_name = defaults.get(lt, defaults.get("default", ""))
         path = resolve_icon_path(icon_name)
-        if path and os.path.exists(path) and is_valid_icon_file(path):
+        if path and Path(path).exists() and is_valid_icon_file(path):
             return path
         # fallback to configured default path if valid
         try:
@@ -92,7 +91,7 @@ def resolve_link_type_icon(link_type: Optional[str]) -> str:
             default_path = ""
         if (
             default_path
-            and os.path.exists(default_path)
+            and Path(default_path).exists()
             and is_valid_icon_file(default_path)
         ):
             return default_path
@@ -106,7 +105,7 @@ def resolve_link_type_icon(link_type: Optional[str]) -> str:
             default_path
             if (
                 default_path
-                and os.path.exists(default_path)
+                and Path(default_path).exists()
                 and is_valid_icon_file(default_path)
             )
             else ""
@@ -139,22 +138,22 @@ def resolve_icon_for_link(link_data: dict | None) -> str:
             if (
                 path
                 and default_path
-                and os.path.normcase(path) == os.path.normcase(default_path)
+                and str(Path(path).resolve()).lower() == str(Path(default_path).resolve()).lower()
             ):
                 type_path = resolve_link_type_icon(link_type)
                 if (
                     type_path
-                    and os.path.exists(type_path)
+                    and Path(type_path).exists()
                     and is_valid_icon_file(type_path)
                 ):
                     return type_path
             # prefer explicit path if valid
-            if path and os.path.exists(path) and is_valid_icon_file(path):
+            if path and Path(path).exists() and is_valid_icon_file(path):
                 return path
             # fallback to default if valid
             if (
                 default_path
-                and os.path.exists(default_path)
+                and Path(default_path).exists()
                 and is_valid_icon_file(default_path)
             ):
                 return default_path
@@ -164,7 +163,7 @@ def resolve_icon_for_link(link_data: dict | None) -> str:
         path_by_type = resolve_link_type_icon(link_type)
         if (
             path_by_type
-            and os.path.exists(path_by_type)
+            and Path(path_by_type).exists()
             and is_valid_icon_file(path_by_type)
         ):
             return path_by_type
@@ -176,7 +175,7 @@ def resolve_icon_for_link(link_data: dict | None) -> str:
             default_path
             if (
                 default_path
-                and os.path.exists(default_path)
+                and Path(default_path).exists()
                 and is_valid_icon_file(default_path)
             )
             else ""

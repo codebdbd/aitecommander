@@ -22,6 +22,7 @@ from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 from contextlib import contextmanager
 from io import BytesIO
+from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 import requests
@@ -157,7 +158,7 @@ def get_icon_meta_path(domain: str) -> str:
 def read_icon_meta(domain: str) -> dict:
     try:
         p = get_icon_meta_path(domain)
-        if os.path.exists(p):
+        if Path(p).exists():
             with open(p, "r", encoding="utf-8") as f:
                 return json.load(f)
     except Exception as e:
@@ -325,9 +326,8 @@ class IconDownloader:
         is_fallback: bool,
         meta: Optional[dict] = None,
     ) -> Optional[str]:
-        path = os.path.join(
-            str(icon_path_service.get_user_icons_dir()),
-            f"web_{domain.replace('.', '_')}.png",
+        path = str(
+            icon_path_service.get_user_icons_dir() / f"web_{domain.replace('.', '_')}.png"
         )
         width, height = img.size
         lock = _get_icon_lock(domain)
@@ -398,7 +398,7 @@ class IconDownloader:
             logger.info("[conditional] 304 Not Modified for %s", icon_url)
             icon_filename = f"web_{domain.replace('.', '_')}.png"
             path = str(icon_path_service.get_user_icons_dir() / icon_filename)
-            if os.path.exists(path):
+            if Path(path).exists():
                 meta2 = read_icon_meta(domain)
                 meta2["saved_at"] = time.time()
                 write_icon_meta(domain, meta2)

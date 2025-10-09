@@ -1,6 +1,6 @@
 import importlib
 import contextlib
-
+import os
 
 
 def reload_lp():
@@ -47,7 +47,7 @@ def test_handle_file_icon_logs_on_os_error(monkeypatch, tmp_path, caplog):
     def fake_exists(p):
         return False
 
-    monkeypatch.setattr(lp.os.path, "exists", fake_exists)
+    monkeypatch.setattr(os.path, "exists", fake_exists)
     # Trigger makedirs failure
     monkeypatch.setattr(lp.os, "makedirs", lambda *a, **k: (_ for _ in ()).throw(OSError("denied")))
 

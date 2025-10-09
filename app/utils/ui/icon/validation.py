@@ -250,9 +250,10 @@ def is_cached_icon_valid(save_path: str | Path, source_path: str | Path) -> bool
     try:
         save_path = str(save_path)
         source_path = str(source_path)
-        if not (os.path.exists(save_path) and is_valid_icon_file(save_path)):
+        save_path_obj = Path(save_path)
+        if not (save_path_obj.exists() and is_valid_icon_file(save_path)):
             return False
-        return os.path.getmtime(save_path) >= os.path.getmtime(source_path)
+        return save_path_obj.stat().st_mtime >= Path(source_path).stat().st_mtime
     except OSError:
         return False
 

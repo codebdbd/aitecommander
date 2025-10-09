@@ -4,6 +4,7 @@ import random
 import string
 import time
 from contextlib import closing
+from pathlib import Path
 
 import app.utils.links.parser.favicon_cache as fav_mod
 from app.utils.links.parser.favicon_cache import FaviconCache
@@ -60,7 +61,7 @@ def test_favicon_cache_parallel_writes(monkeypatch, tmp_path):
 
     # Проверяем, что БД читается и содержит хотя бы суммарное число ключей минус возможные накладные записи
     # (в shelve форматы .dir/.dat/.bak, поэтому читаем через shelve)
-    path = os.path.join(str(tmp_path), "favicon_cache.db")
+    path = str(tmp_path / "favicon_cache.db")
     # Содержимое валидно и доступно
     with closing(fav_mod.shelve.open(path)) as db:  # type: ignore[attr-defined]
         # строгого равенства может не быть из-за перезаписей, но нижняя граница должна соблюдаться

@@ -87,12 +87,12 @@ class FileSearchWorker(QRunnable):
                     if self._stop_requested:
                         break
 
-                    filepath = os.path.join(root, filename)
+                    filepath = Path(root) / filename
 
                     # Filter by allowed extensions if provided
                     if allowed_exts:
                         try:
-                            ext = os.path.splitext(filename)[1].lower().lstrip(".")
+                            ext = filepath.suffix.lower().lstrip(".")
                         except Exception:
                             ext = ""
                         if ext not in set(x.lower().lstrip(".") for x in allowed_exts):
@@ -101,16 +101,16 @@ class FileSearchWorker(QRunnable):
                     # Enforce file size limit before additional processing
                     if max_file_size_bytes is not None:
                         try:
-                            if os.path.getsize(filepath) > max_file_size_bytes:
+                            if filepath.stat().st_size > max_file_size_bytes:
                                 continue
                         except OSError:
                             continue
 
                     if _matches_common(
-                        self.config, filepath, filename, name_regex, content_regex
+                        self.config, str(filepath), filename, name_regex, content_regex
                     ):
-                        ext = os.path.splitext(filepath)[1].lower()
-                        self.signals.result_found.emit(filepath, ext)
+                        ext = filepath.suffix.lower()
+                        self.signals.result_found.emit(str(filepath), ext)
 
         except Exception as e:
             _tr = QCoreApplication.translate

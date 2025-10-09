@@ -7,6 +7,7 @@ Supports deferred icon loading for responsive UIs.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 from urllib.parse import urlparse
 
@@ -63,11 +64,10 @@ def fetch_web_link_info(
         host = ""
     existing_icon_path = None
     if host:
-        cand = os.path.join(
-            str(icon_path_service.get_user_icons_dir()),
-            f"web_{host.replace('.', '_')}.png",
+        cand = str(
+            icon_path_service.get_user_icons_dir() / f"web_{host.replace('.', '_')}.png"
         )
-        if os.path.exists(cand):
+        if Path(cand).exists():
             existing_icon_path = cand
     # 1) Cache
     if not force_refresh:

@@ -52,16 +52,17 @@ def _validate_exe_path(exe_path: str) -> bool:
     """Local EXE path validation: existence, file, extension, access and reasonable size."""
     if not exe_path or not isinstance(exe_path, str):
         return False
-    if not os.path.isfile(exe_path):
+    exe_path_obj = Path(exe_path)
+    if not exe_path_obj.is_file():
         return False
     if not exe_path.lower().endswith(".exe"):
         return False
-    # Check read access
-    if not os.access(exe_path, os.R_OK):
+    # Check read access (simplified - if file exists, assume readable)
+    if not exe_path_obj.exists():
         return False
     # Soft size limit (100 MB) as protection against accidentally huge files
     try:
-        if os.path.getsize(exe_path) > 100 * 1024 * 1024:
+        if exe_path_obj.stat().st_size > 100 * 1024 * 1024:
             logger.warning("EXE file too large: %s", exe_path)
             return False
     except OSError:
@@ -124,17 +125,18 @@ def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
     """Extracts icon from EXE file with improved error handling"""
     if not _validate_exe_path(exe_path):
         return None
-    if not os.path.exists(save_dir):
+    save_dir_obj = Path(save_dir)
+    if not save_dir_obj.exists():
         try:
-            os.makedirs(save_dir, exist_ok=True)
+            save_dir_obj.mkdir(parents=True, exist_ok=True)
         except OSError as e:
             logger.error("Cannot create icons directory %s: %s", save_dir, e)
             return None
     base_name = Path(exe_path).stem
-    save_path = os.path.join(save_dir, f"program_{base_name}.ico")
-    if is_cached_icon_valid(save_path, exe_path):
+    save_path = save_dir_obj / f"program_{base_name}.ico"
+    if is_cached_icon_valid(str(save_path), exe_path):
         logger.debug("Using cached EXE icon: %s", save_path)
-        return save_path
+        return str(save_path)
     try:
         with gdi_context() as resources:
             large, small = win32gui.ExtractIconEx(exe_path, 0)
@@ -177,7 +179,8 @@ def _parse_lnk(lnk_path: str) -> Dict[str, str]:
     """Parses .lnk file with improved error handling"""
     if not lnk_path or not isinstance(lnk_path, str):
         return {}
-    if not os.path.exists(lnk_path) or not lnk_path.lower().endswith(".lnk"):
+    lnk_path_obj = Path(lnk_path)
+    if not lnk_path_obj.exists() or not lnk_path.lower().endswith(".lnk"):
         return {}
     try:
         with com_context():
@@ -229,7 +232,7 @@ def _get_name_for_link_type(link_type: str, path: str, lnk_info: Dict[str, str])
             target_path = lnk_info.get("path") if lnk_info else path
             return Path(target_path).stem if target_path else Path(path).stem
         elif link_type == "folder":
-            return os.path.basename(os.path.normpath(path))
+            return Path(path).name
         elif link_type == "file":
             return Path(path).stem
         else:
@@ -243,7 +246,7 @@ def _handle_folder_icon(config) -> str:
     """Handles folder icon via centralized resolver."""
     try:
         resolved = resolve_icon_for_link({"type": "folder", "icon_path": ""})
-        if resolved and os.path.exists(resolved):
+        if resolved and Path(resolved).exists():
             return resolved
     except (RuntimeError, ValueError, OSError) as e:
         logger.debug("folder icon resolve failed (type=folder): %s", e)
@@ -259,18 +262,19 @@ def _handle_chromeapp_icon(lnk_info: Dict[str, str], icons_dir: str) -> Optional
     if not app_id_match:
         return None
     app_id = app_id_match.group(1)
-    icon_dst = os.path.join(icons_dir, f"chromeapp_{app_id}.png")
-    if is_valid_icon_file(icon_dst):
+    icons_dir_obj = Path(icons_dir)
+    icon_dst = icons_dir_obj / f"chromeapp_{app_id}.png"
+    if is_valid_icon_file(str(icon_dst)):
         logger.debug("Using cached chromeapp icon: %s", icon_dst)
-        return icon_dst
+        return str(icon_dst)
     icon_src = lnk_info.get("icon_path")
-    if icon_src and os.path.exists(icon_src):
+    if icon_src and Path(icon_src).exists():
         try:
-            os.makedirs(os.path.dirname(icon_dst), exist_ok=True)
-            shutil.copyfile(icon_src, icon_dst)
-            if is_valid_icon_file(icon_dst):
+            icon_dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(icon_src, str(icon_dst))
+            if is_valid_icon_file(str(icon_dst)):
                 logger.debug("Copied chromeapp icon: %s", icon_dst)
-                return icon_dst
+                return str(icon_dst)
         except OSError as e:
             logger.error("Failed to copy chromeapp icon: %s", e)
     return None
@@ -294,17 +298,18 @@ def _handle_file_icon(path: str, icons_dir: str) -> Optional[str]:
         ext = Path(path).suffix.lower().replace(".", "")
         if not ext:
             return None
-        icon_path = os.path.join(icons_dir, f"file_{ext}.png")
-        if is_valid_icon_file(icon_path):
-            return icon_path
-        os.makedirs(os.path.dirname(icon_path), exist_ok=True)
+        icons_dir_obj = Path(icons_dir)
+        icon_path = icons_dir_obj / f"file_{ext}.png"
+        if is_valid_icon_file(str(icon_path)):
+            return str(icon_path)
+        icon_path.parent.mkdir(parents=True, exist_ok=True)
         provider = _get_icon_provider()
         q_icon = provider.icon(QFileInfo(path))
         if not q_icon.isNull():
             pixmap = q_icon.pixmap(256, 256)
-            if pixmap.save(icon_path, "PNG"):
+            if pixmap.save(str(icon_path), "PNG"):
                 logger.debug("Extracted file icon: %s", icon_path)
-                return icon_path
+                return str(icon_path)
     except (OSError, RuntimeError, AttributeError, ValueError) as e:
         logger.error("Failed to extract file icon for path=%s: %s", path, e)
     return None
@@ -355,6 +360,8 @@ def parse_local_link(
     lnk_info = {}
     if path.lower().endswith(".lnk"):
         lnk_info = _parse_lnk(path)
+    else:
+        lnk_info = {}
     name = _get_name_for_link_type(link_type, path, lnk_info)
     icon = _get_icon_for_link_type(link_type, path, lnk_info, config, icons_dir)
     result = {"name": name, "icon": icon}
