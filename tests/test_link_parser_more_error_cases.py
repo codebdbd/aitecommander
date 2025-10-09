@@ -1,5 +1,5 @@
 import importlib
-
+import os
 
 
 def reload_lp():
@@ -28,7 +28,7 @@ def test_extract_icon_from_exe_makedirs_oserror(monkeypatch, caplog, tmp_path):
 
     # Bypass validations
     monkeypatch.setattr(lp, "_validate_exe_path", lambda p: True)
-    monkeypatch.setattr(lp.os.path, "exists", lambda p: False)
+    monkeypatch.setattr(os.path, "exists", lambda p: False)
     monkeypatch.setattr(lp.os, "makedirs", lambda *a, **k: (_ for _ in ()).throw(OSError("denied")))
 
     caplog.set_level("ERROR")
@@ -45,7 +45,7 @@ def test_extract_icon_from_exe_win32_error(monkeypatch, caplog, tmp_path):
 
     # Ensure path exists branch
     monkeypatch.setattr(lp, "_validate_exe_path", lambda p: True)
-    monkeypatch.setattr(lp.os.path, "exists", lambda p: True)
+    monkeypatch.setattr(os.path, "exists", lambda p: True)
 
     # Force win32gui.ExtractIconEx to raise win32ui.error
     class W32Err(Exception):
@@ -71,7 +71,7 @@ def test_handle_chromeapp_icon_copy_oserror(monkeypatch, caplog, tmp_path):
     # cached icon invalid
     monkeypatch.setattr(lp, "is_valid_icon_file", lambda p: False)
     # icon source exists
-    monkeypatch.setattr(lp.os.path, "exists", lambda p: True)
+    monkeypatch.setattr(os.path, "exists", lambda p: True)
     # makedirs ok
     monkeypatch.setattr(lp.os, "makedirs", lambda *a, **k: None)
     # copyfile raises

@@ -18,6 +18,7 @@ Chrome profile usage examples:
 import logging
 import os
 import platform
+from pathlib import Path
 import re
 import shlex
 import subprocess
@@ -25,7 +26,6 @@ import webbrowser
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -360,7 +360,7 @@ class FileLinkHandler(LinkHandler):
         if not SecurityValidator.is_safe_path(link_info.path):
             raise ValueError(f"Unsafe path: {link_info.path}")
 
-        if not os.path.exists(link_info.path):
+        if not Path(link_info.path).exists():
             raise FileNotFoundError(f"File or folder not found: {link_info.path}")
 
         try:
@@ -399,7 +399,7 @@ class ScriptLinkHandler(LinkHandler):
         if not SecurityValidator.is_safe_path(link_info.path):
             raise ValueError(f"Unsafe script path: {link_info.path}")
 
-        if not os.path.exists(link_info.path):
+        if not Path(link_info.path).exists():
             raise FileNotFoundError(f"Script not found: {link_info.path}")
 
         path = Path(link_info.path)
@@ -452,7 +452,7 @@ class ProgramLinkHandler(LinkHandler):
         if not SecurityValidator.is_safe_path(link_info.path):
             raise ValueError(f"Unsafe program path: {link_info.path}")
 
-        if not os.path.exists(link_info.path):
+        if not Path(link_info.path).exists():
             raise FileNotFoundError(f"Program not found: {link_info.path}")
 
         try:
@@ -634,7 +634,7 @@ def validate_link_path(path: str, link_type: LinkType) -> bool:
         LinkType.SCRIPT,
         LinkType.PROGRAM,
     ):
-        return SecurityValidator.is_safe_path(path) and os.path.exists(path)
+        return SecurityValidator.is_safe_path(path) and Path(path).exists()
     elif link_type == LinkType.CHROMEAPP:
         return path.startswith(
             ("chrome://", "chrome-extension://", "http://", "https://")
@@ -669,10 +669,10 @@ def get_link_type_from_path(path: str) -> LinkType:
         return LinkType.CHROMEAPP
 
     # File paths
-    if os.path.exists(path):
-        if os.path.isdir(path):
+    if Path(path).exists():
+        if Path(path).is_dir():
             return LinkType.FOLDER
-        elif os.path.isfile(path):
+        elif Path(path).is_file():
             ext = Path(path).suffix.lower()
             if ext in (".ps1", ".py", ".bat", ".cmd", ".sh"):
                 return LinkType.SCRIPT

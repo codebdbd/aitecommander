@@ -5,6 +5,7 @@ import os
 import sys
 import time
 from functools import partial
+from pathlib import Path
 from typing import Any, Optional
 
 from PyQt6.QtCore import QEvent, QObject, QSize, QTimer
@@ -780,26 +781,25 @@ class WindowUISetup:
 
         # Icon setup
         # Application logo path differs between development and packaged (PyInstaller) builds
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        app_dir = os.path.normpath(os.path.join(base_dir, "..", "..", ".."))
-        views_dir = os.path.normpath(os.path.join(base_dir, "..", ".."))
-        candidates = [
-            os.path.join(app_dir, "resources", "logo", "logo.png"),
-            os.path.join(views_dir, "resources", "logo", "logo.png"),
-            os.path.join(app_dir, "logo", "logo.png"),
-        ]
-        if hasattr(sys, "_MEIPASS"):
-            candidates.extend(
-                [
-                    os.path.join(
-                        sys._MEIPASS, "app", "views", "resources", "logo", "logo.png"
-                    ),
-                    os.path.join(sys._MEIPASS, "resources", "logo", "logo.png"),
-                    os.path.join(sys._MEIPASS, "logo", "logo.png"),
-                ]
-            )
+        current_file = Path(__file__).resolve()
+        base_dir = current_file.parent
+        app_dir = (base_dir / ".." / ".." / "..").resolve()
+        views_dir = (base_dir / ".." / "..").resolve()
 
-        logo_path = next((p for p in candidates if os.path.exists(p)), None)
+        candidates = [
+            app_dir / "resources" / "logo" / "logo.png",
+            views_dir / "resources" / "logo" / "logo.png",
+            app_dir / "logo" / "logo.png",
+        ]
+
+        if hasattr(sys, "_MEIPASS"):
+            candidates.extend([
+                Path(sys._MEIPASS) / "app" / "views" / "resources" / "logo" / "logo.png",
+                Path(sys._MEIPASS) / "resources" / "logo" / "logo.png",
+                Path(sys._MEIPASS) / "logo" / "logo.png",
+            ])
+
+        logo_path = next((str(p) for p in candidates if p.exists()), None)
         if logo_path:
             self.window.setWindowIcon(create_icon_from_path(logo_path))
         else:

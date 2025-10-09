@@ -3,6 +3,7 @@
 import os
 import shutil
 import zipfile
+from pathlib import Path
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
@@ -155,7 +156,7 @@ class DatabaseController(QObject):
     def handle_save_icons(self):
         """Icon archive save handler."""
         icons_dir = icon_path_service.get_user_icons_dir()
-        if not os.path.isdir(icons_dir):
+        if not Path(icons_dir).is_dir():
             self.operation_error.emit("Error", f"Icons folder not found: {icons_dir}")
             return
 
@@ -165,9 +166,9 @@ class DatabaseController(QObject):
             try:
                 with zipfile.ZipFile(str(save_path), "w", zipfile.ZIP_DEFLATED) as zipf:
                     for fname in os.listdir(icons_dir):
-                        fpath = os.path.join(icons_dir, fname)
-                        if os.path.isfile(fpath):
-                            zipf.write(fpath, fname)
+                        fpath = Path(icons_dir) / fname
+                        if fpath.is_file():
+                            zipf.write(str(fpath), fname)
                 self.icons_exported.emit(str(save_path))
                 self.operation_success.emit(
                     "Done", f"Icon archive saved to:\n{save_path}"
@@ -178,8 +179,7 @@ class DatabaseController(QObject):
     def handle_load_icons(self):
         """Icon archive load handler."""
         icons_dir = icon_path_service.get_user_icons_dir()
-        if not os.path.isdir(icons_dir):
-            os.makedirs(icons_dir, exist_ok=True)
+        Path(icons_dir).mkdir(parents=True, exist_ok=True)
 
         zip_path = self.dialogs.get_icons_archive_to_load()
 

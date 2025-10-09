@@ -5,6 +5,7 @@ Base class for all Chromium-based browsers (Chrome, Edge, Brave, Vivaldi, etc.).
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from .base_profile_finder import BaseBrowserProfileFinder
@@ -25,7 +26,7 @@ def detect_chrome_profiles_dir():
         candidates.append(os.path.expanduser("~/.config/google-chrome"))
         candidates.append(os.path.expanduser("~/.config/chromium"))
     for path in candidates:
-        if os.path.exists(path):
+        if Path(path).exists():
             return path
     return None
 
@@ -48,7 +49,7 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
         """Universal profile search logic for Chromium-based browsers."""
         profiles = []
 
-        if not os.path.exists(self.profiles_dir):
+        if not Path(self.profiles_dir).exists():
             logger.debug(
                 "Profiles folder %s not found: %s",
                 self.browser_name,
@@ -60,8 +61,8 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
 
         try:
             for entry in os.listdir(self.profiles_dir):
-                profile_path = os.path.join(self.profiles_dir, entry)
-                if os.path.isdir(profile_path) and (
+                profile_path = str(Path(self.profiles_dir) / entry)
+                if Path(profile_path).is_dir() and (
                     entry.startswith("Profile") or entry == "Default"
                 ):
                     email = self._extract_email_from_preferences(profile_path)
@@ -89,8 +90,8 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
 
     def _extract_email_from_preferences(self, profile_path: str) -> Optional[str]:
         """Extracts email from Preferences file."""
-        pref_path = os.path.join(profile_path, "Preferences")
-        if not os.path.exists(pref_path):
+        pref_path = str(Path(profile_path) / "Preferences")
+        if not Path(pref_path).exists():
             return None
 
         try:
@@ -161,7 +162,7 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
                     "name": directory,
                     "email": f"{directory} ({self.browser_name})",
                     "args": args,
-                    "path": os.path.join(self.profiles_dir, directory)
+                    "path": str(Path(self.profiles_dir) / directory)
                     if self.profiles_dir
                     else None,
                 }

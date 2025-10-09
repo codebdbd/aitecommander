@@ -4,6 +4,7 @@ import platform
 import re
 import subprocess
 import time
+from pathlib import Path
 
 from PyQt6.QtCore import (
     QCoreApplication,
@@ -151,7 +152,7 @@ class FileSearchDialog(BaseDialog):
         folder_layout = QHBoxLayout()
         self.lbl_search_location = QLabel(self.tr("Search location:"))
         folder_layout.addWidget(self.lbl_search_location)
-        self.root_le = QLineEdit(os.path.expanduser("~"))
+        self.root_le = QLineEdit(str(Path.home()))
         self.root_le.setMinimumWidth(200)
         browse_btn = QPushButton(self.tr("Browse"))
         browse_btn.clicked.connect(self._choose_root)
@@ -429,12 +430,12 @@ class FileSearchDialog(BaseDialog):
         folder_path = self.model.data(idx_path, Qt.ItemDataRole.DisplayRole) or ""
 
         # Combine folder path and filename
-        full_path = os.path.join(folder_path, filename)
+        full_path = Path(folder_path) / filename
 
         # Normalize
-        full_path = os.path.normpath(full_path)
+        full_path = Path(full_path).resolve()
 
-        return full_path
+        return str(full_path)
 
     def _on_add_link(self):
         """Add the selected file as a link."""
@@ -480,9 +481,9 @@ class FileSearchDialog(BaseDialog):
             logger.info("Opening in file explorer: %s", file_path)
 
             # Normalize path before usage
-            file_path = os.path.normpath(file_path)
+            file_path_obj = Path(file_path).resolve()
 
-            if not os.path.exists(file_path):
+            if not file_path_obj.exists():
                 self.show_warning(
                     self.tr("File not found: {path}").format(path=file_path)
                 )
@@ -492,33 +493,33 @@ class FileSearchDialog(BaseDialog):
 
             if system == "Windows":
                 # Windows: explorer with /select flag
-                subprocess.run(["explorer", "/select,", file_path], shell=False)
+                subprocess.run(["explorer", "/select,", str(file_path_obj)], shell=False)
             elif system == "Darwin":  # macOS
                 # macOS: use `open -R`
-                subprocess.run(["open", "-R", file_path], check=True)
+                subprocess.run(["open", "-R", str(file_path_obj)], check=True)
             elif system == "Linux":
                 # Linux: attempt several file managers sequentially
                 try:
-                    subprocess.run(["nautilus", "--select", file_path], check=True)
+                    subprocess.run(["nautilus", "--select", str(file_path_obj)], check=True)
                 except (subprocess.CalledProcessError, FileNotFoundError):
                     try:
-                        subprocess.run(["dolphin", "--select", file_path], check=True)
+                        subprocess.run(["dolphin", "--select", str(file_path_obj)], check=True)
                     except (subprocess.CalledProcessError, FileNotFoundError):
                         try:
                             subprocess.run(
-                                ["thunar", os.path.dirname(file_path)], check=True
+                                ["thunar", str(file_path_obj.parent)], check=True
                             )
                         except (subprocess.CalledProcessError, FileNotFoundError):
                             try:
                                 subprocess.run(
-                                    ["pcmanfm", os.path.dirname(file_path)], check=True
+                                    ["pcmanfm", str(file_path_obj.parent)], check=True
                                 )
                             except (subprocess.CalledProcessError, FileNotFoundError):
-                                folder_path = os.path.dirname(file_path)
-                                subprocess.run(["xdg-open", folder_path], check=True)
+                                folder_path = file_path_obj.parent
+                                subprocess.run(["xdg-open", str(folder_path)], check=True)
             else:
-                folder_path = os.path.dirname(file_path)
-                subprocess.run(["xdg-open", folder_path], check=True)
+                folder_path = file_path_obj.parent
+                subprocess.run(["xdg-open", str(folder_path)], check=True)
 
         except subprocess.CalledProcessError as e:
             self.show_warning(
@@ -537,8 +538,8 @@ class FileSearchDialog(BaseDialog):
     def _choose_root(self):
         """Prompt user to select the search root folder."""
         current_path = self.root_le.text().strip()
-        if not current_path or not os.path.exists(current_path):
-            current_path = os.path.expanduser("~")
+        if not current_path or not Path(current_path).exists():
+            current_path = str(Path.home())
 
         path = QFileDialog.getExistingDirectory(
             self, self.tr("Select folder for search"), current_path
@@ -553,13 +554,14 @@ class FileSearchDialog(BaseDialog):
             self.show_warning(self.tr("Specify a folder to search."))
             return False
 
-        if not os.path.exists(root_path):
+        root_path_obj = Path(root_path)
+        if not root_path_obj.exists():
             self.show_warning(
                 self.tr("The folder does not exist: {path}").format(path=root_path)
             )
             return False
 
-        if not os.path.isdir(root_path):
+        if not root_path_obj.is_dir():
             self.show_warning(
                 self.tr("The specified path is not a folder: {path}").format(
                     path=root_path
@@ -655,7 +657,8 @@ class FileSearchDialog(BaseDialog):
     def _add_result(self, file_path: str, _ext: str = ""):
         """Append a search result to the table."""
         try:
-            file_stat = os.stat(file_path)
+            file_path_obj = Path(file_path)
+            file_stat = file_path_obj.stat()
             size_kb = file_stat.st_size // 1024
             mtime = time.strftime(
                 "%Y-%m-%d %H:%M:%S", time.localtime(file_stat.st_mtime)
@@ -665,8 +668,8 @@ class FileSearchDialog(BaseDialog):
             has_content = "✓" if self.content_le.text().strip() else ""
 
             # Row data
-            filename = os.path.basename(file_path)
-            folder_path = os.path.dirname(file_path)
+            filename = file_path_obj.name
+            folder_path = str(file_path_obj.parent)
             self.model.add_result(filename, folder_path, size_kb, mtime, has_content)
         except OSError as e:
             logger.warning(

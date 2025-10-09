@@ -6,6 +6,7 @@ import configparser
 import logging
 import os
 import re
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from .base_profile_finder import BaseBrowserProfileFinder
@@ -26,9 +27,9 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
     def find_profiles(self) -> List[Dict[str, str]]:
         """Finds Firefox profiles from profiles.ini."""
         profiles = []
-        profiles_ini = os.path.join(self.profiles_dir, "profiles.ini")
+        profiles_ini = Path(self.profiles_dir) / "profiles.ini"
 
-        if not os.path.exists(profiles_ini):
+        if not profiles_ini.exists():
             logger.debug("profiles.ini file not found: %s", profiles_ini)
             return profiles
 
@@ -44,13 +45,13 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
                     is_relative = section.getboolean("IsRelative", True)
 
                     if is_relative:
-                        full_path = os.path.join(self.profiles_dir, path)
+                        full_path = Path(self.profiles_dir) / path
                     else:
-                        full_path = path
+                        full_path = Path(path)
 
-                    if os.path.exists(full_path):
+                    if full_path.exists():
                         # Attempt to get additional information from prefs.js
-                        email = self._extract_email_from_prefs(full_path)
+                        email = self._extract_email_from_prefs(str(full_path))
 
                         profiles.append(
                             {
@@ -74,8 +75,8 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
 
     def _extract_email_from_prefs(self, profile_path: str) -> Optional[str]:
         """Extracts email from Firefox profile prefs.js."""
-        prefs_file = os.path.join(profile_path, "prefs.js")
-        if not os.path.exists(prefs_file):
+        prefs_file = Path(profile_path) / "prefs.js"
+        if not prefs_file.exists():
             return None
 
         try:

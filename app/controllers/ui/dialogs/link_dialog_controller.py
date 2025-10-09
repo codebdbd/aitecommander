@@ -1,6 +1,7 @@
 # app/controllers/link_dialog_controller.py
 
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from app.controllers.business.links_business import LinksBusinessLogic
@@ -119,9 +120,7 @@ class LinkDialogController:
         link_type = form_data.get("link_type")
         url = form_data.get("url", "").strip()
         if link_type in ("file", "folder") and url:
-            import os
-
-            if not os.path.exists(url):
+            if not Path(url).exists():
                 errors.append("Указанный путь не существует.")
 
         return {"is_valid": len(errors) == 0, "errors": errors}

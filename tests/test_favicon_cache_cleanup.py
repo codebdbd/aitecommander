@@ -81,4 +81,4 @@ def test_invalidate_key_and_clear_db(tmp_path):
     favicon_cache.invalidate(None)
     # All files should be removed
     for p in _db_files(icon_path_service.get_user_icons_dir()):
-        assert not os.path.exists(p)
+        assert not Path(p).exists()

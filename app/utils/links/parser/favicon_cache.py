@@ -12,6 +12,7 @@ import shelve
 import threading
 import time
 from contextlib import closing, contextmanager
+from pathlib import Path
 from typing import Any, Optional
 from collections import OrderedDict
 
@@ -652,7 +653,7 @@ class FaviconCache(BaseCache):
                         base = self._get_db_path()
                         for suffix in ("", ".bak", ".dat", ".dir"):
                             p = f"{base}{suffix}"
-                            if os.path.exists(p):
+                            if Path(p).exists():
                                 os.remove(p)
                         logger.debug("[cache] CLEAR ALL")
                     except Exception as exc:  # noqa: BLE001
