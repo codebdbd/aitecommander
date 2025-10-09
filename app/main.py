@@ -37,22 +37,24 @@ from app.controllers.ui.theme_controller import ThemeController
 from app.models.db import Database
 from app.settings import AppSettings
 from app.startup.app_factory import create_application
+logger = logging.getLogger(__name__)
+
 from i18n.language_service import LanguageService
+
 from app.startup.argument_parser import determine_log_level, parse_arguments
 try:
     from i18n import resources_rc
     # Initialize resources explicitly for PyQt6
     resources_rc.qInitResources()
+except ImportError:
+    # resources_rc not available, skip initialization
+    pass
 except Exception as e:
     logger.warning("Failed to load i18n resources: %s", e)
 from app.startup.browser_profiles_loader import BrowserProfilesLoader
 from app.startup.logging_setup import log_shutdown, log_system_info, setup_logging
 from app.views.main_components.resource_manager import ResourceManager
 from app.controllers.system.app_shutdown_controller import AppShutdownController, ShutdownPriority
-
-logger = logging.getLogger(__name__)
-
-# Для безопасной обработки сигналов ОС в стиле Qt
 unix_signal_pipe_read, unix_signal_pipe_write = -1, -1
 
 
@@ -694,15 +696,25 @@ def main() -> int:
             initializer._signal_notifiers = signal_notifiers
         else:
             logger.info("Running in GUI mode, signal handlers disabled for natural Ctrl+C behavior")
+        # Initialize language service early for proper translation loading
+        try:
+            language_service = LanguageService.instance()
+            logger.info("Language service initialized, current language: %s", language_service.current_language())
+        except Exception as e:
+            logger.warning("Failed to initialize language service: %s", e)
+            language_service = None
+
         quit_on_last_window = app_config.get("ui.quit_on_last_window_closed", True)
         app.setQuitOnLastWindowClosed(quit_on_last_window)
         logger.info("Set quit on last window closed: %s", quit_on_last_window)
-        try:
-            LanguageService.instance().install_translator(app)
-        except Exception as e:
-            logger.warning("Failed to install translator: %s", e)
 
-        log_system_info()
+        # Install translators after language service is initialized
+        if language_service:
+            try:
+                language_service.install_translator(app)
+            except Exception as e:
+                logger.warning("Failed to install translator: %s", e)
+
         if not initializer.initialize_all():
             logger.critical("Failed to initialize application")
             if app:

@@ -80,15 +80,15 @@ class DataImportExportController(QObject):
                 )
                 QMessageBox.information(
                     self.parent_widget,
-                    "Export completed",
+                    self.tr("Export completed"),
                     stats_msg
                 )
                 
             except Exception as e:
                 logger.error(f"Error saving file: {e}")
                 self.operation_error.emit(
-                    "Save error",
-                    f"Failed to save file:\n{str(e)}"
+                    self.tr("Save error"),
+                    self.tr("Failed to save file:\n{0}").format(str(e))
                 )
         
         # Start async export with progress dialog
@@ -128,10 +128,8 @@ class DataImportExportController(QObject):
             # Import confirmation
             confirm = QMessageBox.question(
                 self.parent_widget,
-                "Import confirmation",
-                f"Import structure from file:\n{file_path.name}\n\n"
-                "⚠️ WARNING: Current structure will be completely replaced!\n\n"
-                "It is recommended to create a backup before importing.",
+                self.tr("Import confirmation"),
+                self.tr("Import structure from file:\n{0}\n\n⚠️ WARNING: Current structure will be completely replaced!\n\nIt is recommended to create a backup before importing.").format(file_path.name),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No
             )
@@ -160,25 +158,25 @@ class DataImportExportController(QObject):
         except json.JSONDecodeError as e:
             logger.error(f"JSON parsing error: {e}")
             self.operation_error.emit(
-                "Format error",
-                f"File contains invalid JSON:\n{str(e)}"
+                self.tr("Format error"),
+                self.tr("File contains invalid JSON:\n{0}").format(str(e))
             )
             QMessageBox.critical(
                 self.parent_widget,
-                "Format error",
-                f"File contains invalid JSON:\n{str(e)}"
+                self.tr("Format error"),
+                self.tr("File contains invalid JSON:\n{0}").format(str(e))
             )
             
         except Exception as e:
             logger.error(f"File loading error: {e}")
             self.operation_error.emit(
-                "Load error",
-                f"Failed to load file:\n{str(e)}"
+                self.tr("Load error"),
+                self.tr("Failed to load file:\n{0}").format(str(e))
             )
             QMessageBox.critical(
                 self.parent_widget,
-                "Load error",
-                f"Failed to load file:\n{str(e)}"
+                self.tr("Load error"),
+                self.tr("Failed to load file:\n{0}").format(str(e))
             )
     
     def handle_quick_backup(self):
