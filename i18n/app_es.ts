@@ -357,184 +357,184 @@
   <context>
     <name>FileSearchDialog</name>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="380" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="132" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="381" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="133" />
       <source>Advanced file search</source>
       <translation>Búsqueda avanzada de archivos</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="382" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="152" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="383" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="153" />
       <source>Search location:</source>
       <translation>Ubicación de búsqueda:</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="156" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="157" />
       <source>Browse</source>
       <translation>Explorar</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="384" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="163" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="385" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="164" />
       <source>Name (regex):</source>
       <translation>Nombre (regex):</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="386" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="173" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="387" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="174" />
       <source>Pattern:</source>
       <translation>Patrón:</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="396" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="233" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="397" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="234" />
       <source>Quickly apply an extension mask</source>
       <translation>Aplicar rápidamente una máscara de extensión</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="388" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="244" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="389" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="245" />
       <source>Content:</source>
       <translation>Contenido:</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="398" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="248" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="399" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="249" />
       <source>Regex</source>
       <translation>Regex</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="400" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="249" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="401" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="250" />
       <source>Case sensitive</source>
       <translation>Sensible a mayúsculas</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="402" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="251" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="403" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="252" />
       <source>Search</source>
       <translation>Buscar</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="404" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="253" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="405" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="254" />
       <source>Stop</source>
       <translation>Detener</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="390" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="270" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="391" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="271" />
       <source>Size (KB):</source>
       <translation>Tamaño (KB):</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="414" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="276" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="415" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="277" />
       <source>from</source>
       <translation>desde</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="416" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="282" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="417" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="283" />
       <source>to</source>
       <translation>hasta</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="392" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="288" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="393" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="289" />
       <source>Modified:</source>
       <translation>Modificado:</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="304" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="305" />
       <source>Hidden files</source>
       <translation>Archivos ocultos</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="305" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="306" />
       <source>Read-only</source>
       <translation>Solo lectura</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="410" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="342" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="411" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="343" />
       <source>Ready to search</source>
       <translation>Listo para buscar</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="406" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="347" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="407" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="348" />
       <source>Add as link</source>
       <translation>Agregar como enlace</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="408" />
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="351" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="409" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="352" />
       <source>Open in file explorer</source>
       <translation>Abrir en el explorador de archivos</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="355" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="356" />
       <source>Close</source>
       <translation>Cerrar</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="487" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="488" />
       <source>File not found: {path}</source>
       <translation>Archivo no encontrado: {path}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="525" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="526" />
       <source>Failed to open file in explorer: {error}</source>
       <translation>Error al abrir archivo en el explorador: {error}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="529" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="530" />
       <source>Unexpected error: {error}</source>
       <translation>Error inesperado: {error}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="544" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="545" />
       <source>Select folder for search</source>
       <translation>Seleccionar carpeta para búsqueda</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="553" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="554" />
       <source>Specify a folder to search.</source>
       <translation>Especifica una carpeta para buscar.</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="558" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="560" />
       <source>The folder does not exist: {path}</source>
       <translation>La carpeta no existe: {path}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="564" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="566" />
       <source>The specified path is not a folder: {path}</source>
       <translation>La ruta especificada no es una carpeta: {path}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="577" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="579" />
       <source>Invalid regular expression for name: {error}</source>
       <translation>Expresión regular inválida para nombre: {error}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="591" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="593" />
       <source>Invalid regular expression for content: {error}</source>
       <translation>Expresión regular inválida para contenido: {error}</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="615" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="617" />
       <source>Searching…</source>
       <translation>Buscando…</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="684" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="687" />
       <source>Search error</source>
       <translation>Error de búsqueda</translation>
     </message>
     <message>
-      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="700" />
+      <location filename="..\app\views\windows\dialogs\file_search_dialog\file_search_dialog.py" line="703" />
       <source>Search finished. Files found: {count}</source>
       <translation>Búsqueda finalizada. Archivos encontrados: {count}</translation>
     </message>
@@ -1045,16 +1045,6 @@
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="223" />
       <location filename="..\app\views\main_components\ui\topbar\panel_visibility_manager.py" line="190" />
       <source>Quick Add</source>
-      <translation type="unfinished" />
-    </message>
-  </context>
-  <context>
-    <name>WindowUISetup</name>
-    <message>
-      <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="592" />
-      <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="427" />
-      <location filename="..\app\views\main_components\ui\window_ui_setup.py" line="38" />
-      <source>Search… (Ctrl+F)</source>
       <translation type="unfinished" />
     </message>
   </context>
