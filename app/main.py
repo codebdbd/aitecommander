@@ -27,8 +27,8 @@ import threading
 import time
 from contextlib import contextmanager
 from enum import IntEnum
-from typing import Any, Callable, Optional, Tuple, Type, Protocol, runtime_checkable, TypeVar, Generator
-from PyQt6.QtCore import QTimer, QThreadPool, QCoreApplication
+from typing import Any, Callable, Optional, Tuple, Type, Protocol, runtime_checkable, TypeVar, Generator, List
+from PyQt6.QtCore import QTimer, QThreadPool, QCoreApplication, QSocketNotifier
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from app.config_data import app_config
 from app.controllers.system.bootstrap import create_main_window
@@ -49,6 +49,10 @@ from app.views.main_components.resource_manager import ResourceManager
 from app.controllers.system.app_shutdown_controller import AppShutdownController, ShutdownPriority
 
 logger = logging.getLogger(__name__)
+
+# Для безопасной обработки сигналов ОС в стиле Qt
+unix_signal_pipe_read, unix_signal_pipe_write = -1, -1
+
 
 # Constants for signal handling
 SIGNAL_EXIT_CODE_BASE = 128
@@ -537,37 +541,13 @@ class ApplicationInitializer:
             ("main window", self.initialize_main_window),
             ("theme", self.apply_initial_theme),
         ]
-        created_components = []
-        try:
-            for step_name, step_func in initialization_steps:
-                if not step_func():
-                    logger.critical("Critical error during initialization of %s", step_name)
-                    self._cleanup_created_components(created_components)
-                    return False
-                if step_name == "settings" and self.settings:
-                    created_components.append(("settings", self.settings))
-                elif step_name == "database" and self.database:
-                    created_components.append(("database", self.database))
-                elif step_name == "theme controller" and self.theme_controller:
-                    created_components.append(("theme_controller", self.theme_controller))
-                elif step_name == "main window" and self.main_window:
-                    created_components.append(("main_window", self.main_window))
-        except Exception as e:
-            logger.critical("Unexpected error during initialization: %s", e, exc_info=True)
-            self._cleanup_created_components(created_components)
-            return False
+        for step_name, step_func in initialization_steps:
+            if not step_func():
+                logger.critical("Critical error during initialization of %s", step_name)
+                # ResourceManager автоматически очистит уже созданные ресурсы
+                # при выходе из контекста ApplicationInitializer
+                return False
         return True
-
-    def _cleanup_created_components(self, created_components: list[tuple[str, Any]]) -> None:
-        """Cleanup components created during failed initialization.
-        
-        This method is kept for backward compatibility but delegates to ResourceManager.
-        """
-        # ResourceManager handles cleanup automatically, but we can force it here
-        try:
-            self._resource_manager.cleanup_all()
-        except Exception as e:
-            logger.error("Error during component cleanup: %s", e, exc_info=True)
 
 def safe_signal_handler(
     signum: int, frame: Any, initializer: ApplicationInitializer
@@ -620,37 +600,52 @@ def should_install_signal_handlers() -> bool:
 # Type alias for signal handler functions
 SignalHandler = Callable[[int, Any], None]
 
-def setup_signal_handling(initializer: ApplicationInitializer) -> Optional[SignalHandler]:
+def setup_signal_handling(app: QApplication, initializer: ApplicationInitializer) -> List[QSocketNotifier]:
     """Setup cross-platform signal handling compatible with Qt.
     
     Args:
+        app: Экземпляр QApplication для привязки обработчиков.
         initializer: Application initializer instance for cleanup coordination
         
     Returns:
-        Signal handler callable on success, None if not installed
+        Список созданных QSocketNotifier для предотвращения их удаления сборщиком мусора.
     """
+    notifiers = []
     if platform.system() != "Windows":
-        # On Unix, allow Qt to handle Ctrl+C naturally
-        signal.signal(signal.SIGINT, signal.SIG_DFL)
-        
-        # For SIGTERM, use traditional approach for now
-        # TODO(#signal-integration): Implement QSocketNotifier-based handling for better Qt integration
-        #  See: https://doc.qt.io/qt-6/qsocketnotifier.html
-        #  Benefits: True Qt event loop integration, no signal context restrictions
-        def sigterm_handler(signum: int, frame: Any) -> None:
-            logger.info("Received SIGTERM, initiating graceful shutdown...")
+        global unix_signal_pipe_read, unix_signal_pipe_write
+        unix_signal_pipe_read, unix_signal_pipe_write = os.pipe()
+
+        # Устанавливаем обработчик сигнала, который просто пишет в пайп
+        def qt_safe_signal_handler(signum: int, frame: Any) -> None:
+            try:
+                os.write(unix_signal_pipe_write, bytes([signum]))
+            except OSError as e:
+                # Может произойти, если пайп уже закрыт во время завершения
+                logger.warning("Could not write to signal pipe: %s", e)
+
+        signal.signal(signal.SIGINT, qt_safe_signal_handler)
+        signal.signal(signal.SIGTERM, qt_safe_signal_handler)
+
+        # Создаем QSocketNotifier для чтения из пайпа в потоке Qt
+        notifier = QSocketNotifier(unix_signal_pipe_read, QSocketNotifier.Type.Read, app)
+
+        def handle_qt_signal(sock: int) -> None:
+            signum = ord(os.read(sock, 1))
+            signal_name = "SIGINT" if signum == signal.SIGINT else "SIGTERM"
+            logger.info("Received %s signal via QSocketNotifier, initiating graceful shutdown...", signal_name)
             QCoreApplication.exit(SIGNAL_EXIT_CODE_BASE + signum)
-        
-        signal.signal(signal.SIGTERM, sigterm_handler)
-        return sigterm_handler
+
+        notifier.activated.connect(handle_qt_signal)
+        notifiers.append(notifier)
     else:
         # Windows: traditional approach with proper function reference
         def signal_wrapper(signum: int, frame: Any) -> None:
             safe_signal_handler(signum, frame, initializer)
-        
+
         signal.signal(signal.SIGINT, signal_wrapper)
         signal.signal(signal.SIGTERM, signal_wrapper)
-        return signal_wrapper
+
+    return notifiers
 
 def main() -> int:
     """Application entry point.
@@ -661,14 +656,6 @@ def main() -> int:
     args = parse_arguments()
     log_level = determine_log_level(args)
     setup_logging(log_level)
-    initializer = ApplicationInitializer()
-    signal_handler_obj: Optional[SignalHandler] = None
-    
-    if should_install_signal_handlers():
-        logger.info("Installing signal handlers for console/headless mode")
-        signal_handler_obj = setup_signal_handling(initializer)
-    else:
-        logger.info("Running in GUI mode, signal handlers disabled for natural Ctrl+C behavior")
     try:
         # Safer QApplication creation
         app = QApplication.instance()
@@ -681,6 +668,14 @@ def main() -> int:
         else:
             logger.info("Using existing QApplication instance")
 
+        initializer = ApplicationInitializer()
+        # Храним нотификаторы, чтобы GC не удалил их
+        signal_notifiers = []
+        if should_install_signal_handlers():
+            logger.info("Installing signal handlers for console/headless mode")
+            signal_notifiers = setup_signal_handling(app, initializer)
+        else:
+            logger.info("Running in GUI mode, signal handlers disabled for natural Ctrl+C behavior")
         quit_on_last_window = app_config.get("ui.quit_on_last_window_closed", True)
         app.setQuitOnLastWindowClosed(quit_on_last_window)
         logger.info("Set quit on last window closed: %s", quit_on_last_window)
@@ -742,13 +737,18 @@ def main() -> int:
                     logger.error("Error in emergency cleanup: %s", e)
         
         # Restore default signal handlers if they were installed
-        if signal_handler_obj:
+        if signal_notifiers or platform.system() == "Windows":
             try:
                 signal.signal(signal.SIGINT, signal.SIG_DFL)
                 signal.signal(signal.SIGTERM, signal.SIG_DFL)
                 logger.debug("Restored default signal handlers")
             except Exception as e:
                 logger.warning("Failed to restore signal handlers: %s", e)
+
+        global unix_signal_pipe_read, unix_signal_pipe_write
+        if unix_signal_pipe_read != -1:
+            os.close(unix_signal_pipe_read)
+            os.close(unix_signal_pipe_write)
         
         log_shutdown()
 
