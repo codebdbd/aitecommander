@@ -5,6 +5,7 @@ import sys
 import os
 
 from PyQt6.QtCore import QTimer
+from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
 from app.controllers.system.bootstrap import create_main_window
@@ -87,6 +88,9 @@ class ApplicationInitializer:
             # Expected environment/settings configuration errors
             logger.error("Error loading settings: %s", e, exc_info=True)
             return False
+        except (KeyboardInterrupt, SystemExit):
+            # Re-raise system control exceptions
+            raise
         except Exception as e:
             # Unexpected error — mark CRITICAL for quick diagnostics
             logger.critical("Unexpected error initializing settings: %s", e, exc_info=True)
@@ -100,6 +104,9 @@ class ApplicationInitializer:
         except (sqlite3.Error, OSError, RuntimeError) as e:
             logger.error("Error connecting to database: %s", e, exc_info=True)
             return False
+        except (KeyboardInterrupt, SystemExit):
+            # Re-raise system control exceptions
+            raise
         except Exception as e:
             logger.critical("Unexpected error initializing database: %s", e, exc_info=True)
             return False
@@ -115,6 +122,9 @@ class ApplicationInitializer:
         except (ValueError, TypeError, RuntimeError) as e:
             logger.error("Error creating ThemeController: %s", e, exc_info=True)
             return False
+        except (KeyboardInterrupt, SystemExit):
+            # Re-raise system control exceptions
+            raise
         except Exception as e:
             logger.critical("Unexpected error creating ThemeController: %s", e, exc_info=True)
             return False
@@ -138,6 +148,9 @@ class ApplicationInitializer:
         except (RuntimeError, TypeError, ValueError) as e:
             logger.error("Error creating main window: %s", e, exc_info=True)
             return False
+        except (KeyboardInterrupt, SystemExit):
+            # Re-raise system control exceptions
+            raise
         except Exception as e:
             logger.critical("Unexpected error creating main window: %s", e, exc_info=True)
             return False
@@ -151,6 +164,9 @@ class ApplicationInitializer:
         except (ValueError, RuntimeError, TypeError) as e:
             logger.error("Error applying theme: %s", e, exc_info=True)
             return False
+        except (KeyboardInterrupt, SystemExit):
+            # Re-raise system control exceptions
+            raise
         except Exception as e:
             logger.critical("Unexpected error applying theme: %s", e, exc_info=True)
             return False
@@ -181,6 +197,9 @@ def signal_handler(signum, frame, initializer):
         # Perform cleanup synchronously for immediate response to signals
         if initializer:
             initializer.cleanup(async_cleanup=False)
+    except (KeyboardInterrupt, SystemExit):
+        # Re-raise system control exceptions during cleanup
+        raise
     except Exception as e:
         logger.error("Error during signal cleanup: %s", e)
 
@@ -233,7 +252,19 @@ def main():
         logger.info("Running in GUI mode, signal handlers disabled for natural Ctrl+C behavior")
 
     try:
-        app = create_application()
+        # Check for existing QApplication instance (PyQt6 singleton pattern)
+        app = QApplication.instance()
+        if app is None:
+            logger.info("Creating new QApplication instance")
+            app = create_application()
+        else:
+            logger.info("Using existing QApplication instance")
+
+        # Configure quit behavior based on application settings
+        quit_on_last_window = app_config.get("ui.quit_on_last_window_closed", True)
+        app.setQuitOnLastWindowClosed(quit_on_last_window)
+        logger.info("Set quit on last window closed: %s", quit_on_last_window)
+
         LanguageService.instance().install_translator(app)
         log_system_info()
 
@@ -260,6 +291,9 @@ def main():
         QTimer.singleShot(startup_delay, lambda: logger.info("Application started successfully"))
         exit_code = app.exec()
         return exit_code
+    except (KeyboardInterrupt, SystemExit):
+        # Re-raise system control exceptions - let them propagate
+        raise
     except Exception as e:
         logger.critical("Critical error in main(): %s", e, exc_info=True)
         return 1

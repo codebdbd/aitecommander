@@ -109,10 +109,6 @@ class LinksService:
         # Wrapping in UnitOfWork will lead to nested transaction in SQLite.
         return self.repo.batch_upsert_links(links_data)
 
-    def batch_delete_links(self, link_ids: List[int]) -> int:
-        """Batch deletion of links. Returns number of deleted records.
-
-        IMPORTANT: repo.batch_delete_links manages transaction itself, therefore
-        cannot wrap in UnitOfWork (otherwise will be nested transaction in SQLite).
-        """
-        return self.repo.batch_delete_links(link_ids)
+    def count_favorites(self) -> int:
+        """Returns number of favorite links."""
+        return self.repo.count_favorites()
