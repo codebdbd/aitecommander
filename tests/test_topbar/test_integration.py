@@ -10,10 +10,12 @@ import pytest
 from unittest.mock import patch
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLineEdit, QToolButton, QFrame, QVBoxLayout
 
-from app.views.main_components.topbar.top_bar_layout_manager import (
+from app.views.main_components.ui.topbar.top_bar_layout_manager import (
     TopBarLayoutManager,
     InitializationState,
 )
+
+# Прямой импорт для обхода отсутствующего __init__.py
 
 
 class MockWindow(QWidget):
@@ -308,8 +310,8 @@ class TestPanelVisibilityManagerIntegration:
     
     def test_set_visible_count(self, window, qtbot, mock_app_config):
         """Тест установки количества видимых кнопок."""
-        from app.views.main_components.topbar.panel_visibility_manager import PanelVisibilityManager
-        from app.views.main_components.topbar.width_calculator import WidthCalculator
+        from app.views.main_components.ui.topbar.panel_visibility_manager import PanelVisibilityManager
+        from app.views.main_components.ui.topbar.width_calculator import WidthCalculator
         
         calculator = WidthCalculator(button_size=32)
         manager = PanelVisibilityManager(calculator)
@@ -331,8 +333,8 @@ class TestPanelVisibilityManagerIntegration:
     
     def test_iter_buttons(self, window, qtbot, mock_app_config):
         """Тест поиска кнопок в панели."""
-        from app.views.main_components.topbar.panel_visibility_manager import PanelVisibilityManager
-        from app.views.main_components.topbar.width_calculator import WidthCalculator
+        from app.views.main_components.ui.topbar.panel_visibility_manager import PanelVisibilityManager
+        from app.views.main_components.ui.topbar.width_calculator import WidthCalculator
         
         calculator = WidthCalculator(button_size=32)
         manager = PanelVisibilityManager(calculator)
