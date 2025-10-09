@@ -12,7 +12,7 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from app.config_data import app_config
 from app.utils.cache.base import BaseCache, CacheRecord
@@ -28,7 +28,7 @@ def get_cache_path() -> Path:
 
 
 class PersistentProfileCache(BaseCache):
-    def __init__(self, *, default_ttl: Optional[float] = None) -> None:
+    def __init__(self, *, default_ttl: float | None = None) -> None:
         self._default_ttl = default_ttl
         self._lock = threading.RLock()
         self._store: dict[str, CacheRecord] = {}
@@ -44,7 +44,7 @@ class PersistentProfileCache(BaseCache):
         self._load_from_disk()
 
     @property
-    def timeout(self) -> Optional[float]:
+    def timeout(self) -> float | None:
         """Returns default TTL (seconds) if set for cache.
 
         Compatibility: previously consumers might expect `timeout` field to exist on cache.
@@ -81,7 +81,7 @@ class PersistentProfileCache(BaseCache):
 
     def _dump_to_disk(self) -> None:
         # Save only values (without internal fields) atomically
-        data: Dict[str, Any] = {key: rec.value for key, rec in self._store.items()}
+        data: dict[str, Any] = {key: rec.value for key, rec in self._store.items()}
         self._ensure_dirs()
         tmp_path = self._path.with_suffix(self._path.suffix + ".tmp")
         try:
@@ -129,7 +129,7 @@ class PersistentProfileCache(BaseCache):
                 self._next_flush_ts = 0.0
 
     # --- BaseCache API ---
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         with self._lock:
             rec = self._store.get(key)
             if rec is None:
@@ -143,7 +143,7 @@ class PersistentProfileCache(BaseCache):
                 return None
             return rec.value
 
-    def set(self, key: str, value: Any, *, ttl: Optional[float] = None) -> None:
+    def set(self, key: str, value: Any, *, ttl: float | None = None) -> None:
         with self._lock:
             self._store[key] = CacheRecord(
                 value=value,
@@ -154,7 +154,7 @@ class PersistentProfileCache(BaseCache):
             self._mark_dirty_locked()
             self._maybe_flush_locked()
 
-    def invalidate(self, key: Optional[str] = None) -> None:
+    def invalidate(self, key: str | None = None) -> None:
         with self._lock:
             if key is None:
                 self._store.clear()
@@ -162,6 +162,20 @@ class PersistentProfileCache(BaseCache):
                 self._store.pop(key, None)
             self._mark_dirty_locked()
             self._maybe_flush_locked()
+
+    def keys(self) -> list[str]:
+        """Return list of all valid keys in cache."""
+        with self._lock:
+            now = time.time()
+            valid_keys = []
+            for key, rec in self._store.items():
+                if rec is not None and rec.is_valid():
+                    valid_keys.append(key)
+            return valid_keys
+
+    def __len__(self) -> int:
+        """Return number of valid entries in cache."""
+        return len(self.keys())
 
     # --- public flush control methods ---
     def flush(self) -> None:
@@ -172,14 +186,13 @@ class PersistentProfileCache(BaseCache):
     def periodic_flush(self) -> None:
         """External periodic point: flush if time has come.
 
-        Call from place where application already has periodic cycle/timer.
         """
         with self._lock:
             self._maybe_flush_locked(force=False)
 
     # Context manager for guaranteed flush
-    def __enter__(self) -> "PersistentProfileCache":
-        return self
+    def __iter__(self):
+        return iter(self.keys())
 
     def __exit__(self, exc_type, exc, tb) -> None:  # noqa: D401
         # Always try to flush to disk on exit

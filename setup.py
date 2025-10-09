@@ -8,8 +8,8 @@ if __name__ == "__main__":
         "--windowed",
         "app/main.py",
         "--add-data",
-        "app/views/resources/qss;app/views/resources/qss",
+        "app/resources/qss;app/resources/qss",
         "--add-data",
-        "app/views/resources/ui_icons;app/views/resources/ui_icons",
+        "app/resources/ui_icons;app/resources/ui_icons",
     ]
     run(opts)

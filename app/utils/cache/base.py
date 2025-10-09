@@ -19,14 +19,14 @@ import threading
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
 class CacheRecord:
     value: Any
     ts: float
-    ttl: Optional[float] = None
+    ttl: float | None = None
 
     def is_valid(self) -> bool:
         if self.ttl is None:
@@ -44,18 +44,18 @@ class BaseCache(abc.ABC):
     """Abstract base class for cache implementations."""
 
     @abc.abstractmethod
-    def get(self, key: str) -> Optional[Any]:  # pragma: no cover - контракт
+    def get(self, key: str) -> Any | None:  # pragma: no cover - контракт
         raise NotImplementedError
 
     @abc.abstractmethod
     def set(
-        self, key: str, value: Any, *, ttl: Optional[float] = None
+        self, key: str, value: Any, *, ttl: float | None = None
     ) -> None:  # pragma: no cover - контракт
         raise NotImplementedError
 
     @abc.abstractmethod
     def invalidate(
-        self, key: Optional[str] = None
+        self, key: str | None = None
     ) -> None:  # pragma: no cover - контракт
         raise NotImplementedError
 
@@ -78,7 +78,7 @@ class InMemoryCache(BaseCache):
     """
 
     def __init__(
-        self, *, default_ttl: Optional[float] = None, max_size: Optional[int] = None
+        self, *, default_ttl: float | None = None, max_size: int | None = None
     ) -> None:
         self._default_ttl = default_ttl
         # Validate ``max_size``: allow None or integer >= 0; negative values raise an error
@@ -115,7 +115,7 @@ class InMemoryCache(BaseCache):
             except KeyError:
                 break
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         with self._lock:
             rec = self._store.get(key)
             if rec is None:
@@ -127,7 +127,7 @@ class InMemoryCache(BaseCache):
             self._touch(key)
             return rec.value
 
-    def set(self, key: str, value: Any, *, ttl: Optional[float] = None) -> None:
+    def set(self, key: str, value: Any, *, ttl: float | None = None) -> None:
         with self._lock:
             rec = CacheRecord(
                 value=value,
@@ -140,7 +140,7 @@ class InMemoryCache(BaseCache):
             self._evict_if_needed()
             self._maybe_prune_expired_locked()
 
-    def invalidate(self, key: Optional[str] = None) -> None:
+    def invalidate(self, key: str | None = None) -> None:
         with self._lock:
             if key is None:
                 if self._store:
