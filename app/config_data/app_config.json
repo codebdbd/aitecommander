@@ -224,8 +224,9 @@
         "quick": 1
       }
     },
-    "auto_hide_manage_topbar": false,
-    "auto_hide_switch_to_table": false
+    "minimize_to_tray": false,
+    "show_system_tray": false,
+    "quit_on_last_window_closed": true
   },
   "paths": {
     "link_icons_dir": "resources/link_icons",
