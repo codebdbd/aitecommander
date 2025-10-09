@@ -13,6 +13,7 @@ from app.main import (
     setup_signal_handling,
     retry_on_failure,
     application_context,
+    ExitCode,
     THREAD_POOL_SHUTDOWN_TIMEOUT_MS,
     SIGNAL_EXIT_CODE_BASE,
     Cleanable,
@@ -438,6 +439,37 @@ class TestRetryMechanism:
         assert result == "success"
         assert call_count == 1
     
+    def test_retry_on_failure_with_callback(self):
+        """Test retry mechanism with callback for metrics."""
+        call_count = 0
+        retry_attempts = []
+        retry_errors = []
+        
+        def failing_func():
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise RuntimeError(f"Attempt {call_count} failed")
+            return "success"
+        
+        def on_retry_callback(attempt: int, error: Exception) -> None:
+            retry_attempts.append(attempt)
+            retry_errors.append(str(error))
+        
+        result = retry_on_failure(
+            failing_func, 
+            max_attempts=3, 
+            delay=0.01,
+            on_retry=on_retry_callback
+        )
+        
+        assert result == "success"
+        assert call_count == 3
+        assert retry_attempts == [0, 1]  # Two retry attempts
+        assert len(retry_errors) == 2
+        assert "Attempt 1 failed" in retry_errors[0]
+        assert "Attempt 2 failed" in retry_errors[1]
+    
     def test_retry_on_failure_success_after_retries(self):
         """Test successful execution after retries."""
         call_count = 0
@@ -511,6 +543,43 @@ class TestHealthChecking:
         
         assert initializer.is_healthy() is True
     
+    def test_is_healthy_with_deep_checks(self, qtbot):
+        """Test health check with deep validation."""
+        initializer = ApplicationInitializer()
+        
+        # Mock components with health check methods
+        mock_db = Mock()
+        mock_db.is_connected.return_value = True
+        
+        mock_window = Mock()
+        mock_window.isVisible.return_value = True
+        
+        initializer.settings = Mock()
+        initializer.database = mock_db
+        initializer.theme_controller = Mock()
+        initializer.main_window = mock_window
+        initializer._cleanup_done = False
+        
+        assert initializer.is_healthy() is True
+        mock_db.is_connected.assert_called_once()
+        mock_window.isVisible.assert_called_once()
+    
+    def test_is_healthy_database_disconnected(self, qtbot):
+        """Test health check with disconnected database."""
+        initializer = ApplicationInitializer()
+        
+        # Mock disconnected database
+        mock_db = Mock()
+        mock_db.is_connected.return_value = False
+        
+        initializer.settings = Mock()
+        initializer.database = mock_db
+        initializer.theme_controller = Mock()
+        initializer.main_window = Mock()
+        initializer._cleanup_done = False
+        
+        assert initializer.is_healthy() is False
+    
     def test_is_healthy_missing_components(self, qtbot):
         """Test health check with missing components."""
         initializer = ApplicationInitializer()
@@ -562,6 +631,109 @@ class TestHealthChecking:
         assert status == expected
 
 
+class TestContextManager:
+    """Test ApplicationInitializer as context manager."""
+    
+    def test_context_manager_success(self, qtbot):
+        """Test successful context manager usage."""
+        with patch.object(ApplicationInitializer, 'initialize_all', return_value=True):
+            with patch.object(ApplicationInitializer, 'cleanup', return_value=True) as mock_cleanup:
+                with ApplicationInitializer() as app:
+                    assert isinstance(app, ApplicationInitializer)
+                
+                # Cleanup should be called on exit
+                mock_cleanup.assert_called_once_with(async_cleanup=False)
+    
+    def test_context_manager_initialization_failure(self, qtbot):
+        """Test context manager with initialization failure."""
+        with patch.object(ApplicationInitializer, 'initialize_all', return_value=False):
+            with patch.object(ApplicationInitializer, 'cleanup', return_value=True) as mock_cleanup:
+                with pytest.raises(RuntimeError, match="Failed to initialize application"):
+                    with ApplicationInitializer() as app:
+                        pass  # Should not reach here
+                
+                # Cleanup should still be called
+                mock_cleanup.assert_called_once_with(async_cleanup=False)
+    
+    def test_context_manager_exception_handling(self, qtbot):
+        """Test context manager doesn't suppress exceptions."""
+        with patch.object(ApplicationInitializer, 'initialize_all', return_value=True):
+            with patch.object(ApplicationInitializer, 'cleanup', return_value=True) as mock_cleanup:
+                with pytest.raises(ValueError, match="test error"):
+                    with ApplicationInitializer() as app:
+                        raise ValueError("test error")
+                
+                # Cleanup should be called even when exception occurs
+                mock_cleanup.assert_called_once_with(async_cleanup=False)
+
+
+class TestCleanupTimeout:
+    """Test cleanup with timeout functionality."""
+    
+    def test_cleanup_with_timeout_success(self, qtbot):
+        """Test cleanup completes within timeout."""
+        initializer = ApplicationInitializer()
+        
+        # Mock ResourceManager
+        mock_resource_manager = Mock()
+        initializer._resource_manager = mock_resource_manager
+        
+        # Should complete successfully
+        result = initializer.cleanup(async_cleanup=False, timeout=1.0)
+        
+        assert result is True
+        mock_resource_manager.cleanup_all.assert_called_once()
+    
+    def test_cleanup_with_timeout_failure(self, qtbot):
+        """Test cleanup timeout handling."""
+        initializer = ApplicationInitializer()
+        
+        # Mock ResourceManager to simulate slow cleanup
+        def slow_cleanup():
+            time.sleep(2.0)  # Longer than timeout
+        
+        mock_resource_manager = Mock()
+        mock_resource_manager.cleanup_all.side_effect = slow_cleanup
+        initializer._resource_manager = mock_resource_manager
+        
+        # Should timeout
+        result = initializer.cleanup(async_cleanup=False, timeout=0.1)
+        
+        assert result is False
+    
+    def test_cleanup_no_timeout(self, qtbot):
+        """Test cleanup without timeout (timeout=0)."""
+        initializer = ApplicationInitializer()
+        
+        # Mock ResourceManager
+        mock_resource_manager = Mock()
+        initializer._resource_manager = mock_resource_manager
+        
+        # Should complete without timeout check
+        result = initializer.cleanup(async_cleanup=False, timeout=0)
+        
+        assert result is True
+        mock_resource_manager.cleanup_all.assert_called_once()
+
+
+class TestExitCodes:
+    """Test exit code enum functionality."""
+    
+    def test_exit_code_values(self):
+        """Test exit code enum values."""
+        assert ExitCode.SUCCESS == 0
+        assert ExitCode.INITIALIZATION_FAILURE == 1
+        assert ExitCode.RUNTIME_ERROR == 2
+        assert ExitCode.SIGNAL_BASE == 128
+    
+    def test_exit_code_inheritance(self):
+        """Test exit codes are proper integers."""
+        assert isinstance(ExitCode.SUCCESS, int)
+        assert isinstance(ExitCode.INITIALIZATION_FAILURE, int)
+        assert isinstance(ExitCode.RUNTIME_ERROR, int)
+        assert isinstance(ExitCode.SIGNAL_BASE, int)
+
+
 class TestConstants:
     """Test module constants."""
 
@@ -572,6 +744,13 @@ class TestConstants:
     def test_thread_pool_timeout(self):
         """THREAD_POOL_SHUTDOWN_TIMEOUT_MS has reasonable value."""
         assert THREAD_POOL_SHUTDOWN_TIMEOUT_MS == 1000
+    
+    def test_exit_code_constants(self):
+        """Test ExitCode enum constants."""
+        assert ExitCode.SUCCESS == 0
+        assert ExitCode.INITIALIZATION_FAILURE == 1
+        assert ExitCode.RUNTIME_ERROR == 2
+        assert ExitCode.SIGNAL_BASE == 128
         assert isinstance(THREAD_POOL_SHUTDOWN_TIMEOUT_MS, int)
 
 
