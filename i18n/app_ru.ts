@@ -802,203 +802,203 @@
     <name>MenuActions</name>
     <message>
       <source>Add section</source>
-      <translation type="vanished">Добавить раздел</translation>
+      <translation>Добавить раздел</translation>
     </message>
     <message>
       <source>Add category</source>
-      <translation type="vanished">Добавить категорию</translation>
+      <translation>Добавить категорию</translation>
     </message>
     <message>
       <source>Add link</source>
-      <translation type="vanished">Добавить ссылку</translation>
+      <translation>Добавить ссылку</translation>
     </message>
     <message>
       <source>Clear favorites</source>
-      <translation type="vanished">Очистить избранное</translation>
+      <translation>Очистить избранное</translation>
     </message>
     <message>
       <source>Exit</source>
-      <translation type="vanished">Выход</translation>
+      <translation>Выход</translation>
     </message>
     <message>
       <source>Settings</source>
-      <translation type="vanished">Настройки</translation>
+      <translation>Настройки</translation>
     </message>
     <message>
       <source>Save database</source>
-      <translation type="vanished">Сохранить базу данных</translation>
+      <translation>Сохранить базу данных</translation>
     </message>
     <message>
       <source>Restore database</source>
-      <translation type="vanished">Восстановить базу данных</translation>
+      <translation>Восстановить базу данных</translation>
     </message>
     <message>
       <source>Connect database</source>
-      <translation type="vanished">Подключить базу данных</translation>
+      <translation>Подключить базу данных</translation>
     </message>
     <message>
       <source>Import from browser</source>
-      <translation type="vanished">Импорт из браузера</translation>
+      <translation>Импорт из браузера</translation>
     </message>
     <message>
       <source>Export icons</source>
-      <translation type="vanished">Экспорт иконок</translation>
+      <translation>Экспорт иконок</translation>
     </message>
     <message>
       <source>Import icons</source>
-      <translation type="vanished">Импорт иконок</translation>
+      <translation>Импорт иконок</translation>
     </message>
     <message>
       <source>Search files</source>
-      <translation type="vanished">Поиск файлов</translation>
+      <translation>Поиск файлов</translation>
     </message>
     <message>
       <source>About</source>
-      <translation type="vanished">О программе</translation>
+      <translation>О программе</translation>
     </message>
     <message>
       <source>Edit section</source>
-      <translation type="vanished">Редактировать раздел</translation>
+      <translation>Редактировать раздел</translation>
     </message>
     <message>
       <source>Edit category</source>
-      <translation type="vanished">Редактировать категорию</translation>
+      <translation>Редактировать категорию</translation>
     </message>
     <message>
       <source>Paste</source>
-      <translation type="vanished">Вставить</translation>
+      <translation>Вставить</translation>
     </message>
     <message>
       <source>Delete section</source>
-      <translation type="vanished">Удалить раздел</translation>
+      <translation>Удалить раздел</translation>
     </message>
     <message>
       <source>Copy</source>
-      <translation type="vanished">Копировать</translation>
+      <translation>Копировать</translation>
     </message>
     <message>
       <source>Cut</source>
-      <translation type="vanished">Вырезать</translation>
+      <translation>Вырезать</translation>
     </message>
     <message>
       <source>Paste</source>
-      <translation type="vanished">Вставить</translation>
+      <translation>Вставить</translation>
     </message>
     <message>
       <source>Delete category</source>
-      <translation type="vanished">Удалить категорию</translation>
+      <translation>Удалить категорию</translation>
     </message>
     <message>
       <source>Delete selected</source>
-      <translation type="vanished">Удалить выбранное</translation>
+      <translation>Удалить выбранное</translation>
     </message>
     <message>
       <source>Select all</source>
-      <translation type="vanished">Выбрать все</translation>
+      <translation>Выбрать все</translation>
     </message>
     <message>
       <source>Sort categories</source>
-      <translation type="vanished">Сортировать категории</translation>
+      <translation>Сортировать категории</translation>
     </message>
     <message>
       <source>&amp;Undo</source>
-      <translation type="vanished">&amp;Отменить</translation>
+      <translation>&amp;Отменить</translation>
     </message>
     <message>
       <source>&amp;Redo</source>
-      <translation type="vanished">&amp;Повторить</translation>
+      <translation>&amp;Повторить</translation>
     </message>
     <message>
       <source>Open</source>
-      <translation type="vanished">Открыть</translation>
+      <translation>Открыть</translation>
     </message>
     <message>
       <source>Edit</source>
-      <translation type="vanished">Редактировать</translation>
+      <translation>Редактировать</translation>
     </message>
     <message>
       <source>Delete</source>
-      <translation type="vanished">Удалить</translation>
+      <translation>Удалить</translation>
     </message>
     <message>
       <source>Copy</source>
-      <translation type="vanished">Копировать</translation>
+      <translation>Копировать</translation>
     </message>
     <message>
       <source>Paste</source>
-      <translation type="vanished">Вставить</translation>
+      <translation>Вставить</translation>
     </message>
     <message>
       <source>Cut</source>
-      <translation type="vanished">Вырезать</translation>
+      <translation>Вырезать</translation>
     </message>
     <message>
       <source>Add link</source>
-      <translation type="vanished">Добавить ссылку</translation>
+      <translation>Добавить ссылку</translation>
     </message>
     <message>
       <source>Select all</source>
-      <translation type="vanished">Выбрать все</translation>
+      <translation>Выбрать все</translation>
     </message>
     <message>
       <source>Edit note</source>
-      <translation type="vanished">Редактировать заметку</translation>
+      <translation>Редактировать заметку</translation>
     </message>
     <message>
       <source>Add to favorites</source>
-      <translation type="vanished">Добавить в избранное</translation>
+      <translation>Добавить в избранное</translation>
     </message>
     <message>
       <source>Remove from favorites</source>
-      <translation type="vanished">Удалить из избранного</translation>
+      <translation>Удалить из избранного</translation>
     </message>
     <message>
       <source>Share</source>
-      <translation type="vanished">Поделиться</translation>
+      <translation>Поделиться</translation>
     </message>
     <message>
       <source>Email</source>
-      <translation type="vanished">Email</translation>
+      <translation>Email</translation>
     </message>
     <message>
       <source>Telegram</source>
-      <translation type="vanished">Telegram</translation>
+      <translation>Telegram</translation>
     </message>
     <message>
       <source>WhatsApp</source>
-      <translation type="vanished">WhatsApp</translation>
+      <translation>WhatsApp</translation>
     </message>
     <message>
       <source>Viber</source>
-      <translation type="vanished">Viber</translation>
+      <translation>Viber</translation>
     </message>
     <message>
       <source>X (Twitter)</source>
-      <translation type="vanished">X (Twitter)</translation>
+      <translation>X (Twitter)</translation>
     </message>
     <message>
       <source>Facebook</source>
-      <translation type="vanished">Facebook</translation>
+      <translation>Facebook</translation>
     </message>
     <message>
       <source>LinkedIn</source>
-      <translation type="vanished">LinkedIn</translation>
+      <translation>LinkedIn</translation>
     </message>
     <message>
       <source>Pinterest</source>
-      <translation type="vanished">Pinterest</translation>
+      <translation>Pinterest</translation>
     </message>
     <message>
       <source>Via Gmail</source>
-      <translation type="vanished">Через Gmail</translation>
+      <translation>Через Gmail</translation>
     </message>
     <message>
       <source>Via default client (mailto)</source>
-      <translation type="vanished">Через клиент по умолчанию (mailto)</translation>
+      <translation>Через клиент по умолчанию (mailto)</translation>
     </message>
     <message>
       <source>Copy as email message</source>
-      <translation type="vanished">Копировать как email-сообщение</translation>
+      <translation>Копировать как email-сообщение</translation>
     </message>
   </context>
   <context>

@@ -802,195 +802,195 @@
     <name>MenuActions</name>
     <message>
       <source>Add section</source>
-      <translation type="vanished">Додати розділ</translation>
+      <translation>Додати розділ</translation>
     </message>
     <message>
       <source>Add category</source>
-      <translation type="vanished">Додати категорію</translation>
+      <translation>Додати категорію</translation>
     </message>
     <message>
       <source>Add link</source>
-      <translation type="vanished">Додати посилання</translation>
+      <translation>Додати посилання</translation>
     </message>
     <message>
       <source>Clear favorites</source>
-      <translation type="vanished">Очистити обране</translation>
+      <translation>Очистити обране</translation>
     </message>
     <message>
       <source>Exit</source>
-      <translation type="vanished">Вихід</translation>
+      <translation>Вихід</translation>
     </message>
     <message>
       <source>Settings</source>
-      <translation type="vanished">Налаштування</translation>
+      <translation>Налаштування</translation>
     </message>
     <message>
       <source>Save database</source>
-      <translation type="vanished">Зберегти базу даних</translation>
+      <translation>Зберегти базу даних</translation>
     </message>
     <message>
       <source>Restore database</source>
-      <translation type="vanished">Відновити базу даних</translation>
+      <translation>Відновити базу даних</translation>
     </message>
     <message>
       <source>Connect database</source>
-      <translation type="vanished">Підключити базу даних</translation>
+      <translation>Підключити базу даних</translation>
     </message>
     <message>
       <source>Import from browser</source>
-      <translation type="vanished">Імпорт із браузера</translation>
+      <translation>Імпорт із браузера</translation>
     </message>
     <message>
       <source>Export icons</source>
-      <translation type="vanished">Експорт іконок</translation>
+      <translation>Експорт іконок</translation>
     </message>
     <message>
       <source>Import icons</source>
-      <translation type="vanished">Імпорт іконок</translation>
+      <translation>Імпорт іконок</translation>
     </message>
     <message>
       <source>Search files</source>
-      <translation type="vanished">Пошук файлів</translation>
+      <translation>Пошук файлів</translation>
     </message>
     <message>
       <source>About</source>
-      <translation type="vanished">Про програму</translation>
+      <translation>Про програму</translation>
     </message>
     <message>
       <source>Edit section</source>
-      <translation type="vanished">Редагувати розділ</translation>
+      <translation>Редагувати розділ</translation>
     </message>
     <message>
       <source>Edit category</source>
-      <translation type="vanished">Редагувати категорію</translation>
+      <translation>Редагувати категорію</translation>
     </message>
     <message>
       <source>Paste</source>
-      <translation type="vanished">Вставити</translation>
+      <translation>Вставити</translation>
     </message>
     <message>
       <source>Delete section</source>
-      <translation type="vanished">Видалити розділ</translation>
+      <translation>Видалити розділ</translation>
     </message>
     <message>
       <source>Copy</source>
-      <translation type="vanished">Копіювати</translation>
+      <translation>Копіювати</translation>
     </message>
     <message>
       <source>Cut</source>
-      <translation type="vanished">Вирізати</translation>
+      <translation>Вирізати</translation>
     </message>
     <message>
       <source>Delete category</source>
-      <translation type="vanished">Видалити категорію</translation>
+      <translation>Видалити категорію</translation>
     </message>
     <message>
       <source>Delete selected</source>
-      <translation type="vanished">Видалити вибране</translation>
+      <translation>Видалити вибране</translation>
     </message>
     <message>
       <source>Select all</source>
-      <translation type="vanished">Вибрати всі</translation>
+      <translation>Вибрати всі</translation>
     </message>
     <message>
       <source>Sort categories</source>
-      <translation type="vanished">Сортувати категорії</translation>
+      <translation>Сортувати категорії</translation>
     </message>
     <message>
       <source>&amp;Undo</source>
-      <translation type="vanished">&amp;Скасувати</translation>
+      <translation>&amp;Скасувати</translation>
     </message>
     <message>
       <source>&amp;Redo</source>
-      <translation type="vanished">&amp;Повторити</translation>
+      <translation>&amp;Повторити</translation>
     </message>
     <message>
       <source>Open</source>
-      <translation type="vanished">Відкрити</translation>
+      <translation>Відкрити</translation>
     </message>
     <message>
       <source>Edit</source>
-      <translation type="vanished">Редагувати</translation>
+      <translation>Редагувати</translation>
     </message>
     <message>
       <source>Delete</source>
-      <translation type="vanished">Видалити</translation>
+      <translation>Видалити</translation>
     </message>
     <message>
       <source>Copy</source>
-      <translation type="vanished">Копіювати</translation>
+      <translation>Копіювати</translation>
     </message>
     <message>
       <source>Paste</source>
-      <translation type="vanished">Вставити</translation>
+      <translation>Вставити</translation>
     </message>
     <message>
       <source>Cut</source>
-      <translation type="vanished">Вирізати</translation>
+      <translation>Вирізати</translation>
     </message>
     <message>
       <source>Add link</source>
-      <translation type="vanished">Додати посилання</translation>
+      <translation>Додати посилання</translation>
     </message>
     <message>
       <source>Edit note</source>
-      <translation type="vanished">Редагувати нотатку</translation>
+      <translation>Редагувати нотатку</translation>
     </message>
     <message>
       <source>Add to favorites</source>
-      <translation type="vanished">Додати в обране</translation>
+      <translation>Додати в обране</translation>
     </message>
     <message>
       <source>Remove from favorites</source>
-      <translation type="vanished">Видалити з обраного</translation>
+      <translation>Видалити з обраного</translation>
     </message>
     <message>
       <source>Share</source>
-      <translation type="vanished">Поділитися</translation>
+      <translation>Поділитися</translation>
     </message>
     <message>
       <source>Email</source>
-      <translation type="vanished">Email</translation>
+      <translation>Email</translation>
     </message>
     <message>
       <source>Telegram</source>
-      <translation type="vanished">Telegram</translation>
+      <translation>Telegram</translation>
     </message>
     <message>
       <source>WhatsApp</source>
-      <translation type="vanished">WhatsApp</translation>
+      <translation>WhatsApp</translation>
     </message>
     <message>
       <source>Viber</source>
-      <translation type="vanished">Viber</translation>
+      <translation>Viber</translation>
     </message>
     <message>
       <source>X (Twitter)</source>
-      <translation type="vanished">X (Twitter)</translation>
+      <translation>X (Twitter)</translation>
     </message>
     <message>
       <source>Facebook</source>
-      <translation type="vanished">Facebook</translation>
+      <translation>Facebook</translation>
     </message>
     <message>
       <source>LinkedIn</source>
-      <translation type="vanished">LinkedIn</translation>
+      <translation>LinkedIn</translation>
     </message>
     <message>
       <source>Pinterest</source>
-      <translation type="vanished">Pinterest</translation>
+      <translation>Pinterest</translation>
     </message>
     <message>
       <source>Via Gmail</source>
-      <translation type="vanished">Через Gmail</translation>
+      <translation>Через Gmail</translation>
     </message>
     <message>
       <source>Via default client (mailto)</source>
-      <translation type="vanished">Через клієнт за замовчуванням (mailto)</translation>
+      <translation>Через клієнт за замовчуванням (mailto)</translation>
     </message>
     <message>
       <source>Copy as email message</source>
-      <translation type="vanished">Копіювати як email-повідомлення</translation>
+      <translation>Копіювати як email-повідомлення</translation>
     </message>
   </context>
   <context>
