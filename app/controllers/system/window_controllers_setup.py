@@ -31,15 +31,6 @@ from app.controllers.system.window_setup.wiring import (
     DatabaseEventHandler,
     setup_signal_connections,
 )
-from app.controllers.system.window_setup.wiring import (
-    _connect_structure_signals as _new_connect_structure_signals,
-)
-from app.controllers.system.window_setup.wiring import (
-    _connect_top_panels_signals_explicit as _new_connect_top_panels_signals_explicit,
-)
-from app.controllers.system.window_setup.wiring import (
-    _on_structure_changed_schedule_refresh as _new_on_structure_changed_schedule_refresh,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -90,21 +81,6 @@ def _resolve_structure_loader(structure_business: StructureBusinessLogic):
     raise SetupError("Internal error: structure loader resolution failed")
 
 
-def _connect_structure_signals(*args, **kwargs):
-    """Backward-compatible wrapper around the refactored implementation."""
-    return _new_connect_structure_signals(*args, **kwargs)
-
-
-def _connect_top_panels_signals_explicit(*args, **kwargs):
-    """Backward-compatible wrapper around the refactored implementation."""
-    return _new_connect_top_panels_signals_explicit(*args, **kwargs)
-
-
-def _on_structure_changed_schedule_refresh(*args, **kwargs):
-    """Backward-compatible wrapper around the refactored implementation."""
-    return _new_on_structure_changed_schedule_refresh(*args, **kwargs)
-
-
 __all__ = [
     "setup_controllers",
     "setup_ui_elements", 
@@ -114,7 +90,4 @@ __all__ = [
     "WindowControllersSetup",
     "_resolve_structure_loader",
     "DatabaseEventHandler",
-    "_connect_structure_signals",
-    "_connect_top_panels_signals_explicit",
-    "_on_structure_changed_schedule_refresh",
 ]

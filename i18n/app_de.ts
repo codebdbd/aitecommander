@@ -116,12 +116,10 @@
       <source>Loading spheres…</source>
       <translation type="finished">Lade Sphären...</translation>
     </message>
-    </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="337" />
       <source>Spheres loaded</source>
       <translation type="finished">Sphären geladen</translation>
-    </message>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="436" />
@@ -131,66 +129,55 @@
       <source>Load error</source>
       <translation type="finished">Ladefehler</translation>
     </message>
-    </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="341" />
       <source>Failed to load spheres: {error}</source>
       <translation type="finished">Fehler beim Laden der Sphären: {error}</translation>
-    </message>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="351" />
       <source>Loading structure for sphere {sphere_id}…</source>
       <translation type="finished">Lade Struktur für Sphäre {sphere_id}...</translation>
     </message>
-    </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="379" />
       <source>Structure loaded</source>
       <translation type="finished">Struktur geladen</translation>
-    </message>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="387" />
       <source>Failed to load structure: {error}</source>
       <translation type="finished">Fehler beim Laden der Struktur: {error}</translation>
     </message>
-    </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="398" />
       <source>Loading sections for sphere {sphere_id}…</source>
       <translation type="finished">Lade Abschnitte für Sphäre {sphere_id}...</translation>
-    </message>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="408" />
       <source>Sections loaded</source>
       <translation type="finished">Abschnitte geladen</translation>
     </message>
-    </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="412" />
       <source>Failed to load sections: {error}</source>
       <translation type="finished">Fehler beim Laden der Abschnitte: {error}</translation>
-    </message>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="423" />
       <source>Loading categories for section {section_id}…</source>
       <translation type="finished">Lade Kategorien für Abschnitt {section_id}...</translation>
     </message>
-    </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="433" />
       <source>Categories loaded</source>
       <translation type="finished">Kategorien geladen</translation>
     </message>
-    </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="437" />
       <source>Failed to load categories: {error}</source>
       <translation type="finished">Fehler beim Laden der Kategorien: {error}</translation>
-    </message>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="462" />
@@ -202,19 +189,16 @@
       <source>Creating section: {name}…</source>
       <translation type="finished">Erstelle Abschnitt: {name}...</translation>
     </message>
-    </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="528" />
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="485" />
       <source>Untitled</source>
       <translation type="finished">Unbenannt</translation>
     </message>
-    </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="494" />
       <source>Section created</source>
       <translation type="finished">Abschnitt erstellt</translation>
-    </message>
     </message>
     <message>
       <location filename="..\app\controllers\structure_modules\operations\async_operations.py" line="540" />

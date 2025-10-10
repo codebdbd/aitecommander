@@ -10,7 +10,15 @@ import logging
 from enum import Enum
 from typing import Any, Callable, Dict, Optional
 
-from PyQt6.QtCore import QObject, QRunnable, QThread, QThreadPool, QTimer, pyqtSignal
+from PyQt6.QtCore import (
+    QCoreApplication,
+    QObject,
+    QRunnable,
+    QThread,
+    QThreadPool,
+    QTimer,
+    pyqtSignal,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +37,8 @@ class TaskType(Enum):
 class LimitedThreadPool(QThreadPool):
     """Thread pool with maximum thread count limit."""
 
-    def __init__(self, max_threads=4):
-        super().__init__()
+    def __init__(self, max_threads=4, parent: Optional[QObject] = None):
+        super().__init__(parent)
         self.setMaxThreadCount(max_threads)
         self.max_threads = max_threads
 
@@ -46,7 +54,7 @@ class TaskScheduler(QObject):
         # Bind handler to signal (in main thread)
         self._schedule_sig.connect(self._handle_schedule_request)
         # Initialize thread pool
-        self.thread_pool = LimitedThreadPool(max_threads)
+        self.thread_pool = LimitedThreadPool(max_threads, self)
 
         # Initialize timers
         self._active_timers: Dict[str, QTimer] = {}
@@ -65,6 +73,7 @@ class TaskScheduler(QObject):
         # Timers for batching operations
         self._batch_timers: Dict[TaskType, QTimer] = {}
         self._setup_batch_timers()
+        self._about_to_quit_connected = self._register_about_to_quit_hook()
 
     def _handle_schedule_request(
         self,
@@ -84,13 +93,26 @@ class TaskScheduler(QObject):
     def _setup_batch_timers(self):
         """Configures timers for batching operations by types."""
         for task_type in TaskType:
-            timer = QTimer()
+            timer = QTimer(self)
             timer.setSingleShot(True)
             # Use lambda function with closure for proper task_type passing
             timer.timeout.connect(
                 lambda t=task_type: self._execute_batched_operations(t)
             )
             self._batch_timers[task_type] = timer
+
+    def _register_about_to_quit_hook(self) -> bool:
+        """Ensure thread pool drains gracefully when the app shuts down."""
+        app = QCoreApplication.instance()
+        if app is None:
+            logger.debug("TaskScheduler: no QCoreApplication instance for shutdown hook")
+            return False
+        try:
+            app.aboutToQuit.connect(self._on_app_about_to_quit)
+            return True
+        except Exception as exc:
+            logger.warning("TaskScheduler: failed to connect aboutToQuit hook: %s", exc)
+            return False
 
     def schedule_operation(
         self,
@@ -299,6 +321,15 @@ class TaskScheduler(QObject):
             operations.clear()
 
         logger.info("All scheduled operations cleared")
+
+    def _on_app_about_to_quit(self) -> None:
+        """Flush timers and wait for background tasks before exit."""
+        try:
+            self.clear_all_operations()
+            if self.thread_pool:
+                self.thread_pool.waitForDone(3000)
+        except Exception as exc:
+            logger.warning("TaskScheduler: shutdown cleanup failed: %s", exc)
 
 
 # Global task scheduler instance (preserved for compatibility within project)

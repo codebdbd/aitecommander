@@ -2,7 +2,7 @@
 import logging
 from typing import Optional
 
-from PyQt6.QtCore import QModelIndex, QObject, pyqtSlot
+from PyQt6.QtCore import QItemSelectionModel, QModelIndex, QObject, pyqtSlot
 
 from app.controllers.ui.types import (
     CategoryTilesControllerProtocol,
@@ -48,6 +48,7 @@ class SelectionHandling(QObject):
         self._workflow = SelectionWorkflowService(
             handler=self, tree=self.tree, actions=self._actions
         )
+        self._selection_model: Optional[QItemSelectionModel] = None
 
     # --- Централизованное подавление обработки выбора ---
     def begin_suppress_selection(self) -> None:
@@ -102,6 +103,41 @@ class SelectionHandling(QObject):
 
     def _select_first_item_if_needed(self) -> None:
         self._workflow.select_first_item_if_needed()
+
+    def bind_to_selection_model(
+        self, selection_model: Optional[QItemSelectionModel]
+    ) -> None:
+        """Attach to the given selection model, disconnecting any previous binding."""
+        if selection_model is None:
+            self.unbind_selection_model()
+            return
+        if self._selection_model is selection_model:
+            return
+        self.unbind_selection_model()
+        try:
+            selection_model.currentChanged.connect(self._on_current_changed)
+        except Exception:
+            logger.debug(
+                "SelectionHandling.bind_to_selection_model: failed to connect currentChanged",
+                exc_info=True,
+            )
+            return
+        self._selection_model = selection_model
+
+    def unbind_selection_model(self) -> None:
+        """Detach from current selection model if bound."""
+        if not self._selection_model:
+            return
+        try:
+            self._selection_model.currentChanged.disconnect(self._on_current_changed)
+        except Exception:
+            # Safe to ignore: connection may already be gone
+            logger.debug(
+                "SelectionHandling.unbind_selection_model: failed to disconnect currentChanged",
+                exc_info=True,
+            )
+        finally:
+            self._selection_model = None
 
     @pyqtSlot(QModelIndex, QModelIndex)
     @signal_guard()

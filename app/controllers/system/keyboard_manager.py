@@ -129,6 +129,7 @@ class ClipboardKeyHandler(BaseKeyHandler):
 
     def _handle_tree_select_all(self) -> None:
         """Selects all categories of current section in structure tree."""
+        structure = self._safe_getattr(self.main_window, "structure")
         if not structure:
             return
         tree = self._safe_getattr(structure, "tree")
@@ -364,24 +365,30 @@ class GlobalKeyHandler(BaseKeyHandler):
     """Global hotkey handler."""
 
     def handle_f1(self) -> None:
+        logger.debug("KeyboardManager: F1 pressed")
         self._safe_call(self.main_window, "show_link_dialog")
 
     def handle_f2(self) -> None:
+        logger.debug("KeyboardManager: F2 pressed")
         self._safe_call(self.main_window, "edit_current")
 
     def handle_f3(self) -> None:
+        logger.debug("KeyboardManager: F3 pressed")
         self._safe_call(self.main_window, "show_section_dialog")
 
     def handle_f4(self) -> None:
         # Add category (previously method was called show_category_dialog)
+        logger.debug("KeyboardManager: F4 pressed")
         self._safe_call(self.main_window, "add_new_category")
 
     def handle_f6(self) -> None:
         action = self._safe_getattr(self.main_window, "switch_sphere_action")
         if action:
+            logger.debug("KeyboardManager: F6 pressed")
             self._safe_call(action, "trigger")
 
     def handle_delete(self) -> None:
+        logger.debug("KeyboardManager: Delete pressed")
         self._safe_call(self.main_window, "delete_current")
 
 
@@ -462,8 +469,21 @@ class KeyboardManager(QObject):
 
         for key_seq, handler in global_shortcuts:
             shortcut = QShortcut(QKeySequence(key_seq), self.main_window)
+            try:
+                shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            except Exception as e:
+                logger.debug(
+                    "KeyboardManager._setup_shortcuts: failed to set ApplicationShortcut context for %s",
+                    key_seq,
+                    exc_info=e,
+                )
             shortcut.activated.connect(handler)
             self.shortcuts.append(shortcut)
+            logger.debug(
+                "KeyboardManager: registered shortcut %s -> %s",
+                key_seq,
+                handler.__qualname__,
+            )
 
         table_shortcuts = [
             ("Ctrl+A", self.clipboard_handler.handle_select_all),

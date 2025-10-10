@@ -72,8 +72,7 @@ class LinksUIController(QObject):
         self.link_ops = LinksUILinkOperations(self, link_operations=link_operations)
 
         # Connect signals
-        self.handlers._connect_signals()
-        self.handlers._connect_table_signals()
+        self.handlers.initialize()
         # Row indexing after any bulk table update
         try:
             if hasattr(self.table, "table_populated"):

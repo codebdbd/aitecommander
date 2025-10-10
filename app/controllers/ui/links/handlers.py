@@ -52,10 +52,17 @@ class LinksUIHandlers(BaseLinksUIComponent):
         super().__init__(
             controller, link_operations, links_table_controller=links_table_controller
         )
+        self._signals_connected = False
+        self._table_signals_connected = False
+
+    def initialize(self) -> None:
+        """Public entry point to wire required signals."""
+        self._connect_signals()
+        self._connect_table_signals()
 
     def _connect_signals(self):
         """Connect signals from business logic."""
-        if getattr(self, "_signals_connected", False):
+        if self._signals_connected:
             return
         # Moved to centralized LinksTableController to avoid direct populate and possible cycles
         # Strictly require presence of critical business signals and their compatibility
@@ -110,7 +117,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
 
     def _connect_table_signals(self):
         """Connect signals from table."""
-        if getattr(self, "_table_signals_connected", False):
+        if self._table_signals_connected:
             return
         # Required table signals/methods for context menu — strict interface check
         if not hasattr(self.table, "setContextMenuPolicy") or not callable(

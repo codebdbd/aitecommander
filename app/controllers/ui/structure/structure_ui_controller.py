@@ -96,26 +96,12 @@ class StructureUIController(QObject):
                         sel_model = None
                     if not sel_model:
                         return
-                    # Try to disconnect previous connection if present
                     try:
-                        sel_model.currentChanged.disconnect(
-                            self.selection_handler._on_current_changed
-                        )
-                    except Exception:
-                        # Not critical: previous connection might be absent
-                        import logging
-                        logging.getLogger(__name__).debug(
-                            "Selection reconnect: disconnect previous failed",
-                            exc_info=True,
-                        )
-                    try:
-                        sel_model.currentChanged.connect(
-                            self.selection_handler._on_current_changed
-                        )
+                        self.selection_handler.bind_to_selection_model(sel_model)
                     except Exception:
                         import logging
                         logging.getLogger(__name__).debug(
-                            "Selection reconnect: connect failed", exc_info=True
+                            "Selection reconnect: bind failed", exc_info=True
                         )
 
                 QTimer.singleShot(0, _reconnect)
@@ -160,7 +146,7 @@ class StructureUIController(QObject):
         if callable(sel_model):
             sel_model = self.tree.selectionModel()
         if sel_model:
-            sel_model.currentChanged.connect(self.selection_handler._on_current_changed)
+            self.selection_handler.bind_to_selection_model(sel_model)
 
     def _connect_business_signals(self) -> None:
         self.business.structure_loaded.connect(self.tree_manager._on_structure_loaded)

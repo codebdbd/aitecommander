@@ -93,7 +93,11 @@ class WindowFacade:
     
     def add_new_category(self) -> None:
         """Open dialog to create a new category."""
-        self.structure.add_new_category()
+        try:
+            self.structure.add_new_category()
+        except Exception:
+            logger.exception("WindowFacade.add_new_category failed")
+            raise
     
     # === Link operations ===
     
@@ -163,7 +167,11 @@ class WindowFacade:
 
         ActionController automatically determines what to edit.
         """
-        self.action_controller.edit_current()
+        try:
+            self.action_controller.edit_current()
+        except Exception:
+            logger.exception("WindowFacade.edit_current failed")
+            raise
     
     def delete_current(self) -> None:
         """Delete currently selected item (link or structure item).
