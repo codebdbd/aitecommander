@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from typing import List, Optional
+from weakref import WeakKeyDictionary
 
 from PyQt6.QtCore import QObject, QEvent, Qt
 from PyQt6.QtGui import QKeySequence, QShortcut
@@ -28,6 +29,7 @@ class AccessibilityManager(QObject):
 
         super().__init__(parent)
         self._shortcuts: List[QShortcut] = []
+        self._button_shortcuts: "WeakKeyDictionary[QToolButton, QShortcut]" = WeakKeyDictionary()
         self._focused_panel: Optional[QWidget] = None
         self._focused_button_index = 0
 
@@ -74,7 +76,10 @@ class AccessibilityManager(QObject):
                             shortcut_num,
                             f"{panel_name} item {index + 1}"
                         )
+                    else:
+                        self._remove_button_shortcut(button)
                 else:
+                    self._remove_button_shortcut(button)
                     button.setAccessibleDescription(
                         self.tr("Hidden button {n} in {panel}").format(
                             n=index + 1, panel=panel_name
@@ -100,10 +105,13 @@ class AccessibilityManager(QObject):
         """Bind ``Alt+number`` to activate the given button."""
 
         try:
+            self._remove_button_shortcut(button)
+
             shortcut = QShortcut(QKeySequence(f"Alt+{number}"), button)
             shortcut.activated.connect(button.click)
             shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
             self._shortcuts.append(shortcut)
+            self._button_shortcuts[button] = shortcut
 
             current_tooltip = button.toolTip() or ""
             shortcut_info = self.tr(" (Alt+{n})").format(n=number)
@@ -196,13 +204,22 @@ class AccessibilityManager(QObject):
         """Detach shortcuts and reset state."""
 
         try:
-            for shortcut in self._shortcuts:
-                try:
-                    shortcut.setEnabled(False)
-                    shortcut.deleteLater()
-                except RuntimeError:
-                    pass
+            seen: set[int] = set()
+            for shortcut in list(self._shortcuts):
+                if shortcut is None:
+                    continue
+                ident = id(shortcut)
+                if ident in seen:
+                    continue
+                seen.add(ident)
+                self._dispose_shortcut(shortcut)
             self._shortcuts.clear()
+            for shortcut in list(self._button_shortcuts.values()):
+                ident = id(shortcut)
+                if ident in seen:
+                    continue
+                self._dispose_shortcut(shortcut)
+            self._button_shortcuts.clear()
             self._focused_panel = None
             logger.debug("AccessibilityManager cleanup completed")
         except Exception as exc:
@@ -214,4 +231,29 @@ class AccessibilityManager(QObject):
         try:
             self.cleanup()
         except Exception:
+            pass
+
+    def _remove_button_shortcut(self, button: QToolButton) -> None:
+        """Remove an existing shortcut for the given button, if any."""
+        try:
+            shortcut = self._button_shortcuts.pop(button, None)
+        except Exception:
+            shortcut = None
+        if shortcut is not None:
+            self._dispose_shortcut(shortcut)
+            try:
+                self._shortcuts.remove(shortcut)
+            except ValueError:
+                pass
+
+    @staticmethod
+    def _dispose_shortcut(shortcut: QShortcut) -> None:
+        """Safely disable and delete a shortcut instance."""
+        try:
+            shortcut.setEnabled(False)
+        except RuntimeError:
+            pass
+        try:
+            shortcut.deleteLater()
+        except RuntimeError:
             pass

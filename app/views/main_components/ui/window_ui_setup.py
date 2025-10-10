@@ -36,7 +36,7 @@ from PyQt6.QtCore import QT_TRANSLATE_NOOP
 logger = logging.getLogger(__name__)
 
 # Mark strings for translation extraction
-_SEARCH_PLACEHOLDER = QT_TRANSLATE_NOOP("WindowUISetup", "Search… (Ctrl+F)")
+_SEARCH_PLACEHOLDER = QT_TRANSLATE_NOOP("WindowUISetup", "Search\u2026 (Ctrl+F)")
 
 
 class _AutoHideTreeFilter(QObject):
@@ -300,6 +300,7 @@ class WindowUISetup:
     def _init_and_schedule_topbar_manager(self) -> None:
         try:
             self.window._topbar_manager = TopBarLayoutManager(self.window)
+            self._register_topbar_cleanup(self.window._topbar_manager)
         except (RuntimeError, TypeError):
             self.window._topbar_manager = None
             logger.exception("TopPanel: failed to initialize TopBarLayoutManager")
@@ -425,7 +426,7 @@ class WindowUISetup:
             search = getattr(self.window, "search", None)
             if search is not None and hasattr(search, "setPlaceholderText"):
                 # Use translated placeholder instead of hardcoded config value
-                placeholder = QCoreApplication.translate("WindowUISetup", "Search… (Ctrl+F)")
+                placeholder = QCoreApplication.translate("WindowUISetup", "Search\u2026 (Ctrl+F)")
                 search.setPlaceholderText(placeholder)
         except Exception:
             logger.debug("WindowUISetup: failed to update search placeholder", exc_info=True)
@@ -438,11 +439,31 @@ class WindowUISetup:
         except Exception:
             logger.exception("WindowUISetup: failed to retranslate status bar")
 
+        # Update top bar captions and shortcuts
+        try:
+            topbar_manager = getattr(self.window, "_topbar_manager", None)
+            if topbar_manager and hasattr(topbar_manager, "retranslate_topbar"):
+                topbar_manager.retranslate_topbar()
+        except Exception:
+            logger.debug("WindowUISetup: failed to retranslate top bar", exc_info=True)
+
     def _disconnect_language_service(self) -> None:
         try:
             self._language_service.languageChanged.disconnect(self._on_language_changed)
         except Exception:
             pass
+
+    def _register_topbar_cleanup(self, manager: Optional[TopBarLayoutManager]) -> None:
+        """Connect window destruction to top bar cleanup for deterministic teardown."""
+        if manager is None or not hasattr(self.window, "destroyed"):
+            return
+        if getattr(self.window, "_topbar_cleanup_connected", False):
+            return
+        try:
+            self.window.destroyed.connect(manager.cleanup)
+            setattr(self.window, "_topbar_cleanup_connected", True)
+        except Exception:
+            logger.debug("WindowUISetup: failed to connect top bar cleanup", exc_info=True)
 
     def _log_setup_top_panel_total(self, t_total_start: float) -> None:
         try:
@@ -590,7 +611,7 @@ class WindowUISetup:
         t_start = time.perf_counter()
         self.window.search = QLineEdit()
         # Use translated placeholder
-        placeholder = QCoreApplication.translate("WindowUISetup", "Search… (Ctrl+F)")
+        placeholder = QCoreApplication.translate("WindowUISetup", "Search\u2026 (Ctrl+F)")
         self.window.search.setPlaceholderText(placeholder)
         self.window.search.setClearButtonEnabled(True)
         try:
