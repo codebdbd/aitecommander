@@ -1029,6 +1029,29 @@ class TopBarLayoutManager(QObject):
             if widget is not None:
                 widgets_map[index] = widget
         
+        def _next_visible_widget(start_index: int, step: int) -> Optional[QWidget]:
+            """Locate the next logically visible widget in the given direction."""
+            idx = start_index + step
+            while 0 <= idx < count:
+                widget = widgets_map.get(idx)
+                if widget is None:
+                    idx += step
+                    continue
+                if widget.objectName() == "vSeparator":
+                    idx += step
+                    continue
+
+                panel_info = panel_widgets.get(id(widget))
+                if panel_info:
+                    state_label, panel_widget = panel_info
+                    if applied_counts.get(state_label, 0) > 0 and panel_widget.isVisible():
+                        return panel_widget
+                    idx += step
+                    continue
+
+                return widget
+            return None
+
         # Process separators
         for index in range(count):
             item = top_bar.itemAt(index)
@@ -1049,10 +1072,29 @@ class TopBarLayoutManager(QObject):
                     right_widget = widgets_map[right_idx]
                     break
             
-            show_sep = logical_visible(left_widget) and (
-                logical_visible(right_widget)
-                or (has_search and isinstance(right_widget, QLineEdit))
+            target_right_widget = right_widget
+            left_visible = logical_visible(left_widget)
+            right_visible = logical_visible(right_widget)
+
+            show_sep = left_visible and (
+                right_visible or (has_search and isinstance(right_widget, QLineEdit))
             )
+
+            if (
+                not show_sep
+                and left_visible
+                and not right_visible
+                and right_widget is not None
+                and panel_widgets.get(id(right_widget))
+            ):
+                bridged_right = _next_visible_widget(index, +1)
+                if bridged_right is not None and (
+                    logical_visible(bridged_right)
+                    or (has_search and isinstance(bridged_right, QLineEdit))
+                ):
+                    target_right_widget = bridged_right
+                    show_sep = True
+
             widget.setVisible(show_sep)
 
             left_sp = top_bar.itemAt(index - 1).spacerItem() if index - 1 >= 0 else None
@@ -1074,10 +1116,10 @@ class TopBarLayoutManager(QObject):
                         QSizePolicy.Policy.Fixed,
                     )
             else:
-                is_search_right = isinstance(right_widget, QLineEdit)
+                is_search_right = isinstance(target_right_widget, QLineEdit)
                 if left_sp:
                     left_sp.changeSize(
-                        self.SEPARATOR_SPACING_HIDDEN if is_search_right else self.SEPARATOR_SPACING_VISIBLE,
+                        self.SEPARATOR_SPACING_VISIBLE if is_search_right else self.SEPARATOR_SPACING_HIDDEN,
                         0,
                         QSizePolicy.Policy.Fixed,
                         QSizePolicy.Policy.Fixed,
@@ -1094,13 +1136,42 @@ class TopBarLayoutManager(QObject):
         self, top_bar: QLayout, search: Optional[QLineEdit]
     ) -> None:
 
+        def _neighbor_widget(idx: int, step: int) -> Optional[QWidget]:
+            pos = idx + step
+            count = top_bar.count()
+            while 0 <= pos < count:
+                item = top_bar.itemAt(pos)
+                widget = item.widget()
+                if widget is not None:
+                    return widget
+                pos += step
+            return None
+
         for index in range(top_bar.count()):
             item = top_bar.itemAt(index)
             widget = item.widget()
             if widget is None:
                 spacer = item.spacerItem()
                 if spacer is not None:
-                    spacer.changeSize(0, 0)
+                    left_neighbor = _neighbor_widget(index, -1)
+                    right_neighbor = _neighbor_widget(index, +1)
+                    keep_spacing = False
+                    if isinstance(left_neighbor, QLineEdit) or isinstance(right_neighbor, QLineEdit):
+                        keep_spacing = True
+                    elif (
+                        (left_neighbor and left_neighbor.objectName() == "vSeparator")
+                        or (right_neighbor and right_neighbor.objectName() == "vSeparator")
+                    ):
+                        keep_spacing = True
+                    target_width = (
+                        self.SEPARATOR_SPACING_VISIBLE if keep_spacing else self.SEPARATOR_SPACING_HIDDEN
+                    )
+                    spacer.changeSize(
+                        target_width,
+                        0,
+                        QSizePolicy.Policy.Fixed,
+                        QSizePolicy.Policy.Fixed,
+                    )
                 continue
             if isinstance(search, QLineEdit) and widget is search:
                 continue

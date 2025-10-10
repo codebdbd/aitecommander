@@ -153,10 +153,10 @@ class WindowFacade:
         return bool(result)
     
     def edit_selected_link(self) -> bool:
-        """Редактирует выбранную ссылку.
-        
+        """Edit the currently selected link via the standard dialog.
+
         Returns:
-            True если редактирование прошло успешно
+            True if the dialog completed successfully.
         """
         return bool(self.links_actions.edit_selected_link())
     

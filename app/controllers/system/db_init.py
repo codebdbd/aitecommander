@@ -3,6 +3,7 @@
 import logging
 from typing import Callable, Optional
 
+from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from app.models.db import Database
@@ -39,7 +40,9 @@ class DatabaseInitializer:
             on_error: Callback on initialization error
         """
         # Show status in status bar (if available)
-        self._update_status_message("Database initialization…")
+        self._update_status_message(
+            QCoreApplication.translate("DatabaseInitializer", "Database initialization…")
+        )
 
         # Temporarily block UI interaction during DB initialization
         self._set_ui_enabled(False)
@@ -90,7 +93,7 @@ class DatabaseInitializer:
             self._quit_application()
             return
 
-        # On success — complete standard actions
+        # On success - complete standard actions
         try:
             # Create connection in main thread on demand
             _ = self.database.connection
@@ -98,7 +101,9 @@ class DatabaseInitializer:
             logger.warning("Failed to open connection in main thread: %s", e)
 
         # Update status bar and unlock UI
-        self._update_status_message("Готово")
+        self._update_status_message(
+            QCoreApplication.translate("DatabaseInitializer", "Database ready")
+        )
         self._update_statusbar()
         self._set_ui_enabled(True)
 
