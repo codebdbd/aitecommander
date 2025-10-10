@@ -149,7 +149,7 @@ class MainWindow(QMainWindow, ReTranslatable):
         self.theme_ctrl = theme_ctrl
         self.facade = None
 
-        self._search_timer = QTimer()
+        self._search_timer = QTimer(self)
         self._search_timer.setSingleShot(True)
         self._search_timer.setInterval(self._SEARCH_DEBOUNCE_MS)
         self._search_timer.timeout.connect(self._execute_search)
@@ -182,6 +182,12 @@ class MainWindow(QMainWindow, ReTranslatable):
         result = self.facade.show_link_dialog(link, category_id)
         self.update_statusbar()
         return result
+
+    def show_link_dialog_for_category(
+        self, category_id: int | None = None, link: "LinkDict | None" = None
+    ) -> bool:
+        """Legacy convenience wrapper used by menu/tiles actions."""
+        return self.show_link_dialog(link=link, category_id=category_id)
 
 
     def _get_selected_links(self) -> list["LinkDict"]:
@@ -335,7 +341,6 @@ class MainWindow(QMainWindow, ReTranslatable):
                 self._search_timer.timeout.disconnect()
             except TypeError:
                 pass
-            self._search_timer.deleteLater()
     
     def _cleanup_undo_stack(self) -> None:
         """Disconnect undo/redo actions and stack signals."""

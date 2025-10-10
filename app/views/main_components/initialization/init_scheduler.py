@@ -111,9 +111,6 @@ class AsyncStepRunner:
         # Increment the index and continue
         index_setter(idx + 1)
 
-        # Let the UI thread process pending events
-        QApplication.processEvents()
-
         # Schedule the next step
         QTimer.singleShot(
             0,

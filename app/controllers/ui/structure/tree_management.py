@@ -88,45 +88,40 @@ class TreeManagement(QObject):
                 "TreeManagement._on_structure_loaded: model failed to accept snapshot"
             )
 
+        def _on_snapshot_success() -> None:
+            try:
+                if not sections_data:
+                    self.clear_tiles()
+            except Exception:
+                logger.exception(
+                    "TreeManagement._on_structure_loaded: error clearing tiles on empty structure"
+                )
+
+            self._after_snapshot_applied(expanded_state, current_selection)
+
+            try:
+                sb = getattr(self.controller, "business", None) or getattr(
+                    self.controller, "structure_business", None
+                )
+                if sb and getattr(sb, "_suppress_category_restore_once", False):
+                    setattr(sb, "_suppress_category_restore_once", False)
+            except Exception:
+                logger.debug(
+                    "TreeManagement._on_structure_loaded: failed to reset suppression flag",
+                    exc_info=True,
+                )
+
+            main = getattr(self.controller, "main", None)
+            if main is not None and getattr(main, "_first_structure_load", False):
+                setattr(main, "_first_structure_load", False)
+                self.tree.updateGeometry()
+                self.tree.update()
+
         self._snapshot.schedule_snapshot(
             sections_data,
-            on_success=lambda: self._after_snapshot_applied(
-                expanded_state, current_selection
-            ),
+            on_success=_on_snapshot_success,
             on_error=_on_snapshot_error,
         )
-        return
-
-        # If structure empty (no sections) — clear category tiles
-        try:
-            if not sections_data:
-                self.clear_tiles()
-        except Exception:
-            logger.exception(
-                "TreeManagement._on_structure_loaded: error clearing tiles on empty structure"
-            )
-        self._after_snapshot_applied(expanded_state, current_selection)
-
-        # Guaranteed reset of one-time category restore suppression flag,
-        # if it somehow remained set after processing above.
-        try:
-            sb = getattr(self.controller, "business", None) or getattr(
-                self.controller, "structure_business", None
-            )
-            if sb and getattr(sb, "_suppress_category_restore_once", False):
-                setattr(sb, "_suppress_category_restore_once", False)
-        except Exception:
-            pass
-
-        # Icons now updated by modelReset event in StructureUIController;
-        # no additional calls here to avoid duplicate work.
-
-        # After first structure load update main window display
-        main = getattr(self.controller, "main", None)
-        if main is not None and getattr(main, "_first_structure_load", False):
-            setattr(main, "_first_structure_load", False)
-            self.tree.updateGeometry()
-            self.tree.update()
 
     @pyqtSlot(str, int, dict)
     def _on_item_added(self, item_type: str, parent_id: int, data: dict[str, Any]) -> None:
