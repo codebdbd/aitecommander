@@ -60,11 +60,9 @@ class Database(QObject):
     
     def __init__(self, parent: Optional[QObject] = None):
         """Initializes Database.
-        
-        ✅ FIX: Added parent parameter for proper memory management.
-        
+
         Args:
-            parent: Parent QObject (optional)
+            parent: Parent QObject (optional) for Qt ownership semantics.
         """
         # Initialize QObject with parent
         super().__init__(parent)
@@ -81,7 +79,6 @@ class Database(QObject):
         self._thread_pool.setMaxThreadCount(max_threads)
 
         # Initialize models after full Database initialization
-        # ✅ FIX: Models are not QObject, parent not needed
         self.spheres = SphereModel(self)
         self.sections = SectionModel(self)
         self.categories = CategoryModel(self)
@@ -93,7 +90,7 @@ class Database(QObject):
         self.duplicate_resolver = DuplicateResolver(self)
         self.structure_manager = StructureManager(self)
         
-        # ✅ Flag to track cleanup
+        # Track whether cleanup has already been performed.
         self._cleaned_up = False
     
     # Delegate DatabaseBase methods through composition
@@ -168,17 +165,15 @@ class Database(QObject):
         self,
         on_finished: Optional[Callable] = None,
         on_error: Optional[Callable] = None,
-        on_progress: Optional[Callable] = None
+        on_progress: Optional[Callable] = None,
     ):
-        """Initializes DB in background thread (RECOMMENDED).
-        
-        ✅ FIX: Added async method to prevent UI blocking.
-        
+        """Initializes DB in a background thread to keep the UI responsive.
+
         Args:
             on_finished: Callback on completion (stats: {is_new: bool, migrations_applied: int})
             on_error: Callback on error (exception, traceback)
             on_progress: Callback for progress (current, total, message)
-            
+
         Example:
             >>> def on_done(stats):
             ...     print(f"Migrations applied: {stats['migrations_applied']}")
@@ -208,12 +203,11 @@ class Database(QObject):
         logger.info("Started async DB initialization")
     
     def _safe_emit(self, signal: pyqtSignal, *args) -> None:
-        """Safe signal emit with QApplication check.
-        
-        ✅ FIX: Added QApplication.instance() check before emit.
-        
-        Prevents crash when used outside Qt application (tests, CLI).
-        
+        """Emit a Qt signal only when a QApplication instance exists.
+
+        Prevents crashes when the database layer is exercised outside the GUI
+        (for example in tests or CLI tools).
+
         Args:
             signal: Signal to emit
             *args: Signal arguments
@@ -353,7 +347,7 @@ class Database(QObject):
             )
             
             # Notify UI about data change via Qt signal
-            # ✅ FIX: Use _safe_emit
+            # Use _safe_emit to guard against missing QApplication
             self._safe_emit(self.data_changed, table_name, "update_positions", ids)
         except ValidationError:
             # Pass input data validation errors as is
@@ -603,9 +597,7 @@ class Database(QObject):
     
     def cleanup(self) -> None:
         """Releases Database resources.
-        
-        ✅ FIX: Added cleanup method to prevent memory leaks.
-        
+
         Called when closing application for proper completion:
         - Waits for all workers in thread pool to finish
         - Closes DB connections

@@ -19,7 +19,7 @@ class LanguageSelector(QComboBox, ReTranslatable):
         self._service = LanguageService.instance()
         self.setObjectName("languageSelector")
         self._populate()
-        logger.info("LanguageSelector: connecting currentIndexChanged signal")
+        logger.debug("LanguageSelector: connecting currentIndexChanged signal")
         self.currentIndexChanged.connect(self._on_index_changed)
         ReTranslatable.__init__(self)
 
@@ -44,24 +44,24 @@ class LanguageSelector(QComboBox, ReTranslatable):
         self._populate()
 
     def _on_index_changed(self, index: int) -> None:
-        logger.info("LanguageSelector._on_index_changed: index=%d", index)
+        logger.debug("LanguageSelector._on_index_changed: index=%d", index)
         code: Optional[str] = self.itemData(index)
-        logger.info("LanguageSelector: selected code=%s", code)
+        logger.debug("LanguageSelector: selected code=%s", code)
         service = self._ensure_service()
         if not code:
             logger.warning("LanguageSelector: no code for index %d", index)
             return
         current = service.current_language()
-        logger.info("LanguageSelector: current language=%s, selected=%s", current, code)
+        logger.debug("LanguageSelector: current language=%s, selected=%s", current, code)
         if code == current:
-            logger.info("LanguageSelector: language unchanged, skipping")
+            logger.debug("LanguageSelector: language unchanged, skipping")
             return
-        logger.info("LanguageSelector: calling service.set_language(%s)", code)
+        logger.debug("LanguageSelector: calling service.set_language(%s)", code)
         service.set_language(code)
         # After switching language, refresh selection to reflect any normalization.
         normalized = service.current_language()
         normalized_index = self.findData(normalized)
-        logger.info("LanguageSelector: after set_language, normalized=%s, index=%d", normalized, normalized_index)
+        logger.debug("LanguageSelector: after set_language, normalized=%s, index=%d", normalized, normalized_index)
         if normalized_index >= 0:
             self.blockSignals(True)
             self.setCurrentIndex(normalized_index)

@@ -35,6 +35,7 @@ class ActionBuilder:
         if icon:
             action.setIcon(icon)
         if shortcut:
+            # Display shortcut hint, but leave global handling to KeyboardManager
             action.setShortcut(QKeySequence(shortcut))
             action.setShortcutVisibleInContextMenu(True)
             action.setShortcutContext(Qt.ShortcutContext.WidgetShortcut)

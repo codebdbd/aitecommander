@@ -51,7 +51,9 @@ class AppConfig:
     def _load_config(self) -> Dict[str, Any]:
         """Load configuration from a JSON file."""
         if not self._config_path.exists():
-            raise FileNotFoundError(f"Файл конфигурации не найден: {self._config_path}")
+            raise FileNotFoundError(
+                f"Configuration file not found: {self._config_path}"
+            )
         with open(self._config_path, "r", encoding="utf-8") as f:
             return json.load(f)
 

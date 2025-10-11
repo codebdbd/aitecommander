@@ -1,6 +1,7 @@
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
+from PyQt6.QtCore import QCoreApplication, QT_TRANSLATE_NOOP
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
@@ -67,13 +68,26 @@ class ThemeController:
         v = str(name).strip().lower()
         # Small synonym table
         synonyms = {
-            "темная": "dark",
-            "тёмная": "dark",
-            "темный": "dark",
-            "тёмный": "dark",
             "dark": "dark",
-            "светлая": "light",
+            "\u0442\u0435\u043c\u043d\u0430\u044f": "dark",
+            "\u0442\u0451\u043c\u043d\u0430\u044f": "dark",
+            "\u0442\u0435\u043c\u043d\u044b\u0439": "dark",
+            "\u0442\u0451\u043c\u043d\u044b\u0439": "dark",
+            "\u0442\u0435\u043c\u043d\u0430": "dark",
+            "\u0442\u0435\u043c\u043d\u0435": "dark",
+            "\u0442\u0435\u043c\u043d\u0438\u0439": "dark",
+            "\u0442\u0435\u043c\u043d\u0430\u044f \u0442\u0435\u043c\u0430": "dark",
+            "\u0442\u0435\u043c\u043d\u0430 \u0442\u0435\u043c\u0430": "dark",
+            "dark theme": "dark",
             "light": "light",
+            "\u0441\u0432\u0435\u0442\u043b\u0430\u044f": "light",
+            "\u0441\u0432\u0435\u0442\u043b\u044b\u0439": "light",
+            "\u0441\u0432\u0435\u0442\u043b\u0430\u044f \u0442\u0435\u043c\u0430": "light",
+            "\u0441\u0432\u0435\u0442\u043b\u0430 \u0442\u0435\u043c\u0430": "light",
+            "\u0441\u0432\u0456\u0442\u043b\u0430": "light",
+            "\u0441\u0432\u0456\u0442\u043b\u0438\u0439": "light",
+            "\u0441\u0432\u0456\u0442\u043b\u0430 \u0442\u0435\u043c\u0430": "light",
+            "light theme": "light"
         }
         return synonyms.get(v, v)
 
@@ -82,13 +96,15 @@ class ThemeController:
         self._themes = [
             {
                 "name": "light",
-                "display_name": "Light",
+                "display_name": QT_TRANSLATE_NOOP("ThemeController", "Light"),
+                "display_context": "ThemeController",
                 "qss_file": "light.qss",
                 "is_dark": False,
             },
             {
                 "name": "dark",
-                "display_name": "Dark",
+                "display_name": QT_TRANSLATE_NOOP("ThemeController", "Dark"),
+                "display_context": "ThemeController",
                 "qss_file": "dark.qss",
                 "is_dark": True,
             },
@@ -143,6 +159,7 @@ class ThemeController:
                     logger.warning("Skipped theme without name in configuration")
                     continue
                 display_name = theme.get("display_name")
+                context = theme.get("display_context", "ThemeController")
                 if not display_name:
                     # Fallback for known themes, return theme identifier for translation
                     if name == "light":
@@ -156,7 +173,12 @@ class ThemeController:
                         name,
                         display_name,
                     )
-                result.append((name, display_name))
+                translated_name = (
+                    QCoreApplication.translate(context, display_name)
+                    if isinstance(display_name, str)
+                    else str(display_name)
+                )
+                result.append((name, translated_name))
             return result
         except Exception as exc:
             logger.error("Error getting theme list: %s", exc, exc_info=True)
@@ -574,3 +596,4 @@ class ThemeController:
                 "cached_themes": list(self._qss_cache.keys()),
                 "common_qss_loaded": self._common_qss is not None,
             }
+

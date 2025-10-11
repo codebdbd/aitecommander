@@ -543,7 +543,7 @@ class WindowInitializer:
             except Exception:
                 flags_s = "?"
             info_list.append(f"{cls}[{name}] vis={visible} size={size_s} pos={pos_s}")
-        logger.info(
+        logger.debug(
             "DiagTopLevels[%s]: %d widgets: %s",
             tag,
             len(info_list),
@@ -575,7 +575,7 @@ class WindowInitializer:
             except Exception:
                 continue
         if win_list:
-            logger.info(
+            logger.debug(
                 "DiagTopLevels[%s]: QWindows(%d): %s",
                 tag,
                 len(win_list),
