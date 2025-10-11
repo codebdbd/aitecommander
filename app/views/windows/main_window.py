@@ -51,17 +51,17 @@ class MainWindow(QMainWindow, ReTranslatable):
     
     shown: pyqtSignal = pyqtSignal()
 
-    structure: "StructureUIController"
-    menu_controller: "MenuController"
-    action_controller: "ActionController"
-    links_actions: "LinksActions"
-    spheres_controller: "SpheresBarController"
-    top_panels_controller: "TopPanelsController"
-    ui_state: "UIStateManager"
-    system_dialogs: SystemDialogsProtocol
+    structure: Optional["StructureUIController"]
+    menu_controller: Optional["MenuController"]
+    action_controller: Optional["ActionController"]
+    links_actions: Optional["LinksActions"]
+    spheres_controller: Optional["SpheresBarController"]
+    top_panels_controller: Optional["TopPanelsController"]
+    ui_state: Optional["UIStateManager"]
+    system_dialogs: Optional[SystemDialogsProtocol]
     theme_ctrl: "ThemeController"
-    table: LinksTableView
-    left_panel: QWidget
+    table: Optional[LinksTableView]
+    left_panel: Optional[QWidget]
     undo_stack: Optional[QUndoStack]
     undo_action: Optional[QAction]
     redo_action: Optional[QAction]
@@ -70,7 +70,8 @@ class MainWindow(QMainWindow, ReTranslatable):
     _SEARCH_DEBOUNCE_MS = 300
 
     def handle_import_browser_bookmarks(self) -> None:
-        self.system_dialogs.handle_import_browser_bookmarks()
+        if self.system_dialogs:
+            self.system_dialogs.handle_import_browser_bookmarks()
 
     def get_current_category_id(self) -> Optional[int]:
         """Return the ID of the currently selected category."""
@@ -78,7 +79,8 @@ class MainWindow(QMainWindow, ReTranslatable):
 
     def edit_structure_item(self, item: "StructureItem") -> None:
         """Edit a structure item."""
-        self.structure.edit_item(item)
+        if self.structure:
+            self.structure.edit_item(item)
 
     def add_new_category(self) -> None:
         """Create a new category."""
@@ -101,7 +103,8 @@ class MainWindow(QMainWindow, ReTranslatable):
 
     def select_all_links(self) -> None:
         """Select all link rows."""
-        self.table.selectAll()
+        if self.table is not None:
+            self.table.selectAll()
 
     def get_selected_rows(self) -> list[int]:
         """Return indices of selected rows."""
@@ -147,7 +150,22 @@ class MainWindow(QMainWindow, ReTranslatable):
         super().__init__()
         self.settings = settings
         self.theme_ctrl = theme_ctrl
-        self.facade = None
+        # Dependencies are injected after construction; initialize placeholders to avoid attribute errors.
+        self.facade: Optional[WindowFacade] = None
+        self.structure = None
+        self.menu_controller = None
+        self.action_controller = None
+        self.links_actions = None
+        self.spheres_controller = None
+        self.top_panels_controller = None
+        self.ui_state = None
+        self.system_dialogs = None
+        self.table: Optional[LinksTableView] = None
+        self.left_panel = None
+        self.undo_stack = None
+        self.undo_action = None
+        self.redo_action = None
+        self.app_shutdown = None
 
         self._search_timer = QTimer(self)
         self._search_timer.setSingleShot(True)

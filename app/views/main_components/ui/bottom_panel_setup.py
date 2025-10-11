@@ -84,20 +84,19 @@ def _apply_translations_to_button(
     try:
         button.setAccessibleDescription(desc_template.format(label=label))
     except Exception:
+        logger.debug(
+            "BottomPanel: failed to format accessible description for action '%s'",
+            action_id,
+            exc_info=True,
+        )
         button.setAccessibleDescription(label)
 
     tooltip = _resolve_tooltip(action_id, tooltip_fallback)
     button.setToolTip(tooltip)
 
     if shortcut:
-        try:
-            button.setShortcut(shortcut)
-        except Exception:
-            logger.debug(
-                "BottomPanel: failed to apply shortcut '%s' during translation",
-                shortcut,
-                exc_info=True,
-            )
+        # KeyboardManager handles global shortcuts; we keep text hint only.
+        pass
 
 
 def retranslate_bottom_panel(window: QWidget) -> None:

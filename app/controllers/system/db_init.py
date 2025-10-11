@@ -63,13 +63,9 @@ class DatabaseInitializer:
         Returns:
             bool: True on success, False on error
         """
-        try:
-            self.database.prepare_dirs()
-            self.database.initialize_or_migrate()
-            return True
-        except Exception:
-            # Don't raise exception so result is handled in on_finished(res)
-            return False
+        self.database.prepare_dirs()
+        self.database.initialize_or_migrate()
+        return True
 
     def _on_db_init_finished(
         self, result: bool, on_success: Optional[Callable] = None
@@ -126,11 +122,33 @@ class DatabaseInitializer:
             error: Exception
             on_error: Error callback
         """
-        logger.error("Database initialization error in background: %s", error, exc_info=True)
+        logger.error(
+            "Database initialization error in background: %s",
+            error,
+            exc_info=True,
+        )
 
-        self._update_status_message("Database initialization error")
+        detailed_message = QCoreApplication.translate(
+            "DatabaseInitializer",
+            "Database initialization error",
+        )
+        self._update_status_message(detailed_message)
         self._update_statusbar()
         self._set_ui_enabled(True)
+
+        user_message = (
+            f"{detailed_message}\n\n{error}"
+            if str(error).strip()
+            else detailed_message
+        )
+        self._show_critical_error(
+            QCoreApplication.translate(
+                "DatabaseInitializer",
+                "Database initialization error",
+            ),
+            user_message,
+        )
+        self._quit_application()
 
         # Call error callback
         if on_error:

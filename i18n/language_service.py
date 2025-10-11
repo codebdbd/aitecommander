@@ -7,8 +7,17 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from PyQt6.QtCore import QCoreApplication, QLocale, QObject, QSettings, QTranslator, pyqtSignal
+from PyQt6.QtCore import (
+    QCoreApplication,
+    QLocale,
+    QObject,
+    QSettings,
+    QTranslator,
+    pyqtSignal,
+)
 from PyQt6.QtWidgets import QApplication
+
+from app.config_data import app_config
 
 logger = logging.getLogger(__name__)
 
@@ -39,15 +48,20 @@ class LanguageService(QObject):
         super().__init__()
         self._translators: Dict[str, QTranslator] = {}
         self._current_language: str = "en"
-        self._settings = QSettings("AiteCommander", "Language")
+        self._settings = QSettings(
+            QSettings.Format.IniFormat,
+            QSettings.Scope.UserScope,
+            app_config.get_org_name(),
+            app_config.get_app_name(),
+        )
 
         self._languages = {
             "en": LanguageDescriptor("en", "English", "English"),
-            "uk": LanguageDescriptor("uk", "Ukrainian", "Українська"),
-            "ru": LanguageDescriptor("ru", "Russian", "Русский"),
-            "fr": LanguageDescriptor("fr", "French", "Français"),
-            "es": LanguageDescriptor("es", "Spanish", "Español"),
-            "de": LanguageDescriptor("de", "German", "Deutsch"),
+            "uk": LanguageDescriptor("uk", "Ukrainian", "\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0430"),
+            "ru": LanguageDescriptor("ru", "Russian", "\u0420\u0443\u0441\u0441\u043a\u0438\u0439"),
+            "fr": LanguageDescriptor("fr", "French", "Fran\xe7ais"),
+            "es": LanguageDescriptor("es", "Spanish", "Espa\xf1ol"),
+            "de": LanguageDescriptor("de", "German", "Deutsch")
         }
 
         self._load_saved_language()
@@ -77,17 +91,26 @@ class LanguageService(QObject):
             logger.debug("Language already set to: %s", language_code)
             return True
 
+        translator: Optional[QTranslator] = None
+        if language_code != "en":
+            translator = self._translators.get(language_code)
+            if translator is None:
+                translator = self._load_translator(language_code)
+                if translator is None:
+                    logger.error("Failed to load translators for: %s", language_code)
+                    return False
+
         self._remove_translators()
 
-        if self._load_translators(language_code):
-            self._current_language = language_code
-            self._save_language(language_code)
-            self.languageChanged.emit(language_code)
-            logger.info("Language changed to: %s", language_code)
-            return True
+        if translator is not None:
+            QCoreApplication.installTranslator(translator)
+            self._translators[language_code] = translator
 
-        logger.error("Failed to load translators for: %s", language_code)
-        return False
+        self._current_language = language_code
+        self._save_language(language_code)
+        self.languageChanged.emit(language_code)
+        logger.info("Language changed to: %s", language_code)
+        return True
 
     def _load_saved_language(self) -> None:
         """Load previously saved language or detect system language."""
@@ -112,12 +135,12 @@ class LanguageService(QObject):
         self._settings.setValue("language", language_code)
         logger.debug("Saved language to settings: %s", language_code)
 
-    def _load_translators(self, language_code: str) -> bool:
-        """Load translators for the specified language."""
+    def _load_translator(self, language_code: str) -> Optional[QTranslator]:
+        """Load a translator for the specified language without installing it."""
         if language_code == "en":
-            return True
+            return None
 
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, "frozen", False):
             base_path = Path(sys._MEIPASS)
         else:
             base_path = Path(__file__).resolve().parent.parent
@@ -127,17 +150,15 @@ class LanguageService(QObject):
 
         if not qm_file.exists():
             logger.warning("Translation file not found: %s", qm_file)
-            return False
+            return None
 
         translator = QTranslator()
         if translator.load(str(qm_file)):
-            QCoreApplication.installTranslator(translator)
-            self._translators[language_code] = translator
             logger.debug("Loaded translator: %s", qm_file)
-            return True
-        else:
-            logger.warning("Failed to load translator: %s", qm_file)
-            return False
+            return translator
+
+        logger.warning("Failed to load translator: %s", qm_file)
+        return None
 
     def _remove_translators(self) -> None:
         """Remove all currently installed translators."""
@@ -162,13 +183,14 @@ class LanguageService(QObject):
         try:
             translator = self._translators.get(self._current_language)
             if translator is None:
-                if not self._load_translators(self._current_language):
+                translator = self._load_translator(self._current_language)
+                if translator is None:
                     logger.warning(
                         "install_translator: failed to load translators for language: %s",
                         self._current_language,
                     )
                     return False
-                translator = self._translators.get(self._current_language)
+                self._translators[self._current_language] = translator
 
             if translator is None:
                 logger.error(

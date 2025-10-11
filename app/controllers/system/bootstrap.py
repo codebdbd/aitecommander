@@ -56,6 +56,26 @@ def build_controllers(window: WindowWithRequiredAttributes) -> ControllersFacade
     controllers: Dict[str, Any] = {}
     setup_controllers(window, controllers, window.db)
 
+    # Legacy path lacked WindowFacade wiring; replicate the modern setup so
+    # shortcut handlers that rely on window.facade keep working.
+    try:
+        from app.controllers.ui.window_facade import WindowFacade
+
+        window.facade = WindowFacade(
+            structure=window.structure,
+            links_actions=window.links_actions,
+            ui_state=window.ui_state,
+            action_controller=window.action_controller,
+            theme_ctrl=window.theme_ctrl,
+        )
+    except Exception:
+        warnings.warn(
+            "build_controllers(): failed to initialize WindowFacade; "
+            "keyboard shortcuts may not work correctly in this legacy mode.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+
     return ControllersFacade(
         structure_business=controllers["structure_business"],
         structure=controllers["structure"],
