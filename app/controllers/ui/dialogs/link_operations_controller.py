@@ -292,7 +292,7 @@ class LinkOperationsController(QObject):
 
         cmd = BatchSaveLinksCmd(
             links_data=links_to_save,
-            old_link_data=None,
+            _old_link_data=None,
             main_window=self.main_window,
         )
         self.undo_stack.push(cmd)
