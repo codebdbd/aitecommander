@@ -61,10 +61,14 @@ class _SearchResultsModel(QAbstractTableModel):
         super().__init__(parent)
         self._rows = []  # list of tuples: (name, path, size_kb, mtime_str, has_content)
 
-    def rowCount(self, parent=QModelIndex()):  # noqa: N802 Qt signature
+    def rowCount(self, parent=None):  # noqa: N802 Qt signature
+        if parent is None:
+            parent = QModelIndex()
         return 0 if parent.isValid() else len(self._rows)
 
-    def columnCount(self, parent=QModelIndex()):  # noqa: N802
+    def columnCount(self, parent=None):  # noqa: N802
+        if parent is None:
+            parent = QModelIndex()
         return 0 if parent.isValid() else len(self.HEADERS)
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):

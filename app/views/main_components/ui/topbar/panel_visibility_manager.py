@@ -363,8 +363,8 @@ class PanelVisibilityManager:
                     from weakref import ref
                     button_ref = ref(button)
                     
-                    def hide_callback():
-                        btn = button_ref()
+                    def hide_callback(_ref=button_ref):
+                        btn = _ref()
                         if btn is not None and not self._is_deleted(btn):
                             try:
                                 btn.setVisible(False)

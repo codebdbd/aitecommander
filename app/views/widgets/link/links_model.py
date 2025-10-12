@@ -59,12 +59,16 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             self.headerDataChanged.emit(Qt.Orientation.Horizontal, 0, len(self._headers) - 1)
 
     # --- Required methods ---
-    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # type: ignore[override]
+    def rowCount(self, parent: QModelIndex | None = None) -> int:  # type: ignore[override]
+        if parent is None:
+            parent = QModelIndex()
         if parent.isValid():
             return 0
         return len(self._links)
 
-    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:  # type: ignore[override]
+    def columnCount(self, parent: QModelIndex | None = None) -> int:  # type: ignore[override]
+        if parent is None:
+            parent = QModelIndex()
         if parent.isValid():
             return 0
         return len(self._headers)

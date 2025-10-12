@@ -34,7 +34,9 @@ class CategoriesListModel(QAbstractListModel):
             self.set_categories(categories)
 
     # --- data API ---
-    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # type: ignore[override]
+    def rowCount(self, parent: QModelIndex | None = None) -> int:  # type: ignore[override]
+        if parent is None:
+            parent = QModelIndex()
         if parent.isValid():
             return 0
         return len(self._items)

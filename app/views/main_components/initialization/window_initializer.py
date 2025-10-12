@@ -611,15 +611,14 @@ class WindowInitializer:
                 "WindowInitializer: failed to show initialization error dialog"
             )
         finally:
-            try:
-                # Centralize shutdown: close the main window to trigger AppShutdownController
-                if hasattr(self, "window") and hasattr(self.window, "close"):
+            # Centralize shutdown: close the main window to trigger AppShutdownController
+            if hasattr(self, "window") and hasattr(self.window, "close"):
+                try:
                     self.window.close()
-                    return
-            except Exception:
-                logger.debug("WindowInitializer: window.close() failed, falling back to app.quit()", exc_info=True)
-
-            # Fallback: if the window is unavailable, quit the app directly
-            app = QApplication.instance()
-            if app is not None:
-                app.quit()
+                except Exception:
+                    logger.debug("WindowInitializer: window.close() failed, falling back to app.quit()", exc_info=True)
+            else:
+                # Fallback: if the window is unavailable, quit the app directly
+                app = QApplication.instance()
+                if app is not None:
+                    app.quit()

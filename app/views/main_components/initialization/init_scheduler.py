@@ -81,10 +81,8 @@ class AsyncStepRunner:
                 step_func()
         except Exception as e:
             if on_error:
-                try:
-                    on_error(e)
-                finally:
-                    return
+                on_error(e)
+                return
             else:
                 raise
 
@@ -94,10 +92,8 @@ class AsyncStepRunner:
                 special_hooks[step_func]()
             except Exception as e:
                 if on_error:
-                    try:
-                        on_error(e)
-                    finally:
-                        return
+                    on_error(e)
+                    return
                 # Swallow the exception to keep the pipeline running, but log it
                 import logging as _logging
 

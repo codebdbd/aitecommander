@@ -53,16 +53,20 @@ class StructureTreeModel(QAbstractItemModel):
         self._section_by_id: dict[int, TreeNode] = {}
         self._category_by_id: dict[int, TreeNode] = {}
 
-    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:  # noqa: N802 (Qt API)
+    def columnCount(self, parent: QModelIndex | None = None) -> int:  # noqa: N802 (Qt API)
         return 1
 
-    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # noqa: N802
+    def rowCount(self, parent: QModelIndex | None = None) -> int:  # noqa: N802
+        if parent is None:
+            parent = QModelIndex()
         node = self._node_from_index(parent)
         return len(node.children)
 
     def index(
-        self, row: int, column: int, parent: QModelIndex = QModelIndex()
+        self, row: int, column: int, parent: QModelIndex | None = None
     ) -> QModelIndex:  # noqa: N802
+        if parent is None:
+            parent = QModelIndex()
         if column != 0 or row < 0:
             return QModelIndex()
         parent_node = self._node_from_index(parent)
