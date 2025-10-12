@@ -6,10 +6,10 @@ import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Optional
 
-if TYPE_CHECKING:
-    from PyQt6.QtCore import QObject
-
 from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal
+
+if TYPE_CHECKING:
+    pass  # QObject already imported above
 
 from app.config_data import app_config
 from app.utils.db.migrations import MigrationRunner

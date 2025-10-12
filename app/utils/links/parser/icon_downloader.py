@@ -37,7 +37,6 @@ if TYPE_CHECKING:
     from bs4 import BeautifulSoup
 
 from .constants import MIN_GOOD_SIZE, TARGET_SIZE, logger
-from .http_client import get_session as get_session  # backward-compat for tests
 from .http_client import http_request
 from .icon_candidates import find_favicon_candidates
 from .svg_convert import convert_svg

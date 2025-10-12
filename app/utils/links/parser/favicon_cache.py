@@ -565,29 +565,6 @@ class FaviconCache(BaseCache):
                         except Exception:
                             pass
 
-    def _get_max_size(self) -> int:
-        """Return allowed cache size.
-        Supports both the new ``get_*`` API and legacy `favicon_cache_max_size` attribute (test compatibility).
-        """
-        values: list[int] = []
-        # Attribute
-        if hasattr(app_config, "favicon_cache_max_size"):
-            try:
-                values.append(int(app_config.favicon_cache_max_size))
-            except Exception:
-                pass
-        # Method
-        if hasattr(app_config, "get_favicon_cache_max_size"):
-            try:
-                values.append(int(app_config.get_favicon_cache_max_size()))  # type: ignore[misc]
-            except Exception:
-                pass
-        # Pick the strictest (smallest) valid limit
-        values = [v for v in values if v is not None]
-        if values:
-            return max(1, min(values))
-        return 5000
-
     def _clear_all_cache(self):
         """Clear all cache files."""
         try:
@@ -615,15 +592,6 @@ class FaviconCache(BaseCache):
             if key in idx:
                 idx.pop(key, None)
                 db["__ts_index__"] = idx
-        except Exception:
-            pass
-
-    def _sync_db(self, db):
-        """Sync database to disk."""
-        try:
-            sync = getattr(db, "sync", None)
-            if callable(sync):
-                sync()
         except Exception:
             pass
 
