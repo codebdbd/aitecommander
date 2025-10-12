@@ -160,6 +160,14 @@ class LinkOperationsController(QObject):
 
     def _prepare_spheres_data(self):
         """Prepare sphere data for dialog."""
+        structure_business = getattr(self.main_window, "structure_business", None)
+        if structure_business is not None:
+            try:
+                spheres = structure_business.get_cached_spheres()
+                if spheres:
+                    return spheres
+            except Exception as exc:
+                logger.debug("Failed to use cached spheres in LinkOperationsController: %s", exc, exc_info=True)
         return self.db.spheres.get_spheres()
 
     def _get_category_hierarchy(self, category_id):
@@ -168,10 +176,36 @@ class LinkOperationsController(QObject):
 
     def get_sections_for_sphere(self, sphere_id):
         """Get sections for sphere."""
+        structure_business = getattr(self.main_window, "structure_business", None)
+        if structure_business is not None:
+            try:
+                sections = structure_business.get_cached_sections(sphere_id)
+                if sections:
+                    return sections
+            except Exception as exc:
+                logger.debug(
+                    "Failed to use cached sections for sphere %s: %s",
+                    sphere_id,
+                    exc,
+                    exc_info=True,
+                )
         return self.db.sections.get_sections(sphere_id)
 
     def get_categories_for_section(self, section_id):
         """Get categories for section."""
+        structure_business = getattr(self.main_window, "structure_business", None)
+        if structure_business is not None:
+            try:
+                categories = structure_business.get_cached_categories(section_id)
+                if categories:
+                    return categories
+            except Exception as exc:
+                logger.debug(
+                    "Failed to use cached categories for section %s: %s",
+                    section_id,
+                    exc,
+                    exc_info=True,
+                )
         return self.db.categories.get_categories(section_id)
 
     def get_database(self):
@@ -191,7 +225,11 @@ class LinkOperationsController(QObject):
         # Create controller for dialog
         from .link_dialog_controller import LinkDialogController
 
-        link_controller = LinkDialogController(self.db)
+        structure_business = getattr(self.main_window, "structure_business", None)
+        link_controller = LinkDialogController(
+            self.db,
+            structure_business=structure_business,
+        )
 
         # Get initialization data through controller
         init_data = link_controller.get_initialization_data(cat_id, link)

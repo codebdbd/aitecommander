@@ -31,7 +31,10 @@ class LinksUILinkOperations(BaseLinksUIComponent):
         from app.controllers.ui.dialogs import LinkDialogController
         from app.views.windows.dialogs.link_dialog.link_dialog import LinkDialog
 
-        link_controller = LinkDialogController(self.business.db)
+        link_controller = LinkDialogController(
+            self.business.db,
+            structure_business=getattr(self.main, "structure_business", None),
+        )
         init_data = link_controller.get_initialization_data(cat_id, None)
 
         dlg = LinkDialog(
@@ -158,3 +161,4 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             link = selected_links[0]
 
         self.business.toggle_favorite(link)
+

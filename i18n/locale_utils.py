@@ -6,7 +6,7 @@ import datetime
 from decimal import Decimal
 from typing import Optional
 
-from PyQt6.QtCore import QLocale
+from PyQt6.QtCore import QLocale, QDateTime, QDate, QTime
 
 from .language_service import LanguageService
 
@@ -30,10 +30,9 @@ def format_datetime(
         locale_code = LanguageService.instance().current_language()
 
     locale = QLocale(locale_code)
-    qdt = locale.toDateTime(
-        dt.date(),
-        dt.time()
-    )
+    qdate = QDate(dt.year, dt.month, dt.day)
+    qtime = QTime(dt.hour, dt.minute, dt.second, dt.microsecond // 1000)
+    qdt = QDateTime(qdate, qtime)
     return locale.toString(qdt, format_str)
 
 
@@ -56,7 +55,7 @@ def format_date(
         locale_code = LanguageService.instance().current_language()
 
     locale = QLocale(locale_code)
-    qdate = locale.toDate(date.year, date.month, date.day)
+    qdate = QDate(date.year, date.month, date.day)
     return locale.toString(qdate, format_str)
 
 
@@ -79,7 +78,7 @@ def format_time(
         locale_code = LanguageService.instance().current_language()
 
     locale = QLocale(locale_code)
-    qtime = locale.toTime(time.hour, time.minute, time.second)
+    qtime = QTime(time.hour, time.minute, time.second, time.microsecond // 1000)
     return locale.toString(qtime, format_str)
 
 
