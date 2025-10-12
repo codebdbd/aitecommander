@@ -120,6 +120,240 @@ class CategoryModel(DatabaseBase):
         logger.info("Добавлена новая категория: %s", data["name"])
         return cursor.lastrowid
 
+    def _validate_and_prepare_items(
+        self, items: list[dict[str, Any]]
+    ) -> tuple[dict[int, tuple[int, str, str]], bool]:
+        """Validate input items and prepare normalized metadata.
+        
+        Returns: (prepared_info, has_uuid_tokens)
+        """
+        prepared_info: dict[int, tuple[int, str, str]] = {}
+        has_uuid_tokens = False
+        
+        for it in items:
+            self._validate_required_fields(it or {}, ["name", "section_id"], "category")
+            try:
+                sid = int(it.get("section_id"))
+            except Exception as e:
+                raise ValidationError(
+                    "Incorrect section_id in one of batch elements"
+                ) from e
+            raw_name = it.get("name")
+            name_canon = str(raw_name).strip() if raw_name is not None else ""
+            name_norm = name_canon.lower()
+            prepared_info[id(it)] = (sid, name_canon, name_norm)
+            
+            if not has_uuid_tokens:
+                token_raw = it.get(CATEGORY_BULK_UUID_FIELD)
+                if token_raw is not None and str(token_raw).strip():
+                    has_uuid_tokens = True
+        
+        return prepared_info, has_uuid_tokens
+
+    def _group_by_section(
+        self, items: list[dict[str, Any]], prepared_info: dict[int, tuple[int, str, str]]
+    ) -> dict[int, list[dict[str, Any]]]:
+        """Group items by section_id."""
+        by_section: dict[int, list[dict[str, Any]]] = {}
+        for it in items:
+            info = prepared_info.get(id(it))
+            if not info:
+                continue
+            sid, _, _ = info
+            by_section.setdefault(sid, []).append(it)
+        return by_section
+
+    def _load_max_positions(self, section_ids: list[int]) -> dict[int, Optional[int]]:
+        """Load MAX(position) for all sections in one query."""
+        max_pos_map: dict[int, Optional[int]] = {}
+        if not section_ids:
+            return max_pos_map
+            
+        placeholders = ",".join(["?"] * len(section_ids))
+        query = (
+            f"SELECT section_id, MAX(position) AS max_pos "
+            f"FROM category WHERE section_id IN ({placeholders}) "
+            f"GROUP BY section_id"
+        )
+        rows = self._execute_with_error_handling(
+            query, tuple(section_ids), fetch_method="all"
+        )
+        for row in rows or []:
+            max_pos_map[row["section_id"]] = row["max_pos"]
+        return max_pos_map
+
+    def _load_existing_names(self, section_ids: list[int]) -> dict[int, set]:
+        """Load existing category names for all sections in one query."""
+        existing_names_by_section: dict[int, set] = {}
+        if not section_ids:
+            return existing_names_by_section
+            
+        placeholders = ",".join(["?"] * len(section_ids))
+        query_names = (
+            f"SELECT section_id, LOWER(name) AS lname FROM category "
+            f"WHERE section_id IN ({placeholders})"
+        )
+        rows = self._execute_with_error_handling(
+            query_names, tuple(section_ids), fetch_method="all"
+        )
+        for r in rows or []:
+            sid = (
+                int(r["section_id"])
+                if r["section_id"] is not None
+                else None
+            )
+            if sid is None:
+                continue
+            nm = str(r["lname"]).strip().lower()
+            if not nm:
+                continue
+            existing_names_by_section.setdefault(sid, set()).add(nm)
+        return existing_names_by_section
+
+    def _build_insert_batch(
+        self,
+        by_section: dict[int, list[dict[str, Any]]],
+        prepared_info: dict[int, tuple[int, str, str]],
+        max_pos_map: dict[int, Optional[int]],
+        existing_names_by_section: dict[int, set],
+    ) -> list[tuple]:
+        """Build batch insert parameters, skipping duplicates."""
+        batched_params: list[tuple] = []
+        
+        for section_id, group in by_section.items():
+            max_pos = max_pos_map.get(section_id)
+            start_pos = (max_pos + 1) if (max_pos is not None) else 0
+            pos = start_pos
+            existing_names = existing_names_by_section.get(section_id, set())
+            seen_in_batch = set()
+
+            for it in group:
+                info = prepared_info.get(id(it))
+                if not info:
+                    continue
+                _, name_canon, name_norm = info
+                if not name_norm:
+                    continue
+                if name_norm in existing_names or name_norm in seen_in_batch:
+                    continue
+                seen_in_batch.add(name_norm)
+
+                icon_path = it.get("icon_path", "")
+                batched_params.append((name_canon, section_id, icon_path, pos))
+                pos += 1
+        
+        return batched_params
+
+    def _collect_category_pairs(
+        self,
+        by_section: dict[int, list[dict[str, Any]]],
+        prepared_info: dict[int, tuple[int, str, str]],
+    ) -> list[tuple[int, str]]:
+        """Collect unique (section_id, name) pairs for DB query."""
+        pairs: list[tuple] = []
+        seen = set()
+        for section_id, group in by_section.items():
+            for g in group:
+                info = prepared_info.get(id(g))
+                if not info:
+                    continue
+                _, nm_canon, _ = info
+                key = (section_id, nm_canon)
+                if key in seen:
+                    continue
+                seen.add(key)
+                pairs.append(key)
+        return pairs
+
+    def _query_categories_by_pairs(
+        self, pairs: list[tuple[int, str]]
+    ) -> list[dict[str, Any]]:
+        """Query categories from DB by (section_id, name) pairs."""
+        if not pairs:
+            return []
+
+        placeholders = ",".join(["(?, ?)"] * len(pairs))
+        flat_params: list[Any] = []
+        for sid, nm in pairs:
+            flat_params.extend([sid, nm])
+
+        query = (
+            "SELECT id, name, section_id, position, icon_path "
+            "FROM category WHERE (section_id, name) IN (" + placeholders + ") "
+            "ORDER BY section_id, position"
+        )
+        rows = self._execute_with_error_handling(
+            query, tuple(flat_params), fetch_method="all"
+        )
+        return [dict(r) for r in (rows or [])]
+
+    def _build_category_index(
+        self, rows: list[dict[str, Any]]
+    ) -> dict[tuple[int, str], dict[str, Any]]:
+        """Build index of categories by (section_id, lowercase_name)."""
+        rows_by_key: dict[tuple[int, str], dict[str, Any]] = {}
+        for r in rows:
+            try:
+                section_id = (
+                    int(r["section_id"])
+                    if r["section_id"] is not None
+                    else None
+                )
+            except Exception:
+                section_id = None
+            if section_id is None:
+                continue
+            name_value = (
+                str(r["name"]).strip().lower() if r["name"] is not None else ""
+            )
+            rows_by_key[(section_id, name_value)] = r
+        return rows_by_key
+
+    def _attach_uuid_tokens(
+        self,
+        rows_by_key: dict[tuple[int, str], dict[str, Any]],
+        items: list[dict[str, Any]],
+        prepared_info: dict[int, tuple[int, str, str]],
+    ) -> list[dict[str, Any]]:
+        """Attach UUID tokens to fetched categories."""
+        result: list[dict[str, Any]] = []
+        for it in items:
+            info = prepared_info.get(id(it))
+            if not info:
+                continue
+            section_id, _, name_norm = info
+            if not name_norm:
+                continue
+            row = rows_by_key.get((section_id, name_norm))
+            if not row:
+                continue
+            payload = dict(row)
+            token_raw = it.get(CATEGORY_BULK_UUID_FIELD)
+            token = str(token_raw).strip() if token_raw is not None else ""
+            if token:
+                payload[CATEGORY_BULK_UUID_FIELD] = token
+            result.append(payload)
+        return result
+
+    def _fetch_inserted_categories(
+        self,
+        by_section: dict[int, list[dict[str, Any]]],
+        prepared_info: dict[int, tuple[int, str, str]],
+        has_uuid_tokens: bool,
+        items: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Fetch inserted categories from DB and attach UUID tokens if needed."""
+        pairs = self._collect_category_pairs(by_section, prepared_info)
+        if not pairs:
+            return []
+
+        rows = self._query_categories_by_pairs(pairs)
+        if not has_uuid_tokens:
+            return rows
+
+        rows_by_key = self._build_category_index(rows)
+        return self._attach_uuid_tokens(rows_by_key, items, prepared_info)
+
     def insert_categories_bulk(
         self, items: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
@@ -138,186 +372,29 @@ class CategoryModel(DatabaseBase):
         if not items:
             return []
 
-        # Input data validation + normalization metadata
-        prepared_info: dict[int, tuple[int, str, str]] = {}
-        has_uuid_tokens = False
-        for it in items:
-            self._validate_required_fields(it or {}, ["name", "section_id"], "category")
-            try:
-                sid = int(it.get("section_id"))
-            except Exception as e:
-                raise ValidationError(
-                    "Incorrect section_id in one of batch elements"
-                ) from e
-            raw_name = it.get("name")
-            name_canon = str(raw_name).strip() if raw_name is not None else ""
-            name_norm = name_canon.lower()
-            prepared_info[id(it)] = (sid, name_canon, name_norm)
-            if not has_uuid_tokens:
-                token_raw = it.get(CATEGORY_BULK_UUID_FIELD)
-                if token_raw is not None and str(token_raw).strip():
-                    has_uuid_tokens = True
+        prepared_info, has_uuid_tokens = self._validate_and_prepare_items(items)
+        by_section = self._group_by_section(items, prepared_info)
 
-        # Group by section_id for position calculation
-        by_section: dict[int, list[dict[str, Any]]] = {}
-        for it in items:
-            info = prepared_info.get(id(it))
-            if not info:
-                continue
-            sid, _, _ = info
-            by_section.setdefault(sid, []).append(it)
-
-        # Формируем батч вставки
-        batched_params: list[tuple] = []
         try:
             with self.transaction():
-                # Preload current MAX(position) for all sections in one query
                 section_ids = list(by_section.keys())
-                max_pos_map: dict[int, Optional[int]] = {}
-                if section_ids:
-                    placeholders = ",".join(["?"] * len(section_ids))
-                    query = (
-                        f"SELECT section_id, MAX(position) AS max_pos "
-                        f"FROM category WHERE section_id IN ({placeholders}) "
-                        f"GROUP BY section_id"
-                    )
-                    rows = self._execute_with_error_handling(
-                        query, tuple(section_ids), fetch_method="all"
-                    )
-                    for row in rows or []:
-                        max_pos_map[row["section_id"]] = row["max_pos"]
+                max_pos_map = self._load_max_positions(section_ids)
+                existing_names_by_section = self._load_existing_names(section_ids)
+                
+                batched_params = self._build_insert_batch(
+                    by_section, prepared_info, max_pos_map, existing_names_by_section
+                )
 
-                # Unified preload of existing names for all affected sections in one query
-                existing_names_by_section: dict[int, set] = {}
-                if section_ids:
-                    placeholders = ",".join(["?"] * len(section_ids))
-                    query_names = (
-                        f"SELECT section_id, LOWER(name) AS lname FROM category "
-                        f"WHERE section_id IN ({placeholders})"
-                    )
-                    rows = self._execute_with_error_handling(
-                        query_names, tuple(section_ids), fetch_method="all"
-                    )
-                    for r in rows or []:
-                        sid = (
-                            int(r["section_id"])
-                            if r["section_id"] is not None
-                            else None
-                        )
-                        if sid is None:
-                            continue
-                        nm = str(r["lname"]).strip().lower()
-                        if not nm:
-                            continue
-                        existing_names_by_section.setdefault(sid, set()).add(nm)
-
-                # Re-iterate grouped elements to form batch using preloaded names
-                for section_id, group in by_section.items():
-                    # Starting position: (MAX(position) + 1) or 0 if no records
-                    max_pos = max_pos_map.get(section_id)
-                    start_pos = (max_pos + 1) if (max_pos is not None) else 0
-                    pos = start_pos
-                    existing_names = existing_names_by_section.get(section_id, set())
-
-                    # Duplicates within batch for this section
-                    seen_in_batch = set()
-
-                    for it in group:
-                        info = prepared_info.get(id(it))
-                        if not info:
-                            continue
-                        _, name_canon, name_norm = info
-                        # Skip if name empty (validation above), but keep guard for safety
-                        if not name_norm:
-                            continue
-                        # Skip if already exists in DB or already seen in this batch
-                        if name_norm in existing_names or name_norm in seen_in_batch:
-                            continue
-                        seen_in_batch.add(name_norm)
-
-                        icon_path = it.get("icon_path", "")
-                        batched_params.append((name_canon, section_id, icon_path, pos))
-                        pos += 1
-
-                # Insert with single executemany with silent duplicate ignoring
+                # Insert with single executemany
                 self._execute_many_with_error_handling(
                     "INSERT OR IGNORE INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
                     batched_params,
                 )
 
-                # Unified query for all (section_id, name) pairs
-                pairs: list[tuple] = []
-                seen = set()
-                for section_id, group in by_section.items():
-                    for g in group:
-                        info = prepared_info.get(id(g))
-                        if not info:
-                            continue
-                        _, nm_canon, _ = info
-                        # Search should use canonical name (without spaces around),
-                        # as we store exactly that in DB.
-                        key = (section_id, nm_canon)
-                        if key in seen:
-                            continue
-                        seen.add(key)
-                        pairs.append(key)
-
-                if not pairs:
-                    return []
-
-                placeholders = ",".join(["(?, ?)"] * len(pairs))
-                flat_params: list[Any] = []
-                for sid, nm in pairs:
-                    flat_params.extend([sid, nm])
-
-                query = (
-                    "SELECT id, name, section_id, position, icon_path "
-                    "FROM category WHERE (section_id, name) IN (" + placeholders + ") "
-                    "ORDER BY section_id, position"
+                return self._fetch_inserted_categories(
+                    by_section, prepared_info, has_uuid_tokens, items
                 )
-                rows = self._execute_with_error_handling(
-                    query, tuple(flat_params), fetch_method="all"
-                )
-                if not has_uuid_tokens:
-                    return [dict(r) for r in (rows or [])]
-
-                rows_by_key: dict[tuple[int, str], dict[str, Any]] = {}
-                for r in rows or []:
-                    try:
-                        section_id = (
-                            int(r["section_id"])
-                            if r["section_id"] is not None
-                            else None
-                        )
-                    except Exception:
-                        section_id = None
-                    if section_id is None:
-                        continue
-                    name_value = (
-                        str(r["name"]).strip().lower() if r["name"] is not None else ""
-                    )
-                    rows_by_key[(section_id, name_value)] = dict(r)
-
-                result: list[dict[str, Any]] = []
-                for it in items:
-                    info = prepared_info.get(id(it))
-                    if not info:
-                        continue
-                    section_id, _, name_norm = info
-                    if not name_norm:
-                        continue
-                    row = rows_by_key.get((section_id, name_norm))
-                    if not row:
-                        continue
-                    payload = dict(row)
-                    token_raw = it.get(CATEGORY_BULK_UUID_FIELD)
-                    token = str(token_raw).strip() if token_raw is not None else ""
-                    if token:
-                        payload[CATEGORY_BULK_UUID_FIELD] = token
-                    result.append(payload)
-                return result
         except Exception:
-            # Initiate rollback and propagate further
             raise
 
     def update_category(self, category_id: int, data: dict[str, Any]):
