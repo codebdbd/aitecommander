@@ -101,6 +101,7 @@ class IconCache:
                 except Exception as e:  # noqa: BLE001
                     return e
 
+        icon_tasks = [_load(name) for name in icon_names]
         icons = await asyncio.gather(*icon_tasks, return_exceptions=False)
 
         result = {}
