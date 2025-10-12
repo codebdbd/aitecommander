@@ -531,6 +531,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
             pass
         business = getattr(self.main, "structure_business", None)
         section_id_for_focus = None
+        batch_started = False
         # Suppress selection signal storm during batch operation
         tree = None
         selection = None
@@ -568,6 +569,27 @@ class DeleteCategoriesBatchCmd(BaseCommand):
         try:
             # 1) Delete all categories in one operation WITHOUT per-item signals
             ids = [c.get("id") for c in self.categories if c.get("id") is not None]
+            touched_sections = {
+                int(cat.get("section_id"))
+                for cat in self.categories
+                if isinstance(cat.get("section_id"), int) and cat.get("section_id") > 0
+            }
+            if business and hasattr(business, "begin_batch") and callable(
+                business.begin_batch
+            ):
+                try:
+                    business.begin_batch()
+                    batch_started = True
+                    if touched_sections:
+                        business.event_service.replace_touched_sections(
+                            set(touched_sections)
+                        )
+                except Exception as exc:
+                    logger.debug(
+                        "DeleteCategoriesBatchCmd.redo: begin_batch failed: %s",
+                        exc,
+                        exc_info=True,
+                    )
             # Save section_id for final focus (take last valid)
             for cat in self.categories:
                 sid = cat.get("section_id")
@@ -630,15 +652,18 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                     )
                 if section_id_for_focus is not None:
                     try:
-                        business._invalidate_categories_cache(section_id_for_focus)
+                        business.select_section(section_id_for_focus)
                     except Exception as exc:
                         logger.debug(
-                            "DeleteCategoriesBatchCmd.redo: invalidate cache failed: %s",
+                            "DeleteCategoriesBatchCmd.redo: select_section failed: %s",
                             exc,
+                            exc_info=True,
                         )
-                    business.select_section(section_id_for_focus)
-                # Single batch signal instead of per-item and instead of manual global reload
                 try:
+                    if batch_started and touched_sections:
+                        business.event_service.replace_touched_sections(
+                            set(touched_sections)
+                        )
                     ids_payload = [
                         c.get("id") for c in self.categories if c.get("id") is not None
                     ]
@@ -658,6 +683,16 @@ class DeleteCategoriesBatchCmd(BaseCommand):
             logger.warning(
                 "DeleteCategoriesBatchCmd.redo: final updates failed: %s", exc
             )
+        finally:
+            if batch_started and business and hasattr(business, "end_batch"):
+                try:
+                    business.end_batch()
+                except Exception as exc:
+                    logger.debug(
+                        "DeleteCategoriesBatchCmd.redo: end_batch failed: %s",
+                        exc,
+                        exc_info=True,
+                    )
         logger.debug(
             "[BatchRedo:done] cmd_id=%s section_focus=%s",
             hex(id(self)),

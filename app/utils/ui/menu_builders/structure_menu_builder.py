@@ -113,64 +113,6 @@ class StructureMenuBuilder:
             )
         )
 
-        # Paste (only if clipboard has text)
-        if self._svc.clipboard_has_text():
-            menu.addAction(
-                self.actions.create(
-                    MenuTexts.PASTE_LINK,
-                    self.main_window.add_new_category,
-                    Shortcuts.CTRL_V,
-                    get_menu_icon("paste", self.theme),
-                )
-            )
-
-        # Delete category / delete selected (if multi-select)
-        def _delete_action():
-            try:
-                selected = self._get_selected_category_nodes()
-            except Exception:
-                logger.exception(
-                    "[CtxMenu] Failed to get selected categories for deletion; using single-item delete"
-                )
-                selected = []
-            # If multiple items are selected — use batch delete
-            if len(selected) > 1:
-                logger.debug(
-                    "[CtxMenu] Batch delete for %s selected categories", len(selected)
-                )
-                try:
-                    # Controller available as main_window.structure
-                    if (
-                        hasattr(self.main_window, "structure")
-                        and self.main_window.structure
-                    ):
-                        self.main_window.structure.delete_selected_item()
-                        return
-                except Exception:
-                    logger.exception(
-                        "[CtxMenu] Batch delete failed for selected categories"
-                    )
-            # Otherwise — delete single item
-            delete_item_cb(item)
-
-        # Choose localized caption key based on selection count
-        try:
-            selected_count = len(self._get_selected_category_nodes())
-        except Exception:
-            logger.exception(
-                "[CtxMenu] Failed to compute selected categories count"
-            )
-            selected_count = 0
-        action_text_key = MenuTexts.DELETE_SELECTED if selected_count > 1 else MenuTexts.DELETE_CATEGORY
-        menu.addAction(
-            self.actions.create(
-                action_text_key,
-                _delete_action,
-                Shortcuts.DELETE,
-                get_menu_icon("delete", self.theme),
-            )
-        )
-
         menu.addSeparator()
 
         # Select all categories under section
@@ -186,6 +128,103 @@ class StructureMenuBuilder:
         menu.addSeparator()
 
         # Undo/Redo from main window if available
+        if hasattr(self.main_window, "undo_action") and self.main_window.undo_action:
+            menu.addAction(self.main_window.undo_action)
+        if hasattr(self.main_window, "redo_action") and self.main_window.redo_action:
+            menu.addAction(self.main_window.redo_action)
+
+    def _add_category_actions(
+        self, menu: QMenu, item: Any, category_id: Any, delete_item_cb: Callable
+    ):
+        """Actions for the selected category."""
+        menu.addAction(
+            self.actions.create(
+                MenuTexts.EDIT_CATEGORY,
+                lambda: self.main_window.edit_structure_item(item),
+                Shortcuts.EDIT,
+                get_menu_icon("edit", self.theme),
+            )
+        )
+
+        def _add_link_to_category():
+            handler = getattr(self.main_window, "show_link_dialog_for_category", None)
+            if callable(handler):
+                try:
+                    handler(int(category_id) if category_id is not None else None)
+                except Exception:
+                    logger.exception(
+                        "[CtxMenu] Failed to open link dialog for category %s",
+                        category_id,
+                    )
+
+        menu.addAction(
+            self.actions.create(
+                MenuTexts.ADD_LINK,
+                _add_link_to_category,
+                Shortcuts.ADD_LINK,
+                get_menu_icon("add_link", self.theme),
+            )
+        )
+
+        menu.addSeparator()
+
+        menu.addAction(
+            self.actions.create(
+                MenuTexts.COPY_CATEGORY,
+                lambda: self._copy_category_tree_to_clipboard(item, category_id),
+                Shortcuts.CTRL_C,
+                get_menu_icon("copy", self.theme),
+            )
+        )
+
+        menu.addSeparator()
+
+        def _delete_action():
+            try:
+                selected = self._get_selected_category_nodes()
+            except Exception:
+                logger.exception(
+                    "[CtxMenu] Failed to get selected categories for deletion; using single-item delete"
+                )
+                selected = []
+            if len(selected) > 1:
+                logger.debug(
+                    "[CtxMenu] Batch delete for %s selected categories", len(selected)
+                )
+                try:
+                    if (
+                        hasattr(self.main_window, "structure")
+                        and self.main_window.structure
+                    ):
+                        self.main_window.structure.delete_selected_item()
+                        return
+                except Exception:
+                    logger.exception(
+                        "[CtxMenu] Batch delete failed for selected categories"
+                    )
+            delete_item_cb(item)
+
+        try:
+            selected_count = len(self._get_selected_category_nodes())
+        except Exception:
+            logger.exception(
+                "[CtxMenu] Failed to compute selected categories count"
+            )
+            selected_count = 0
+        action_text_key = (
+            MenuTexts.DELETE_SELECTED if selected_count > 1 else MenuTexts.DELETE_CATEGORY
+        )
+        menu.addAction(
+            self.actions.create(
+                action_text_key,
+                _delete_action,
+                Shortcuts.DELETE,
+                get_menu_icon("delete", self.theme),
+            )
+        )
+
+        menu.addSeparator()
+
         if hasattr(self.main_window, "undo_action") and self.main_window.undo_action:
             menu.addAction(self.main_window.undo_action)
         if hasattr(self.main_window, "redo_action") and self.main_window.redo_action:
@@ -269,6 +308,7 @@ class StructureMenuBuilder:
             business = getattr(self.main_window, "structure_business", None)
             struct = getattr(self.main_window, "structure", None)
             selection = getattr(struct, "selection_handler", None)
+            tree_widget = getattr(self, "tree_widget", None)
 
             # Suppress selection/tree signals during batch operation
             try:
@@ -340,7 +380,8 @@ class StructureMenuBuilder:
                                 section_id,
                             )
                         try:
-                            business._schedule_structure_reload(0)
+                            if getattr(business, "async_service", None):
+                                business.async_service.schedule_structure_reload(0)
                             logger.debug(
                                 "[PasteCategories] scheduled structure reload (debounced)"
                             )

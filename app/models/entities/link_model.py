@@ -114,6 +114,49 @@ class LinkModel(DatabaseBase):
             )
             raise
 
+    def get_links_for_categories(
+        self, category_ids: List[int]
+    ) -> Dict[int, List[Dict[str, Any]]]:
+        """Fetch links for multiple categories in a single set of batched queries."""
+        if not category_ids:
+            return {}
+        try:
+            ids = [
+                int(cid)
+                for cid in category_ids
+                if isinstance(cid, int) and not isinstance(cid, bool) and cid > 0
+            ]
+        except Exception:
+            ids = []
+        if not ids:
+            return {}
+
+        CHUNK = 900
+        result: Dict[int, List[Dict[str, Any]]] = {cid: [] for cid in ids}
+        select_clause = (
+            "SELECT id, category_id, name, url, type, notes, "
+            "is_favorite, last_used, icon_path, args, browser_key, position "
+            "FROM link WHERE category_id IN ({placeholders}) "
+            "ORDER BY category_id, position"
+        )
+
+        for i in range(0, len(ids), CHUNK):
+            chunk = ids[i : i + CHUNK]
+            placeholders = ",".join(["?"] * len(chunk))
+            rows = self._execute_with_error_handling(
+                select_clause.format(placeholders=placeholders),
+                tuple(chunk),
+                fetch_method="all",
+            )
+            for row in rows or []:
+                try:
+                    cid = int(row["category_id"])
+                except Exception:
+                    continue
+                result.setdefault(cid, []).append(dict(row))
+
+        return {cid: rows for cid, rows in result.items() if rows}
+
     def count_links_by_category(self, category_id: int) -> int:
         """Returns number of links for specified category (efficient count)."""
         try:

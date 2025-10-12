@@ -349,28 +349,21 @@ class DragDropHandler(TreeHandlerBase):
         if not (ttuple and ttuple[0] == "section" and isinstance(ttuple[1], int)):
             return
         section_id = int(ttuple[1])
-        moved_count = 0
-        for category_id in ids:
-            if not isinstance(category_id, int):
-                continue
-            # Выполняем перенос через обработчик операций (бизнес-логика)
-            try:
-                self.tree_widget.move_operations_handler.execute_move_category_command(
-                    category_id, section_id
-                )
-                moved_count += 1
-            except Exception:
-                continue
-            try:
-                self.tree_widget.itemsMoved.emit(
-                    {
-                        "type": "category_to_section",
-                        "category_id": category_id,
-                        "section_id": section_id,
-                    }
-                )
-            except Exception:
-                pass
+        model = getattr(self.tree_widget, "model", lambda: None)()
+        base_row = (
+            model.rowCount(target_index) if model and target_index and target_index.isValid() else 0
+        )
+        try:
+            moved_count = self.move_categories(
+                [int(cid) for cid in ids if isinstance(cid, int)],
+                section_id,
+                int(base_row),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to move categories %s to section %s: %s", ids, section_id, exc
+            )
+            moved_count = 0
         if moved_count > 1:
             logger.info("Moved categories: %s to section %s", moved_count, section_id)
 

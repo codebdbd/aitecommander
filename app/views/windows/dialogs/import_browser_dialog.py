@@ -22,6 +22,12 @@ class ImportBrowserDialog(BaseDialog):
     """Dialog for selecting a section when importing browser links."""
 
     def __init__(self, structure_business_logic, parent=None):
+        # Pre-initialize UI attributes so early retranslate calls are safe
+        self._header_label: QLabel | None = None
+        self._button_box: QDialogButtonBox | None = None
+        self.sphere_cb: QComboBox | None = None
+        self.section_cb: QComboBox | None = None
+
         super().__init__(parent)
 
         self.structure_business_logic = structure_business_logic
@@ -31,8 +37,6 @@ class ImportBrowserDialog(BaseDialog):
         self.resize(400, 180)
         self.setModal(True)
 
-        self._header_label: QLabel | None = None
-        self._button_box: QDialogButtonBox | None = None
         self._init_ui()
         self._populate_spheres()
         self._update_sections()

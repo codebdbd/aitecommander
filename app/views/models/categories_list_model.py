@@ -79,11 +79,8 @@ class CategoriesListModel(QAbstractListModel):
                 )
                 continue
             icon_path = cat.get("icon_path", "") or ""
-            if icon_path:
-                resolved_path = resolve_category_icon_path(icon_path)
-                icon = get_cached_category_icon(resolved_path)
-            else:
-                icon = DEFAULT_ICON
+            resolved_path = resolve_category_icon_path(icon_path)
+            icon = get_cached_category_icon(resolved_path) if resolved_path else DEFAULT_ICON
             items.append({"id": cat_id, "name": name, "_icon": icon})
 
         self.beginResetModel()
