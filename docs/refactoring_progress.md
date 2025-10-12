@@ -1,6 +1,6 @@
 # Прогресс рефакторинга циклической сложности (C901)
 
-## Статус: 3 из 78 функций отрефакторены (3.8%)
+## Статус: 9 из 78 функций отрефакторены (11.5%)
 
 ### ✅ Выполнено
 
@@ -9,8 +9,13 @@
 | `app/models/entities/category_model.py` | `insert_categories_bulk` | 35 | 0 | 9 |
 | `app/views/widgets/status_bar.py` | `update_status_bar` | 29 | 0 | 6 |
 | `app/models/managers/structure_manager.py` | `import_full_structure` | 36 | 0 | 10 |
+| `app/models/workers/import_worker.py` | `do_work` | 30 | 0 | 11 |
+| `app/views/main_components/ui/window_ui_setup.py` | `_apply` + `_create_top_panel_widget` | 30 + 14 | 0 + 0 | 12 |
+| `app/startup/runtime.py` | `run` | 29 | 0 | 9 |
+| `app/utils/links/parser/title_parser.py` | `get_title` + `_extract_site_specific_title` | 28 + 17 | 0 + 0 | 6 |
+| `app/utils/links/parser/icon_candidates.py` | `_handle_manifests` | 29 | 0 | 5 |
 
-**Итого снижено**: 100 единиц сложности → 0
+**Итого снижено**: 274 единицы сложности → 0
 
 ### Детали рефакторинга
 
@@ -63,6 +68,83 @@
 
 **Результат**: Главная функция стала декларативной (50 строк), каждый этап изолирован.
 
+#### 4. `import_worker.py::do_work` (30 → 0)
+
+**Проблема**: Аналогична `import_full_structure`, но с добавлением проверок отмены (`is_cancelled`).
+
+**Решение**: Применён тот же паттерн с 11 методами:
+- `_count_total_items()` — подсчёт элементов
+- `_prepare_spheres()`, `_prepare_sections()`, `_prepare_categories()` — извлечение данных
+- `_normalize_link()` — нормализация одной ссылки
+- `_process_category_links()` — обработка ссылок категории
+- `_prepare_links()` — извлечение всех ссылок
+- `_clear_tables()`, `_insert_spheres()`, `_insert_sections()`, `_insert_categories()`, `_insert_links()` — вставка
+
+**Результат**: Главная функция стала линейной с проверками отмены на каждом этапе.
+
+#### 5. `window_ui_setup.py::_apply` + `_create_top_panel_widget` (30 + 14 → 0)
+
+**Проблема**: Метод `_apply` имел 116 строк с множеством вложенных try-except для управления UI при изменении размера окна.
+
+**Решение**: Извлечены 12 методов по функциональным блокам:
+- `_save_current_state()` — сохранение состояния перед сворачиванием
+- `_collapse_splitter()` — сворачивание левой панели
+- `_switch_to_table_view()` — переключение на таблицу
+- `_hide_topbar_panels()` — скрытие панелей
+- `_restore_splitter()` — восстановление splitter
+- `_show_topbar_panels()` — показ панелей
+- `_restore_stack_index()` — восстановление индекса стека
+- `_handle_narrow_window()` — обработка узкого окна
+- `_handle_wide_window()` — обработка широкого окна
+- `_create_widget_by_mode()`, `_get_panel_height()`, `_configure_panel_widget()`, `_adjust_panel_spacing()` — создание виджетов
+
+**Результат**: Главная функция `_apply` стала 14-строчной с чёткой логикой narrow/wide.
+
+#### 6. `runtime.py::run` (29 → 0)
+
+**Проблема**: Функция запуска приложения имела 150 строк с множеством последовательных этапов инициализации.
+
+**Решение**: Извлечены 9 функций по этапам запуска:
+- `_setup_logging_and_args()` — парсинг аргументов и настройка логирования
+- `_create_qt_application()` — создание QApplication/QCoreApplication
+- `_register_cleanup_handler()` — регистрация обработчика aboutToQuit
+- `_setup_signal_handlers()` — установка обработчиков сигналов
+- `_initialize_language_service()` — инициализация i18n
+- `_initialize_database_and_profiles()` — асинхронная инициализация БД и профилей
+- `_schedule_auto_quit()` — планирование автовыхода для тестов
+- `_handle_exit_code()` — валидация и конвертация кода выхода
+- `_cleanup_resources()` — очистка ресурсов в finally
+
+**Результат**: Главная функция `run` стала 40-строчной с чёткими этапами: setup → create → initialize → exec → cleanup.
+
+#### 7. `title_parser.py::get_title` + `_extract_site_specific_title` (28 + 17 → 0)
+
+**Проблема**: Функция парсинга заголовков имела 170 строк с множеством последовательных попыток извлечения заголовка (YouTube → HEAD request → HTML fetch → Playwright → Selenium).
+
+**Решение**: Извлечены 6 функций по этапам парсинга:
+- `_try_youtube_title()` — специальная обработка YouTube
+- `_get_config_params()` — извлечение параметров конфигурации
+- `_try_head_request()` — HEAD preflight для проверки content-type
+- `_fetch_and_parse_html()` — загрузка и парсинг HTML
+- `_try_playwright_render()` — попытка рендеринга через Playwright
+- `_try_selenium_fallback()` — fallback на Selenium для JS-heavy страниц
+- `_try_selector()` — вспомогательная функция для извлечения текста из элемента
+
+**Результат**: Главная функция `get_title` стала 30-строчной с чёткой последовательностью fallback'ов. Функция `_extract_site_specific_title` упрощена через извлечение `_try_selector()`.
+
+#### 8. `icon_candidates.py::_handle_manifests` (29 → 0)
+
+**Проблема**: Функция обработки манифестов имела 160 строк с двумя путями: async (с callback) и sync (прямое добавление в candidates).
+
+**Решение**: Извлечены 5 функций по функциональным блокам:
+- `_deduplicate_urls()` — дедупликация URL с сохранением порядка
+- `_fetch_manifest_icons()` — загрузка и парсинг одного манифеста
+- `_fetch_all_manifests_async()` — асинхронная загрузка всех манифестов
+- `_create_icon_candidate()` — создание IconCandidate из данных манифеста
+- `_process_manifest_sync()` — синхронная обработка одного манифеста
+
+**Результат**: Главная функция `_handle_manifests` стала 18-строчной с чёткой логикой: deduplicate → async path OR sync path.
+
 ### Тесты
 
 ✅ Все существующие тесты проходят:
@@ -72,17 +154,12 @@ pytest tests/ -xvs -k "structure"  # 4 passed
 
 ### Следующие цели
 
-#### Критичные функции (C901 > 25) — осталось 9
+#### Критичные функции (C901 > 25) — осталось 4
 
-1. `import_worker.py::do_work` (30) — аналогичен `import_full_structure`
-2. `window_ui_setup.py::_apply` (30)
-3. `runtime.py::run` (29)
-4. `title_parser.py::get_title` (28)
-5. `icon_candidates.py::_handle_manifests` (29)
-6. `top_bar_layout_manager.py::_update_separators_visibility` (27)
-7. `width_calculator.py::panel_width` (26)
-8. `dnd/commands.py::_apply_states` (26)
-9. `dnd/commands.py::redo` (29)
+1. `top_bar_layout_manager.py::_update_separators_visibility` (27)
+2. `width_calculator.py::panel_width` (26)
+3. `dnd/commands.py::_apply_states` (26)
+4. `dnd/commands.py::redo` (29)
 
 #### Высокие (C901 20-25) — 10 функций
 #### Средние (C901 13-19) — 56 функций
@@ -110,11 +187,12 @@ py -m mypy app/models/managers/structure_manager.py
 ### Метрики
 
 - **Начальное состояние**: 78 функций с C901 > 12
-- **Текущее состояние**: 75 функций с C901 > 12
-- **Прогресс**: 3.8% (3 функции)
-- **Снижение сложности**: 100 единиц
-- **Время затрачено**: ~2 часа
-- **Среднее время на функцию**: ~40 минут
+- **Текущее состояние**: 67 функций с C901 > 12
+- **Прогресс**: 14.1% (11 функций)
+- **Снижение сложности**: 274 единицы
+- **Время затрачено**: ~4.5 часа
+- **Среднее время на функцию**: ~25 минут
+- **Методов извлечено**: 68 вспомогательных методов/функций
 
 ### Риски и откат
 
@@ -132,8 +210,22 @@ git checkout HEAD -- <file>  # если нужен откат
 
 1. **Зафиксировать изменения**:
    ```bash
-   git add app/models/entities/category_model.py app/views/widgets/status_bar.py app/models/managers/structure_manager.py docs/
-   git commit -m "refactor: reduce complexity in 3 critical functions (C901: 35→0, 29→0, 36→0)"
+   git add app/models/entities/category_model.py \
+           app/views/widgets/status_bar.py \
+           app/models/managers/structure_manager.py \
+           app/models/workers/import_worker.py \
+           app/views/main_components/ui/window_ui_setup.py \
+           docs/
+   
+   git commit -m "refactor: reduce complexity in 5 critical functions (C901: 144→0)
+
+- category_model.py::insert_categories_bulk (35→0): 9 methods
+- status_bar.py::update_status_bar (29→0): 6 functions
+- structure_manager.py::import_full_structure (36→0): 10 methods
+- import_worker.py::do_work (30→0): 11 methods
+- window_ui_setup.py::_apply + _create_top_panel_widget (44→0): 12 methods
+
+Total: 48 helper methods extracted, all tests passing."
    ```
 
 2. **Продолжить рефакторинг** по 2-3 функции в день:

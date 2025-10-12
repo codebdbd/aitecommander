@@ -64,123 +64,159 @@ class _AutoHideTreeFilter(QObject):
         except (AttributeError, TypeError, ValueError):
             self._manage_topbar_panels = False
 
+    def _save_current_state(self, splitter, stack) -> None:
+        """Save current splitter sizes and stack index before collapsing."""
+        try:
+            if splitter is not None:
+                self._saved_splitter_sizes = splitter.sizes()
+        except (AttributeError, RuntimeError):
+            self._saved_splitter_sizes = None
+            self._logger.debug(
+                "AutoHideTree: failed to read splitter sizes", exc_info=True
+            )
+        try:
+            if stack is not None:
+                self._prev_stack_index = stack.currentIndex()
+        except (AttributeError, RuntimeError):
+            self._prev_stack_index = None
+            self._logger.debug(
+                "AutoHideTree: failed to read current stack index",
+                exc_info=True,
+            )
+
+    def _collapse_splitter(self, splitter, w: int) -> None:
+        """Collapse left panel in splitter."""
+        if splitter is None:
+            return
+        try:
+            splitter.setCollapsible(0, True)
+            splitter.setSizes([0, max(1, w)])
+        except (RuntimeError, TypeError):
+            self._logger.debug(
+                "AutoHideTree: failed to collapse left panel on narrow window",
+                exc_info=True,
+            )
+
+    def _switch_to_table_view(self, stack, table) -> None:
+        """Switch stack to table view if configured."""
+        try:
+            switch_to_table = bool(
+                app_config.ui.get_auto_hide_switch_to_table()
+            )
+        except (AttributeError, TypeError, ValueError):
+            switch_to_table = False
+        
+        if not switch_to_table or stack is None or table is None:
+            return
+        
+        try:
+            table_container = getattr(self.window, "table_container", None)
+            for i in range(stack.count()):
+                wgt = stack.widget(i)
+                if wgt is table or (
+                    table_container is not None and wgt is table_container
+                ):
+                    stack.setCurrentIndex(i)
+                    break
+        except (AttributeError, RuntimeError):
+            self._logger.debug(
+                "AutoHideTree: failed to switch stack to table",
+                exc_info=True,
+            )
+
+    def _hide_topbar_panels(self) -> None:
+        """Hide top bar panels when window is narrow."""
+        if not self._manage_topbar_panels:
+            return
+        for attr in ("quick_add_widget", "fav_widget", "recent_links_widget"):
+            try:
+                panel = getattr(self.window, attr, None)
+                if panel is not None:
+                    panel.setVisible(False)
+            except (AttributeError, RuntimeError):
+                self._logger.debug(
+                    "AutoHideTree: failed to hide top bar panel '%s'",
+                    attr,
+                    exc_info=True,
+                )
+
+    def _restore_splitter(self, splitter) -> None:
+        """Restore splitter sizes when expanding."""
+        if splitter is None:
+            return
+        try:
+            if (
+                self._saved_splitter_sizes
+                and len(self._saved_splitter_sizes) == 2
+            ):
+                splitter.setSizes(self._saved_splitter_sizes)
+            else:
+                sizes = [int(x) for x in self.default_sizes]
+                splitter.setSizes(sizes)
+        except (RuntimeError, TypeError, ValueError):
+            self._logger.debug(
+                "AutoHideTree: failed to restore splitter sizes", exc_info=True
+            )
+
+    def _show_topbar_panels(self) -> None:
+        """Show top bar panels when window is wide."""
+        if not self._manage_topbar_panels:
+            return
+        for attr in ("quick_add_widget", "fav_widget", "recent_links_widget"):
+            try:
+                panel = getattr(self.window, attr, None)
+                if panel is not None:
+                    panel.setVisible(True)
+            except (AttributeError, RuntimeError):
+                self._logger.debug(
+                    "AutoHideTree: failed to re-show top bar panel '%s'",
+                    attr,
+                    exc_info=True,
+                )
+
+    def _restore_stack_index(self, stack) -> None:
+        """Restore previous stack index."""
+        if stack is None or self._prev_stack_index is None:
+            return
+        try:
+            if 0 <= self._prev_stack_index < stack.count():
+                stack.setCurrentIndex(self._prev_stack_index)
+        except (RuntimeError, ValueError, TypeError, AttributeError):
+            self._logger.debug(
+                "AutoHideTree: failed to restore previous stack index",
+                exc_info=True,
+            )
+
+    def _handle_narrow_window(self, splitter, stack, table, w: int) -> None:
+        """Handle window collapse when width <= threshold."""
+        if not self._is_collapsed:
+            self._save_current_state(splitter, stack)
+            self._collapse_splitter(splitter, w)
+            self._switch_to_table_view(stack, table)
+            self._is_collapsed = True
+        self._hide_topbar_panels()
+
+    def _handle_wide_window(self, splitter, stack) -> None:
+        """Handle window expand when width > threshold."""
+        self._restore_splitter(splitter)
+        self._show_topbar_panels()
+        self._restore_stack_index(stack)
+        self._is_collapsed = False
+
     def _apply(self):
         splitter = getattr(self.window, "splitter", None)
         stack = getattr(self.window, "stack", None)
         table = getattr(self.window, "table", None)
 
-        # FIX: obtain current window width
         try:
             w = self.window.width()
         except (AttributeError, RuntimeError):
             return
 
         if w <= self.threshold:
-            if not self._is_collapsed:
-                try:
-                    if splitter is not None:
-                        self._saved_splitter_sizes = splitter.sizes()
-                except (AttributeError, RuntimeError):
-                    self._saved_splitter_sizes = None
-                    self._logger.debug(
-                        "AutoHideTree: failed to read splitter sizes", exc_info=True
-                    )
-                try:
-                    if stack is not None:
-                        self._prev_stack_index = stack.currentIndex()
-                except (AttributeError, RuntimeError):
-                    self._prev_stack_index = None
-                    self._logger.debug(
-                        "AutoHideTree: failed to read current stack index",
-                        exc_info=True,
-                    )
-
-                if splitter is not None:
-                    try:
-                        splitter.setCollapsible(0, True)
-                        splitter.setSizes([0, max(1, w)])
-                    except (RuntimeError, TypeError):
-                        self._logger.debug(
-                            "AutoHideTree: failed to collapse left panel on narrow window",
-                            exc_info=True,
-                        )
-
-                try:
-                    switch_to_table = bool(
-                        app_config.ui.get_auto_hide_switch_to_table()
-                    )
-                except (AttributeError, TypeError, ValueError):
-                    switch_to_table = False
-                if switch_to_table and stack is not None and table is not None:
-                    try:
-                        table_container = getattr(self.window, "table_container", None)
-                        for i in range(stack.count()):
-                            wgt = stack.widget(i)
-                            if wgt is table or (
-                                table_container is not None and wgt is table_container
-                            ):
-                                stack.setCurrentIndex(i)
-                                break
-                    except (AttributeError, RuntimeError):
-                        self._logger.debug(
-                            "AutoHideTree: failed to switch stack to table",
-                            exc_info=True,
-                        )
-                self._is_collapsed = True
-
-            if self._manage_topbar_panels:
-                for attr in ("quick_add_widget", "fav_widget", "recent_links_widget"):
-                    try:
-                        panel = getattr(self.window, attr, None)
-                        if panel is not None:
-                            panel.setVisible(False)
-                    except (AttributeError, RuntimeError):
-                        self._logger.debug(
-                            "AutoHideTree: failed to hide top bar panel '%s'",
-                            attr,
-                            exc_info=True,
-                        )
-
+            self._handle_narrow_window(splitter, stack, table, w)
         elif w > self.threshold and self._is_collapsed:
-            if splitter is not None:
-                try:
-                    if (
-                        self._saved_splitter_sizes
-                        and len(self._saved_splitter_sizes) == 2
-                    ):
-                        splitter.setSizes(self._saved_splitter_sizes)
-                    else:
-                        sizes = [int(x) for x in self.default_sizes]
-                        splitter.setSizes(sizes)
-                except (RuntimeError, TypeError, ValueError):
-                    self._logger.debug(
-                        "AutoHideTree: failed to restore splitter sizes", exc_info=True
-                    )
-
-            if self._manage_topbar_panels:
-                for attr in ("quick_add_widget", "fav_widget", "recent_links_widget"):
-                    try:
-                        panel = getattr(self.window, attr, None)
-                        if panel is not None:
-                            panel.setVisible(True)
-                    except (AttributeError, RuntimeError):
-                        self._logger.debug(
-                            "AutoHideTree: failed to re-show top bar panel '%s'",
-                            attr,
-                            exc_info=True,
-                        )
-
-            if stack is not None and self._prev_stack_index is not None:
-                try:
-                    if 0 <= self._prev_stack_index < stack.count():
-                        stack.setCurrentIndex(self._prev_stack_index)
-                except (RuntimeError, ValueError, TypeError, AttributeError):
-                    self._logger.debug(
-                        "AutoHideTree: failed to restore previous stack index",
-                        exc_info=True,
-                    )
-
-            self._is_collapsed = False
+            self._handle_wide_window(splitter, stack)
 
     def eventFilter(self, obj, event):
         if obj is self.window and event.type() == QEvent.Type.Resize:
@@ -492,6 +528,74 @@ class WindowUISetup:
                 "TopPanelMetrics: failed to log setup_top_panel total", exc_info=True
             )
 
+    def _create_widget_by_mode(self, mode: str):
+        """Create panel widget based on mode."""
+        if mode == "quick":
+            return QuickAddPanelWidget(self.window, category_provider=self.window)
+        elif mode == "favorites":
+            return FavoritesPanelWidget(self.window)
+        elif mode == "recent":
+            return RecentPanelWidget(self.window)
+        else:
+            raise ValueError(f"Unknown panel mode: {mode}")
+
+    def _get_panel_height(self) -> int:
+        """Calculate panel height from config."""
+        try:
+            try:
+                search_h = int(app_config.ui.get_top_panel_search_height())
+            except (TypeError, ValueError):
+                search_h = 32
+            try:
+                btn_h = int(app_config.ui.get_top_panel_button_size())
+            except (TypeError, ValueError):
+                btn_h = 32
+            return max(search_h, btn_h)
+        except Exception:
+            return 32
+
+    def _configure_panel_widget(self, widget, object_name: str | None, log_label: str) -> None:
+        """Configure widget size and properties."""
+        if object_name:
+            widget.setObjectName(object_name)
+        widget.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        
+        fixed_h = self._get_panel_height()
+        try:
+            widget.setFixedHeight(fixed_h)
+        except Exception:
+            logger.debug(
+                "TopPanel: failed to set fixed height on %s widget",
+                log_label,
+                exc_info=True,
+            )
+        try:
+            widget.setMinimumWidth(0)
+        except Exception:
+            logger.debug(
+                "TopPanel: failed to set minimum width on %s widget",
+                log_label,
+                exc_info=True,
+            )
+
+    def _adjust_panel_spacing(self, widget, log_label: str) -> None:
+        """Reduce panel button spacing by 1px."""
+        try:
+            lay = getattr(widget, "panel_layout", None)
+            if (
+                lay is not None
+                and hasattr(lay, "spacing")
+                and hasattr(lay, "setSpacing")
+            ):
+                cur = int(lay.spacing())
+                lay.setSpacing(max(0, cur - 1))
+        except Exception:
+            logger.debug(
+                "TopPanel: failed to reduce panel button spacing by 1px for %s",
+                log_label,
+                exc_info=True,
+            )
+
     def _create_top_panel_widget(
         self,
         top_bar: QHBoxLayout,
@@ -502,62 +606,12 @@ class WindowUISetup:
     ) -> None:
         t_start = time.perf_counter()
         try:
-            if mode == "quick":
-                widget = QuickAddPanelWidget(self.window, category_provider=self.window)
-            elif mode == "favorites":
-                widget = FavoritesPanelWidget(self.window)
-            elif mode == "recent":
-                widget = RecentPanelWidget(self.window)
-            else:
-                raise ValueError(f"Unknown panel mode: {mode}")
-            if object_name:
-                widget.setObjectName(object_name)
-            widget.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-            try:
-                try:
-                    search_h = int(app_config.ui.get_top_panel_search_height())
-                except (TypeError, ValueError):
-                    search_h = 32
-                try:
-                    btn_h = int(app_config.ui.get_top_panel_button_size())
-                except (TypeError, ValueError):
-                    btn_h = 32
-                fixed_h = max(search_h, btn_h)
-            except Exception:
-                fixed_h = 32
-            try:
-                widget.setFixedHeight(fixed_h)
-            except Exception:
-                logger.debug(
-                    "TopPanel: failed to set fixed height on %s widget",
-                    log_label,
-                    exc_info=True,
-                )
-            try:
-                widget.setMinimumWidth(0)
-            except Exception:
-                logger.debug(
-                    "TopPanel: failed to set minimum width on %s widget",
-                    log_label,
-                    exc_info=True,
-                )
+            widget = self._create_widget_by_mode(mode)
+            self._configure_panel_widget(widget, object_name, log_label)
             setattr(self.window, attr_name, widget)
             top_bar.addWidget(widget)
-            try:
-                lay = getattr(widget, "panel_layout", None)
-                if (
-                    lay is not None
-                    and hasattr(lay, "spacing")
-                    and hasattr(lay, "setSpacing")
-                ):
-                    cur = int(lay.spacing())
-                    lay.setSpacing(max(0, cur - 1))
-            except Exception:
-                logger.debug(
-                    "TopPanel: failed to reduce panel button spacing by 1px for %s",
-                    log_label,
-                    exc_info=True,
-                )
+            self._adjust_panel_spacing(widget, log_label)
+            
             try:
                 dur = (time.perf_counter() - t_start) * 1000.0
                 logger.info(
