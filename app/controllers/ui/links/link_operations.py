@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class LinksUILinkOperations(BaseLinksUIComponent):
     """Link operations for LinksUIController."""
 
-    def quick_add_link(self, link_type: str, category_id: int = None):
+    def quick_add_link(self, link_type: str, category_id: int | None = None):
         """Quick add link."""
         # Always try to open dialog, even if no category is selected
         # The dialog will handle the case when no category is available
@@ -151,7 +151,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             except Exception as e:
                 logger.debug("Failed to emit signals after opening link: %s", e)
 
-    def _toggle_fav(self, link: dict = None):
+    def _toggle_fav(self, link: dict | None = None):
         """Toggle favorite status."""
         if not link:
             selected_links = self.controller.get_selected_links()

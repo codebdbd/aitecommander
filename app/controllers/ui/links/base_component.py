@@ -44,7 +44,7 @@ class BaseLinksUIComponent:
         """User messages."""
         return self._messages
 
-    def get_message(self, key: str, default: str = None) -> str:
+    def get_message(self, key: str, default: str | None = None) -> str:
         """Get message by key."""
         return self._messages.get(key, default or f"Message '{key}' not found")
 
@@ -70,7 +70,7 @@ class BaseLinksUIComponent:
             logger.error("Error updating category %s: %s", category_id, e)
             raise DatabaseError(f"Failed to update category: {str(e)}") from e
 
-    def _show_warning(self, message: str, title: str = None) -> None:
+    def _show_warning(self, message: str, title: str | None = None) -> None:
         """Show warning to user."""
         from app.controllers.ui.dialogs import DialogManager
 
@@ -82,7 +82,7 @@ class BaseLinksUIComponent:
             informative_text="Check data correctness and try again.",
         )
 
-    def _show_error(self, message: str, title: str = None) -> None:
+    def _show_error(self, message: str, title: str | None = None) -> None:
         """Show error to user."""
         from app.controllers.ui.dialogs import DialogManager
 

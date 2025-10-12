@@ -3,7 +3,6 @@
 import logging
 
 try:
-    import lxml
 
     BS_PARSER = "lxml"
 except Exception:
