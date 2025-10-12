@@ -13,6 +13,7 @@ _TR_CONTEXT = "MenuActions"
 def _tr(text: str) -> str:
     return QCoreApplication.translate(_TR_CONTEXT, text)
 
+
 logger = logging.getLogger(__name__)
 
 

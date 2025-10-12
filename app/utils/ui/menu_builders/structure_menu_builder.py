@@ -207,12 +207,12 @@ class StructureMenuBuilder:
         try:
             selected_count = len(self._get_selected_category_nodes())
         except Exception:
-            logger.exception(
-                "[CtxMenu] Failed to compute selected categories count"
-            )
+            logger.exception("[CtxMenu] Failed to compute selected categories count")
             selected_count = 0
         action_text_key = (
-            MenuTexts.DELETE_SELECTED if selected_count > 1 else MenuTexts.DELETE_CATEGORY
+            MenuTexts.DELETE_SELECTED
+            if selected_count > 1
+            else MenuTexts.DELETE_CATEGORY
         )
         menu.addAction(
             self.actions.create(
@@ -272,7 +272,6 @@ class StructureMenuBuilder:
             logger.exception(
                 "[Clipboard] Failed to copy category tree id=%r to clipboard", cat_id
             )
-
 
     def _copy_selected_categories_to_clipboard(self, items: list[Any]) -> None:
         """Copy several selected categories by their ids via service."""
@@ -344,9 +343,7 @@ class StructureMenuBuilder:
                     if tree_widget is not None:
                         tree_widget.blockSignals(False)
                 except Exception:
-                    logger.exception(
-                        "[PasteCategories] Failed to unblock tree signals"
-                    )
+                    logger.exception("[PasteCategories] Failed to unblock tree signals")
                 try:
                     if selection is not None:
                         selection.end_suppress_selection()

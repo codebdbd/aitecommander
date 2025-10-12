@@ -129,18 +129,28 @@ class StructureService:
     # --- Import/export ---
     def export_full_structure(self) -> dict[str, list]:
         return self.db.export_full_structure()
-    
-    def export_full_structure_async(self, on_finished=None, on_error=None, on_progress=None):
+
+    def export_full_structure_async(
+        self, on_finished=None, on_error=None, on_progress=None
+    ):
         """Asynchronous structure export with callbacks."""
         return self.db.export_full_structure_async(on_finished, on_error, on_progress)
 
     @unit_of_work
     def import_full_structure(self, data: list[dict[str, Any]]) -> None:
         self.db.import_full_structure(data)
-    
-    def import_full_structure_async(self, data: list[dict[str, Any]], on_finished=None, on_error=None, on_progress=None):
+
+    def import_full_structure_async(
+        self,
+        data: list[dict[str, Any]],
+        on_finished=None,
+        on_error=None,
+        on_progress=None,
+    ):
         """Asynchronous structure import with callbacks."""
-        return self.db.import_full_structure_async(data, on_finished, on_error, on_progress)
+        return self.db.import_full_structure_async(
+            data, on_finished, on_error, on_progress
+        )
 
     def export_section_tree(self, section_id: int) -> dict[str, Any]:
         return self.db.export_section_tree(section_id)

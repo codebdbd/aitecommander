@@ -64,7 +64,7 @@ class BaseLinksUIComponent:
                 return
 
             # 3) Final fallback: directly call business logic
-        # (without table UI controller; may give less consistent behavior)
+            # (without table UI controller; may give less consistent behavior)
             self.business.load_links(category_id)
         except Exception as e:
             logger.error("Error updating category %s: %s", category_id, e)

@@ -33,7 +33,9 @@ class ItemDialogService(QObject):
             )
             if dlg.exec() == dlg.DialogCode.Accepted:
                 data = dlg.get_result()
-                cmd = SaveSectionCmd(new_data=data, old_data=None, main_window=self._main)
+                cmd = SaveSectionCmd(
+                    new_data=data, old_data=None, main_window=self._main
+                )
                 if cmd:
                     self._undo_stack.push(cmd)
         except Exception as exc:  # pragma: no cover - UI protection
@@ -54,7 +56,9 @@ class ItemDialogService(QObject):
             dlg.set_result({"section_id": target_section_id})
             if dlg.exec() == dlg.DialogCode.Accepted:
                 data = dlg.get_result()
-                cmd = SaveCategoryCmd(new_data=data, old_data=None, main_window=self._main)
+                cmd = SaveCategoryCmd(
+                    new_data=data, old_data=None, main_window=self._main
+                )
                 if cmd:
                     self._undo_stack.push(cmd)
         except Exception as exc:  # pragma: no cover - UI protection
@@ -81,11 +85,17 @@ class ItemDialogService(QObject):
 
     def edit_selected_item(self) -> None:
         try:
-            current = self._tree.currentIndex() if hasattr(self._tree, "currentIndex") else None
+            current = (
+                self._tree.currentIndex()
+                if hasattr(self._tree, "currentIndex")
+                else None
+            )
             if current and current.isValid():
                 self.edit_item(current)
         except (AttributeError, RuntimeError) as exc:
-            logger.debug("[ItemDialogService.edit_selected_item] currentIndex failed: %s", exc)
+            logger.debug(
+                "[ItemDialogService.edit_selected_item] currentIndex failed: %s", exc
+            )
 
     def handle_edit_category(self, category_id: int) -> None:
         item = self._controller.tree_manager._find_item_by_id("category", category_id)
@@ -117,11 +127,15 @@ class ItemDialogService(QObject):
             old_data = self._business.get_section_data(section_id)
             if not old_data:
                 return
-            dlg = SectionDialog(self._business, section_id=section_id, parent=self._main)
+            dlg = SectionDialog(
+                self._business, section_id=section_id, parent=self._main
+            )
             if dlg.exec() == dlg.DialogCode.Accepted:
                 new_data = dlg.get_result()
                 new_data["id"] = section_id
-                cmd = SaveSectionCmd(new_data=new_data, old_data=old_data, main_window=self._main)
+                cmd = SaveSectionCmd(
+                    new_data=new_data, old_data=old_data, main_window=self._main
+                )
                 if cmd:
                     self._undo_stack.push(cmd)
         except Exception as exc:  # pragma: no cover - UI protection
@@ -139,7 +153,9 @@ class ItemDialogService(QObject):
             old_data = self._business.get_category_data(category_id)
             if not old_data:
                 return
-            dlg = CategoryDialog(self._business, category_id=category_id, parent=self._main)
+            dlg = CategoryDialog(
+                self._business, category_id=category_id, parent=self._main
+            )
             if dlg.exec() == dlg.DialogCode.Accepted:
                 new_data = dlg.get_result()
                 new_data["id"] = category_id
@@ -165,7 +181,11 @@ class ItemDialogService(QObject):
 
     def _get_selected_section_id(self) -> int | None:
         try:
-            current = self._tree.currentIndex() if hasattr(self._tree, "currentIndex") else None
+            current = (
+                self._tree.currentIndex()
+                if hasattr(self._tree, "currentIndex")
+                else None
+            )
             if current and current.isValid():
                 meta = get_tree_tuple(current, 0)
                 if not meta:

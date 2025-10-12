@@ -75,6 +75,7 @@ def _update_icon_hash_cache(dest_dir: Path, hash_value: str, filename: str) -> N
     with _ICON_HASH_LOCK:
         _load_icon_hash_cache(dest_dir)
 
+
 def _remove_icon_hash_cache_entry(dest_dir: Path, hash_value: str) -> None:
     if not hash_value:
         return
@@ -104,9 +105,7 @@ def _calculate_file_hash(file_path: Path) -> str:
         with open(file_path, "rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):
                 hash_sha256.update(chunk)
-        return hash_sha256.hexdigest()[
-            :16
-        ]  # Use first 16 characters for brevity
+        return hash_sha256.hexdigest()[:16]  # Use first 16 characters for brevity
     except OSError as exc:
         logger.warning("Failed to calculate hash for %s: %s", file_path, exc)
         return ""
@@ -168,9 +167,7 @@ def copy_icon_smart(  # noqa: C901
         str: File name in destination directory
     """
     if not is_valid_icon_file(src_path):
-        raise InvalidIconError(
-            f"Cannot copy invalid icon file: {src_path}"
-        )
+        raise InvalidIconError(f"Cannot copy invalid icon file: {src_path}")
 
     # Create directory if it doesn't exist
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -226,7 +223,9 @@ def copy_icon_smart(  # noqa: C901
                 # Remove just copied source to avoid duplicate storage
                 dst.unlink(missing_ok=True)
             except Exception:
-                logger.debug("Failed to remove temp copied raster: %s", dst, exc_info=True)
+                logger.debug(
+                    "Failed to remove temp copied raster: %s", dst, exc_info=True
+                )
             return png_dst.name
 
         # Convert raster icon to PNG
@@ -235,10 +234,16 @@ def copy_icon_smart(  # noqa: C901
                 # Remove source after successful conversion
                 dst.unlink(missing_ok=True)
             except Exception:
-                logger.debug("Failed to remove source raster after conversion: %s", dst, exc_info=True)
+                logger.debug(
+                    "Failed to remove source raster after conversion: %s",
+                    dst,
+                    exc_info=True,
+                )
             return png_dst.name
         else:
-            logger.warning("Failed to convert raster icon to PNG: %s -> %s", dst, png_dst)
+            logger.warning(
+                "Failed to convert raster icon to PNG: %s -> %s", dst, png_dst
+            )
             # Return original name if conversion failed
             return dst.name
 
@@ -530,4 +535,3 @@ async def batch_convert_icons_async(
     )
 
     return result_dict
-

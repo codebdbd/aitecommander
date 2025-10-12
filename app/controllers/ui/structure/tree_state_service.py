@@ -34,7 +34,9 @@ class TreeStateService(QObject):
             )
         return state
 
-    def restore_expanded_state(self, expanded_state: dict[tuple[str, int], bool]) -> None:
+    def restore_expanded_state(
+        self, expanded_state: dict[tuple[str, int], bool]
+    ) -> None:
         if not expanded_state:
             return
         try:

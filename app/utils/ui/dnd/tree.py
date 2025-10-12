@@ -394,7 +394,9 @@ class DragDropHandler(TreeHandlerBase):
         section_id = int(ttuple[1])
         model = getattr(self.tree_widget, "model", lambda: None)()
         base_row = (
-            model.rowCount(target_index) if model and target_index and target_index.isValid() else 0
+            model.rowCount(target_index)
+            if model and target_index and target_index.isValid()
+            else 0
         )
         try:
             moved_count = self.move_categories(

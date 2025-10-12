@@ -28,7 +28,9 @@ class AccessibilityManager(QObject):
 
         super().__init__(parent)
         self._shortcuts: list[QShortcut] = []
-        self._button_shortcuts: WeakKeyDictionary[QToolButton, QShortcut] = WeakKeyDictionary()
+        self._button_shortcuts: WeakKeyDictionary[QToolButton, QShortcut] = (
+            WeakKeyDictionary()
+        )
         self._focused_panel: QWidget | None = None
         self._focused_button_index = 0
 
@@ -71,9 +73,7 @@ class AccessibilityManager(QObject):
                     shortcut_num = start_shortcut_number + index
                     if shortcut_num <= 9:
                         self._create_button_shortcut(
-                            button,
-                            shortcut_num,
-                            f"{panel_name} item {index + 1}"
+                            button, shortcut_num, f"{panel_name} item {index + 1}"
                         )
                     else:
                         self._remove_button_shortcut(button)

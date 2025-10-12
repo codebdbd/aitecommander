@@ -108,7 +108,7 @@ class AppShutdownController:
     - Safe shutdown in multithreaded environment
     """
 
-    def __init__(self, main_window: 'QMainWindow'):
+    def __init__(self, main_window: "QMainWindow"):
         self.window = main_window
         self.shutdown_handlers: list[ShutdownHandler] = []
         self.shutdown_in_progress = False
@@ -119,15 +119,15 @@ class AppShutdownController:
         # Settings from configuration
         self.max_shutdown_time = app_config.get("shutdown.max_total_time", 10000)
         self.parallel_execution = app_config.get("shutdown.parallel_execution", False)
-        
+
         # ✅ Flag for tracking cleanup
         self._cleaned_up = False
 
-    def perform_shutdown(self, event: 'QCloseEvent') -> None:
+    def perform_shutdown(self, event: "QCloseEvent") -> None:
         """Main method - fully compatible with original interface.
-        
+
         ✅ FIX: Added parameter typing.
-        
+
             event: Window close event
         """
         with self._shutdown_lock:
@@ -288,7 +288,9 @@ class AppShutdownController:
         eff_timeout_ms = (
             override_timeout_ms if override_timeout_ms is not None else handler.timeout
         )
-        eff_timeout_sec = max(0.001, float(eff_timeout_ms) / 1000.0) if eff_timeout_ms else None
+        eff_timeout_sec = (
+            max(0.001, float(eff_timeout_ms) / 1000.0) if eff_timeout_ms else None
+        )
 
         logger.debug(
             "Executing shutdown handler: %s (timeout=%sms, critical=%s)",
@@ -306,7 +308,9 @@ class AppShutdownController:
             except BaseException as e:  # noqa: BLE001
                 err_holder.append(e)
 
-        t = threading.Thread(name=f"shutdown:{handler.name}", target=_runner, daemon=True)
+        t = threading.Thread(
+            name=f"shutdown:{handler.name}", target=_runner, daemon=True
+        )
 
         try:
             t.start()
@@ -316,9 +320,7 @@ class AppShutdownController:
                 t.join(timeout=eff_timeout_sec)
 
             if t.is_alive():
-                msg = (
-                    f"Handler '{handler.name}' timed out after {eff_timeout_sec:.3f}s"
-                )
+                msg = f"Handler '{handler.name}' timed out after {eff_timeout_sec:.3f}s"
                 if handler.critical:
                     logger.critical(msg)
                     raise ShutdownTimeoutError(msg)
@@ -425,7 +427,9 @@ class AppShutdownController:
         """Add custom shutdown handler."""
         self.remove_shutdown_handler(name)
         normalized = _normalize_shutdown_callable(handler, name)
-        shutdown_handler = ShutdownHandler(name, normalized, priority, timeout, critical)
+        shutdown_handler = ShutdownHandler(
+            name, normalized, priority, timeout, critical
+        )
         self.shutdown_handlers.append(shutdown_handler)
         logger.debug(
             "Registered shutdown handler: %s (priority: %s)", name, priority.name
@@ -571,46 +575,48 @@ class AppShutdownController:
 
     def cleanup(self) -> None:
         """Release controller resources.
-        
+
         ✅ FIX: Added cleanup method to prevent memory leaks.
-        
+
         Called automatically after shutdown sequence completion.
         Idempotent - can be called multiple times.
         """
         if self._cleaned_up:
             return
-        
+
         try:
             # Release RLock
-            if hasattr(self, '_shutdown_lock') and self._shutdown_lock:
+            if hasattr(self, "_shutdown_lock") and self._shutdown_lock:
                 try:
                     # RLock doesn't require explicit release, but we clear the reference
                     self._shutdown_lock = None
                 except Exception as e:
                     logger.debug("Error clearing shutdown lock: %s", e)
-            
+
             # Clear handlers
-            if hasattr(self, 'shutdown_handlers'):
+            if hasattr(self, "shutdown_handlers"):
                 self.shutdown_handlers.clear()
-            
+
             self._cleaned_up = True
             logger.debug("AppShutdownController cleanup completed")
-            
+
         except Exception as exc:
-            logger.error("Error during AppShutdownController cleanup: %s", exc, exc_info=True)
+            logger.error(
+                "Error during AppShutdownController cleanup: %s", exc, exc_info=True
+            )
 
 
 # ===================== HELPER FUNCTIONS =====================
 
 
-def create_shutdown_controller(main_window: 'QMainWindow') -> AppShutdownController:
+def create_shutdown_controller(main_window: "QMainWindow") -> AppShutdownController:
     """Factory function to create controller with default settings.
-    
+
     ✅ FIX: Added parameter typing.
-    
+
     Args:
         main_window: Application main window
-        
+
     Returns:
         Configured AppShutdownController instance
     """
@@ -634,4 +640,3 @@ def emergency_shutdown():
     except Exception as exc:
         logger.critical("Error during emergency shutdown: %s", exc)
         sys.exit(1)
-

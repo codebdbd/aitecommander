@@ -217,7 +217,7 @@ class StructureTreeView(QTreeView):
 
     def update_font_size(self, font_size: int):
         """Apply local font size to the structure tree.
-        
+
         Makes behavior consistent with LinksTableView.update_font_size.
         """
         try:
@@ -276,6 +276,7 @@ class StructureTreeView(QTreeView):
         # Clean implementation of custom branch indicators via QProxyStyle.
         # Icons are fetched from the shared cache per current theme at paint time — no subscriptions/hooks.
         try:
+
             def _get_branch_icons():
                 theme = get_current_theme()
                 closed_ic = icon_cache.get_icon("right", theme, source="tree_branch")
@@ -291,7 +292,9 @@ class StructureTreeView(QTreeView):
                         try:
                             # Show indicator only for nodes with children (sections).
                             if not (option.state & QStyle.StateFlag.State_Children):
-                                return super().drawPrimitive(element, option, painter, widget)
+                                return super().drawPrimitive(
+                                    element, option, painter, widget
+                                )
                             is_open = bool(option.state & QStyle.StateFlag.State_Open)
                             closed_ic, open_ic = _get_branch_icons()
                             icon = open_ic if is_open else closed_ic
@@ -299,12 +302,16 @@ class StructureTreeView(QTreeView):
                                 rect = option.rect
                                 pm = icon.pixmap(rect.size())
                                 x = rect.x() + max(0, (rect.width() - pm.width()) // 2)
-                                y = rect.y() + max(0, (rect.height() - pm.height()) // 2)
+                                y = rect.y() + max(
+                                    0, (rect.height() - pm.height()) // 2
+                                )
                                 painter.drawPixmap(x, y, pm)
                                 return
                         except Exception:
                             # Fallback to default rendering
-                            return super().drawPrimitive(element, option, painter, widget)
+                            return super().drawPrimitive(
+                                element, option, painter, widget
+                            )
                     return super().drawPrimitive(element, option, painter, widget)
 
             try:
@@ -313,8 +320,13 @@ class StructureTreeView(QTreeView):
                 base_style = None
             self.setStyle(_BranchStyle(base_style))
         except Exception:
-            logger.debug("StructureTreeView: failed to install branch proxy style", exc_info=True)
-    def _safe_emit(self, signal, payload, *, fallback=None, signal_name: str = "") -> None:
+            logger.debug(
+                "StructureTreeView: failed to install branch proxy style", exc_info=True
+            )
+
+    def _safe_emit(
+        self, signal, payload, *, fallback=None, signal_name: str = ""
+    ) -> None:
         """Safely emit a signal with unified error handling.
 
         Args:
@@ -337,7 +349,8 @@ class StructureTreeView(QTreeView):
                     # Provide unified feedback payload
                     fb_payload = {
                         "type": "emit_error",
-                        "signal": signal_name or getattr(signal, "__name__", "<unknown>"),
+                        "signal": signal_name
+                        or getattr(signal, "__name__", "<unknown>"),
                         "error": payload if isinstance(payload, str) else str(e),
                     }
                     fallback.emit(fb_payload)
@@ -348,13 +361,25 @@ class StructureTreeView(QTreeView):
 
     # --- Emit helpers (compatibility with previous API) ---
     def emit_items_moved(self, payload):
-        self._safe_emit(self.itemsMoved, payload, fallback=self.dragFeedback, signal_name="itemsMoved")
+        self._safe_emit(
+            self.itemsMoved,
+            payload,
+            fallback=self.dragFeedback,
+            signal_name="itemsMoved",
+        )
 
     def emit_invalid_drop(self, reason: str):
-        self._safe_emit(self.invalidDrop, reason, fallback=self.dragFeedback, signal_name="invalidDrop")
+        self._safe_emit(
+            self.invalidDrop,
+            reason,
+            fallback=self.dragFeedback,
+            signal_name="invalidDrop",
+        )
 
     def emit_drag_feedback(self, info):
-        self._safe_emit(self.dragFeedback, info, fallback=None, signal_name="dragFeedback")
+        self._safe_emit(
+            self.dragFeedback, info, fallback=None, signal_name="dragFeedback"
+        )
 
     # --- DnD events: first custom handler, then (if needed) default handling ---
     # Approach combines custom logic (DragDropHandler) and Qt default behavior.

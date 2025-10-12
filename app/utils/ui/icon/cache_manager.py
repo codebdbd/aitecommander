@@ -85,6 +85,7 @@ else:
     if _RuntimeCacheMetrics is not None:
         CacheMetrics = _RuntimeCacheMetrics  # type: ignore[assignment]
     else:
+
         class CacheMetrics(_FallbackCacheMetrics):
             pass
 
@@ -699,9 +700,8 @@ def set_path(icon_name: str, theme: str, path: str | None) -> None:
 def get(key: str) -> str | QIcon | None:
     return _icon_manager.get(key)
 
-def set(
-    key: str, value: str | QIcon | None, *, ttl: float | None = None
-) -> None:
+
+def set(key: str, value: str | QIcon | None, *, ttl: float | None = None) -> None:
     _icon_manager.set(key, value, ttl=ttl)
 
 

@@ -11,7 +11,9 @@ class DataManagementMixin:
     """Mixin responsible for managing data and cache of the links table."""
 
     logger = logging.getLogger(__name__)
-    _current_links: dict[int, dict[str, Any]]  # expected to be populated by the table view
+    _current_links: dict[
+        int, dict[str, Any]
+    ]  # expected to be populated by the table view
 
     # --- Helper properties ---
     @property
@@ -122,7 +124,9 @@ class DataManagementMixin:
                 e,
             )
 
-    def _create_link_id_to_data_map(self, links: list[dict[str, Any]]) -> dict[int, dict[str, Any]]:
+    def _create_link_id_to_data_map(
+        self, links: list[dict[str, Any]]
+    ) -> dict[int, dict[str, Any]]:
         """Create a mapping ``ID -> link data``."""
         mapping: dict[int, dict[str, Any]] = {}
         for link in links:

@@ -54,7 +54,9 @@ class StructureValidationService:
         """Return raw category payload."""
         return self._structure_service.get_category_by_id(category_id)
 
-    def get_item_for_editing(self, item_id: int, item_type: Any) -> dict[str, Any] | None:
+    def get_item_for_editing(
+        self, item_id: int, item_type: Any
+    ) -> dict[str, Any] | None:
         """Return payload for editing dialogs."""
         return self._utility_service.get_item_for_editing(
             item_id=item_id,
@@ -111,7 +113,9 @@ class StructureValidationService:
     def get_sphere_by_id(self, sphere_id: int) -> dict[str, Any] | None:
         """Return sphere data by identifier."""
         spheres = self._owner.get_spheres()
-        return next((sphere for sphere in spheres if sphere.get("id") == sphere_id), None)
+        return next(
+            (sphere for sphere in spheres if sphere.get("id") == sphere_id), None
+        )
 
     def get_next_sphere_id(self) -> int | None:
         """Return the next sphere identifier cycling through the cache."""

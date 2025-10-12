@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 try:
     from app.utils.metrics import get_metrics
+
     _metrics = get_metrics()
 except ImportError:
     _metrics = None
@@ -42,12 +43,14 @@ class StructureCacheService:
         self._structure_model = structure_model
         self._logger = logger
 
-    def warm_first_category(self, sphere_id: int, payload: list[dict[str, Any]] | None) -> None:
+    def warm_first_category(
+        self, sphere_id: int, payload: list[dict[str, Any]] | None
+    ) -> None:
         """Прогревает кэш первой категории для сферы.
-        
+
         Извлекает ID первой категории из payload и сохраняет в кэш.
         Используется для оптимизации навигации после загрузки структуры.
-        
+
         Args:
             sphere_id: ID сферы для кэширования
             payload: Список разделов с вложенными категориями
@@ -57,7 +60,9 @@ class StructureCacheService:
         if not payload:
             return
         for section in payload:
-            categories = section.get("categories") if isinstance(section, dict) else None
+            categories = (
+                section.get("categories") if isinstance(section, dict) else None
+            )
             if not categories:
                 continue
             first = categories[0]
@@ -68,7 +73,7 @@ class StructureCacheService:
 
     def schedule_reload(self, delay_ms: int) -> None:
         """Планирует перезагрузку структуры через async сервис владельца.
-        
+
         Args:
             delay_ms: Задержка в миллисекундах перед перезагрузкой
         """
@@ -79,7 +84,9 @@ class StructureCacheService:
     def load_structure(self, sphere_id: int) -> list[dict[str, Any]]:
         """Load structure for a sphere, synchronize caches, and emit payload to the owner."""
         if not isinstance(sphere_id, int) or sphere_id <= 0:
-            self._logger.warning("load_structure called with invalid sphere_id: %s", sphere_id)
+            self._logger.warning(
+                "load_structure called with invalid sphere_id: %s", sphere_id
+            )
             try:
                 self._owner.structure_loaded.emit([])
             except Exception:
@@ -95,13 +102,21 @@ class StructureCacheService:
             if _metrics:
                 _metrics.record_cache_miss("structure_cache")
             try:
-                payload = self._loader_service.load_structure_from_db(
-                    self._structure_model,
-                    sphere_id,
-                    self._logger,
-                ) or []
+                payload = (
+                    self._loader_service.load_structure_from_db(
+                        self._structure_model,
+                        sphere_id,
+                        self._logger,
+                    )
+                    or []
+                )
             except Exception as exc:  # pragma: no cover - defensive logging
-                self._logger.error("Failed to load structure for sphere %s: %s", sphere_id, exc, exc_info=True)
+                self._logger.error(
+                    "Failed to load structure for sphere %s: %s",
+                    sphere_id,
+                    exc,
+                    exc_info=True,
+                )
                 payload = []
             self._cache_manager.set(cache_key, payload)
 
@@ -114,25 +129,31 @@ class StructureCacheService:
                 if isinstance(section_id, int) and section_id > 0:
                     categories = section.get("categories") or []
                     self._cache_manager.set(f"categories_{section_id}", categories)
-                sections_snapshot.append({k: v for k, v in section.items() if k != "categories"})
+                sections_snapshot.append(
+                    {k: v for k, v in section.items() if k != "categories"}
+                )
 
             if sections_snapshot:
                 self._cache_manager.set(f"sections_{sphere_id}", sections_snapshot)
         except Exception as exc:  # pragma: no cover - defensive logging
-            self._logger.debug("Failed to prime section/category caches: %s", exc, exc_info=True)
+            self._logger.debug(
+                "Failed to prime section/category caches: %s", exc, exc_info=True
+            )
 
         try:
             self._owner.structure_loaded.emit(payload or [])
         except Exception as exc:  # pragma: no cover - defensive logging
-            self._logger.error("Failed to emit structure_loaded: %s", exc, exc_info=True)
+            self._logger.error(
+                "Failed to emit structure_loaded: %s", exc, exc_info=True
+            )
 
         return payload or []
 
     def get_spheres(self) -> list[dict[str, Any]]:
         """Получает список всех сфер с кэшированием.
-        
+
         ✅ Метрика кэша: отслеживается hit/miss rate.
-        
+
         Returns:
             Список словарей с данными сфер
         """
@@ -150,12 +171,12 @@ class StructureCacheService:
 
     def get_sections(self, sphere_id: int) -> list[dict[str, Any]]:
         """Получает разделы для сферы с кэшированием.
-        
+
         ✅ Метрика кэша: отслеживается hit/miss rate.
-        
+
         Args:
             sphere_id: ID сферы
-            
+
         Returns:
             Список словарей с данными разделов
         """
@@ -173,12 +194,12 @@ class StructureCacheService:
 
     def get_categories(self, section_id: int) -> list[dict[str, Any]]:
         """Получает категории для раздела с кэшированием.
-        
+
         ✅ Метрика кэша: отслеживается hit/miss rate.
-        
+
         Args:
             section_id: ID раздела
-            
+
         Returns:
             Список словарей с данными категорий
         """
@@ -223,7 +244,9 @@ class StructureCacheService:
     # Cache invalidation helpers
     # ------------------------------------------------------------------
     def invalidate_structure_cache(self, sphere_id: int | None = None) -> None:
-        target_sphere = sphere_id if sphere_id is not None else self._owner.current_sphere_id
+        target_sphere = (
+            sphere_id if sphere_id is not None else self._owner.current_sphere_id
+        )
         if target_sphere:
             self._cache_manager.invalidate(f"structure_{target_sphere}")
             self._cache_manager.invalidate(f"sections_{target_sphere}")

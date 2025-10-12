@@ -167,7 +167,11 @@ class LinkOperationsController(QObject):
                 if spheres:
                     return spheres
             except Exception as exc:
-                logger.debug("Failed to use cached spheres in LinkOperationsController: %s", exc, exc_info=True)
+                logger.debug(
+                    "Failed to use cached spheres in LinkOperationsController: %s",
+                    exc,
+                    exc_info=True,
+                )
         return self.db.spheres.get_spheres()
 
     def _get_category_hierarchy(self, category_id):

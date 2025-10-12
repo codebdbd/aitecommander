@@ -132,7 +132,9 @@ class DatabaseBase:
         except Exception as e:
             logger.error("Error getting position for table %s: %s", table_name, e)
             # Propagate as DatabaseError to not hide DB and element order issues
-            raise DatabaseError(f"Failed to calculate position for {table_name}: {e}") from e
+            raise DatabaseError(
+                f"Failed to calculate position for {table_name}: {e}"
+            ) from e
 
     def _execute_with_error_handling(
         self, query: str, params: tuple = (), fetch_method: str = None

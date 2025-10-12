@@ -109,6 +109,7 @@ def setup_signal_handling(
         notifier.activated.connect(handle_qt_signal)
         notifiers.append(notifier)
     else:
+
         def signal_wrapper(signum: int, frame: Any) -> None:
             safe_signal_handler(signum, frame, initializer)
 

@@ -13,13 +13,13 @@ class FavoritesPanelWidget(BaseTopPanelWidget):
     """Dedicated widget for favorites panel functionality."""
 
     def __init__(
-        self, 
-        main_window=None, 
+        self,
+        main_window=None,
         config: Optional[WidgetConfigProtocol] = None,
-        batch_size: int = 0
+        batch_size: int = 0,
     ):
         """Initialize favorites panel.
-        
+
         Args:
             main_window: Reference to main window
             config: Configuration provider (uses app_config if None)

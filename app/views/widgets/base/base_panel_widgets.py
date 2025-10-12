@@ -29,13 +29,13 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
     clearRequested: pyqtSignal = pyqtSignal()
 
     def __init__(
-        self, 
-        main_window=None, 
+        self,
+        main_window=None,
         config: Optional[WidgetConfigProtocol] = None,
-        batch_size: int = 0
+        batch_size: int = 0,
     ):
         """Initialize base top panel widget.
-        
+
         Args:
             main_window: Reference to main window
             config: Configuration provider (if None, uses app_config adapter)
@@ -44,21 +44,24 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         super().__init__()
         self._main_window = main_window
         self._default_icon_path: Optional[Path] = None
-        
+
         # IMPROVEMENT: Configuration dependency injection
         if config is None:
             try:
                 from app.config_data import app_config
+
                 config = AppConfigWidgetAdapter(app_config)
             except (ImportError, AttributeError) as e:
                 logger.warning("Failed to load app_config, using None: %s", e)
         self._config = config
-        
+
         # FIX: Batched loading with QTimer leak protection
         self._batch_size = max(0, batch_size)
         self._populate_timer: Optional[QTimer] = None
         self._pending_items: list[dict[str, Any]] = []
-        self._create_button_func: Optional[Callable[[dict[str, Any]], Optional[QToolButton]]] = None
+        self._create_button_func: Optional[
+            Callable[[dict[str, Any]], Optional[QToolButton]]
+        ] = None
 
         # Size policy is inherited from BasePanelWidget: (Minimum, Fixed) for horizontal compression
 
@@ -82,9 +85,7 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
             if mgr:
                 mgr.adjust()
         except Exception:
-            logger.debug(
-                "BaseTopPanelWidget: topbar adjust failed", exc_info=True
-            )
+            logger.debug("BaseTopPanelWidget: topbar adjust failed", exc_info=True)
 
     def _emit_action_safely(self, action_data: dict[str, Any]) -> None:
         """Safely emits actionRequested signal with error handling."""
@@ -206,9 +207,9 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
             self._finish_populate()
             return
 
-        batch = self._pending_items[:self._batch_size]
-        self._pending_items = self._pending_items[self._batch_size:]
-        
+        batch = self._pending_items[: self._batch_size]
+        self._pending_items = self._pending_items[self._batch_size :]
+
         for i, link in enumerate(batch):
             try:
                 button = self._create_button_func(link)
@@ -240,18 +241,18 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
                 self.panel_layout.addStretch()
         except (AttributeError, RuntimeError) as e:
             logger.warning("Failed to add stretch to layout: %s", e)
-        
+
         self.setUpdatesEnabled(True)
-        
+
         try:
             self.updateGeometry()
         except (RuntimeError, AttributeError) as e:
             logger.debug("updateGeometry failed: %s", e)
-        
+
         # Cleanup
         self._pending_items = []
         self._create_button_func = None
-    
+
     def closeEvent(self, event) -> None:
         """Cancel pending batches on close.
 

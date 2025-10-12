@@ -219,7 +219,9 @@ class NeonEventFilter(QObject):
             try:
                 widget.removeEventFilter(self)
                 # Disconnect from toggled if connected
-                if hasattr(widget, "toggled") and getattr(widget, "_neon_toggled_connected", False):
+                if hasattr(widget, "toggled") and getattr(
+                    widget, "_neon_toggled_connected", False
+                ):
                     widget.toggled.disconnect()
             except (RuntimeError, TypeError):
                 # Widget already deleted

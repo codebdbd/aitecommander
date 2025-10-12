@@ -28,7 +28,12 @@ class AsyncSignalHandlers(QObject):
     Inherits from QObject for proper use of PyQt6 slots.
     """
 
-    def __init__(self, controller_instance, top_panels_controller: Optional[Any] = None, parent: Optional[QObject] = None):
+    def __init__(
+        self,
+        controller_instance,
+        top_panels_controller: Optional[Any] = None,
+        parent: Optional[QObject] = None,
+    ):
         super().__init__(parent)
         self.controller = controller_instance
         self.logger = controller_instance.logger
@@ -49,9 +54,7 @@ class AsyncSignalHandlers(QObject):
             raise
 
     @pyqtSlot(list, int)
-    def on_structure_loaded(
-        self, structure: list[SectionData], sphere_id: int
-    ) -> None:
+    def on_structure_loaded(self, structure: list[SectionData], sphere_id: int) -> None:
         """Handler for structure loading completion."""
         try:
             self.logger.debug(
@@ -82,6 +85,7 @@ class AsyncSignalHandlers(QObject):
             # Optionally drop stale snapshots if flag is enabled in config
             try:
                 from app.config_data import app_config
+
                 drop_stale = bool(app_config.ui.get_drop_stale_structure_snapshots())
             except Exception:
                 drop_stale = False
@@ -122,9 +126,7 @@ class AsyncSignalHandlers(QObject):
             raise
 
     @pyqtSlot(list, int)
-    def on_sections_loaded(
-        self, sections: list[SectionData], sphere_id: int
-    ) -> None:
+    def on_sections_loaded(self, sections: list[SectionData], sphere_id: int) -> None:
         """Handler for section loading completion."""
         try:
             self.logger.info(
@@ -176,7 +178,9 @@ class AsyncSignalHandlers(QObject):
                 if isinstance(item_data, dict)
                 else "Unknown"
             )
-            self.logger.info("Created %s (parent_id=%s): %s", item_type, parent_id, name)
+            self.logger.info(
+                "Created %s (parent_id=%s): %s", item_type, parent_id, name
+            )
             # Controller (StructureBusinessLogic) uses item_added signal
             if hasattr(self.controller, "item_added"):
                 self.controller.item_added.emit(item_type, parent_id, item_data)
@@ -205,9 +209,7 @@ class AsyncSignalHandlers(QObject):
                     e2,
                 )
         except Exception as e:
-            self.logger.error(
-                "Error in on_item_created handler: %s", e, exc_info=True
-            )
+            self.logger.error("Error in on_item_created handler: %s", e, exc_info=True)
 
     @pyqtSlot(str, int, dict)
     def on_item_updated(
@@ -245,9 +247,7 @@ class AsyncSignalHandlers(QObject):
                     e2,
                 )
         except Exception as e:
-            self.logger.error(
-                "Error in on_item_updated handler: %s", e, exc_info=True
-            )
+            self.logger.error("Error in on_item_updated handler: %s", e, exc_info=True)
 
     @pyqtSlot(str, int, dict)
     def on_item_deleted(
@@ -293,9 +293,7 @@ class AsyncSignalHandlers(QObject):
                     e2,
                 )
         except Exception as e:
-            self.logger.error(
-                "Error in on_item_deleted handler: %s", e, exc_info=True
-            )
+            self.logger.error("Error in on_item_deleted handler: %s", e, exc_info=True)
 
     @pyqtSlot(str, str)
     def on_error(self, title: str, message: str) -> None:

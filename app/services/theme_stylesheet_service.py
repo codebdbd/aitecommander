@@ -41,7 +41,7 @@ class ThemeStylesheetService:
     # ---------------------- Public methods ----------------------
     def clear_cache(self) -> None:
         """Clears all caches (themes, common.qss, overrides).
-        
+
         ✅ FIX: Also clears overrides_cache.
         """
         with self._cache_lock:
@@ -49,7 +49,9 @@ class ThemeStylesheetService:
             self._qss_cache.clear()
             self._common_qss = None
             self._overrides_cache = None  # ✅ Clear overrides
-        logger.debug("ThemeStylesheetService: cache cleared, removed %d entries", cache_size)
+        logger.debug(
+            "ThemeStylesheetService: cache cleared, removed %d entries", cache_size
+        )
 
     def get_cache_stats(self) -> dict[str, object]:
         with self._cache_lock:
@@ -62,7 +64,9 @@ class ThemeStylesheetService:
 
     def load_stylesheet(self, theme_name: str, qss_filename: str) -> str | None:
         if not self._is_safe_filename(qss_filename):
-            logger.error("ThemeStylesheetService: unsafe theme file name: %s", qss_filename)
+            logger.error(
+                "ThemeStylesheetService: unsafe theme file name: %s", qss_filename
+            )
             return None
 
         theme_path = self._app_config.paths.get_qss_dir() / qss_filename
@@ -96,13 +100,23 @@ class ThemeStylesheetService:
             with theme_path.open("r", encoding="utf-8") as fh:
                 theme_qss = fh.read()
         except UnicodeDecodeError as exc:
-            logger.error("ThemeStylesheetService: error decoding theme file %s: %s", theme_name, exc)
+            logger.error(
+                "ThemeStylesheetService: error decoding theme file %s: %s",
+                theme_name,
+                exc,
+            )
             return None
         except PermissionError as exc:
-            logger.error("ThemeStylesheetService: no access to theme file %s: %s", theme_name, exc)
+            logger.error(
+                "ThemeStylesheetService: no access to theme file %s: %s",
+                theme_name,
+                exc,
+            )
             return None
         except OSError as exc:
-            logger.error("ThemeStylesheetService: error reading theme %s: %s", theme_name, exc)
+            logger.error(
+                "ThemeStylesheetService: error reading theme %s: %s", theme_name, exc
+            )
             return None
         except Exception as exc:
             logger.error(
@@ -114,15 +128,15 @@ class ThemeStylesheetService:
             return None
 
         common_qss = self._load_common_qss()
-        combined_qss = f"{common_qss}\n{theme_qss}" if common_qss is not None else theme_qss
+        combined_qss = (
+            f"{common_qss}\n{theme_qss}" if common_qss is not None else theme_qss
+        )
 
         # ✅ FIX: Use cached overrides
         try:
             overrides = self._get_cached_overrides()
             if overrides:
-                combined_qss = (
-                    f"{combined_qss}\n\n/* ==== AppConfig overrides (auto-generated) ==== */\n{overrides}"
-                )
+                combined_qss = f"{combined_qss}\n\n/* ==== AppConfig overrides (auto-generated) ==== */\n{overrides}"
         except Exception as exc:
             logger.warning(
                 "ThemeStylesheetService: failed to build QSS overrides from configuration: %s",
@@ -152,7 +166,9 @@ class ThemeStylesheetService:
 
         common_path = self._app_config.paths.get_qss_dir() / "common.qss"
         if not common_path.exists():
-            logger.warning("ThemeStylesheetService: common styles file not found: %s", common_path)
+            logger.warning(
+                "ThemeStylesheetService: common styles file not found: %s", common_path
+            )
             with self._cache_lock:
                 self._common_qss = ""
             return ""
@@ -162,10 +178,14 @@ class ThemeStylesheetService:
                 content = fh.read()
             with self._cache_lock:
                 self._common_qss = content
-            logger.debug("ThemeStylesheetService: loaded common styles from %s", common_path)
+            logger.debug(
+                "ThemeStylesheetService: loaded common styles from %s", common_path
+            )
             return content
         except UnicodeDecodeError as exc:
-            logger.error("ThemeStylesheetService: error decoding common styles: %s", exc)
+            logger.error(
+                "ThemeStylesheetService: error decoding common styles: %s", exc
+            )
         except PermissionError as exc:
             logger.error("ThemeStylesheetService: no access to common styles: %s", exc)
         except OSError as exc:
@@ -186,7 +206,10 @@ class ThemeStylesheetService:
                 removed = len(self._qss_cache)
                 self._qss_cache.clear()
                 if removed:
-                    logger.debug("ThemeStylesheetService: cache disabled, cleared %d entries", removed)
+                    logger.debug(
+                        "ThemeStylesheetService: cache disabled, cleared %d entries",
+                        removed,
+                    )
                 return
             while len(self._qss_cache) > self._max_cache_size:
                 key, _ = self._qss_cache.popitem(last=False)
@@ -194,32 +217,32 @@ class ThemeStylesheetService:
 
     def _get_cached_overrides(self) -> str:
         """Returns cached QSS overrides.
-        
+
         ✅ FIX: Caches result of _build_config_overrides_qss().
         """
         with self._cache_lock:
             if self._overrides_cache is not None:
                 return self._overrides_cache
-        
+
         # Generate overrides
         overrides = self._build_config_overrides_qss()
-        
+
         with self._cache_lock:
             self._overrides_cache = overrides
-        
+
         return overrides
-    
+
     def invalidate_overrides_cache(self) -> None:
         """Resets overrides cache when settings change.
-        
+
         ✅ FIX: Public method to reset cache.
-        
+
         Call this method after changing font sizes or other UI settings.
         """
         with self._cache_lock:
             self._overrides_cache = None
         logger.debug("ThemeStylesheetService: overrides cache invalidated")
-    
+
     def _is_safe_filename(self, filename: str) -> bool:
         if not filename or re.search(r'[<>:"/\\|?*]', filename):
             return False
@@ -266,7 +289,7 @@ class ThemeStylesheetService:
 
         # Apply user font size from settings (if any)
         # to tree and table, overriding static values from app_config
-        if self._settings and hasattr(self._settings, 'get_font_size'):
+        if self._settings and hasattr(self._settings, "get_font_size"):
             try:
                 user_font_size = int(self._settings.get_font_size())
                 if 9 <= user_font_size <= 20:  # Valid range
@@ -374,7 +397,9 @@ class ThemeStylesheetService:
             fs = sz(bottom_bar_button_px)
             if fs:
                 lines.append(f"QWidget#BottomPanel QPushButton {{ font-size: {fs}; }}")
-                lines.append(f"QWidget#bottomBarContainer PushButton {{ font-size: {fs}; }}")
+                lines.append(
+                    f"QWidget#bottomBarContainer PushButton {{ font-size: {fs}; }}"
+                )
 
         if menu_item_px and menu_item_px > 0:
             fs = sz(menu_item_px)
@@ -413,7 +438,7 @@ class ThemeStylesheetService:
         if link_type_button_px and link_type_button_px > 0:
             fs = sz(link_type_button_px)
             if fs:
-                lines.append(f"QToolButton[link_type=\"true\"] {{ font-size: {fs}; }}")
+                lines.append(f'QToolButton[link_type="true"] {{ font-size: {fs}; }}')
 
         return "\n".join(lines)
 
@@ -423,7 +448,9 @@ def configure_qicon_theme(theme_name: str, app_config) -> None:
         return
     ui_icons_dir = app_config.paths.get_ui_icons_dir()
     if not ui_icons_dir.exists():
-        logger.debug("ThemeStylesheetService: UI icons directory missing: %s", ui_icons_dir)
+        logger.debug(
+            "ThemeStylesheetService: UI icons directory missing: %s", ui_icons_dir
+        )
         return
     theme_dir = ui_icons_dir / theme_name
     if not theme_dir.exists():

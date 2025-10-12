@@ -65,8 +65,10 @@ class MigrationRunner:
                 kind = "py"
             else:
                 continue
-            migrations.append(Migration(version=version, name=name, path=entry, kind=kind))
-     
+            migrations.append(
+                Migration(version=version, name=name, path=entry, kind=kind)
+            )
+
         migrations.sort(key=lambda m: (m.version, m.name))
         return migrations
 

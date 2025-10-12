@@ -1,4 +1,5 @@
 """Entry point для CLI: python -m app.models.db"""
+
 import sys
 
 from .cli.db_cli import main

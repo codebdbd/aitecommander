@@ -202,8 +202,10 @@ class LinkModel(DatabaseBase):
                 )
                 for r in rows or []:
                     try:
-                        cat_id = int(r["category_id"])  # sqlite3.Row supports key access
-                        cnt = int(r["cnt"])             # aggregated alias
+                        cat_id = int(
+                            r["category_id"]
+                        )  # sqlite3.Row supports key access
+                        cnt = int(r["cnt"])  # aggregated alias
                         result[cat_id] = result.get(cat_id, 0) + cnt
                     except Exception:
                         continue
@@ -351,9 +353,7 @@ class LinkModel(DatabaseBase):
                         if rec_id:
                             return rec_id
                     except (KeyError, TypeError, ValueError) as conv_err:
-                        logger.debug(
-                            "upsert_link: ID conversion error: %s", conv_err
-                        )
+                        logger.debug("upsert_link: ID conversion error: %s", conv_err)
             except Exception as ee:
                 logger.debug(
                     "upsert_link: failed to recover existing row after IntegrityError: %s",
@@ -385,9 +385,7 @@ class LinkModel(DatabaseBase):
                 return dict(row)
             return None
         except Exception as e:
-            logger.error(
-                "Error finding link by unique fields: %s", e, exc_info=True
-            )
+            logger.error("Error finding link by unique fields: %s", e, exc_info=True)
             return None
 
     def get_link_by_name_url_args(
@@ -408,9 +406,7 @@ class LinkModel(DatabaseBase):
                 return dict(row)
             return None
         except Exception as e:
-            logger.error(
-                "Error finding link by (name,url,args): %s", e, exc_info=True
-            )
+            logger.error("Error finding link by (name,url,args): %s", e, exc_info=True)
             return None
 
     def get_all_links(self) -> list[dict[str, Any]]:
@@ -834,7 +830,9 @@ class LinkModel(DatabaseBase):
         try:
             self.connection.executemany(update_sql, updates)
         except sqlite3.IntegrityError as e:
-            raise DatabaseError(f"UNIQUE constraint failed during batch update: {e}") from e
+            raise DatabaseError(
+                f"UNIQUE constraint failed during batch update: {e}"
+            ) from e
 
         update_ids = [int(p[-1]) for p in updates]
         if update_ids:

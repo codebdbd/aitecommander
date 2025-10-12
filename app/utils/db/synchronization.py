@@ -111,9 +111,7 @@ class EnhancedLock:
                 thread_id,
                 wait_time,
             )
-            raise LockTimeout(
-                f"Failed to acquire lock {self.name} within {timeout}s"
-            )
+            raise LockTimeout(f"Failed to acquire lock {self.name} within {timeout}s")
 
         # Update stats
         wait_time = time.time() - start_time
@@ -152,9 +150,7 @@ class EnhancedLock:
 
             # ✅ Log long holds (> 1 s)
             if hold_time > 1.0:
-                logger.warning(
-                    "[LOCK] Long hold %s: %.3fs", self.name, hold_time
-                )
+                logger.warning("[LOCK] Long hold %s: %.3fs", self.name, hold_time)
 
         self._acquisition_time = None
         self._holder_thread = None

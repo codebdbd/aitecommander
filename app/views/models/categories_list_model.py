@@ -25,7 +25,11 @@ class CategoriesListModel(QAbstractListModel):
       - ToolTipRole: name (can be extended)
     """
 
-    def __init__(self, categories: Optional[list[dict[str, Any]]] = None, parent: Optional[QWidget] = None) -> None:
+    def __init__(
+        self,
+        categories: Optional[list[dict[str, Any]]] = None,
+        parent: Optional[QWidget] = None,
+    ) -> None:
         super().__init__(parent)
         self._items: list[dict[str, Any]] = []
         # Row cache by id for O(1) lookup: id -> row
@@ -82,7 +86,11 @@ class CategoriesListModel(QAbstractListModel):
                 continue
             icon_path = cat.get("icon_path", "") or ""
             resolved_path = resolve_category_icon_path(icon_path)
-            icon = get_cached_category_icon(resolved_path) if resolved_path else DEFAULT_ICON
+            icon = (
+                get_cached_category_icon(resolved_path)
+                if resolved_path
+                else DEFAULT_ICON
+            )
             items.append({"id": cat_id, "name": name, "_icon": icon})
 
         self.beginResetModel()

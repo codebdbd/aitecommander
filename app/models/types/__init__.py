@@ -1,4 +1,5 @@
 """Types and constants for models."""
+
 from .constants import (
     BACKUP_RETRY_ATTEMPTS,
     BACKUP_RETRY_DELAY,

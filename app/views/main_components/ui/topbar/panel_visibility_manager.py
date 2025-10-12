@@ -25,23 +25,25 @@ def safe_widget_operation(func: Callable) -> Callable:
     Fix: automatically verifies that the widget is not ``None`` or deleted to
     avoid ``RuntimeError`` on dangling Qt objects.
     """
+
     @wraps(func)
     def wrapper(self, widget: QWidget | None, *args, **kwargs):
         if widget is None or self._is_deleted(widget):
             logger.debug(f"{func.__name__}: widget is None or deleted")
             # Return a sensible default
-            if func.__name__.startswith('get'):
+            if func.__name__.startswith("get"):
                 return None
-            elif func.__name__.startswith('set') or func.__name__.startswith('apply'):
+            elif func.__name__.startswith("set") or func.__name__.startswith("apply"):
                 return 0
             return None
         try:
             return func(self, widget, *args, **kwargs)
         except (RuntimeError, AttributeError) as e:
             logger.debug(f"{func.__name__}: operation failed - {e}")
-            if func.__name__.startswith('get'):
+            if func.__name__.startswith("get"):
                 return None
             return 0
+
     return wrapper
 
 
@@ -55,7 +57,9 @@ class PanelVisibilityManager:
     - Constrain panel widths
     """
 
-    def __init__(self, width_calculator: WidthCalculator, parent: QWidget | None = None):
+    def __init__(
+        self, width_calculator: WidthCalculator, parent: QWidget | None = None
+    ):
         """Initialize panel-visibility manager.
 
         Fix: include ``AccessibilityManager`` for complete accessibility support.
@@ -86,10 +90,10 @@ class PanelVisibilityManager:
         """
         if not panel_widget or self._is_deleted(panel_widget):
             return []
-        
+
         buttons: list[QToolButton] = []
         bg = getattr(panel_widget, "bg_frame", None)
-        
+
         if bg and isinstance(bg, QWidget) and not self._is_deleted(bg):
             try:
                 layout = bg.layout()
@@ -98,13 +102,15 @@ class PanelVisibilityManager:
                         item = layout.itemAt(index)
                         if item:
                             widget = item.widget()
-                            if (isinstance(widget, QToolButton) and 
-                                not self._is_deleted(widget) and
-                                widget.objectName() == object_name):
+                            if (
+                                isinstance(widget, QToolButton)
+                                and not self._is_deleted(widget)
+                                and widget.objectName() == object_name
+                            ):
                                 buttons.append(widget)
             except (RuntimeError, AttributeError):
                 pass
-        
+
         # Fallback: search via ``findChildren``
         try:
             for button in panel_widget.findChildren(QToolButton, object_name):
@@ -112,7 +118,7 @@ class PanelVisibilityManager:
                     buttons.append(button)
         except (RuntimeError, AttributeError):
             pass
-        
+
         return buttons
 
     @safe_widget_operation
@@ -133,7 +139,7 @@ class PanelVisibilityManager:
                 try:
                     is_visible = index < visible
                     button.setVisible(is_visible)
-                    
+
                     # Fix: baseline accessibility attributes (full setup occurs in
                     # ``AccessibilityManager`` via ``apply_counts``)
                     if is_visible:
@@ -149,15 +155,17 @@ class PanelVisibilityManager:
                         )
                 except (RuntimeError, AttributeError):
                     pass
-        
+
         self._ensure_panel_visible(panel_widget)
-        
+
         # Fix: refresh focus after visibility changes
         try:
-            self._accessibility_manager.update_focus_after_visibility_change(buttons, visible)
+            self._accessibility_manager.update_focus_after_visibility_change(
+                buttons, visible
+            )
         except Exception as e:
             logger.debug("Failed to update focus: %s", e)
-        
+
         return visible
 
     def apply_counts(
@@ -171,7 +179,7 @@ class PanelVisibilityManager:
         """
         applied: dict[str, int] = {}
         shortcut_counter = 1  # Counter for keyboard shortcuts
-        
+
         for state in panel_states:
             visible = self.set_visible_count(
                 state.widget,
@@ -181,31 +189,39 @@ class PanelVisibilityManager:
             # Apply panel width bounds after adjusting button visibility
             self._apply_panel_width_bounds(state.widget, state.buttons, visible)
             applied[state.definition.label] = visible
-            
+
             # Fix: configure full accessibility for the panel
             try:
                 # Translated panel display names
                 panel_name_map = {
-                    "recent": QCoreApplication.translate("TopBarPanels", "Recent Links"),
+                    "recent": QCoreApplication.translate(
+                        "TopBarPanels", "Recent Links"
+                    ),
                     "fav": QCoreApplication.translate("TopBarPanels", "Favorites"),
                     "quick": QCoreApplication.translate("TopBarPanels", "Quick Add"),
                 }
-                panel_name = panel_name_map.get(state.definition.label, state.definition.label)
-                
+                panel_name = panel_name_map.get(
+                    state.definition.label, state.definition.label
+                )
+
                 self._accessibility_manager.setup_panel_accessibility(
                     state.widget,
                     state.buttons,
                     panel_name,
                     visible,
-                    start_shortcut_number=shortcut_counter
+                    start_shortcut_number=shortcut_counter,
                 )
-                
+
                 # Increment counter for the next panel
                 shortcut_counter += visible
-                
+
             except Exception as e:
-                logger.debug("Failed to setup accessibility for %s: %s", state.definition.label, e)
-        
+                logger.debug(
+                    "Failed to setup accessibility for %s: %s",
+                    state.definition.label,
+                    e,
+                )
+
         return applied
 
     def retranslate_panels(
@@ -225,7 +241,9 @@ class PanelVisibilityManager:
             }
             shortcut_counter = 1
             for state in panel_states:
-                panel_name = panel_name_map.get(state.definition.label, state.definition.label)
+                panel_name = panel_name_map.get(
+                    state.definition.label, state.definition.label
+                )
                 visible = int(visible_counts.get(state.definition.label, 0))
                 self._accessibility_manager.setup_panel_accessibility(
                     state.widget,
@@ -256,11 +274,13 @@ class PanelVisibilityManager:
             panel.setMaximumWidth(max_width)
             # One-time diagnostics for favorites/quick panels to catch sizing root cause
             try:
-                name = getattr(panel, 'objectName', lambda: '')() or ''
+                name = getattr(panel, "objectName", lambda: "")() or ""
             except Exception:
-                name = ''
+                name = ""
             low = name.lower()
-            if ('fav' in low or 'quick' in low) and not bool(getattr(panel, '_dbg_logged_once', False)):
+            if ("fav" in low or "quick" in low) and not bool(
+                getattr(panel, "_dbg_logged_once", False)
+            ):
                 try:
                     # Collect current visible buttons and their ``sizeHint`` values
                     visible_btns = []
@@ -282,7 +302,7 @@ class PanelVisibilityManager:
                         visible_btns,
                         max_width,
                         panel_hint,
-                        getattr(panel, 'contentsMargins', lambda: None)(),
+                        getattr(panel, "contentsMargins", lambda: None)(),
                     )
                 except Exception:
                     pass
@@ -361,8 +381,9 @@ class PanelVisibilityManager:
                 # Fix: use weak references to avoid memory leaks when hiding buttons
                 try:
                     from weakref import ref
+
                     button_ref = ref(button)
-                    
+
                     def hide_callback(_ref=button_ref):
                         btn = _ref()
                         if btn is not None and not self._is_deleted(btn):
@@ -370,7 +391,7 @@ class PanelVisibilityManager:
                                 btn.setVisible(False)
                             except (RuntimeError, AttributeError):
                                 pass
-                    
+
                     animation.finished.connect(hide_callback)
                 except Exception as e:
                     logger.debug("Failed to create hide callback: %s", e)
@@ -381,13 +402,14 @@ class PanelVisibilityManager:
             try:
                 # Fix: use weak references for cleanup to avoid circular references
                 from weakref import ref
+
                 group_ref = ref(group)
-                
+
                 def cleanup_callback():
                     grp = group_ref()
                     if grp is not None:
                         self._cleanup_animation(grp)
-                
+
                 group.finished.connect(cleanup_callback)
                 group.start()
             except Exception as e:
@@ -395,17 +417,19 @@ class PanelVisibilityManager:
                 # Fix: perform cleanup on failure
                 self._cleanup_animation(group)
         return target_visible
-    
+
     def _create_hide_callback(self, button: QToolButton):
         """Create a hide callback that avoids memory leaks."""
+
         def hide_button():
             try:
                 if button and not self._is_deleted(button):
                     button.setVisible(False)
             except (RuntimeError, AttributeError) as e:
                 logger.debug("Failed to hide button: %s", e)
+
         return hide_button
-    
+
     def _safe_hide_button(self, button: QToolButton) -> None:
         """Hide a button safely."""
         try:
@@ -413,7 +437,7 @@ class PanelVisibilityManager:
                 button.setVisible(False)
         except (RuntimeError, AttributeError):
             pass
-    
+
     def _cleanup_animation(self, group: QParallelAnimationGroup) -> None:
         """Remove a completed animation group from the active list."""
         try:
@@ -421,11 +445,12 @@ class PanelVisibilityManager:
                 self._active_animations.remove(group)
         except (ValueError, RuntimeError):
             pass
-    
+
     def _is_deleted(self, obj) -> bool:
         """Check whether a Qt object has been deleted."""
         try:
             from sip import isdeleted
+
             return isdeleted(obj)
         except ImportError:
             return False

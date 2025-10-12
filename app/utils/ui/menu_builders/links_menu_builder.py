@@ -64,7 +64,9 @@ class LinksMenuBuilder:
 
         is_favorite = link and link.get("is_favorite")
         fav_text = (
-            MenuTexts.REMOVE_FROM_FAVORITES if is_favorite else MenuTexts.ADD_TO_FAVORITES
+            MenuTexts.REMOVE_FROM_FAVORITES
+            if is_favorite
+            else MenuTexts.ADD_TO_FAVORITES
         )
         fav_icon = (
             get_menu_icon("delete_favorites", self.theme)
@@ -147,7 +149,9 @@ class LinksMenuBuilder:
             # Guard against non-web links
             if not self._is_web_link(link):
                 return
-            share_menu = QMenu(QCoreApplication.translate("MenuActions", MenuTexts.SHARE), menu)
+            share_menu = QMenu(
+                QCoreApplication.translate("MenuActions", MenuTexts.SHARE), menu
+            )
             share_menu.setIcon(get_menu_icon("share", self.theme))
 
             share_menu.addAction(
@@ -206,7 +210,9 @@ class LinksMenuBuilder:
                     get_menu_icon("pinterest", self.theme),
                 )
             )
-            email_menu = QMenu(QCoreApplication.translate("MenuActions", MenuTexts.EMAIL), share_menu)
+            email_menu = QMenu(
+                QCoreApplication.translate("MenuActions", MenuTexts.EMAIL), share_menu
+            )
             email_menu.setIcon(get_menu_icon("email", self.theme))
             email_menu.addAction(
                 self.actions.create(

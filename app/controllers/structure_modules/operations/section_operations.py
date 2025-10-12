@@ -37,7 +37,7 @@ class DeletionInfo:
             "position": 0,
             "is_active": False,
             "created_at": None,
-            "updated_at": None
+            "updated_at": None,
         }
         return cls(False, empty_section, 0, 0)
 
@@ -198,9 +198,10 @@ class SectionOperations(BaseOperations):
     def _execute_section_deletion(self, section_id: int) -> bool:
         """Execute actual section deletion."""
         if not self._structure_service:
+
             def _raise_service_error():
                 raise RuntimeError("StructureService unavailable for section deletion")
-            
+
             return self._execute_with_error_handling(
                 _raise_service_error,
                 f"delete section {section_id}",

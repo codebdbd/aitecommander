@@ -138,7 +138,8 @@ def resolve_icon_for_link(link_data: dict | None) -> str:
             if (
                 path
                 and default_path
-                and str(Path(path).resolve()).lower() == str(Path(default_path).resolve()).lower()
+                and str(Path(path).resolve()).lower()
+                == str(Path(default_path).resolve()).lower()
             ):
                 type_path = resolve_link_type_icon(link_type)
                 if (

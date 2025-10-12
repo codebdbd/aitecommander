@@ -231,9 +231,7 @@ class UniversalProfileProcessor:
                         link_type,
                         prof_args,
                     ) in existing_keys
-                logger.debug(
-                    "Duplicate check result: %s", duplicate_check_result
-                )
+                logger.debug("Duplicate check result: %s", duplicate_check_result)
 
                 if not skip_duplicate_check and duplicate_check_result:
                     logger.info(
@@ -256,13 +254,11 @@ class UniversalProfileProcessor:
                     last_used=existing_link.get("last_used") if existing_link else None,
                     position=existing_link.get("position", 0) if existing_link else 0,
                     link_id=existing_link.get("id") if is_current else None,
-                    browser_key=browser_key,                    # Add browser_key for proper launch
+                    browser_key=browser_key,  # Add browser_key for proper launch
                 )
 
                 result_links.append(link_record)
-                logger.debug(
-                    "Created link: %s with arguments %s", link_name, prof_args
-                )
+                logger.debug("Created link: %s with arguments %s", link_name, prof_args)
 
             except Exception as e:
                 logger.error(

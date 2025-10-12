@@ -117,7 +117,7 @@ def create_context_menu(widget):
 class BaseDialog(QDialog, ReTranslatable):
     """
     A base dialog class that applies uniform widget heights when shown.
-    
+
     Note: When inheriting from both BaseDialog and ReTranslatable, call
     ReTranslatable.__init__() explicitly after UI setup to avoid AttributeError.
     """
@@ -132,7 +132,7 @@ class BaseDialog(QDialog, ReTranslatable):
         except Exception:
             # Safely ignore if subclass is not a QObject or lacks destroyed slot
             logger.debug("BaseDialog: ReTranslatable init skipped", exc_info=True)
- 
+
     def retranslateUi(self) -> None:
         """Base implementation. Subclasses should override and set texts.
         Keep empty to avoid NotImplementedError in the mixin.
@@ -154,7 +154,7 @@ class BaseDialog(QDialog, ReTranslatable):
         """Cleanup context menus to prevent memory leaks."""
         self._cleanup_context_menus()
         super().closeEvent(event)
-    
+
     def _cleanup_context_menus(self) -> None:
         """Cleanup all created context menus."""
         for menu in self._context_menus:

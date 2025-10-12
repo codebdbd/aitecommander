@@ -82,7 +82,6 @@ class BaseEntityDialog(BaseDialog):
 
         super().__init__(parent)
 
-
     def _init_common_ui(self, form_layout: QFormLayout):
         """Initialize common UI elements: name input and icon button."""
         self.name_le = QLineEdit()
@@ -174,7 +173,7 @@ class BaseEntityDialog(BaseDialog):
             if hasattr(self, "retranslateUi"):
                 self.retranslateUi()
             self._retranslation_initialized = True
-    
+
     # Language changes are handled via BaseDialog(ReTranslatable)
 
     def retranslateUi(self) -> None:
@@ -332,7 +331,8 @@ class SectionDialog(BaseEntityDialog):
             self.show_warning(
                 self.tr("Section not found."),
                 self.tr("Section unavailable"),
-                informative_text=self.tr("The section might have been deleted. ID: %1") % self.entity_id,
+                informative_text=self.tr("The section might have been deleted. ID: %1")
+                % self.entity_id,
             )
             return
 
@@ -354,7 +354,9 @@ class SectionDialog(BaseEntityDialog):
             self.show_warning(
                 self.tr("Sphere not selected."),
                 self.tr("Sphere selection required"),
-                informative_text=self.tr("Choose a sphere from the list and press \"Save\"."),
+                informative_text=self.tr(
+                    'Choose a sphere from the list and press "Save".'
+                ),
             )
             return
 
@@ -428,7 +430,9 @@ class CategoryDialog(BaseEntityDialog):
             sections = self.structure_business.get_sections(sphere_id)
             for section in sections:
                 # Follow the same pattern as in `LinkDialog`: add icon when available
-                icon_path = section.get("icon_path", "") if isinstance(section, dict) else ""
+                icon_path = (
+                    section.get("icon_path", "") if isinstance(section, dict) else ""
+                )
                 icon = make_icon(icon_path)
                 if icon:
                     self.section_cb.addItem(icon, section["name"], section["id"])
@@ -450,7 +454,8 @@ class CategoryDialog(BaseEntityDialog):
             self.show_warning(
                 self.tr("Category not found."),
                 self.tr("Category unavailable"),
-                informative_text=self.tr("The category might have been deleted. ID: %1") % self.entity_id,
+                informative_text=self.tr("The category might have been deleted. ID: %1")
+                % self.entity_id,
             )
             return
 
@@ -488,7 +493,9 @@ class CategoryDialog(BaseEntityDialog):
             self.show_warning(
                 self.tr("Section not selected."),
                 self.tr("Section selection required"),
-                informative_text=self.tr("Choose a section from the list and press \"Save\"."),
+                informative_text=self.tr(
+                    'Choose a section from the list and press "Save".'
+                ),
             )
             return
 
@@ -744,13 +751,13 @@ class ChromeProfileDialog(BaseDialog):
         self.setModal(True)
         self._setup_size()
         self._setup_ui()
-        
+
         # Translate after widgets are created
         self.retranslateUi()
         self.threadpool = QThreadPool.globalInstance()
         self.profiles_loaded.connect(self._populate_profiles)
         self._start_profiles_loading()
-    
+
     # Language changes are handled via BaseDialog(ReTranslatable)
 
     def _setup_size(self):

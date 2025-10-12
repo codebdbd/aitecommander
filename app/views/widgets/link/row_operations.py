@@ -24,6 +24,7 @@ class RowOperationsMixin:
         """
         try:
             from app.config_data import app_config
+
             _debug = bool(app_config.ui.get_debug_links_inline_update())
             # Validate input
             if not isinstance(link, dict):

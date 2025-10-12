@@ -58,6 +58,7 @@ def _deferred_setup(window: Any, controllers: dict[str, Any]) -> None:
     try:
         _inject_to_category_tiles(window, controllers)
         from .wiring import _connect_top_panels_signals_explicit
+
         _connect_top_panels_signals_explicit(
             top_panels_controller=window.top_panels_controller,
             links_actions=window.links_actions,
@@ -120,8 +121,8 @@ def _inject_to_category_tiles(window: Any, controllers: dict[str, Any]) -> None:
     structure_ctrl = controllers["structure"]
 
     def on_tiles_context_menu(category_id: int, global_pos):
-            # Context menu errors are not related to wiring and should not be hidden.
-            # Log unexpected errors, but don't use general catch in wiring blocks.
+        # Context menu errors are not related to wiring and should not be hidden.
+        # Log unexpected errors, but don't use general catch in wiring blocks.
         try:
             builder = CategoryMenuBuilder(tiles.view, window)
             menu, edit_action, add_link_action, delete_action = builder.build(

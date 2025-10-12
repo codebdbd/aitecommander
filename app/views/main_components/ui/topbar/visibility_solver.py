@@ -20,7 +20,9 @@ class VisibilitySolver:
     2. Binary search — faster for large button sets.
     """
 
-    def __init__(self, width_calculator: WidthCalculator, use_binary_search: bool = False) -> None:
+    def __init__(
+        self, width_calculator: WidthCalculator, use_binary_search: bool = False
+    ) -> None:
         """Initialize the solver.
 
         Args:
@@ -38,7 +40,7 @@ class VisibilitySolver:
         if self._use_binary_search:
             return self._compute_with_binary_search(ctx)
         return self._compute_greedy(ctx)
-    
+
     def _compute_greedy(self, ctx: LayoutContext) -> dict[str, int]:
         """Derive visible counts for each panel via the greedy strategy.
 
@@ -82,7 +84,6 @@ class VisibilitySolver:
         minimums: dict[str, int] = {
             state.definition.label: state.min_visible for state in panel_states
         }
-        
 
         total_steps = sum(
             counts[label] - minimums[label] for label in counts if counts[label] > 0
@@ -120,7 +121,7 @@ class VisibilitySolver:
                 counts[label] = minimums[label]
 
         return counts
-    
+
     def _compute_with_binary_search(self, ctx: LayoutContext) -> dict[str, int]:
         """Compute visible counts using binary search.
 
@@ -138,7 +139,7 @@ class VisibilitySolver:
             Dictionary mapping each panel to its visible button count.
         """
         panel_states = list(ctx.panel_states)
-        
+
         # Prepare data for the binary search
         minimums: dict[str, int] = {
             state.definition.label: state.min_visible for state in panel_states
@@ -149,7 +150,7 @@ class VisibilitySolver:
         # Calculate the search range
         min_total = sum(minimums.values())
         max_total = sum(maximums.values())
-        
+
         if min_total == max_total:
             # No flexibility — return minimums
             return minimums.copy()
@@ -157,7 +158,7 @@ class VisibilitySolver:
         # Binary search for the maximum number of buttons that still fits
         left, right = min_total, max_total
         best_total = min_total
-        
+
         while left <= right:
             mid = (left + right) // 2
             counts = self._distribute_buttons(panel_states, mid, minimums, maximums)
@@ -169,7 +170,7 @@ class VisibilitySolver:
                 counts,
                 ctx.min_search_width,
             )
-            
+
             if total_width <= ctx.width:
                 # Fits — try more
                 best_total = mid
@@ -180,7 +181,7 @@ class VisibilitySolver:
 
         # Return the distribution for the best total found
         return self._distribute_buttons(panel_states, best_total, minimums, maximums)
-    
+
     def _distribute_buttons(
         self,
         panel_states: list[PanelState],
@@ -204,13 +205,13 @@ class VisibilitySolver:
         """
         counts: dict[str, int] = {}
         remaining = total
-        
+
         # Allocate minimum counts first
         for state in panel_states:
             label = state.definition.label
             counts[label] = minimums[label]
             remaining -= minimums[label]
-        
+
         # Distribute remaining buttons according to priority
         for state in panel_states:
             label = state.definition.label
@@ -218,8 +219,8 @@ class VisibilitySolver:
             to_add = min(available, remaining)
             counts[label] += to_add
             remaining -= to_add
-            
+
             if remaining <= 0:
                 break
-        
+
         return counts

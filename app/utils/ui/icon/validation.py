@@ -140,6 +140,7 @@ def _is_valid_svgz(path: Path) -> bool:
         logger.warning("Unexpected SVGZ error for %s: %s", path, exc)
         return False
 
+
 # === Public validators ===
 
 
@@ -306,9 +307,7 @@ def validate_ui_icon_environment() -> bool:
                 count = sum(1 for _ in theme_dir.iterdir())
                 logger.info("Theme '%s': %s (elements: %d)", t, theme_dir, count)
             except OSError as exc:  # noqa: BLE001
-                logger.debug(
-                    "Failed to scan theme folder %s: %s", theme_dir, exc
-                )
+                logger.debug("Failed to scan theme folder %s: %s", theme_dir, exc)
 
     return ok
 

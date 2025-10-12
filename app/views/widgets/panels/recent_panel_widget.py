@@ -15,13 +15,13 @@ class RecentPanelWidget(BaseTopPanelWidget):
     """Dedicated widget for recent links panel functionality."""
 
     def __init__(
-        self, 
-        main_window: Optional[QWidget] = None, 
+        self,
+        main_window: Optional[QWidget] = None,
         config: Optional[WidgetConfigProtocol] = None,
-        batch_size: int = 0
+        batch_size: int = 0,
     ):
         """Initialize recent panel.
-        
+
         Args:
             main_window: Reference to main window
             config: Configuration provider (uses app_config if None)
@@ -33,6 +33,7 @@ class RecentPanelWidget(BaseTopPanelWidget):
         # Set object names for styling
         self.setObjectName("recentPanel")
         self.bg_frame.setObjectName("recentPanelBg")
+
     def set_data(self, items: list[dict[str, Any]]) -> None:
         """Sets recent links data and populates the panel (unified contract)."""
         self._populate_panel(items, self._create_recent_button)

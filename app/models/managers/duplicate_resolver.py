@@ -1,4 +1,5 @@
 """Module for detecting and resolving duplicates in database."""
+
 import logging
 
 from ..base.db_base import db_lock
@@ -96,7 +97,7 @@ class DuplicateResolver:
                     row = self.db.connection.execute(
                         f"SELECT name FROM {table} WHERE id=?", (rec_id,)
                     ).fetchone()
-                    return (dict(row)["name"] if row else "")
+                    return dict(row)["name"] if row else ""
 
                 # Group handler
                 def process_group(table: str, ids: list[int]):

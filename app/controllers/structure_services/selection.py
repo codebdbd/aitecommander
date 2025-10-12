@@ -31,11 +31,17 @@ class SelectionService:
             return sections
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
-                logger.error("Data validation error while getting sections for sphere %s: %s", sphere_id, e)
+                logger.error(
+                    "Data validation error while getting sections for sphere %s: %s",
+                    sphere_id,
+                    e,
+                )
             return []
         except Exception:
             if logger:
-                logger.exception("Critical error getting sections for sphere %s", sphere_id)
+                logger.exception(
+                    "Critical error getting sections for sphere %s", sphere_id
+                )
             raise  # Re-raise critical errors
 
     def get_categories(
@@ -47,7 +53,9 @@ class SelectionService:
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
                 logger.error(
-                    "Data validation error while getting categories for section %s: %s", section_id, e
+                    "Data validation error while getting categories for section %s: %s",
+                    section_id,
+                    e,
                 )
             return []
         except Exception:

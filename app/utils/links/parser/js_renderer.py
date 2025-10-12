@@ -78,11 +78,13 @@ def _init_browser(config) -> bool:
                 if _pl:
                     _pl.stop()
             except Exception:
-                logger.debug("Playwright stop failed during init cleanup", exc_info=True)
+                logger.debug(
+                    "Playwright stop failed during init cleanup", exc_info=True
+                )
             _pl = None
             _browser = None
             _context = None
-        
+
     return False
 
 
@@ -113,7 +115,9 @@ def render_html(url: str, config) -> str | None:
         logger.warning("[render] Playwright render failed url=%s: %s", url, e)
         return None
     except Exception:
-        logger.exception("[render] Playwright render failed with unexpected error url=%s", url)
+        logger.exception(
+            "[render] Playwright render failed with unexpected error url=%s", url
+        )
         return None
     finally:
         if page is not None:

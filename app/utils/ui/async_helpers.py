@@ -2,6 +2,7 @@
 
 UI code is separated; functions return status and messages instead of showing dialogs directly.
 """
+
 import logging
 from typing import Any, Callable, Optional
 
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 _TR_CONTEXT = "AsyncHelpers"
 
+
 def _tr(text: str) -> str:
     return QCoreApplication.translate(_TR_CONTEXT, text)
 
@@ -24,7 +26,7 @@ def run_async_import(
     parent: Optional[QWidget] = None,
     on_success: Optional[Callable] = None,
     title: str = "Import data",
-    cancelable: bool = False
+    cancelable: bool = False,
 ) -> tuple[bool, Optional[str], Optional[dict]]:
     """Run asynchronous import with a progress dialog.
 
@@ -53,13 +55,13 @@ def run_async_import(
         title=_tr(title),
         message=_tr("Importing data structure..."),
         cancelable=cancelable,
-        parent=parent
+        parent=parent,
     )
-    
+
     def on_finished(stats):
         nonlocal result_stats, result_message, result_success
         dialog.on_finished(stats)
-        
+
         result_stats = stats
         result_success = True
         result_message = (
@@ -69,23 +71,23 @@ def run_async_import(
             f"• " + _tr("Categories") + f": {stats.get('categories', 0)}\n"
             f"• " + _tr("Links") + f": {stats.get('links', 0)}"
         )
-        
+
         if on_success:
             on_success(stats)
-    
+
     def on_error(e, tb):
         nonlocal result_message, result_success
         dialog.on_error(e, tb)
-        
+
         result_success = False
         result_message = _tr("Failed to import data:") + f"\n{str(e)}"
-    
+
     # Start asynchronous import
     db.import_full_structure_async(
         data,
         on_finished=on_finished,
         on_error=on_error,
-        on_progress=dialog.update_progress
+        on_progress=dialog.update_progress,
     )
     dialog.exec()
 
@@ -94,7 +96,7 @@ def run_async_export(
     db,
     parent: Optional[QWidget] = None,
     on_success: Optional[Callable] = None,
-    title: str = "Export data"
+    title: str = "Export data",
 ) -> tuple[bool, Optional[str], Any]:
     """Run asynchronous export with a progress dialog.
 
@@ -117,47 +119,42 @@ def run_async_export(
         title=_tr(title),
         message=_tr("Exporting data structure..."),
         cancelable=False,
-        parent=parent
+        parent=parent,
     )
-    
+
     def on_finished(result):
         nonlocal result_data, result_success, result_message
         result_data = result
         result_success = True
         dialog.on_finished(result)
-        
+
         if result:
             count = (
-                len(result.get('spheres', [])) +
-                len(result.get('sections', [])) +
-                len(result.get('categories', [])) +
-                len(result.get('links', []))
+                len(result.get("spheres", []))
+                + len(result.get("sections", []))
+                + len(result.get("categories", []))
+                + len(result.get("links", []))
             )
             result_message = _tr("Exported %1 records").replace("%1", str(count))
-        
-        
-    
+
     def on_error(e, tb):
         nonlocal result_success, result_message
         dialog.on_error(e, tb)
-        
+
         result_success = False
         result_message = _tr("Failed to export data:") + f"\n{str(e)}"
-    
+
     # Start asynchronous export
     db.export_full_structure_async(
-        on_error=on_error,
-        on_progress=dialog.update_progress
+        on_error=on_error, on_progress=dialog.update_progress
     )
-    
+
     dialog.exec()
     return result_success, result_message, result_data
 
 
 def run_async_backup(
-    db,
-    parent: Optional[QWidget] = None,
-    _show_notification: bool = True
+    db, parent: Optional[QWidget] = None, _show_notification: bool = True
 ) -> tuple[bool, Optional[str]]:
     """Run asynchronous backup.
 
@@ -179,29 +176,23 @@ def run_async_backup(
     """
     result_success = False
     result_message = None
+
     def on_finished(result):
         nonlocal result_success, result_message
-        backup_file = result.get('backup_filename', _tr('unknown'))
+        backup_file = result.get("backup_filename", _tr("unknown"))
         logger.info(f"Backup created: {backup_file}")
-        
+
         result_success = True
         result_message = _tr("Backup created:") + f"\n{backup_file}"
-        
-        
-    
+
     def on_error(e, tb):
         nonlocal result_success, result_message
         logger.error(f"Backup error: {e}")
-        
+
         result_success = False
         result_message = _tr("Failed to create backup:") + f"\n{str(e)}"
-    
+
     # Start asynchronous backup (without dialog)
-    db.backup_async(
-        on_finished=on_finished,
-        on_error=on_error
-    )
-    
+    db.backup_async(on_finished=on_finished, on_error=on_error)
+
     return result_success, result_message
-
-

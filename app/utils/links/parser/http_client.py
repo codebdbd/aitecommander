@@ -43,7 +43,10 @@ def get_cloudscraper():
                         "mobile": False,
                     }
                 )
-            except (RuntimeError, ValueError) as e:  # pragma: no cover - creation failure
+            except (
+                RuntimeError,
+                ValueError,
+            ) as e:  # pragma: no cover - creation failure
                 logger.warning("cloudscraper init failed: %s", e)
                 return None
             try:
@@ -82,8 +85,13 @@ def _cleanup_thread_local_session():
             close = getattr(s, "close", None)
             if callable(close):
                 close()
-    except (OSError, RuntimeError, AttributeError) as e:  # pragma: no cover - best-effort cleanup
+    except (
+        OSError,
+        RuntimeError,
+        AttributeError,
+    ) as e:  # pragma: no cover - best-effort cleanup
         logger.debug("session cleanup failed: %s", e)
+
 
 def get_session() -> requests.Session:
     s = getattr(_tls, "session", None)
@@ -108,6 +116,7 @@ def get_session() -> requests.Session:
             pass
         # Add a simple response hook for debug logging of responses
         try:
+
             def _log_response(resp, *args, **kwargs):
                 try:
                     logger.debug(
@@ -118,6 +127,7 @@ def get_session() -> requests.Session:
                     )
                 except Exception:
                     pass
+
             s.hooks.setdefault("response", []).append(_log_response)
         except Exception:
             pass
@@ -201,7 +211,9 @@ def http_request(
                 except Exception:
                     pass
         except Exception:
-            logger.debug("failed to configure session retries (one-time)", exc_info=True)
+            logger.debug(
+                "failed to configure session retries (one-time)", exc_info=True
+            )
         logger.debug("[session] %s %s", method, url)
         req_kwargs = {"headers": headers, "timeout": timeout}
         if stream is not None:
@@ -225,9 +237,16 @@ def http_request(
             e,
             exc_info=True,
         )
-        should_try_cf = enable_cf and ((status in (403, 429, 503)) or (
-            status is None and any(tok in err_s.lower() for tok in ["forbidden", "blocked", "cloudflare"])
-        ))
+        should_try_cf = enable_cf and (
+            (status in (403, 429, 503))
+            or (
+                status is None
+                and any(
+                    tok in err_s.lower()
+                    for tok in ["forbidden", "blocked", "cloudflare"]
+                )
+            )
+        )
         if not cf_fallback_attempted and method == "GET" and should_try_cf:
             try:
                 scraper = get_cloudscraper() if enable_cf else None
@@ -274,7 +293,9 @@ def _configure_session_retries(session: requests.Session, *, config=None) -> Non
         try:
             if config is not None:
                 retries = int(getattr(config, "HTTP_RETRIES", 2) or 0)
-                backoff_factor = float(getattr(config, "HTTP_RETRY_BACKOFF", 0.5) or 0.5)
+                backoff_factor = float(
+                    getattr(config, "HTTP_RETRY_BACKOFF", 0.5) or 0.5
+                )
                 enable_status = bool(getattr(config, "HTTP_RETRY_ON_STATUS", False))
         except Exception:
             pass
@@ -302,7 +323,9 @@ def _configure_session_retries(session: requests.Session, *, config=None) -> Non
                 pool_size = int(getattr(config, "HTTP_POOL_MAXSIZE", 20) or 20)
         except Exception:
             pass
-        adapter = HTTPAdapter(max_retries=r, pool_connections=pool_conns, pool_maxsize=pool_size)
+        adapter = HTTPAdapter(
+            max_retries=r, pool_connections=pool_conns, pool_maxsize=pool_size
+        )
         session.mount("http://", adapter)
         session.mount("https://", adapter)
         logger.debug(

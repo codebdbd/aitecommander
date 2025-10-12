@@ -28,7 +28,9 @@ class TreeUpdateService(QObject):
         self._model = model
 
     # --- Public API -----------------------------------------------------
-    def handle_item_added(self, item_type: str, parent_id: int, data: dict[str, Any]) -> None:
+    def handle_item_added(
+        self, item_type: str, parent_id: int, data: dict[str, Any]
+    ) -> None:
         if item_type == "section":
             self._insert_section(data)
         elif item_type == "category":
@@ -37,7 +39,9 @@ class TreeUpdateService(QObject):
             return
         self._focus_on_new_item(item_type, data.get("id"))
 
-    def handle_item_updated(self, item_type: str, item_id: int, data: dict[str, Any]) -> None:
+    def handle_item_updated(
+        self, item_type: str, item_id: int, data: dict[str, Any]
+    ) -> None:
         try:
             self._model.update_item(item_type, item_id, data or {})
         except (ValueError, RuntimeError):
@@ -79,9 +83,7 @@ class TreeUpdateService(QObject):
         try:
             self._model.insert_sections(row_index, [data])
         except (ValueError, RuntimeError):
-            logger.exception(
-                "TreeUpdateService._insert_section: model insert failed"
-            )
+            logger.exception("TreeUpdateService._insert_section: model insert failed")
             raise
 
     def _insert_category(self, parent_id: int, data: dict[str, Any]) -> None:
@@ -90,9 +92,7 @@ class TreeUpdateService(QObject):
         try:
             self._model.insert_categories(parent_id, row_index, [data])
         except (ValueError, RuntimeError):
-            logger.exception(
-                "TreeUpdateService._insert_category: model insert failed"
-            )
+            logger.exception("TreeUpdateService._insert_category: model insert failed")
             raise
         if not bool(data.get("__from_undo__")):
             self._manager.refresh_section_tiles(parent_id)

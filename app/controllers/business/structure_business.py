@@ -41,21 +41,26 @@ from .structure.crud_service import MoveCategoriesBatchResult
 class StructureBusinessLogic(QObject):
     """Refactored structure business logic compatible with the legacy UI."""
 
-    structure_loaded = pyqtSignal(list, name='structureLoaded')
-    active_sphere_changed = pyqtSignal(int, name='activeSphereChanged')
+    structure_loaded = pyqtSignal(list, name="structureLoaded")
+    active_sphere_changed = pyqtSignal(int, name="activeSphereChanged")
 
-    item_added = pyqtSignal(str, int, dict, name='itemAdded')
-    item_updated = pyqtSignal(str, int, dict, name='itemUpdated')
-    item_deleted = pyqtSignal(str, int, name='itemDeleted')
-    items_batch_deleted = pyqtSignal(str, list, name='itemsBatchDeleted')
+    item_added = pyqtSignal(str, int, dict, name="itemAdded")
+    item_updated = pyqtSignal(str, int, dict, name="itemUpdated")
+    item_deleted = pyqtSignal(str, int, name="itemDeleted")
+    items_batch_deleted = pyqtSignal(str, list, name="itemsBatchDeleted")
 
-    section_selected = pyqtSignal(int, name='sectionSelected')
-    category_selected = pyqtSignal(int, name='categorySelected')
+    section_selected = pyqtSignal(int, name="sectionSelected")
+    category_selected = pyqtSignal(int, name="categorySelected")
 
-    error_occurred = pyqtSignal(str, str, name='errorOccurred')
-    spheres_loaded = pyqtSignal(list, name='spheresLoaded')
+    error_occurred = pyqtSignal(str, str, name="errorOccurred")
+    spheres_loaded = pyqtSignal(list, name="spheresLoaded")
 
-    def __init__(self, db: Database, parent: QObject = None, logger: Optional[logging.Logger] = None):
+    def __init__(
+        self,
+        db: Database,
+        parent: QObject = None,
+        logger: Optional[logging.Logger] = None,
+    ):
         """Initialise structure business logic."""
         super().__init__(parent)
 
@@ -181,7 +186,9 @@ class StructureBusinessLogic(QObject):
                 self.item_added.disconnect(self.event_service.on_item_added)
                 self.item_updated.disconnect(self.event_service.on_item_updated)
                 self.item_deleted.disconnect(self.event_service.on_item_deleted)
-                self.items_batch_deleted.disconnect(self.event_service.on_items_batch_deleted)
+                self.items_batch_deleted.disconnect(
+                    self.event_service.on_items_batch_deleted
+                )
                 self.item_added.disconnect(self._handle_structure_mutation)
                 self.item_updated.disconnect(self._handle_structure_mutation)
                 self.item_deleted.disconnect(self._handle_structure_mutation)
@@ -199,7 +206,9 @@ class StructureBusinessLogic(QObject):
                 "Error during StructureBusinessLogic shutdown: %s", exc, exc_info=True
             )
 
-    def set_top_panels_controller(self, top_panels_controller: 'TopPanelsController') -> None:
+    def set_top_panels_controller(
+        self, top_panels_controller: "TopPanelsController"
+    ) -> None:
         """Inject ``TopPanelsController`` into asynchronous layers."""
         self.top_panels_controller = top_panels_controller
         self.async_service.set_top_panels_controller(top_panels_controller)
@@ -478,7 +487,9 @@ class StructureBusinessLogic(QObject):
         return self.query_service.get_category_data(category_id)
 
     @handle_exceptions()
-    def get_item_for_editing(self, item_id: int, item_type: Union[str, Any]) -> Optional[dict[str, Any]]:
+    def get_item_for_editing(
+        self, item_id: int, item_type: Union[str, Any]
+    ) -> Optional[dict[str, Any]]:
         return self.query_service.get_item_for_editing(item_id, item_type)
 
     def on_active_sphere_changed(self, *_args: Any) -> None:

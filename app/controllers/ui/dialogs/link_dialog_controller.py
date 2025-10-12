@@ -47,7 +47,12 @@ class LinkDialogController:
                 if sections:
                     return sections
             except Exception as exc:
-                logger.debug("Failed to read cached sections for %s: %s", sphere_id, exc, exc_info=True)
+                logger.debug(
+                    "Failed to read cached sections for %s: %s",
+                    sphere_id,
+                    exc,
+                    exc_info=True,
+                )
         return self.database.sections.get_sections(sphere_id) or []
 
     def _get_categories_cached(self, section_id: int) -> list[dict[str, Any]]:

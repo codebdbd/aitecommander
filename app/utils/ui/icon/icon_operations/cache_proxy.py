@@ -118,4 +118,3 @@ class IconCache:
 
 # Single global instance
 icon_cache = IconCache()
-

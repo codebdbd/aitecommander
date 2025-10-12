@@ -83,7 +83,7 @@ def _resolve_structure_loader(structure_business: StructureBusinessLogic):
 
 __all__ = [
     "setup_controllers",
-    "setup_ui_elements", 
+    "setup_ui_elements",
     "setup_dependency_injection",
     "setup_signal_connections",
     "setup_keyboard",

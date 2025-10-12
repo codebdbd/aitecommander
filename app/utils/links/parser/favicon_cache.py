@@ -80,6 +80,7 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 
                 # portalocker raises LockException on timeout; log as warning
                 try:
                     from portalocker import exceptions as _pl_exc  # type: ignore
+
                     if isinstance(e, getattr(_pl_exc, "LockException", tuple())):
                         logger.warning("favicon lock timeout: %s (%s)", lock_path, e)
                         yield
@@ -134,7 +135,10 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 
                 return
 
     # No available backends — continue without interprocess locking
-    logger.warning("favicon lock backend unavailable; proceeding without interprocess lock: %s", lock_path)
+    logger.warning(
+        "favicon lock backend unavailable; proceeding without interprocess lock: %s",
+        lock_path,
+    )
     yield
 
 
@@ -195,7 +199,9 @@ class FaviconCache(BaseCache):
             try:
                 db.close()
             except Exception as exc:  # noqa: BLE001
-                logger.debug("favicon_cache: failed to close db: %s", exc, exc_info=True)
+                logger.debug(
+                    "favicon_cache: failed to close db: %s", exc, exc_info=True
+                )
 
     def _safe_shutdown(self) -> None:  # pragma: no cover - atexit path
         try:
@@ -379,7 +385,9 @@ class FaviconCache(BaseCache):
                             del db[key]
                             # Remove from index
                             try:
-                                idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
+                                idx: OrderedDict[str, float] = (
+                                    db.get("__ts_index__") or OrderedDict()
+                                )
                                 if key in idx:
                                     idx.pop(key, None)
                                     db["__ts_index__"] = idx
@@ -417,7 +425,9 @@ class FaviconCache(BaseCache):
                                 del db2[key]
                                 # Remove from index
                                 try:
-                                    idx: OrderedDict[str, float] = db2.get("__ts_index__") or OrderedDict()
+                                    idx: OrderedDict[str, float] = (
+                                        db2.get("__ts_index__") or OrderedDict()
+                                    )
                                     if key in idx:
                                         idx.pop(key, None)
                                         db2["__ts_index__"] = idx
@@ -464,7 +474,9 @@ class FaviconCache(BaseCache):
                     db[key] = to_store
                     # Update timestamp index: move key to end as newest
                     try:
-                        idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
+                        idx: OrderedDict[str, float] = (
+                            db.get("__ts_index__") or OrderedDict()
+                        )
                         if key in idx:
                             idx.pop(key, None)
                         idx[key] = float(to_store.get("timestamp", ts_now))
@@ -481,7 +493,9 @@ class FaviconCache(BaseCache):
                     # Enforce size limit immediately using index (avoid full sort)
                     try:
                         max_size = self._get_max_size()
-                        idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
+                        idx: OrderedDict[str, float] = (
+                            db.get("__ts_index__") or OrderedDict()
+                        )
                         # Remove phantom keys not present in DB
                         for idx_key in list(idx.keys()):
                             if idx_key not in db or idx_key.startswith("__"):
@@ -501,7 +515,11 @@ class FaviconCache(BaseCache):
                         db["__ts_index__"] = idx
                         # Fallback: if index is empty/incomplete and limit exceeded, perform a light pass through DB
                         try:
-                            non_service = [candidate for candidate in db.keys() if not candidate.startswith("__")]
+                            non_service = [
+                                candidate
+                                for candidate in db.keys()
+                                if not candidate.startswith("__")
+                            ]
                             if len(non_service) > max_size:
                                 items: list[tuple[str, float]] = []
                                 for candidate_key in non_service:
@@ -554,7 +572,9 @@ class FaviconCache(BaseCache):
                         db[key] = to_store
                         # Update timestamp index: move key to end as newest
                         try:
-                            idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
+                            idx: OrderedDict[str, float] = (
+                                db.get("__ts_index__") or OrderedDict()
+                            )
                             if key in idx:
                                 idx.pop(key, None)
                             idx[key] = float(to_store.get("timestamp", ts_now))
@@ -565,7 +585,9 @@ class FaviconCache(BaseCache):
                         # Enforce size limit immediately via index (no full sort)
                         try:
                             max_size = self._get_max_size()
-                            idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
+                            idx: OrderedDict[str, float] = (
+                                db.get("__ts_index__") or OrderedDict()
+                            )
                             # Remove phantom keys absent in DB
                             for idx_key in list(idx.keys()):
                                 if idx_key not in db or idx_key.startswith("__"):
@@ -573,7 +595,9 @@ class FaviconCache(BaseCache):
                             # Evict using index
                             while len(idx) > max_size:
                                 try:
-                                    oldest_key = min(idx.items(), key=lambda kv: kv[1])[0]
+                                    oldest_key = min(idx.items(), key=lambda kv: kv[1])[
+                                        0
+                                    ]
                                 except ValueError:
                                     break
                                 idx.pop(oldest_key, None)
@@ -585,7 +609,11 @@ class FaviconCache(BaseCache):
                             db["__ts_index__"] = idx
                             # Fallback: if index is empty/incomplete and limit exceeded, perform a light pass through DB
                             try:
-                                non_service = [candidate for candidate in db.keys() if not candidate.startswith("__")]
+                                non_service = [
+                                    candidate
+                                    for candidate in db.keys()
+                                    if not candidate.startswith("__")
+                                ]
                                 if len(non_service) > max_size:
                                     items: list[tuple[str, float]] = []
                                     for candidate_key in non_service:
@@ -680,7 +708,9 @@ class FaviconCache(BaseCache):
                             logger.debug("[cache] INVALIDATE %s", key)
                             # Remove from index
                             try:
-                                idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
+                                idx: OrderedDict[str, float] = (
+                                    db.get("__ts_index__") or OrderedDict()
+                                )
                                 if key in idx:
                                     idx.pop(key, None)
                                     db["__ts_index__"] = idx
@@ -710,7 +740,9 @@ class FaviconCache(BaseCache):
                                 del db2[key]
                                 logger.debug("[cache] INVALIDATE %s", key)
                                 try:
-                                    idx: OrderedDict[str, float] = db2.get("__ts_index__") or OrderedDict()
+                                    idx: OrderedDict[str, float] = (
+                                        db2.get("__ts_index__") or OrderedDict()
+                                    )
                                     if key in idx:
                                         idx.pop(key, None)
                                         db2["__ts_index__"] = idx

@@ -41,7 +41,9 @@ class DatabaseInitializer:
         """
         # Show status in status bar (if available)
         self._update_status_message(
-            QCoreApplication.translate("DatabaseInitializer", "Database initialization…")
+            QCoreApplication.translate(
+                "DatabaseInitializer", "Database initialization…"
+            )
         )
 
         # Temporarily block UI interaction during DB initialization
@@ -137,9 +139,7 @@ class DatabaseInitializer:
         self._set_ui_enabled(True)
 
         user_message = (
-            f"{detailed_message}\n\n{error}"
-            if str(error).strip()
-            else detailed_message
+            f"{detailed_message}\n\n{error}" if str(error).strip() else detailed_message
         )
         self._show_critical_error(
             QCoreApplication.translate(

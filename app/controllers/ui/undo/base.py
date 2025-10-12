@@ -34,9 +34,7 @@ class BaseCommand(QUndoCommand):
     def set_obsolete(self, value: bool = True) -> None:
         try:
             self.setObsolete(value)
-        except (
-            Exception
-        ):  # compatibility if subclasses override behavior
+        except Exception:  # compatibility if subclasses override behavior
             pass
 
 

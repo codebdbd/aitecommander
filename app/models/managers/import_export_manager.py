@@ -1,4 +1,5 @@
 """Module for importing/exporting database structure."""
+
 import logging
 import time
 
@@ -35,7 +36,9 @@ class ImportExportManager:
                 sections = self.db.connection.execute(
                     "SELECT * FROM section ORDER BY position"
                 ).fetchall()
-                self.db.operation_progress.emit(operation, 2, 4, "Loading categories...")
+                self.db.operation_progress.emit(
+                    operation, 2, 4, "Loading categories..."
+                )
                 categories = self.db.connection.execute(
                     "SELECT * FROM category ORDER BY position"
                 ).fetchall()
@@ -108,8 +111,10 @@ class ImportExportManager:
                     total_ms,
                     PERFORMANCE_WARNING_THRESHOLD_MS,
                 )
-            
-            self.db.operation_progress.emit(operation, 4, 4, "Hierarchy assembly completed")
+
+            self.db.operation_progress.emit(
+                operation, 4, 4, "Hierarchy assembly completed"
+            )
             self.db.operation_finished.emit(operation, True)
             return {"spheres": spheres_data}
         except Exception as e:
@@ -304,8 +309,18 @@ def _upsert_category_tree(tree: dict, connection) -> None:
         return
 
     all_fields = [
-        "id", "category_id", "name", "url", "type", "notes",
-        "is_favorite", "last_used", "icon_path", "args", "browser_key", "position",
+        "id",
+        "category_id",
+        "name",
+        "url",
+        "type",
+        "notes",
+        "is_favorite",
+        "last_used",
+        "icon_path",
+        "args",
+        "browser_key",
+        "position",
     ]
 
     next_pos = None

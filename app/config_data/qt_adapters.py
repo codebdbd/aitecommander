@@ -131,7 +131,9 @@ def load_and_install_translator(
 
     app = application or QCoreApplication.instance()
     if app is None:
-        logger.warning("Cannot install translator without an active QCoreApplication instance.")
+        logger.warning(
+            "Cannot install translator without an active QCoreApplication instance."
+        )
         return None
 
     translations_path = Path(translations_dir)

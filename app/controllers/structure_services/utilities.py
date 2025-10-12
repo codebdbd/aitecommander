@@ -139,7 +139,9 @@ class UtilityService:
                 return first_category_id
         cache_set(cache_key, None)
         try:
-            logger.debug("first_category cache SET: key=%s → None (no categories)", cache_key)
+            logger.debug(
+                "first_category cache SET: key=%s → None (no categories)", cache_key
+            )
         except Exception:
             pass
         return None
@@ -152,7 +154,7 @@ class UtilityService:
         cache_set: Callable[[str, Any], None],
     ) -> int | None:
         """Alias for get_target_section_id for backward compatibility.
-        
+
         Uses the same logic as get_target_section_id.
         """
         return self.get_target_section_id(
@@ -218,10 +220,13 @@ class UtilityService:
             return True
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             if logger:
-                logger.error("Data validation error while updating positions in %s: %s", table_name, e)
+                logger.error(
+                    "Data validation error while updating positions in %s: %s",
+                    table_name,
+                    e,
+                )
             return False
         except Exception:
             if logger:
                 logger.exception("Critical error updating positions in %s", table_name)
             raise  # Re-raise critical errors
-

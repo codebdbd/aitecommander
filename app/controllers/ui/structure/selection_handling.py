@@ -30,13 +30,13 @@ class SelectionHandling(QObject):
             raise ValueError(
                 "SelectionHandling requires a category_tiles_controller dependency"
             )
-        if not isinstance(
-            category_tiles_controller, CategoryTilesControllerProtocol
-        ):
+        if not isinstance(category_tiles_controller, CategoryTilesControllerProtocol):
             raise TypeError(
                 "category_tiles_controller must implement CategoryTilesControllerProtocol"
             )
-        self.tiles_controller: CategoryTilesControllerProtocol = category_tiles_controller
+        self.tiles_controller: CategoryTilesControllerProtocol = (
+            category_tiles_controller
+        )
         self._last_handled: Optional[tuple[str, int]] = None
         self._suppress_counter = 0
         self._actions = SelectionActions(

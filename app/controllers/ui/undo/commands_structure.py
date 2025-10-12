@@ -573,8 +573,10 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                 for cat in self.categories
                 if isinstance(cat.get("section_id"), int) and cat.get("section_id") > 0
             }
-            if business and hasattr(business, "begin_batch") and callable(
-                business.begin_batch
+            if (
+                business
+                and hasattr(business, "begin_batch")
+                and callable(business.begin_batch)
             ):
                 try:
                     business.begin_batch()
@@ -821,9 +823,14 @@ class DeleteCategoriesBatchCmd(BaseCommand):
         try:
             if business:
                 try:
-                    business.items_batch_deleted.emit("category", [
-                        c.get("id") for c in self.categories if c.get("id") is not None
-                    ])
+                    business.items_batch_deleted.emit(
+                        "category",
+                        [
+                            c.get("id")
+                            for c in self.categories
+                            if c.get("id") is not None
+                        ],
+                    )
                 except Exception as exc:
                     logger.debug(
                         "DeleteCategoriesBatchCmd.undo: items_batch_deleted emit failed: %s",

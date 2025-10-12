@@ -105,7 +105,9 @@ class TaskScheduler(QObject):
         """Ensure thread pool drains gracefully when the app shuts down."""
         app = QCoreApplication.instance()
         if app is None:
-            logger.debug("TaskScheduler: no QCoreApplication instance for shutdown hook")
+            logger.debug(
+                "TaskScheduler: no QCoreApplication instance for shutdown hook"
+            )
             return False
         try:
             app.aboutToQuit.connect(self._on_app_about_to_quit)
@@ -203,7 +205,9 @@ class TaskScheduler(QObject):
         if not operations:
             return
 
-        logger.debug("Executing %s operations of type %s", len(operations), task_type.value)
+        logger.debug(
+            "Executing %s operations of type %s", len(operations), task_type.value
+        )
 
         # Special handling for focus operations - execute only the last one
         if task_type == TaskType.FOCUS_MANAGEMENT:
@@ -216,8 +220,8 @@ class TaskScheduler(QObject):
                     logger.debug("Executed focus operation: %s", last_operation_id)
                 except Exception as e:
                     logger.error(
-                    "Error executing focus operation %s: %s", last_operation_id, e
-                )
+                        "Error executing focus operation %s: %s", last_operation_id, e
+                    )
         else:
             # For other types execute all operations
             for operation_id, operation in operations.items():
@@ -225,7 +229,9 @@ class TaskScheduler(QObject):
                     operation()
                     logger.debug("Executed operation: %s", operation_id)
                 except Exception as e:
-                    logger.error("Error executing operation %s: %s", operation_id, str(e))
+                    logger.error(
+                        "Error executing operation %s: %s", operation_id, str(e)
+                    )
 
         # Clear executed operations
         operations.clear()
@@ -249,7 +255,9 @@ class TaskScheduler(QObject):
         for tt in search_types:
             if operation_id in self._pending_operations[tt]:
                 del self._pending_operations[tt][operation_id]
-                logger.debug("Cancelled operation %s of type %s", operation_id, tt.value)
+                logger.debug(
+                    "Cancelled operation %s of type %s", operation_id, tt.value
+                )
                 return True
 
         logger.debug("Operation %s not found for cancellation", operation_id)
@@ -378,4 +386,3 @@ def schedule_operation(
 def submit_task(task: QRunnable) -> None:
     """Global function for submitting tasks to thread pool."""
     get_task_scheduler().submit_task(task)
-

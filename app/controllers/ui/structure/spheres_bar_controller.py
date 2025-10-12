@@ -55,7 +55,9 @@ class SpheresBarController(QObject):
         try:
             sb.spheres_loaded.connect(self.on_spheres_loaded_ui)
         except Exception:
-            logger.exception("SpheresBarController.init: failed to connect spheres_loaded")
+            logger.exception(
+                "SpheresBarController.init: failed to connect spheres_loaded"
+            )
             raise
         sb.load_spheres_async()
 
@@ -88,7 +90,9 @@ class SpheresBarController(QObject):
         try:
             self.w.sphere_buttons.clear()
         except Exception:
-            logger.exception("SpheresBarController._clear_spheres_bar: cannot clear buttons dict")
+            logger.exception(
+                "SpheresBarController._clear_spheres_bar: cannot clear buttons dict"
+            )
             raise
         group.setExclusive(True)
 

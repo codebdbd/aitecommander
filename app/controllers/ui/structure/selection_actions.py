@@ -36,7 +36,9 @@ class SelectionActions(QObject):
         try:
             self._tiles_controller.refresh(int(section_id))
         except Exception:  # pragma: no cover - UI protection
-            logger.exception("SelectionActions.refresh_tiles: controller refresh failed")
+            logger.exception(
+                "SelectionActions.refresh_tiles: controller refresh failed"
+            )
 
     def load_category_via_ui_state(self, category_id: int, *, source: str) -> None:
         ui_state = getattr(self._main, "ui_state", None)

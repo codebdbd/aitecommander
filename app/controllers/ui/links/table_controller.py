@@ -210,13 +210,16 @@ class LinksTableController(QObject):
         """Slot for link_operations.link_saved(dict) signal."""
         try:
             from app.config_data import app_config
+
             _debug = bool(app_config.ui.get_debug_links_inline_update())
             # If sufficiently complete link data arrived and category matches current,
             # perform ONLY point row update without full reload.
             if isinstance(payload, dict):
                 link_id = payload.get("id")
                 cat_id = payload.get("category_id")
-                current_category_id = getattr(self.category_provider, "current_category_id", None)
+                current_category_id = getattr(
+                    self.category_provider, "current_category_id", None
+                )
                 if (
                     isinstance(link_id, int)
                     and link_id > 0

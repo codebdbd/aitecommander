@@ -60,13 +60,11 @@ __all__ = [
     "WindowInitializer",
     "ResourceManager",
     "managed_resource",
-    
     # Decorators
     "require_main_thread",
     "log_if_enabled",
     "safe_qt_operation",
     "retry_on_failure",
-    
     # Exceptions
     "MainComponentsError",
     "InitializationError",
@@ -76,7 +74,6 @@ __all__ = [
     "LayoutCalculationError",
     "WidgetDeletedError",
     "ConfigurationError",
-
     # Protocol-based typing helpers
     "MainWindowProtocol",
     "DatabaseProtocol",
@@ -86,7 +83,6 @@ __all__ = [
     "TopPanelsControllerProtocol",
     "UIStateManagerProtocol",
     "ResourceManagerProtocol",
-
     # Constants
     "WidgetAttribute",
     "Timeout",
@@ -97,12 +93,10 @@ __all__ = [
     "EventSource",
     "MetricName",
     "PerformanceLimit",
-
     # Convenience aliases
     "MS_50",
     "MS_100",
     "DEFER",
-
     # Helper utilities
     "defer",
     "safe_getattr",

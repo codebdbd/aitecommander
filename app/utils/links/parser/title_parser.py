@@ -612,7 +612,9 @@ def get_title(url: str, config, soup: BeautifulSoup | None = None) -> str:
                     "[title][HEAD] non-html content-type url=%s type='%s'", url, ctype
                 )
     except RequestException as he:
-        logger.debug("[title][HEAD] request failed url=%s err=%s", url, he, exc_info=True)
+        logger.debug(
+            "[title][HEAD] request failed url=%s err=%s", url, he, exc_info=True
+        )
 
     resp = http_request(
         url, config, timeout_override=timeout_override, retries=retries_override
