@@ -250,196 +250,222 @@ class ThemeStylesheetService:
             return False
         return filename.endswith(".qss")
 
-    def _build_config_overrides_qss(self) -> str:
+    def _collect_font_sizes(self) -> dict[str, int | None]:
+        """Collect all font sizes from config."""
         app_config = self._app_config
-
-        def _safe_int(getter, default=None):
-            try:
-                return int(getter())
-            except Exception:
-                return default
-
-        menu_font_size = _safe_int(app_config.ui.get_menu_font_size)
-        menubar_font_size = _safe_int(app_config.ui.get_menubar_font_size)
-        menubar_item_height = _safe_int(app_config.ui.get_menubar_item_height)
-        menu_icon_size = _safe_int(app_config.ui.get_menu_icon_size)
-        menu_indicator_size = _safe_int(app_config.ui.get_menu_indicator_size)
-
+        
         def _get_font_px(key: str, default: int | None) -> int | None:
             try:
                 val = app_config.ui.get(f"ui.fonts.{key}", default)
                 return int(val) if val is not None else None
             except Exception:
                 return default
-
-        table_header_px = _get_font_px("table_header_px", 11)
-        table_row_px = _get_font_px("table_row_px", None)
-        notes_editor_px = _get_font_px("notes_editor_px", None)
-        button_text_px = _get_font_px("button_text_px", None)
-        menubar_px = _get_font_px("menubar_px", None)
-        menu_item_px = _get_font_px("menu_item_px", None)
-        context_menu_px = _get_font_px("context_menu_px", None)
-        bottom_bar_button_px = _get_font_px("bottom_bar_button_px", None)
-        tooltip_px = _get_font_px("tooltip_px", None)
-        tree_px = _get_font_px("tree_px", None)
-        tiles_px = _get_font_px("tiles_px", None)
-        form_label_px = _get_font_px("form_label_px", None)
-        form_field_px = _get_font_px("form_field_px", None)
-        link_type_button_px = _get_font_px("link_type_button_px", None)
-
-        # Apply user font size from settings (if any)
-        # to tree and table, overriding static values from app_config
+        
+        sizes = {
+            "table_header_px": _get_font_px("table_header_px", 11),
+            "table_row_px": _get_font_px("table_row_px", None),
+            "notes_editor_px": _get_font_px("notes_editor_px", None),
+            "button_text_px": _get_font_px("button_text_px", None),
+            "menubar_px": _get_font_px("menubar_px", None),
+            "menu_item_px": _get_font_px("menu_item_px", None),
+            "context_menu_px": _get_font_px("context_menu_px", None),
+            "bottom_bar_button_px": _get_font_px("bottom_bar_button_px", None),
+            "tooltip_px": _get_font_px("tooltip_px", None),
+            "tree_px": _get_font_px("tree_px", None),
+            "tiles_px": _get_font_px("tiles_px", None),
+            "form_label_px": _get_font_px("form_label_px", None),
+            "form_field_px": _get_font_px("form_field_px", None),
+            "link_type_button_px": _get_font_px("link_type_button_px", None),
+        }
+        
+        # Apply user font size override
         if self._settings and hasattr(self._settings, "get_font_size"):
             try:
                 user_font_size = int(self._settings.get_font_size())
-                if 9 <= user_font_size <= 20:  # Valid range
-                    tree_px = user_font_size
-                    table_row_px = user_font_size
+                if 9 <= user_font_size <= 20:
+                    sizes["tree_px"] = user_font_size
+                    sizes["table_row_px"] = user_font_size
             except Exception:
-                pass  # Use default values
-
+                pass
+        
+        return sizes
+    
+    def _collect_menu_params(self) -> dict[str, int | None]:
+        """Collect menu-related parameters."""
+        def _safe_int(getter, default=None):
+            try:
+                return int(getter())
+            except Exception:
+                return default
+        
+        app_config = self._app_config
+        return {
+            "menu_font_size": _safe_int(app_config.ui.get_menu_font_size),
+            "menubar_font_size": _safe_int(app_config.ui.get_menubar_font_size),
+            "menubar_item_height": _safe_int(app_config.ui.get_menubar_item_height),
+            "menu_icon_size": _safe_int(app_config.ui.get_menu_icon_size),
+            "menu_indicator_size": _safe_int(app_config.ui.get_menu_indicator_size),
+        }
+    
+    def _get_fonts_units(self) -> str:
+        """Get font units (px or pt)."""
         try:
-            fonts_units = str(app_config.ui.get("ui.fonts.units", "px")).strip().lower()
+            units = str(self._app_config.ui.get("ui.fonts.units", "px")).strip().lower()
         except Exception:
-            fonts_units = "px"
-        if fonts_units not in ("px", "pt"):
-            fonts_units = "px"
-
-        def sz(val: int | None) -> str | None:
-            if val is None or int(val) <= 0:
-                return None
-            return f"{int(val)}{fonts_units}"
-
-        lines: list[str] = []
-
-        dialog_font_size = None
+            units = "px"
+        return units if units in ("px", "pt") else "px"
+    
+    def _format_size(self, val: int | None, units: str) -> str | None:
+        """Format size value with units."""
+        if val is None or int(val) <= 0:
+            return None
+        return f"{int(val)}{units}"
+    
+    def _generate_dialog_styles(self, lines: list[str]) -> None:
+        """Generate QDialog font styles."""
         try:
             app = QApplication.instance()
             if app:
                 dialog_font_size = app.font().pointSize()
+                if dialog_font_size and dialog_font_size > 0:
+                    lines.append(f"QDialog {{ font-size: {dialog_font_size}pt; }}")
+                    lines.append(f"QDialog * {{ font-size: {dialog_font_size}pt; }}")
         except Exception:
-            dialog_font_size = None
-        if dialog_font_size and dialog_font_size > 0:
-            lines.append(f"QDialog {{ font-size: {dialog_font_size}pt; }}")
-            lines.append(f"QDialog * {{ font-size: {dialog_font_size}pt; }}")
-
+            pass
+    
+    def _generate_menu_styles(self, lines: list[str], menu_params: dict) -> None:
+        """Generate QMenu styles."""
+        menu_font_size = menu_params.get("menu_font_size")
+        menu_icon_size = menu_params.get("menu_icon_size")
+        menu_indicator_size = menu_params.get("menu_indicator_size")
+        
         if menu_font_size:
-            lines.append(f"QMenu {{ font-size: {menu_font_size}pt; }}")
-            lines.append(f"QMenu::item {{ font-size: {menu_font_size}pt; }}")
-            lines.append(f"QMenu::item:selected {{ font-size: {menu_font_size}pt; }}")
-            lines.append(f"QMenu::item:hover {{ font-size: {menu_font_size}pt; }}")
-            lines.append(f"QMenu::item:pressed {{ font-size: {menu_font_size}pt; }}")
-            lines.append(f"QMenu::item:disabled {{ font-size: {menu_font_size}pt; }}")
-
+            for selector in ["QMenu", "QMenu::item", "QMenu::item:selected", 
+                           "QMenu::item:hover", "QMenu::item:pressed", "QMenu::item:disabled"]:
+                lines.append(f"{selector} {{ font-size: {menu_font_size}pt; }}")
+        
         if menu_icon_size:
-            lines.append(
-                f"QMenu::icon {{ width: {menu_icon_size}px; height: {menu_icon_size}px; }}"
-            )
-
+            lines.append(f"QMenu::icon {{ width: {menu_icon_size}px; height: {menu_icon_size}px; }}")
+        
         if menu_indicator_size:
-            lines.append(
-                f"QMenu::indicator {{ width: {menu_indicator_size}px; height: {menu_indicator_size}px; }}"
-            )
-
-        menubar_rules: list[str] = []
+            lines.append(f"QMenu::indicator {{ width: {menu_indicator_size}px; height: {menu_indicator_size}px; }}")
+    
+    def _generate_menubar_styles(self, lines: list[str], menu_params: dict, sizes: dict, units: str) -> None:
+        """Generate QMenuBar styles."""
+        menubar_font_size = menu_params.get("menubar_font_size")
+        menubar_item_height = menu_params.get("menubar_item_height")
+        menubar_px = sizes.get("menubar_px")
+        
+        menubar_rules = []
         if menubar_font_size:
             menubar_rules.append(f"font-size: {menubar_font_size}pt;")
         if menubar_px:
-            sz_val = sz(menubar_px)
+            sz_val = self._format_size(menubar_px, units)
             if sz_val:
                 menubar_rules.append(f"font-size: {sz_val};")
         if menubar_rules:
             lines.append("QMenuBar { " + " ".join(menubar_rules) + " }")
-        item_rules: list[str] = []
+        
+        item_rules = []
         if menubar_font_size:
             item_rules.append(f"font-size: {menubar_font_size}pt;")
         if menubar_item_height:
             item_rules.append(f"min-height: {menubar_item_height}px;")
         if item_rules:
             rules = " ".join(item_rules)
-            lines.append(f"QMenuBar::item {{ {rules} }}")
-            lines.append(f"QMenuBar::item:selected {{ {rules} }}")
-            lines.append(f"QMenuBar::item:hover {{ {rules} }}")
-            lines.append(f"QMenuBar::item:pressed {{ {rules} }}")
-
-        if table_header_px and table_header_px > 0:
-            fs = sz(table_header_px)
+            for selector in ["QMenuBar::item", "QMenuBar::item:selected", 
+                           "QMenuBar::item:hover", "QMenuBar::item:pressed"]:
+                lines.append(f"{selector} {{ {rules} }}")
+    
+    def _add_simple_widget_styles(self, lines: list[str], sizes: dict, units: str) -> None:
+        """Add simple widget styles (one selector per size)."""
+        simple_styles = [
+            ("table_row_px", "QTableView"),
+            ("tree_px", "QTreeView"),
+            ("notes_editor_px", "QTextEdit"),
+            ("button_text_px", "QPushButton"),
+            ("tooltip_px", "QToolTip"),
+            ("tiles_px", "QListView#categoryTiles"),
+            ("form_label_px", "QLabel"),
+        ]
+        
+        for size_key, selector in simple_styles:
+            if sizes.get(size_key):
+                fs = self._format_size(sizes[size_key], units)
+                if fs:
+                    lines.append(f"{selector} {{ font-size: {fs}; }}")
+    
+    def _add_table_header_styles(self, lines: list[str], sizes: dict, units: str) -> None:
+        """Add table header styles."""
+        if sizes.get("table_header_px"):
+            fs = self._format_size(sizes["table_header_px"], units)
             if fs:
                 lines.append(f"QHeaderView {{ font-size: {fs}; font-weight: normal; }}")
-                lines.append(
-                    f"QTableView QHeaderView, QTreeView QHeaderView {{ font-size: {fs}; font-weight: normal; }}"
-                )
-                lines.append(
-                    "QHeaderView::section:pressed, QHeaderView::section:hover, QHeaderView::section:checked { font-weight: normal; }"
-                )
-
-        if table_row_px and table_row_px > 0:
-            fs = sz(table_row_px)
-            if fs:
-                lines.append(f"QTableView {{ font-size: {fs}; }}")
-
-        if tree_px and tree_px > 0:
-            fs = sz(tree_px)
-            if fs:
-                lines.append(f"QTreeView {{ font-size: {fs}; }}")
-
-        if notes_editor_px and notes_editor_px > 0:
-            fs = sz(notes_editor_px)
-            if fs:
-                lines.append(f"QTextEdit {{ font-size: {fs}; }}")
-
-        if button_text_px and button_text_px > 0:
-            fs = sz(button_text_px)
-            if fs:
-                lines.append(f"QPushButton {{ font-size: {fs}; }}")
-
-        if bottom_bar_button_px and bottom_bar_button_px > 0:
-            fs = sz(bottom_bar_button_px)
-            if fs:
-                lines.append(f"QWidget#BottomPanel QPushButton {{ font-size: {fs}; }}")
-                lines.append(
-                    f"QWidget#bottomBarContainer PushButton {{ font-size: {fs}; }}"
-                )
-
-        if menu_item_px and menu_item_px > 0:
-            fs = sz(menu_item_px)
+                lines.append(f"QTableView QHeaderView, QTreeView QHeaderView {{ font-size: {fs}; font-weight: normal; }}")
+                lines.append("QHeaderView::section:pressed, QHeaderView::section:hover, QHeaderView::section:checked { font-weight: normal; }")
+    
+    def _add_menu_and_form_styles(self, lines: list[str], sizes: dict, units: str) -> None:
+        """Add menu and form field styles."""
+        # Menu item
+        if sizes.get("menu_item_px"):
+            fs = self._format_size(sizes["menu_item_px"], units)
             if fs:
                 lines.append(f"QMenu {{ font-size: {fs}; }}")
                 lines.append(f"QMenu::item {{ font-size: {fs}; }}")
-
-        if context_menu_px and context_menu_px > 0:
-            fs = sz(context_menu_px)
+        
+        # Context menu
+        if sizes.get("context_menu_px"):
+            fs = self._format_size(sizes["context_menu_px"], units)
             if fs:
                 lines.append(f"QMenu[contextMenuPolicy] {{ font-size: {fs}; }}")
-
-        if tooltip_px and tooltip_px > 0:
-            fs = sz(tooltip_px)
+        
+        # Form fields
+        if sizes.get("form_field_px"):
+            fs = self._format_size(sizes["form_field_px"], units)
             if fs:
-                lines.append(f"QToolTip {{ font-size: {fs}; }}")
-
-        if tiles_px and tiles_px > 0:
-            fs = sz(tiles_px)
+                for selector in ["QLineEdit", "QTextEdit", "QComboBox", "QSpinBox"]:
+                    lines.append(f"{selector} {{ font-size: {fs}; }}")
+    
+    def _add_button_styles(self, lines: list[str], sizes: dict, units: str) -> None:
+        """Add button-specific styles."""
+        # Bottom bar buttons
+        if sizes.get("bottom_bar_button_px"):
+            fs = self._format_size(sizes["bottom_bar_button_px"], units)
             if fs:
-                lines.append(f"QListView#categoryTiles {{ font-size: {fs}; }}")
-
-        if form_label_px and form_label_px > 0:
-            fs = sz(form_label_px)
-            if fs:
-                lines.append(f"QLabel {{ font-size: {fs}; }}")
-
-        if form_field_px and form_field_px > 0:
-            fs = sz(form_field_px)
-            if fs:
-                lines.append(f"QLineEdit {{ font-size: {fs}; }}")
-                lines.append(f"QTextEdit {{ font-size: {fs}; }}")
-                lines.append(f"QComboBox {{ font-size: {fs}; }}")
-                lines.append(f"QSpinBox {{ font-size: {fs}; }}")
-
-        if link_type_button_px and link_type_button_px > 0:
-            fs = sz(link_type_button_px)
+                lines.append(f"QWidget#BottomPanel QPushButton {{ font-size: {fs}; }}")
+                lines.append(f"QWidget#bottomBarContainer PushButton {{ font-size: {fs}; }}")
+        
+        # Link type button
+        if sizes.get("link_type_button_px"):
+            fs = self._format_size(sizes["link_type_button_px"], units)
             if fs:
                 lines.append(f'QToolButton[link_type="true"] {{ font-size: {fs}; }}')
-
+    
+    def _add_complex_widget_styles(self, lines: list[str], sizes: dict, units: str) -> None:
+        """Add complex widget styles (multiple selectors or special cases)."""
+        self._add_table_header_styles(lines, sizes, units)
+        self._add_menu_and_form_styles(lines, sizes, units)
+        self._add_button_styles(lines, sizes, units)
+    
+    def _generate_widget_styles(self, lines: list[str], sizes: dict, units: str) -> None:
+        """Generate styles for various widgets."""
+        self._add_simple_widget_styles(lines, sizes, units)
+        self._add_complex_widget_styles(lines, sizes, units)
+    
+    def _build_config_overrides_qss(self) -> str:
+        """Build QSS overrides from config parameters."""
+        # Collect parameters
+        sizes = self._collect_font_sizes()
+        menu_params = self._collect_menu_params()
+        units = self._get_fonts_units()
+        
+        # Generate styles
+        lines: list[str] = []
+        self._generate_dialog_styles(lines)
+        self._generate_menu_styles(lines, menu_params)
+        self._generate_menubar_styles(lines, menu_params, sizes, units)
+        self._generate_widget_styles(lines, sizes, units)
+        
         return "\n".join(lines)
 
 
