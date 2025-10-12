@@ -166,7 +166,7 @@ DARK_PALETTE = ColorPalette(
 class ThemeVariables:
     """Theme variables manager used to generate QSS."""
 
-    def __init__(self, theme: str = "dark", sizes: SizePalette = None):
+    def __init__(self, theme: str = "dark", sizes: SizePalette | None = None):
         """Initialize theme variables.
 
         Args:

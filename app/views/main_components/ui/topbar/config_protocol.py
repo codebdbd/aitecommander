@@ -239,12 +239,12 @@ class MockTopBarConfig:
         self._side_spacing = side_spacing
         self._throttle_ms = throttle_ms
         self._log_info = log_info
-        self._min_visible = {
+        self._min_visible: dict[str, int] = {
             "recent": min_visible_recent,
             "fav": min_visible_fav,
             "quick": min_visible_quick,
         }
-        self._custom_values = {}
+        self._custom_values: dict[str, int] = {}
 
     def get_button_size(self) -> int:
         return self._button_size

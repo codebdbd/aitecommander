@@ -169,7 +169,7 @@ class LinksUIController(QObject):
         """Get selected row numbers via common utility."""
         return get_selected_rows_util(self.table)
 
-    def quick_add_link(self, link_type: str, category_id: int = None):
+    def quick_add_link(self, link_type: str, category_id: int | None = None):
         """Quick add link."""
         self.link_ops.quick_add_link(link_type, category_id)
 
@@ -194,7 +194,7 @@ class LinksUIController(QObject):
         logger.info("open_link called with link: %s", link)
         self.link_ops._open_link(link)
 
-    def toggle_favorite(self, link: dict = None) -> None:
+    def toggle_favorite(self, link: dict | None = None) -> None:
         """Toggle favorite status."""
         self.link_ops._toggle_fav(link)
 
