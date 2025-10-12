@@ -187,8 +187,8 @@ class ApplicationInitializer:
     def __exit__(
         self,
         exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: Any | None,
+        _exc_val: BaseException | None,
+        _exc_tb: Any | None,
     ) -> bool:
         self.cleanup(async_cleanup=False)
         return False
@@ -343,9 +343,10 @@ class ApplicationInitializer:
                     logger.debug("Waiting for %d threads to complete", active_count)
                     self.thread_pool.waitForDone(THREAD_POOL_SHUTDOWN_TIMEOUT_MS)
 
-        except Exception as exc:
+        except Exception as exc_type:
+            _exc_val, _exc_tb = sys.exc_info()
             logger.error(
-                "Error during ApplicationInitializer cleanup: %s", exc, exc_info=True
+                "Error during ApplicationInitializer cleanup: %s", exc_type, exc_info=True
             )
         finally:
             duration = time.perf_counter() - start_time

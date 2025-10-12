@@ -157,7 +157,7 @@ def run_async_export(
 def run_async_backup(
     db,
     parent: Optional[QWidget] = None,
-    show_notification: bool = True
+    _show_notification: bool = True
 ) -> tuple[bool, Optional[str]]:
     """Run asynchronous backup.
 

@@ -149,7 +149,7 @@ def _validate_icon_name(icon_name: str) -> bool:
     Requirements:
     - String is not empty.
     - Allowed characters: Latin letters, digits, `_`, `-`, `.`.
-    - Paths/subfolders and traversal (`/`, `\`, `..`) are forbidden to avoid accessing outside the expected folder.
+    - Paths/subfolders and traversal (`/`, `\\`, `..`) are forbidden to avoid accessing outside the expected folder.
     """
     if not icon_name or not isinstance(icon_name, str):
         return False

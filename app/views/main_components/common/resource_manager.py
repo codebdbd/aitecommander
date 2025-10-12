@@ -202,7 +202,7 @@ class ResourceManager:
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type, _exc_val, _exc_tb) -> None:
         """Context manager exit that performs automatic cleanup."""
         self.cleanup_all()
 

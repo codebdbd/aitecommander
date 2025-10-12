@@ -260,7 +260,7 @@ def fetch_web_link_info(
         scheduler = get_task_scheduler()
 
         class IconResolveTask(QRunnable):
-            def run(self_nonlocal):  # type: ignore[no-redef]
+            def run(_self_nonlocal):  # type: ignore[no-redef]
                 _resolve_icon_async(soup)
                 # _resolve_icon_async itself writes cache and triggers callback via scheduler
                 # To ensure UI callback runs on main thread, schedule it inside _resolve_icon_async via scheduler

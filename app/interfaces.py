@@ -36,8 +36,10 @@ class MainWindowLike(Protocol):
         ...
 
     # Used in WindowUISetup.setup_menu() / setup_central_widget()
-    def setMenuBar(self, menu_bar: Any) -> None:  # noqa: N802
-        ...
+    def menuBar(self) -> QMenuBar:
+        """Returns the menu bar."""
+        _menu_bar = QMenuBar()
+        return _menu_bar
 
     def setCentralWidget(self, widget: Any) -> None:  # noqa: N802
         ...

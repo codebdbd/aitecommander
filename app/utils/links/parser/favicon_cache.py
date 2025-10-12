@@ -44,7 +44,7 @@ def _get_lock_backend() -> str:
 
 
 @contextmanager
-def _file_lock(lock_path: str, *, timeout: float = 5.0, poll_interval: float = 0.05):
+def _file_lock(lock_path: str, *, timeout: float = 5.0, _poll_interval: float = 0.05):
     """Cross-platform file lock without busy waiting.
 
     Backend order:

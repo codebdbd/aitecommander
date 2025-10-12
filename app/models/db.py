@@ -240,7 +240,7 @@ class Database(QObject):
         """Allows using Database as context manager."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, _exc_val, _exc_tb):
         self.close()
 
     @property

@@ -29,7 +29,7 @@ def test_handle_category_drop_index_uses_batch(monkeypatch):
 
     fake_index = Mock()
     monkeypatch.setattr(
-        tree_dnd, "get_tree_tuple", lambda index, depth=0: ("section", 55)
+        tree_dnd, "get_tree_tuple", lambda index, _depth=0: ("section", 55)
     )
 
     captured = {}
