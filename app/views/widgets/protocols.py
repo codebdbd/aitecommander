@@ -6,6 +6,8 @@ from typing import Any, Optional, Protocol, TypedDict
 from PyQt6.QtCore import QAbstractItemModel, QItemSelectionModel, QModelIndex, Qt
 from PyQt6.QtWidgets import QHeaderView, QScrollBar, QWidget
 
+from app.interfaces import SupportsUpdates
+
 
 class LinkDict(TypedDict, total=False):
     """Typed dictionary for link data instead of ``Dict[str, Any]``."""
@@ -224,16 +226,18 @@ class TableViewProtocol(Protocol):
     def selectionModel(self) -> Optional[QItemSelectionModel]:
         """Return the selection model."""
         ...
-    
+
     def horizontalHeader(self) -> Optional[QHeaderView]:
         """Return the horizontal header."""
+        ...
+
+    def blockSignals(self, block: bool) -> None:
+        """Enable or disable signal emission."""
         ...
     
     def setCurrentIndex(self, index: QModelIndex) -> None:
         """Set the current index."""
         ...
-    
-    def scrollTo(self, index: QModelIndex, hint: Any = ...) -> None:
         """Scroll to the given index."""
         ...
     
@@ -277,7 +281,11 @@ class TranslatableProtocol(Protocol):
     
     Used by mixins that need to display translated text.
     """
-    
+
     def tr(self, text: str) -> str:
         """Translate the given text using Qt's translation system."""
         ...
+
+
+class LinkTableWidgetProtocol(LinkTableProtocol, SupportsUpdates, Protocol):
+    """Protocol for link table widgets that also support suspend_updates."""

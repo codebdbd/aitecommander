@@ -129,6 +129,66 @@ class DragDropHandlerMixin:
             logger.error("[DRAG] Error getting current links order: %s", e)
             return []
 
+    def _get_drop_positions(self, event) -> tuple[list[int], int]:
+        """Return source rows and insertion row for an internal drop."""
+
+        try:
+            source_rows = self._extract_source_rows_from_mime(event)
+        except Exception as exc:
+            logger.debug("[DROP] Failed to read rows from MIME: %s", exc, exc_info=True)
+            source_rows = []
+
+        if not source_rows:
+            source_rows = self._get_selected_rows()
+
+        source_rows = sorted({row for row in source_rows if isinstance(row, int)})
+
+        target_row = -1
+        row_count = 0
+        try:
+            pos = None
+            if hasattr(event, "position"):
+                pos_value = event.position()
+                if hasattr(pos_value, "toPoint"):
+                    pos = pos_value.toPoint()
+                else:
+                    pos = pos_value
+            elif hasattr(event, "pos"):
+                pos = event.pos()
+
+            model = getattr(self, "model", lambda: None)()
+            row_count = model.rowCount() if model is not None else 0
+
+            if pos is not None and hasattr(self, "indexAt"):
+                index = self.indexAt(pos)
+            else:
+                index = None
+
+            if index is not None and index.isValid():
+                target_row = index.row()
+                if pos is not None and hasattr(self, "visualRect"):
+                    rect = self.visualRect(index)
+                    try:
+                        mid_y = rect.center().y()
+                    except Exception:
+                        mid_y = rect.top() + rect.height() // 2
+                    if pos.y() >= mid_y:
+                        target_row = min(index.row() + 1, row_count)
+            else:
+                target_row = row_count
+        except Exception as exc:
+            logger.debug("[DROP] Failed to compute drop target row: %s", exc, exc_info=True)
+            model = getattr(self, "model", lambda: None)()
+            row_count = model.rowCount() if model is not None else 0
+            target_row = row_count
+
+        if target_row < 0:
+            target_row = 0
+        elif row_count and target_row > row_count:
+            target_row = row_count
+
+        return source_rows, target_row
+
 
 # --- Reusable table helpers ---
 
