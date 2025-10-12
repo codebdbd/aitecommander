@@ -19,6 +19,18 @@ from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.views.common.retranslatable import ReTranslatable
 from app.views.widgets.link.item_builders import ItemBuildersMixin
 
+# Global icon cache to avoid memory leaks with lru_cache on methods
+@lru_cache(maxsize=100)
+def _get_icon_cached(icon_path: str) -> QIcon | None:
+    """Global icon cache function to avoid memory leaks."""
+    if not icon_path:
+        return None
+    try:
+        icon = create_icon_from_path(icon_path)
+        return icon if isinstance(icon, QIcon) and not icon.isNull() else None
+    except Exception:
+        return None
+
 
 class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     """Data model for the links table.
@@ -407,7 +419,6 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         self._links.sort(key=key_for, reverse=reverse)
         self.layoutChanged.emit()
 
-    @lru_cache(maxsize=MAX_ICON_CACHE)
     def _get_cached_icon(self, icon_path: str) -> QIcon | None:
         """Return an icon with LRU caching to avoid memory leaks.
 
@@ -417,10 +428,4 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         Returns:
             ``QIcon`` instance or ``None`` if loading fails.
         """
-        if not icon_path:
-            return None
-        try:
-            icon = create_icon_from_path(icon_path)
-            return icon if isinstance(icon, QIcon) and not icon.isNull() else None
-        except Exception:
-            return None
+        return _get_icon_cached(icon_path)
