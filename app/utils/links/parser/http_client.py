@@ -144,6 +144,103 @@ def get_session() -> requests.Session:
     return s
 
 
+def _prepare_headers(config, extra_headers):
+    """Prepare request headers."""
+    headers = {"User-Agent": getattr(config, "USER_AGENT", USER_AGENT)}
+    if extra_headers:
+        headers.update({k: v for k, v in extra_headers.items() if v})
+    return headers
+
+
+def _build_request_kwargs(headers, timeout, stream, allow_redirects):
+    """Build request kwargs dict."""
+    kwargs = {"headers": headers, "timeout": timeout}
+    if stream is not None:
+        kwargs["stream"] = stream
+    if allow_redirects is not None:
+        kwargs["allow_redirects"] = allow_redirects
+    return kwargs
+
+
+def _try_injected_http_get(http_get, url, headers, timeout, allow_non_2xx, method):
+    """Try injected http_get function."""
+    if http_get and method == "GET":
+        logger.debug("[injected] %s %s", method, url)
+        resp = http_get(url, headers=headers, timeout=timeout)
+        if resp is None:
+            raise RequestException("Injected http_get returned None")
+        if allow_non_2xx:
+            return resp
+        resp.raise_for_status()
+        return resp
+    return None
+
+
+def _try_cloudscraper(enable_cf, method, url, headers, timeout, stream, allow_redirects, allow_non_2xx):
+    """Try cloudscraper request."""
+    scraper = get_cloudscraper() if enable_cf else None
+    if scraper is not None:
+        logger.debug("[cloudscraper] %s %s", method, url)
+        kwargs = _build_request_kwargs(headers, timeout, stream, allow_redirects)
+        resp = scraper.request(method, url, **kwargs)
+        if allow_non_2xx:
+            return resp
+        resp.raise_for_status()
+        return resp
+    return None
+
+
+def _try_session_request(config, method, url, headers, timeout, stream, allow_redirects, allow_non_2xx):
+    """Try request using shared session."""
+    sess = get_session()
+    try:
+        if not bool(getattr(sess, "_retry_installed", False)):
+            _configure_session_retries(sess, config=config)
+            try:
+                sess._retry_installed = True  # type: ignore[attr-defined]
+            except Exception:
+                pass
+    except Exception:
+        logger.debug(
+            "failed to configure session retries (one-time)", exc_info=True
+        )
+    logger.debug("[session] %s %s", method, url)
+    req_kwargs = _build_request_kwargs(headers, timeout, stream, allow_redirects)
+    resp = sess.request(method, url, **req_kwargs)
+    if allow_non_2xx:
+        return resp
+    resp.raise_for_status()
+    return resp
+
+
+def _should_try_cloudscraper_fallback(enable_cf, e, method):
+    """Check if cloudscraper fallback should be attempted."""
+    if not enable_cf or method != "GET":
+        return False
+    err_s = str(e)
+    status = getattr(getattr(e, "response", None), "status_code", None)
+    return (status in (403, 429, 503)) or (
+        status is None
+        and any(
+            tok in err_s.lower()
+            for tok in ["forbidden", "blocked", "cloudflare"]
+        )
+    )
+
+
+def _try_cloudscraper_fallback(enable_cf, method, url, headers, timeout, allow_non_2xx):
+    """Try cloudscraper as fallback."""
+    scraper = get_cloudscraper() if enable_cf else None
+    if scraper is None:
+        raise RequestException("cloudscraper unavailable")
+    logger.debug("[fallback->cloudscraper] %s %s", method, url)
+    resp = scraper.request(method, url, headers=headers, timeout=timeout)
+    if allow_non_2xx:
+        return resp
+    resp.raise_for_status()
+    return resp
+
+
 def http_request(
     url: str,
     config,
@@ -156,78 +253,38 @@ def http_request(
     stream: bool | None = None,
     allow_redirects: bool | None = None,
 ) -> requests.Response | None:
-    headers = {"User-Agent": getattr(config, "USER_AGENT", USER_AGENT)}
-    if extra_headers:
-        headers.update({k: v for k, v in extra_headers.items() if v})
+    headers = _prepare_headers(config, extra_headers)
     base_timeout = getattr(config, "TIMEOUT", TIMEOUT)
     timeout = timeout_override if timeout_override is not None else base_timeout
 
     last_err: Exception | None = None
     cf_fallback_attempted = False
-    # Configurable switch: allow cloudscraper attempts
     enable_cf = bool(getattr(config, "ENABLE_CLOUDSCRAPER_FALLBACK", True))
     logger.debug(
         "[http][start] method=%s url=%s enable_cf=%s retries=%s timeout=%s",
         method,
         url,
-        bool(getattr(config, "ENABLE_CLOUDSCRAPER_FALLBACK", True)),
+        enable_cf,
         retries,
         timeout,
     )
     try:
-        if http_get and method == "GET":
-            logger.debug("[injected] %s %s", method, url)
-            resp = http_get(url, headers=headers, timeout=timeout)
-            if resp is None:
-                raise RequestException("Injected http_get returned None")
-            if allow_non_2xx:
-                return resp
-            resp.raise_for_status()
+        resp = _try_injected_http_get(http_get, url, headers, timeout, allow_non_2xx, method)
+        if resp is not None:
             return resp
-        scraper = get_cloudscraper() if enable_cf else None
-        if scraper is not None:
-            try:
-                logger.debug("[cloudscraper] %s %s", method, url)
-                kwargs = {"headers": headers, "timeout": timeout}
-                if stream is not None:
-                    kwargs["stream"] = stream
-                if allow_redirects is not None:
-                    kwargs["allow_redirects"] = allow_redirects
-                resp = scraper.request(method, url, **kwargs)
-                if allow_non_2xx:
-                    return resp
-                resp.raise_for_status()
-                return resp
-            except RequestException as e:
-                logger.warning("Cloudscraper failed for %s: %s", url, e)
-                last_err = e
-        # Get shared session and configure retries once per session (no per-call remount)
-        sess = get_session()
+
         try:
-            if not bool(getattr(sess, "_retry_installed", False)):
-                _configure_session_retries(sess, config=config)
-                try:
-                    sess._retry_installed = True  # type: ignore[attr-defined]
-                except Exception:
-                    pass
-        except Exception:
-            logger.debug(
-                "failed to configure session retries (one-time)", exc_info=True
-            )
-        logger.debug("[session] %s %s", method, url)
-        req_kwargs = {"headers": headers, "timeout": timeout}
-        if stream is not None:
-            req_kwargs["stream"] = stream
-        if allow_redirects is not None:
-            req_kwargs["allow_redirects"] = allow_redirects
-        resp = sess.request(method, url, **req_kwargs)
-        if allow_non_2xx:
-            return resp
-        resp.raise_for_status()
-        return resp
+            resp = _try_cloudscraper(enable_cf, method, url, headers, timeout, stream, allow_redirects, allow_non_2xx)
+            if resp is not None:
+                return resp
+        except RequestException as e:
+            logger.warning("Cloudscraper failed for %s: %s", url, e)
+            last_err = e
+
+        return _try_session_request(config, method, url, headers, timeout, stream, allow_redirects, allow_non_2xx)
+
     except RequestException as e:
         last_err = e
-        err_s = str(e)
         status = getattr(getattr(e, "response", None), "status_code", None)
         logger.debug(
             "[http][error] method=%s url=%s status=%s err=%s",
@@ -237,27 +294,9 @@ def http_request(
             e,
             exc_info=True,
         )
-        should_try_cf = enable_cf and (
-            (status in (403, 429, 503))
-            or (
-                status is None
-                and any(
-                    tok in err_s.lower()
-                    for tok in ["forbidden", "blocked", "cloudflare"]
-                )
-            )
-        )
-        if not cf_fallback_attempted and method == "GET" and should_try_cf:
+        if not cf_fallback_attempted and _should_try_cloudscraper_fallback(enable_cf, e, method):
             try:
-                scraper = get_cloudscraper() if enable_cf else None
-                if scraper is None:
-                    raise RequestException("cloudscraper unavailable")
-                logger.debug("[fallback->cloudscraper] %s %s", method, url)
-                resp = scraper.request(method, url, headers=headers, timeout=timeout)
-                if allow_non_2xx:
-                    return resp
-                resp.raise_for_status()
-                return resp
+                return _try_cloudscraper_fallback(enable_cf, method, url, headers, timeout, allow_non_2xx)
             except RequestException as ce:
                 logger.warning("Cloudscraper fallback failed for %s: %s", url, ce)
             finally:

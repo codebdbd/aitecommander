@@ -363,6 +363,118 @@ class MoveCategoriesCommand(BaseCommand):
 
         self._prepared = True
 
+    def _suppress_ui_signals(self, selection, tree):
+        """Suppress selection and tree signals during batch operations."""
+        if selection is not None:
+            try:
+                selection.begin_suppress_selection()
+            except Exception:
+                pass
+        if tree is not None:
+            try:
+                tree.blockSignals(True)
+            except Exception:
+                pass
+
+    def _restore_ui_signals(self, selection, tree):
+        """Restore selection and tree signals after batch operations."""
+        if tree is not None:
+            try:
+                tree.blockSignals(False)
+            except Exception:
+                pass
+        if selection is not None:
+            try:
+                selection.end_suppress_selection()
+            except Exception:
+                pass
+
+    def _extract_target_info(self, states):
+        """Extract target IDs and section info from states."""
+        try:
+            target_ids = [
+                int(st.get("id")) for st in states if isinstance(st.get("id"), int)
+            ]
+            targets = {
+                st.get("section_id")
+                for st in states
+                if isinstance(st.get("section_id"), int)
+            }
+            single_target = len(targets) == 1
+            target_section_id = next(iter(targets)) if single_target else None
+            return target_ids, single_target, target_section_id
+        except Exception:
+            return [], False, None
+
+    def _try_batch_move(self, sb, target_ids, target_section_id, states):
+        """Attempt batch move operation, return (moved_ids, success)."""
+        try:
+            base_row = (
+                min(int(st.get("position", 0) or 0) for st in states)
+                if states
+                else 0
+            )
+        except Exception:
+            base_row = 0
+
+        try:
+            moved_ids = (
+                sb.move_categories_batch(
+                    target_ids, int(target_section_id), int(base_row)
+                )
+                or []
+            )
+            batch_done = bool(moved_ids)
+            if batch_done and len(moved_ids) != len(target_ids):
+                logger.debug(
+                    "Some categories skipped by batch move (name duplicates in target section)"
+                )
+            return moved_ids, batch_done
+        except Exception as exc:
+            logger.debug(
+                "Batch move failed, falling back to per-item updates: %s",
+                exc,
+                exc_info=True,
+            )
+            return [], False
+
+    def _update_remaining_categories(self, sb, remaining_states, old_section_by_id):
+        """Update categories that weren't moved in batch operation."""
+        touched_override: set[int] = set()
+
+        touched_override.update(
+            {
+                old_section_by_id.get(st.get("id"))
+                for st in remaining_states
+                if isinstance(old_section_by_id.get(st.get("id")), int)
+            }
+        )
+        touched_override.update(
+            {
+                st.get("section_id")
+                for st in remaining_states
+                if isinstance(st.get("section_id"), int)
+            }
+        )
+
+        for st in remaining_states:
+            try:
+                cid = st["id"]
+                payload = {
+                    "name": st.get("name", ""),
+                    "section_id": st.get("section_id"),
+                    "icon_path": st.get("icon_path", ""),
+                    "position": st.get("position", 0),
+                }
+                sb.update_category(cid, payload)
+            except Exception as exc:
+                logger.error(
+                    "Error updating category %s during fallback move: %s",
+                    st.get("id"),
+                    exc,
+                )
+        return touched_override
+
     def _apply_states(self, states):
         if not states:
             return
@@ -373,35 +485,13 @@ class MoveCategoriesCommand(BaseCommand):
         selection = getattr(struct, "selection_handler", None)
 
         batch_started = False
-        touched_override: set[int] = set()
 
         try:
-            if selection is not None:
-                try:
-                    selection.begin_suppress_selection()
-                except Exception:
-                    pass
-            if tree is not None:
-                try:
-                    tree.blockSignals(True)
-                except Exception:
-                    pass
+            self._suppress_ui_signals(selection, tree)
 
-            try:
-                target_ids = [
-                    int(st.get("id")) for st in states if isinstance(st.get("id"), int)
-                ]
-                targets = {
-                    st.get("section_id")
-                    for st in states
-                    if isinstance(st.get("section_id"), int)
-                }
-                single_target = len(targets) == 1
-                target_section_id = next(iter(targets)) if single_target else None
-            except Exception:
-                target_ids = []
-                single_target = False
-                target_section_id = None
+            target_ids, single_target, target_section_id = self._extract_target_info(
+                states
+            )
 
             old_section_by_id = {
                 st.get("id"): st.get("section_id")
@@ -415,179 +505,79 @@ class MoveCategoriesCommand(BaseCommand):
                 except Exception:
                     batch_started = False
 
-            moved_ids: list[int] = []
-            batch_done = False
+            moved_ids, batch_done = [], False
             if single_target and isinstance(target_section_id, int):
-                try:
-                    try:
-                        base_row = (
-                            min(int(st.get("position", 0) or 0) for st in states)
-                            if states
-                            else 0
-                        )
-                    except Exception:
-                        base_row = 0
-
-                    moved_ids = (
-                        sb.move_categories_batch(
-                            target_ids, int(target_section_id), int(base_row)
-                        )
-                        or []
-                    )
-                    batch_done = bool(moved_ids)
-                    if batch_done and len(moved_ids) != len(target_ids):
-                        logger.debug(
-                            "Some categories skipped by batch move (name duplicates in target section)"
-                        )
-                except Exception as exc:
-                    logger.debug(
-                        "Batch move failed, falling back to per-item updates: %s",
-                        exc,
-                        exc_info=True,
-                    )
-                    batch_done = False
+                moved_ids, batch_done = self._try_batch_move(
+                    sb, target_ids, target_section_id, states
+                )
 
             moved_ids_set = set(moved_ids)
-            if batch_done:
-                remaining_states = [
-                    st for st in states if st.get("id") not in moved_ids_set
-                ]
-            else:
-                remaining_states = list(states)
+            remaining_states = (
+                [st for st in states if st.get("id") not in moved_ids_set]
+                if batch_done
+                else list(states)
+            )
 
             if remaining_states:
-                touched_override.update(
-                    {
-                        old_section_by_id.get(st.get("id"))
-                        for st in remaining_states
-                        if isinstance(old_section_by_id.get(st.get("id")), int)
-                    }
-                )
-                touched_override.update(
-                    {
-                        st.get("section_id")
-                        for st in remaining_states
-                        if isinstance(st.get("section_id"), int)
-                    }
+                touched_override = self._update_remaining_categories(
+                    sb, remaining_states, old_section_by_id
                 )
 
-                for st in remaining_states:
-                    try:
-                        cid = st["id"]
-                        payload = {
-                            "name": st.get("name", ""),
-                            "section_id": st.get("section_id"),
-                            "icon_path": st.get("icon_path", ""),
-                            "position": st.get("position", 0),
-                        }
-                        sb.update_category(cid, payload)
-                    except Exception as exc:
-                        logger.error(
-                            "Error updating category %s during fallback move: %s",
-                            st.get("id"),
-                            exc,
-                        )
-
-            if touched_override:
-                normalized = {
-                    int(sid)
-                    for sid in touched_override
-                    if isinstance(sid, int) and sid > 0
-                }
-                if normalized:
-                    try:
-                        sb.event_service.replace_touched_sections(normalized)
-                    except Exception as exc:
-                        logger.debug(
-                            "replace_touched_sections failed in _apply_states: %s",
-                            exc,
-                            exc_info=True,
-                        )
+                if touched_override:
+                    normalized = {
+                        int(sid)
+                        for sid in touched_override
+                        if isinstance(sid, int) and sid > 0
+                    }
+                    if normalized:
+                        try:
+                            sb.event_service.replace_touched_sections(normalized)
+                        except Exception as exc:
+                            logger.debug(
+                                "replace_touched_sections failed in _apply_states: %s",
+                                exc,
+                                exc_info=True,
+                            )
         finally:
             if batch_started:
                 try:
                     sb.end_batch()
                 except Exception:
                     pass
-
-            try:
-                if tree is not None:
-                    tree.blockSignals(False)
-            except Exception:
-                pass
-
-            try:
-                if selection is not None:
-                    selection.end_suppress_selection()
-            except Exception:
-                pass
+            self._restore_ui_signals(selection, tree)
 
     def _refresh_ui(self, focus_section_id=None, focus_category_id=None):
         sb = getattr(self.main, "structure_business", None)
-
         if not sb:
             return
 
-        # Suppress selection event flood during final focus switch
-
         struct = getattr(self.main, "structure", None)
-
         selection = getattr(struct, "selection_handler", None)
-
         tree = getattr(struct, "tree", None)
 
         try:
-            if selection is not None:
-                try:
-                    selection.begin_suppress_selection()
-
-                except Exception:
-                    pass
-
-            if tree is not None:
-                try:
-                    tree.blockSignals(True)
-
-                except Exception:
-                    pass
+            self._suppress_ui_signals(selection, tree)
 
             try:
                 if focus_section_id is not None:
                     sb.section_selected.emit(focus_section_id)
-
             except Exception:
                 pass
 
             try:
                 if focus_category_id is not None:
                     sb.select_category(focus_category_id)
-
             except Exception:
                 pass
 
         finally:
-            if tree is not None:
-                try:
-                    tree.blockSignals(False)
-
-                except Exception:
-                    pass
-
-            if selection is not None:
-                try:
-                    selection.end_suppress_selection()
-
-                except Exception:
-                    pass
-
-        # Informative log
+            self._restore_ui_signals(selection, tree)
 
         try:
             logger.info(
                 "Switched focus to section %s after batch category moving",
                 focus_section_id,
             )
-
         except Exception:
             pass
 

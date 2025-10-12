@@ -14,6 +14,168 @@ class PopulationManagerMixin:
 
     """Mixin that populates and refreshes the links table."""
 
+    def _capture_ui_state(self):
+        """Capture current UI state (selection, scroll, sorting)."""
+        try:
+            sel = self.selectionModel()
+            current_selection = [i.row() for i in sel.selectedRows()] if sel else []
+        except Exception:
+            self.logger.debug(
+                "populate: failed to capture selection", exc_info=True
+            )
+            current_selection = []
+        current_scroll_pos = self.verticalScrollBar().value()
+
+        try:
+            header = self.horizontalHeader()
+            sort_col, sort_order = (
+                header.sortIndicatorSection(),
+                header.sortIndicatorOrder(),
+            )
+        except Exception:
+            self.logger.debug(
+                "populate: failed to read sort state; using defaults", exc_info=True
+            )
+            sort_col, sort_order = -1, Qt.SortOrder.AscendingOrder
+        return current_selection, current_scroll_pos, sort_col, sort_order
+
+    def _block_signals(self):
+        """Block table and header signals."""
+        try:
+            if hasattr(self, "blockSignals"):
+                self.blockSignals(True)
+        except Exception:
+            self.logger.debug(
+                "_restore_ui_state: sortByColumn failed", exc_info=True
+            )
+        try:
+            header = self.horizontalHeader()
+            if header is not None and hasattr(header, "blockSignals"):
+                header.blockSignals(True)
+        except Exception:
+            pass
+
+    def _unblock_signals(self):
+        """Unblock table and header signals."""
+        try:
+            header = self.horizontalHeader()
+            if header is not None and hasattr(header, "blockSignals"):
+                header.blockSignals(False)
+        except Exception:
+            self.logger.debug(
+                "populate: failed to unblock header signals", exc_info=True
+            )
+        try:
+            if hasattr(self, "blockSignals"):
+                self.blockSignals(False)
+        except Exception:
+            self.logger.debug(
+                "populate: failed to unblock table signals", exc_info=True
+            )
+
+    def _should_full_refresh(self, links, sort_col):
+        """Check if full refresh is needed."""
+        current_order = self._get_current_order()
+        new_order = [link.get("id") for link in links if link and "id" in link]
+        if (sort_col == -1) and current_order and (current_order != new_order):
+            self.logger.info(
+                "[LinksTableView] Detected ID order change without active sorting — performing full refresh"
+            )
+            return True
+
+        current_ids = self._get_current_link_ids()
+        new_ids = self._get_new_link_ids(links)
+        bulk_changes = len(new_ids - current_ids) + len(current_ids - new_ids)
+        if bulk_changes >= 30 or len(links) >= 200:
+            self.logger.info(
+                "[LinksTableView] Large number of changes (%s) — performing full refresh",
+                bulk_changes,
+            )
+            return True
+        return False
+
+    def _get_current_order(self):
+        """Get current order of link IDs in table."""
+        ids = []
+        model = self.model()
+        total = model.rowCount() if model is not None else 0
+        for row in range(total):
+            data = self.get_link_at(row)
+            if data and "id" in data:
+                ids.append(data["id"])
+        return ids
+
+    def _perform_incremental_update(self, links, mode, sort_col):
+        """Perform incremental update of table."""
+        current_ids = self._get_current_link_ids()
+        new_ids = self._get_new_link_ids(links)
+        new_link_map = self._create_link_id_to_data_map(links)
+
+        ids_to_remove = current_ids - new_ids
+        ids_to_add = new_ids - current_ids
+        ids_to_check = current_ids & new_ids
+
+        self._remove_links(ids_to_remove)
+        self._update_links(ids_to_check, new_link_map, mode)
+        self._add_links(links, ids_to_add, sort_col)
+
+        try:
+            if hasattr(self, "rebuild_cache_from_items"):
+                self.rebuild_cache_from_items()
+        except Exception:
+            self.logger.debug(
+                "populate: rebuild_cache_from_items failed after incremental ops",
+                exc_info=True,
+            )
+
+    def _remove_links(self, ids_to_remove):
+        """Remove disappeared links."""
+        rows_to_remove = []
+        current_links_copy = self._current_links.copy()
+        for row, link in current_links_copy.items():
+            if link and link.get("id") in ids_to_remove:
+                rows_to_remove.append(row)
+
+        for row in sorted(rows_to_remove, reverse=True):
+            removed_ok = False
+            try:
+                removed_ok = bool(self._remove_row(row))
+            except Exception as e:
+                self.logger.debug(
+                    "[LinksTableView] _remove_row exception: %s",
+                    e,
+                    exc_info=True,
+                )
+                removed_ok = False
+            if not removed_ok:
+                self.logger.warning(
+                    f"[LinksTableView] Failed to remove row {row} during incremental update"
+                )
+
+    def _update_links(self, ids_to_check, new_link_map, mode):
+        """Update modified links."""
+        for row, current_link in list(self._current_links.items()):
+            if not current_link or current_link.get("id") not in ids_to_check:
+                continue
+
+            link_id = current_link.get("id")
+            new_link = new_link_map.get(link_id)
+
+            if new_link and not self._links_equal(current_link, new_link, mode):
+                self._update_row(row, new_link, mode)
+
+    def _add_links(self, links, ids_to_add, sort_col):
+        """Insert new links."""
+        if not ids_to_add:
+            return
+        for i, link in enumerate(links):
+            link_id = link.get("id")
+            if link_id in ids_to_add:
+                model = self.model()
+                total = model.rowCount() if model is not None else 0
+                target_row = total if sort_col != -1 else min(i, total)
+                self._add_row(target_row, link, "normal")
+
     def populate(self, links: list[dict], mode: str = "normal"):
         """Populate the table with link data using incremental updates."""
         if not isinstance(links, list):
@@ -23,33 +185,9 @@ class PopulationManagerMixin:
             )
             return
 
-        # Optimization: suspend UI updates during bulk operations
         with suspend_updates(self):
-            # Capture UI state
-            try:
-                sel = self.selectionModel()
-                current_selection = [i.row() for i in sel.selectedRows()] if sel else []
-            except Exception:
-                self.logger.debug(
-                    "populate: failed to capture selection", exc_info=True
-                )
-                current_selection = []
-            current_scroll_pos = self.verticalScrollBar().value()
+            current_selection, current_scroll_pos, sort_col, sort_order = self._capture_ui_state()
 
-            # Preserve current sorting
-            try:
-                header = self.horizontalHeader()
-                sort_col, sort_order = (
-                    header.sortIndicatorSection(),
-                    header.sortIndicatorOrder(),
-                )
-            except Exception:
-                self.logger.debug(
-                    "populate: failed to read sort state; using defaults", exc_info=True
-                )
-                sort_col, sort_order = -1, Qt.SortOrder.AscendingOrder
-
-            # If the mode changed, trigger a full refresh
             if mode != self._current_mode:
                 self._current_mode = mode
                 self._full_populate(links, mode)
@@ -58,124 +196,17 @@ class PopulationManagerMixin:
                 )
                 return
 
-            # Incremental update
             try:
-                # Safely block signals when APIs are available (tests may lack them)
-                try:
-                    if hasattr(self, "blockSignals"):
-                        self.blockSignals(True)
-                except Exception:
-                    self.logger.debug(
-                        "_restore_ui_state: sortByColumn failed", exc_info=True
-                    )
-                try:
-                    header = self.horizontalHeader()
-                    if header is not None and hasattr(header, "blockSignals"):
-                        header.blockSignals(True)
-                except Exception:
-                    pass
-                # Ensure cache consistency before diffing
+                self._block_signals()
                 cache_ok = self.validate_cache_integrity()
                 if not cache_ok:
                     self.rebuild_cache_from_items()
 
-                # Without active sorting and ID order changed, fall back to full refresh
-                def _ids_from_table() -> list:
-                    ids = []
-                    model = self.model()
-                    total = model.rowCount() if model is not None else 0
-                    for row in range(total):
-                        data = self.get_link_at(row)
-                        if data and "id" in data:
-                            ids.append(data["id"])
-                    return ids
-
-                current_order = _ids_from_table()
-                new_order = [link.get("id") for link in links if link and "id" in link]
-                if (sort_col == -1) and current_order and (current_order != new_order):
-                    self.logger.info(
-                        "[LinksTableView] Detected ID order change without active sorting — performing full refresh"
-                    )
+                if self._should_full_refresh(links, sort_col):
                     self._full_populate(links, mode)
                     return
 
-                current_ids = self._get_current_link_ids()
-                new_ids = self._get_new_link_ids(links)
-                new_link_map = self._create_link_id_to_data_map(links)
-
-                # Detect differences
-                ids_to_remove = current_ids - new_ids
-                ids_to_add = new_ids - current_ids
-                ids_to_check = current_ids & new_ids
-
-                # If many rows changed, a full refresh is cheaper
-                bulk_changes = len(ids_to_add) + len(ids_to_remove)
-                if bulk_changes >= 30 or len(links) >= 200:
-                    self.logger.info(
-                        "[LinksTableView] Large number of changes (%s) — performing full refresh",
-                        bulk_changes,
-                    )
-                    self._full_populate(links, mode)
-                    return
-
-                # Remove disappeared links (reverse order)
-                rows_to_remove = []
-                # Copy cache to avoid mutating while iterating
-                current_links_copy = self._current_links.copy()
-                for row, link in current_links_copy.items():
-                    if link and link.get("id") in ids_to_remove:
-                        rows_to_remove.append(row)
-
-                # Sort indexes descending to delete safely
-                for row in sorted(rows_to_remove, reverse=True):
-                    removed_ok = False
-                    try:
-                        removed_ok = bool(self._remove_row(row))
-                    except Exception as e:
-                        self.logger.debug(
-                            "[LinksTableView] _remove_row exception: %s",
-                            e,
-                            exc_info=True,
-                        )
-                        removed_ok = False
-                    if not removed_ok:
-                        self.logger.warning(
-                            f"[LinksTableView] Failed to remove row {row} during incremental update"
-                        )
-
-                # Update modified links
-                for row, current_link in list(self._current_links.items()):
-                    if not current_link or current_link.get("id") not in ids_to_check:
-                        continue
-
-                    link_id = current_link.get("id")
-                    new_link = new_link_map.get(link_id)
-
-                    if new_link and not self._links_equal(current_link, new_link, mode):
-                        self._update_row(row, new_link, mode)
-
-                # Insert new links
-                if ids_to_add:
-                    # Pick insertion point for each new link
-                    for i, link in enumerate(links):
-                        link_id = link.get("id")
-                        if link_id in ids_to_add:
-                            # If sorted, append; otherwise insert near source index
-                            model = self.model()
-                            total = model.rowCount() if model is not None else 0
-                            target_row = total if sort_col != -1 else min(i, total)
-                            # Optimization: rebuild cache once afterward
-                            self._add_row(target_row, link, mode)
-
-                # Rebuild cache once after batch operations
-                try:
-                    if hasattr(self, "rebuild_cache_from_items"):
-                        self.rebuild_cache_from_items()
-                except Exception:
-                    self.logger.debug(
-                        "populate: rebuild_cache_from_items failed after incremental ops",
-                        exc_info=True,
-                    )
+                self._perform_incremental_update(links, mode, sort_col)
 
             except Exception as e:
                 self.logger.error(
@@ -183,29 +214,12 @@ class PopulationManagerMixin:
                     e,
                     exc_info=True,
                 )
-                # Fall back to full refresh on failure
                 self._full_populate(links, mode)
             finally:
-                # Always unblock signals when APIs are available
-                try:
-                    header = self.horizontalHeader()
-                    if header is not None and hasattr(header, "blockSignals"):
-                        header.blockSignals(False)
-                except Exception:
-                    self.logger.debug(
-                        "populate: failed to unblock header signals", exc_info=True
-                    )
-                try:
-                    if hasattr(self, "blockSignals"):
-                        self.blockSignals(False)
-                except Exception:
-                    self.logger.debug(
-                        "populate: failed to unblock table signals", exc_info=True
-                    )
+                self._unblock_signals()
                 self._restore_ui_state(
                     current_selection, current_scroll_pos, sort_col, sort_order
                 )
-                # Notify listeners about table refresh
                 try:
                     if hasattr(self, "table_populated"):
                         self.table_populated.emit()
