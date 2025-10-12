@@ -43,7 +43,7 @@ class DatabaseBase:
                 self.connection.commit()
         except sqlite3.Error as e:
             logger.error("Commit error: %s", e)
-            raise DatabaseError(f"Commit error: {e}")
+            raise DatabaseError(f"Commit error: {e}") from e
 
     def rollback(self) -> None:
         """Rolls back current transaction."""
@@ -52,7 +52,7 @@ class DatabaseBase:
                 self.connection.rollback()
         except sqlite3.Error as e:
             logger.error("Rollback error: %s", e)
-            raise DatabaseError(f"Rollback error: {e}")
+            raise DatabaseError(f"Rollback error: {e}") from e
 
     @contextmanager
     def transaction(self):
@@ -132,7 +132,7 @@ class DatabaseBase:
         except Exception as e:
             logger.error("Error getting position for table %s: %s", table_name, e)
             # Propagate as DatabaseError to not hide DB and element order issues
-            raise DatabaseError(f"Failed to calculate position for {table_name}: {e}")
+            raise DatabaseError(f"Failed to calculate position for {table_name}: {e}") from e
 
     def _execute_with_error_handling(
         self, query: str, params: tuple = (), fetch_method: str = None
@@ -143,7 +143,7 @@ class DatabaseBase:
                 cursor = self.connection.execute(query, params)
         except sqlite3.Error as e:
             logger.error("Error executing SQL query: %s, error: %s", query, e)
-            raise DatabaseError(f"Database error: {e}")
+            raise DatabaseError(f"Database error: {e}") from e
 
         if fetch_method == "one":
             return cursor.fetchone()
@@ -170,7 +170,7 @@ class DatabaseBase:
                 len(seq_of_params),
                 e,
             )
-            raise DatabaseError(f"Database error (executemany): {e}")
+            raise DatabaseError(f"Database error (executemany): {e}") from e
 
     def _update_entity(
         self,
@@ -200,4 +200,4 @@ class DatabaseBase:
             logger.debug("Updated %s with ID %s", table_name, entity_id)
         except Exception as e:
             logger.error("Error updating %s: %s", table_name, e)
-            raise DatabaseError(f"Failed to update {table_name}: {e}")
+            raise DatabaseError(f"Failed to update {table_name}: {e}") from e

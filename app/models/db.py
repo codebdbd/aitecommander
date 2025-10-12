@@ -360,7 +360,7 @@ class Database(QObject):
                 e,
                 exc_info=True,
             )
-            raise DatabaseError(f"Failed to update positions: {e}")
+            raise DatabaseError(f"Failed to update positions: {e}") from e
 
     # === Helpers for update_item_positions ===
     def _validate_ids(self, ids_in_order: list[int]) -> list[int]:

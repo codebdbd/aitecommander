@@ -145,10 +145,10 @@ class CategoryModel(DatabaseBase):
             )
             try:
                 sid = int(it.get("section_id"))
-            except Exception:
+            except Exception as e:
                 raise ValidationError(
                     "Incorrect section_id in one of batch elements"
-                )
+                ) from e
             raw_name = it.get("name")
             name_canon = str(raw_name).strip() if raw_name is not None else ""
             name_norm = name_canon.lower()
