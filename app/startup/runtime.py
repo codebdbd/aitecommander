@@ -42,16 +42,187 @@ class StartupOptions:
     quit_after_ms: int = 0
 
 
-def run(options: StartupOptions | None = None) -> int:
-    """Application runtime entry point."""
+def _setup_logging_and_args(options: StartupOptions) -> StartupOptions:
+    """Parse arguments and setup logging."""
     args = parse_arguments()
-    options = options or StartupOptions()
     if args.no_gui and options.mode == StartupMode.GUI:
         options.mode = StartupMode.HEADLESS
     log_level = determine_log_level(args)
     setup_logging(log_level)
     if options.log_system_details:
         log_system_info()
+    return options
+
+
+def _create_qt_application(mode: StartupMode) -> QApplication | QCoreApplication | None:
+    """Create QApplication or QCoreApplication based on mode."""
+    if mode == StartupMode.GUI:
+        qt_app = QApplication.instance()
+        if qt_app is None:
+            logger.info("Creating new QApplication instance")
+            try:
+                QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
+                    Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+                )
+            except Exception as exc:
+                logger.debug("Failed to set HiDPI rounding policy: %s", exc)
+            qt_app = create_application()
+            if qt_app is None:
+                logger.critical("Failed to create QApplication instance")
+                return None
+        else:
+            logger.info("Using existing QApplication instance")
+        return qt_app
+    else:
+        core_app = QCoreApplication.instance()
+        if core_app is None:
+            logger.info("Creating new QCoreApplication instance for headless mode")
+            core_app = QCoreApplication(sys.argv)
+        else:
+            logger.info("Using existing QCoreApplication instance")
+        return core_app
+
+
+def _register_cleanup_handler(
+    app: QApplication | QCoreApplication,
+    initializer: ApplicationInitializer,
+) -> bool:
+    """Register aboutToQuit cleanup handler."""
+    about_to_quit_cleanup = functools.partial(
+        initializer.cleanup,
+        async_cleanup=False,
+    )
+    try:
+        app.aboutToQuit.connect(about_to_quit_cleanup)
+        return True
+    except Exception as exc:
+        logger.debug("Failed to bind aboutToQuit cleanup handler: %s", exc)
+        return False
+
+
+def _setup_signal_handlers(
+    app: QApplication | QCoreApplication,
+    initializer: ApplicationInitializer,
+) -> SignalManager | None:
+    """Setup signal handlers if needed."""
+    if should_install_signal_handlers():
+        logger.info("Installing signal handlers for console/headless mode")
+        signal_manager = SignalManager(app, initializer)
+        signal_manager.install()
+        initializer.attach_signal_notifiers(signal_manager.notifiers())
+        return signal_manager
+    else:
+        logger.info(
+            "Running in GUI mode, signal handlers disabled for natural Ctrl+C behavior"
+        )
+        return None
+
+
+def _initialize_language_service(
+    app: QApplication | QCoreApplication,
+    mode: StartupMode,
+) -> LanguageService | None:
+    """Initialize language service for GUI mode."""
+    if mode != StartupMode.GUI:
+        return None
+    
+    try:
+        language_service = LanguageService.instance()
+        logger.info(
+            "Language service initialized, current language: %s",
+            language_service.current_language(),
+        )
+    except Exception as exc:
+        logger.warning("Failed to initialize language service: %s", exc)
+        return None
+    
+    quit_on_last_window = app_config.get("ui.quit_on_last_window_closed", True)
+    if isinstance(app, QApplication):
+        app.setQuitOnLastWindowClosed(quit_on_last_window)
+        logger.info("Set quit on last window closed: %s", quit_on_last_window)
+    
+    try:
+        language_service.install_translator(app)
+    except Exception as exc:
+        logger.warning("Failed to install translator: %s", exc)
+    
+    return language_service
+
+
+def _initialize_database_and_profiles(
+    initializer: ApplicationInitializer,
+) -> None:
+    """Initialize database and browser profiles asynchronously."""
+    db_initializer = DatabaseInitializer(
+        initializer.database, initializer.main_window
+    )
+    db_initializer.initialize_async()
+    
+    if initializer.main_window is not None:
+        profiles_loader = BrowserProfilesLoader(initializer.main_window)
+        profiles_loader.setup_lazy_loading()
+
+
+def _schedule_auto_quit(
+    app: QApplication | QCoreApplication,
+    options: StartupOptions,
+) -> None:
+    """Schedule auto quit if requested."""
+    if options.auto_quit:
+        QTimer.singleShot(max(0, options.quit_after_ms), app.quit)
+    
+    if options.mode == StartupMode.GUI:
+        startup_delay = app_config.get("startup.app_ready_delay_ms", 100)
+        QTimer.singleShot(
+            startup_delay, lambda: logger.info("Application started successfully")
+        )
+
+
+def _handle_exit_code(exit_code: int) -> int:
+    """Validate and convert Qt exit code to application exit code."""
+    if exit_code == -1:
+        logger.critical("QApplication exec() failed with error code -1")
+        return ExitCode.RUNTIME_ERROR
+    if exit_code < 0:
+        logger.error(
+            "QApplication returned unexpected negative code: %d", exit_code
+        )
+        return ExitCode.RUNTIME_ERROR
+    
+    logger.info("Application exited with code: %d", exit_code)
+    return ExitCode.SUCCESS if exit_code == 0 else ExitCode.INITIALIZATION_FAILURE
+
+
+def _cleanup_resources(
+    initializer: ApplicationInitializer | None,
+    signal_manager: SignalManager | None,
+    app: QApplication | QCoreApplication | None,
+    about_to_quit_cleanup_registered: bool,
+) -> None:
+    """Cleanup all resources on shutdown."""
+    if initializer:
+        try:
+            initializer.ensure_emergency_cleanup()
+        except Exception as exc:
+            logger.error("Error during emergency cleanup: %s", exc)
+    
+    if signal_manager and signal_manager.installed:
+        signal_manager.restore()
+        signal_manager.close()
+    
+    if about_to_quit_cleanup_registered and hasattr(app, "aboutToQuit"):
+        try:
+            app.aboutToQuit.disconnect()  # type: ignore[attr-defined]
+        except Exception:
+            pass
+    
+    log_shutdown()
+
+
+def run(options: StartupOptions | None = None) -> int:
+    """Application runtime entry point."""
+    options = options or StartupOptions()
+    options = _setup_logging_and_args(options)
 
     app: QApplication | QCoreApplication | None = None
     initializer: ApplicationInitializer | None = None
@@ -59,113 +230,25 @@ def run(options: StartupOptions | None = None) -> int:
     about_to_quit_cleanup_registered = False
 
     try:
-        if options.mode == StartupMode.GUI:
-            qt_app = QApplication.instance()
-            if qt_app is None:
-                logger.info("Creating new QApplication instance")
-                try:
-                    QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
-                        Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
-                    )
-                except Exception as exc:
-                    logger.debug("Failed to set HiDPI rounding policy: %s", exc)
-                qt_app = create_application()
-                if qt_app is None:
-                    logger.critical("Failed to create QApplication instance")
-                    return ExitCode.INITIALIZATION_FAILURE
-            else:
-                logger.info("Using existing QApplication instance")
-            app = qt_app
-        else:
-            core_app = QCoreApplication.instance()
-            if core_app is None:
-                logger.info("Creating new QCoreApplication instance for headless mode")
-                core_app = QCoreApplication(sys.argv)
-            else:
-                logger.info("Using existing QCoreApplication instance")
-            app = core_app
-
+        app = _create_qt_application(options.mode)
+        if app is None:
+            return ExitCode.INITIALIZATION_FAILURE
+        
         initializer = ApplicationInitializer(mode=options.mode)
-        about_to_quit_cleanup = functools.partial(
-            initializer.cleanup,
-            async_cleanup=False,
-        )
-        try:
-            app.aboutToQuit.connect(about_to_quit_cleanup)
-            about_to_quit_cleanup_registered = True
-        except Exception as exc:
-            logger.debug("Failed to bind aboutToQuit cleanup handler: %s", exc)
-
-        if should_install_signal_handlers():
-            logger.info("Installing signal handlers for console/headless mode")
-            signal_manager = SignalManager(app, initializer)
-            signal_manager.install()
-            initializer.attach_signal_notifiers(signal_manager.notifiers())
-        else:
-            logger.info(
-                "Running in GUI mode, signal handlers disabled for natural Ctrl+C behavior"
-            )
-
-        language_service = None
-        if options.mode == StartupMode.GUI:
-            try:
-                language_service = LanguageService.instance()
-                logger.info(
-                    "Language service initialized, current language: %s",
-                    language_service.current_language(),
-                )
-            except Exception as exc:
-                logger.warning("Failed to initialize language service: %s", exc)
-                language_service = None
-
-            quit_on_last_window = app_config.get("ui.quit_on_last_window_closed", True)
-            if isinstance(app, QApplication):
-                app.setQuitOnLastWindowClosed(quit_on_last_window)
-                logger.info("Set quit on last window closed: %s", quit_on_last_window)
-
-            if language_service:
-                try:
-                    language_service.install_translator(app)
-                except Exception as exc:
-                    logger.warning("Failed to install translator: %s", exc)
-
+        about_to_quit_cleanup_registered = _register_cleanup_handler(app, initializer)
+        signal_manager = _setup_signal_handlers(app, initializer)
+        _initialize_language_service(app, options.mode)
+        
         if not initializer.initialize_all():
             logger.critical("Failed to initialize application")
-            if app:
-                app.quit()
+            app.quit()
             return ExitCode.INITIALIZATION_FAILURE
-
-        db_initializer = DatabaseInitializer(
-            initializer.database, initializer.main_window
-        )
-        db_initializer.initialize_async()
-
-        if initializer.main_window is not None:
-            profiles_loader = BrowserProfilesLoader(initializer.main_window)
-            profiles_loader.setup_lazy_loading()
-
-        if options.auto_quit:
-            QTimer.singleShot(max(0, options.quit_after_ms), app.quit)
-
-        if options.mode == StartupMode.GUI:
-            startup_delay = app_config.get("startup.app_ready_delay_ms", 100)
-            QTimer.singleShot(
-                startup_delay, lambda: logger.info("Application started successfully")
-            )
-
+        
+        _initialize_database_and_profiles(initializer)
+        _schedule_auto_quit(app, options)
+        
         exit_code = app.exec()
-
-        if exit_code == -1:
-            logger.critical("QApplication exec() failed with error code -1")
-            return ExitCode.RUNTIME_ERROR
-        if exit_code < 0:
-            logger.error(
-                "QApplication returned unexpected negative code: %d", exit_code
-            )
-            return ExitCode.RUNTIME_ERROR
-
-        logger.info("Application exited with code: %d", exit_code)
-        return ExitCode.SUCCESS if exit_code == 0 else ExitCode.INITIALIZATION_FAILURE
+        return _handle_exit_code(exit_code)
 
     except (KeyboardInterrupt, SystemExit):
         logger.info("Application interrupted by user")
@@ -174,23 +257,9 @@ def run(options: StartupOptions | None = None) -> int:
         logger.critical("Critical error in run(): %s", exc, exc_info=True)
         return ExitCode.RUNTIME_ERROR
     finally:
-        if initializer:
-            try:
-                initializer.ensure_emergency_cleanup()
-            except Exception as exc:
-                logger.error("Error during emergency cleanup: %s", exc)
-
-        if signal_manager and signal_manager.installed:
-            signal_manager.restore()
-            signal_manager.close()
-
-        if about_to_quit_cleanup_registered and hasattr(app, "aboutToQuit"):
-            try:
-                app.aboutToQuit.disconnect(about_to_quit_cleanup)  # type: ignore[attr-defined]
-            except Exception:
-                pass
-
-        log_shutdown()
+        _cleanup_resources(
+            initializer, signal_manager, app, about_to_quit_cleanup_registered
+        )
 
 
 __all__ = ["run", "ExitCode", "StartupOptions"]
