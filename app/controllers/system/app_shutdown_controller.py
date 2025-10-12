@@ -7,7 +7,7 @@ import threading
 import time
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Callable, Protocol, runtime_checkable
+from typing import Any, Callable, Optional, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QThreadPool
 from PyQt6.QtGui import QCloseEvent
@@ -112,7 +112,7 @@ class AppShutdownController:
         self.window = main_window
         self.shutdown_handlers: list[ShutdownHandler] = []
         self.shutdown_in_progress = False
-        self._shutdown_lock = threading.RLock()
+        self._shutdown_lock: Optional[threading.RLock] = threading.RLock()
         self._shutdown_started_ts: float | None = None
         self._register_default_handlers()
 
@@ -130,6 +130,10 @@ class AppShutdownController:
 
             event: Window close event
         """
+        if self._shutdown_lock is None:
+            logger.error("Shutdown lock is None, cannot proceed safely")
+            return
+        
         with self._shutdown_lock:
             if self.shutdown_in_progress:
                 logger.warning(
@@ -421,7 +425,7 @@ class AppShutdownController:
         name: str,
         handler: Callable,
         priority: ShutdownPriority = ShutdownPriority.NORMAL,
-        timeout: int = None,
+        timeout: Optional[int] = None,
         critical: bool = False,
     ):
         """Add custom shutdown handler."""

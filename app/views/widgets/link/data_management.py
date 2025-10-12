@@ -4,10 +4,10 @@
 import logging
 from typing import TYPE_CHECKING, Any, Optional
 
-from PyQt6.QtCore import QModelIndex, Qt
+from PyQt6.QtCore import QAbstractItemModel, QModelIndex, Qt
 
 if TYPE_CHECKING:
-    from PyQt6.QtWidgets import QAbstractItemModel
+    pass
 
 
 class DataManagementMixin:

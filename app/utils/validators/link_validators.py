@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ def validate_link_duplicate(
     link_type: str,
     args: str,
     existing_links: list,
-    current_link_id: int = None,
+    current_link_id: Optional[int] = None,
 ) -> bool:
     """Checks if there is no duplicate link in the category."""
     for link in existing_links:

@@ -87,12 +87,12 @@ class BaseKeyHandler:
     def _is_tiles_focused(self, widget: Optional[QWidget]) -> bool:
         return self._is_widget_of_type(widget, "CATEGORY_TILES")
 
-    def _safe_getattr(self, obj: Any, attr: str, default: T = None) -> Any:
+    def _safe_getattr(self, obj: Any, attr: str, default: Optional[T] = None) -> Any:
         # Delegate to shared common utils
         return _common_safe_getattr(obj, attr, default)
 
     def _safe_call(
-        self, obj: Any, method_name: str, *args: Any, default: T = None, **kwargs: Any
+        self, obj: Any, method_name: str, *args: Any, default: Optional[T] = None, **kwargs: Any
     ) -> Any:
         # Delegate to shared common utils
         return _common_safe_call(obj, method_name, *args, default=default, **kwargs)
@@ -441,10 +441,10 @@ class KeyboardManager(QObject):
 
     ENTER_COOLDOWN = 150
 
-    def __init__(self, main_window):
+    def __init__(self, main_window: QWidget):
         super().__init__(parent=main_window)  # ✅ Fixed: added parent
-        self.main_window = main_window
-        self.shortcuts = []
+        self.main_window: QWidget = main_window
+        self.shortcuts: list = []
 
         self.global_handler = GlobalKeyHandler(main_window)
         self.editing_handler = EditingKeyHandler(main_window)
