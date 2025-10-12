@@ -73,9 +73,9 @@ class AsyncOperations(QObject):
         self._worker_signals = StructureSignals(self)
         # Thread-safe protection for shared state
         self._pending_tasks_lock = Lock()
-        self._pending_tasks = {}
+        self._pending_tasks: dict[str, Any] = {}
         self._metrics_lock = Lock()
-        self._active_metric_spans = set()
+        self._active_metric_spans: set[str] = set()
         # Direct dependency on TopPanelsController to update top panels
         self.top_panels = top_panels_controller
 

@@ -3,7 +3,7 @@
 """Module for normalizing data from database."""
 
 import logging
-from typing import Any, Protocol, Union, runtime_checkable
+from typing import Any, Optional, Protocol, Union, runtime_checkable
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ def _try_mapping_protocol(row, logger):
     return None
 
 
-def normalize_row(row: Any, logger: logging.Logger = None) -> dict[str, Any]:
+def normalize_row(row: Any, logger: Optional[logging.Logger] = None) -> dict[str, Any]:
     """Safely normalize DB row to dictionary.
 
     Supports:
@@ -124,7 +124,7 @@ def normalize_row(row: Any, logger: logging.Logger = None) -> dict[str, Any]:
     return {}
 
 
-def normalize_rows(rows: Any, logger: logging.Logger = None) -> list[dict[str, Any]]:
+def normalize_rows(rows: Any, logger: Optional[logging.Logger] = None) -> list[dict[str, Any]]:
     """Normalize list of DB rows to list of dictionaries.
 
     Args:
@@ -150,19 +150,18 @@ def normalize_rows(rows: Any, logger: logging.Logger = None) -> list[dict[str, A
             result.append(normalized)
         except Exception as e:
             active_logger.error("Error normalizing row #%s: %s", i, e)
-            result.append({})  # Add empty dictionary to preserve indices
 
     return result
 
 
-def validate_normalized_data(
-    data: Union[dict[str, Any], list[dict[str, Any]]], required_keys: list[str] = None
+def validate_required_keys(
+    data: dict[str, Any], required_keys: Optional[list[str]] = None
 ) -> bool:
     """Validate normalized data.
 
     Args:
         data: Normalized data (dictionary or list of dictionaries)
-        required_keys: List of required keys to check
+{{ ... }}
 
     Returns:
         bool: True if data is valid, False otherwise

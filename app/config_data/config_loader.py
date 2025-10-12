@@ -17,8 +17,9 @@ class AppConfig:
     def __init__(self, config_path: Optional[str] = None):
         """Initialize the loader and read the configuration payload."""
         if config_path is None:
-            config_path = Path(__file__).parent / "app_config.json"
-        self._config_path = Path(config_path)
+            self._config_path = Path(__file__).parent / "app_config.json"
+        else:
+            self._config_path = Path(config_path)
         self._config = self._load_config()
 
         # Initialize specialized configuration facades

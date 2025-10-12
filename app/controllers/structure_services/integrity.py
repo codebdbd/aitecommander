@@ -49,11 +49,12 @@ class IntegrityService:
                 total_sections += len(sections)
 
                 # Count categories for all sections of sphere
-                sphere_categories = sum(
-                    len(get_categories(section.get("id")) or [])
-                    for section in sections
-                    if section.get("id") is not None
-                )
+                sphere_categories = 0
+                for section in sections:
+                    section_id = section.get("id")
+                    if section_id is not None:
+                        categories = get_categories(int(section_id)) or []
+                        sphere_categories += len(categories)
                 total_categories += sphere_categories
 
                 # If this is the current sphere, save statistics
@@ -166,3 +167,9 @@ class IntegrityService:
         except Exception:
             if logger:
                 logger.exception("Critical error checking structure integrity")
+            return {
+                "is_valid": False,
+                "errors": ["Critical error during integrity check"],
+                "warnings": [],
+                "statistics": {},
+            }

@@ -31,10 +31,12 @@ class PathConfig(BaseConfig):
         """Compute `%APPDATA%/org_name/app_name/sub` incorporating fallbacks."""
         org_name = self.get("app.org_name", "Codebdbd")
         app_name = self.get("app.name", "Aite Commander")
-        appdata = os.getenv("APPDATA")
-        if not appdata:
-            appdata = Path.home() / "AppData" / "Roaming"
-        return Path(appdata) / org_name / app_name / sub
+        appdata_str = os.getenv("APPDATA")
+        if not appdata_str:
+            appdata_path = Path.home() / "AppData" / "Roaming"
+        else:
+            appdata_path = Path(appdata_str)
+        return appdata_path / org_name / app_name / sub
 
     def get_db_path(self) -> Path:
         """Return the `%APPDATA%/Org/App/links.db` database path."""

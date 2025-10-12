@@ -54,4 +54,4 @@ from app.views.windows.dialogs.link_dialog.link_dialog_handlers import *  # noqa
 from app.views.windows.dialogs.link_dialog.link_dialog_signals import *  # noqa: F401,F403,E402
 from app.views.windows.dialogs.link_dialog.link_dialog_ui import *  # noqa: F401,F403,E402
 
-__all__ = []  # populated dynamically by star-imports above
+__all__: list[str] = []  # populated dynamically by star-imports above

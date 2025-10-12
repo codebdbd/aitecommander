@@ -47,7 +47,7 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
 
     def find_profiles(self) -> list[dict[str, str]]:
         """Universal profile search logic for Chromium-based browsers."""
-        profiles = []
+        profiles: list[dict[str, str]] = []
 
         if not Path(self.profiles_dir).exists():
             logger.debug(

@@ -24,4 +24,9 @@ def get_thread_pool() -> QThreadPool:
 
     Defaults to the global Qt pool.
     """
-    return _CUSTOM_POOL or QThreadPool.globalInstance()
+    if _CUSTOM_POOL is not None:
+        return _CUSTOM_POOL
+    pool = QThreadPool.globalInstance()
+    if pool is None:
+        raise RuntimeError("QThreadPool.globalInstance() returned None")
+    return pool

@@ -26,7 +26,7 @@ class DuplicateResolver:
           - lname: name in lower case
           - ids: list of int IDs of conflicting records (in arbitrary order)
         """
-        result = {"sphere": [], "section": [], "category": []}
+        result: dict[str, list] = {"sphere": [], "section": [], "category": []}
         with db_lock:
             # Spheres: global scope
             rows = self.db.connection.execute(

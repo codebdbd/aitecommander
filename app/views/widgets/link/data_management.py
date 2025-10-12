@@ -2,9 +2,12 @@
 # Provides cache utilities, validation, and comparison helpers
 
 import logging
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QModelIndex, Qt
+
+if TYPE_CHECKING:
+    from PyQt6.QtWidgets import QAbstractItemModel
 
 
 class DataManagementMixin:
@@ -14,6 +17,13 @@ class DataManagementMixin:
     _current_links: dict[
         int, dict[str, Any]
     ]  # expected to be populated by the table view
+    
+    # Methods expected from QTableView (for type checking)
+    if TYPE_CHECKING:
+        def selectRow(self, row: int) -> None: ...
+        def model(self) -> Optional["QAbstractItemModel"]: ...
+        def setCurrentIndex(self, index: QModelIndex) -> None: ...
+        def scrollTo(self, index: QModelIndex) -> None: ...
 
     # --- Helper properties ---
     @property
