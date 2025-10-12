@@ -378,9 +378,8 @@ class FileSearchDialog(BaseDialog):
         except Exception:
             pass
 
-    def retranslateUi(self) -> None:  # type: ignore[override]
-        """Update all texts on language change."""
-        self.setWindowTitle(self.tr("Advanced file search"))
+    def _translate_labels(self):
+        """Translate label texts."""
         if self.lbl_search_location is not None:
             self.lbl_search_location.setText(self.tr("Search location:"))
         if self.lbl_name_regex is not None:
@@ -394,7 +393,8 @@ class FileSearchDialog(BaseDialog):
         if self.lbl_modified is not None:
             self.lbl_modified.setText(self.tr("Modified:"))
 
-        # Buttons and tooltips
+    def _translate_buttons(self):
+        """Translate button texts and tooltips."""
         if hasattr(self, "pattern_combo") and self.pattern_combo is not None:
             self.pattern_combo.setToolTip(self.tr("Quickly apply an extension mask"))
         if hasattr(self, "content_regex_cb") and self.content_regex_cb is not None:
@@ -409,6 +409,9 @@ class FileSearchDialog(BaseDialog):
             self.add_link_btn.setText(self.tr("Add as link"))
         if hasattr(self, "open_folder_btn") and self.open_folder_btn is not None:
             self.open_folder_btn.setText(self.tr("Open in file explorer"))
+
+    def _translate_status(self):
+        """Translate status label."""
         if (
             hasattr(self, "status_label")
             and self.status_label is not None
@@ -416,11 +419,20 @@ class FileSearchDialog(BaseDialog):
         ):
             self.status_label.setText(self.tr("Ready to search"))
 
-        # Placeholders
+    def _translate_placeholders(self):
+        """Translate placeholder texts."""
         if hasattr(self, "size_min_le") and self.size_min_le is not None:
             self.size_min_le.setPlaceholderText(self.tr("from"))
         if hasattr(self, "size_max_le") and self.size_max_le is not None:
             self.size_max_le.setPlaceholderText(self.tr("to"))
+
+    def retranslateUi(self) -> None:  # type: ignore[override]
+        """Update all texts on language change."""
+        self.setWindowTitle(self.tr("Advanced file search"))
+        self._translate_labels()
+        self._translate_buttons()
+        self._translate_status()
+        self._translate_placeholders()
 
     def _update_buttons(self):
         """Enable/disable buttons based on current selection."""
