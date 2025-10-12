@@ -6,8 +6,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtGui import QIcon
 
 from app.utils.ui.icon.path_service import icon_path_service
 

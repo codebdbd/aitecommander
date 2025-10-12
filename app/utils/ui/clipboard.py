@@ -1,12 +1,12 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
-LinkData = Union[Dict[str, Any], List[Dict[str, Any]]]
+LinkData = Union[dict[str, Any], list[dict[str, Any]]]
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ def _to_jsonable(value: Any) -> Any:
     if isinstance(value, QIcon):
         return None  # do not serialize UI icon; it is restored via icon_path
     if isinstance(value, dict):
-        out: Dict[str, Any] = {}
+        out: dict[str, Any] = {}
         for k, v in value.items():
             # skip internal keys like _icon, _cache, etc.
             if isinstance(k, str) and k.startswith("_"):

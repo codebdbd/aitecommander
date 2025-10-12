@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-
 from app.utils.ui.qt.roles import get_tree_tuple
 
 logger = logging.getLogger(__name__)
@@ -16,7 +15,7 @@ if TYPE_CHECKING:
 class TreeTilesService:
     """Grouped operations for updating category tiles."""
 
-    def __init__(self, manager: "TreeManagement") -> None:
+    def __init__(self, manager: TreeManagement) -> None:
         self._manager = manager
 
     # --- Public API -----------------------------------------------------

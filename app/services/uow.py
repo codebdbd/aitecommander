@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from app.models.db import Database
 import functools
+
+from app.models.db import Database
 
 
 class UnitOfWork:
@@ -19,7 +20,7 @@ class UnitOfWork:
         self.categories = getattr(db, "categories", None)
         self.links = getattr(db, "links", None)
 
-    def __enter__(self) -> "UnitOfWork":
+    def __enter__(self) -> UnitOfWork:
         # Proxy to Database.transaction()
         self._tx_ctx = self.db.transaction()
         self._tx_ctx.__enter__()

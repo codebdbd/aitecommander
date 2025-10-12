@@ -1,7 +1,7 @@
 """Controller for managing all application menus and handling user actions."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from PyQt6.QtCore import QModelIndex, QObject, pyqtSlot
 from PyQt6.QtGui import QAction
@@ -13,7 +13,6 @@ from app.utils.ui.menu_builders import (
     MainMenuBuilder,
     StructureMenuBuilder,
 )
-
 from i18n.language_service import LanguageService
 
 if TYPE_CHECKING:
@@ -95,7 +94,7 @@ class MenuController(QObject):
         edit_cb: Callable,
         delete_cb: Callable,
         add_cb: Callable,
-    ) -> Tuple[QMenu, QAction, QAction, QAction]:
+    ) -> tuple[QMenu, QAction, QAction, QAction]:
         """Create context menu for a category tile."""
         if not self._category_menu_builder:
             self._category_menu_builder = CategoryMenuBuilder(

@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from functools import partial
-from typing import Any, Dict, Iterable, List
+from typing import Any
 
 from PyQt6.QtCore import QObject, QSize, pyqtSlot
 from PyQt6.QtGui import QIcon
@@ -91,7 +92,7 @@ class SpheresBarController(QObject):
             raise
         group.setExclusive(True)
 
-    def _build_button(self, sphere: Dict[str, Any]) -> QToolButton:
+    def _build_button(self, sphere: dict[str, Any]) -> QToolButton:
         btn = QToolButton()
         sphere_id = sphere["id"]
         btn.setCheckable(True)
@@ -129,7 +130,7 @@ class SpheresBarController(QObject):
         return btn
 
     @pyqtSlot(list)
-    def on_spheres_loaded_ui(self, spheres: List[Dict[str, Any]]):
+    def on_spheres_loaded_ui(self, spheres: list[dict[str, Any]]):
         """Build sphere buttons in the bar."""
         with suspend_updates(self.w.spheres_bar):
             self._clear_spheres_bar()

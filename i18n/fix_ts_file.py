@@ -1,9 +1,10 @@
 import re
 
+
 def fix_ts_file(filename):
     """Исправляет файл .ts, удаляя лишние закрывающие теги </message>."""
     # Чтение содержимого файла
-    with open(filename, 'r', encoding='utf-8') as f:
+    with open(filename, encoding='utf-8') as f:
         content = f.read()
     
     # Подсчет исходных тегов

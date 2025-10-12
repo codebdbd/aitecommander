@@ -3,9 +3,8 @@
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtCore import QObject, QCoreApplication
+from PyQt6.QtCore import QCoreApplication, QObject
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
-
 
 _TR_CONTEXT = "DatabaseDialogs"
 

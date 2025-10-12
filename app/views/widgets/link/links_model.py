@@ -1,16 +1,23 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Any
 
-from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt, QVariant, QCoreApplication
+from PyQt6.QtCore import (
+    QAbstractTableModel,
+    QCoreApplication,
+    QModelIndex,
+    Qt,
+    QVariant,
+)
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QWidget
 
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
-from app.views.widgets.link.item_builders import ItemBuildersMixin
 from app.views.common.retranslatable import ReTranslatable
+from app.views.widgets.link.item_builders import ItemBuildersMixin
 
 
 class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
@@ -24,11 +31,11 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
     DEFAULT_HEADERS = ["♥", "Name", "Last opened", "Notes"]  # source strings
     MAX_ICON_CACHE = 500  # Icon cache size limit
 
-    def __init__(self, links: Optional[Sequence[Dict[str, Any]]] = None, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, links: Sequence[dict[str, Any]] | None = None, parent: QWidget | None = None) -> None:
         QAbstractTableModel.__init__(self, parent)
         ReTranslatable.__init__(self)
-        self._headers: List[str] = []
-        self._links: List[Dict[str, Any]] = []
+        self._headers: list[str] = []
+        self._links: list[dict[str, Any]] = []
         # Initialize while cleaning potential icon cache entries
         self.retranslateUi()
         if links:
@@ -62,7 +69,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             return 0
         return len(self._headers)
 
-    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> Union[str, int, QIcon, Dict, None]:  # type: ignore[override]
+    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> str | int | QIcon | dict | None:  # type: ignore[override]
         if not index.isValid():
             return QVariant()
         row = index.row()
@@ -222,20 +229,20 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             Qt.Orientation.Horizontal, 0, len(self._headers) - 1
         )
 
-    def set_links(self, links: Sequence[Dict[str, Any]]) -> None:
+    def set_links(self, links: Sequence[dict[str, Any]]) -> None:
         self.beginResetModel()
         # Clone data (icons now live in the LRU cache, not inside dicts)
         self._links = [dict(link_item) for link_item in links]
         self.endResetModel()
 
-    def insert_link(self, pos: int, link: Dict[str, Any]) -> bool:
+    def insert_link(self, pos: int, link: dict[str, Any]) -> bool:
         pos = max(0, min(pos, len(self._links)))
         self.beginInsertRows(QModelIndex(), pos, pos)
         self._links.insert(pos, dict(link))
         self.endInsertRows()
         return True
 
-    def append_link(self, link: Dict[str, Any]) -> bool:
+    def append_link(self, link: dict[str, Any]) -> bool:
         return self.insert_link(len(self._links), link)
 
     def remove_row(self, row: int) -> bool:
@@ -246,7 +253,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         self.endRemoveRows()
         return True
 
-    def update_link(self, row: int, new_data: Dict[str, Any]) -> bool:
+    def update_link(self, row: int, new_data: dict[str, Any]) -> bool:
         if not (0 <= row < len(self._links)):
             return False
         self._links[row].update(new_data)
@@ -257,7 +264,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         return True
 
     # --- Helper methods ---
-    def get_link(self, row: int) -> Optional[Dict[str, Any]]:
+    def get_link(self, row: int) -> dict[str, Any] | None:
         if 0 <= row < len(self._links):
             return self._links[row]
         return None
@@ -269,7 +276,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         return -1
 
     # --- Row reordering ---
-    def move_rows(self, source_rows: List[int], target_row: int) -> None:
+    def move_rows(self, source_rows: list[int], target_row: int) -> None:
         """Move a set of rows while preserving relative order.
 
         For a single continuous range use ``beginMoveRows``/``endMoveRows``.
@@ -285,7 +292,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         target_row = max(0, min(target_row, n))
 
         # When the rows form one contiguous range — use an atomic move
-        def is_contiguous(rows: List[int]) -> bool:
+        def is_contiguous(rows: list[int]) -> bool:
             """Check whether rows form a contiguous range."""
             return all(b - a == 1 for a, b in zip(rows, rows[1:]))
 
@@ -322,10 +329,10 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         # at ``target_row`` among remaining elements WITHOUT subtracting removals before target.
         # Matches user expectation of "insert before the item that was at target_row prior to move".
         src_set = set(src)
-        remaining: List[Dict[str, Any]] = [
+        remaining: list[dict[str, Any]] = [
             item for i, item in enumerate(self._links) if i not in src_set
         ]
-        segment: List[Dict[str, Any]] = [self._links[i] for i in src]
+        segment: list[dict[str, Any]] = [self._links[i] for i in src]
         insert_at = max(0, min(target_row, len(remaining)))
         self.layoutAboutToBeChanged.emit()
         try:
@@ -374,7 +381,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
             except Exception:
                 return -inf
 
-        def key_for(link: Dict[str, Any]) -> Any:
+        def key_for(link: dict[str, Any]) -> Any:
             if column == 0:
                 # Cast to int for comparison to avoid mixing types
                 return 1 if bool(link.get("is_favorite", False)) else 0
@@ -397,7 +404,7 @@ class LinksTableModel(QAbstractTableModel, ItemBuildersMixin, ReTranslatable):
         self.layoutChanged.emit()
 
     @lru_cache(maxsize=MAX_ICON_CACHE)
-    def _get_cached_icon(self, icon_path: str) -> Optional[QIcon]:
+    def _get_cached_icon(self, icon_path: str) -> QIcon | None:
         """Return an icon with LRU caching to avoid memory leaks.
 
         Args:

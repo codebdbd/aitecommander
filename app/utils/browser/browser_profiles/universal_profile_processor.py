@@ -3,7 +3,7 @@ Universal processor for handling profiles of any browsers.
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Optional
 
 from app.utils.links.link_factory import make_profile_link_record
 from app.utils.validators import (
@@ -40,11 +40,11 @@ class UniversalProfileProcessor:
         notes: str,
         category_id: int,
         browser_key: str,
-        selected_profiles: List[Dict],
-        existing_link: Dict = None,
+        selected_profiles: list[dict],
+        existing_link: dict = None,
         user_args: str = None,
-        existing_links_in_category: List[Dict] = None,
-    ) -> List[Dict]:
+        existing_links_in_category: list[dict] = None,
+    ) -> list[dict]:
         """
         Processes browser profiles and creates corresponding links.
 
@@ -277,7 +277,7 @@ class UniversalProfileProcessor:
         )
         return result_links
 
-    def _format_profile_name(self, finder, profile: Dict) -> str:
+    def _format_profile_name(self, finder, profile: dict) -> str:
         """Formats profile name for display."""
         if hasattr(finder, "format_profile_display_name"):
             return finder.format_profile_display_name(profile)
@@ -331,7 +331,7 @@ class UniversalProfileProcessor:
         )
         return generated_name
 
-    def parse_existing_profile(self, link: Dict) -> tuple[Optional[str], List[Dict]]:
+    def parse_existing_profile(self, link: dict) -> tuple[Optional[str], list[dict]]:
         """
         Parses existing profile from link and determines browser.
 
@@ -372,7 +372,7 @@ class UniversalProfileProcessor:
         return None, []
 
     def validate_profiles(
-        self, browser_key: str, selected_profiles: List[Dict]
+        self, browser_key: str, selected_profiles: list[dict]
     ) -> bool:
         """Validates selected profiles."""
         if not selected_profiles:

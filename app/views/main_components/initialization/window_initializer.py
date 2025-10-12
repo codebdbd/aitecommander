@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import suppress
-from typing import Callable, Dict, List, Tuple, TypeAlias
+from typing import Callable, TypeAlias
 
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication, QMessageBox
@@ -19,11 +19,6 @@ from app.utils.metrics.startup_metrics import get_metrics
 from app.utils.ui.updates import suspend_updates
 
 from ..common.constants import StatusMessage
-from .init_db_gate import DbReadyGate
-from .init_diagnostics import DiagnosticsInstaller
-from .init_scheduler import AsyncStepRunner
-from .init_status import StatusUpdater
-from .init_steps_config import AFTER_DB_STEP_CONFIG, BEFORE_DB_STEP_CONFIG
 from ..common.protocols import (
     DatabaseProtocol,
     MainWindowProtocol,
@@ -32,6 +27,11 @@ from ..common.protocols import (
 )
 from ..common.resource_manager import ResourceManager
 from ..ui.window_ui_setup import WindowUISetup
+from .init_db_gate import DbReadyGate
+from .init_diagnostics import DiagnosticsInstaller
+from .init_scheduler import AsyncStepRunner
+from .init_status import StatusUpdater
+from .init_steps_config import AFTER_DB_STEP_CONFIG, BEFORE_DB_STEP_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -161,16 +161,16 @@ class WindowInitializer:
     def _schedule_heavy_steps(self) -> None:
         """Split heavy steps into async phases and schedule them around DB readiness."""
         self._current_init_step = 0
-        self._init_steps_before_db: List[Tuple[str, Callable[[], None]]] = []
-        special_hooks_before: Dict[Callable[[], None], Callable[[], None]] = {}
+        self._init_steps_before_db: list[tuple[str, Callable[[], None]]] = []
+        special_hooks_before: dict[Callable[[], None], Callable[[], None]] = {}
         for label, method_name, hook_name in BEFORE_DB_STEP_CONFIG:
             step_func = getattr(self, method_name)
             self._init_steps_before_db.append((label, step_func))
             if hook_name:
                 special_hooks_before[step_func] = getattr(self, hook_name)
 
-        self._init_steps_after_db: List[Tuple[str, Callable[[], None]]] = []
-        self._special_hooks_after: Dict[Callable[[], None], Callable[[], None]] = {}
+        self._init_steps_after_db: list[tuple[str, Callable[[], None]]] = []
+        self._special_hooks_after: dict[Callable[[], None], Callable[[], None]] = {}
         for label, method_name, hook_name in AFTER_DB_STEP_CONFIG:
             step_func = getattr(self, method_name)
             self._init_steps_after_db.append((label, step_func))
@@ -495,7 +495,7 @@ class WindowInitializer:
     def _on_waiting_for_db(self) -> None:
         """Handle the waiting-for-database state by updating status and flags."""
         try:
-            setattr(self, "_waiting_for_db", True)
+            self._waiting_for_db = True
             self._status.set_message(StatusMessage.WAITING_FOR_DB)
         except Exception:
             logger.exception(

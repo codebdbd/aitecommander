@@ -4,7 +4,7 @@ import threading
 import time
 import warnings
 from pathlib import Path
-from typing import Dict, List, Optional, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional
 
 if TYPE_CHECKING:
     from PyQt6.QtCore import QObject
@@ -13,19 +13,20 @@ from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal
 
 from app.config_data import app_config
 from app.utils.db.migrations import MigrationRunner
+
+from .base.db_base import DatabaseBase, DatabaseError, ValidationError, db_lock
+from .entities.category_model import CategoryModel
+from .entities.link_model import LinkModel
+from .entities.section_model import SectionModel
+from .entities.sphere_model import SphereModel
 from .managers.backup_manager import BackupManager
-from .managers.import_export_manager import ImportExportManager
 from .managers.duplicate_resolver import DuplicateResolver
+from .managers.import_export_manager import ImportExportManager
 from .managers.structure_manager import StructureManager
 from .types.constants import (
     SQLITE_SAFE_BATCH_SIZE,
     SQLITE_SAFE_SELECT_CHUNK,
 )
-from .base.db_base import DatabaseBase, DatabaseError, ValidationError, db_lock
-from .entities.sphere_model import SphereModel
-from .entities.section_model import SectionModel
-from .entities.category_model import CategoryModel
-from .entities.link_model import LinkModel
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +151,7 @@ class Database(QObject):
                         exc_info=True,
                     )
             self.operation_finished.emit(operation, True)
-        except Exception as e:
+        except Exception:
             self.operation_finished.emit(operation, False)
             raise
         finally:

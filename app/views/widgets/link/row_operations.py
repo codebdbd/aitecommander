@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 # Module containing row operations for the links table
 # Provides methods for adding, updating, and removing rows
@@ -10,15 +10,15 @@ logger = logging.getLogger(__name__)
 class RowOperationsMixin:
     """Mixin with row-level operations for the links table."""
 
-    def _link_cache(self) -> Dict[int, Dict[str, Any]]:
+    def _link_cache(self) -> dict[int, dict[str, Any]]:
         """Helper access to current links cache."""
         cache = getattr(self, "_current_links", None)
         if cache is None:
             cache = {}
-            setattr(self, "_current_links", cache)
+            self._current_links = cache
         return cache
 
-    def update_link_by_id(self, link: Dict[str, Any], mode: str = "normal") -> bool:
+    def update_link_by_id(self, link: dict[str, Any], mode: str = "normal") -> bool:
         """
         Update a table row by the link ID when present.
         """
@@ -93,7 +93,7 @@ class RowOperationsMixin:
             )
             return False
 
-    def _update_row(self, row: int, link: Dict[str, Any], mode: str) -> bool:
+    def _update_row(self, row: int, link: dict[str, Any], mode: str) -> bool:
         """Update an existing row with new data via the model."""
         try:
             # Validate input
@@ -159,7 +159,7 @@ class RowOperationsMixin:
             )
             return False
 
-    def _add_row(self, row: int, link: Dict[str, Any], mode: str) -> bool:
+    def _add_row(self, row: int, link: dict[str, Any], mode: str) -> bool:
         """Insert a new row via the model."""
         try:
             # Validate input

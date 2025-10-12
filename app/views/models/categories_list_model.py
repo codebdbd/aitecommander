@@ -1,7 +1,7 @@
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
-from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt, QVariant
+from PyQt6.QtCore import QAbstractListModel, QModelIndex, Qt
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QWidget
 
@@ -25,11 +25,11 @@ class CategoriesListModel(QAbstractListModel):
       - ToolTipRole: name (can be extended)
     """
 
-    def __init__(self, categories: Optional[List[Dict[str, Any]]] = None, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, categories: Optional[list[dict[str, Any]]] = None, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
-        self._items: List[Dict[str, Any]] = []
+        self._items: list[dict[str, Any]] = []
         # Row cache by id for O(1) lookup: id -> row
-        self._row_by_id: Dict[int, int] = {}
+        self._row_by_id: dict[int, int] = {}
         if categories:
             self.set_categories(categories)
 
@@ -58,9 +58,9 @@ class CategoriesListModel(QAbstractListModel):
         return None
 
     # --- mutators ---
-    def set_categories(self, categories: List[Dict[str, Any]]) -> None:
+    def set_categories(self, categories: list[dict[str, Any]]) -> None:
         # Normalize input data and prepare icons
-        items: List[Dict[str, Any]] = []
+        items: list[dict[str, Any]] = []
         for cat in categories:
             name = cat.get("name", "")
             raw_id = cat.get("id")
@@ -87,7 +87,7 @@ class CategoriesListModel(QAbstractListModel):
         self._items = items
         # Rebuild row cache by id
         # Important: keep the index of the FIRST occurrence for compatibility with previous linear lookup
-        row_by_id: Dict[int, int] = {}
+        row_by_id: dict[int, int] = {}
         for idx, it in enumerate(self._items):
             cid = it["id"]
             if cid not in row_by_id:

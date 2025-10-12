@@ -8,9 +8,9 @@ Usage:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
-from PyQt6.QtCore import QSize, QCoreApplication
+from PyQt6.QtCore import QCoreApplication, QSize
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
 
 from app.config_data import app_config
@@ -44,7 +44,7 @@ class LinkButtonMixin:
             logger.exception("Unexpected error while resolving icon '%s': %s", icon_path, e)
             return str(self._get_default_icon_path())
 
-    def _create_link_button(self, link_data: Dict[str, Any]) -> QToolButton:
+    def _create_link_button(self, link_data: dict[str, Any]) -> QToolButton:
         """Create a link button with an icon, synchronized with the table."""
         button = QToolButton()
 

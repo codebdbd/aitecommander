@@ -2,9 +2,9 @@
 
 """Basic types and exceptions for validation system."""
 
-from typing import Any, List, Optional
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Optional
 
 from .validation_result import ValidationResult
 
@@ -40,15 +40,15 @@ class ValidationIssue:
 class DetailedValidationResult:
     """Detailed validation result."""
     is_valid: bool
-    issues: List[ValidationIssue]
+    issues: list[ValidationIssue]
 
     @property
-    def errors(self) -> List[ValidationIssue]:
+    def errors(self) -> list[ValidationIssue]:
         """Errors only."""
         return [issue for issue in self.issues if issue.severity == ValidationSeverity.ERROR]
 
     @property
-    def warnings(self) -> List[ValidationIssue]:
+    def warnings(self) -> list[ValidationIssue]:
         """Warnings only."""
         return [issue for issue in self.issues if issue.severity == ValidationSeverity.WARNING]
 

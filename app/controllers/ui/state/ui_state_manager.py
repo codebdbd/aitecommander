@@ -3,7 +3,6 @@
 """Centralized UI state manager to eliminate logic duplication."""
 
 import logging
-from typing import Optional
 
 from app.config_data import app_config
 

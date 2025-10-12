@@ -119,7 +119,7 @@ class ApplicationLogger:
 
             if config_path:
                 # Load configuration from file
-                with open(config_path, "r", encoding="utf-8") as f:
+                with open(config_path, encoding="utf-8") as f:
                     log_config = json.load(f)
 
                 # Update log file path in configuration

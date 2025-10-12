@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import logging
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 try:
     from app.utils.metrics import get_metrics
@@ -27,13 +26,13 @@ class StructureCacheService:
 
     def __init__(
         self,
-        owner: 'StructureBusinessLogic',
+        owner: StructureBusinessLogic,
         cache_manager: CacheManager,
         structure_service: StructureService,
         loader_service: LoaderService,
         utility_service: UtilityService,
         structure_model: StructureModel,
-        logger: 'Logger',
+        logger: Logger,
     ) -> None:
         self._owner = owner
         self._cache_manager = cache_manager
@@ -43,7 +42,7 @@ class StructureCacheService:
         self._structure_model = structure_model
         self._logger = logger
 
-    def warm_first_category(self, sphere_id: int, payload: Optional[list[dict[str, Any]]]) -> None:
+    def warm_first_category(self, sphere_id: int, payload: list[dict[str, Any]] | None) -> None:
         """Прогревает кэш первой категории для сферы.
         
         Извлекает ID первой категории из payload и сохраняет в кэш.
@@ -202,7 +201,7 @@ class StructureCacheService:
 
     def get_item_for_editing(
         self, item_id: int, item_type: Any
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         return self._utility_service.get_item_for_editing(
             item_id=item_id,
             item_type=item_type,
@@ -211,7 +210,7 @@ class StructureCacheService:
             logger=self._logger,
         )
 
-    def get_target_section_id(self) -> Optional[int]:
+    def get_target_section_id(self) -> int | None:
         return self._utility_service.get_target_section_id(
             current_sphere_id=self._owner.current_sphere_id,
             get_sections=self.get_sections,
@@ -223,19 +222,19 @@ class StructureCacheService:
     # ------------------------------------------------------------------
     # Cache invalidation helpers
     # ------------------------------------------------------------------
-    def invalidate_structure_cache(self, sphere_id: Optional[int] = None) -> None:
+    def invalidate_structure_cache(self, sphere_id: int | None = None) -> None:
         target_sphere = sphere_id if sphere_id is not None else self._owner.current_sphere_id
         if target_sphere:
             self._cache_manager.invalidate(f"structure_{target_sphere}")
             self._cache_manager.invalidate(f"sections_{target_sphere}")
             self._cache_manager.invalidate(f"first_category_id:{target_sphere}")
 
-    def invalidate_sections_cache(self, sphere_id: Optional[int]) -> None:
+    def invalidate_sections_cache(self, sphere_id: int | None) -> None:
         if sphere_id:
             self._cache_manager.invalidate(f"sections_{sphere_id}")
 
     def invalidate_categories_cache(
-        self, section_id: Optional[int], sphere_id: Optional[int] = None
+        self, section_id: int | None, sphere_id: int | None = None
     ) -> None:
         if section_id:
             self._cache_manager.invalidate(f"categories_{section_id}")

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable
 
 from app.views.main_components.common.resource_manager import logger
 
@@ -13,14 +13,14 @@ class ResourceManager:
 
     def __init__(self, name: str = "ResourceManager") -> None:
         self._name = name
-        self._resources: List[Tuple[str, Any, Optional[str], Optional[Callable[[], None]]]] = []
+        self._resources: list[tuple[str, Any, str | None, Callable[[], None] | None]] = []
         self._cleaned_up = False
-        self._cleanup_errors: List[Tuple[str, Exception]] = []
+        self._cleanup_errors: list[tuple[str, Exception]] = []
 
     def register_resource(
         self,
         resource: Any,
-        cleanup_func: Optional[Callable[[], None]] = None,
+        cleanup_func: Callable[[], None] | None = None,
         name: str = "",
         use_finalize: bool = False,
     ) -> None:
@@ -49,7 +49,7 @@ class ResourceManager:
                 return
             self._resources.append((resource_name, resource, method_name, None))
 
-    def _detect_cleanup_method_name(self, resource: Any) -> Optional[str]:
+    def _detect_cleanup_method_name(self, resource: Any) -> str | None:
         """Determine the cleanup method name for the given resource."""
         for method_name in ("stop", "deleteLater", "close"):
             try:
@@ -106,10 +106,10 @@ class ResourceManager:
     def is_cleaned_up(self) -> bool:
         return self._cleaned_up
 
-    def get_cleanup_errors(self) -> List[Tuple[str, Exception]]:
+    def get_cleanup_errors(self) -> list[tuple[str, Exception]]:
         return self._cleanup_errors.copy()
 
-    def __enter__(self) -> "ResourceManager":
+    def __enter__(self) -> ResourceManager:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:

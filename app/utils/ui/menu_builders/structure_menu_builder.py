@@ -10,9 +10,9 @@ from app.services.structure_context_service import StructureContextService
 from app.utils.ui.icon.cache_manager import clear_icon_cache
 from app.utils.ui.menu_builders.menu_actions import (
     ActionBuilder,
+    MenuTexts,
     Shortcuts,
     StructureItemType,
-    MenuTexts,
 )
 from app.utils.ui.qt.roles import get_tree_tuple
 
@@ -313,7 +313,7 @@ class StructureMenuBuilder:
             # Suppress selection/tree signals during batch operation
             try:
                 try:
-                    setattr(self.main_window, "_suppress_deletes", True)
+                    self.main_window._suppress_deletes = True
                     logger.debug("[PasteCategories] _suppress_deletes set=True")
                 except Exception:
                     logger.exception(
@@ -355,7 +355,7 @@ class StructureMenuBuilder:
                         "[PasteCategories] Failed to end selection suppression"
                     )
                 try:
-                    setattr(self.main_window, "_suppress_deletes", False)
+                    self.main_window._suppress_deletes = False
                     logger.debug("[PasteCategories] _suppress_deletes set=False")
                 except Exception:
                     logger.exception(

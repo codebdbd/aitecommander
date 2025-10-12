@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
-from PyQt6.QtCore import QCoreApplication, QT_TRANSLATE_NOOP, Qt
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt
 from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QWidget
 
 from app.config_data import app_config
@@ -35,7 +35,7 @@ _ACTION_BUTTON_DESC_TEMPLATE = QT_TRANSLATE_NOOP(
 )
 
 
-def _format_with_shortcut(label: str, shortcut: Optional[str]) -> str:
+def _format_with_shortcut(label: str, shortcut: str | None) -> str:
     label = label or ""
     shortcut_clean = (shortcut or "").strip()
     if shortcut_clean and shortcut_clean not in label:
@@ -43,7 +43,7 @@ def _format_with_shortcut(label: str, shortcut: Optional[str]) -> str:
     return label
 
 
-def _resolve_label(action_id: Optional[str], fallback_label: Optional[str]) -> str:
+def _resolve_label(action_id: str | None, fallback_label: str | None) -> str:
     if action_id and action_id in _BOTTOM_ACTION_TEXTS:
         return QCoreApplication.translate(
             _BOTTOM_PANEL_CONTEXT, _BOTTOM_ACTION_TEXTS[action_id]
@@ -55,7 +55,7 @@ def _resolve_label(action_id: Optional[str], fallback_label: Optional[str]) -> s
     return ""
 
 
-def _resolve_tooltip(action_id: Optional[str], fallback_tooltip: Optional[str]) -> str:
+def _resolve_tooltip(action_id: str | None, fallback_tooltip: str | None) -> str:
     if fallback_tooltip:
         return fallback_tooltip
     if action_id and action_id in _BOTTOM_ACTION_TOOLTIPS:
@@ -66,7 +66,7 @@ def _resolve_tooltip(action_id: Optional[str], fallback_tooltip: Optional[str]) 
 
 
 def _apply_translations_to_button(
-    button: QPushButton, action: dict[str, Optional[str]]
+    button: QPushButton, action: dict[str, str | None]
 ) -> None:
     action_id = action.get("id")
     fallback_label = action.get("label")
@@ -162,7 +162,7 @@ class BottomPanelBuilder:
         # Bottom bar font is centralized via ui.fonts.bottom_bar_button_px (ThemeController)
         # Apply the font here for consistency (if not handled by QSS)
         if hasattr(self.ui, 'fonts') and hasattr(self.ui.fonts, 'bottom_bar_button_px'):
-            bottom_font = self.ui.fonts.bottom_bar_button_px
+            pass
             # Note: in practice apply via QApplication.setFont or stylesheet
 
         # Switch-sphere button (created after controllers init)
@@ -180,7 +180,7 @@ class BottomPanelBuilder:
             for index, spec in enumerate(bottom_actions)
         ]
         parsed_actions = [action for action in parsed_actions if action is not None]
-        setattr(self.window, "_bottom_bar_bindings", [])
+        self.window._bottom_bar_bindings = []
         bottom_btns: list[QPushButton] = []
         for action in parsed_actions:
             handler_name = action["handler"]
@@ -197,7 +197,7 @@ class BottomPanelBuilder:
             try:
                 btn.setMinimumWidth(0)
                 btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-            except (RuntimeError, TypeError) as e:
+            except (RuntimeError, TypeError):
                 logger.debug(
                     "BottomPanel: failed to apply size policy to bottom button '%s': %s",
                     log_label,
@@ -280,7 +280,7 @@ class BottomPanelBuilder:
             logger.debug("BottomPanel: no bottom separator found to remove")
 
     @staticmethod
-    def _coerce_to_str(value: Any) -> Optional[str]:
+    def _coerce_to_str(value: Any) -> str | None:
         if value is None:
             return None
         if isinstance(value, str):
@@ -294,13 +294,13 @@ class BottomPanelBuilder:
         self,
         spec: Any,
         index: int,
-    ) -> Optional[dict[str, Optional[str]]]:
+    ) -> dict[str, str | None] | None:
         """Convert config entry into a unified action descriptor."""
-        action_id: Optional[str] = None
-        handler_name: Optional[str] = None
-        label: Optional[str] = None
-        shortcut: Optional[str] = None
-        tooltip: Optional[str] = None
+        action_id: str | None = None
+        handler_name: str | None = None
+        label: str | None = None
+        shortcut: str | None = None
+        tooltip: str | None = None
 
         if isinstance(spec, dict):
             action_id = self._coerce_to_str(spec.get("id"))
@@ -368,16 +368,16 @@ class BottomPanelBuilder:
         }
 
     def _register_bottom_button(
-        self, button: QPushButton, action: dict[str, Optional[str]]
+        self, button: QPushButton, action: dict[str, str | None]
     ) -> None:
         bindings = getattr(self.window, "_bottom_bar_bindings", None)
         if bindings is None:
             bindings = []
-            setattr(self.window, "_bottom_bar_bindings", bindings)
+            self.window._bottom_bar_bindings = bindings
         bindings.append({"button": button, "action": dict(action)})
 
     def _apply_localized_text(
-        self, button: QPushButton, action: dict[str, Optional[str]]
+        self, button: QPushButton, action: dict[str, str | None]
     ) -> None:
         try:
             _apply_translations_to_button(button, action)

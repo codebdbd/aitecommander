@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from enum import Enum
 
-
 # === Widget attribute names ===
 
 class WidgetAttribute(str, Enum):

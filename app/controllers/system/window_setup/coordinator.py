@@ -3,7 +3,7 @@ Coordinator for setting up controllers and components of the main window.
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from .business import (
     _assign_controllers_to_window,
@@ -23,7 +23,7 @@ from .wiring import setup_signal_connections
 logger = logging.getLogger(__name__)
 
 
-def setup_controllers(window: Any, controllers: Dict[str, Any], db: Any) -> None:
+def setup_controllers(window: Any, controllers: dict[str, Any], db: Any) -> None:
     """Create and set up main controllers."""
     _validate_qt_context()
     
@@ -46,7 +46,7 @@ class WindowControllersSetup:
 
     def setup_controllers(self) -> None:
         """Set up controllers and components."""
-        controllers: Dict[str, Any] = {}
+        controllers: dict[str, Any] = {}
 
         try:
             setup_controllers(self.window, controllers, self.db)

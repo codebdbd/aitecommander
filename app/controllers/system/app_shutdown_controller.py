@@ -7,9 +7,9 @@ import threading
 import time
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Callable, Dict, List, Protocol, runtime_checkable
+from typing import Any, Callable, Protocol, runtime_checkable
 
-from PyQt6.QtCore import QThreadPool
+from PyQt6.QtCore import QThreadPool\nfrom PyQt6.QtWidgets import QMainWindow\nfrom PyQt6.QtGui import QCloseEvent
 from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
@@ -109,7 +109,7 @@ class AppShutdownController:
 
     def __init__(self, main_window: 'QMainWindow'):
         self.window = main_window
-        self.shutdown_handlers: List[ShutdownHandler] = []
+        self.shutdown_handlers: list[ShutdownHandler] = []
         self.shutdown_in_progress = False
         self._shutdown_lock = threading.RLock()
         self._shutdown_started_ts: float | None = None
@@ -217,7 +217,7 @@ class AppShutdownController:
 
     def _group_handlers_by_priority(
         self,
-    ) -> Dict[ShutdownPriority, List[ShutdownHandler]]:
+    ) -> dict[ShutdownPriority, list[ShutdownHandler]]:
         """Group handlers by priorities."""
         groups = {}
         for handler in self.shutdown_handlers:
@@ -227,7 +227,7 @@ class AppShutdownController:
         return groups
 
     def _execute_handlers_sequential(
-        self, handlers: List[ShutdownHandler], remaining_ms: int | None = None
+        self, handlers: list[ShutdownHandler], remaining_ms: int | None = None
     ):
         """Sequential execution of handlers with global deadline consideration."""
         for handler in handlers:
@@ -243,7 +243,7 @@ class AppShutdownController:
             self._execute_single_handler(handler, override_timeout_ms=eff_timeout)
 
     def _execute_handlers_parallel(
-        self, handlers: List[ShutdownHandler], remaining_ms: int | None = None
+        self, handlers: list[ShutdownHandler], remaining_ms: int | None = None
     ):
         """Deprecated parallel execution shim - falls back to sequential."""
         logger.warning(
@@ -439,7 +439,7 @@ class AppShutdownController:
             logger.debug("Removed shutdown handler: %s", name)
         return removed
 
-    def get_shutdown_handlers(self) -> List[Dict[str, Any]]:
+    def get_shutdown_handlers(self) -> list[dict[str, Any]]:
         """Get information about all registered handlers (for debugging)."""
         return [
             {
@@ -633,3 +633,4 @@ def emergency_shutdown():
     except Exception as exc:
         logger.critical("Error during emergency shutdown: %s", exc)
         sys.exit(1)
+

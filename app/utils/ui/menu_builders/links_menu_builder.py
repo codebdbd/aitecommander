@@ -2,13 +2,12 @@
 
 import json
 import logging
-from typing import TYPE_CHECKING, Callable, Dict
+from typing import TYPE_CHECKING, Callable
 
-from PyQt6.QtCore import QModelIndex
+from PyQt6.QtCore import QCoreApplication, QModelIndex
 from PyQt6.QtWidgets import QApplication, QMenu, QWidget
-from PyQt6.QtCore import QCoreApplication
 
-from app.utils.ui.menu_builders.menu_actions import ActionBuilder, Shortcuts, MenuTexts
+from app.utils.ui.menu_builders.menu_actions import ActionBuilder, MenuTexts, Shortcuts
 
 from .base import get_menu_icon
 
@@ -40,7 +39,7 @@ class LinksMenuBuilder:
             self._add_empty_area_actions(menu, paste_link_cb)
         return menu
 
-    def _add_link_item_actions(self, menu: QMenu, link: Dict) -> None:
+    def _add_link_item_actions(self, menu: QMenu, link: dict) -> None:
         """Add actions for the selected link."""
         logger.debug("LinksMenuBuilder._add_link_item_actions: link=%s", link)
         menu.addAction(
@@ -142,7 +141,7 @@ class LinksMenuBuilder:
         if getattr(self.main_window, "redo_action", None) is not None:
             menu.addAction(self.main_window.redo_action)
 
-    def _add_share_submenu(self, menu: QMenu, link: Dict) -> None:
+    def _add_share_submenu(self, menu: QMenu, link: dict) -> None:
         """Add "Share" submenu for a single link."""
         try:
             # Guard against non-web links
@@ -240,7 +239,7 @@ class LinksMenuBuilder:
         except Exception as e:
             logger.warning("Failed to build Share submenu: %s", e, exc_info=True)
 
-    def _is_web_link(self, link: Dict) -> bool:
+    def _is_web_link(self, link: dict) -> bool:
         """Check if link is a web link (http/https)."""
         if not isinstance(link, dict):
             return False

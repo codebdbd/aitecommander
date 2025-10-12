@@ -13,7 +13,7 @@ class LinkType(Enum):
     CHROMEAPP = "chromeapp"
 
     @classmethod
-    def from_value(cls, value: Any) -> "LinkType":
+    def from_value(cls, value: Any) -> LinkType:
         """Normalizes input value to LinkType.
 
         Accepts Enum, string or arbitrary scalar. Unknown values

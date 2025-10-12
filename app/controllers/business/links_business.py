@@ -3,12 +3,10 @@
 import logging
 from collections import defaultdict
 from functools import wraps
-from typing import Any, Callable, Optional, List, Dict, Tuple
+from typing import Any, Callable, Optional
 
 import cachetools
 from PyQt6.QtCore import QMutex, QMutexLocker, QObject, pyqtSignal, pyqtSlot
-
-from app.utils.metrics import measure_time
 
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.models.db import Database
@@ -16,6 +14,7 @@ from app.services.links_service import LinksService
 from app.utils.db.api import run_db
 from app.utils.db.db_error_handler import handle_db_error
 from app.utils.db.synchronization import tasks_lock
+from app.utils.metrics import measure_time
 from app.utils.validators.link_validators import validate_link_form_data
 
 
@@ -23,7 +22,7 @@ def validate_link_form(func: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator that validates link data before processing."""
 
     @wraps(func)
-    def wrapper(self: "LinksBusinessLogic", link_data: Dict[str, Any], *args: Any, **kwargs: Any) -> Any:
+    def wrapper(self: "LinksBusinessLogic", link_data: dict[str, Any], *args: Any, **kwargs: Any) -> Any:
         if not isinstance(link_data, dict):
             raise ValueError(self.tr("Invalid link data provided: not a dict"))
 
@@ -180,7 +179,7 @@ class LinksBusinessLogic(QObject):
         )
 
     @handle_errors
-    def get_links(self, category_id: int) -> List[Dict[str, Any]]:
+    def get_links(self, category_id: int) -> list[dict[str, Any]]:
         """Return links for a category synchronously (used by import/export flows)."""
         if not isinstance(category_id, int) or category_id <= 0:
             self.logger.warning("Invalid category_id: %s", category_id)
@@ -220,7 +219,7 @@ class LinksBusinessLogic(QObject):
             on_finished=self._on_search_finished,
         )
 
-    def update_link_order(self, link_ids: List[int]) -> None:
+    def update_link_order(self, link_ids: list[int]) -> None:
         """Update the order of links."""
         if not link_ids:
             return
@@ -233,7 +232,7 @@ class LinksBusinessLogic(QObject):
             on_finished=self._on_reorder_finished,
         )
 
-    def count_favorites(self, link: Optional[Dict[str, Any]] = None) -> None:
+    def count_favorites(self, link: Optional[dict[str, Any]] = None) -> None:
         """Count favorite links."""
 
         def _count():
@@ -262,7 +261,7 @@ class LinksBusinessLogic(QObject):
     @validate_link_form
     @handle_errors
     @measure_time("create_link", log_threshold_ms=200)
-    def create_link(self, link_data: Dict[str, Any]) -> int:
+    def create_link(self, link_data: dict[str, Any]) -> int:
         """Create a new link.
         
         ✅ Метрика производительности: измеряется время выполнения.
@@ -285,7 +284,7 @@ class LinksBusinessLogic(QObject):
 
     @validate_link_form
     @handle_errors
-    def save_link(self, link_data: Dict[str, Any]) -> int:
+    def save_link(self, link_data: dict[str, Any]) -> int:
         """Backward-compatible synchronous save.
 
         Delegates to ``create_link`` to persist data and emit ``link_updated``.
@@ -294,7 +293,7 @@ class LinksBusinessLogic(QObject):
         return self.create_link(link_data)
 
     @validate_link_form
-    def save_link_async(self, link_data: Dict[str, Any]) -> None:
+    def save_link_async(self, link_data: dict[str, Any]) -> None:
         """Save a link asynchronously."""
         self._run_db_task(
             lambda: self.links.create_or_update_link(link_data),
@@ -302,7 +301,7 @@ class LinksBusinessLogic(QObject):
             on_finished=lambda result: self._on_link_saved(link_data, result),
         )
 
-    def _on_link_saved(self, link_data: Dict[str, Any], result: int) -> None:
+    def _on_link_saved(self, link_data: dict[str, Any], result: int) -> None:
         if result and not link_data.get("id"):
             link_data["id"] = result
         self._invalidate_cache()
@@ -321,7 +320,7 @@ class LinksBusinessLogic(QObject):
             task_id=link_id,
         )
 
-    def toggle_favorite(self, link: Dict[str, Any]) -> None:
+    def toggle_favorite(self, link: dict[str, Any]) -> None:
         """Toggle favorite status for a link."""
         if (
             not isinstance(link, dict)
@@ -333,7 +332,7 @@ class LinksBusinessLogic(QObject):
         link_id = link.get("id")
 
         # Atomic update: read and modify within a single transaction
-        def _toggle() -> Tuple[int, Dict[str, Any]]:
+        def _toggle() -> tuple[int, dict[str, Any]]:
             # Use QMutexLocker for RAII-style lock management
             locker = QMutexLocker(self._mutex)
             try:
@@ -359,7 +358,7 @@ class LinksBusinessLogic(QObject):
             task_id=link_id,
         )
 
-    def _on_favorite_toggled(self, result: int, link_data: Dict[str, Any]) -> None:
+    def _on_favorite_toggled(self, result: int, link_data: dict[str, Any]) -> None:
         self.logger.info(
             "Favorite status updated successfully, result ID: %s", result
         )
@@ -442,7 +441,7 @@ class LinksBusinessLogic(QObject):
             on_finished=lambda pos: self._cache_links_and_emit(cache_key, pos, lambda p: self.next_position_loaded.emit(p, category_id)),
         )
 
-    def batch_update_links_async(self, links_data: List[Dict[str, Any]]) -> None:
+    def batch_update_links_async(self, links_data: list[dict[str, Any]]) -> None:
         """Execute a batch link update asynchronously."""
         if not links_data:
             self.logger.warning("Empty links_data for batch_update_links_async")
@@ -463,7 +462,7 @@ class LinksBusinessLogic(QObject):
 
     @handle_errors
     def create_links_for_import_bulk(
-        self, links_payload: List[Dict[str, Any]]
+        self, links_payload: list[dict[str, Any]]
     ) -> int:
         """Bulk create/update links during import without per-link cache churn."""
         if not isinstance(links_payload, list) or not links_payload:
@@ -479,7 +478,7 @@ class LinksBusinessLogic(QObject):
         if not category_ids:
             return 0
 
-        existing_pairs: Dict[int, set[tuple[str, str]]] = defaultdict(set)
+        existing_pairs: dict[int, set[tuple[str, str]]] = defaultdict(set)
         try:
             existing_links = self.links.get_links_for_categories(list(category_ids))
         except Exception as exc:  # pragma: no cover - defensive logging
@@ -497,8 +496,8 @@ class LinksBusinessLogic(QObject):
                 if name and url:
                     bucket.add((name, url))
 
-        batch_pairs: Dict[int, set[tuple[str, str]]] = defaultdict(set)
-        prepared: List[Dict[str, Any]] = []
+        batch_pairs: dict[int, set[tuple[str, str]]] = defaultdict(set)
+        prepared: list[dict[str, Any]] = []
 
         for raw_link in links_payload:
             if not isinstance(raw_link, dict):
@@ -525,7 +524,7 @@ class LinksBusinessLogic(QObject):
                 continue
             batch_pairs[category_id].add(normalized_pair)
 
-            prepared_link: Dict[str, Any] = {
+            prepared_link: dict[str, Any] = {
                 "category_id": category_id,
                 "name": name,
                 "url": url,
@@ -549,7 +548,7 @@ class LinksBusinessLogic(QObject):
 
     @validate_link_form
     @handle_errors
-    def create_link_for_import(self, link_data: Dict[str, Any]) -> Optional[int]:
+    def create_link_for_import(self, link_data: dict[str, Any]) -> Optional[int]:
         """Create a new link during background data import.
 
         Args:
@@ -578,7 +577,7 @@ class LinksBusinessLogic(QObject):
             return False
         return True
 
-    def _get_all_links_safe(self) -> List[Dict[str, Any]]:
+    def _get_all_links_safe(self) -> list[dict[str, Any]]:
         """Return all links for internal usage with caching."""
         cache_key = "all_links_safe"
         if cache_key in self._cache:
@@ -668,7 +667,7 @@ class LinksBusinessLogic(QObject):
     # Slots for handling asynchronous results
 
     @pyqtSlot(object, int, int)
-    def _on_links_loaded(self, links: List[Dict[str, Any]], category_id: int, task_id: int) -> None:
+    def _on_links_loaded(self, links: list[dict[str, Any]], category_id: int, task_id: int) -> None:
         """Handle completion of link loading."""
         # Avoid emitting signals while holding the lock to prevent potential deadlocks
         should_emit = False
@@ -680,13 +679,13 @@ class LinksBusinessLogic(QObject):
             self.links_loaded.emit(links or [], category_id, task_id)
 
     @pyqtSlot(object)
-    def _on_search_finished(self, search_results: List[Dict[str, Any]]) -> None:
+    def _on_search_finished(self, search_results: list[dict[str, Any]]) -> None:
         """Handle completion of a search operation."""
         self.search_results_ready.emit(search_results or [])
 
     @pyqtSlot(int, object, object)
     def _on_favorites_counted(
-        self, fav_count: int, links: List[Dict[str, Any]], link: Optional[Dict[str, Any]]
+        self, fav_count: int, links: list[dict[str, Any]], link: Optional[dict[str, Any]]
     ) -> None:
         """Handle completion of counting favorites."""
         self.favorites_counted.emit(fav_count, links or [], link)

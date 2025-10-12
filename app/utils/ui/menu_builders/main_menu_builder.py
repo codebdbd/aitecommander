@@ -3,11 +3,11 @@
 import logging
 from typing import TYPE_CHECKING
 
-from PyQt6.QtWidgets import QMenuBar
 from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtWidgets import QMenuBar
 
 from app.utils.ui.icon.icon_operations.cache_proxy import icon_cache
-from app.utils.ui.menu_builders.menu_actions import ActionBuilder, Shortcuts, MenuTexts
+from app.utils.ui.menu_builders.menu_actions import ActionBuilder, MenuTexts, Shortcuts
 
 if TYPE_CHECKING:
     from app.main_window import MainWindow

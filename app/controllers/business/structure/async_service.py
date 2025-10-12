@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QObject, QTimer
 
@@ -57,7 +57,7 @@ class StructureAsyncService(QObject):
         except Exception as exc:  # pragma: no cover - defensive
             self._logger.debug("AsyncOperations.shutdown raised: %s", exc, exc_info=True)
 
-    def set_top_panels_controller(self, controller: 'TopPanelsController') -> None:
+    def set_top_panels_controller(self, controller: TopPanelsController) -> None:
         """Inject top panels controller into async components."""
         try:
             self.async_operations.top_panels = controller
@@ -86,7 +86,7 @@ class StructureAsyncService(QObject):
     def load_spheres_async(self) -> None:
         self.async_operations.load_spheres_async()
 
-    def schedule_structure_reload(self, delay_ms: Optional[int] = None) -> None:
+    def schedule_structure_reload(self, delay_ms: int | None = None) -> None:
         """Schedule structure reload with debounce."""
         try:
             from app.config_data import app_config

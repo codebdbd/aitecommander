@@ -1,10 +1,11 @@
 import logging
-from typing import Dict, List, Optional
+from typing import Optional
 
 from PyQt6.QtCore import Qt
 
-from .base_component import BaseLinksUIComponent
 from app.utils.common import safe_call
+
+from .base_component import BaseLinksUIComponent
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +204,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
 
         # Key handling now centralized in KeyboardManager
 
-    def _update_table(self, links: List[Dict], category_id: int, task_id: int):
+    def _update_table(self, links: list[dict], category_id: int, task_id: int):
         """Update links table with new data."""
         # Desync protection: accept only links for current category
         current_category_id = self._category_provider.get_current_category_id()
@@ -237,7 +238,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
         # Don't emit links_changed here to avoid triggering repeated reloads
         # Load notifications handled in LinksTableController.on_links_loaded
 
-    def _update_search_results(self, search_results: List[Dict]):
+    def _update_search_results(self, search_results: list[dict]):
         """Update search results."""
         try:
             self.links_table_controller.on_search_results(search_results)
@@ -249,7 +250,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
             raise
 
     def _complete_toggle_fav(
-        self, fav_count: int, links: List[Dict], link: Optional[Dict]
+        self, fav_count: int, links: list[dict], link: Optional[dict]
     ):
         """Complete favorite toggle."""
         # Centralize signal emission in LinkOperationsController
@@ -271,7 +272,7 @@ class LinksUIHandlers(BaseLinksUIComponent):
         logger.error("LinksUIController error: %s", error_msg)
         self._show_error(f"An error occurred: {error_msg}")
 
-    def _on_link_updated(self, updated_link: Dict):
+    def _on_link_updated(self, updated_link: dict):
         """Handle link update."""
         # Diagnostic logging instead of unused local variables
         try:

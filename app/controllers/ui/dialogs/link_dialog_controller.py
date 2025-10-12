@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 from app.controllers.business.links_business import LinksBusinessLogic
 from app.models.db import Database
@@ -26,11 +26,11 @@ class LinkDialogController:
         self.database = database
         self.structure_business = structure_business
         self.links_business = LinksBusinessLogic(database)
-        self.result_data: List[Dict[str, Any]] = []
+        self.result_data: list[dict[str, Any]] = []
         # Unified profile manager via factory - exclude repeated profile scans
         self.profile_manager = get_profile_manager()
 
-    def _get_spheres_cached(self) -> List[Dict[str, Any]]:
+    def _get_spheres_cached(self) -> list[dict[str, Any]]:
         if self.structure_business is not None:
             try:
                 spheres = self.structure_business.get_cached_spheres()
@@ -40,7 +40,7 @@ class LinkDialogController:
                 logger.debug("Failed to read cached spheres: %s", exc, exc_info=True)
         return self.database.spheres.get_spheres() or []
 
-    def _get_sections_cached(self, sphere_id: int) -> List[Dict[str, Any]]:
+    def _get_sections_cached(self, sphere_id: int) -> list[dict[str, Any]]:
         if self.structure_business is not None:
             try:
                 sections = self.structure_business.get_cached_sections(sphere_id)
@@ -50,7 +50,7 @@ class LinkDialogController:
                 logger.debug("Failed to read cached sections for %s: %s", sphere_id, exc, exc_info=True)
         return self.database.sections.get_sections(sphere_id) or []
 
-    def _get_categories_cached(self, section_id: int) -> List[Dict[str, Any]]:
+    def _get_categories_cached(self, section_id: int) -> list[dict[str, Any]]:
         if self.structure_business is not None:
             try:
                 categories = self.structure_business.get_cached_categories(section_id)
@@ -66,8 +66,8 @@ class LinkDialogController:
         return self.database.categories.get_categories(section_id) or []
 
     def get_initialization_data(
-        self, category_id: Optional[int] = None, link: Optional[Dict] = None
-    ) -> Dict[str, Any]:
+        self, category_id: Optional[int] = None, link: Optional[dict] = None
+    ) -> dict[str, Any]:
         """Gets data for dialog initialization."""
         # Get spheres
         spheres = self._get_spheres_cached()
@@ -112,26 +112,26 @@ class LinkDialogController:
             "form_data": link,
         }
 
-    def _get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, int]]:
+    def _get_category_hierarchy(self, category_id: int) -> Optional[dict[str, int]]:
         """Gets hierarchy for category (sphere -> section -> category)."""
         return self.database.categories.get_category_hierarchy(category_id)
 
-    def _get_chrome_profiles(self) -> List[Dict[str, Any]]:
+    def _get_chrome_profiles(self) -> list[dict[str, Any]]:
         """Gets list of Chrome profiles."""
         try:
             return self.profile_manager.get_browser_profiles("chrome")
         except Exception:
             return []
 
-    def get_sections_for_sphere(self, sphere_id: int) -> List[Dict[str, Any]]:
+    def get_sections_for_sphere(self, sphere_id: int) -> list[dict[str, Any]]:
         """Gets sections for sphere."""
         return self._get_sections_cached(sphere_id)
 
-    def get_categories_for_section(self, section_id: int) -> List[Dict[str, Any]]:
+    def get_categories_for_section(self, section_id: int) -> list[dict[str, Any]]:
         """Gets categories for section."""
         return self._get_categories_cached(section_id)
 
-    def validate_and_save(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_and_save(self, form_data: dict[str, Any]) -> dict[str, Any]:
         """Validates form data and prepares for saving."""
         # Basic validation
         validation_result = self._validate_form_data(form_data)
@@ -143,7 +143,7 @@ class LinkDialogController:
 
         return {"is_valid": True, "errors": []}
 
-    def _validate_form_data(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_form_data(self, form_data: dict[str, Any]) -> dict[str, Any]:
         """Validates form data."""
         errors = []
 
@@ -169,7 +169,7 @@ class LinkDialogController:
 
         return {"is_valid": len(errors) == 0, "errors": errors}
 
-    def _prepare_links_data(self, form_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _prepare_links_data(self, form_data: dict[str, Any]) -> list[dict[str, Any]]:
         """Prepares link data for saving."""
         links_data = []
 
@@ -197,7 +197,7 @@ class LinkDialogController:
 
         return links_data
 
-    def _prepare_profile_links(self, form_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _prepare_profile_links(self, form_data: dict[str, Any]) -> list[dict[str, Any]]:
         """Prepares links with profiles of any browsers."""
         from app.utils.browser.browser_profiles import (
             UniversalProfileProcessor,
@@ -334,9 +334,9 @@ class LinkDialogController:
 
     def _get_user_args_if_modified(
         self,
-        form_data: Dict[str, Any],
-        existing_link: Dict,
-        selected_profiles: List[Dict],
+        form_data: dict[str, Any],
+        existing_link: dict,
+        selected_profiles: list[dict],
         browser_key: str,
     ) -> Optional[str]:
         """
@@ -382,7 +382,7 @@ class LinkDialogController:
             # In case of error return user arguments if they exist
             return current_args if current_args else None
 
-    def _prepare_regular_link(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _prepare_regular_link(self, form_data: dict[str, Any]) -> dict[str, Any]:
         """Prepares regular link."""
         from app.utils.links.link_factory import make_link_record
 
@@ -400,7 +400,7 @@ class LinkDialogController:
             link_id=form_data.get("link_id"),
         )
 
-    def get_result_data(self) -> List[Dict[str, Any]]:
+    def get_result_data(self) -> list[dict[str, Any]]:
         """Returns resulting data after saving."""
         logger.debug(
             "get_result_data: returning %s links",

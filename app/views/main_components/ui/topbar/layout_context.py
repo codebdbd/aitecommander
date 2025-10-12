@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable, Optional
 
 from PyQt6.QtWidgets import QLayout, QLineEdit, QWidget
 
@@ -17,7 +17,7 @@ class LayoutContext:
     effective_width: int
     min_search_width: int
     top_bar: QLayout
-    search: Optional[QLineEdit]
+    search: QLineEdit | None
     panel_states: tuple[PanelState, ...]
 
     @property

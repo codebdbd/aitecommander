@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
-
 import weakref
+from typing import Any, Callable
 
 from app.utils.db.synchronization import (  # noqa: F401
     signal_guard as _decorator_signal_guard,
@@ -17,7 +16,7 @@ class _SignalBlocker:
     def __init__(self, target: Any):
         self._target = target
         self._supports_blocking = hasattr(target, "blockSignals")
-        self._previous_state: Optional[bool] = None
+        self._previous_state: bool | None = None
 
     def __enter__(self):
         if self._supports_blocking:
@@ -38,7 +37,7 @@ class _SignalBlocker:
         return False
 
 
-def signal_guard(obj_or_func: Any = None, *, slot_name: Optional[str] = None):
+def signal_guard(obj_or_func: Any = None, *, slot_name: str | None = None):
     """Supports two usage patterns:
 
     1. As a context manager: ``with signal_guard(widget): ...``

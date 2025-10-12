@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List
 
 from .layout_context import LayoutContext
 from .panel_state import PanelState
@@ -31,7 +30,7 @@ class VisibilitySolver:
         self._width_calculator = width_calculator
         self._use_binary_search = use_binary_search
 
-    def compute_visible_counts(self, ctx: LayoutContext) -> Dict[str, int]:
+    def compute_visible_counts(self, ctx: LayoutContext) -> dict[str, int]:
         """Compute the optimal visible-button counts.
 
         Strategy selection depends on the ``use_binary_search`` flag.
@@ -40,7 +39,7 @@ class VisibilitySolver:
             return self._compute_with_binary_search(ctx)
         return self._compute_greedy(ctx)
     
-    def _compute_greedy(self, ctx: LayoutContext) -> Dict[str, int]:
+    def _compute_greedy(self, ctx: LayoutContext) -> dict[str, int]:
         """Derive visible counts for each panel via the greedy strategy.
 
         Fix: document the algorithm thoroughly.
@@ -77,10 +76,10 @@ class VisibilitySolver:
             # 'recent' has the highest priority, 'quick' the lowest
         """
         panel_states = list(ctx.panel_states)
-        counts: Dict[str, int] = {
+        counts: dict[str, int] = {
             state.definition.label: state.max_visible for state in panel_states
         }
-        minimums: Dict[str, int] = {
+        minimums: dict[str, int] = {
             state.definition.label: state.min_visible for state in panel_states
         }
         
@@ -122,7 +121,7 @@ class VisibilitySolver:
 
         return counts
     
-    def _compute_with_binary_search(self, ctx: LayoutContext) -> Dict[str, int]:
+    def _compute_with_binary_search(self, ctx: LayoutContext) -> dict[str, int]:
         """Compute visible counts using binary search.
 
         Improvement note: optimized to ``O(log(total) * n)`` over ``O(n * m)``.
@@ -141,10 +140,10 @@ class VisibilitySolver:
         panel_states = list(ctx.panel_states)
         
         # Prepare data for the binary search
-        minimums: Dict[str, int] = {
+        minimums: dict[str, int] = {
             state.definition.label: state.min_visible for state in panel_states
         }
-        maximums: Dict[str, int] = {
+        maximums: dict[str, int] = {
             state.definition.label: state.max_visible for state in panel_states
         }
         # Calculate the search range
@@ -184,11 +183,11 @@ class VisibilitySolver:
     
     def _distribute_buttons(
         self,
-        panel_states: List[PanelState],
+        panel_states: list[PanelState],
         total: int,
-        minimums: Dict[str, int],
-        maximums: Dict[str, int],
-    ) -> Dict[str, int]:
+        minimums: dict[str, int],
+        maximums: dict[str, int],
+    ) -> dict[str, int]:
         """Distribute the requested button count across panels.
 
         Improvement note: helper method for the binary search honoring panel
@@ -203,7 +202,7 @@ class VisibilitySolver:
         Returns:
             Dictionary with the final distribution.
         """
-        counts: Dict[str, int] = {}
+        counts: dict[str, int] = {}
         remaining = total
         
         # Allocate minimum counts first

@@ -3,12 +3,12 @@
 """Public API for validation system."""
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from ..models.types import StructureItemType
 from .validation_result import ValidationResult
-from .validation_types import DetailedValidationResult, ValidationError
 from .validation_rules import StructureDataValidator
+from .validation_types import DetailedValidationResult, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 _validator = StructureDataValidator()
 
 
-def validate_create_data(data: Dict[str, Any], item_type: StructureItemType) -> DetailedValidationResult:
+def validate_create_data(data: dict[str, Any], item_type: StructureItemType) -> DetailedValidationResult:
     """Validate data for creating structure element."""
     if item_type == StructureItemType.SPHERE:
         return _validator.validate_sphere_create_data(data)
@@ -29,12 +29,12 @@ def validate_create_data(data: Dict[str, Any], item_type: StructureItemType) -> 
         raise ValueError(f"Unsupported item type: {item_type}")
 
 
-def validate_update_data(data: Dict[str, Any], item_type: StructureItemType) -> DetailedValidationResult:
+def validate_update_data(data: dict[str, Any], item_type: StructureItemType) -> DetailedValidationResult:
     """Validate data for updating structure element."""
     return _validator.validate_update_data(data, item_type)
 
 
-def validate_and_raise(data: Dict[str, Any], item_type: StructureItemType, is_update: bool = False) -> None:
+def validate_and_raise(data: dict[str, Any], item_type: StructureItemType, is_update: bool = False) -> None:
     """Validate data and raise exception on errors."""
     if is_update:
         result = validate_update_data(data, item_type)
@@ -57,7 +57,7 @@ def validate_and_raise(data: Dict[str, Any], item_type: StructureItemType, is_up
         )
 
 
-def safe_validate(data: Dict[str, Any], item_type: StructureItemType, is_update: bool = False) -> ValidationResult:
+def safe_validate(data: dict[str, Any], item_type: StructureItemType, is_update: bool = False) -> ValidationResult:
     """Safe validation, returning result without exceptions."""
     try:
         if is_update:

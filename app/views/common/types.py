@@ -4,7 +4,7 @@ Centralized TypedDict definitions to improve type safety across models, dialogs,
 and controllers.
 """
 
-from typing import Any, Literal, TypedDict, NotRequired
+from typing import Any, Literal, NotRequired, TypedDict
 
 # ================================================================================
 # BASIC TYPES

@@ -8,7 +8,7 @@ Controller interfaces (for type checking):
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol, Tuple, runtime_checkable
+from typing import Any, Optional, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QCoreApplication, Qt, QTimer
 from PyQt6.QtGui import QColor
@@ -25,13 +25,13 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config_data import app_config
-from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
+from app.models.types.link_type import LinkType
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 from app.utils.ui.icon.path_service import icon_path_service
 from app.utils.ui.icon.ui_helpers import set_icon_to_button
 from app.utils.ui.icon.validation import validate_config_for_icons
 from app.views.common.effects.neon_effect import NeonEventFilter
-from app.models.types.link_type import LinkType
+
 from ..base_dialog import BaseDialog
 from .link_dialog_handlers import LinkDialogHandlers
 from .link_dialog_ui import LinkDialogUI
@@ -53,7 +53,7 @@ class LinkDataControllerProtocol(Protocol):
     the key `is_valid` and an optional list `errors`.
     """
 
-    def validate_and_save(self, form_data: Dict[str, Any]) -> Dict[str, Any]: ...
+    def validate_and_save(self, form_data: dict[str, Any]) -> dict[str, Any]: ...
 
 
 @runtime_checkable
@@ -64,9 +64,9 @@ class DialogControllerProtocol(LinkDataControllerProtocol, Protocol):
     Items must be dictionaries with at least `id` and `name`, optionally `icon_path`.
     """
 
-    def get_sections_for_sphere(self, sphere_id: int) -> List[Dict[str, Any]]: ...
+    def get_sections_for_sphere(self, sphere_id: int) -> list[dict[str, Any]]: ...
 
-    def get_categories_for_section(self, section_id: int) -> List[Dict[str, Any]]: ...
+    def get_categories_for_section(self, section_id: int) -> list[dict[str, Any]]: ...
 
 
 class LinkDialog(BaseDialog):
@@ -137,9 +137,9 @@ class LinkDialog(BaseDialog):
 
     def __init__(
         self,
-        initialization_data: Dict,
+        initialization_data: dict,
         dialog_controller: DialogControllerProtocol,
-        link: Optional[Dict] = None,
+        link: Optional[dict] = None,
         category_id: Optional[int] = None,
         parent: Optional[QWidget] = None,
         link_controller: Optional[LinkDataControllerProtocol] = None,
@@ -175,9 +175,9 @@ class LinkDialog(BaseDialog):
 
     def _init_core_properties(
         self,
-        initialization_data: Dict,
+        initialization_data: dict,
         dialog_controller,
-        link: Optional[Dict],
+        link: Optional[dict],
         category_id: Optional[int],
     ) -> None:
         """Initialise the dialog core properties."""
@@ -187,7 +187,7 @@ class LinkDialog(BaseDialog):
         self.initial_category = category_id
         self.link_type = self.link.get("type", "web")
         self.icon_name = self.link.get("icon_path", "")
-        self.selected_profiles: List[Dict] = []
+        self.selected_profiles: list[dict] = []
 
     def _init_components(self) -> None:
         """Initialise UI and handlers."""
@@ -243,7 +243,7 @@ class LinkDialog(BaseDialog):
             for cb in (self._get_sphere_cb(), self._get_section_cb(), self._get_category_cb()):
                 if cb and not getattr(cb, "_focus_guard_installed", False):
                     cb.installEventFilter(self)
-                    setattr(cb, "_focus_guard_installed", True)
+                    cb._focus_guard_installed = True
         except Exception:
             pass
 
@@ -373,7 +373,7 @@ class LinkDialog(BaseDialog):
 
     def _resolve_and_apply_icon(
         self, link_type: str, icon_name: str
-    ) -> Tuple[Optional[str], bool]:
+    ) -> tuple[Optional[str], bool]:
         """Resolve and apply an icon to the button if the file exists.
 
         Returns `(resolved_path, exists)` where `resolved_path` is a string path or
@@ -493,7 +493,7 @@ class LinkDialog(BaseDialog):
         """Return the user icons directory."""
         return icon_path_service.get_user_icons_dir()
 
-    def _format_profile_text(self, profiles: List[Dict]) -> str:
+    def _format_profile_text(self, profiles: list[dict]) -> str:
         """Format display text for selected profiles."""
         emails = [p.get("email") or p.get("name") for p in profiles]
         if not emails:

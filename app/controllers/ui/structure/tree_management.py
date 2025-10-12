@@ -5,12 +5,12 @@ from typing import Any, Optional
 
 from PyQt6.QtCore import QModelIndex, QObject, Qt, pyqtSlot
 
-from app.utils.ui.qt.roles import get_tree_tuple
-
 from app.controllers.ui.types import (
     CategoryTilesControllerProtocol,
     StructureTreeModelProtocol,
 )
+from app.utils.ui.qt.roles import get_tree_tuple
+
 from .tree_snapshot_service import TreeSnapshotService
 from .tree_state_service import TreeStateService
 from .tree_tiles_service import TreeTilesService
@@ -39,7 +39,7 @@ class TreeManagement(QObject):
 
         # Explicit reference to tree model and contract check
         try:
-            model_getter = getattr(self.tree, "model")
+            model_getter = self.tree.model
             raw_model = model_getter() if callable(model_getter) else None
         except AttributeError:
             raw_model = None
@@ -104,7 +104,7 @@ class TreeManagement(QObject):
                     self.controller, "structure_business", None
                 )
                 if sb and getattr(sb, "_suppress_category_restore_once", False):
-                    setattr(sb, "_suppress_category_restore_once", False)
+                    sb._suppress_category_restore_once = False
             except Exception:
                 logger.debug(
                     "TreeManagement._on_structure_loaded: failed to reset suppression flag",
@@ -113,7 +113,7 @@ class TreeManagement(QObject):
 
             main = getattr(self.controller, "main", None)
             if main is not None and getattr(main, "_first_structure_load", False):
-                setattr(main, "_first_structure_load", False)
+                main._first_structure_load = False
                 self.tree.updateGeometry()
                 self.tree.update()
 
@@ -291,7 +291,7 @@ class TreeManagement(QObject):
                         sb = None
                     if sb and getattr(sb, "_suppress_category_restore_once", False):
                         try:
-                            setattr(sb, "_suppress_category_restore_once", False)
+                            sb._suppress_category_restore_once = False
                         except Exception:
                             pass
                         self._state.select_first_item()
@@ -310,14 +310,14 @@ class TreeManagement(QObject):
                 self.controller, "structure_business", None
             )
             if sb and getattr(sb, "_suppress_category_restore_once", False):
-                setattr(sb, "_suppress_category_restore_once", False)
+                sb._suppress_category_restore_once = False
         except Exception:
             pass
 
         # After first structure load update main window display
         main = getattr(self.controller, "main", None)
         if main is not None and getattr(main, "_first_structure_load", False):
-            setattr(main, "_first_structure_load", False)
+            main._first_structure_load = False
             self.tree.updateGeometry()
             self.tree.update()
 

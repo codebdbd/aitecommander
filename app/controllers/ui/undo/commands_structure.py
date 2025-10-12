@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional
 
 from app.controllers.ui.undo.base import BaseCommand, log_command
 from app.services.structure_service import StructureService
@@ -16,7 +15,7 @@ class SaveSectionCmd(BaseCommand):
     Thin wrapper over DB with business-layer signal emission for UI.
     """
 
-    def __init__(self, new_data: Dict, old_data: Optional[Dict], main_window):
+    def __init__(self, new_data: dict, old_data: dict | None, main_window):
         super().__init__("Save section", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
@@ -120,7 +119,7 @@ class SaveSectionCmd(BaseCommand):
 class DeleteSectionCmd(BaseCommand):
     """Delete section with full restore support (section+categories+links)."""
 
-    def __init__(self, section_data: Dict, main_window):
+    def __init__(self, section_data: dict, main_window):
         super().__init__("Delete section", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
@@ -208,8 +207,8 @@ class SaveCategoryCmd(BaseCommand):
 
     def __init__(
         self,
-        new_data: Dict,
-        old_data: Optional[Dict],
+        new_data: dict,
+        old_data: dict | None,
         main_window,
         *,
         skip_reload: bool = False,
@@ -339,7 +338,7 @@ class DeleteCategoryCmd(BaseCommand):
 
     def __init__(
         self,
-        category_data: Dict,
+        category_data: dict,
         main_window,
         *,
         skip_reload: bool = False,
@@ -499,7 +498,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
     - Supports undo by restoring saved subtree backups
     """
 
-    def __init__(self, categories_data: list[Dict], main_window):
+    def __init__(self, categories_data: list[dict], main_window):
         super().__init__("Delete categories (batch)", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)

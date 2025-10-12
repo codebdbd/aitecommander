@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from PyQt6.QtWidgets import QComboBox
 
 from app.views.common.retranslatable import ReTranslatable
-from i18n.language_service import LanguageDescriptor, LanguageService
+from i18n.language_service import LanguageService
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +44,7 @@ class LanguageSelector(QComboBox, ReTranslatable):
 
     def _on_index_changed(self, index: int) -> None:
         logger.debug("LanguageSelector._on_index_changed: index=%d", index)
-        code: Optional[str] = self.itemData(index)
+        code: str | None = self.itemData(index)
         logger.debug("LanguageSelector: selected code=%s", code)
         service = self._ensure_service()
         if not code:

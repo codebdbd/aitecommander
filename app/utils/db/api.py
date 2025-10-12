@@ -34,7 +34,7 @@ Examples::
 from __future__ import annotations
 
 import inspect
-from typing import Callable, Optional, Protocol, TypeVar
+from typing import Callable, Protocol, TypeVar
 
 from PyQt6.QtCore import QThreadPool
 
@@ -65,11 +65,11 @@ def run_db(
     func: Callable[[], T],
     *,
     use_lock: bool = True,
-    description: Optional[str] = None,
-    pool: Optional[QThreadPool] = None,
-    on_finished: Optional[Callable[[T], None]] = None,
-    on_error: Optional[Callable[[Exception], None]] = None,
-    on_progress: Optional[Callable[[int], None]] = None,
+    description: str | None = None,
+    pool: QThreadPool | None = None,
+    on_finished: Callable[[T], None] | None = None,
+    on_error: Callable[[Exception], None] | None = None,
+    on_progress: Callable[[int], None] | None = None,
 ) -> TaskHandle:
     """Run a database callable inside the thread pool.
 

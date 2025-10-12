@@ -2,7 +2,7 @@
 # Provides cache utilities, validation, and comparison helpers
 
 import logging
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 from PyQt6.QtCore import Qt
 
@@ -11,16 +11,16 @@ class DataManagementMixin:
     """Mixin responsible for managing data and cache of the links table."""
 
     logger = logging.getLogger(__name__)
-    _current_links: Dict[int, Dict[str, Any]]  # expected to be populated by the table view
+    _current_links: dict[int, dict[str, Any]]  # expected to be populated by the table view
 
     # --- Helper properties ---
     @property
-    def _link_cache(self) -> Dict[int, Dict[str, Any]]:
+    def _link_cache(self) -> dict[int, dict[str, Any]]:
         """Return the internal links cache, creating it if missing."""
         cache = getattr(self, "_current_links", None)
         if cache is None:
             cache = {}
-            setattr(self, "_current_links", cache)
+            self._current_links = cache
         return cache
 
     def validate_cache_integrity(self) -> bool:
@@ -55,7 +55,7 @@ class DataManagementMixin:
             )
             return False
 
-    def _links_equal(self, link1: Dict, link2: Dict, mode: str) -> bool:
+    def _links_equal(self, link1: dict, link2: dict, mode: str) -> bool:
         """Compare two links for equality under the active mode."""
         # Optimization: early identity check
         if link1 is link2:
@@ -82,9 +82,9 @@ class DataManagementMixin:
         # Optimization: lean on ``all()`` for fast comparison
         return all(link1.get(field) == link2.get(field) for field in basic_fields)
 
-    def _get_current_link_ids(self) -> Set[int]:
+    def _get_current_link_ids(self) -> set[int]:
         """Return the set of current link IDs based on table items (not cache)."""
-        ids: Set[int] = set()
+        ids: set[int] = set()
         model = getattr(self, "model", lambda: None)()
         total = model.rowCount() if model is not None else 0
         for row in range(total):
@@ -95,9 +95,9 @@ class DataManagementMixin:
                     ids.add(link_id)
         return ids
 
-    def _get_new_link_ids(self, new_links: List[Dict[str, Any]]) -> Set[int]:
+    def _get_new_link_ids(self, new_links: list[dict[str, Any]]) -> set[int]:
         """Return the set of new link IDs."""
-        ids: Set[int] = set()
+        ids: set[int] = set()
         for link in new_links:
             if not link:
                 continue
@@ -122,9 +122,9 @@ class DataManagementMixin:
                 e,
             )
 
-    def _create_link_id_to_data_map(self, links: List[Dict[str, Any]]) -> Dict[int, Dict[str, Any]]:
+    def _create_link_id_to_data_map(self, links: list[dict[str, Any]]) -> dict[int, dict[str, Any]]:
         """Create a mapping ``ID -> link data``."""
-        mapping: Dict[int, Dict[str, Any]] = {}
+        mapping: dict[int, dict[str, Any]] = {}
         for link in links:
             if not link:
                 continue
@@ -133,7 +133,7 @@ class DataManagementMixin:
                 mapping[link_id] = link
         return mapping
 
-    def get_link_at(self, row: int) -> Optional[Dict[str, Any]]:
+    def get_link_at(self, row: int) -> Optional[dict[str, Any]]:
         """Return link data for the row via model ``UserRole``."""
         try:
             model = getattr(self, "model", lambda: None)()

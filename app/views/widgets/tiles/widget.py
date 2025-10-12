@@ -2,17 +2,16 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Dict
 
-from PyQt6.QtCore import QPoint, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QModelIndex, QObject, QPoint, Qt, pyqtSignal
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QAbstractItemView, QVBoxLayout, QWidget
 
 from app.config_data import app_config
 from app.views.models import CategoriesListModel
 
-from .list_view import CategoryListView
 from .delegate import CategoryTileDelegate
+from .list_view import CategoryListView
 
 logger = logging.getLogger("category_tiles")
 
@@ -172,7 +171,7 @@ class CategoryTiles(QWidget):
         except Exception:
             logger.exception("update_font_size: unexpected error during repaint/reset")
 
-    def set_categories(self, categories: List[Dict]) -> None:
+    def set_categories(self, categories: list[dict]) -> None:
         """Update categories list via the model."""
         logger.debug("Loading %d categories", len(categories))
         model = getattr(self, "_model", None)
@@ -308,3 +307,4 @@ class CategoryTiles(QWidget):
     def _execute_add_link(self, category_id: int) -> None:
         logger.debug("Emit addLinkRequested for ID %s", category_id)
         self.addLinkRequested.emit(category_id)
+

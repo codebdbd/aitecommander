@@ -2,7 +2,6 @@
 
 import logging
 from datetime import datetime
-from typing import Dict
 
 from PyQt6.QtWidgets import QDialog
 
@@ -11,7 +10,7 @@ from app.utils.links.link_utils import LinkInfo, LinkOpener
 from app.views.windows.dialogs.entity_dialogs import NoteDialog
 
 from .base_component import BaseLinksUIComponent
-from .exceptions import CategoryNotFoundError, DatabaseError, LinkValidationError
+from .exceptions import DatabaseError, LinkValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +57,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
                     )
                     self.main.undo_stack.push(cmd)
 
-    def show_note_dialog(self, link: Dict):
+    def show_note_dialog(self, link: dict):
         """Show note dialog for link."""
         if not link:
             return
@@ -80,7 +79,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
                 logger.error("Unexpected error saving note: %s", e)
                 self._show_error(f"{self.get_message('error_saving')}: {str(e)}")
 
-    def _open_link(self, link: Dict):
+    def _open_link(self, link: dict):
         """Open link using LinkOpener."""
         logger.debug("Opening link: type=%s, url=%s", link.get("type"), link.get("url"))
 
@@ -152,7 +151,7 @@ class LinksUILinkOperations(BaseLinksUIComponent):
             except Exception as e:
                 logger.debug("Failed to emit signals after opening link: %s", e)
 
-    def _toggle_fav(self, link: Dict = None):
+    def _toggle_fav(self, link: dict = None):
         """Toggle favorite status."""
         if not link:
             selected_links = self.controller.get_selected_links()

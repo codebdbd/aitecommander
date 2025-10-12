@@ -7,7 +7,11 @@ import os
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 
-from app.interfaces import TopPanelDataLike, FavoritesPanelWithClear, RecentsPanelWithLimit
+from app.interfaces import (
+    FavoritesPanelWithClear,
+    RecentsPanelWithLimit,
+    TopPanelDataLike,
+)
 
 from .types import (
     LinksBusinessProtocol,

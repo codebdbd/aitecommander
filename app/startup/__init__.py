@@ -1,8 +1,8 @@
 """Modules for application initialization and startup."""
 
 from .initializer import (
-    ApplicationInitializer,
     THREAD_POOL_SHUTDOWN_TIMEOUT_MS,
+    ApplicationInitializer,
     StartupMode,
     application_context,
     initialization_method,

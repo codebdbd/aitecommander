@@ -1,7 +1,7 @@
 from .links_service import LinksService
+from .protocols import DatabaseProtocol
 from .structure_service import StructureService
 from .uow import UnitOfWork
-from .protocols import DatabaseProtocol
 
 __all__ = [
     "UnitOfWork",

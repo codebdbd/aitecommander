@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
 from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
@@ -52,12 +52,12 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
         # FIX: Batched loading with QTimer leak protection
         self._batch_size = max(0, batch_size)
         self._populate_timer: Optional[QTimer] = None
-        self._pending_items: List[Dict[str, Any]] = []
-        self._create_button_func: Optional[Callable[[Dict[str, Any]], Optional[QToolButton]]] = None
+        self._pending_items: list[dict[str, Any]] = []
+        self._create_button_func: Optional[Callable[[dict[str, Any]], Optional[QToolButton]]] = None
 
         # Size policy is inherited from BasePanelWidget: (Minimum, Fixed) for horizontal compression
 
-    def set_data(self, items: List[Dict[str, Any]]) -> None:
+    def set_data(self, items: list[dict[str, Any]]) -> None:
         """Sets panel data - to be implemented by subclasses."""
         raise NotImplementedError("Subclasses must implement set_data")
 
@@ -81,14 +81,14 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
                 "BaseTopPanelWidget: topbar adjust failed", exc_info=True
             )
 
-    def _emit_action_safely(self, action_data: Dict[str, Any]) -> None:
+    def _emit_action_safely(self, action_data: dict[str, Any]) -> None:
         """Safely emits actionRequested signal with error handling."""
         try:
             self.actionRequested.emit(action_data)
         except Exception as exc:
             logger.error("BaseTopPanelWidget: failed to emit actionRequested: %s", exc)
 
-    def _emit_refresh_safely(self, refresh_data: Dict[str, Any]) -> None:
+    def _emit_refresh_safely(self, refresh_data: dict[str, Any]) -> None:
         """Safely emits refreshRequested signal with error handling."""
         try:
             self.refreshRequested.emit(refresh_data)
@@ -117,8 +117,8 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
 
     def _populate_panel(
         self,
-        items: List[Dict[str, Any]],
-        create_button_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
+        items: list[dict[str, Any]],
+        create_button_func: Callable[[dict[str, Any]], Optional[QToolButton]],
     ) -> None:
         """Clear the panel and populate it with link buttons.
 
@@ -134,8 +134,8 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
 
     def _populate_sync(
         self,
-        items: List[Dict[str, Any]],
-        create_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
+        items: list[dict[str, Any]],
+        create_func: Callable[[dict[str, Any]], Optional[QToolButton]],
     ) -> None:
         """Populate synchronously for small datasets."""
         self.setUpdatesEnabled(False)
@@ -170,8 +170,8 @@ class BaseTopPanelWidget(BasePanelWidget, LinkButtonMixin):
 
     def _populate_batched(
         self,
-        items: List[Dict[str, Any]],
-        create_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
+        items: list[dict[str, Any]],
+        create_func: Callable[[dict[str, Any]], Optional[QToolButton]],
     ) -> None:
         """Populate using batches to prevent UI freezes.
 

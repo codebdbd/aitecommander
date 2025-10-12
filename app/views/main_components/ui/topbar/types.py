@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Protocol, Optional
+from typing import Protocol
 
 from PyQt6.QtWidgets import QLineEdit, QWidget
 
@@ -34,16 +34,16 @@ class TopBarWindow(Protocol):
     search: QLineEdit
     """Main search widget in the top bar."""
     
-    fav_widget: Optional[QWidget]
+    fav_widget: QWidget | None
     """Favorites panel widget."""
     
-    recent_links_widget: Optional[QWidget]
+    recent_links_widget: QWidget | None
     """Recent links panel widget."""
     
-    quick_add_widget: Optional[QWidget]
+    quick_add_widget: QWidget | None
     """Quick add panel widget."""
     
-    top_bar_host: Optional[QWidget]
+    top_bar_host: QWidget | None
     """Container widget for the top bar."""
     
     def width(self) -> int:

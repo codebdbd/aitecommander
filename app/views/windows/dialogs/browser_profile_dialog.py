@@ -1,10 +1,9 @@
 import logging
-from typing import Dict, List, Optional
+from typing import Optional
 
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QDialog,
     QDialogButtonBox,
     QHBoxLayout,
     QLabel,
@@ -186,14 +185,14 @@ class BrowserProfileDialog(BaseDialog):
         self.status_label.setText("")
         self._render_profiles(browser_key, cached_profiles)
 
-    def _render_profiles(self, browser_key: str, profiles: List[Dict]) -> None:
+    def _render_profiles(self, browser_key: str, profiles: list[dict]) -> None:
         self._clear_profiles_layout()
 
         working_profiles = [dict(profile) for profile in profiles or []]
         query = (self.search_line.text() or "").strip().lower()
         if query:
 
-            def _match(p: Dict) -> bool:
+            def _match(p: dict) -> bool:
                 name = str(p.get("email") or p.get("name") or "").lower()
                 path = str(p.get("path") or "").lower()
                 return query in name or query in path
@@ -238,7 +237,7 @@ class BrowserProfileDialog(BaseDialog):
         self.profile_layout.addStretch()
         self._update_save_enabled()
 
-    def _on_async_profiles_ready(self, browser_key: str, profiles: List[Dict]) -> None:
+    def _on_async_profiles_ready(self, browser_key: str, profiles: list[dict]) -> None:
         current_key = self.browser_combo.currentData()
         if current_key != browser_key:
             return
@@ -278,7 +277,7 @@ class BrowserProfileDialog(BaseDialog):
         try:
             async_mgr = _apm.get_async_profile_manager()
 
-            def _on_ready(all_profiles: Dict[str, List[Dict]]):
+            def _on_ready(all_profiles: dict[str, list[dict]]):
                 try:
                     # Persist profiles in cache
                     cache = _pc.PersistentProfileCache(default_ttl=3600)
@@ -355,7 +354,7 @@ class BrowserProfileDialog(BaseDialog):
         ]
         super().accept()
 
-    def get_selected_profiles(self) -> List[Dict]:
+    def get_selected_profiles(self) -> list[dict]:
         """Return the list of chosen profiles."""
         selected = self.selected_profiles
 

@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import datetime
 from decimal import Decimal
-from typing import Optional
 
-from PyQt6.QtCore import QLocale, QDateTime, QDate, QTime
+from PyQt6.QtCore import QDate, QDateTime, QLocale, QTime
 
 from .language_service import LanguageService
 
@@ -14,7 +13,7 @@ from .language_service import LanguageService
 def format_datetime(
     dt: datetime.datetime,
     format_str: str = "dd.MM.yyyy HH:mm",
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format datetime using locale-specific formatting.
 
@@ -39,7 +38,7 @@ def format_datetime(
 def format_date(
     date: datetime.date,
     format_str: str = "dd.MM.yyyy",
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format date using locale-specific formatting.
 
@@ -62,7 +61,7 @@ def format_date(
 def format_time(
     time: datetime.time,
     format_str: str = "HH:mm",
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format time using locale-specific formatting.
 
@@ -85,7 +84,7 @@ def format_time(
 def format_decimal(
     value: float | Decimal | int,
     precision: int = 2,
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format decimal number using locale-specific formatting.
 
@@ -107,7 +106,7 @@ def format_decimal(
 def format_currency(
     amount: float | Decimal | int,
     currency_code: str = "USD",
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format currency amount using locale-specific formatting.
 
@@ -128,7 +127,7 @@ def format_currency(
 
 def format_number(
     value: int,
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format integer using locale-specific formatting.
 
@@ -149,7 +148,7 @@ def format_number(
 def format_percent(
     value: float | Decimal | int,
     precision: int = 1,
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format percentage using locale-specific formatting.
 
@@ -170,7 +169,7 @@ def format_percent(
 
 def format_filesize(
     bytes_count: int,
-    locale_code: Optional[str] = None,
+    locale_code: str | None = None,
 ) -> str:
     """Format file size in human-readable format.
 

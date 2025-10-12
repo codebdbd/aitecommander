@@ -7,7 +7,7 @@ import os
 import platform
 import signal
 import sys
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 from PyQt6.QtCore import QCoreApplication, QSocketNotifier
 from PyQt6.QtWidgets import QApplication
@@ -15,14 +15,14 @@ from PyQt6.QtWidgets import QApplication
 logger = logging.getLogger(__name__)
 
 SIGNAL_EXIT_CODE_BASE = 128
-_unix_signal_pipe: Optional[Tuple[int, int]] = None
+_unix_signal_pipe: tuple[int, int] | None = None
 
 if TYPE_CHECKING:  # pragma: no cover - type checking only
     from app.startup.initializer import ApplicationInitializer
 
 
 def signal_handler(
-    signum: int, frame: Any, initializer: Optional["ApplicationInitializer"] = None
+    signum: int, frame: Any, initializer: ApplicationInitializer | None = None
 ) -> None:
     """Handle SIGINT/SIGTERM signals by requesting a graceful shutdown."""
     signal_name = "SIGINT" if signum == signal.SIGINT else "SIGTERM"
@@ -39,7 +39,7 @@ def signal_handler(
 
 
 def safe_signal_handler(
-    signum: int, frame: Any, initializer: Optional["ApplicationInitializer"]
+    signum: int, frame: Any, initializer: ApplicationInitializer | None
 ) -> None:
     """Wrapper for signal handler with exception protection."""
     try:
@@ -61,10 +61,10 @@ def should_install_signal_handlers() -> bool:
 
 
 def setup_signal_handling(
-    app: QApplication, initializer: Optional["ApplicationInitializer"]
-) -> List[QSocketNotifier]:
+    app: QApplication, initializer: ApplicationInitializer | None
+) -> list[QSocketNotifier]:
     """Install signal handlers compatible with the Qt event loop."""
-    notifiers: List[QSocketNotifier] = []
+    notifiers: list[QSocketNotifier] = []
     if platform.system() != "Windows":
         global _unix_signal_pipe
         if _unix_signal_pipe:
@@ -147,11 +147,11 @@ class SignalManager:
     def __init__(
         self,
         app: QApplication,
-        initializer: Optional["ApplicationInitializer"],
+        initializer: ApplicationInitializer | None,
     ) -> None:
         self._app = app
         self._initializer = initializer
-        self._notifiers: List[QSocketNotifier] = []
+        self._notifiers: list[QSocketNotifier] = []
         self._installed = False
 
     @property
@@ -164,7 +164,7 @@ class SignalManager:
         self._notifiers = setup_signal_handling(self._app, self._initializer)
         self._installed = bool(self._notifiers or platform.system() == "Windows")
 
-    def notifiers(self) -> List[QSocketNotifier]:
+    def notifiers(self) -> list[QSocketNotifier]:
         return list(self._notifiers)
 
     def restore(self) -> None:

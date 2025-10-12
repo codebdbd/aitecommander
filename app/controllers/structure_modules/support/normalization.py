@@ -3,7 +3,7 @@
 """Module for normalizing data from database."""
 
 import logging
-from typing import Any, Dict, List, Protocol, Union, runtime_checkable
+from typing import Any, Protocol, Union, runtime_checkable
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -19,10 +19,10 @@ class RowLike(Protocol):
 
 
 # Data types that module can handle
-SupportedRowType = Union[Dict[str, Any], RowLike, tuple, None]
+SupportedRowType = Union[dict[str, Any], RowLike, tuple, None]
 
 
-def normalize_row(row: Any, logger: logging.Logger = None) -> Dict[str, Any]:
+def normalize_row(row: Any, logger: logging.Logger = None) -> dict[str, Any]:
     """Safely normalize DB row to dictionary.
 
     Supports:
@@ -108,7 +108,7 @@ def normalize_row(row: Any, logger: logging.Logger = None) -> Dict[str, Any]:
     return {}
 
 
-def normalize_rows(rows: Any, logger: logging.Logger = None) -> List[Dict[str, Any]]:
+def normalize_rows(rows: Any, logger: logging.Logger = None) -> list[dict[str, Any]]:
     """Normalize list of DB rows to list of dictionaries.
 
     Args:
@@ -140,7 +140,7 @@ def normalize_rows(rows: Any, logger: logging.Logger = None) -> List[Dict[str, A
 
 
 def validate_normalized_data(
-    data: Union[Dict[str, Any], List[Dict[str, Any]]], required_keys: List[str] = None
+    data: Union[dict[str, Any], list[dict[str, Any]]], required_keys: list[str] = None
 ) -> bool:
     """Validate normalized data.
 
@@ -154,7 +154,7 @@ def validate_normalized_data(
     if required_keys is None:
         required_keys = []
 
-    def _validate_dict(d: Dict[str, Any]) -> bool:
+    def _validate_dict(d: dict[str, Any]) -> bool:
         if not isinstance(d, dict):
             return False
         return all(key in d for key in required_keys)

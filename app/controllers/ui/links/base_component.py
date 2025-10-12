@@ -1,11 +1,11 @@
 """Base component for links_ui module."""
 
 import logging
-from typing import Dict, Optional
+from typing import Optional
 
 from app.config_data import app_config
 
-from .exceptions import CategoryNotFoundError, DatabaseError
+from .exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +35,12 @@ class BaseLinksUIComponent:
         self._messages = self._config.get_links_table_messages()
 
     @property
-    def COLUMNS(self) -> Dict[str, int]:
+    def COLUMNS(self) -> dict[str, int]:
         """Link table column indices."""
         return self._columns
 
     @property
-    def MESSAGES(self) -> Dict[str, str]:
+    def MESSAGES(self) -> dict[str, str]:
         """User messages."""
         return self._messages
 

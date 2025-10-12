@@ -10,25 +10,25 @@ Migrated to the new `run_db` facade instead of the legacy workers from
 import logging
 import time
 from threading import Lock
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
-
-from ..signals.signals import StructureSignals
-from ..signals.handlers import AsyncSignalHandlers
-from ..models.types import (
-    SphereData,
-    SectionData,
-    CategoryData,
-    LinkData,
-    SearchResultItem,
-    AnyItemData,
-)
 
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.models.db import Database
 from app.services import StructureService
 from app.utils.db.api import run_db
+
+from ..models.types import (
+    AnyItemData,
+    CategoryData,
+    LinkData,
+    SearchResultItem,
+    SectionData,
+    SphereData,
+)
+from ..signals.handlers import AsyncSignalHandlers
+from ..signals.signals import StructureSignals
 
 try:
     # Корректная точка доступа к метрикам старта
@@ -438,7 +438,7 @@ class AsyncOperations(QObject):
             ),
         )
 
-    def create_section_async(self, data: Dict[str, Any]) -> None:
+    def create_section_async(self, data: dict[str, Any]) -> None:
         """Асинхронное создание раздела через run_db."""
         if not isinstance(data, dict):
             self.logger.error("Section data must be a dict")
@@ -499,7 +499,7 @@ class AsyncOperations(QObject):
             ),
         )
 
-    def create_category_async(self, data: Dict[str, Any]) -> None:
+    def create_category_async(self, data: dict[str, Any]) -> None:
         """Асинхронное создание категории через run_db."""
         if not isinstance(data, dict):
             self.logger.error("Category data must be a dict")
@@ -542,7 +542,7 @@ class AsyncOperations(QObject):
             ),
         )
 
-    def update_section_async(self, section_id: int, data: Dict[str, Any]) -> None:
+    def update_section_async(self, section_id: int, data: dict[str, Any]) -> None:
         """Асинхронное обновление раздела через run_db."""
         if not isinstance(section_id, int) or section_id <= 0:
             self.logger.error("Invalid section ID: %s", section_id)
@@ -577,7 +577,7 @@ class AsyncOperations(QObject):
             ),
         )
 
-    def update_category_async(self, category_id: int, data: Dict[str, Any]) -> None:
+    def update_category_async(self, category_id: int, data: dict[str, Any]) -> None:
         """Асинхронное обновление категории через run_db."""
         if not isinstance(category_id, int) or category_id <= 0:
             self.logger.error("Invalid category ID: %s", category_id)
@@ -763,7 +763,7 @@ class AsyncSignalHandlers(QObject):
         self.top_panels: Optional[Any] = top_panels_controller
 
     @pyqtSlot(list)
-    def on_spheres_loaded(self, spheres: List[SphereData]) -> None:
+    def on_spheres_loaded(self, spheres: list[SphereData]) -> None:
         """Обработчик завершения загрузки сфер."""
         try:
             self.logger.info("Загружено %s сфер", len(spheres))
@@ -779,7 +779,7 @@ class AsyncSignalHandlers(QObject):
 
     @pyqtSlot(list, int)
     def on_structure_loaded(
-        self, structure: List[SectionData], sphere_id: int
+        self, structure: list[SectionData], sphere_id: int
     ) -> None:
         """Обработчик завершения загрузки структуры."""
         try:
@@ -802,7 +802,7 @@ class AsyncSignalHandlers(QObject):
                     )
                     # Сбрасываем маркер, чтобы не мешал последующим измерениям
                     try:
-                        setattr(self.controller, "_last_switch_started_ms", None)
+                        self.controller._last_switch_started_ms = None
                     except Exception:
                         pass
             except Exception:
@@ -852,7 +852,7 @@ class AsyncSignalHandlers(QObject):
 
     @pyqtSlot(list, int)
     def on_sections_loaded(
-        self, sections: List[SectionData], sphere_id: int
+        self, sections: list[SectionData], sphere_id: int
     ) -> None:
         """Обработчик завершения загрузки разделов."""
         try:
@@ -869,7 +869,7 @@ class AsyncSignalHandlers(QObject):
 
     @pyqtSlot(list, int)
     def on_categories_loaded(
-        self, categories: List[CategoryData], section_id: int
+        self, categories: list[CategoryData], section_id: int
     ) -> None:
         """Обработчик завершения загрузки категорий.
 
@@ -1145,7 +1145,7 @@ class AsyncSignalHandlers(QObject):
 
     # ===== Поиск / Ссылки / Подсчёт =====
     @pyqtSlot(list)
-    def on_search_results(self, results: List[SearchResultItem]) -> None:
+    def on_search_results(self, results: list[SearchResultItem]) -> None:
         try:
             self.logger.info("Результаты поиска: %s", len(results))
             if hasattr(self.controller, "search_results"):
@@ -1158,7 +1158,7 @@ class AsyncSignalHandlers(QObject):
 
     @pyqtSlot(list, int, int)
     def on_links_loaded(
-        self, links: List[LinkData], category_id: int, task_id: int
+        self, links: list[LinkData], category_id: int, task_id: int
     ) -> None:
         try:
             self.logger.info(
@@ -1189,7 +1189,7 @@ class AsyncSignalHandlers(QObject):
 
     @pyqtSlot(int, list, object)
     def on_count_finished(
-        self, fav_count: int, links: List[LinkData], link: object
+        self, fav_count: int, links: list[LinkData], link: object
     ) -> None:
         try:
             self.logger.info("Подсчёт избранных завершён: %s", fav_count)

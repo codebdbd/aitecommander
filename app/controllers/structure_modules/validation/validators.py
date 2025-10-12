@@ -8,12 +8,12 @@ dependencies for maximum compatibility.
 """
 
 import logging
-from typing import Any, Dict
 
-from ..models.types import StructureItemType
 from .validation_api import (
-    validate_create_data, validate_update_data,
-    validate_and_raise, safe_validate
+    safe_validate,
+    validate_and_raise,
+    validate_create_data,
+    validate_update_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,8 +34,11 @@ __all__ = [
 ]
 
 # Import classes for backward compatibility
-from .validation_types import (
-    ValidationError, ValidationSeverity, ValidationIssue, DetailedValidationResult
-)
 from .validation_core import TypeValidator
 from .validation_rules import StructureDataValidator
+from .validation_types import (
+    DetailedValidationResult,
+    ValidationError,
+    ValidationIssue,
+    ValidationSeverity,
+)

@@ -7,7 +7,6 @@ from app.config_data import app_config
 from i18n.language_service import LanguageService
 from i18n.locale_utils import format_number
 
-
 _TR_CONTEXT = "StatusBar"
 
 

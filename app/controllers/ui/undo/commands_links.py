@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional
 
 from app.controllers.ui.undo.base import BaseCommand, log_command
 from app.services import LinksService
@@ -11,14 +10,14 @@ logger = logging.getLogger(__name__)
 
 
 class SaveLinkCmd(BaseCommand):
-    def __init__(self, new_data: Dict, old_data: Optional[Dict], main_window):
+    def __init__(self, new_data: dict, old_data: dict | None, main_window):
         super().__init__("Save link", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
         self.new_data = dict(new_data) if new_data else {}
         self.old_data = dict(old_data) if old_data else None
-        self.created_id: Optional[int] = None
+        self.created_id: int | None = None
 
     @log_command
     def redo(self):
@@ -138,13 +137,13 @@ class SaveLinkCmd(BaseCommand):
 
 
 class BatchDeleteLinksCmd(BaseCommand):
-    def __init__(self, links_to_delete: List[Dict], main_window):
+    def __init__(self, links_to_delete: list[dict], main_window):
         super().__init__("Batch delete links", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
         # Store full data for potential restore
-        self.links: List[Dict] = [dict(x) for x in (links_to_delete or [])]
+        self.links: list[dict] = [dict(x) for x in (links_to_delete or [])]
 
     @log_command
     def redo(self):
@@ -235,7 +234,7 @@ class BatchDeleteLinksCmd(BaseCommand):
 
 
 class DeleteLinkCmd(BaseCommand):
-    def __init__(self, link_to_delete: Dict, main_window):
+    def __init__(self, link_to_delete: dict, main_window):
         super().__init__("Delete link", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
@@ -309,14 +308,14 @@ class DeleteLinkCmd(BaseCommand):
 
 class BatchSaveLinksCmd(BaseCommand):
     def __init__(
-        self, links_data: List[Dict], old_link_data: Optional[Dict], main_window
+        self, links_data: list[dict], old_link_data: dict | None, main_window
     ):
         super().__init__("Batch save links", main_window)
         self.main = main_window
         dc = getattr(main_window, "database_controller", None)
         self.db = getattr(dc, "db", None)
         self.links_data = [dict(x) for x in (links_data or [])]
-        self.created_ids: List[int] = []
+        self.created_ids: list[int] = []
 
     @log_command
     def redo(self):

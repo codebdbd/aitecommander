@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from functools import wraps
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 
 def handle_exceptions(default_return=None):
@@ -18,7 +18,7 @@ def handle_exceptions(default_return=None):
             try:
                 return func(self, *args, **kwargs)
             except Exception as e:  # noqa: BLE001
-                logger: Optional[logging.Logger] = getattr(self, "logger", None)
+                logger: logging.Logger | None = getattr(self, "logger", None)
                 if logger:
                     logger.error("Error in %s: %s", func.__name__, e, exc_info=True)
                 # UI message if method is available

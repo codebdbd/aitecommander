@@ -6,15 +6,15 @@ Data-compatible with the legacy version (keys = URL, values = dict with icon/tit
 
 from __future__ import annotations
 
-import os
 import atexit
+import os
 import shelve
 import threading
 import time
+from collections import OrderedDict
 from contextlib import closing, contextmanager
 from pathlib import Path
-from typing import Any, Optional
-from collections import OrderedDict
+from typing import Any
 
 from app.config_data import app_config
 from app.utils.cache.base import BaseCache
@@ -102,7 +102,8 @@ def _file_lock(lock_path: str, *, timeout: float = 5.0, poll_interval: float = 0
     # 2) filelock (if available/allowed; also for auto when portalocker is missing)
     if backend in ("auto", "filelock"):
         try:
-            from filelock import FileLock, Timeout as FileLockTimeout  # type: ignore
+            from filelock import FileLock  # type: ignore
+            from filelock import Timeout as FileLockTimeout
 
             lock = FileLock(lock_path)
             try:
@@ -142,16 +143,16 @@ def _db_path() -> str:
 
 
 class FaviconCache(BaseCache):
-    def __init__(self, *, default_ttl: Optional[float] = CACHE_TTL) -> None:
+    def __init__(self, *, default_ttl: float | None = CACHE_TTL) -> None:
         self._default_ttl = default_ttl
         self._lock = threading.RLock()
         # Cache default icon lookup to avoid repeated resolver calls
-        self._default_icon_cached: Optional[str] = None
+        self._default_icon_cached: str | None = None
         # Cleanup parameters (interval fixed, max_size read dynamically from config)
         self._cleanup_interval_sec = self._get_cleanup_interval()
         # Persistent shelve connection (enabled via configuration)
-        self._db_path_str: Optional[str] = None
-        self._db: Optional[shelve.Shelf] = None
+        self._db_path_str: str | None = None
+        self._db: shelve.Shelf | None = None
         try:
             self._persistent_enabled: bool = bool(
                 getattr(app_config, "FAVICON_CACHE_PERSISTENT", False)
@@ -258,7 +259,7 @@ class FaviconCache(BaseCache):
     def _now() -> float:
         return float(time.time())
 
-    def _maybe_cleanup(self, db: shelve.Shelf, *, now: Optional[float] = None) -> None:
+    def _maybe_cleanup(self, db: shelve.Shelf, *, now: float | None = None) -> None:
         """Periodic cleanup: purge expired entries and, if needed, oldest records.
 
         To avoid frequent full scans, store timestamp of last cleanup in ``__last_cleanup_ts__``.
@@ -277,7 +278,7 @@ class FaviconCache(BaseCache):
         removed = 0
         try:
             # Load/create ordered timestamp index: key -> ts (ascending insertion order)
-            index: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+            index: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
             # 1) Remove expired or inconsistent entries by iterating over the index
             for k, ts in list(index.items()):
                 try:
@@ -354,7 +355,7 @@ class FaviconCache(BaseCache):
                 )
 
     # BaseCache implementation
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         with self._lock:
             # Use file lock for interprocess safety during operation
             current_path = self._get_db_path()
@@ -378,7 +379,7 @@ class FaviconCache(BaseCache):
                             del db[key]
                             # Remove from index
                             try:
-                                idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                                idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
                                 if key in idx:
                                     idx.pop(key, None)
                                     db["__ts_index__"] = idx
@@ -416,7 +417,7 @@ class FaviconCache(BaseCache):
                                 del db2[key]
                                 # Remove from index
                                 try:
-                                    idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
+                                    idx: OrderedDict[str, float] = db2.get("__ts_index__") or OrderedDict()
                                     if key in idx:
                                         idx.pop(key, None)
                                         db2["__ts_index__"] = idx
@@ -438,7 +439,7 @@ class FaviconCache(BaseCache):
                             return None
                         return item
 
-    def set(self, key: str, value: Any, *, ttl: Optional[float] = None) -> None:
+    def set(self, key: str, value: Any, *, ttl: float | None = None) -> None:
         with self._lock:
             # Use file lock for interprocess safety during operation
             current_path = self._get_db_path()
@@ -463,7 +464,7 @@ class FaviconCache(BaseCache):
                     db[key] = to_store
                     # Update timestamp index: move key to end as newest
                     try:
-                        idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                        idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
                         if key in idx:
                             idx.pop(key, None)
                         idx[key] = float(to_store.get("timestamp", ts_now))
@@ -480,7 +481,7 @@ class FaviconCache(BaseCache):
                     # Enforce size limit immediately using index (avoid full sort)
                     try:
                         max_size = self._get_max_size()
-                        idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                        idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
                         # Remove phantom keys not present in DB
                         for idx_key in list(idx.keys()):
                             if idx_key not in db or idx_key.startswith("__"):
@@ -553,7 +554,7 @@ class FaviconCache(BaseCache):
                         db[key] = to_store
                         # Update timestamp index: move key to end as newest
                         try:
-                            idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                            idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
                             if key in idx:
                                 idx.pop(key, None)
                             idx[key] = float(to_store.get("timestamp", ts_now))
@@ -564,7 +565,7 @@ class FaviconCache(BaseCache):
                         # Enforce size limit immediately via index (no full sort)
                         try:
                             max_size = self._get_max_size()
-                            idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                            idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
                             # Remove phantom keys absent in DB
                             for idx_key in list(idx.keys()):
                                 if idx_key not in db or idx_key.startswith("__"):
@@ -626,13 +627,13 @@ class FaviconCache(BaseCache):
         # Attribute
         if hasattr(app_config, "favicon_cache_max_size"):
             try:
-                values.append(int(getattr(app_config, "favicon_cache_max_size")))
+                values.append(int(app_config.favicon_cache_max_size))
             except Exception:
                 pass
         # Method
         if hasattr(app_config, "get_favicon_cache_max_size"):
             try:
-                values.append(int(getattr(app_config, "get_favicon_cache_max_size")()))  # type: ignore[misc]
+                values.append(int(app_config.get_favicon_cache_max_size()))  # type: ignore[misc]
             except Exception:
                 pass
         # Pick the strictest (smallest) valid limit
@@ -641,7 +642,7 @@ class FaviconCache(BaseCache):
             return max(1, min(values))
         return 5000
 
-    def invalidate(self, key: Optional[str] = None) -> None:
+    def invalidate(self, key: str | None = None) -> None:
         with self._lock:
             current_path = self._get_db_path()
             lock_path = f"{current_path}.lock"
@@ -679,7 +680,7 @@ class FaviconCache(BaseCache):
                             logger.debug("[cache] INVALIDATE %s", key)
                             # Remove from index
                             try:
-                                idx: "OrderedDict[str, float]" = db.get("__ts_index__") or OrderedDict()
+                                idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
                                 if key in idx:
                                     idx.pop(key, None)
                                     db["__ts_index__"] = idx
@@ -709,7 +710,7 @@ class FaviconCache(BaseCache):
                                 del db2[key]
                                 logger.debug("[cache] INVALIDATE %s", key)
                                 try:
-                                    idx: "OrderedDict[str, float]" = db2.get("__ts_index__") or OrderedDict()
+                                    idx: OrderedDict[str, float] = db2.get("__ts_index__") or OrderedDict()
                                     if key in idx:
                                         idx.pop(key, None)
                                         db2["__ts_index__"] = idx

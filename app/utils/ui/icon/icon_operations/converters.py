@@ -9,9 +9,8 @@ import logging
 import shutil
 import threading
 from pathlib import Path
-from PIL import Image
 
-from typing import Dict
+from PIL import Image
 from PIL.Image import Resampling
 from PyQt6.QtCore import QBuffer, QByteArray, QIODevice, QRectF, QSize
 from PyQt6.QtGui import QImage, QPainter
@@ -21,12 +20,12 @@ from ..validation import InvalidIconError, is_valid_icon_file
 
 logger = logging.getLogger(__name__)
 
-_ICON_HASH_CACHE: Dict[Path, Dict[str, str]] = {}
+_ICON_HASH_CACHE: dict[Path, dict[str, str]] = {}
 _ICON_HASH_LOCK = threading.Lock()
 _ICON_HASH_CACHE_FILE = ".icon_hash_cache.json"
 
 
-def _load_icon_hash_cache(dest_dir: Path) -> Dict[str, str]:
+def _load_icon_hash_cache(dest_dir: Path) -> dict[str, str]:
     dest_path = dest_dir.resolve()
     with _ICON_HASH_LOCK:
         cache = _ICON_HASH_CACHE.get(dest_path)
@@ -56,7 +55,7 @@ def _load_icon_hash_cache(dest_dir: Path) -> Dict[str, str]:
         return cache
 
 
-def _save_icon_hash_cache(dest_dir: Path, cache: Dict[str, str]) -> None:
+def _save_icon_hash_cache(dest_dir: Path, cache: dict[str, str]) -> None:
     dest_path = dest_dir.resolve()
     cache_file = dest_path / _ICON_HASH_CACHE_FILE
     try:
@@ -74,7 +73,7 @@ def _update_icon_hash_cache(dest_dir: Path, hash_value: str, filename: str) -> N
     if not hash_value:
         return
     with _ICON_HASH_LOCK:
-        cache = _load_icon_hash_cache(dest_dir)
+        _load_icon_hash_cache(dest_dir)
 
 def _remove_icon_hash_cache_entry(dest_dir: Path, hash_value: str) -> None:
     if not hash_value:
@@ -84,7 +83,7 @@ def _remove_icon_hash_cache_entry(dest_dir: Path, hash_value: str) -> None:
         if hash_value in cache:
             cache.pop(hash_value, None)
             _save_icon_hash_cache(dest_dir, cache)
-        cache[hash_value] = filename
+        cache[hash_value] = icon_path
         _save_icon_hash_cache(dest_dir, cache)
 
 
@@ -533,3 +532,4 @@ async def batch_convert_icons_async(
     )
 
     return result_dict
+

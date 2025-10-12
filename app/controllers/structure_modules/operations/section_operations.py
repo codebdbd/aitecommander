@@ -4,17 +4,16 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
-
-from ..models.types import (
-    SectionData,
-    SectionCreateData,
-    SectionUpdateData,
-)
+from typing import Any, Callable, Optional
 
 from app.models import StructureModel
 from app.services.structure_service import StructureService
 
+from ..models.types import (
+    SectionCreateData,
+    SectionData,
+    SectionUpdateData,
+)
 from .base import BaseOperations, StructureItemType
 
 
@@ -129,7 +128,7 @@ class SectionOperations(BaseOperations):
         self._log_operation_start(f"confirming deletion of section {section_id}")
         return self._execute_section_deletion(section_id)
 
-    def get_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
+    def get_section_data(self, section_id: int) -> Optional[dict[str, Any]]:
         """
         Get section data with guaranteed normalization.
 
@@ -142,7 +141,7 @@ class SectionOperations(BaseOperations):
         self._log_operation_start(f"fetching data for section {section_id}")
         return self._fetch_section_data(section_id)
 
-    def get_sections(self, sphere_id: int) -> List[Dict[str, Any]]:
+    def get_sections(self, sphere_id: int) -> list[dict[str, Any]]:
         """
         Get list of sections for specified sphere.
 
@@ -221,7 +220,7 @@ class SectionOperations(BaseOperations):
             self._log_successful_deletion(section_id)
         return result
 
-    def _fetch_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
+    def _fetch_section_data(self, section_id: int) -> Optional[dict[str, Any]]:
         """Fetch section data."""
 
         def _fetch_operation():
@@ -243,7 +242,7 @@ class SectionOperations(BaseOperations):
             default_return=None,
         )
 
-    def _fetch_sections_for_sphere(self, sphere_id: int) -> List[Dict[str, Any]]:
+    def _fetch_sections_for_sphere(self, sphere_id: int) -> list[dict[str, Any]]:
         """Fetch sections for sphere."""
 
         def _fetch_operation():
@@ -264,7 +263,7 @@ class SectionOperations(BaseOperations):
 
     def _process_item(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         item_type: StructureItemType,
         item_id: Optional[int] = None,
         is_update: bool = False,

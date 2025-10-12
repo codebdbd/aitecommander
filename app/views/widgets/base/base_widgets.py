@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import Iterable
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
 from PyQt6.QtCore import QCoreApplication, QEvent, QModelIndex, Qt, pyqtSignal
 from PyQt6.QtGui import QDrag, QDropEvent, QPixmap
@@ -113,8 +113,8 @@ class BaseLinksPanelWidget:
     
     def _populate_panel(
         self,
-        items: List[Dict[str, Any]],
-        create_button_func: Callable[[Dict[str, Any]], Optional[QToolButton]],
+        items: list[dict[str, Any]],
+        create_button_func: Callable[[dict[str, Any]], Optional[QToolButton]],
     ) -> None:
         """Override to keep backward compatible logging for tests."""
         self._clear_layout()
@@ -140,7 +140,7 @@ class BaseLinksPanelWidget:
         batch = self._pending_items[:batch_size]
         self._pending_items = self._pending_items[batch_size:]
         
-        for i, link in enumerate(batch):
+        for _i, link in enumerate(batch):
             try:
                 button = self._create_button_func(link)
             except (AttributeError, KeyError, ValueError, TypeError) as expected:
@@ -292,7 +292,7 @@ class BaseDragDropTableWidget(QTableView):
                 return event.isAccepted()
         return super().eventFilter(obj, event)
 
-    def mimeTypes(self) -> List[str]:
+    def mimeTypes(self) -> list[str]:
         """Return supported MIME types."""
         return [self.MIME_TYPE]
 
@@ -309,7 +309,7 @@ class BaseDragDropTableWidget(QTableView):
             logger.warning("Failed to create MIME data: %s", e)
             return None
 
-    def _extract_item_ids_from_items(self, items: Iterable[QModelIndex]) -> List[int]:
+    def _extract_item_ids_from_items(self, items: Iterable[QModelIndex]) -> list[int]:
         """Extract item IDs from the selected indexes."""
         raise NotImplementedError(
             "Subclasses must implement _extract_item_ids_from_items"
@@ -501,11 +501,11 @@ class BaseDragDropTableWidget(QTableView):
             logger.debug("Failed to determine drop source: %s", e)
             return False
 
-    def _get_selected_rows(self) -> List[int]:
+    def _get_selected_rows(self) -> list[int]:
         """Return the list of selected rows."""
         return dnd_get_selected_rows(self)
 
-    def _extract_source_rows_from_mime(self, event: QDropEvent) -> List[int]:
+    def _extract_source_rows_from_mime(self, event: QDropEvent) -> list[int]:
         """Extract source row numbers from MIME data."""
         return dnd_extract_source_rows(self, event, self.MIME_TYPE)
 
@@ -521,7 +521,7 @@ class BaseDragDropTableWidget(QTableView):
         if data is None:
             raise ValueError("UserRole data is None")
 
-    def _is_valid_internal_drop(self, source_rows: List[int], target_row: int) -> bool:
+    def _is_valid_internal_drop(self, source_rows: list[int], target_row: int) -> bool:
         """Validate internal drop (kept permissive for legacy behavior).
 
         The target row is valid if it is not -1 and the source rows are not empty.
@@ -536,7 +536,7 @@ class BaseDragDropTableWidget(QTableView):
     def _move_row_visually(self, source_row: int, target_row: int) -> None:
         """Visually move a single row (subclasses must override)."""
 
-    def _move_rows_visually(self, source_rows: List[int], target_row: int) -> None:
+    def _move_rows_visually(self, source_rows: list[int], target_row: int) -> None:
         """Visually move multiple rows (centralized helper)."""
         dnd_move_rows_visually(self, source_rows, target_row)
         try:
@@ -552,11 +552,11 @@ class BaseDragDropTableWidget(QTableView):
             # Catch specific exceptions when updating widget
             logger.debug("Failed to update widget after row move: %s", e)
 
-    def _get_current_order(self) -> List[int]:
+    def _get_current_order(self) -> list[int]:
         """Return IDs of items in the current order (centralized helper)."""
         return dnd_get_current_order(self)
 
-    def _create_drag_pixmap(self, items: List[QModelIndex]) -> Optional[QPixmap]:
+    def _create_drag_pixmap(self, items: list[QModelIndex]) -> Optional[QPixmap]:
         """Create a preview pixmap for the drag operation."""
         try:
             if items:

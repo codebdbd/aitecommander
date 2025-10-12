@@ -7,17 +7,19 @@ hiding the complexity of interactions between controllers.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Dict
+    from typing import Any
     
-    LinkDict = Dict[str, Any]
+    LinkDict = dict[str, Any]
     
     from app.controllers.ui.links.links_actions import LinksActions
     from app.controllers.ui.menu_controller import ActionController
-    from app.controllers.ui.structure.structure_ui_controller import StructureUIController
     from app.controllers.ui.state.ui_state_manager import UIStateManager
+    from app.controllers.ui.structure.structure_ui_controller import (
+        StructureUIController,
+    )
     from app.controllers.ui.theme_controller import ThemeController
 
 logger = logging.getLogger(__name__)
@@ -39,11 +41,11 @@ class WindowFacade:
     
     def __init__(
         self,
-        structure: "StructureUIController",
-        links_actions: "LinksActions",
-        ui_state: "UIStateManager",
-        action_controller: "ActionController",
-        theme_ctrl: "ThemeController",
+        structure: StructureUIController,
+        links_actions: LinksActions,
+        ui_state: UIStateManager,
+        action_controller: ActionController,
+        theme_ctrl: ThemeController,
     ):
         """Initialize facade with required controllers.
 
@@ -64,7 +66,7 @@ class WindowFacade:
     
     # === Structure operations ===
     
-    def get_current_category_id(self) -> Optional[int]:
+    def get_current_category_id(self) -> int | None:
         """Return ID of the currently selected category.
 
         Returns:
@@ -101,7 +103,7 @@ class WindowFacade:
     
     # === Link operations ===
     
-    def get_link_at_row(self, row: int) -> "LinkDict | None":
+    def get_link_at_row(self, row: int) -> LinkDict | None:
         """Return link by table row number.
 
         Args:
@@ -112,7 +114,7 @@ class WindowFacade:
         """
         return self.links_actions.get_link_at(row)
     
-    def get_selected_links(self) -> list["LinkDict"]:
+    def get_selected_links(self) -> list[LinkDict]:
         """Return list of selected links.
 
         Returns:
@@ -130,7 +132,7 @@ class WindowFacade:
     
     def show_link_dialog(
         self,
-        link: "LinkDict | None" = None,
+        link: LinkDict | None = None,
         category_id: int | None = None,
     ) -> bool:
         """Show create/edit link dialog.

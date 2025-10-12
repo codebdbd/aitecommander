@@ -3,7 +3,7 @@ CategoryModel - model for working with categories in database.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from ..base.db_base import DatabaseBase, ValidationError
 from .constants import CATEGORY_BULK_UUID_FIELD
@@ -18,7 +18,7 @@ class CategoryModel(DatabaseBase):
         """Initialization of category model."""
         super().__init__(database)
 
-    def get_categories(self, section_id: int) -> List[Dict[str, Any]]:
+    def get_categories(self, section_id: int) -> list[dict[str, Any]]:
         """Returns list of categories for specified section in dict format."""
         rows = self._execute_with_error_handling(
             "SELECT id, name, section_id, position, icon_path FROM category "
@@ -28,7 +28,7 @@ class CategoryModel(DatabaseBase):
         )
         return [dict(row) for row in rows] if rows else []
 
-    def get_categories_for_sections(self, section_ids: List[int]) -> List[Dict[str, Any]]:
+    def get_categories_for_sections(self, section_ids: list[int]) -> list[dict[str, Any]]:
         """Returns categories for multiple sections in one query in dict format."""
         if not section_ids:
             return []
@@ -43,14 +43,14 @@ class CategoryModel(DatabaseBase):
         rows = self._execute_with_error_handling(query, section_ids, fetch_method="all")
         return [dict(row) for row in rows] if rows else []
 
-    def get_category_by_id(self, category_id: int) -> Optional[Dict[str, Any]]:
+    def get_category_by_id(self, category_id: int) -> Optional[dict[str, Any]]:
         """Returns category by its ID in dict format."""
         row = self._execute_with_error_handling(
             "SELECT * FROM category WHERE id= ?", (category_id,), fetch_method="one"
         )
         return dict(row) if row else None
 
-    def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, int]]:
+    def get_category_hierarchy(self, category_id: int) -> Optional[dict[str, int]]:
         """Get category hierarchy (sphere -> section -> category).
 
         Args:
@@ -76,7 +76,7 @@ class CategoryModel(DatabaseBase):
             }
         return None
 
-    def insert_category(self, data: Dict[str, Any]) -> Optional[int]:
+    def insert_category(self, data: dict[str, Any]) -> Optional[int]:
         """Inserts new category and returns its ID.
 
         Args:
@@ -119,8 +119,8 @@ class CategoryModel(DatabaseBase):
         return cursor.lastrowid
 
     def insert_categories_bulk(
-        self, items: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, items: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Bulk category insertion with atomic transaction.
 
         - Expects list of dictionaries with keys at least: 'name', 'section_id'.
@@ -137,7 +137,7 @@ class CategoryModel(DatabaseBase):
             return []
 
         # Input data validation + normalization metadata
-        prepared_info: Dict[int, tuple[int, str, str]] = {}
+        prepared_info: dict[int, tuple[int, str, str]] = {}
         has_uuid_tokens = False
         for it in items:
             self._validate_required_fields(
@@ -159,7 +159,7 @@ class CategoryModel(DatabaseBase):
                     has_uuid_tokens = True
 
         # Group by section_id for position calculation
-        by_section: Dict[int, List[Dict[str, Any]]] = {}
+        by_section: dict[int, list[dict[str, Any]]] = {}
         for it in items:
             info = prepared_info.get(id(it))
             if not info:
@@ -168,12 +168,12 @@ class CategoryModel(DatabaseBase):
             by_section.setdefault(sid, []).append(it)
 
         # Формируем батч вставки
-        batched_params: List[tuple] = []
+        batched_params: list[tuple] = []
         try:
             with self.transaction():
                 # Preload current MAX(position) for all sections in one query
                 section_ids = list(by_section.keys())
-                max_pos_map: Dict[int, Optional[int]] = {}
+                max_pos_map: dict[int, Optional[int]] = {}
                 if section_ids:
                     placeholders = ",".join(["?"] * len(section_ids))
                     query = (
@@ -188,7 +188,7 @@ class CategoryModel(DatabaseBase):
                         max_pos_map[row["section_id"]] = row["max_pos"]
 
                 # Unified preload of existing names for all affected sections in one query
-                existing_names_by_section: Dict[int, set] = {}
+                existing_names_by_section: dict[int, set] = {}
                 if section_ids:
                     placeholders = ",".join(["?"] * len(section_ids))
                     query_names = (
@@ -246,7 +246,7 @@ class CategoryModel(DatabaseBase):
                 )
 
                 # Unified query for all (section_id, name) pairs
-                pairs: List[tuple] = []
+                pairs: list[tuple] = []
                 seen = set()
                 for section_id, group in by_section.items():
                     for g in group:
@@ -266,7 +266,7 @@ class CategoryModel(DatabaseBase):
                     return []
 
                 placeholders = ",".join(["(?, ?)"] * len(pairs))
-                flat_params: List[Any] = []
+                flat_params: list[Any] = []
                 for sid, nm in pairs:
                     flat_params.extend([sid, nm])
 
@@ -281,7 +281,7 @@ class CategoryModel(DatabaseBase):
                 if not has_uuid_tokens:
                     return [dict(r) for r in (rows or [])]
 
-                rows_by_key: Dict[tuple[int, str], Dict[str, Any]] = {}
+                rows_by_key: dict[tuple[int, str], dict[str, Any]] = {}
                 for r in rows or []:
                     try:
                         section_id = (
@@ -300,7 +300,7 @@ class CategoryModel(DatabaseBase):
                     )
                     rows_by_key[(section_id, name_value)] = dict(r)
 
-                result: List[Dict[str, Any]] = []
+                result: list[dict[str, Any]] = []
                 for it in items:
                     info = prepared_info.get(id(it))
                     if not info:
@@ -322,7 +322,7 @@ class CategoryModel(DatabaseBase):
             # Initiate rollback and propagate further
             raise
 
-    def update_category(self, category_id: int, data: Dict[str, Any]):
+    def update_category(self, category_id: int, data: dict[str, Any]):
         """Updates existing category."""
         return self._update_entity(
             "category",
@@ -344,7 +344,7 @@ class CategoryModel(DatabaseBase):
             )
         logger.info("Deleted category with ID %s and all its links", category_id)
 
-    def delete_categories_bulk(self, category_ids: List[int]) -> int:
+    def delete_categories_bulk(self, category_ids: list[int]) -> int:
         """Bulk deletion of multiple categories (and their links) in one transaction.
 
         Returns number of deleted categories. Ignores invalid IDs.
@@ -367,7 +367,7 @@ class CategoryModel(DatabaseBase):
         CHUNK = 900
 
         # 0) Collect affected sections in chunks
-        affected_sections: List[int] = []
+        affected_sections: list[int] = []
         for i in range(0, len(unique_ids), CHUNK):
             chunk = unique_ids[i : i + CHUNK]
             placeholders = ",".join(["?"] * len(chunk))
@@ -411,7 +411,7 @@ class CategoryModel(DatabaseBase):
                 )
                 try:
                     # Prefer to use actual rowcount if available
-                    rc = getattr(cursor, "rowcount")
+                    rc = cursor.rowcount
                     deleted_categories += int(rc)
                 except AttributeError:
                     # Log missing rowcount and use pre-count
@@ -446,8 +446,8 @@ class CategoryModel(DatabaseBase):
         return deleted_categories
 
     def move_categories_to_section_bulk(
-        self, category_ids: List[int], target_section_id: int, base_row: int = 0
-    ) -> List[int]:
+        self, category_ids: list[int], target_section_id: int, base_row: int = 0
+    ) -> list[int]:
         """Atomically moves multiple categories to target section in one transaction.
 
         - Skips categories that would cause name duplicate in target section
@@ -502,7 +502,7 @@ class CategoryModel(DatabaseBase):
         }
 
         # Filter by name duplicates (in target section)
-        to_move_ids: List[int] = []
+        to_move_ids: list[int] = []
         for cid in ordered_existing_ids:
             nm = str(data_by_id[cid].get("name", "")).strip().lower()
             # If duplicate already exists in target — skip
@@ -583,7 +583,7 @@ class CategoryModel(DatabaseBase):
             updates,
         )
 
-    def upsert_category(self, category_data: Dict[str, Any]) -> int:
+    def upsert_category(self, category_data: dict[str, Any]) -> int:
         """Inserts or updates category. If category with this id doesn't exist, inserts new with this id."""
         # Canonicalize name: remove spaces around
         data = dict(category_data)  # don't mutate incoming dict

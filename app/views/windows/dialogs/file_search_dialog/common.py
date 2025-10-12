@@ -2,9 +2,9 @@ import datetime
 import fnmatch
 import os
 import stat
-from typing import Any, Mapping, Optional
-
+from collections.abc import Mapping
 from re import Pattern
+from typing import Any, Optional
 
 
 def check_file_content(
@@ -18,7 +18,7 @@ def check_file_content(
     Returns ``True`` if the file matches the requested content conditions.
     """
     try:
-        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             content = f.read()
 
         if content_regex is not None:

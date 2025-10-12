@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional, Tuple
 
 from PyQt6.QtCore import QModelIndex, QObject
 
@@ -22,7 +21,7 @@ class SelectionWorkflowService(QObject):
 
     # ------------------------------------------------------------------
     # Helper access methods
-    def _get_model_and_selection(self) -> Tuple[object | None, object | None]:
+    def _get_model_and_selection(self) -> tuple[object | None, object | None]:
         try:
             model = self._tree.model()
             selection_model = self._tree.selectionModel()
@@ -74,8 +73,8 @@ class SelectionWorkflowService(QObject):
             )
 
     def handle_item_selection(
-        self, index: QModelIndex, last_handled: Optional[Tuple[str, int]]
-    ) -> Optional[Tuple[str, int]]:
+        self, index: QModelIndex, last_handled: tuple[str, int] | None
+    ) -> tuple[str, int] | None:
         self._actions.clear_table_selection()
         try:
             meta = get_tree_tuple(index, 0)
@@ -116,7 +115,7 @@ class SelectionWorkflowService(QObject):
 
     def restore_selection_after_load(
         self, item_type: str, item_id: int
-    ) -> Optional[QModelIndex]:
+    ) -> QModelIndex | None:
         model, selection_model = self._get_model_and_selection()
         if not model or selection_model is None or not hasattr(model, "index_for"):
             return None
@@ -142,7 +141,7 @@ class SelectionWorkflowService(QObject):
 
     def set_focus_on_new_item_by_id(
         self, item_type: str, item_id: int
-    ) -> Optional[QModelIndex]:
+    ) -> QModelIndex | None:
         model, selection_model = self._get_model_and_selection()
         if not model or selection_model is None or not hasattr(model, "index_for"):
             return None
@@ -167,7 +166,7 @@ class SelectionWorkflowService(QObject):
             return index
         return None
 
-    def restore_category_selection(self, category_id: int) -> Optional[QModelIndex]:
+    def restore_category_selection(self, category_id: int) -> QModelIndex | None:
         model, selection_model = self._get_model_and_selection()
         if not model or selection_model is None or not hasattr(model, "index_for"):
             return None

@@ -3,7 +3,7 @@
 import logging
 from typing import Callable, Optional
 
-from PyQt6.QtCore import QCoreApplication, QT_TRANSLATE_NOOP, Qt
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt
 from PyQt6.QtGui import QAction, QIcon, QKeySequence
 from PyQt6.QtWidgets import QWidget
 

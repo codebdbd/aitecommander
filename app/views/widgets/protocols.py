@@ -1,6 +1,6 @@
 """Protocols for views module type safety."""
 
-from typing import Protocol, TypedDict, List, Tuple
+from typing import Protocol, TypedDict
 
 
 class LinkDict(TypedDict, total=False):
@@ -40,7 +40,7 @@ class SystemDialogsProtocol(Protocol):
 
 class LinksBusinessProtocol(Protocol):
     """Protocol for links business layer instead of ``Any``."""
-    def get_links(self, category_id: int) -> List[LinkDict]: ...
+    def get_links(self, category_id: int) -> list[LinkDict]: ...
     def create_link(self, data: LinkDict) -> int: ...
     def update_link(self, link_id: int, data: LinkDict) -> bool: ...
     def delete_link(self, link_id: int) -> bool: ...
@@ -57,7 +57,7 @@ class WidgetConfigProtocol(Protocol):
         """Returns button size for top panels in pixels."""
         ...
     
-    def get_top_panel_icon_size(self) -> Tuple[int, int]:
+    def get_top_panel_icon_size(self) -> tuple[int, int]:
         """Returns (width, height) for top panel icons in pixels."""
         ...
     
@@ -65,11 +65,11 @@ class WidgetConfigProtocol(Protocol):
         """Returns spacing between buttons in top bar."""
         ...
     
-    def get_tile_size(self) -> Tuple[int, int]:
+    def get_tile_size(self) -> tuple[int, int]:
         """Returns (width, height) for category tiles."""
         ...
     
-    def get_tile_icon_size(self) -> Tuple[int, int]:
+    def get_tile_icon_size(self) -> tuple[int, int]:
         """Returns (width, height) for tile icons."""
         ...
     
@@ -116,7 +116,7 @@ class AppConfigWidgetAdapter:
         except (AttributeError, TypeError, ValueError):
             return 32
     
-    def get_top_panel_icon_size(self) -> Tuple[int, int]:
+    def get_top_panel_icon_size(self) -> tuple[int, int]:
         """Returns icon size with fallback to (24, 24)."""
         try:
             size = self._config.ui.get_top_panel_icon_size()
@@ -133,7 +133,7 @@ class AppConfigWidgetAdapter:
         except (AttributeError, TypeError, ValueError):
             return 4
     
-    def get_tile_size(self) -> Tuple[int, int]:
+    def get_tile_size(self) -> tuple[int, int]:
         """Returns tile size with fallback to (120, 100)."""
         try:
             size = self._config.ui.get_tile_size()
@@ -143,7 +143,7 @@ class AppConfigWidgetAdapter:
             pass
         return (120, 100)
     
-    def get_tile_icon_size(self) -> Tuple[int, int]:
+    def get_tile_icon_size(self) -> tuple[int, int]:
         """Returns tile icon size with fallback to (48, 48)."""
         try:
             size = self._config.ui.get_tile_icon_size()

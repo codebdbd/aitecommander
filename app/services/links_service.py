@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Optional
+from collections.abc import Iterable
+from typing import Any
 
 from app.models.db import Database
 
@@ -20,30 +21,30 @@ class LinksService:
         self._chunk_size = 900
 
     # --- Reading ---
-    def get_links(self, category_id: int) -> List[Dict[str, Any]]:
+    def get_links(self, category_id: int) -> list[dict[str, Any]]:
         return self.repo.get_links(category_id)
 
     def get_links_for_categories(
-        self, category_ids: List[int]
-    ) -> Dict[int, List[Dict[str, Any]]]:
+        self, category_ids: list[int]
+    ) -> dict[int, list[dict[str, Any]]]:
         return self.repo.get_links_for_categories(category_ids)
 
-    def get_all_links(self) -> List[Dict[str, Any]]:
+    def get_all_links(self) -> list[dict[str, Any]]:
         return self.repo.get_all_links()
 
-    def get_link_by_id(self, link_id: int) -> Optional[Dict[str, Any]]:
+    def get_link_by_id(self, link_id: int) -> dict[str, Any] | None:
         return self.repo.get_link_by_id(link_id)
 
-    def get_recent_links(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_recent_links(self, limit: int = 10) -> list[dict[str, Any]]:
         return self.repo.get_recent_links(limit)
 
-    def get_favorite_links(self) -> List[Dict[str, Any]]:
+    def get_favorite_links(self) -> list[dict[str, Any]]:
         return self.repo.get_favorite_links()
 
-    def search(self, query: str) -> List[Dict[str, Any]]:
+    def search(self, query: str) -> list[dict[str, Any]]:
         return self.repo.search_links(query)
 
-    def search_links(self, query: str) -> List[Dict[str, Any]]:
+    def search_links(self, query: str) -> list[dict[str, Any]]:
         """Alias for search method to maintain backward compatibility."""
         return self.search(query)
 
@@ -57,7 +58,7 @@ class LinksService:
     # --- Checks/utilities ---
     def find_duplicate(
         self, category_id: int, name: str, url: str, args: str = ""
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         return self.repo.get_link_by_name_url_args(category_id, name, url, args)
 
     def find_by_unique_fields(
@@ -67,7 +68,7 @@ class LinksService:
         args: str = "",
         link_type: str = "web",
         name: str = "",
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Search link by unique fields (compatible with repository).
 
         Used as fallback path if search by (name,url,args) yielded no results.
@@ -78,7 +79,7 @@ class LinksService:
 
     # --- Mutations ---
     @unit_of_work
-    def create_or_update_link(self, link_data: Dict[str, Any]) -> int:
+    def create_or_update_link(self, link_data: dict[str, Any]) -> int:
         """Creates or updates link. Returns id.
         Business rules (e.g., silent duplicate ignoring) are already implemented in repository.
         """
@@ -96,12 +97,12 @@ class LinksService:
     def clear_favorites(self) -> None:
         self.repo.clear_favorites()
 
-    def reorder(self, link_ids: List[int]) -> bool:
+    def reorder(self, link_ids: list[int]) -> bool:
         # IMPORTANT: update_link_order in repository manages transaction itself via self.transaction()
         # Wrapping in UnitOfWork will lead to nested transaction (SQLite: cannot start a transaction within a transaction)
         return self.repo.update_link_order(link_ids)
 
-    def batch_update(self, links_data: List[Dict[str, Any]]) -> bool:
+    def batch_update(self, links_data: list[dict[str, Any]]) -> bool:
         # IMPORTANT: batch_update_links inside repository already manages transaction
         # via self.transaction(). Cannot wrap in UnitOfWork — this will lead
         # to nested transaction (SQLite: "cannot start a transaction within a transaction").
@@ -116,8 +117,8 @@ class LinksService:
         return success
 
     def batch_create_or_update_links(
-        self, links_data: List[Dict[str, Any]]
-    ) -> List[int]:
+        self, links_data: list[dict[str, Any]]
+    ) -> list[int]:
         """Batch creation/update of links with return of created IDs.
 
         Wraps repo.batch_upsert_links in UnitOfWork for operation atomicity.
@@ -127,7 +128,7 @@ class LinksService:
         # Wrapping in UnitOfWork will lead to nested transaction in SQLite.
         if not links_data:
             return []
-        created_ids: List[int] = []
+        created_ids: list[int] = []
         for chunk in self._iter_chunks(links_data):
             if not chunk:
                 continue
@@ -138,7 +139,7 @@ class LinksService:
         """Returns number of favorite links."""
         return self.repo.count_favorites()
 
-    def batch_delete_links(self, link_ids: List[int]) -> int:
+    def batch_delete_links(self, link_ids: list[int]) -> int:
         """Delete multiple links by IDs in a single transaction."""
         if not link_ids:
             return 0
@@ -158,9 +159,9 @@ class LinksService:
         return deleted
 
     def _iter_chunks(
-        self, items: Iterable[Dict[str, Any]]
-    ) -> Iterable[List[Dict[str, Any]]]:
-        buffer: List[Dict[str, Any]] = []
+        self, items: Iterable[dict[str, Any]]
+    ) -> Iterable[list[dict[str, Any]]]:
+        buffer: list[dict[str, Any]] = []
         for item in items or []:
             buffer.append(item)
             if len(buffer) >= self._chunk_size:
@@ -169,8 +170,8 @@ class LinksService:
         if buffer:
             yield buffer
 
-    def _iter_id_chunks(self, ids: Iterable[int]) -> Iterable[List[int]]:
-        buffer: List[int] = []
+    def _iter_id_chunks(self, ids: Iterable[int]) -> Iterable[list[int]]:
+        buffer: list[int] = []
         for item in ids or []:
             buffer.append(int(item))
             if len(buffer) >= self._chunk_size:

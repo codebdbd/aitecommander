@@ -2,7 +2,6 @@
 import logging
 import shutil
 from pathlib import Path
-from typing import Dict
 
 from .base_worker import DatabaseWorker
 
@@ -24,7 +23,7 @@ class BackupWorker(DatabaseWorker):
         super().__init__(db_path)
         self.backup_dir = backup_dir
     
-    def do_work(self, connection) -> Dict[str, str]:
+    def do_work(self, connection) -> dict[str, str]:
         """Выполняет резервное копирование.
         
         Returns:

@@ -1,7 +1,7 @@
 """Tests for i18n functionality."""
 
 import pytest
-from PyQt6.QtCore import QCoreApplication, QTranslator
+from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtWidgets import QApplication
 
 from i18n.language_service import LanguageService
@@ -126,8 +126,9 @@ class TestLocaleUtils:
 
     def test_format_datetime(self):
         """Test datetime formatting."""
-        from i18n.locale_utils import format_datetime
         from datetime import datetime
+
+        from i18n.locale_utils import format_datetime
 
         dt = datetime(2023, 12, 25, 15, 30, 45)
 

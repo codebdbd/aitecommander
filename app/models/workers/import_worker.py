@@ -1,10 +1,9 @@
 """Worker для импорта структуры данных в фоновом потоке."""
 import copy
 import logging
-from typing import Dict, List
 
-from .base_worker import DatabaseWorker
 from ..types.link_type import LinkType
+from .base_worker import DatabaseWorker
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +15,7 @@ class ImportStructureWorker(DatabaseWorker):
     с поддержкой прогресса и отмены операции.
     """
     
-    def __init__(self, db_path: str, data: List[Dict]):
+    def __init__(self, db_path: str, data: list[dict]):
         """
         Args:
             db_path: Путь к файлу БД
@@ -26,7 +25,7 @@ class ImportStructureWorker(DatabaseWorker):
         # Делаем deep copy чтобы избежать race conditions с UI
         self.data = copy.deepcopy(data or [])
     
-    def do_work(self, connection) -> Dict[str, int]:
+    def do_work(self, connection) -> dict[str, int]:
         """Выполняет импорт структуры.
         
         Returns:
@@ -48,11 +47,11 @@ class ImportStructureWorker(DatabaseWorker):
         self.emit_progress(0, total_items, "Подготовка данных...")
         
         # Фаза подготовки: нормализуем вход и строим связи
-        spheres_items: List[Dict] = []
-        sections_items: List[Dict] = []
-        categories_items: List[Dict] = []
-        links_with_id: List[Dict] = []
-        links_without_id: List[Dict] = []
+        spheres_items: list[dict] = []
+        sections_items: list[dict] = []
+        categories_items: list[dict] = []
+        links_with_id: list[dict] = []
+        links_without_id: list[dict] = []
         current = 0
         
         for s_idx, s in enumerate(root):

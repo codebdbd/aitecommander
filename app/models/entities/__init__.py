@@ -1,8 +1,8 @@
 """Domain models for DB entities operations."""
-from .sphere_model import SphereModel
-from .section_model import SectionModel
 from .category_model import CategoryModel
 from .link_model import LinkModel
+from .section_model import SectionModel
+from .sphere_model import SphereModel
 from .structure_model import StructureModel
 
 __all__ = [

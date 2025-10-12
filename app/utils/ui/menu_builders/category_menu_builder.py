@@ -1,14 +1,14 @@
 """Context menu builder for category tiles."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Tuple
+from typing import TYPE_CHECKING, Any, Callable
 
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QListWidget, QMenu
 
 from app.utils.ui.icon.icon_operations.creators import themed_icon
 from app.utils.ui.icon.path_service import get_current_theme
-from app.utils.ui.menu_builders.menu_actions import ActionBuilder, Shortcuts, MenuTexts
+from app.utils.ui.menu_builders.menu_actions import ActionBuilder, MenuTexts, Shortcuts
 
 if TYPE_CHECKING:
     from app.main_window import MainWindow
@@ -30,7 +30,7 @@ class CategoryMenuBuilder:
         edit_cb: Callable,
         delete_cb: Callable,
         add_link_cb: Callable,
-    ) -> Tuple[QMenu, QAction, QAction, QAction]:
+    ) -> tuple[QMenu, QAction, QAction, QAction]:
         """Build context menu for a category tile.
 
         Return values follow visual order:

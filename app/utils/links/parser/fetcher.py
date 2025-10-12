@@ -6,9 +6,8 @@ Supports deferred icon loading for responsive UIs.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
@@ -32,8 +31,8 @@ def fetch_web_link_info(
     force_refresh: bool = False,
     *,
     defer_icon: bool = False,
-    on_icon_ready: Optional[Callable[[str], None]] = None,
-) -> Dict[str, Any]:
+    on_icon_ready: Callable[[str], None] | None = None,
+) -> dict[str, Any]:
     # Preprocess URL: strip 'view-source:' and trailing question marks
     def _sanitize_url(u: str) -> str:
         if not u:
@@ -99,7 +98,7 @@ def fetch_web_link_info(
     except Exception:
         pass
     resp = http_request(url, config, timeout_override=html_timeout)
-    soup: Optional[BeautifulSoup] = None
+    soup: BeautifulSoup | None = None
     if resp:
         try:
             # Robust decode (avoid ISO-8859-1 defaults)
@@ -151,7 +150,7 @@ def fetch_web_link_info(
     # host computed above
     icon_path = None
 
-    def _resolve_icon_async(html_soup: Optional[BeautifulSoup]) -> None:
+    def _resolve_icon_async(html_soup: BeautifulSoup | None) -> None:
         if html_soup is None:
             # Best-effort: re-fetch quickly for icon-only if soup missing
             # Allow overriding icon fetch HTML timeout via config.ICON_HTML_TIMEOUT, fallback to HTML_FETCH_TIMEOUT
