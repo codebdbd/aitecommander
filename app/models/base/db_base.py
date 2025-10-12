@@ -2,7 +2,7 @@ import logging
 import sqlite3
 import threading
 from contextlib import contextmanager
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 from app.utils.db.synchronization import db_lock
 
@@ -111,7 +111,7 @@ class DatabaseBase:
             )
 
     def _get_next_position(
-        self, table_name: str, parent_field: str = None, parent_id: int = None
+        self, table_name: str, parent_field: Optional[str] = None, parent_id: Optional[int] = None
     ) -> int:
         """Gets next position for element in table."""
         try:
@@ -137,7 +137,7 @@ class DatabaseBase:
             ) from e
 
     def _execute_with_error_handling(
-        self, query: str, params: tuple = (), fetch_method: str = None
+        self, query: str, params: tuple = (), fetch_method: Optional[str] = None
     ) -> Union[sqlite3.Cursor, sqlite3.Row, list[sqlite3.Row], None]:
         """Executes SQL query with error handling and locking."""
         try:

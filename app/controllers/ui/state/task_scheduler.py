@@ -142,6 +142,9 @@ class TaskScheduler(QObject):
 
         if operation_id is None:
             operation_id = f"{task_type.value}_{id(operation)}"
+        
+        # Ensure operation_id is always a string at this point
+        assert isinstance(operation_id, str), "operation_id must be a string"
 
         # If called from another thread — send request via signal (queued connection)
         if QThread.currentThread() is not self.thread():

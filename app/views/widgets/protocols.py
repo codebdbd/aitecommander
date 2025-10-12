@@ -1,6 +1,10 @@
 """Protocols for views module type safety."""
 
-from typing import Protocol, TypedDict
+from pathlib import Path
+from typing import Any, Optional, Protocol, TypedDict
+
+from PyQt6.QtCore import QAbstractItemModel, QItemSelectionModel, QModelIndex, Qt
+from PyQt6.QtWidgets import QHeaderView, QScrollBar, QWidget
 
 
 class LinkDict(TypedDict, total=False):
@@ -187,3 +191,93 @@ class AppConfigWidgetAdapter:
         except (AttributeError, KeyError, TypeError):
             pass
         return "#444444"
+
+
+# ============================================================================
+# Protocols for Mixins
+# ============================================================================
+
+
+class TableViewProtocol(Protocol):
+    """Protocol defining the interface expected by table view mixins.
+    
+    This protocol documents methods that mixins expect from QTableView.
+    Any class using table view mixins should implement this protocol.
+    """
+    
+    def model(self) -> Optional[QAbstractItemModel]:
+        """Return the model attached to this view."""
+        ...
+    
+    def sortByColumn(self, column: int, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder) -> None:
+        """Sort the view by the given column."""
+        ...
+    
+    def verticalScrollBar(self) -> Optional[QScrollBar]:
+        """Return the vertical scroll bar."""
+        ...
+    
+    def viewport(self) -> Optional[QWidget]:
+        """Return the viewport widget."""
+        ...
+    
+    def selectionModel(self) -> Optional[QItemSelectionModel]:
+        """Return the selection model."""
+        ...
+    
+    def horizontalHeader(self) -> Optional[QHeaderView]:
+        """Return the horizontal header."""
+        ...
+    
+    def setCurrentIndex(self, index: QModelIndex) -> None:
+        """Set the current index."""
+        ...
+    
+    def scrollTo(self, index: QModelIndex, hint: Any = ...) -> None:
+        """Scroll to the given index."""
+        ...
+    
+    def selectRow(self, row: int) -> None:
+        """Select the given row."""
+        ...
+
+
+class LinkTableProtocol(TableViewProtocol, Protocol):
+    """Protocol for link table views with additional link-specific methods.
+    
+    Extends TableViewProtocol with methods specific to link management.
+    """
+    
+    def get_link_at(self, row: int) -> Optional[dict[str, Any]]:
+        """Get link data at the given row."""
+        ...
+    
+    def validate_cache_integrity(self) -> bool:
+        """Validate the integrity of the link cache."""
+        ...
+    
+    def rebuild_cache_from_items(self) -> None:
+        """Rebuild the link cache from table items."""
+        ...
+
+
+class IconProviderProtocol(Protocol):
+    """Protocol for classes that provide default icon paths.
+    
+    Used by LinkButtonMixin and similar components.
+    """
+    
+    def _get_default_icon_path(self) -> Path:
+        """Return the path to the default icon."""
+        ...
+
+
+class TranslatableProtocol(Protocol):
+    """Protocol for classes that support Qt translation.
+    
+    Used by mixins that need to display translated text.
+    """
+    
+    def tr(self, text: str) -> str:
+        """Translate the given text using Qt's translation system."""
+        ...

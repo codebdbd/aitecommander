@@ -54,7 +54,7 @@ class NeonEventFilter(QObject):
         self._outline_only = outline_only
         self._tracked_widgets: list[QWidget] = []  # Track widgets for cleanup
 
-    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # type: ignore[override]
         et = event.type()
 
         # Handle buttons, input fields, and list/table views

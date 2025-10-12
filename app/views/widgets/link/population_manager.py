@@ -2,17 +2,31 @@
 # Provides bulk-update helpers
 
 import logging
+from typing import TYPE_CHECKING, Any
 
 from PyQt6.QtCore import Qt
 
 from app.utils.ui.updates import suspend_updates
 
+if TYPE_CHECKING:
+    from app.views.widgets.protocols import LinkTableProtocol
+
 
 class PopulationManagerMixin:
+    """Mixin that populates and refreshes the links table.
+    
+    This mixin expects to be used with a class that implements LinkTableProtocol.
+    Typically used with QTableView-based classes for link management.
+    """
+    
     # Module-level logger
     logger = logging.getLogger(__name__)
-
-    """Mixin that populates and refreshes the links table."""
+    
+    # Type hint for the host class (only checked by mypy, not at runtime)
+    if TYPE_CHECKING:
+        # This tells mypy that self has all methods from LinkTableProtocol
+        def __init__(self: "LinkTableProtocol") -> None: ...
+        _current_mode: Any
 
     def _capture_ui_state(self):
         """Capture current UI state (selection, scroll, sorting)."""

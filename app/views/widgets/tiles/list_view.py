@@ -19,7 +19,7 @@ class CategoryListView(QListView):
     # Activation signal on Enter/Return key
     enterActivated = pyqtSignal(object)
 
-    def mousePressEvent(self, event: QMouseEvent) -> None:
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
         # Ensure currentIndex is set at click position (for DnD and context menu)
         try:
             p = event.position().toPoint()
@@ -64,7 +64,7 @@ class CategoryListView(QListView):
         result = drag.exec(Qt.DropAction.CopyAction | Qt.DropAction.MoveAction)
         logger.debug("CategoryListView.startDrag: drag result = %s", result)
 
-    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:  # type: ignore[override]
         # Explicitly start DnD when cursor moved enough
         try:
             if event.buttons() & Qt.MouseButton.LeftButton:
@@ -86,7 +86,7 @@ class CategoryListView(QListView):
             logger.exception("CategoryListView.mouseMoveEvent: unexpected error")
         super().mouseMoveEvent(event)
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:
+    def keyPressEvent(self, event: QKeyEvent) -> None:  # type: ignore[override]
         # Activate tile on Enter/Return
         try:
             if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
@@ -111,7 +111,7 @@ class CategoryListView(QListView):
             logger.exception("CategoryListView.keyPressEvent: unexpected error")
         super().keyPressEvent(event)
 
-    def contextMenuEvent(self, event: QEvent) -> None:
+    def contextMenuEvent(self, event: QEvent) -> None:  # type: ignore[override]
         # Always set current index on right-click and emit signal
         try:
             idx = self.indexAt(event.pos())
@@ -141,7 +141,7 @@ class CategoryListView(QListView):
             )
         super().contextMenuEvent(event)
 
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # type: ignore[override]
         # Guaranteed interception of QContextMenuEvent from viewport()
         try:
             if obj is self.viewport() and event.type() == QEvent.Type.ContextMenu:

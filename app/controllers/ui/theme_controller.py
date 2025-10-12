@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 from PyQt6.QtGui import QIcon
@@ -24,8 +24,8 @@ class ThemeController:
         self,
         settings,
         main_window=None,
-        stylesheet_applier: Optional[callable] = None,
-        gui_scheduler: Optional[callable] = None,
+        stylesheet_applier: Optional[Callable] = None,
+        gui_scheduler: Optional[Callable] = None,
         *,
         top_panels_controller: Optional[Any] = None,
         stylesheet_service: Optional[ThemeStylesheetService] = None,

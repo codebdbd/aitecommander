@@ -191,6 +191,8 @@ class DataManagementMixin:
                 # QTableView API
                 self.selectRow(row)
                 model = self.model()
+                if model is None:
+                    return False
                 idx = model.index(row, 0)
                 self.setCurrentIndex(idx)
                 self.scrollTo(idx)

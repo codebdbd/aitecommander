@@ -1,14 +1,25 @@
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 # Module containing row operations for the links table
 # Provides methods for adding, updating, and removing rows
+
+if TYPE_CHECKING:
+    from app.views.widgets.protocols import LinkTableProtocol
 
 logger = logging.getLogger(__name__)
 
 
 class RowOperationsMixin:
-    """Mixin with row-level operations for the links table."""
+    """Mixin with row-level operations for the links table.
+    
+    This mixin expects to be used with a class that implements LinkTableProtocol.
+    Provides methods for updating, adding, and removing individual rows.
+    """
+    
+    # Type hint for the host class
+    if TYPE_CHECKING:
+        def __init__(self: "LinkTableProtocol") -> None: ...
 
     def _link_cache(self) -> dict[int, dict[str, Any]]:
         """Helper access to current links cache."""

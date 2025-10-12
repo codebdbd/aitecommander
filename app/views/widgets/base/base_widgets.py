@@ -277,7 +277,7 @@ class BaseDragDropTableWidget(QTableView):
         self.setTabKeyNavigation(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
-    def eventFilter(self, obj: QWidget, event: QEvent) -> bool:
+    def eventFilter(self, obj: QWidget, event: QEvent) -> bool:  # type: ignore[override]
         """Force handling of DnD events arriving on ``viewport()``."""
         if obj is self.viewport():
             et = event.type()
@@ -354,7 +354,7 @@ class BaseDragDropTableWidget(QTableView):
         # Do not re-enable sorting yet. ``dropEvent()`` decides whether sorting stays off
         # (manual ordering visible) or reverts to the previous state on failure.
 
-    def dragEnterEvent(self, event: QDropEvent) -> None:
+    def dragEnterEvent(self, event: QDropEvent) -> None:  # type: ignore[override]
         """Handle the beginning of a drag operation."""
         if not self._sorting_disabled_for_drag:
             self._sorting_disabled_for_drag = self.isSortingEnabled()
@@ -398,7 +398,7 @@ class BaseDragDropTableWidget(QTableView):
             raise
         super().dragEnterEvent(event)
 
-    def dragMoveEvent(self, event: QDropEvent) -> None:
+    def dragMoveEvent(self, event: QDropEvent) -> None:  # type: ignore[override]
         """Support drag movements within the widget."""
         try:
             if (
@@ -438,14 +438,14 @@ class BaseDragDropTableWidget(QTableView):
             raise
         super().dragMoveEvent(event)
 
-    def dragLeaveEvent(self, event: QEvent) -> None:
+    def dragLeaveEvent(self, event: QEvent) -> None:  # type: ignore[override]
         """Handle leaving the drag zone."""
         if self._sorting_disabled_for_drag:
             self.setSortingEnabled(True)
             self._sorting_disabled_for_drag = False
         super().dragLeaveEvent(event)
 
-    def dropEvent(self, event: QDropEvent) -> None:
+    def dropEvent(self, event: QDropEvent) -> None:  # type: ignore[override]
         """Handle drop for internal row reordering."""
         if not self._is_internal_drop(event):
             super().dropEvent(event)

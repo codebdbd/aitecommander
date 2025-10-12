@@ -345,7 +345,7 @@ def _get_icon_for_link_type(
 
 
 def parse_local_link(
-    link_type: str, path: str, config, args: str = None
+    link_type: str, path: str, config, args: Optional[str] = None
 ) -> dict[str, str]:
     """Parses local link and returns information about it, including name and icon."""
     if not validate_link_type(link_type):
