@@ -949,9 +949,7 @@ class TopBarLayoutManager(QObject):
             return 0
         try:
             w_panel = int(
-                self._width_calculator.panel_width(
-                    state.widget, state.buttons, vis
-                )
+                self._width_calculator.panel_width(state.widget, state.buttons, vis)
             )
         except Exception:
             w_panel = 0
@@ -995,7 +993,7 @@ class TopBarLayoutManager(QObject):
                 w_use = self._calculate_panel_width(state, applied_counts)
             else:
                 w_use = self._calculate_widget_width(widget)
-            
+
             if w_use > 0:
                 occupied += w_use
                 occupy_items += 1
@@ -1004,7 +1002,7 @@ class TopBarLayoutManager(QObject):
         occupied += spacing * max(0, occupy_items - 1)
         margins = top_bar.contentsMargins()
         occupied += margins.left() + margins.right()
-        
+
         return occupied, search_index
 
     def _apply_search_constraints(self, search, search_index, ctx, min_search):
@@ -1041,7 +1039,7 @@ class TopBarLayoutManager(QObject):
                 occupied, search_index = self._calculate_occupied_space(
                     ctx, applied_counts, state_map, search
                 )
-                
+
                 min_search = int(self._min_search_width)
                 cur_min = int(search.minimumWidth()) if search.minimumWidth() > 0 else 0
                 if cur_min > 0:
@@ -1101,9 +1099,7 @@ class TopBarLayoutManager(QObject):
         panel_info = panel_widgets.get(id(widget))
         if panel_info:
             state_label, panel_widget = panel_info
-            return (
-                applied_counts.get(state_label, 0) > 0 and panel_widget.isVisible()
-            )
+            return applied_counts.get(state_label, 0) > 0 and panel_widget.isVisible()
         return False
 
     def _find_next_visible_widget(
@@ -1129,10 +1125,7 @@ class TopBarLayoutManager(QObject):
             panel_info = panel_widgets.get(id(widget))
             if panel_info:
                 state_label, panel_widget = panel_info
-                if (
-                    applied_counts.get(state_label, 0) > 0
-                    and panel_widget.isVisible()
-                ):
+                if applied_counts.get(state_label, 0) > 0 and panel_widget.isVisible():
                     return panel_widget
                 idx += step
                 continue
@@ -1152,18 +1145,22 @@ class TopBarLayoutManager(QObject):
         count: int,
     ) -> tuple[bool, QWidget | None]:
         """Determine if separator should be shown.
-        
+
         Returns: (show_separator, target_right_widget)
         """
-        left_visible = self._is_panel_visible(left_widget, panel_widgets, applied_counts)
-        right_visible = self._is_panel_visible(right_widget, panel_widgets, applied_counts)
-        
+        left_visible = self._is_panel_visible(
+            left_widget, panel_widgets, applied_counts
+        )
+        right_visible = self._is_panel_visible(
+            right_widget, panel_widgets, applied_counts
+        )
+
         show_sep = left_visible and (
             right_visible or (has_search and isinstance(right_widget, QLineEdit))
         )
-        
+
         target_right_widget = right_widget
-        
+
         # Check for bridged separator
         if (
             not show_sep
@@ -1181,7 +1178,7 @@ class TopBarLayoutManager(QObject):
             ):
                 target_right_widget = bridged_right
                 show_sep = True
-        
+
         return show_sep, target_right_widget
 
     def _update_spacer_sizes(
@@ -1194,10 +1191,8 @@ class TopBarLayoutManager(QObject):
     ) -> None:
         """Update spacer sizes around separator."""
         left_sp = top_bar.itemAt(index - 1).spacerItem() if index - 1 >= 0 else None
-        right_sp = (
-            top_bar.itemAt(index + 1).spacerItem() if index + 1 < count else None
-        )
-        
+        right_sp = top_bar.itemAt(index + 1).spacerItem() if index + 1 < count else None
+
         if show_sep:
             if left_sp:
                 left_sp.changeSize(
@@ -1256,10 +1251,10 @@ class TopBarLayoutManager(QObject):
             widget = item.widget()
             if widget is None or widget.objectName() != "vSeparator":
                 continue
-            
+
             left_widget = self._find_neighbor_widget(widgets_map, index, -1, count)
             right_widget = self._find_neighbor_widget(widgets_map, index, +1, count)
-            
+
             show_sep, target_right_widget = self._should_show_separator(
                 left_widget,
                 right_widget,
@@ -1270,7 +1265,7 @@ class TopBarLayoutManager(QObject):
                 index,
                 count,
             )
-            
+
             widget.setVisible(show_sep)
             self._update_spacer_sizes(
                 top_bar, index, count, show_sep, target_right_widget

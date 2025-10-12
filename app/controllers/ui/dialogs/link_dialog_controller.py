@@ -219,14 +219,16 @@ class LinkDialogController:
         browser_key = profile.get("browser_key")
         if browser_key:
             return browser_key
-        
+
         browser_key = manager.detect_browser_from_args(profile.get("args", ""))
         if browser_key:
             return browser_key
-        
+
         for key, finder in manager.finders.items():
             try:
-                if hasattr(finder, "validate_profile_data") and finder.validate_profile_data(profile):
+                if hasattr(
+                    finder, "validate_profile_data"
+                ) and finder.validate_profile_data(profile):
                     return key
             except Exception:
                 continue
@@ -279,7 +281,9 @@ class LinkDialogController:
             return []
 
         manager = self.profile_manager
-        profiles_by_browser = self._group_profiles_by_browser(selected_profiles, manager)
+        profiles_by_browser = self._group_profiles_by_browser(
+            selected_profiles, manager
+        )
         self._log_profile_groups(profiles_by_browser)
 
         if not profiles_by_browser:

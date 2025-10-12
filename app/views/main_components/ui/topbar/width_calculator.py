@@ -105,6 +105,7 @@ class WidthCalculator:
 
         if buttons is None:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning(
                 "panel_width called with None buttons, returning MIN_PANEL_WIDTH"
@@ -168,6 +169,7 @@ class WidthCalculator:
             pass
         try:
             import PyQt6.QtWidgets as _qtw
+
             if isinstance(bg, _qtw.QFrame):
                 try:
                     fw = int(bg.frameWidth())

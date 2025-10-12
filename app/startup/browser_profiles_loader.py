@@ -34,6 +34,7 @@ class BrowserProfilesLoader:
             from app.utils.browser.browser_profiles import async_profile_manager as _apm
             from app.utils.browser.browser_profiles import persistent_cache as _pc
             from app.utils.browser.browser_profiles import profile_manager as _pm
+
             return _apm, _pc, _pm
         except ImportError as e:
             logger.warning("Browser profile modules unavailable: %s", e, exc_info=True)
@@ -81,6 +82,7 @@ class BrowserProfilesLoader:
 
     def _load_profiles_async(self, async_mgr, _pc, _pm):
         """Load profiles asynchronously when cache doesn't exist."""
+
         def _save_and_update(all_profiles: dict):
             """Save and update browser profiles."""
             self._save_profiles_to_cache(all_profiles, _pc)

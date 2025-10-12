@@ -334,16 +334,12 @@ class StructureMenuBuilder:
             if selection is not None:
                 selection.end_suppress_selection()
         except Exception:
-            logger.exception(
-                "[PasteCategories] Failed to end selection suppression"
-            )
+            logger.exception("[PasteCategories] Failed to end selection suppression")
         try:
             self.main_window._suppress_deletes = False
             logger.debug("[PasteCategories] _suppress_deletes set=False")
         except Exception:
-            logger.exception(
-                "[PasteCategories] Failed to set _suppress_deletes=False"
-            )
+            logger.exception("[PasteCategories] Failed to set _suppress_deletes=False")
 
     def _update_ui_after_paste(self, business, section_id):
         """Update UI after pasting categories."""
@@ -352,9 +348,7 @@ class StructureMenuBuilder:
         try:
             clear_icon_cache()
         except Exception:
-            logger.exception(
-                "[PasteCategories] Failed to clear icon cache"
-            )
+            logger.exception("[PasteCategories] Failed to clear icon cache")
         try:
             business._invalidate_categories_cache(int(section_id))
         except Exception:
@@ -365,13 +359,9 @@ class StructureMenuBuilder:
         try:
             if getattr(business, "async_service", None):
                 business.async_service.schedule_structure_reload(0)
-            logger.debug(
-                "[PasteCategories] scheduled structure reload (debounced)"
-            )
+            logger.debug("[PasteCategories] scheduled structure reload (debounced)")
         except Exception:
-            logger.exception(
-                "[PasteCategories] Failed to schedule structure reload"
-            )
+            logger.exception("[PasteCategories] Failed to schedule structure reload")
         business.section_selected.emit(int(section_id))
 
     def _paste_category_from_clipboard_to_section(self, section_id: Any) -> None:

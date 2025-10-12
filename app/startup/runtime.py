@@ -125,7 +125,7 @@ def _initialize_language_service(
     """Initialize language service for GUI mode."""
     if mode != StartupMode.GUI:
         return None
-    
+
     try:
         language_service = LanguageService.instance()
         logger.info(
@@ -135,17 +135,17 @@ def _initialize_language_service(
     except Exception as exc:
         logger.warning("Failed to initialize language service: %s", exc)
         return None
-    
+
     quit_on_last_window = app_config.get("ui.quit_on_last_window_closed", True)
     if isinstance(app, QApplication):
         app.setQuitOnLastWindowClosed(quit_on_last_window)
         logger.info("Set quit on last window closed: %s", quit_on_last_window)
-    
+
     try:
         language_service.install_translator(app)
     except Exception as exc:
         logger.warning("Failed to install translator: %s", exc)
-    
+
     return language_service
 
 
@@ -153,11 +153,9 @@ def _initialize_database_and_profiles(
     initializer: ApplicationInitializer,
 ) -> None:
     """Initialize database and browser profiles asynchronously."""
-    db_initializer = DatabaseInitializer(
-        initializer.database, initializer.main_window
-    )
+    db_initializer = DatabaseInitializer(initializer.database, initializer.main_window)
     db_initializer.initialize_async()
-    
+
     if initializer.main_window is not None:
         profiles_loader = BrowserProfilesLoader(initializer.main_window)
         profiles_loader.setup_lazy_loading()
@@ -170,7 +168,7 @@ def _schedule_auto_quit(
     """Schedule auto quit if requested."""
     if options.auto_quit:
         QTimer.singleShot(max(0, options.quit_after_ms), app.quit)
-    
+
     if options.mode == StartupMode.GUI:
         startup_delay = app_config.get("startup.app_ready_delay_ms", 100)
         QTimer.singleShot(
@@ -184,11 +182,9 @@ def _handle_exit_code(exit_code: int) -> int:
         logger.critical("QApplication exec() failed with error code -1")
         return ExitCode.RUNTIME_ERROR
     if exit_code < 0:
-        logger.error(
-            "QApplication returned unexpected negative code: %d", exit_code
-        )
+        logger.error("QApplication returned unexpected negative code: %d", exit_code)
         return ExitCode.RUNTIME_ERROR
-    
+
     logger.info("Application exited with code: %d", exit_code)
     return ExitCode.SUCCESS if exit_code == 0 else ExitCode.INITIALIZATION_FAILURE
 
@@ -205,17 +201,17 @@ def _cleanup_resources(
             initializer.ensure_emergency_cleanup()
         except Exception as exc:
             logger.error("Error during emergency cleanup: %s", exc)
-    
+
     if signal_manager and signal_manager.installed:
         signal_manager.restore()
         signal_manager.close()
-    
+
     if about_to_quit_cleanup_registered and hasattr(app, "aboutToQuit"):
         try:
             app.aboutToQuit.disconnect()  # type: ignore[attr-defined]
         except Exception:
             pass
-    
+
     log_shutdown()
 
 
@@ -233,20 +229,20 @@ def run(options: StartupOptions | None = None) -> int:
         app = _create_qt_application(options.mode)
         if app is None:
             return ExitCode.INITIALIZATION_FAILURE
-        
+
         initializer = ApplicationInitializer(mode=options.mode)
         about_to_quit_cleanup_registered = _register_cleanup_handler(app, initializer)
         signal_manager = _setup_signal_handlers(app, initializer)
         _initialize_language_service(app, options.mode)
-        
+
         if not initializer.initialize_all():
             logger.critical("Failed to initialize application")
             app.quit()
             return ExitCode.INITIALIZATION_FAILURE
-        
+
         _initialize_database_and_profiles(initializer)
         _schedule_auto_quit(app, options)
-        
+
         exit_code = app.exec()
         return _handle_exit_code(exit_code)
 

@@ -100,15 +100,13 @@ class _AutoHideTreeFilter(QObject):
     def _switch_to_table_view(self, stack, table) -> None:
         """Switch stack to table view if configured."""
         try:
-            switch_to_table = bool(
-                app_config.ui.get_auto_hide_switch_to_table()
-            )
+            switch_to_table = bool(app_config.ui.get_auto_hide_switch_to_table())
         except (AttributeError, TypeError, ValueError):
             switch_to_table = False
-        
+
         if not switch_to_table or stack is None or table is None:
             return
-        
+
         try:
             table_container = getattr(self.window, "table_container", None)
             for i in range(stack.count()):
@@ -145,10 +143,7 @@ class _AutoHideTreeFilter(QObject):
         if splitter is None:
             return
         try:
-            if (
-                self._saved_splitter_sizes
-                and len(self._saved_splitter_sizes) == 2
-            ):
+            if self._saved_splitter_sizes and len(self._saved_splitter_sizes) == 2:
                 splitter.setSizes(self._saved_splitter_sizes)
             else:
                 sizes = [int(x) for x in self.default_sizes]
@@ -554,12 +549,14 @@ class WindowUISetup:
         except Exception:
             return 32
 
-    def _configure_panel_widget(self, widget, object_name: str | None, log_label: str) -> None:
+    def _configure_panel_widget(
+        self, widget, object_name: str | None, log_label: str
+    ) -> None:
         """Configure widget size and properties."""
         if object_name:
             widget.setObjectName(object_name)
         widget.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-        
+
         fixed_h = self._get_panel_height()
         try:
             widget.setFixedHeight(fixed_h)
@@ -611,7 +608,7 @@ class WindowUISetup:
             setattr(self.window, attr_name, widget)
             top_bar.addWidget(widget)
             self._adjust_panel_spacing(widget, log_label)
-            
+
             try:
                 dur = (time.perf_counter() - t_start) * 1000.0
                 logger.info(

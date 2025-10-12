@@ -256,7 +256,9 @@ class DragDropHandler(TreeHandlerBase):
                 pass
         return False
 
-    def _move_single_category(self, cid, section_id, target_row, structure_business, model):
+    def _move_single_category(
+        self, cid, section_id, target_row, structure_business, model
+    ):
         """Move single category using business logic or model."""
         if structure_business:
             try:
@@ -330,7 +332,7 @@ class DragDropHandler(TreeHandlerBase):
         model = self.tree_widget.model()
         main_win = self.tree_widget.window()
         structure_business = getattr(main_win, "structure_business", None)
-        
+
         batch_started = self._begin_batch_operation(structure_business)
         moved_count = 0
         insert_offset = 0
@@ -340,8 +342,10 @@ class DragDropHandler(TreeHandlerBase):
             if not isinstance(cid, int):
                 continue
             target_row = int(base_row + insert_offset)
-            
-            moved = self._move_single_category(cid, section_id, target_row, structure_business, model)
+
+            moved = self._move_single_category(
+                cid, section_id, target_row, structure_business, model
+            )
             if moved:
                 moved_count += 1
                 insert_offset += 1

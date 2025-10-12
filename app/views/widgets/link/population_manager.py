@@ -20,9 +20,7 @@ class PopulationManagerMixin:
             sel = self.selectionModel()
             current_selection = [i.row() for i in sel.selectedRows()] if sel else []
         except Exception:
-            self.logger.debug(
-                "populate: failed to capture selection", exc_info=True
-            )
+            self.logger.debug("populate: failed to capture selection", exc_info=True)
             current_selection = []
         current_scroll_pos = self.verticalScrollBar().value()
 
@@ -45,9 +43,7 @@ class PopulationManagerMixin:
             if hasattr(self, "blockSignals"):
                 self.blockSignals(True)
         except Exception:
-            self.logger.debug(
-                "_restore_ui_state: sortByColumn failed", exc_info=True
-            )
+            self.logger.debug("_restore_ui_state: sortByColumn failed", exc_info=True)
         try:
             header = self.horizontalHeader()
             if header is not None and hasattr(header, "blockSignals"):
@@ -186,7 +182,9 @@ class PopulationManagerMixin:
             return
 
         with suspend_updates(self):
-            current_selection, current_scroll_pos, sort_col, sort_order = self._capture_ui_state()
+            current_selection, current_scroll_pos, sort_col, sort_order = (
+                self._capture_ui_state()
+            )
 
             if mode != self._current_mode:
                 self._current_mode = mode

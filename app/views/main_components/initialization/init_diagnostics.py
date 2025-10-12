@@ -92,15 +92,12 @@ class DiagnosticsInstaller:
         """Get resize and move logging limits from config."""
         try:
             from app.config_data import app_config as _cfg
+
             max_resizes = int(
-                getattr(_cfg, "get", lambda *_: 5)(
-                    "diag.resize_log.max_resizes", 5
-                )
+                getattr(_cfg, "get", lambda *_: 5)("diag.resize_log.max_resizes", 5)
             )
             max_moves = int(
-                getattr(_cfg, "get", lambda *_: 5)(
-                    "diag.resize_log.max_moves", 5
-                )
+                getattr(_cfg, "get", lambda *_: 5)("diag.resize_log.max_moves", 5)
             )
             return max_resizes, max_moves
         except Exception:
@@ -108,6 +105,7 @@ class DiagnosticsInstaller:
 
     def _create_resize_logger_class(self):
         """Create ResizeLogger class."""
+
         class _ResizeLogger(QObject):
             def __init__(self, parent, max_resizes, max_moves):
                 super().__init__(parent)
@@ -119,7 +117,10 @@ class DiagnosticsInstaller:
 
             def _should_uninstall(self):
                 """Check if logger should be uninstalled."""
-                return self._resizes >= self._max_resizes and self._moves >= self._max_moves
+                return (
+                    self._resizes >= self._max_resizes
+                    and self._moves >= self._max_moves
+                )
 
             def _uninstall_from_owner(self, obj):
                 """Uninstall event filter and reset flags."""
@@ -175,7 +176,7 @@ class DiagnosticsInstaller:
                         self._handle_resize(obj)
                     elif et == QEvent.Type.Move:
                         self._handle_move(obj)
-                    
+
                     if self._should_uninstall():
                         self._uninstall_from_owner(obj)
                 except Exception:
@@ -184,7 +185,7 @@ class DiagnosticsInstaller:
                         exc_info=True,
                     )
                 return QObject.eventFilter(self, obj, event)
-        
+
         return _ResizeLogger
 
     def _install_window_resize_logger(self) -> None:

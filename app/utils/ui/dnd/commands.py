@@ -410,9 +410,7 @@ class MoveCategoriesCommand(BaseCommand):
         """Attempt batch move operation, return (moved_ids, success)."""
         try:
             base_row = (
-                min(int(st.get("position", 0) or 0) for st in states)
-                if states
-                else 0
+                min(int(st.get("position", 0) or 0) for st in states) if states else 0
             )
         except Exception:
             base_row = 0

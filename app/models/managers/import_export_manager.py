@@ -353,8 +353,18 @@ def _upsert_category_tree(tree: dict, connection) -> None:
         return
 
     all_fields = [
-        "id", "category_id", "name", "url", "type", "notes",
-        "is_favorite", "last_used", "icon_path", "args", "browser_key", "position",
+        "id",
+        "category_id",
+        "name",
+        "url",
+        "type",
+        "notes",
+        "is_favorite",
+        "last_used",
+        "icon_path",
+        "args",
+        "browser_key",
+        "position",
     ]
 
     next_pos = None

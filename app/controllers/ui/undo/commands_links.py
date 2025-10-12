@@ -54,9 +54,9 @@ class SaveLinkCmd(BaseCommand):
         """Reload table for current category if not suppressed."""
         try:
             if not getattr(self, "_suppress_ui", False):
-                cat_id = self.new_data.get("category_id") or (
-                    self.old_data or {}
-                ).get("category_id")
+                cat_id = self.new_data.get("category_id") or (self.old_data or {}).get(
+                    "category_id"
+                )
                 if isinstance(cat_id, int) and cat_id > 0:
                     ctrl = getattr(self.main, "links_table_controller", None)
                     if ctrl:

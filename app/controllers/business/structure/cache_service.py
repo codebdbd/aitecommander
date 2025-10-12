@@ -89,7 +89,7 @@ class StructureCacheService:
             if _metrics:
                 _metrics.record_cache_hit("structure_cache")
             return payload
-        
+
         if _metrics:
             _metrics.record_cache_miss("structure_cache")
         try:

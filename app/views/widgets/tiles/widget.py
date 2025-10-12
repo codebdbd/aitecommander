@@ -155,10 +155,10 @@ class CategoryTiles(QWidget):
         self.view.setResizeMode(self.view.ResizeMode.Adjust)
         self.view.setMovement(self.view.Movement.Static)
         self.view.setMouseTracking(True)
-        
+
         vp = self.view.viewport()
         self._setup_viewport(vp)
-        
+
         self.delegate = CategoryTileDelegate(parent=self)
         tile_w, tile_h, icon_w, icon_h, spacing, padding = self._load_config_sizes()
         self._apply_delegate_params(tile_w, tile_h, icon_w, icon_h, padding)

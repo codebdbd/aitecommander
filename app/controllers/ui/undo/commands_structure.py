@@ -300,26 +300,20 @@ class SaveCategoryCmd(BaseCommand):
             if business:
                 business.item_deleted.emit("category", self.new_id)
         except Exception as exc:
-            logger.warning(
-                "SaveCategoryCmd.undo: item_deleted emit failed: %s", exc
-            )
+            logger.warning("SaveCategoryCmd.undo: item_deleted emit failed: %s", exc)
 
     def _undo_update_category(self):
         """Undo update of existing category."""
         if not self.old_data:
             return
-        self.structure_service.update_category(
-            self.old_data["id"], self.old_data
-        )
+        self.structure_service.update_category(self.old_data["id"], self.old_data)
         try:
             if not self.skip_reload:
                 business = getattr(self.main, "structure_business", None)
                 if business:
                     business.select_category(self.old_data["id"])
         except Exception as exc:
-            logger.warning(
-                "SaveCategoryCmd.undo: select_category failed: %s", exc
-            )
+            logger.warning("SaveCategoryCmd.undo: select_category failed: %s", exc)
         try:
             business = getattr(self.main, "structure_business", None)
             if business:
@@ -327,9 +321,7 @@ class SaveCategoryCmd(BaseCommand):
                     "category", self.old_data["id"], self.old_data
                 )
         except Exception as exc:
-            logger.warning(
-                "SaveCategoryCmd.undo: item_updated emit failed: %s", exc
-            )
+            logger.warning("SaveCategoryCmd.undo: item_updated emit failed: %s", exc)
 
     @log_command
     def undo(self):
@@ -683,9 +675,7 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                 len(self._backups),
             )
         except Exception as exc:
-            logger.warning(
-                "DeleteCategoriesBatchCmd.undo: import bulk failed: %s", exc
-            )
+            logger.warning("DeleteCategoriesBatchCmd.undo: import bulk failed: %s", exc)
 
     def _determine_focus_section(self):
         """Determine section for final focus from backups."""
@@ -738,7 +728,9 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                 exc_info=True,
             )
 
-    def _emit_batch_signals(self, business, section_id_for_focus, category_id_for_focus):
+    def _emit_batch_signals(
+        self, business, section_id_for_focus, category_id_for_focus
+    ):
         """Emit batch deletion signals and schedule reload."""
         try:
             if business:
@@ -771,7 +763,9 @@ class DeleteCategoriesBatchCmd(BaseCommand):
                 exc_info=True,
             )
 
-    def _finalize_batch_undo(self, business, section_id_for_focus, category_id_for_focus):
+    def _finalize_batch_undo(
+        self, business, section_id_for_focus, category_id_for_focus
+    ):
         """Finalize batch undo with UI updates."""
         try:
             clear_icon_cache()

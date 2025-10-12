@@ -406,7 +406,7 @@ class IconDownloader:
             (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
         )
         url_lower = icon_url.lower().split("?")[0].split("#")[0]
-        
+
         if not ct_header.startswith("image/"):
             img_ext = url_lower.endswith(
                 (".png", ".ico", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg")
@@ -468,7 +468,9 @@ class IconDownloader:
             return None
         return bytes(body)
 
-    def _process_and_save_image(self, data2, domain, icon_url, resp, ct_dbg, cl_dbg, is_fallback, meta):
+    def _process_and_save_image(
+        self, data2, domain, icon_url, resp, ct_dbg, cl_dbg, is_fallback, meta
+    ):
         """Process and save image data."""
         try:
             max_pixels_limit = int(
@@ -546,7 +548,7 @@ class IconDownloader:
         url_lower = icon_url.lower().split("?")[0].split("#")[0]
         ext = url_lower.rsplit(".", 1)[-1] if "." in url_lower else ""
         max_size = app_config.get_max_web_icon_size()
-        
+
         if not self._check_content_length(resp, icon_url, max_size):
             resp.close()
             return None
@@ -560,7 +562,9 @@ class IconDownloader:
             return None
 
         if self.is_non_image_data(ct_header, data):
-            logger.info("[icon] skip reason=non_image ct=%s url=%s", ct_header, icon_url)
+            logger.info(
+                "[icon] skip reason=non_image ct=%s url=%s", ct_header, icon_url
+            )
             return None
 
         if len(data) > max_size:
@@ -574,7 +578,9 @@ class IconDownloader:
             return None
 
         try:
-            return self._process_and_save_image(data2, domain, icon_url, resp, ct_dbg, cl_dbg, is_fallback, meta)
+            return self._process_and_save_image(
+                data2, domain, icon_url, resp, ct_dbg, cl_dbg, is_fallback, meta
+            )
         except (UnidentifiedImageError, Image.DecompressionBombError) as e:
             logger.warning(
                 "[icon] unsafe_or_invalid_image url=%s: %s", icon_url, e, exc_info=True
@@ -621,7 +627,9 @@ def _check_completed_futures(futures, done, fut_to_exclude=None):
     return None
 
 
-def _try_candidates_parallel_impl(icon_urls, domain, config, is_fallback, force_refresh, finish_by):
+def _try_candidates_parallel_impl(
+    icon_urls, domain, config, is_fallback, force_refresh, finish_by
+):
     """Try icon candidates in parallel."""
     if not icon_urls:
         return None
@@ -642,9 +650,7 @@ def _try_candidates_parallel_impl(icon_urls, domain, config, is_fallback, force_
     executor = _get_icon_executor(max_workers)
     try:
         futures = [
-            executor.submit(
-                save_icon, u, domain, config, is_fallback, force_refresh
-            )
+            executor.submit(save_icon, u, domain, config, is_fallback, force_refresh)
             for u in icon_urls
         ]
         while True:
@@ -670,13 +676,13 @@ def _try_candidates_parallel_impl(icon_urls, domain, config, is_fallback, force_
     return None
 
 
-def _try_external_candidates(config, soup, page_url, domain, tried_urls, finish_by, force_refresh):
+def _try_external_candidates(
+    config, soup, page_url, domain, tried_urls, finish_by, force_refresh
+):
     """Try external icon candidates if enabled."""
     if not bool(getattr(config, "ICON_USE_EXTERNAL", False)):
         return None
-    ext_all = find_favicon_candidates(soup, page_url, config, use_external=True)[
-        :12
-    ]
+    ext_all = find_favicon_candidates(soup, page_url, config, use_external=True)[:12]
     ext_only = [u for u in ext_all if u not in tried_urls]
     if ext_only:
         logger.debug(
@@ -684,7 +690,9 @@ def _try_external_candidates(config, soup, page_url, domain, tried_urls, finish_
             len(ext_only),
             domain,
         )
-        saved_path = _try_candidates_parallel_impl(ext_only, domain, config, True, force_refresh, finish_by)
+        saved_path = _try_candidates_parallel_impl(
+            ext_only, domain, config, True, force_refresh, finish_by
+        )
         if saved_path:
             logger.info(
                 "Successfully saved external fallback icon %s for domain %s",
@@ -711,7 +719,9 @@ def pick_icon_parallel(
     finish_by = time.monotonic() + max(0.05, max_elapsed)
 
     tried_urls = set(candidates)
-    saved_path = _try_candidates_parallel_impl(candidates, domain, config, False, force_refresh, finish_by)
+    saved_path = _try_candidates_parallel_impl(
+        candidates, domain, config, False, force_refresh, finish_by
+    )
     if saved_path:
         logger.info(
             "Successfully saved good-sized icon %s for domain %s", saved_path, domain
@@ -722,17 +732,21 @@ def pick_icon_parallel(
         MIN_GOOD_SIZE,
         domain,
     )
-    saved_path = _try_candidates_parallel_impl(candidates, domain, config, True, force_refresh, finish_by)
+    saved_path = _try_candidates_parallel_impl(
+        candidates, domain, config, True, force_refresh, finish_by
+    )
     if saved_path:
         logger.info(
             "Successfully saved fallback icon %s for domain %s", saved_path, domain
         )
         return saved_path
-    
-    saved_path = _try_external_candidates(config, soup, page_url, domain, tried_urls, finish_by, force_refresh)
+
+    saved_path = _try_external_candidates(
+        config, soup, page_url, domain, tried_urls, finish_by, force_refresh
+    )
     if saved_path:
         return saved_path
-    
+
     logger.info("No suitable icon found for %s", domain)
     return None
 

@@ -255,6 +255,7 @@ class StructureCrudService:
 
         try:
             from app.config_data import app_config
+
             delay = int(app_config.ui.get_structure_reload_immediate_delay_ms())
             self._async_service.schedule_structure_reload(delay)
         except Exception:  # pragma: no cover - defensive

@@ -191,12 +191,12 @@ class StructureManager:
 
     def _prepare_links(self, root: list[dict]) -> tuple[list[dict], list[dict]]:
         """Extract and normalize link data with category references.
-        
+
         Returns: (links_with_id, links_without_id)
         """
         links_with_id = []
         links_without_id = []
-        
+
         for s in root:
             if not isinstance(s, dict):
                 continue
@@ -222,12 +222,12 @@ class StructureManager:
                         if ld.get("position") is None:
                             ld["position"] = l_idx
                         ld["_category_ref"] = cat_ref
-                        
+
                         if ld.get("id"):
                             links_with_id.append(ld)
                         else:
                             links_without_id.append(ld)
-        
+
         return links_with_id, links_without_id
 
     def _clear_tables(self, operation: str, current: int, total_items: int) -> None:
@@ -247,7 +247,7 @@ class StructureManager:
         self.db.operation_progress.emit(
             operation, current, total_items, f"Inserting spheres: {len(spheres_items)}"
         )
-        
+
         spheres_with_id = [x for x in spheres_items if x.get("id")]
         spheres_no_id = [x for x in spheres_items if not x.get("id")]
 
@@ -278,7 +278,7 @@ class StructureManager:
                 ),
             )
             sphere_ref_to_id[x["ref"]] = int(cur.lastrowid)
-        
+
         return sphere_ref_to_id
 
     def _insert_sections(
@@ -291,12 +291,15 @@ class StructureManager:
     ) -> dict[int, int]:
         """Insert sections and return ref->id mapping."""
         self.db.operation_progress.emit(
-            operation, current, total_items, f"Inserting sections: {len(sections_items)}"
+            operation,
+            current,
+            total_items,
+            f"Inserting sections: {len(sections_items)}",
         )
-        
+
         for x in sections_items:
             x["sphere_id"] = sphere_ref_to_id.get(x["sphere_ref"])
-        
+
         sections_with_id = [x for x in sections_items if x.get("id")]
         sections_no_id = [x for x in sections_items if not x.get("id")]
 
@@ -329,7 +332,7 @@ class StructureManager:
                 ),
             )
             section_ref_to_id[x["ref"]] = int(cur.lastrowid)
-        
+
         return section_ref_to_id
 
     def _insert_categories(
@@ -347,10 +350,10 @@ class StructureManager:
             total_items,
             f"Inserting categories: {len(categories_items)}",
         )
-        
+
         for x in categories_items:
             x["section_id"] = section_ref_to_id.get(x["section_ref"])
-        
+
         categories_with_id = [x for x in categories_items if x.get("id")]
         categories_no_id = [x for x in categories_items if not x.get("id")]
 
@@ -383,7 +386,7 @@ class StructureManager:
                 ),
             )
             category_ref_to_id[x["ref"]] = int(cur.lastrowid)
-        
+
         return category_ref_to_id
 
     def _insert_links(
@@ -400,7 +403,7 @@ class StructureManager:
         self.db.operation_progress.emit(
             operation, current, total_items, f"Inserting links: {total_links}"
         )
-        
+
         for link in links_with_id + links_without_id:
             if not link.get("category_id"):
                 cref = link.get("_category_ref")
@@ -500,7 +503,7 @@ class StructureManager:
             self.db.operation_progress.emit(
                 operation, 0, total_items or 1, "Preparing data..."
             )
-            
+
             spheres_items = self._prepare_spheres(root)
             sections_items = self._prepare_sections(root)
             categories_items = self._prepare_categories(root)
@@ -509,11 +512,11 @@ class StructureManager:
             with db_lock:
                 with self.db.connection:
                     self._clear_tables(operation, 0, total_items or 1)
-                    
+
                     sphere_ref_to_id = self._insert_spheres(
                         spheres_items, operation, 0, total_items or 1
                     )
-                    
+
                     section_ref_to_id = self._insert_sections(
                         sections_items,
                         sphere_ref_to_id,
@@ -521,7 +524,7 @@ class StructureManager:
                         len(spheres_items),
                         total_items or 1,
                     )
-                    
+
                     category_ref_to_id = self._insert_categories(
                         categories_items,
                         section_ref_to_id,
@@ -529,7 +532,7 @@ class StructureManager:
                         len(spheres_items) + len(sections_items),
                         total_items or 1,
                     )
-                    
+
                     self._insert_links(
                         links_with_id,
                         links_without_id,

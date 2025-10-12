@@ -69,7 +69,7 @@ class BrowserBookmarksImporter:
         """Read file trying multiple encodings."""
         encodings_to_try = ("utf-8", "utf-8-sig", "cp1251", "latin-1")
         last_err = None
-        
+
         for enc in encodings_to_try:
             try:
                 with open(html_path, encoding=enc) as f:
@@ -85,7 +85,7 @@ class BrowserBookmarksImporter:
                     e,
                     exc_info=True,
                 )
-        
+
         # Fallback: read as binary with error replacement
         try:
             with open(html_path, "rb") as fb:
@@ -146,7 +146,7 @@ class BrowserBookmarksImporter:
         """Parses HTML browser bookmarks export into structure {category_name: [links...]}."""
         text = self._read_file_with_encoding(html_path)
         logger.debug("DEBUG: file head = %s", text[:500])
-        
+
         soup = BeautifulSoup(text, "html.parser")
         categories = defaultdict(list)
         icons_dir = app_config.paths.get_link_icons_dir()
@@ -158,7 +158,7 @@ class BrowserBookmarksImporter:
             self._process_bookmark_node(root_dl, "Uncategorized", categories, icons_dir)
             total_links = sum(len(links) for links in categories.values())
             logger.debug("DEBUG: Total links found: %s", total_links)
-        
+
         return dict(categories)
 
     # === Business слой ===
@@ -172,11 +172,13 @@ class BrowserBookmarksImporter:
             )
             return ""
 
-    def _create_missing_categories(self, missing_names, section_id, structure_business_logic):
+    def _create_missing_categories(
+        self, missing_names, section_id, structure_business_logic
+    ):
         """Create missing categories in bulk."""
         if not missing_names:
             return
-        
+
         default_icon = self._get_default_icon()
         bulk_items = []
         for name in missing_names:
@@ -189,7 +191,7 @@ class BrowserBookmarksImporter:
                     CATEGORY_BULK_UUID_FIELD: token,
                 }
             )
-        
+
         try:
             created = structure_business_logic.create_categories_bulk(bulk_items) or []
             logger.debug(
@@ -205,7 +207,7 @@ class BrowserBookmarksImporter:
         raw_url = link.get("url", "")
         url = _normalize_import_url(raw_url)
         name = (link.get("name", "") or "").strip()
-        
+
         if not url:
             logger.debug(
                 "DEBUG: Skipping link '%s' in category '%s' due to missing URL (raw='%s')",
@@ -214,7 +216,7 @@ class BrowserBookmarksImporter:
                 raw_url,
             )
             return None
-        
+
         if not name:
             name = url
 
@@ -245,7 +247,7 @@ class BrowserBookmarksImporter:
     def _prepare_link_payloads(self, categories, name_to_id):
         """Prepare link payloads for all categories."""
         links_by_category: dict[int, list[dict]] = defaultdict(list)
-        
+
         for cat_name, links in categories.items():
             logger.debug(
                 "DEBUG: Processing category '%s', links: %s", cat_name, len(links)
@@ -262,7 +264,7 @@ class BrowserBookmarksImporter:
                 payload = self._prepare_link_payload(link, category_id, cat_name)
                 if payload:
                     links_by_category[int(category_id)].append(payload)
-        
+
         return links_by_category
 
     def _get_bulk_callable(self, links_business_logic, structure_business_logic):
@@ -277,10 +279,18 @@ class BrowserBookmarksImporter:
             return structure_business_logic.links_business.create_links_for_import_bulk
         return None
 
-    def _import_links(self, link_payloads, links_by_category, links_business_logic, structure_business_logic):
+    def _import_links(
+        self,
+        link_payloads,
+        links_by_category,
+        links_business_logic,
+        structure_business_logic,
+    ):
         """Import links using bulk or fallback method."""
-        bulk_callable = self._get_bulk_callable(links_business_logic, structure_business_logic)
-        
+        bulk_callable = self._get_bulk_callable(
+            links_business_logic, structure_business_logic
+        )
+
         if bulk_callable:
             try:
                 return int(bulk_callable(link_payloads) or 0)
@@ -290,7 +300,7 @@ class BrowserBookmarksImporter:
                     exc,
                     exc_info=True,
                 )
-        
+
         return self._fallback_import_links(
             links_business_logic,
             structure_business_logic,
@@ -311,7 +321,9 @@ class BrowserBookmarksImporter:
         incoming_names = set(categories.keys())
         missing_names = [n for n in incoming_names if n not in existing_names]
 
-        self._create_missing_categories(missing_names, section_id, structure_business_logic)
+        self._create_missing_categories(
+            missing_names, section_id, structure_business_logic
+        )
 
         categories_after = structure_business_logic.get_categories(section_id) or []
         name_to_id = {c.get("name"): c.get("id") for c in categories_after}
