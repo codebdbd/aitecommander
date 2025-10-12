@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
+if TYPE_CHECKING:
+    from PyQt6.QtWidgets import QMenuBar
 
 @runtime_checkable
 class SupportsUpdates(Protocol):
     """Minimal protocol for objects that support enabling/disabling updates."""
 
     def setUpdatesEnabled(self, enabled: bool) -> None: ...
-
-
 @runtime_checkable
 class MainWindowLike(Protocol):
     """Minimal protocol of the main window used by the initializer.
@@ -38,6 +38,7 @@ class MainWindowLike(Protocol):
     # Used in WindowUISetup.setup_menu() / setup_central_widget()
     def menuBar(self) -> QMenuBar:
         """Returns the menu bar."""
+        from PyQt6.QtWidgets import QMenuBar
         _menu_bar = QMenuBar()
         return _menu_bar
 
