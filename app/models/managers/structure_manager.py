@@ -104,7 +104,7 @@ class StructureManager:
             return spheres_data
         except Exception as e:
             logger.error("Error getting full structure: %s", e, exc_info=True)
-            raise DatabaseError(f"Failed to get full structure: {e}")
+            raise DatabaseError(f"Failed to get full structure: {e}") from e
 
     def import_full_structure(self, data: list[dict]):
         """Clears database and imports data from structure.
@@ -461,4 +461,4 @@ class StructureManager:
                 self.db.error_occurred.emit("Import error", str(e))
             except Exception:
                 pass
-            raise DatabaseError(f"Failed to import structure: {e}")
+            raise DatabaseError(f"Failed to import structure: {e}") from e

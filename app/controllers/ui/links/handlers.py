@@ -110,10 +110,10 @@ class LinksUIHandlers(BaseLinksUIComponent):
                 "Failed to wire LinksUIHandlers business signals (setup error)"
             )
             raise
-        except Exception:
+        except Exception as e:
             # Any other errors considered setup error to not mask DI defects
             logger.exception("Unexpected error wiring LinksUIHandlers business signals")
-            raise SetupError("Failed to connect LinksUIHandlers to business signals")
+            raise SetupError("Failed to connect LinksUIHandlers to business signals") from e
         self._signals_connected = True
 
     def _connect_table_signals(self):

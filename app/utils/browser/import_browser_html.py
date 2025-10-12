@@ -97,7 +97,7 @@ class BrowserBookmarksImporter:
                 logger.warning(
                     "parse_bookmarks: failed to read file %s: %s", html_path, e, exc_info=True
                 )
-                raise last_err or e
+                raise (last_err or e) from e
         logger.debug("DEBUG: using encoding = %s", used_encoding)
         logger.debug("DEBUG: file head = %s", text[:500])
         soup = BeautifulSoup(text, "html.parser")

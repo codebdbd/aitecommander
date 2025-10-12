@@ -117,4 +117,4 @@ class SphereModel(DatabaseBase):
             logger.error("Error initializing initial sphere data: %s", e)
             raise DatabaseError(
                 f"Failed to initialize initial sphere data: {e}"
-            )
+            ) from e
