@@ -5,14 +5,14 @@ Improvement note: pragmatic helpers without unnecessary complexity.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 from PyQt6.QtCore import QTimer
 
 from .constants import Timeout
 
 
-def defer(callback: callable, delay_ms: int = Timeout.DEFER_OPERATION) -> None:
+def defer(callback: Callable[[], None], delay_ms: int = Timeout.DEFER_OPERATION) -> None:
     """Defer ``callback`` execution until a future event-loop tick.
 
     Improvement note: wraps the common ``QTimer.singleShot(0, callback)`` pattern.

@@ -450,7 +450,7 @@ def debug_lock(lock, operation_name: str):
 # ====================
 
 
-def signal_guard(slot_name: str = None):
+def signal_guard(slot_name: Optional[str] = None):
     """Decorator to protect slots from cyclic calls.
 
     Args:

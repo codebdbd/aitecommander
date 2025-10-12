@@ -148,7 +148,7 @@ class BrowserBookmarksImporter:
         logger.debug("DEBUG: file head = %s", text[:500])
 
         soup = BeautifulSoup(text, "html.parser")
-        categories = defaultdict(list)
+        categories: dict[str, list] = defaultdict(list)
         icons_dir = app_config.paths.get_link_icons_dir()
 
         root_dl = soup.find("dl")

@@ -186,11 +186,14 @@ class TaskScheduler(QObject):
         self._pending_operations[task_type][operation_id] = operation
 
         # Start or restart batch timer for this type
-        batch_timer = self._batch_timers[task_type]
+        batch_timer = self._batch_timers.get(task_type)
+        if batch_timer is None:
+            return
         if batch_timer.isActive():
             batch_timer.stop()
 
-        batch_timer.start(delay)
+        if delay is not None:
+            batch_timer.start(delay)
 
         logger.debug(
             "Scheduled operation %s of type %s with delay %sms",
@@ -236,7 +239,7 @@ class TaskScheduler(QObject):
         # Clear executed operations
         operations.clear()
 
-    def cancel_operation(self, operation_id: str, task_type: TaskType = None) -> bool:
+    def cancel_operation(self, operation_id: str, task_type: Optional[TaskType] = None) -> bool:
         """
         Cancels scheduled operation.
 
@@ -278,7 +281,7 @@ class TaskScheduler(QObject):
         return self.thread_pool
 
     def schedule_focus_operation(
-        self, widget_focus_func: Callable, widget_name: str = None
+        self, widget_focus_func: Callable, widget_name: Optional[str] = None
     ) -> str:
         """Convenient method for scheduling focus setting operations."""
         operation_id = f"focus_{widget_name or id(widget_focus_func)}"
@@ -290,7 +293,7 @@ class TaskScheduler(QObject):
         )
 
     def schedule_selection_restore(
-        self, restore_func: Callable, item_id: Any = None
+        self, restore_func: Callable, item_id: Optional[Any] = None
     ) -> str:
         """Convenient method for scheduling selection restoration."""
         operation_id = f"selection_{item_id or id(restore_func)}"
@@ -302,7 +305,7 @@ class TaskScheduler(QObject):
         )
 
     def schedule_layout_operation(
-        self, layout_func: Callable, layout_name: str = None
+        self, layout_func: Callable, layout_name: Optional[str] = None
     ) -> str:
         """Convenient method for scheduling layout operations."""
         operation_id = f"layout_{layout_name or id(layout_func)}"
@@ -313,7 +316,7 @@ class TaskScheduler(QObject):
             replace_existing=True,
         )
 
-    def get_pending_operations_count(self, task_type: TaskType = None) -> int:
+    def get_pending_operations_count(self, task_type: Optional[TaskType] = None) -> int:
         """Returns number of pending operations."""
         if task_type:
             return len(self._pending_operations[task_type])
@@ -356,17 +359,17 @@ def get_task_scheduler() -> TaskScheduler:
     return _task_scheduler_instance
 
 
-def schedule_focus(widget_focus_func: Callable, widget_name: str = None) -> str:
+def schedule_focus(widget_focus_func: Callable, widget_name: Optional[str] = None) -> str:
     """Global function for scheduling focus setting."""
     return get_task_scheduler().schedule_focus_operation(widget_focus_func, widget_name)
 
 
-def schedule_selection_restore(restore_func: Callable, item_id: Any = None) -> str:
+def schedule_selection_restore(restore_func: Callable, item_id: Optional[Any] = None) -> str:
     """Global function for scheduling selection restoration."""
     return get_task_scheduler().schedule_selection_restore(restore_func, item_id)
 
 
-def schedule_layout(layout_func: Callable, layout_name: str = None) -> str:
+def schedule_layout(layout_func: Callable, layout_name: Optional[str] = None) -> str:
     """Global function for scheduling layout operations."""
     return get_task_scheduler().schedule_layout_operation(layout_func, layout_name)
 

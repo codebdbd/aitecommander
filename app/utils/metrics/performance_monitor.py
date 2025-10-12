@@ -73,7 +73,7 @@ class PerformanceMetrics:
         Returns:
             Dict with min, max, avg, count, total time
         """
-        timings = self._timings.get(operation, [])
+        timings = list(self._timings.get(operation, []))
         if not timings:
             return {"count": 0, "min": 0.0, "max": 0.0, "avg": 0.0, "total": 0.0}
 

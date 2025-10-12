@@ -25,7 +25,7 @@ class FirefoxProfileFinder(BaseBrowserProfileFinder):
 
     def find_profiles(self) -> list[dict[str, str]]:
         """Finds Firefox profiles from profiles.ini."""
-        profiles = []
+        profiles: list[dict[str, str]] = []
         profiles_ini = Path(self.profiles_dir) / "profiles.ini"
 
         if not profiles_ini.exists():

@@ -156,7 +156,7 @@ def _update_db_status(window) -> None:
 
 def _build_tree_path(window) -> list[str]:
     """Build path from tree current index."""
-    parts = []
+    parts: list[str] = []
     tree = getattr(window, "tree", None)
     try:
         if tree is not None:

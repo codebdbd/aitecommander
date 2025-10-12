@@ -138,7 +138,7 @@ class UniversalProfileProcessor:
         except Exception:
             existing_keys = set()
 
-        result_links = []
+        result_links: list[dict] = []
         is_edit = existing_link is not None
 
         for profile in selected_profiles:

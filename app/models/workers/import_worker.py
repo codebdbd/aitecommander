@@ -45,7 +45,7 @@ class ImportStructureWorker(DatabaseWorker):
 
     def _prepare_spheres(self, root: list[dict]) -> list[dict]:
         """Extract and normalize sphere data."""
-        spheres_items = []
+        spheres_items: list[dict] = []
         for s_idx, s in enumerate(root):
             if self.is_cancelled:
                 return spheres_items
@@ -64,7 +64,7 @@ class ImportStructureWorker(DatabaseWorker):
 
     def _prepare_sections(self, root: list[dict]) -> list[dict]:
         """Extract and normalize section data with sphere references."""
-        sections_items = []
+        sections_items: list[dict] = []
         for s in root:
             if self.is_cancelled:
                 return sections_items
@@ -90,7 +90,7 @@ class ImportStructureWorker(DatabaseWorker):
 
     def _prepare_categories(self, root: list[dict]) -> list[dict]:
         """Extract and normalize category data with section references."""
-        categories_items = []
+        categories_items: list[dict] = []
         for s in root:
             if self.is_cancelled:
                 return categories_items
@@ -159,8 +159,8 @@ class ImportStructureWorker(DatabaseWorker):
 
         Returns: (links_with_id, links_without_id)
         """
-        links_with_id = []
-        links_without_id = []
+        links_with_id: list[dict] = []
+        links_without_id: list[dict] = []
 
         for s in root:
             if self.is_cancelled:

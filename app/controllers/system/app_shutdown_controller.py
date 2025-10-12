@@ -220,7 +220,7 @@ class AppShutdownController:
         self,
     ) -> dict[ShutdownPriority, list[ShutdownHandler]]:
         """Group handlers by priorities."""
-        groups = {}
+        groups: dict[ShutdownPriority, list[ShutdownHandler]] = {}
         for handler in self.shutdown_handlers:
             if handler.priority not in groups:
                 groups[handler.priority] = []

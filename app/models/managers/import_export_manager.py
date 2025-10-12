@@ -53,8 +53,8 @@ class ImportExportManager:
             sections_by_id = {}
             categories_by_id = {}
 
-            sections_by_sphere = {}
-            categories_by_section = {}
+            sections_by_sphere: dict[int, list[dict]] = {}
+            categories_by_section: dict[int, list[dict]] = {}
 
             # Convert rows to dict and initialize containers
             for s in spheres:

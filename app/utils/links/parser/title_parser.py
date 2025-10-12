@@ -58,8 +58,8 @@ def _build_soup_index(soup: BeautifulSoup) -> dict:
     except Exception:
         metas = []
 
-    meta_by_name = {}
-    meta_by_prop = {}
+    meta_by_name: dict[str, Any] = {}
+    meta_by_prop: dict[str, Any] = {}
     for m in metas:
         try:
             n = (m.get("name") or "").strip().lower()
