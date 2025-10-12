@@ -299,6 +299,81 @@ class StructureMenuBuilder:
                     ids,
                 )
 
+    def _suppress_ui_signals(self, selection, tree_widget):
+        """Suppress UI signals during batch operation."""
+        try:
+            try:
+                self.main_window._suppress_deletes = True
+                logger.debug("[PasteCategories] _suppress_deletes set=True")
+            except Exception:
+                logger.exception(
+                    "[PasteCategories] Failed to set _suppress_deletes=True"
+                )
+            if selection is not None:
+                try:
+                    selection.begin_suppress_selection()
+                except Exception:
+                    logger.exception(
+                        "[PasteCategories] Failed to begin selection suppression"
+                    )
+            if tree_widget is not None:
+                tree_widget.blockSignals(True)
+        except Exception:
+            logger.exception(
+                "[PasteCategories] Failed to block signals/start UI suppression"
+            )
+
+    def _restore_ui_signals(self, selection, tree_widget):
+        """Restore UI signals after batch operation."""
+        try:
+            if tree_widget is not None:
+                tree_widget.blockSignals(False)
+        except Exception:
+            logger.exception("[PasteCategories] Failed to unblock tree signals")
+        try:
+            if selection is not None:
+                selection.end_suppress_selection()
+        except Exception:
+            logger.exception(
+                "[PasteCategories] Failed to end selection suppression"
+            )
+        try:
+            self.main_window._suppress_deletes = False
+            logger.debug("[PasteCategories] _suppress_deletes set=False")
+        except Exception:
+            logger.exception(
+                "[PasteCategories] Failed to set _suppress_deletes=False"
+            )
+
+    def _update_ui_after_paste(self, business, section_id):
+        """Update UI after pasting categories."""
+        if not business:
+            return
+        try:
+            clear_icon_cache()
+        except Exception:
+            logger.exception(
+                "[PasteCategories] Failed to clear icon cache"
+            )
+        try:
+            business._invalidate_categories_cache(int(section_id))
+        except Exception:
+            logger.exception(
+                "[PasteCategories] Failed to invalidate categories cache for section %r",
+                section_id,
+            )
+        try:
+            if getattr(business, "async_service", None):
+                business.async_service.schedule_structure_reload(0)
+            logger.debug(
+                "[PasteCategories] scheduled structure reload (debounced)"
+            )
+        except Exception:
+            logger.exception(
+                "[PasteCategories] Failed to schedule structure reload"
+            )
+        business.section_selected.emit(int(section_id))
+
     def _paste_category_from_clipboard_to_section(self, section_id: Any) -> None:
         """Paste one or more categories from clipboard into a section (delegates business logic to service)."""
         try:
@@ -309,28 +384,7 @@ class StructureMenuBuilder:
             selection = getattr(struct, "selection_handler", None)
             tree_widget = getattr(self, "tree_widget", None)
 
-            # Suppress selection/tree signals during batch operation
-            try:
-                try:
-                    self.main_window._suppress_deletes = True
-                    logger.debug("[PasteCategories] _suppress_deletes set=True")
-                except Exception:
-                    logger.exception(
-                        "[PasteCategories] Failed to set _suppress_deletes=True"
-                    )
-                if selection is not None:
-                    try:
-                        selection.begin_suppress_selection()
-                    except Exception:
-                        logger.exception(
-                            "[PasteCategories] Failed to begin selection suppression"
-                        )
-                if tree_widget is not None:
-                    tree_widget.blockSignals(True)
-            except Exception:
-                logger.exception(
-                    "[PasteCategories] Failed to block signals/start UI suppression"
-                )
+            self._suppress_ui_signals(selection, tree_widget)
 
             created_categories: list[dict] = []
             try:
@@ -338,55 +392,11 @@ class StructureMenuBuilder:
                     int(section_id)
                 )
             finally:
-                # Restore signals
-                try:
-                    if tree_widget is not None:
-                        tree_widget.blockSignals(False)
-                except Exception:
-                    logger.exception("[PasteCategories] Failed to unblock tree signals")
-                try:
-                    if selection is not None:
-                        selection.end_suppress_selection()
-                except Exception:
-                    logger.exception(
-                        "[PasteCategories] Failed to end selection suppression"
-                    )
-                try:
-                    self.main_window._suppress_deletes = False
-                    logger.debug("[PasteCategories] _suppress_deletes set=False")
-                except Exception:
-                    logger.exception(
-                        "[PasteCategories] Failed to set _suppress_deletes=False"
-                    )
+                self._restore_ui_signals(selection, tree_widget)
 
-            # Incremental UI update without full reload
             if created_categories:
                 try:
-                    if business:
-                        try:
-                            clear_icon_cache()
-                        except Exception:
-                            logger.exception(
-                                "[PasteCategories] Failed to clear icon cache"
-                            )
-                        try:
-                            business._invalidate_categories_cache(int(section_id))
-                        except Exception:
-                            logger.exception(
-                                "[PasteCategories] Failed to invalidate categories cache for section %r",
-                                section_id,
-                            )
-                        try:
-                            if getattr(business, "async_service", None):
-                                business.async_service.schedule_structure_reload(0)
-                            logger.debug(
-                                "[PasteCategories] scheduled structure reload (debounced)"
-                            )
-                        except Exception:
-                            logger.exception(
-                                "[PasteCategories] Failed to schedule structure reload"
-                            )
-                        business.section_selected.emit(int(section_id))
+                    self._update_ui_after_paste(business, section_id)
                 except Exception:
                     logger.exception(
                         "[PasteCategories] Failed to update UI after pasting categories"
@@ -395,7 +405,6 @@ class StructureMenuBuilder:
                 "[PasteCategories] done, created=%s items", len(created_categories)
             )
         except Exception:
-            # Do not crash UI due to paste errors — log them
             logger.exception(
                 "[PasteCategories] Category paste failed for section %r", section_id
             )

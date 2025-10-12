@@ -24,32 +24,8 @@ class CategoryTiles(QWidget):
     addLinkRequested: pyqtSignal = pyqtSignal(int)
     contextMenuRequested: pyqtSignal = pyqtSignal(int, QPoint)
 
-    def __init__(
-        self,
-        parent=None,
-        structure_controller=None,
-        ui_state_manager=None,
-        dialog_provider=None,
-    ):
-        """Simple UI component for displaying category tiles."""
-        super().__init__(parent)
-
-        self._current_item_id = None
-
-        self.structure_controller = structure_controller
-        self.ui_state_manager = ui_state_manager
-        self.dialog_provider = dialog_provider
-
-        self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
-
-        self.view = CategoryListView()
-        self.view.setObjectName("categoryTiles")
-        self.view.setViewMode(self.view.ViewMode.IconMode)
-        self.view.setResizeMode(self.view.ResizeMode.Adjust)
-        self.view.setMovement(self.view.Movement.Static)
-        self.view.setMouseTracking(True)
-        vp = self.view.viewport()
+    def _setup_viewport(self, vp):
+        """Setup viewport mouse tracking and event filter."""
         try:
             vp.setMouseTracking(True)
             vp.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
@@ -61,8 +37,9 @@ class CategoryTiles(QWidget):
             logger.debug("Failed to install event filter on viewport: %s", e)
         except Exception:
             logger.exception("Unexpected error installing event filter on viewport")
-        self.delegate = CategoryTileDelegate(parent=self)
-        # Apply tile and icon sizes from configuration
+
+    def _load_config_sizes(self):
+        """Load tile and icon sizes from configuration."""
         try:
             tile_w, tile_h = app_config.ui.get_tile_size()
         except (AttributeError, ValueError, TypeError) as e:
@@ -87,8 +64,10 @@ class CategoryTiles(QWidget):
         except (AttributeError, ValueError, TypeError) as e:
             logger.warning("Tile padding config read failed; using default 8: %s", e)
             padding = 8
+        return tile_w, tile_h, icon_w, icon_h, spacing, padding
 
-        # Pass parameters to the delegate and the view
+    def _apply_delegate_params(self, tile_w, tile_h, icon_w, icon_h, padding):
+        """Apply parameters to delegate."""
         try:
             self.delegate.icon_size = self.delegate.icon_size.__class__(
                 int(icon_w), int(icon_h)
@@ -103,15 +82,15 @@ class CategoryTiles(QWidget):
             )
         except Exception:
             logger.exception("Unexpected error applying delegate parameters")
-        self.view.setItemDelegate(self.delegate)
 
+    def _configure_view_settings(self, spacing):
+        """Configure view settings."""
         self.view.setUniformItemSizes(False)
         try:
             self.view.setWordWrap(True)
         except (AttributeError, RuntimeError) as e:
             logger.debug("WordWrap not supported on list widget: %s", e)
         self.view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        # Spacing from configuration
         try:
             self.view.setSpacing(int(spacing))
         except (AttributeError, ValueError, TypeError) as e:
@@ -121,21 +100,24 @@ class CategoryTiles(QWidget):
             logger.exception("Unexpected error setting spacing; forcing 8")
             self.view.setSpacing(8)
 
+    def _setup_drag_drop(self):
+        """Setup drag and drop settings."""
         self.view.setDragEnabled(True)
         self.view.setAcceptDrops(False)
         self.view.setDropIndicatorShown(False)
         self.view.setDefaultDropAction(Qt.DropAction.MoveAction)
-
         self.view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        # Context menu: handle signals from both the view and its viewport
-        # a) from the view — coordinates in the view's system
+
+    def _setup_context_menu(self):
+        """Setup context menu for view and viewport."""
         self.view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.view.customContextMenuRequested.connect(self._show_context_menu)
-        # b) from the viewport — coordinates in the viewport's system
         vp = self.view.viewport()
         vp.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         vp.customContextMenuRequested.connect(self._show_context_menu)
-        # Open category ONLY by double click or Enter
+
+    def _connect_activation_signals(self):
+        """Connect activation signals."""
         try:
             self.view.doubleClicked.connect(self._on_index_activated)
         except (RuntimeError, AttributeError) as e:
@@ -148,6 +130,44 @@ class CategoryTiles(QWidget):
             logger.warning("Failed to connect enterActivated: %s", e)
         except Exception:
             logger.exception("Unexpected error connecting enterActivated")
+
+    def __init__(
+        self,
+        parent=None,
+        structure_controller=None,
+        ui_state_manager=None,
+        dialog_provider=None,
+    ):
+        """Simple UI component for displaying category tiles."""
+        super().__init__(parent)
+
+        self._current_item_id = None
+        self.structure_controller = structure_controller
+        self.ui_state_manager = ui_state_manager
+        self.dialog_provider = dialog_provider
+
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+
+        self.view = CategoryListView()
+        self.view.setObjectName("categoryTiles")
+        self.view.setViewMode(self.view.ViewMode.IconMode)
+        self.view.setResizeMode(self.view.ResizeMode.Adjust)
+        self.view.setMovement(self.view.Movement.Static)
+        self.view.setMouseTracking(True)
+        
+        vp = self.view.viewport()
+        self._setup_viewport(vp)
+        
+        self.delegate = CategoryTileDelegate(parent=self)
+        tile_w, tile_h, icon_w, icon_h, spacing, padding = self._load_config_sizes()
+        self._apply_delegate_params(tile_w, tile_h, icon_w, icon_h, padding)
+        self.view.setItemDelegate(self.delegate)
+
+        self._configure_view_settings(spacing)
+        self._setup_drag_drop()
+        self._setup_context_menu()
+        self._connect_activation_signals()
 
         self.layout.addWidget(self.view, 1)
         # Explicitly enable DragOnly mode for stable DnD behavior

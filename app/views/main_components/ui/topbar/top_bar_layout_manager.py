@@ -925,6 +925,102 @@ class TopBarLayoutManager(QObject):
             pass
         return counts
 
+    def _build_state_map(self, ctx):
+        """Build widget to state mapping."""
+        return {
+            state.widget: state
+            for state in ctx.panel_states
+            if state.widget is not None
+        }
+
+    def _calculate_spacer_width(self, item):
+        """Calculate spacer item width."""
+        spacer = item.spacerItem()
+        if spacer is not None:
+            sp_w = max(0, spacer.sizeHint().width())
+            if sp_w > 0:
+                return sp_w
+        return 0
+
+    def _calculate_panel_width(self, state, applied_counts):
+        """Calculate panel widget width."""
+        vis = max(0, applied_counts.get(state.definition.label, 0))
+        if vis <= 0:
+            return 0
+        try:
+            w_panel = int(
+                self._width_calculator.panel_width(
+                    state.widget, state.buttons, vis
+                )
+            )
+        except Exception:
+            w_panel = 0
+        return max(self.MIN_PANEL_WIDTH, w_panel)
+
+    def _calculate_widget_width(self, widget):
+        """Calculate other widget width."""
+        if not widget.isVisible():
+            return 0
+        try:
+            w_hint = int(widget.sizeHint().width())
+        except Exception:
+            w_hint = 0
+        return w_hint if w_hint > 0 else 0
+
+    def _calculate_occupied_space(self, ctx, applied_counts, state_map, search):
+        """Calculate total occupied space in layout."""
+        occupied = 0
+        top_bar = ctx.top_bar
+        count = top_bar.count()
+        occupy_items = 0
+        search_index = -1
+
+        for index in range(count):
+            item = top_bar.itemAt(index)
+            widget = item.widget()
+
+            if widget is None:
+                sp_w = self._calculate_spacer_width(item)
+                if sp_w > 0:
+                    occupied += sp_w
+                    occupy_items += 1
+                continue
+
+            if widget is search:
+                search_index = index
+                continue
+
+            state = state_map.get(widget)
+            if state:
+                w_use = self._calculate_panel_width(state, applied_counts)
+            else:
+                w_use = self._calculate_widget_width(widget)
+            
+            if w_use > 0:
+                occupied += w_use
+                occupy_items += 1
+
+        spacing = top_bar.spacing() or 0
+        occupied += spacing * max(0, occupy_items - 1)
+        margins = top_bar.contentsMargins()
+        occupied += margins.left() + margins.right()
+        
+        return occupied, search_index
+
+    def _apply_search_constraints(self, search, search_index, ctx, min_search):
+        """Apply width constraints to search field."""
+        if search_index >= 0:
+            try:
+                ctx.top_bar.setStretch(search_index, 1)
+            except Exception:
+                pass
+
+        if search.minimumWidth() != min_search:
+            search.setMinimumWidth(min_search)
+            self.searchWidthChanged.emit(min_search)
+        if search.maximumWidth() != self.MAX_WIDGET_WIDTH:
+            search.setMaximumWidth(self.MAX_WIDGET_WIDTH)
+
     def _clamp_search_width(
         self, ctx: LayoutContext, applied_counts: dict[str, int]
     ) -> None:
@@ -937,96 +1033,21 @@ class TopBarLayoutManager(QObject):
         if not isinstance(search, QLineEdit):
             return
 
-        # Fix: measure clamp_search_width performance
         with self._measure_operation(
             "clamp_search_width", self.SLOW_CLAMP_THRESHOLD_MS
         ):
             try:
-                # Fix: build a state map ahead of time
-                state_map: dict[QWidget, PanelState] = {
-                    state.widget: state
-                    for state in ctx.panel_states
-                    if state.widget is not None
-                }
-
-                occupied = 0
-                top_bar = ctx.top_bar
-                count = top_bar.count()
-                occupy_items = 0
-                search_index = -1  # Fix: remember search index
-
-                # Fix: single pass through layout items
-                for index in range(count):
-                    item = top_bar.itemAt(index)
-                    widget = item.widget()
-
-                    if widget is None:
-                        # Handle spacer items
-                        spacer = item.spacerItem()
-                        if spacer is not None:
-                            sp_w = max(0, spacer.sizeHint().width())
-                            if sp_w > 0:
-                                occupied += sp_w
-                                occupy_items += 1
-                        continue
-
-                    if widget is search:
-                        search_index = index  # Fix: store search index
-                        continue
-
-                    # Check whether the widget belongs to our state map
-                    state = state_map.get(widget)
-                    if state:
-                        # Panel widget: use accurate width computation
-                        vis = max(0, applied_counts.get(state.definition.label, 0))
-                        if vis > 0:  # Logically visible
-                            try:
-                                w_panel = int(
-                                    self._width_calculator.panel_width(
-                                        widget, state.buttons, vis
-                                    )
-                                )
-                            except Exception:
-                                w_panel = 0
-                            w_use = max(self.MIN_PANEL_WIDTH, w_panel)
-                            if w_use > 0:
-                                occupied += w_use
-                                occupy_items += 1
-                    elif widget.isVisible():
-                        # Other widget: rely on ``sizeHint``
-                        try:
-                            w_hint = int(widget.sizeHint().width())
-                        except Exception:
-                            w_hint = 0
-                        if w_hint > 0:
-                            occupied += w_hint
-                            occupy_items += 1
-
-                spacing = top_bar.spacing() or 0
-                occupied += spacing * max(0, occupy_items - 1)
-                margins = top_bar.contentsMargins()
-                occupied += margins.left() + margins.right()
-                max(0, ctx.container.width() - occupied)
+                state_map = self._build_state_map(ctx)
+                occupied, search_index = self._calculate_occupied_space(
+                    ctx, applied_counts, state_map, search
+                )
+                
                 min_search = int(self._min_search_width)
                 cur_min = int(search.minimumWidth()) if search.minimumWidth() > 0 else 0
                 if cur_min > 0:
                     min_search = max(min_search, cur_min)
 
-                # Fix: set stretch without additional traversal
-                if search_index >= 0:
-                    try:
-                        top_bar.setStretch(search_index, 1)
-                    except Exception:
-                        pass
-
-                if search.minimumWidth() != min_search:
-                    search.setMinimumWidth(min_search)
-                    # Fix: emit signal when search width changes
-                    self.searchWidthChanged.emit(min_search)
-                if search.maximumWidth() != self.MAX_WIDGET_WIDTH:
-                    search.setMaximumWidth(self.MAX_WIDGET_WIDTH)
-                if search.minimumWidth() != min_search:
-                    search.setMinimumWidth(min_search)
+                self._apply_search_constraints(search, search_index, ctx, min_search)
             except Exception:
                 logger.debug("TopBarLM: failed to clamp search width", exc_info=True)
 

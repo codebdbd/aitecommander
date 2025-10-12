@@ -80,8 +80,8 @@ class TableDelegate(QStyledItemDelegate):
                 except Exception:
                     continue
 
-    def paint(self, painter, option, index):
-        # Highlight entire row on hover (when not selected)
+    def _paint_hover_highlight(self, painter, option, index):
+        """Paint hover highlight for row."""
         is_hovered_row = self.hovered_row == index.row()
         is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
         if is_hovered_row and not is_selected:
@@ -89,13 +89,9 @@ class TableDelegate(QStyledItemDelegate):
             painter.fillRect(option.rect, self.hover_color)
             painter.restore()
 
-        opt = QStyleOptionViewItem(option)
-        self.initStyleOption(opt, index)
-
-        # Apply shared font sizes for specific columns if configured
+    def _apply_column_font_size(self, opt, col):
+        """Apply font size for specific column."""
         try:
-            col = index.column()
-            # Priority: global ``table_cols_px`` array first, then legacy keys for columns 2 and 3
             val = self.col_sizes.get(col)
             if val is None:
                 if col == 2:
@@ -112,49 +108,51 @@ class TableDelegate(QStyledItemDelegate):
         except Exception:
             pass
 
-        # Text color for "Opened" column (index=2) comes from ``LinksTableView.openedColColor``
+    def _apply_column_color(self, opt, col, color_attr):
+        """Apply text color for specific column."""
         try:
-            if index.column() == 2:
-                view = self.parent() if hasattr(self, "parent") else None
-                color = None
-                if view is not None and hasattr(view, "openedColColor"):
-                    color = view.openedColColor
-                if isinstance(color, QColor) and color.isValid():
-                    pal = QPalette(opt.palette)
-                    pal.setColor(QPalette.ColorRole.Text, color)
-                    pal.setColor(QPalette.ColorRole.WindowText, color)
-                    opt.palette = pal
+            view = self.parent() if hasattr(self, "parent") else None
+            color = None
+            if view is not None and hasattr(view, color_attr):
+                color = getattr(view, color_attr)
+            if isinstance(color, QColor) and color.isValid():
+                pal = QPalette(opt.palette)
+                pal.setColor(QPalette.ColorRole.Text, color)
+                pal.setColor(QPalette.ColorRole.WindowText, color)
+                opt.palette = pal
         except Exception:
             pass
 
-        # Text color for "Notes" column (index=3) comes from ``LinksTableView.notesColColor``
+    def _apply_name_column_elision(self, opt):
+        """Apply text elision for name column."""
+        opt.textElideMode = Qt.TextElideMode.ElideRight
         try:
-            if index.column() == 3:
-                view = self.parent() if hasattr(self, "parent") else None
-                color = None
-                if view is not None and hasattr(view, "notesColColor"):
-                    color = view.notesColColor
-                if isinstance(color, QColor) and color.isValid():
-                    pal = QPalette(opt.palette)
-                    pal.setColor(QPalette.ColorRole.Text, color)
-                    pal.setColor(QPalette.ColorRole.WindowText, color)
-                    opt.palette = pal
+            available_w = max(0, opt.rect.width() - 4)
         except Exception:
-            pass
+            available_w = opt.rect.width()
+        opt.text = opt.fontMetrics.elidedText(
+            opt.text, Qt.TextElideMode.ElideRight, available_w
+        )
+        opt.displayAlignment = (
+            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
+        )
 
-        # Column "Name" (index 1): enforce single-line elision by characters
-        if index.column() == 1:
-            opt.textElideMode = Qt.TextElideMode.ElideRight
-            try:
-                available_w = max(0, opt.rect.width() - 4)
-            except Exception:
-                available_w = opt.rect.width()
-            opt.text = opt.fontMetrics.elidedText(
-                opt.text, Qt.TextElideMode.ElideRight, available_w
-            )
-            opt.displayAlignment = (
-                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
-            )
+    def paint(self, painter, option, index):
+        self._paint_hover_highlight(painter, option, index)
+
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+
+        col = index.column()
+        self._apply_column_font_size(opt, col)
+
+        if col == 2:
+            self._apply_column_color(opt, col, "openedColColor")
+        elif col == 3:
+            self._apply_column_color(opt, col, "notesColColor")
+
+        if col == 1:
+            self._apply_name_column_elision(opt)
 
         super().paint(painter, opt, index)
 

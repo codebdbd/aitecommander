@@ -81,45 +81,39 @@ class StructureCacheService:
         if async_service and hasattr(async_service, "schedule_structure_reload"):
             async_service.schedule_structure_reload(delay_ms)
 
-    def load_structure(self, sphere_id: int) -> list[dict[str, Any]]:
-        """Load structure for a sphere, synchronize caches, and emit payload to the owner."""
-        if not isinstance(sphere_id, int) or sphere_id <= 0:
-            self._logger.warning(
-                "load_structure called with invalid sphere_id: %s", sphere_id
-            )
-            try:
-                self._owner.structure_loaded.emit([])
-            except Exception:
-                pass
-            return []
-
+    def _load_from_cache_or_db(self, sphere_id):
+        """Load structure from cache or database."""
         cache_key = f"structure_{sphere_id}"
         payload = self._cache_manager.get(cache_key)
         if payload is not None:
             if _metrics:
                 _metrics.record_cache_hit("structure_cache")
-        else:
-            if _metrics:
-                _metrics.record_cache_miss("structure_cache")
-            try:
-                payload = (
-                    self._loader_service.load_structure_from_db(
-                        self._structure_model,
-                        sphere_id,
-                        self._logger,
-                    )
-                    or []
-                )
-            except Exception as exc:  # pragma: no cover - defensive logging
-                self._logger.error(
-                    "Failed to load structure for sphere %s: %s",
+            return payload
+        
+        if _metrics:
+            _metrics.record_cache_miss("structure_cache")
+        try:
+            payload = (
+                self._loader_service.load_structure_from_db(
+                    self._structure_model,
                     sphere_id,
-                    exc,
-                    exc_info=True,
+                    self._logger,
                 )
-                payload = []
-            self._cache_manager.set(cache_key, payload)
+                or []
+            )
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self._logger.error(
+                "Failed to load structure for sphere %s: %s",
+                sphere_id,
+                exc,
+                exc_info=True,
+            )
+            payload = []
+        self._cache_manager.set(cache_key, payload)
+        return payload
 
+    def _prime_section_caches(self, payload, sphere_id):
+        """Prime section and category caches."""
         try:
             sections_snapshot: list[dict[str, Any]] = []
             for section in payload or []:
@@ -139,6 +133,21 @@ class StructureCacheService:
             self._logger.debug(
                 "Failed to prime section/category caches: %s", exc, exc_info=True
             )
+
+    def load_structure(self, sphere_id: int) -> list[dict[str, Any]]:
+        """Load structure for a sphere, synchronize caches, and emit payload to the owner."""
+        if not isinstance(sphere_id, int) or sphere_id <= 0:
+            self._logger.warning(
+                "load_structure called with invalid sphere_id: %s", sphere_id
+            )
+            try:
+                self._owner.structure_loaded.emit([])
+            except Exception:
+                pass
+            return []
+
+        payload = self._load_from_cache_or_db(sphere_id)
+        self._prime_section_caches(payload, sphere_id)
 
         try:
             self._owner.structure_loaded.emit(payload or [])
