@@ -98,123 +98,76 @@ class WidthCalculator:
             "hit_rate": int(hit_rate),
         }
 
-    def panel_width(
-        self, panel: QWidget | None, buttons: list[QToolButton], count: int
-    ) -> int:
-        """Calculate panel width based on visible buttons.
-
-        Fix: add parameter validation and result caching.
-
-        Args:
-            panel: Panel widget.
-            buttons: Panel buttons list (must not be ``None``).
-            count: Number of visible buttons (>= 0).
-
-        Returns:
-            Panel width in pixels (>= ``MIN_PANEL_WIDTH``).
-
-        Raises:
-            ValueError: If ``count`` is negative.
-        """
-        # Fix: validate parameters
+    def _validate_panel_width_params(self, buttons, count):
+        """Validate panel_width parameters."""
         if count < 0:
             raise ValueError(f"count must be >= 0, got {count}")
 
         if buttons is None:
             import logging
-
             logger = logging.getLogger(__name__)
             logger.warning(
                 "panel_width called with None buttons, returning MIN_PANEL_WIDTH"
             )
-            return self.MIN_PANEL_WIDTH
+            return False
+        return True
 
-        if not panel or self._is_deleted(panel):
-            return self.MIN_PANEL_WIDTH
+    def _get_button_width(self, w):
+        """Calculate button width respecting size constraints."""
+        try:
+            hint_w = int(w.sizeHint().width())
+        except (RuntimeError, AttributeError, ValueError):
+            hint_w = 0
+        try:
+            max_w = int(w.maximumWidth()) if w.maximumWidth() > 0 else 0
+        except (RuntimeError, AttributeError, ValueError):
+            max_w = 0
+        try:
+            min_w = int(w.minimumWidth()) if w.minimumWidth() > 0 else 0
+        except (RuntimeError, AttributeError, ValueError):
+            min_w = 0
+        btn_w = hint_w
+        if max_w and min_w:
+            btn_w = max(min_w, max_w)
+        elif max_w:
+            btn_w = max(btn_w, max_w)
+        elif min_w:
+            btn_w = max(btn_w, min_w)
+        return max(self._button_size, btn_w)
 
-        # Fix: probe the LRU cache
-        cache_key = (id(panel), count)
-        if cache_key in self._panel_width_cache:
-            self._cache_hits += 1
-            # Fix: move the key to the MRU position
-            self._panel_width_cache.move_to_end(cache_key)
-            return self._panel_width_cache[cache_key]
-
-        self._cache_misses += 1
-
-        # Clamp desired visible count to available buttons to avoid IndexError
-        safe_count = max(0, min(count, len(buttons)))
-        if safe_count <= 0:
-            return self.MIN_PANEL_WIDTH
-        # Use the layout, accounting for supplemental panel widgets outside ``buttons``
-        bg = self._safe_get(panel, "bg_frame")
-        layout = bg.layout() if bg else None
-        if not layout:
-            return self.MIN_PANEL_WIDTH
-        spacing = layout.spacing() or 0
-
-        # Quick lookup set for target buttons (e.g. favorite buttons)
-        btn_set = set(buttons or [])
+    def _collect_widget_widths(self, layout, btn_set, safe_count):
+        """Collect widths of widgets in layout."""
         included_widths: list[int] = []
         taken_target = 0
-
         count_items = layout.count()
         for i in range(count_items):
             item = layout.itemAt(i)
             w = item.widget()
             if w is None:
                 continue
-            # Only count the first ``safe_count`` target buttons
             if w in btn_set:
                 if taken_target >= safe_count:
                     continue
                 taken_target += 1
-                try:
-                    hint_w = int(w.sizeHint().width())
-                except (RuntimeError, AttributeError, ValueError):
-                    hint_w = 0
-                # Respect fixed-size constraints if set via ``setFixedSize``
-                try:
-                    max_w = int(w.maximumWidth()) if w.maximumWidth() > 0 else 0
-                except (RuntimeError, AttributeError, ValueError):
-                    max_w = 0
-                try:
-                    min_w = int(w.minimumWidth()) if w.minimumWidth() > 0 else 0
-                except (RuntimeError, AttributeError, ValueError):
-                    min_w = 0
-                btn_w = hint_w
-                if max_w and min_w:
-                    # ``setFixedSize`` forces min == max == fixed; trust that measurement
-                    btn_w = max(min_w, max_w)
-                elif max_w:
-                    btn_w = max(btn_w, max_w)
-                elif min_w:
-                    btn_w = max(btn_w, min_w)
-                included_widths.append(max(self._button_size, btn_w))
+                included_widths.append(self._get_button_width(w))
             else:
-                # For other panel widgets (e.g. utility buttons), use size hints when visible
                 if w.isVisible():
                     try:
                         hint_w = int(w.sizeHint().width())
                     except (RuntimeError, AttributeError, ValueError):
                         hint_w = 0
                     included_widths.append(max(0, hint_w))
+        return included_widths
 
-        if not included_widths:
-            return self.MIN_PANEL_WIDTH
-
-        total = sum(included_widths) + spacing * max(0, len(included_widths) - 1)
-
-        # Add layout margins, the ``QFrame`` border, and panel margins
+    def _add_margins_and_borders(self, total, layout, bg, panel):
+        """Add layout margins, frame borders, and panel margins to total."""
         try:
             lm = layout.contentsMargins()
             total += lm.left() + lm.right()
         except Exception:
             pass
-        # Account for the ``bg_frame`` border without double-counting margins
         try:
             import PyQt6.QtWidgets as _qtw
-
             if isinstance(bg, _qtw.QFrame):
                 try:
                     fw = int(bg.frameWidth())
@@ -228,16 +181,61 @@ class WidthCalculator:
             total += pm.left() + pm.right()
         except Exception:
             pass
+        return total
 
-        # Enforce minimal width
+    def panel_width(
+        self, panel: QWidget | None, buttons: list[QToolButton], count: int
+    ) -> int:
+        """Calculate panel width based on visible buttons.
+
+        Args:
+            panel: Panel widget.
+            buttons: Panel buttons list (must not be ``None``).
+            count: Number of visible buttons (>= 0).
+
+        Returns:
+            Panel width in pixels (>= ``MIN_PANEL_WIDTH``).
+
+        Raises:
+            ValueError: If ``count`` is negative.
+        """
+        if not self._validate_panel_width_params(buttons, count):
+            return self.MIN_PANEL_WIDTH
+
+        if not panel or self._is_deleted(panel):
+            return self.MIN_PANEL_WIDTH
+
+        cache_key = (id(panel), count)
+        if cache_key in self._panel_width_cache:
+            self._cache_hits += 1
+            self._panel_width_cache.move_to_end(cache_key)
+            return self._panel_width_cache[cache_key]
+
+        self._cache_misses += 1
+
+        safe_count = max(0, min(count, len(buttons)))
+        if safe_count <= 0:
+            return self.MIN_PANEL_WIDTH
+        bg = self._safe_get(panel, "bg_frame")
+        layout = bg.layout() if bg else None
+        if not layout:
+            return self.MIN_PANEL_WIDTH
+        spacing = layout.spacing() or 0
+
+        btn_set = set(buttons or [])
+        included_widths = self._collect_widget_widths(layout, btn_set, safe_count)
+
+        if not included_widths:
+            return self.MIN_PANEL_WIDTH
+
+        total = sum(included_widths) + spacing * max(0, len(included_widths) - 1)
+        total = self._add_margins_and_borders(total, layout, bg, panel)
+
         result = max(self.MIN_PANEL_WIDTH, total)
 
-        # Fix: perform LRU eviction when the cache is full
         if len(self._panel_width_cache) >= self.CACHE_MAX_SIZE:
-            # ``OrderedDict.popitem(last=False)`` deletes the oldest entry
             self._panel_width_cache.popitem(last=False)
 
-        # Append at the end (most recently used)
         self._panel_width_cache[cache_key] = result
         return result
 

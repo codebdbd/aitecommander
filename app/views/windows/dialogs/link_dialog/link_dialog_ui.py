@@ -299,36 +299,30 @@ class LinkDialogUI:
         return None
 
     # --- Runtime i18n -------------------------------------------------------
-    def retranslate(self) -> None:
-        """Update all static texts when the application language changes."""
-        # Type section label
+    def _retranslate_type_section(self):
+        """Retranslate type section label."""
         try:
             if hasattr(self, "lbl_link_type") and self.lbl_link_type is not None:
                 self.lbl_link_type.setText(_tr("Link type:"))
         except Exception:
             pass
 
-        # Path row
+    def _retranslate_path_row(self):
+        """Retranslate path row buttons."""
         try:
             if hasattr(self, "browse_btn") and self.browse_btn is not None:
                 self.browse_btn.setText(_tr("Browse…"))
             if hasattr(self, "profile_btn") and self.profile_btn is not None:
-                # Do not override if dialog set a specific profile summary text
                 if not self.profile_btn.text() or self.profile_btn.text() == _tr(
                     "Profile"
                 ):
                     self.profile_btn.setText(_tr("Profile"))
-            # Update label via labelForField
-            if hasattr(self, "form") and self.form is not None:
-                lbl = self.form.labelForField(
-                    self.parent.findChild(QWidget, None) or self.parent
-                )
-            # Safer: explicitly query URL/Path row by passing layout used as field
-            # (Qt doesn't give direct handle here; skip if not applicable)
         except Exception:
             pass
+
+    def _retranslate_name_row(self):
+        """Retranslate name row label."""
         try:
-            # Name row label
             if (
                 hasattr(self, "form")
                 and self.form is not None
@@ -340,14 +334,16 @@ class LinkDialogUI:
         except Exception:
             pass
 
-        # Arguments row
+    def _retranslate_args_row(self):
+        """Retranslate arguments row label."""
         try:
             if hasattr(self, "args_label") and self.args_label is not None:
                 self.args_label.setText(_tr("Arguments:"))
         except Exception:
             pass
 
-        # Hierarchy labels
+    def _retranslate_hierarchy(self):
+        """Retranslate hierarchy labels (sphere, section, category)."""
         try:
             if hasattr(self, "form") and self.form is not None:
                 if hasattr(self, "sphere_cb"):
@@ -365,7 +361,8 @@ class LinkDialogUI:
         except Exception:
             pass
 
-        # Notes label and favorites
+    def _retranslate_notes_and_favorites(self):
+        """Retranslate notes label and favorites checkbox."""
         try:
             if (
                 hasattr(self, "form")
@@ -380,7 +377,8 @@ class LinkDialogUI:
         except Exception:
             pass
 
-        # Buttons
+    def _retranslate_buttons(self):
+        """Retranslate dialog buttons."""
         try:
             if hasattr(self, "button_box") and self.button_box is not None:
                 ok_btn = self.button_box.button(QDialogButtonBox.StandardButton.Ok)
@@ -393,3 +391,13 @@ class LinkDialogUI:
                     cancel_btn.setText(_tr("Cancel"))
         except Exception:
             pass
+
+    def retranslate(self) -> None:
+        """Update all static texts when the application language changes."""
+        self._retranslate_type_section()
+        self._retranslate_path_row()
+        self._retranslate_name_row()
+        self._retranslate_args_row()
+        self._retranslate_hierarchy()
+        self._retranslate_notes_and_favorites()
+        self._retranslate_buttons()
