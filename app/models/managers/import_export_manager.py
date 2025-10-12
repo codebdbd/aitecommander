@@ -119,7 +119,7 @@ class ImportExportManager:
                 self.db.error_occurred.emit("Export error", str(e))
             except Exception:
                 pass
-            raise DatabaseError(f"Failed to export structure: {e}")
+            raise DatabaseError(f"Failed to export structure: {e}") from e
 
     def export_section_tree(self, section_id: int) -> dict:
         """Exports section along with all categories and links."""
@@ -238,7 +238,7 @@ class ImportExportManager:
                 )
         except Exception as e:
             logger.error("Error bulk importing category trees: %s", e)
-            raise DatabaseError(f"Failed to import category trees: {e}")
+            raise DatabaseError(f"Failed to import category trees: {e}") from e
 
 
 def _upsert_category_tree(tree: dict, connection) -> None:

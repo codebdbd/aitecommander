@@ -238,7 +238,7 @@ class ThemeVariables:
         try:
             return qss_template.format(**variables)
         except KeyError as e:
-            raise ValueError(f"Missing variable in QSS template: {e}")
+            raise ValueError(f"Missing variable in QSS template: {e}") from e
     
     def switch_theme(self, theme: str) -> None:
         """Switch theme.

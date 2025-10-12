@@ -103,7 +103,7 @@ class BackupManager:
                 self.db.error_occurred.emit("Backup error", str(e))
             except Exception:
                 pass
-            raise DatabaseError(f"Failed to create backup: {e}")
+            raise DatabaseError(f"Failed to create backup: {e}") from e
 
     def _get_max_backups(self) -> int:
         """Returns maximum number of backups from user settings."""
