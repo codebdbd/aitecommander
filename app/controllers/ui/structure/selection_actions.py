@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from PyQt6.QtCore import QObject
 
@@ -99,10 +98,10 @@ class SelectionActions(QObject):
             logger.debug("SelectionActions.focus_tree: setFocus failed", exc_info=True)
 
     # --- Fallback utilities ---
-    def current_ui_state(self) -> Optional[UIStateManagerProtocol]:
+    def current_ui_state(self) -> UIStateManagerProtocol | None:
         ui_state = getattr(self._main, "ui_state", None)
         return ui_state if isinstance(ui_state, UIStateManagerProtocol) else None
 
-    def links_table_controller(self) -> Optional[LinksTableControllerProtocol]:
+    def links_table_controller(self) -> LinksTableControllerProtocol | None:
         ctrl = getattr(self._main, "links_table_controller", None)
         return ctrl if isinstance(ctrl, LinksTableControllerProtocol) else None

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import atexit
 import threading
-from typing import Dict, Optional
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -101,10 +100,10 @@ def get_session() -> requests.Session:
             )
         except (TypeError, ValueError, RuntimeError) as e:
             logger.warning("failed to update default session headers: %s", e)
-        setattr(_tls, "session", s)
+        _tls.session = s
         # Mark retries not configured yet; will be configured once by http_request on first use
         try:
-            setattr(s, "_retry_installed", False)  # type: ignore[attr-defined]
+            s._retry_installed = False  # type: ignore[attr-defined]
         except Exception:
             pass
         # Add a simple response hook for debug logging of responses
@@ -138,22 +137,22 @@ def get_session() -> requests.Session:
 def http_request(
     url: str,
     config,
-    extra_headers: Optional[Dict[str, str]] = None,
+    extra_headers: dict[str, str] | None = None,
     allow_non_2xx: bool = False,
-    timeout_override: Optional[object] = None,
+    timeout_override: object | None = None,
     retries: int = 2,
     http_get=None,
     method: str = "GET",
-    stream: Optional[bool] = None,
-    allow_redirects: Optional[bool] = None,
-) -> Optional[requests.Response]:
+    stream: bool | None = None,
+    allow_redirects: bool | None = None,
+) -> requests.Response | None:
     headers = {"User-Agent": getattr(config, "USER_AGENT", USER_AGENT)}
     if extra_headers:
         headers.update({k: v for k, v in extra_headers.items() if v})
     base_timeout = getattr(config, "TIMEOUT", TIMEOUT)
     timeout = timeout_override if timeout_override is not None else base_timeout
 
-    last_err: Optional[Exception] = None
+    last_err: Exception | None = None
     cf_fallback_attempted = False
     # Configurable switch: allow cloudscraper attempts
     enable_cf = bool(getattr(config, "ENABLE_CLOUDSCRAPER_FALLBACK", True))
@@ -198,7 +197,7 @@ def http_request(
             if not bool(getattr(sess, "_retry_installed", False)):
                 _configure_session_retries(sess, config=config)
                 try:
-                    setattr(sess, "_retry_installed", True)  # type: ignore[attr-defined]
+                    sess._retry_installed = True  # type: ignore[attr-defined]
                 except Exception:
                     pass
         except Exception:

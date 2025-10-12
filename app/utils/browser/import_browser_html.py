@@ -73,7 +73,7 @@ class BrowserBookmarksImporter:
         used_encoding = None
         for enc in encodings_to_try:
             try:
-                with open(html_path, "r", encoding=enc) as f:
+                with open(html_path, encoding=enc) as f:
                     text = f.read()
                     used_encoding = enc
                     break

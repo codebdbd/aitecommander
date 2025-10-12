@@ -166,7 +166,7 @@ class PersistentProfileCache(BaseCache):
     def keys(self) -> list[str]:
         """Return list of all valid keys in cache."""
         with self._lock:
-            now = time.time()
+            time.time()
             valid_keys = []
             for key, rec in self._store.items():
                 if rec is not None and rec.is_valid():

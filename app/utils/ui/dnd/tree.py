@@ -6,7 +6,6 @@ Supports `StructureTreeView` (QTreeView) with model and indexes.
 """
 
 import logging
-from typing import List
 
 from PyQt6.QtCore import QModelIndex
 from PyQt6.QtGui import QDropEvent
@@ -439,7 +438,7 @@ class DragDropHandler(TreeHandlerBase):
         except Exception:
             pass
 
-    def _extract_link_ids_from_mime(self, mime) -> List[int]:
+    def _extract_link_ids_from_mime(self, mime) -> list[int]:
         """Extracts link IDs from MIME data."""
         ids = MimeDataParser.extract_item_ids(mime, app_config.get_link_mime_type())
         if not ids:

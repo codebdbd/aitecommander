@@ -1,13 +1,13 @@
 # app/controllers/ui/category_tiles_controller.py
 
 import logging
-from typing import Dict, List, Optional, Protocol
+from typing import Optional, Protocol
 
 logger = logging.getLogger(__name__)
 
 
 class CategoryTilesLike(Protocol):
-    def set_categories(self, categories: List[Dict]) -> None: ...
+    def set_categories(self, categories: list[dict]) -> None: ...
 
 
 class CategoryTilesController:

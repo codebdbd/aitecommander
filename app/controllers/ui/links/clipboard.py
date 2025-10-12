@@ -1,7 +1,6 @@
 # app/controllers/links_ui/clipboard.py
 
 import logging
-from typing import Dict, List
 
 from app.controllers.ui.undo.commands_links import (
     BatchDeleteLinksCmd,
@@ -69,7 +68,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
             logger.error("Error pasting links: %s", e, exc_info=True)
             self._show_error(f"Failed to paste links: {str(e)}")
 
-    def delete_links(self, links: List[Dict]):
+    def delete_links(self, links: list[dict]):
         """Delete links."""
         if not links:
             return
@@ -102,7 +101,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
         except Exception as e:
             logger.debug("Failed to emit signals after delete_links: %s", e)
 
-    def get_selected_links(self) -> List[Dict]:
+    def get_selected_links(self) -> list[dict]:
         """Get selected links through single source of truth (LinksUIController)."""
         try:
             return self.controller.get_selected_links()
@@ -111,7 +110,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
             logger.debug("clipboard.get_selected_links: controller unavailable", exc_info=True)
             return []
 
-    def _validate_clipboard_data(self) -> List[Dict]:
+    def _validate_clipboard_data(self) -> list[dict]:
         """Validate clipboard data."""
         links = get_link_from_clipboard()
         if not links:
@@ -125,14 +124,14 @@ class LinksUIClipboard(BaseLinksUIComponent):
 
         return links
 
-    def _prepare_link_data(self, link: Dict, category_id: int) -> Dict:
+    def _prepare_link_data(self, link: dict, category_id: int) -> dict:
         """Prepare link data for insertion."""
         new_data = dict(link)
         new_data.pop("id", None)  # Remove old ID
         new_data["category_id"] = category_id
         return new_data
 
-    def _insert_links(self, links: List[Dict]):
+    def _insert_links(self, links: list[dict]):
         """Insert list of links with undo support."""
         if len(links) > 1:
             # Batch insertion: one transaction, one reload in command
@@ -153,8 +152,8 @@ class LinksUIClipboard(BaseLinksUIComponent):
                 )
 
     def _filter_duplicates_optimized(
-        self, links: List[Dict], existing_links: List[Dict], category_id: int
-    ) -> List[Dict]:
+        self, links: list[dict], existing_links: list[dict], category_id: int
+    ) -> list[dict]:
         """Optimized duplicate filtering using set for O(n) complexity."""
         # Create set of existing keys for fast lookup
         existing_keys = set()
@@ -195,7 +194,7 @@ class LinksUIClipboard(BaseLinksUIComponent):
             )
         return new_links
 
-    def _is_duplicate(self, candidate: Dict, links: List[Dict]) -> bool:
+    def _is_duplicate(self, candidate: dict, links: list[dict]) -> bool:
         """Check if link is duplicate (preserved for backward compatibility)."""
         candidate_key = (
             candidate.get("url", ""),

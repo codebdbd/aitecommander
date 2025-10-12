@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from PyQt6.QtCore import QObject
 
@@ -47,7 +46,7 @@ class ItemDialogService(QObject):
                 details=str(exc),
             )
 
-    def add_new_category(self, target_section_id: Optional[int]) -> None:
+    def add_new_category(self, target_section_id: int | None) -> None:
         if target_section_id is None:
             return
         try:
@@ -101,7 +100,7 @@ class ItemDialogService(QObject):
             informative_text="The section creation dialog will be opened.",
         )
 
-    def ensure_section_for_category(self) -> Optional[int]:
+    def ensure_section_for_category(self) -> int | None:
         section_id = self._get_selected_section_id()
         if section_id is None:
             section_id = self._business.get_target_section_id()
@@ -110,7 +109,7 @@ class ItemDialogService(QObject):
                 section_id = self._business.get_target_section_id()
         return section_id
 
-    def get_selected_section_id(self) -> Optional[int]:
+    def get_selected_section_id(self) -> int | None:
         return self._get_selected_section_id()
 
     def _edit_section(self, section_id: int) -> None:
@@ -164,7 +163,7 @@ class ItemDialogService(QObject):
                 details=str(exc),
             )
 
-    def _get_selected_section_id(self) -> Optional[int]:
+    def _get_selected_section_id(self) -> int | None:
         try:
             current = self._tree.currentIndex() if hasattr(self._tree, "currentIndex") else None
             if current and current.isValid():

@@ -2,7 +2,15 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtCore import QCoreApplication, QRunnable, QSize, Qt, QThreadPool, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import (
+    QCoreApplication,
+    QRunnable,
+    QSize,
+    Qt,
+    QThreadPool,
+    pyqtSignal,
+    pyqtSlot,
+)
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -25,7 +33,6 @@ from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
 from app.views.widgets.language_selector import LanguageSelector
 from app.views.windows.dialogs.link_dialog.icon_utils import make_icon
-
 
 from .base_dialog import BaseDialog
 

@@ -6,7 +6,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from .base_profile_finder import BaseBrowserProfileFinder
 
@@ -45,7 +45,7 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
         self.profiles_dir = profiles_dir
         self.browser_name = browser_name
 
-    def find_profiles(self) -> List[Dict[str, str]]:
+    def find_profiles(self) -> list[dict[str, str]]:
         """Universal profile search logic for Chromium-based browsers."""
         profiles = []
 
@@ -95,7 +95,7 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
             return None
 
         try:
-            with open(pref_path, "r", encoding="utf-8") as f:
+            with open(pref_path, encoding="utf-8") as f:
                 prefs = json.load(f)
 
             # Try different places where email might be
@@ -118,7 +118,7 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
                 profile_info = prefs.get("profile", {}).get("info_cache", {})
                 if profile_info:
                     # info_cache may contain multiple profiles
-                    for profile_id, profile_data in profile_info.items():
+                    for _profile_id, profile_data in profile_info.items():
                         if isinstance(profile_data, dict) and profile_data.get(
                             "user_name"
                         ):
@@ -137,12 +137,12 @@ class ChromiumBaseBrowserFinder(BaseBrowserProfileFinder):
         """
         return self.browser_name
 
-    def get_profile_argument(self, profile_data: Dict) -> str:
+    def get_profile_argument(self, profile_data: dict) -> str:
         """Generates command line argument for profile."""
         directory = profile_data.get("directory", profile_data.get("name", "Default"))
         return f'--profile-directory="{directory}"'
 
-    def parse_profile_from_args(self, args: str) -> Optional[Dict]:
+    def parse_profile_from_args(self, args: str) -> Optional[dict]:
         """Parses profile from command line arguments."""
         logger.debug("parse_profile_from_args: args=%s", args)
 

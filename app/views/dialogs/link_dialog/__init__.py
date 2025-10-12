@@ -11,12 +11,11 @@ from __future__ import annotations
 
 import importlib
 import sys
-from typing import Dict
 
 _TARGET_PREFIX = "app.views.windows.dialogs.link_dialog"
 _LEGACY_PREFIX = __name__
 
-_MODULE_ALIASES: Dict[str, str] = {
+_MODULE_ALIASES: dict[str, str] = {
     f"{_LEGACY_PREFIX}.link_dialog": f"{_TARGET_PREFIX}.link_dialog",
     f"{_LEGACY_PREFIX}.link_dialog_ui": f"{_TARGET_PREFIX}.link_dialog_ui",
     f"{_LEGACY_PREFIX}.link_dialog_handlers": f"{_TARGET_PREFIX}.link_dialog_handlers",
@@ -51,8 +50,9 @@ _install_aliases()
 
 # Re-export primary classes/functions for convenience
 from app.views.windows.dialogs.link_dialog.link_dialog import *  # noqa: F401,F403,E402
-from app.views.windows.dialogs.link_dialog.link_dialog_ui import *  # noqa: F401,F403,E402
 from app.views.windows.dialogs.link_dialog.link_dialog_handlers import *  # noqa: F401,F403,E402
 from app.views.windows.dialogs.link_dialog.link_dialog_signals import *  # noqa: F401,F403,E402
+from app.views.windows.dialogs.link_dialog.link_dialog_ui import *  # noqa: F401,F403,E402
 
 __all__ = []  # populated dynamically by star-imports above
+

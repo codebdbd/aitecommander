@@ -18,7 +18,6 @@ Chrome profile usage examples:
 import logging
 import os
 import platform
-from pathlib import Path
 import re
 import shlex
 import subprocess
@@ -26,7 +25,8 @@ import webbrowser
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class LinkInfo:
     browser_key: Optional[str] = None
 
     @classmethod
-    def from_dict(cls, link_dict: Dict[str, Any]) -> "LinkInfo":
+    def from_dict(cls, link_dict: dict[str, Any]) -> "LinkInfo":
         """Creates LinkInfo object from dictionary"""
         logger.debug("Creating LinkInfo from dict")
 
@@ -185,7 +185,7 @@ class SecurityValidator:
         return bool(cls.PATH_PATTERN.match(path))
 
     @classmethod
-    def validate_chrome_args(cls, args: str) -> List[str]:
+    def validate_chrome_args(cls, args: str) -> list[str]:
         """Validates Chrome arguments"""
         if not args:
             return []
@@ -228,7 +228,7 @@ class SecurityValidator:
         return validated
 
     @classmethod
-    def validate_args(cls, args: str) -> List[str]:
+    def validate_args(cls, args: str) -> list[str]:
         """Universal argument validation (for backward compatibility)"""
         if not args:
             return []
@@ -250,8 +250,8 @@ class BrowserConfig:
         self._cache = {}
 
     def get_browser_command(
-        self, browser_key: str, url: str, args: List[str]
-    ) -> List[str]:
+        self, browser_key: str, url: str, args: list[str]
+    ) -> list[str]:
         """Gets browser launch command"""
         if browser_key not in self._config:
             browser_key = "chrome"  # Fallback
@@ -425,18 +425,18 @@ class ScriptLinkHandler(LinkHandler):
             else:
                 subprocess.Popen(["xdg-open", link_info.path])
 
-    def _create_powershell_command(self, path: str, args: List[str]) -> List[str]:
+    def _create_powershell_command(self, path: str, args: list[str]) -> list[str]:
         """Creates PowerShell script command"""
         cmd_args = ["-ExecutionPolicy", "Bypass", "-Command", f'& "{path}"']
         if args:
             cmd_args.extend(args)
         return [self.powershell_path] + cmd_args
 
-    def _create_python_command(self, path: str, args: List[str]) -> List[str]:
+    def _create_python_command(self, path: str, args: list[str]) -> list[str]:
         """Creates Python script command"""
         return ["python", path] + args
 
-    def _create_batch_command(self, path: str, args: List[str]) -> List[str]:
+    def _create_batch_command(self, path: str, args: list[str]) -> list[str]:
         """Creates batch file command"""
         return ["cmd.exe", "/c", "start", '""', path] + args
 
@@ -507,7 +507,7 @@ class LinkOpener:
         self.browser_config = BrowserConfig()
 
         # Initialize handlers
-        self.handlers: List[LinkHandler] = [
+        self.handlers: list[LinkHandler] = [
             WebLinkHandler(self.logger, self.browser_config),
             FileLinkHandler(self.logger),
             ScriptLinkHandler(self.logger, powershell_path),
@@ -515,13 +515,13 @@ class LinkOpener:
             ChromeAppLinkHandler(self.logger),
         ]
 
-    def _build_chrome_command(self, url: str, args: List[str]) -> List[str]:
+    def _build_chrome_command(self, url: str, args: list[str]) -> list[str]:
         """Creates Chrome launch command (for backward compatibility)"""
         return self.browser_config.get_browser_command("chrome", url, args)
 
     def _build_browser_command(
-        self, browser_key: str, url: str, args: List[str]
-    ) -> List[str]:
+        self, browser_key: str, url: str, args: list[str]
+    ) -> list[str]:
         """Creates browser launch command (for backward compatibility)"""
         return self.browser_config.get_browser_command(browser_key, url, args)
 
@@ -594,7 +594,7 @@ def create_link_opener(powershell_path: str = None) -> LinkOpener:
     return LinkOpener(powershell_path)
 
 
-def open_link_from_dict(link_dict: Dict[str, Any], powershell_path: str = None) -> None:
+def open_link_from_dict(link_dict: dict[str, Any], powershell_path: str = None) -> None:
     """
     Opens link from dictionary data.
 

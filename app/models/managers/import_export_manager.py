@@ -1,11 +1,10 @@
 """Module for importing/exporting database structure."""
 import logging
 import time
-from typing import Dict, List
 
 from ..base.db_base import DatabaseError, db_lock
-from ..types.link_type import LinkType
 from ..types.constants import PERFORMANCE_WARNING_THRESHOLD_MS
+from ..types.link_type import LinkType
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +19,7 @@ class ImportExportManager:
         """
         self.db = db
 
-    def export_full_structure(self) -> Dict[str, List]:
+    def export_full_structure(self) -> dict[str, list]:
         """Exports entire data structure from DB as dictionary."""
         operation = "export_full_structure"
         try:
@@ -81,7 +80,7 @@ class ImportExportManager:
                     cat_obj["links"].append(ld)
 
             # Assemble hierarchy
-            spheres_data: List[Dict] = []
+            spheres_data: list[dict] = []
             for s in spheres:
                 s_obj = spheres_by_id[s["id"]]
                 for sc in sections_by_sphere.get(s_obj["id"], []):

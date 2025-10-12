@@ -6,8 +6,8 @@ import sqlite3
 import time
 from pathlib import Path
 
-from ..types.constants import BACKUP_RETRY_ATTEMPTS, BACKUP_RETRY_DELAY
 from ..base.db_base import DatabaseError
+from ..types.constants import BACKUP_RETRY_ATTEMPTS, BACKUP_RETRY_DELAY
 
 logger = logging.getLogger(__name__)
 

@@ -4,8 +4,8 @@ Centralizes color and size definitions for themes,
 prevents duplication, and simplifies design changes.
 """
 
-from typing import Dict, Any
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -187,7 +187,7 @@ class ThemeVariables:
         self.colors = DARK_PALETTE if theme == "dark" else LIGHT_PALETTE
         self.sizes = sizes or SizePalette()
     
-    def get_all_variables(self) -> Dict[str, Any]:
+    def get_all_variables(self) -> dict[str, Any]:
         """Return all theme variables as a dictionary.
 
         Returns:

@@ -1,5 +1,4 @@
 import logging
-import os
 import platform
 import re
 import subprocess
@@ -7,8 +6,8 @@ import time
 from pathlib import Path
 
 from PyQt6.QtCore import (
-    QCoreApplication,
     QAbstractTableModel,
+    QCoreApplication,
     QDate,
     QModelIndex,
     Qt,

@@ -1,11 +1,10 @@
 import logging
-import os
 import re
 import shutil
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 import pythoncom
 import win32api
@@ -175,7 +174,7 @@ def _extract_icon_from_exe(exe_path: str, save_dir: str) -> Optional[str]:
     return None
 
 
-def _parse_lnk(lnk_path: str) -> Dict[str, str]:
+def _parse_lnk(lnk_path: str) -> dict[str, str]:
     """Parses .lnk file with improved error handling"""
     if not lnk_path or not isinstance(lnk_path, str):
         return {}
@@ -212,7 +211,7 @@ def _parse_lnk(lnk_path: str) -> Dict[str, str]:
     return {}
 
 
-def parse_lnk(lnk_path: str) -> Dict[str, str]:
+def parse_lnk(lnk_path: str) -> dict[str, str]:
     """Public wrapper for parsing .lnk files.
 
     Stable API for external modules. Delegates to private implementation
@@ -221,7 +220,7 @@ def parse_lnk(lnk_path: str) -> Dict[str, str]:
     return _parse_lnk(lnk_path)
 
 
-def _get_name_for_link_type(link_type: str, path: str, lnk_info: Dict[str, str]) -> str:
+def _get_name_for_link_type(link_type: str, path: str, lnk_info: dict[str, str]) -> str:
     """Determines name for link based on type"""
     if not path:
         return "Unknown"
@@ -253,7 +252,7 @@ def _handle_folder_icon(config) -> str:
     return _get_default_icon("folder", config)
 
 
-def _handle_chromeapp_icon(lnk_info: Dict[str, str], icons_dir: str) -> Optional[str]:
+def _handle_chromeapp_icon(lnk_info: dict[str, str], icons_dir: str) -> Optional[str]:
     """Handles Chrome app icon"""
     args = lnk_info.get("args", "")
     if not args:
@@ -281,7 +280,7 @@ def _handle_chromeapp_icon(lnk_info: Dict[str, str], icons_dir: str) -> Optional
 
 
 def _handle_program_icon(
-    path: str, lnk_info: Dict[str, str], icons_dir: str
+    path: str, lnk_info: dict[str, str], icons_dir: str
 ) -> Optional[str]:
     """Handles program icon"""
     target_path = lnk_info.get("path") if lnk_info else path
@@ -316,7 +315,7 @@ def _handle_file_icon(path: str, icons_dir: str) -> Optional[str]:
 
 
 def _get_icon_for_link_type(
-    link_type: str, path: str, lnk_info: Dict[str, str], config, icons_dir: str
+    link_type: str, path: str, lnk_info: dict[str, str], config, icons_dir: str
 ) -> str:
     """Determines icon for link based on type"""
     icon = None
@@ -345,7 +344,7 @@ def _get_icon_for_link_type(
 
 def parse_local_link(
     link_type: str, path: str, config, args: str = None
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Parses local link and returns information about it, including name and icon."""
     if not validate_link_type(link_type):
         logger.error("Invalid link_type: %r", link_type)

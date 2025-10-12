@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -55,7 +55,7 @@ class SupportsFontSizeApply(Protocol):
 class SettingsLike(Protocol):
     """Protocol for application settings with access to font size."""
 
-    def get_font_size(self) -> Optional[int]: ...
+    def get_font_size(self) -> int | None: ...
 
 
 @runtime_checkable
@@ -80,4 +80,4 @@ class FavoritesPanelWithClear(TopPanelDataLike, Protocol):
 class RecentsPanelWithLimit(TopPanelDataLike, Protocol):
     """Recents: can report a desired item limit (optional)."""
 
-    def get_limit(self) -> Optional[int]: ...
+    def get_limit(self) -> int | None: ...

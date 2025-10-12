@@ -1,6 +1,6 @@
 """Favorites panel widget for top bar."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from PyQt6.QtWidgets import QToolButton
 
@@ -32,7 +32,7 @@ class FavoritesPanelWidget(BaseTopPanelWidget):
         self.setObjectName("favoritesPanel")
         self.bg_frame.setObjectName("favoritesPanelBg")
 
-    def set_data(self, items: List[Dict[str, Any]]) -> None:
+    def set_data(self, items: list[dict[str, Any]]) -> None:
         """Sets favorites data and populates the panel (unified contract)."""
         self._populate_panel(items, self._create_favorite_button)
 
@@ -47,14 +47,14 @@ class FavoritesPanelWidget(BaseTopPanelWidget):
         """Initiates clearing of favorites."""
         self.clear_favorites()
 
-    def _create_favorite_button(self, link_data: Dict[str, Any]) -> QToolButton:
+    def _create_favorite_button(self, link_data: dict[str, Any]) -> QToolButton:
         """Creates a favorite button with proper styling and click handling."""
         button = self._create_link_button(link_data)
         button.setObjectName("favoriteButton")
         button.clicked.connect(lambda: self._handle_favorite_click(link_data))
         return button
 
-    def _handle_favorite_click(self, link_data: Dict[str, Any]) -> None:
+    def _handle_favorite_click(self, link_data: dict[str, Any]) -> None:
         """Handles click on a favorite link."""
         # Emit unified action signal
         self._emit_action_safely({"type": "open_link", "link": link_data})

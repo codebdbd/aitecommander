@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
 
 from PyQt6.QtWidgets import QToolButton, QWidget
-
 
 
 @dataclass(frozen=True)
@@ -28,7 +26,7 @@ class PanelDefinition:
 @dataclass
 class PanelState:
     definition: PanelDefinition
-    widget: Optional[QWidget]
-    buttons: List[QToolButton]
+    widget: QWidget | None
+    buttons: list[QToolButton]
     min_visible: int
     max_visible: int

@@ -1,17 +1,16 @@
 """Quick add panel widget for top bar."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from PyQt6.QtCore import QSize
-from PyQt6.QtWidgets import QToolButton, QSizePolicy
+from PyQt6.QtWidgets import QSizePolicy, QToolButton
 
 from app.config_data import app_config
-from app.utils.ui.icon.icon_resolver import get_default_icon_path
-from app.views.widgets.base.base_panel_widgets import BaseTopPanelWidget
-from app.views.widgets.protocols import WidgetConfigProtocol
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
 from app.utils.ui.icon.path_service import icon_path_service
+from app.views.widgets.base.base_panel_widgets import BaseTopPanelWidget
+from app.views.widgets.protocols import WidgetConfigProtocol
 
 logger = logging.getLogger(__name__)
 

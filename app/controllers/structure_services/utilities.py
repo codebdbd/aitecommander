@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable
 
 from app.models import StructureModel
 
@@ -16,8 +16,8 @@ class UtilityService:
         self,
         model: StructureModel,
         category_id: int,
-        logger: Optional[logging.Logger] = None,
-    ) -> List[Dict[str, Any]]:
+        logger: logging.Logger | None = None,
+    ) -> list[dict[str, Any]]:
         try:
             links = model.get_links(category_id)
             return links or []
@@ -29,7 +29,7 @@ class UtilityService:
                     e,
                 )
             return []
-        except Exception as e:
+        except Exception:
             if logger:
                 logger.exception(
                     "Critical error getting links for category %s", category_id
@@ -39,11 +39,11 @@ class UtilityService:
     def get_item_for_editing(
         self,
         item_id: int,
-        item_type: Union[str, Any],
-        get_section_data: Callable[[int], Optional[Dict[str, Any]]],
-        get_category_data: Callable[[int], Optional[Dict[str, Any]]],
-        logger: Optional[logging.Logger] = None,
-    ) -> Optional[Dict[str, Any]]:
+        item_type: str | Any,
+        get_section_data: Callable[[int], dict[str, Any] | None],
+        get_category_data: Callable[[int], dict[str, Any] | None],
+        logger: logging.Logger | None = None,
+    ) -> dict[str, Any] | None:
         try:
             if not isinstance(item_type, str) and hasattr(item_type, "value"):
                 item_type = item_type.value
@@ -61,7 +61,7 @@ class UtilityService:
                     e,
                 )
             return None
-        except Exception as e:
+        except Exception:
             if logger:
                 logger.exception(
                     "Critical error getting item %s of type %s", item_id, item_type
@@ -71,10 +71,10 @@ class UtilityService:
     def get_category_hierarchy(
         self,
         category_id: int,
-        get_category_data: Callable[[int], Optional[Dict[str, Any]]],
-        get_section_data: Callable[[int], Optional[Dict[str, Any]]],
-        get_sphere_by_id: Callable[[int], Optional[Dict[str, Any]]],
-    ) -> Optional[Dict[str, Any]]:
+        get_category_data: Callable[[int], dict[str, Any] | None],
+        get_section_data: Callable[[int], dict[str, Any] | None],
+        get_sphere_by_id: Callable[[int], dict[str, Any] | None],
+    ) -> dict[str, Any] | None:
         category_data = get_category_data(category_id)
         if not category_data:
             return None
@@ -95,12 +95,12 @@ class UtilityService:
 
     def get_target_section_id(
         self,
-        current_sphere_id: Optional[int],
-        get_sections: Callable[[int], List[Dict[str, Any]]],
-        get_categories: Callable[[int], List[Dict[str, Any]]],
+        current_sphere_id: int | None,
+        get_sections: Callable[[int], list[dict[str, Any]]],
+        get_categories: Callable[[int], list[dict[str, Any]]],
         cache_get: Callable[[str], Any],
         cache_set: Callable[[str, Any], None],
-    ) -> Optional[int]:
+    ) -> int | None:
         if current_sphere_id is None:
             return None
         # Unified cache key format (per-sphere), consistent with CacheManager: 'first_category_id:{sphere_id}'
@@ -146,18 +146,18 @@ class UtilityService:
 
     def get_first_category_id(
         self,
-        current_sphere_id: Optional[int],
-        get_categories: Callable[[int], List[Dict[str, Any]]],
+        current_sphere_id: int | None,
+        get_categories: Callable[[int], list[dict[str, Any]]],
         cache_get: Callable[[str], Any],
         cache_set: Callable[[str, Any], None],
-    ) -> Optional[int]:
+    ) -> int | None:
         """Alias for get_target_section_id for backward compatibility.
         
         Uses the same logic as get_target_section_id.
         """
         return self.get_target_section_id(
             current_sphere_id,
-            get_sections,
+            get_categories,
             get_categories,
             cache_get,
             cache_set,
@@ -166,10 +166,10 @@ class UtilityService:
     def update_item_positions(
         self,
         table_name: str,
-        ids_in_order: List[int],
+        ids_in_order: list[int],
         model: StructureModel,
         cache_invalidate: Callable[[str], None],
-        logger: Optional[logging.Logger] = None,
+        logger: logging.Logger | None = None,
     ) -> bool:
         """Update item positions.
 
@@ -220,7 +220,8 @@ class UtilityService:
             if logger:
                 logger.error("Data validation error while updating positions in %s: %s", table_name, e)
             return False
-        except Exception as e:
+        except Exception:
             if logger:
                 logger.exception("Critical error updating positions in %s", table_name)
             raise  # Re-raise critical errors
+

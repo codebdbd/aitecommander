@@ -3,6 +3,7 @@
 """Data types and constants for category operations."""
 
 from dataclasses import dataclass
+
 from .types import CategoryData
 
 

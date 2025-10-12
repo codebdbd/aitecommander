@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from logging import Logger
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from PyQt6.QtCore import QTimer
 
@@ -11,6 +11,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from app.controllers.business.structure_business import StructureBusinessLogic
     from app.controllers.structure_modules import CacheManager
     from app.controllers.structure_services.utilities import UtilityService
+
     from .async_service import StructureAsyncService
     from .cache_service import StructureCacheService
 
@@ -22,9 +23,9 @@ class StructureWarmupService:
         self,
         owner: StructureBusinessLogic,
         cache_manager: CacheManager,
-        utility_service: 'UtilityService',
-        cache_service: 'StructureCacheService',
-        async_service: 'StructureAsyncService',
+        utility_service: UtilityService,
+        cache_service: StructureCacheService,
+        async_service: StructureAsyncService,
         logger: Logger,
     ) -> None:
         self._owner = owner

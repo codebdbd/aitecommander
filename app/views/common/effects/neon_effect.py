@@ -1,8 +1,6 @@
 # app/views/effects/neon_effect.py
 from __future__ import annotations
 
-from typing import Optional
-
 from PyQt6.QtCore import QEvent, QObject
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
@@ -40,7 +38,7 @@ class NeonEventFilter(QObject):
 
     def __init__(
         self,
-        parent: Optional[QObject] = None,
+        parent: QObject | None = None,
         *,
         color: QColor | None = None,
         blur_radius: int = 18,
@@ -142,12 +140,12 @@ class NeonEventFilter(QObject):
 
     def _maybe_connect_toggled(self, w: QWidget) -> None:
         try:
-            if hasattr(w, "toggled") and callable(getattr(w, "toggled")):
+            if hasattr(w, "toggled") and callable(w.toggled):
                 if not getattr(w, "_neon_toggled_connected", False):
                     w.toggled.connect(
                         lambda checked, ww=w: self._on_toggled(ww, checked)
                     )
-                    setattr(w, "_neon_toggled_connected", True)
+                    w._neon_toggled_connected = True
         except Exception:
             pass
 
@@ -166,7 +164,7 @@ class NeonEventFilter(QObject):
             eff.setBlurRadius(self._blur)
             eff.setColor(self._color)
             eff.setOffset(self._x, self._y)
-            setattr(w, "_neon_effect", eff)
+            w._neon_effect = eff
         return eff
 
     def _apply_effect(self, w: QWidget) -> None:

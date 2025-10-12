@@ -3,11 +3,15 @@
 import copy
 import logging
 import time
-from typing import Any, Optional, Union, List, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
 
-from app.controllers.structure_modules import CacheManager, ValidationResult, handle_exceptions
+from app.controllers.structure_modules import (
+    CacheManager,
+    ValidationResult,
+    handle_exceptions,
+)
 from app.controllers.structure_services.exporter import ExportService
 from app.controllers.structure_services.importer import ImportService
 from app.controllers.structure_services.integrity import IntegrityService
@@ -343,12 +347,12 @@ class StructureBusinessLogic(QObject):
     def _handle_structure_reloaded(self, *args, **kwargs) -> None:
         self.preload_structure_async()
 
-    def get_cached_spheres(self) -> list[Dict[str, Any]]:
+    def get_cached_spheres(self) -> list[dict[str, Any]]:
         if not self._structure_cache_ready:
             return []
         return [dict(entry) for entry in self._cached_spheres]
 
-    def get_cached_sections(self, sphere_id: int) -> list[Dict[str, Any]]:
+    def get_cached_sections(self, sphere_id: int) -> list[dict[str, Any]]:
         if not self._structure_cache_ready:
             return []
         sections = self._cached_sections.get(int(sphere_id))
@@ -356,7 +360,7 @@ class StructureBusinessLogic(QObject):
             return []
         return [dict(entry) for entry in sections]
 
-    def get_cached_categories(self, section_id: int) -> list[Dict[str, Any]]:
+    def get_cached_categories(self, section_id: int) -> list[dict[str, Any]]:
         if not self._structure_cache_ready:
             return []
         categories = self._cached_categories.get(int(section_id))
@@ -447,34 +451,34 @@ class StructureBusinessLogic(QObject):
         self.query_service.select_category(category_id)
 
     @handle_exceptions(default_return=[])
-    def get_spheres(self) -> List[Dict[str, Any]]:
+    def get_spheres(self) -> list[dict[str, Any]]:
         """Return cached list of spheres via service layer."""
         return self.query_service.get_spheres()
 
-    def get_sections(self, sphere_id: int) -> List[Dict[str, Any]]:
+    def get_sections(self, sphere_id: int) -> list[dict[str, Any]]:
         """Return cached sections for a sphere via the service layer."""
         return self.query_service.get_sections(sphere_id)
 
-    def get_categories(self, section_id: int) -> List[Dict[str, Any]]:
+    def get_categories(self, section_id: int) -> list[dict[str, Any]]:
         """Return cached categories for a section via the service layer."""
         return self.query_service.get_categories(section_id)
 
-    def get_links(self, category_id: int) -> List[Dict[str, Any]]:
+    def get_links(self, category_id: int) -> list[dict[str, Any]]:
         """Return links for a category (legacy interface compatibility)."""
         return self.query_service.get_links(category_id)
 
     @handle_exceptions()
-    def get_section_data(self, section_id: int) -> Optional[Dict[str, Any]]:
+    def get_section_data(self, section_id: int) -> Optional[dict[str, Any]]:
         """Return section payload for compatibility consumers."""
         return self.query_service.get_section_data(section_id)
 
     @handle_exceptions()
-    def get_category_data(self, category_id: int) -> Optional[Dict[str, Any]]:
+    def get_category_data(self, category_id: int) -> Optional[dict[str, Any]]:
         """Return category payload for compatibility consumers."""
         return self.query_service.get_category_data(category_id)
 
     @handle_exceptions()
-    def get_item_for_editing(self, item_id: int, item_type: Union[str, Any]) -> Optional[Dict[str, Any]]:
+    def get_item_for_editing(self, item_id: int, item_type: Union[str, Any]) -> Optional[dict[str, Any]]:
         return self.query_service.get_item_for_editing(item_id, item_type)
 
     def on_active_sphere_changed(self, *_args: Any) -> None:
@@ -490,31 +494,31 @@ class StructureBusinessLogic(QObject):
         return self.query_service.get_target_section_id()
 
     @handle_exceptions()
-    def create_section(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def create_section(self, data: dict[str, Any]) -> Optional[dict[str, Any]]:
         """Create a section via the CRUD service."""
         return self.crud_service.create_section(data)
 
     @handle_exceptions()
     def update_section(
-        self, section_id: int, data: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, section_id: int, data: dict[str, Any]
+    ) -> Optional[dict[str, Any]]:
         """Update a section via the CRUD service."""
         return self.crud_service.update_section(section_id, data)
 
     @handle_exceptions()
-    def delete_section(self, section_id: int) -> tuple[bool, Dict[str, Any], int, int]:
+    def delete_section(self, section_id: int) -> tuple[bool, dict[str, Any], int, int]:
         """Delegate section removal to the CRUD service."""
         return self.crud_service.delete_section(section_id)
 
     @handle_exceptions()
-    def create_category(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def create_category(self, data: dict[str, Any]) -> Optional[dict[str, Any]]:
         """Create a category via the CRUD service."""
         return self.crud_service.create_category(data)
 
     @handle_exceptions(default_return=[])
     def move_categories_batch(
-        self, category_ids: List[int], target_section_id: int, base_row: int = 0
-    ) -> List[int]:
+        self, category_ids: list[int], target_section_id: int, base_row: int = 0
+    ) -> list[int]:
         """Move categories via the CRUD service."""
         result = self.crud_service.move_categories_batch(
             category_ids, target_section_id, base_row
@@ -527,20 +531,20 @@ class StructureBusinessLogic(QObject):
 
     @handle_exceptions(default_return=[])
     def create_categories_bulk(
-        self, items: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, items: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Create categories in bulk via the CRUD service."""
         return self.crud_service.create_categories_bulk(items)
 
     @handle_exceptions()
     def update_category(
-        self, category_id: int, data: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, category_id: int, data: dict[str, Any]
+    ) -> Optional[dict[str, Any]]:
         """Update a category via the CRUD service."""
         return self.crud_service.update_category(category_id, data)
 
     @handle_exceptions()
-    def delete_category(self, category_id: int) -> tuple[bool, Dict[str, Any], int]:
+    def delete_category(self, category_id: int) -> tuple[bool, dict[str, Any], int]:
         """Delete a category via the CRUD service."""
         return self.crud_service.delete_category(category_id)
 
@@ -552,7 +556,7 @@ class StructureBusinessLogic(QObject):
             self.logger.error("load_spheres_async failed: %s", e)
 
     @handle_exceptions()
-    def get_sphere_by_id(self, sphere_id: int) -> Optional[Dict[str, Any]]:
+    def get_sphere_by_id(self, sphere_id: int) -> Optional[dict[str, Any]]:
         """Return sphere data by identifier."""
         return self.query_service.get_sphere_by_id(sphere_id)
 
@@ -574,34 +578,34 @@ class StructureBusinessLogic(QObject):
         """Return the current active sphere ID."""
         return self.current_sphere_id
 
-    def get_section_for_editing(self, section_id: int) -> Optional[Dict[str, Any]]:
+    def get_section_for_editing(self, section_id: int) -> Optional[dict[str, Any]]:
         """Fetch section data for editing dialogs."""
         return self.query_service.get_section_for_editing(section_id)
 
-    def get_category_for_editing(self, category_id: int) -> Optional[Dict[str, Any]]:
+    def get_category_for_editing(self, category_id: int) -> Optional[dict[str, Any]]:
         """Fetch category data for editing dialogs."""
         return self.query_service.get_category_for_editing(category_id)
 
     @handle_exceptions()
-    def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, Any]]:
+    def get_category_hierarchy(self, category_id: int) -> Optional[dict[str, Any]]:
         """Return category hierarchy (sphere_id, section_id)."""
         return self.structure_model.get_category_hierarchy(category_id)
 
     @handle_exceptions()
     def create_category_for_import(
-        self, category_data: Dict[str, Any]
+        self, category_data: dict[str, Any]
     ) -> Optional[int]:
         """Create a category during import via the CRUD service."""
         return self.crud_service.create_category_for_import(category_data)
 
     def _validate_section_data(
-        self, data: Dict[str, Any], section_id: Optional[int] = None
+        self, data: dict[str, Any], section_id: Optional[int] = None
     ) -> ValidationResult:
         """Validate section data via ``ValidationService``."""
         return self.validation_facade.validate_section_data(data, section_id)
 
     def _validate_category_data(
-        self, data: Dict[str, Any], category_id: Optional[int] = None
+        self, data: dict[str, Any], category_id: Optional[int] = None
     ) -> ValidationResult:
         """Validate category data via ``ValidationService``."""
         return self.validation_facade.validate_category_data(data, category_id)
@@ -625,7 +629,7 @@ class StructureBusinessLogic(QObject):
         self.error_occurred.emit(title, message)
         self.logger.error("%s: %s", title, message)
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Return structure statistics via the integrity service."""
         return self.integrity_service.get_statistics(
             get_spheres=self.get_spheres,

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional, TYPE_CHECKING, Set
+from typing import TYPE_CHECKING, Any
 
 try:
     from app.utils.metrics import measure_time
@@ -29,7 +29,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 @dataclass(slots=True)
 class MoveCategoriesBatchResult:
     moved_ids: list[int]
-    touched_sections: Set[int]
+    touched_sections: set[int]
 
 
 class StructureCrudService:
@@ -57,7 +57,7 @@ class StructureCrudService:
     # Section operations
     # ------------------------------------------------------------------
     @measure_time("create_section", log_threshold_ms=200)
-    def create_section(self, data: dict[str, Any]) -> Optional[dict[str, Any]]:
+    def create_section(self, data: dict[str, Any]) -> dict[str, Any] | None:
         """Создаёт раздел и эмитит сигнал.
         
         ✅ ИСПРАВЛЕНИЕ: Добавлена проверка на None перед использованием sphere_id.
@@ -86,7 +86,7 @@ class StructureCrudService:
     @measure_time("update_section", log_threshold_ms=200)
     def update_section(
         self, section_id: int, data: dict[str, Any]
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Обновляет раздел и эмитит сигнал.
         
         ✅ Метрика производительности: измеряется время выполнения.
@@ -144,7 +144,7 @@ class StructureCrudService:
     # Category operations
     # ------------------------------------------------------------------
     @measure_time("create_category", log_threshold_ms=200)
-    def create_category(self, data: dict[str, Any]) -> Optional[dict[str, Any]]:
+    def create_category(self, data: dict[str, Any]) -> dict[str, Any] | None:
         """Создаёт категорию и эмитит сигнал.
         
         ✅ ИСПРАВЛЕНИЕ: Добавлена проверка на None перед использованием section_id.
@@ -171,7 +171,7 @@ class StructureCrudService:
     @measure_time("update_category", log_threshold_ms=200)
     def update_category(
         self, category_id: int, data: dict[str, Any]
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Обновляет категорию и эмитит сигнал.
         
         ✅ Метрика производительности: измеряется время выполнения.
@@ -228,7 +228,7 @@ class StructureCrudService:
         ):
             return MoveCategoriesBatchResult(moved_ids=[], touched_sections=set())
 
-        source_sections: Set[int] = set()
+        source_sections: set[int] = set()
         try:
             for cid in category_ids:
                 try:
@@ -258,7 +258,7 @@ class StructureCrudService:
             category_ids, target_section_id, base_row
         ) or []
 
-        touched_sections: Set[int] = set(source_sections)
+        touched_sections: set[int] = set(source_sections)
         if isinstance(target_section_id, int) and target_section_id > 0:
             touched_sections.add(int(target_section_id))
 
@@ -311,7 +311,7 @@ class StructureCrudService:
 
     def create_category_for_import(
         self, category_data: dict[str, Any]
-    ) -> Optional[int]:
+    ) -> int | None:
         """Create a category during import workflow and refresh caches."""
 
         category_id = self._import_service.create_category_for_import(

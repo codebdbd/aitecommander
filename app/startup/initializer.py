@@ -6,18 +6,13 @@ import logging
 import sqlite3
 import threading
 import time
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from enum import Enum
 from typing import (
     Any,
     Callable,
-    Generator,
-    List,
-    Optional,
     Protocol,
-    Sequence,
-    Tuple,
-    Type,
     TypeVar,
     runtime_checkable,
 )
@@ -54,8 +49,8 @@ def retry_on_failure(
     max_attempts: int = 3,
     delay: float = 0.5,
     exponential_backoff: bool = True,
-    on_retry: Optional[Callable[[int, Exception], None]] = None,
-) -> Optional[T]:
+    on_retry: Callable[[int, Exception], None] | None = None,
+) -> T | None:
     """Retry callable on failure with optional exponential backoff."""
     for attempt in range(max_attempts):
         try:
@@ -111,9 +106,9 @@ class Stoppable(Protocol):
 
 
 def initialization_method(
-    expected_errors: Tuple[Type[Exception], ...],
+    expected_errors: tuple[type[Exception], ...],
     error_message: str,
-    critical_message: Optional[str] = None,
+    critical_message: str | None = None,
 ) -> Callable[[Callable[..., bool]], Callable[..., bool]]:
     """Decorator for initialization methods with error handling."""
 
@@ -136,7 +131,7 @@ def initialization_method(
     return decorator
 
 
-def _create_component(component_class: Type[Any], *args: Any, **kwargs: Any) -> Any:
+def _create_component(component_class: type[Any], *args: Any, **kwargs: Any) -> Any:
     """Factory helper for creating components."""
     return component_class(*args, **kwargs)
 
@@ -167,22 +162,22 @@ class ApplicationInitializer:
 
     def __init__(
         self,
-        settings: Optional[AppSettings] = None,
-        thread_pool: Optional[QThreadPool] = None,
+        settings: AppSettings | None = None,
+        thread_pool: QThreadPool | None = None,
         mode: StartupMode = StartupMode.GUI,
     ) -> None:
         self.settings = settings
-        self.database: Optional[Database] = None
-        self.theme_controller: Optional[ThemeController] = None
-        self.main_window: Optional[QMainWindow] = None
+        self.database: Database | None = None
+        self.theme_controller: ThemeController | None = None
+        self.main_window: QMainWindow | None = None
         self.thread_pool = thread_pool or QThreadPool.globalInstance()
         self.mode = mode
 
         self._resource_manager = ResourceManager("ApplicationInitializer")
         self._cleanup_done = False
         self._cleanup_lock = threading.Lock()
-        self._shutdown_controller: Optional[AppShutdownController] = None
-        self._signal_notifiers: List[QSocketNotifier] = []
+        self._shutdown_controller: AppShutdownController | None = None
+        self._signal_notifiers: list[QSocketNotifier] = []
 
     def __enter__(self) -> ApplicationInitializer:
         if not self.initialize_all():
@@ -191,9 +186,9 @@ class ApplicationInitializer:
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[Any],
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any | None,
     ) -> bool:
         self.cleanup(async_cleanup=False)
         return False

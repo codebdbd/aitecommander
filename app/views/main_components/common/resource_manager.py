@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import weakref
 from contextlib import contextmanager
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -43,14 +43,14 @@ class ResourceManager:
             name: Manager identifier used for logging.
         """
         self._name = name
-        self._resources: List[Tuple[str, Callable[[], None], Optional[weakref.finalize]]] = []
+        self._resources: list[tuple[str, Callable[[], None], weakref.finalize | None]] = []
         self._cleaned_up = False
-        self._cleanup_errors: List[Tuple[str, Exception]] = []
+        self._cleanup_errors: list[tuple[str, Exception]] = []
 
     def register_resource(
         self,
         resource: Any,
-        cleanup_func: Optional[Callable[[], None]] = None,
+        cleanup_func: Callable[[], None] | None = None,
         name: str = "",
         use_finalize: bool = True,
     ) -> None:
@@ -106,22 +106,22 @@ class ResourceManager:
 
         self._resources.append((resource_name, cleanup_func, finalizer))
     
-    def _auto_detect_cleanup(self, resource: Any) -> Optional[Callable[[], None]]:
+    def _auto_detect_cleanup(self, resource: Any) -> Callable[[], None] | None:
         """Automatically detect a cleanup method for the resource.
 
         Improvement note: makes the API simpler—no need to supply ``cleanup_func``
         for typical Qt objects.
         """
         # QTimer -> stop()
-        if hasattr(resource, 'stop') and callable(getattr(resource, 'stop')):
+        if hasattr(resource, 'stop') and callable(resource.stop):
             return resource.stop
         
         # QWidget, QObject -> deleteLater()
-        if hasattr(resource, 'deleteLater') and callable(getattr(resource, 'deleteLater')):
+        if hasattr(resource, 'deleteLater') and callable(resource.deleteLater):
             return resource.deleteLater
         
         # File-like -> close()
-        if hasattr(resource, 'close') and callable(getattr(resource, 'close')):
+        if hasattr(resource, 'close') and callable(resource.close):
             return resource.close
         
         return None
@@ -190,7 +190,7 @@ class ResourceManager:
         """
         return self._cleaned_up
 
-    def get_cleanup_errors(self) -> List[Tuple[str, Exception]]:
+    def get_cleanup_errors(self) -> list[tuple[str, Exception]]:
         """Return the list of cleanup errors encountered.
 
         Returns:

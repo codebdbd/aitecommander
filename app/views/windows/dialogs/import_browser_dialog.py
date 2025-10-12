@@ -2,10 +2,16 @@
 
 import logging
 from functools import partial
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from PyQt6.QtCore import QCoreApplication, QSignalBlocker
-from PyQt6.QtWidgets import QComboBox, QDialogButtonBox, QFormLayout, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QDialogButtonBox,
+    QFormLayout,
+    QLabel,
+    QVBoxLayout,
+)
 
 from app.utils.db.api import run_db
 
@@ -124,7 +130,7 @@ class ImportBrowserDialog(BaseDialog):
                 cancel_btn.setText(self.tr("Cancel"))
 
     def _load_spheres_async(self) -> None:
-        cached_spheres: list[Dict[str, Any]] = []
+        cached_spheres: list[dict[str, Any]] = []
         try:
             cached_spheres = self.structure_business_logic.get_cached_spheres()
         except Exception as exc:
@@ -162,7 +168,7 @@ class ImportBrowserDialog(BaseDialog):
             self._show_no_sections_message(self.tr("Select a sphere first"))
             return
 
-        cached_sections: list[Dict[str, Any]] = []
+        cached_sections: list[dict[str, Any]] = []
         try:
             cached_sections = self.structure_business_logic.get_cached_sections(sphere_id)
         except Exception as exc:
@@ -196,7 +202,7 @@ class ImportBrowserDialog(BaseDialog):
         self,
         sphere_id: int,
         token: int,
-        sections: list[Dict[str, Any]],
+        sections: list[dict[str, Any]],
     ) -> None:
         if token != self._sections_request_token:
             return
@@ -218,7 +224,7 @@ class ImportBrowserDialog(BaseDialog):
         logger.error("Failed to load sections for import dialog: %s", error, exc_info=True)
         self._show_error_message(str(error))
 
-    def _apply_spheres(self, spheres: list[Dict[str, Any]]) -> None:
+    def _apply_spheres(self, spheres: list[dict[str, Any]]) -> None:
         with QSignalBlocker(self.sphere_cb):
             self.sphere_cb.clear()
             if not spheres:
@@ -240,7 +246,7 @@ class ImportBrowserDialog(BaseDialog):
         else:
             self._show_no_sections_message(self.tr("Select a sphere first"))
 
-    def _apply_sections(self, sections: list[Dict[str, Any]]) -> None:
+    def _apply_sections(self, sections: list[dict[str, Any]]) -> None:
         with QSignalBlocker(self.section_cb):
             self.section_cb.clear()
             if not sections:
@@ -307,7 +313,7 @@ class ImportBrowserDialog(BaseDialog):
             return None
         return self.section_cb.currentData()
 
-    def get_selected_section_info(self) -> Optional[Dict]:
+    def get_selected_section_info(self) -> Optional[dict]:
         """Return information about the selected section and sphere."""
         section_id = self.get_selected_section_id()
         if not section_id:
@@ -367,7 +373,7 @@ class ImportBrowserDialog(BaseDialog):
                 details=str(e),
             )
 
-    def get_result(self) -> Optional[Dict]:
+    def get_result(self) -> Optional[dict]:
         """Return the selection result after closing the dialog."""
         if self.selected_section_id:
             return self.get_selected_section_info()

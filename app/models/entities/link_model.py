@@ -1,7 +1,7 @@
 import datetime
 import logging
 import sqlite3
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from ..base.db_base import DatabaseBase, DatabaseError
 from ..types.link_type import LinkType
@@ -41,9 +41,9 @@ class LinkModel(DatabaseBase):
         self,
         category_id: int,
         *,
-        fields: Optional[List[str]] = None,
+        fields: Optional[list[str]] = None,
         all_fields: bool = False,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Returns list of links for specified category.
 
         Parameters:
@@ -115,8 +115,8 @@ class LinkModel(DatabaseBase):
             raise
 
     def get_links_for_categories(
-        self, category_ids: List[int]
-    ) -> Dict[int, List[Dict[str, Any]]]:
+        self, category_ids: list[int]
+    ) -> dict[int, list[dict[str, Any]]]:
         """Fetch links for multiple categories in a single set of batched queries."""
         if not category_ids:
             return {}
@@ -132,7 +132,7 @@ class LinkModel(DatabaseBase):
             return {}
 
         CHUNK = 900
-        result: Dict[int, List[Dict[str, Any]]] = {cid: [] for cid in ids}
+        result: dict[int, list[dict[str, Any]]] = {cid: [] for cid in ids}
         select_clause = (
             "SELECT id, category_id, name, url, type, notes, "
             "is_favorite, last_used, icon_path, args, browser_key, position "
@@ -175,7 +175,7 @@ class LinkModel(DatabaseBase):
             )
             return 0
 
-    def count_links_by_categories(self, category_ids: List[int]) -> Dict[int, int]:
+    def count_links_by_categories(self, category_ids: list[int]) -> dict[int, int]:
         """Returns dictionary {category_id: count} for set of categories in one query.
 
         Safely handles empty list, returning empty dictionary. In case of error
@@ -191,7 +191,7 @@ class LinkModel(DatabaseBase):
 
             # Chunking for SQLite parameter limit (~999)
             CHUNK = 900
-            result: Dict[int, int] = {}
+            result: dict[int, int] = {}
             for i in range(0, len(ids), CHUNK):
                 chunk = ids[i : i + CHUNK]
                 placeholders = ",".join(["?"] * len(chunk))
@@ -217,7 +217,7 @@ class LinkModel(DatabaseBase):
             )
             return {}
 
-    def upsert_link(self, link: Dict[str, Any]) -> int:
+    def upsert_link(self, link: dict[str, Any]) -> int:
         """Inserts or updates link record. Returns record ID.
 
         Transactions are not completed inside method. Commit/rollback performed
@@ -392,7 +392,7 @@ class LinkModel(DatabaseBase):
 
     def get_link_by_name_url_args(
         self, category_id: int, name: str, url: str, args: str = ""
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """Find link by triple (Name, Path, Argument) within category.
 
         User requirement: duplicate is matching name, url, args within category_id,
@@ -413,7 +413,7 @@ class LinkModel(DatabaseBase):
             )
             return None
 
-    def get_all_links(self) -> List[Dict[str, Any]]:
+    def get_all_links(self) -> list[dict[str, Any]]:
         """Returns all links from database as list of dictionaries."""
         try:
             rows = self._execute_with_error_handling(
@@ -492,7 +492,7 @@ class LinkModel(DatabaseBase):
             logger.error("Error searching links: %s", e)
             raise
 
-    def get_links_by_args_pattern(self, pattern: str) -> List[Dict[str, Any]]:
+    def get_links_by_args_pattern(self, pattern: str) -> list[dict[str, Any]]:
         """Returns 'web' type links where args LIKE pattern.
 
         Example pattern: '--profile-directory=%'
@@ -520,7 +520,7 @@ class LinkModel(DatabaseBase):
             logger.error("Error updating notes for link %s: %s", link_id, e)
             raise
 
-    def get_links_args_nonempty(self) -> List[Dict[str, Any]]:
+    def get_links_args_nonempty(self) -> list[dict[str, Any]]:
         """Returns rows with non-empty args (args column only)."""
         try:
             rows = self._execute_with_error_handling(
@@ -534,7 +534,7 @@ class LinkModel(DatabaseBase):
 
     # === High-level methods for convenience ===
 
-    def get_recent_links(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_recent_links(self, limit: int = 10) -> list[dict[str, Any]]:
         """Get recent links."""
         try:
             rows = self._execute_with_error_handling(
@@ -550,7 +550,7 @@ class LinkModel(DatabaseBase):
             logger.error("Error getting recent links: %s", e, exc_info=True)
             raise
 
-    def get_favorite_links(self) -> List[Dict[str, Any]]:
+    def get_favorite_links(self) -> list[dict[str, Any]]:
         """Get favorite links."""
         try:
             rows = self._execute_with_error_handling(
@@ -563,7 +563,7 @@ class LinkModel(DatabaseBase):
             logger.error("Error getting favorite links: %s", e, exc_info=True)
             raise
 
-    def get_link_by_id(self, link_id: int) -> Optional[Dict[str, Any]]:
+    def get_link_by_id(self, link_id: int) -> Optional[dict[str, Any]]:
         """Get link by ID."""
         try:
             row = self._execute_with_error_handling(
@@ -574,7 +574,7 @@ class LinkModel(DatabaseBase):
             logger.error("Error getting link %s: %s", link_id, e, exc_info=True)
             raise
 
-    def update_link_order(self, link_ids: List[int]) -> bool:
+    def update_link_order(self, link_ids: list[int]) -> bool:
         """Update link order."""
         try:
             with self.transaction():
@@ -587,13 +587,13 @@ class LinkModel(DatabaseBase):
             logger.error("Error updating link order: %s", e, exc_info=True)
             return False
 
-    def batch_update_links(self, links_data: List[Dict[str, Any]]) -> bool:
+    def batch_update_links(self, links_data: list[dict[str, Any]]) -> bool:
         """Batch update links in transaction."""
         if not links_data:
             return True
 
         # Prepare parameters for executemany: only valid records with id
-        params: List[tuple] = []
+        params: list[tuple] = []
         for link_data in links_data:
             link_id = link_data.get("id")
             if not isinstance(link_id, int) or link_id <= 0:
@@ -651,7 +651,7 @@ class LinkModel(DatabaseBase):
 
     # get_links_for_category was merged with get_links (all_fields=True parameter)
 
-    def batch_upsert_links(self, links_data: List[Dict[str, Any]]) -> List[int]:
+    def batch_upsert_links(self, links_data: list[dict[str, Any]]) -> list[int]:
         """Batch create/update links in one transaction.
 
         - Does not commit after each record — transaction will complete with single commit.
@@ -661,7 +661,7 @@ class LinkModel(DatabaseBase):
         if not links_data:
             return []
 
-        created_ids: List[int] = []
+        created_ids: list[int] = []
         try:
             with self.transaction():
                 created_ids.extend(self._upsert_links_no_tx(links_data))
@@ -678,8 +678,8 @@ class LinkModel(DatabaseBase):
     # === Dedicated steps for batch upsert (without transaction) ===
 
     def _normalize_and_group_links(
-        self, links_data: List[Dict[str, Any]], all_fields: List[str]
-    ) -> Dict[int, List[Dict[str, Any]]]:
+        self, links_data: list[dict[str, Any]], all_fields: list[str]
+    ) -> dict[int, list[dict[str, Any]]]:
         """Normalizes input and groups records by `category_id`.
 
         - Validates required fields.
@@ -687,7 +687,7 @@ class LinkModel(DatabaseBase):
         - Updates input elements in-place.
         - Returns dictionary {category_id: [items...]}
         """
-        by_cat: Dict[int, List[Dict[str, Any]]] = {}
+        by_cat: dict[int, list[dict[str, Any]]] = {}
         for raw in links_data:
             self._validate_required_fields(raw, ["category_id"], "link")
             data = {field: raw.get(field) for field in all_fields}
@@ -712,9 +712,9 @@ class LinkModel(DatabaseBase):
 
     def _fetch_existing_maps(
         self, category_id: int
-    ) -> Tuple[
-        Dict[Tuple[str, str, str], Dict[str, Any]],
-        Dict[int, Dict[str, Any]],
+    ) -> tuple[
+        dict[tuple[str, str, str], dict[str, Any]],
+        dict[int, dict[str, Any]],
         int,
     ]:
         """Gets existing links and max(position) for category.
@@ -728,8 +728,8 @@ class LinkModel(DatabaseBase):
             fetch_method="all",
         )
 
-        existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
-        existing_by_id: Dict[int, Dict[str, Any]] = {}
+        existing_by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
+        existing_by_id: dict[int, dict[str, Any]] = {}
         max_pos = -1
         for rid, rname, rurl, rargs, rpos in rows:
             existing_by_id[int(rid)] = {
@@ -751,7 +751,7 @@ class LinkModel(DatabaseBase):
         return existing_by_key, existing_by_id, max_pos
 
     def _assign_positions_for_items(
-        self, items: List[Dict[str, Any]], start_pos: int
+        self, items: list[dict[str, Any]], start_pos: int
     ) -> None:
         """Assigns position to items that don't have it set."""
         next_pos = start_pos
@@ -762,12 +762,12 @@ class LinkModel(DatabaseBase):
 
     def _build_update_params(
         self,
-        items: List[Dict[str, Any]],
-        existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]],
-    ) -> Tuple[List[Tuple[Any, ...]], List[Dict[str, Any]]]:
+        items: list[dict[str, Any]],
+        existing_by_key: dict[tuple[str, str, str], dict[str, Any]],
+    ) -> tuple[list[tuple[Any, ...]], list[dict[str, Any]]]:
         """Forms parameters for UPDATE and list of inserts without id."""
-        updates: List[Tuple[Any, ...]] = []
-        inserts_no_id: List[Dict[str, Any]] = []
+        updates: list[tuple[Any, ...]] = []
+        inserts_no_id: list[dict[str, Any]] = []
         for item in items:
             key = (item.get("name", ""), item.get("url", ""), item.get("args", ""))
             iid = item.get("id")
@@ -817,13 +817,13 @@ class LinkModel(DatabaseBase):
         return updates, inserts_no_id
 
     def _execute_updates_collect_missing(
-        self, updates: List[Tuple[Any, ...]]
-    ) -> List[Dict[str, Any]]:
+        self, updates: list[tuple[Any, ...]]
+    ) -> list[dict[str, Any]]:
         """Выполняет пакетные UPDATE и собирает записи для последующей вставки с фиксированным id.
 
         Возвращает список словарей для вставки с заданным `id` (inserts_with_id).
         """
-        inserts_with_id: List[Dict[str, Any]] = []
+        inserts_with_id: list[dict[str, Any]] = []
         if not updates:
             return inserts_with_id
 
@@ -876,9 +876,9 @@ class LinkModel(DatabaseBase):
 
     def _insert_records_with_id(
         self,
-        inserts_with_id: List[Dict[str, Any]],
-        all_fields: List[str],
-        created_ids: List[int],
+        inserts_with_id: list[dict[str, Any]],
+        all_fields: list[str],
+        created_ids: list[int],
     ) -> None:
         """Вставляет записи с фиксированным id (executemany) и добавляет их в created_ids."""
         if not inserts_with_id:
@@ -906,10 +906,10 @@ class LinkModel(DatabaseBase):
 
     def _insert_records_no_id(
         self,
-        inserts_no_id: List[Dict[str, Any]],
-        all_fields: List[str],
-        existing_by_key: Dict[Tuple[str, str, str], Dict[str, Any]],
-        created_ids: List[int],
+        inserts_no_id: list[dict[str, Any]],
+        all_fields: list[str],
+        existing_by_key: dict[tuple[str, str, str], dict[str, Any]],
+        created_ids: list[int],
     ) -> None:
         """Поштучно вставляет записи без id, обновляет входные элементы и created_ids.
 
@@ -955,7 +955,7 @@ class LinkModel(DatabaseBase):
                 if row:
                     rec["id"] = row[0] if isinstance(row, tuple) else row["id"]
 
-    def _upsert_links_no_tx(self, links_data: List[Dict[str, Any]]) -> List[int]:
+    def _upsert_links_no_tx(self, links_data: list[dict[str, Any]]) -> list[int]:
         """Внутренний хелпер: апсерт ссылок без открытия транзакции и без commit().
 
         - Идентичная логика batch_upsert_links, но предполагает внешнюю транзакцию.
@@ -965,7 +965,7 @@ class LinkModel(DatabaseBase):
         if not links_data:
             return []
 
-        created_ids: List[int] = []
+        created_ids: list[int] = []
 
         # Поля должны оставаться синхронными с upsert_link
         all_fields = [
@@ -1011,7 +1011,7 @@ class LinkModel(DatabaseBase):
 
         return created_ids
 
-    def batch_delete_links(self, link_ids: List[int]) -> int:
+    def batch_delete_links(self, link_ids: list[int]) -> int:
         """Пакетное удаление ссылок по списку ID в одной транзакции.
 
         Возвращает количество фактически удалённых записей.

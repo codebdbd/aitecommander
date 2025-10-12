@@ -77,6 +77,7 @@ class DatabaseWorker(QRunnable):
             sqlite3.Connection: Соединение с БД
         """
         import sqlite3
+
         from ..base.db_base import db_lock
         
         with db_lock:

@@ -3,7 +3,7 @@
 """Handler for move operations in the structure tree (QTreeView-only)."""
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from PyQt6.QtWidgets import QMessageBox
 
@@ -98,7 +98,7 @@ class MoveOperationsHandler(TreeHandlerBase):
             logger.warning("Undo stack not found for moving a category")
 
     def execute_move_links_command(
-        self, link_ids: List[int], new_category_id: int
+        self, link_ids: list[int], new_category_id: int
     ) -> None:
         """Execute the command to move links."""
         main_win = self.tree_widget.window()
@@ -116,7 +116,7 @@ class MoveOperationsHandler(TreeHandlerBase):
             logger.warning("Undo stack not found for moving links")
 
     def execute_move_categories_command(
-        self, category_ids: List[int], new_section_id: int, base_row: int
+        self, category_ids: list[int], new_section_id: int, base_row: int
     ) -> None:
         """Execute batch command to move categories as a single undo record."""
         main_win = self.tree_widget.window()
@@ -140,7 +140,7 @@ class MoveOperationsHandler(TreeHandlerBase):
             logger.warning("Undo stack not found for batch move of categories")
 
     def execute_move_categories_batch(
-        self, category_ids: List[int], target_section_id: int, base_row: int = 0
+        self, category_ids: list[int], target_section_id: int, base_row: int = 0
     ) -> None:
         """Perform the actual batch move of categories via a single business call.
 
@@ -299,7 +299,7 @@ class MoveOperationsHandler(TreeHandlerBase):
 
     def _prepare_position_params(
         self, source_type: str, source_id: int, parent
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Prepare parameters for position update (QTreeView)."""
 
             # Use model and business logic

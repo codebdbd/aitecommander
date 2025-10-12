@@ -6,18 +6,17 @@ Inherits from QObject for proper use of PyQt6 slots.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from PyQt6.QtCore import QObject, pyqtSlot
 
-from .signals import StructureSignals
 from ..models.types import (
-    SphereData,
-    SectionData,
+    AnyItemData,
     CategoryData,
     LinkData,
     SearchResultItem,
-    AnyItemData,
+    SectionData,
+    SphereData,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,7 +36,7 @@ class AsyncSignalHandlers(QObject):
         self.top_panels: Optional[Any] = top_panels_controller
 
     @pyqtSlot(list)
-    def on_spheres_loaded(self, spheres: List[SphereData]) -> None:
+    def on_spheres_loaded(self, spheres: list[SphereData]) -> None:
         """Handler for sphere loading completion."""
         try:
             self.logger.info("Loaded spheres: %s", len(spheres))
@@ -51,7 +50,7 @@ class AsyncSignalHandlers(QObject):
 
     @pyqtSlot(list, int)
     def on_structure_loaded(
-        self, structure: List[SectionData], sphere_id: int
+        self, structure: list[SectionData], sphere_id: int
     ) -> None:
         """Handler for structure loading completion."""
         try:
@@ -74,7 +73,7 @@ class AsyncSignalHandlers(QObject):
                     )
                     # Reset marker to avoid interfering with subsequent measurements
                     try:
-                        setattr(self.controller, "_last_switch_started_ms", None)
+                        self.controller._last_switch_started_ms = None
                     except Exception:
                         pass
             except Exception:
@@ -124,7 +123,7 @@ class AsyncSignalHandlers(QObject):
 
     @pyqtSlot(list, int)
     def on_sections_loaded(
-        self, sections: List[SectionData], sphere_id: int
+        self, sections: list[SectionData], sphere_id: int
     ) -> None:
         """Handler for section loading completion."""
         try:
@@ -141,7 +140,7 @@ class AsyncSignalHandlers(QObject):
 
     @pyqtSlot(list, int)
     def on_categories_loaded(
-        self, categories: List[CategoryData], section_id: int
+        self, categories: list[CategoryData], section_id: int
     ) -> None:
         """Handler for category loading completion.
 
@@ -417,7 +416,7 @@ class AsyncSignalHandlers(QObject):
 
     # ===== Search / Links / Count =====
     @pyqtSlot(list)
-    def on_search_results(self, results: List[SearchResultItem]) -> None:
+    def on_search_results(self, results: list[SearchResultItem]) -> None:
         try:
             self.logger.info("Search results: %s", len(results))
             if hasattr(self.controller, "search_results"):
@@ -430,7 +429,7 @@ class AsyncSignalHandlers(QObject):
 
     @pyqtSlot(list, int, int)
     def on_links_loaded(
-        self, links: List[LinkData], category_id: int, task_id: int
+        self, links: list[LinkData], category_id: int, task_id: int
     ) -> None:
         try:
             self.logger.info(
@@ -461,7 +460,7 @@ class AsyncSignalHandlers(QObject):
 
     @pyqtSlot(int, list, object)
     def on_count_finished(
-        self, fav_count: int, links: List[LinkData], link: object
+        self, fav_count: int, links: list[LinkData], link: object
     ) -> None:
         try:
             self.logger.info("Favorite count completed: %s", fav_count)

@@ -7,7 +7,6 @@ import logging
 import sys
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Optional, Union
 
 from PyQt6.QtCore import QCoreApplication, Qt, QTimer
 from PyQt6.QtGui import QGuiApplication
@@ -43,7 +42,7 @@ class StartupOptions:
     quit_after_ms: int = 0
 
 
-def run(options: Optional[StartupOptions] = None) -> int:
+def run(options: StartupOptions | None = None) -> int:
     """Application runtime entry point."""
     args = parse_arguments()
     options = options or StartupOptions()
@@ -54,9 +53,9 @@ def run(options: Optional[StartupOptions] = None) -> int:
     if options.log_system_details:
         log_system_info()
 
-    app: Optional[Union[QApplication, QCoreApplication]] = None
-    initializer: Optional[ApplicationInitializer] = None
-    signal_manager: Optional[SignalManager] = None
+    app: QApplication | QCoreApplication | None = None
+    initializer: ApplicationInitializer | None = None
+    signal_manager: SignalManager | None = None
     about_to_quit_cleanup_registered = False
 
     try:

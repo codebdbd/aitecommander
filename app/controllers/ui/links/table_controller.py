@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Optional, Protocol, runtime_checkable
+from typing import Optional, Protocol, runtime_checkable
 
 from PyQt6.QtCore import QObject
 
@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 class LinksTableLike(Protocol):
     """Structural protocol for links table for early dependency validation."""
 
-    def update_link_by_id(self, link: Dict) -> None: ...
+    def update_link_by_id(self, link: dict) -> None: ...
 
-    def populate(self, links: list[Dict], mode: str = "default") -> None: ...
+    def populate(self, links: list[dict], mode: str = "default") -> None: ...
 
 
 class LinksTableController(QObject):
@@ -128,7 +128,7 @@ class LinksTableController(QObject):
                 except Exception:
                     logger.exception("LinksTableController.reload: queued call failed")
 
-    def update_row(self, link_dict: Optional[Dict]) -> None:
+    def update_row(self, link_dict: Optional[dict]) -> None:
         """Point update of table row by link_dict.
 
         Safely calls table.update_link_by_id if available.
@@ -154,7 +154,7 @@ class LinksTableController(QObject):
 
     # --- Slots for business signals ---
     def on_links_loaded(
-        self, links: list[Dict], category_id: int, task_id: int
+        self, links: list[dict], category_id: int, task_id: int
     ) -> None:
         """Centralized reaction to links loaded from business logic.
 
@@ -177,7 +177,7 @@ class LinksTableController(QObject):
                 "LinksTableController.on_links_loaded: failed: %s", e, exc_info=True
             )
 
-    def on_search_results(self, search_results: list[Dict]) -> None:
+    def on_search_results(self, search_results: list[dict]) -> None:
         """Update table with search results centrally."""
         try:
             self.table.populate(search_results, mode="search")
@@ -206,7 +206,7 @@ class LinksTableController(QObject):
         """Slot for link_operations.links_changed(int) signal."""
         self.reload(category_id)
 
-    def on_link_saved(self, payload: Optional[Dict] = None) -> None:
+    def on_link_saved(self, payload: Optional[dict] = None) -> None:
         """Slot for link_operations.link_saved(dict) signal."""
         try:
             from app.config_data import app_config
@@ -255,7 +255,7 @@ class LinksTableController(QObject):
         except Exception:
             logger.exception("LinksTableController.on_link_saved: failed")
 
-    def on_link_deleted(self, payload: Optional[Dict] = None) -> None:
+    def on_link_deleted(self, payload: Optional[dict] = None) -> None:
         """Slot for link_operations.link_deleted(dict) signal."""
         try:
             cat_id = None

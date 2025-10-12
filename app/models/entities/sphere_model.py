@@ -1,6 +1,6 @@
 import logging
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from app.utils.ui.icon.icon_resolver import resolve_icon_for_link
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class SphereModel(DatabaseBase):
     """Model for working with spheres"""
 
-    def get_spheres(self) -> List[Dict[str, Any]]:
+    def get_spheres(self) -> list[dict[str, Any]]:
         """Returns list of all spheres in dict format."""
         rows = self._execute_with_error_handling(
             "SELECT id, name, position, icon_path FROM sphere ORDER BY position",
@@ -23,7 +23,7 @@ class SphereModel(DatabaseBase):
         )
         return [dict(row) for row in rows] if rows else []
 
-    def get_sphere_by_id(self, sphere_id: int) -> Optional[Dict[str, Any]]:
+    def get_sphere_by_id(self, sphere_id: int) -> Optional[dict[str, Any]]:
         """Returns sphere by its ID in dict format."""
         row = self._execute_with_error_handling(
             "SELECT id, name, position, icon_path FROM sphere WHERE id = ?",
@@ -32,7 +32,7 @@ class SphereModel(DatabaseBase):
         )
         return dict(row) if row else None
 
-    def insert_sphere(self, data: Dict[str, Any]) -> int:
+    def insert_sphere(self, data: dict[str, Any]) -> int:
         """Inserts new sphere and returns its ID."""
         self._validate_required_fields(data, ["name"], "sphere")
 
@@ -44,12 +44,12 @@ class SphereModel(DatabaseBase):
         logger.info("Added new sphere: %s", data["name"])
         return cursor.lastrowid
 
-    def update_sphere(self, sphere_id: int, data: Dict[str, Any]):
+    def update_sphere(self, sphere_id: int, data: dict[str, Any]):
         """Updates existing sphere."""
         valid_keys = ["name", "icon_path", "position"]
         self._update_entity("sphere", sphere_id, data, valid_keys)
 
-    def upsert_sphere(self, sphere_data: Dict[str, Any]) -> int:
+    def upsert_sphere(self, sphere_data: dict[str, Any]) -> int:
         """Inserts or updates sphere."""
         if "id" in sphere_data and sphere_data["id"]:
             self.update_sphere(sphere_data["id"], sphere_data)

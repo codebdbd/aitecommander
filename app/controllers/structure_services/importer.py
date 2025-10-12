@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from app.models import StructureModel
 from app.services.structure_service import StructureService
@@ -13,9 +13,9 @@ class ImportService:
     def create_category_for_import(
         self,
         model: StructureModel,
-        category_data: Dict[str, Any],
-        logger: Optional[logging.Logger] = None,
-    ) -> Optional[int]:
+        category_data: dict[str, Any],
+        logger: logging.Logger | None = None,
+    ) -> int | None:
         """Create category in import mode and return its ID."""
         try:
             # Try to use service layer with UnitOfWork transaction
@@ -43,7 +43,7 @@ class ImportService:
             if logger:
                 logger.error("Category data validation error for import: %s", e)
             return None
-        except Exception as e:
+        except Exception:
             if logger:
                 logger.exception("Critical error creating category for import")
             raise  # Re-raise critical errors

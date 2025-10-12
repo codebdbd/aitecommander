@@ -119,7 +119,7 @@ class DataImportExportController(QObject):
         
         try:
             # Read and validate JSON
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding='utf-8') as f:
                 data = json.load(f)
             
             if not isinstance(data, list):

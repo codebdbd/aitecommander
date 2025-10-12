@@ -3,18 +3,20 @@
 """Base classes, enums and constants for structure operations."""
 
 import logging
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Optional
 
 from ..models.types import (
-    StructureItemType as ImportedStructureItemType,
-    StructureItemType,
-    SignalType,
-    AnyItemData,
     AnyCreateData,
+    AnyItemData,
     AnyUpdateData,
     ItemTypeConfig,
+    SignalType,
+    StructureItemType,
 )
-from ..validation.validators import validate_and_raise, ValidationError
+from ..models.types import (
+    StructureItemType as ImportedStructureItemType,
+)
+from ..validation.validators import ValidationError, validate_and_raise
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +57,7 @@ class StructureSignalEmitter:
     def __init__(
         self,
         emit_signal_func: Optional[
-            Callable[[str, str, int, Dict[str, Any]], None]
+            Callable[[str, str, int, dict[str, Any]], None]
         ] = None,
     ):
         self._emit_signal = emit_signal_func
@@ -124,7 +126,7 @@ class BaseOperations:
         logger: logging.Logger,
         execute_with_error_handling: Callable,
         emit_signal_func: Optional[
-            Callable[[str, str, int, Dict[str, Any]], None]
+            Callable[[str, str, int, dict[str, Any]], None]
         ] = None,
     ):
         self.structure_model = structure_model
@@ -139,7 +141,7 @@ class BaseOperations:
 
     def _validate_data(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         item_type: StructureItemType,
         require_parent: bool = True,
     ) -> None:
@@ -181,7 +183,7 @@ class BaseOperations:
     def _execute_with_validation(
         self,
         operation_func: Callable,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         item_type: StructureItemType,
         operation_name: str,
         require_parent: bool = True,
@@ -209,7 +211,7 @@ class BaseOperations:
             return None
 
     def _emit_signal(
-        self, signal_type: str, item_type: str, parent_or_id: int, data: Dict[str, Any]
+        self, signal_type: str, item_type: str, parent_or_id: int, data: dict[str, Any]
     ) -> None:
         """Emit a signal via the configured emitter."""
         self.signal_emitter.emit(signal_type, item_type, parent_or_id, data)
@@ -217,10 +219,10 @@ class BaseOperations:
     def _upsert_and_emit(
         self,
         item_type: StructureItemType,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         is_update: bool,
         item_id: Optional[int],
-        emit_signal: Callable[[str, str, int, Dict[str, Any]], None],
+        emit_signal: Callable[[str, str, int, dict[str, Any]], None],
     ) -> Optional[int]:
         """Generic create/update method for structure items.
 
@@ -389,7 +391,7 @@ class BaseOperations:
         item_id: int,
         delete_func: Callable[[], None],
         *,
-        emit_data: Optional[Dict[str, Any]] = None,
+        emit_data: Optional[dict[str, Any]] = None,
     ) -> bool:
         """Delete a structure item via provided function, emit signal and log.
 

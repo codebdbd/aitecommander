@@ -5,7 +5,7 @@ Asynchronous browser profile manager with background loading support.
 
 import logging
 import time
-from typing import Dict, List, Optional
+from typing import Optional
 
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, pyqtSignal
 
@@ -304,7 +304,7 @@ class AsyncBrowserProfileManager(QObject):
         logger.debug("Started asynchronous search for available browsers")
         return True
 
-    def get_cached_profiles(self, browser_key: str) -> Optional[List[Dict]]:
+    def get_cached_profiles(self, browser_key: str) -> Optional[list[dict]]:
         """Gets profiles from unified cache of synchronous manager."""
         profiles = self._sync_manager.get_cached_profiles(browser_key)
         if profiles is not None:
@@ -321,11 +321,11 @@ class AsyncBrowserProfileManager(QObject):
         self._sync_manager.clear_cache()
         logger.info("Asynchronous profile manager cache cleared")
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """Returns usage statistics."""
         return self._stats.copy()
 
-    def get_supported_browsers(self) -> List[Dict[str, str]]:
+    def get_supported_browsers(self) -> list[dict[str, str]]:
         """Returns list of supported browsers (synchronously)."""
         return self._sync_manager.get_supported_browsers()
 
@@ -334,7 +334,7 @@ class AsyncBrowserProfileManager(QObject):
         return self._sync_manager.detect_browser_from_args(args)
 
     # Slots for processing worker results
-    def _on_browser_profiles_loaded(self, browser_key: str, profiles: List[Dict]):
+    def _on_browser_profiles_loaded(self, browser_key: str, profiles: list[dict]):
         """Processing loaded browser profiles."""
         logger.debug("Received profiles %s: %s", browser_key, len(profiles))
         self.browser_profiles_ready.emit(browser_key, profiles)
@@ -345,7 +345,7 @@ class AsyncBrowserProfileManager(QObject):
         self._stats["errors"] += 1
         self.loading_error.emit(f"browser_{browser_key}", error_message)
 
-    def _on_all_profiles_loaded(self, all_profiles: Dict[str, List[Dict]]):
+    def _on_all_profiles_loaded(self, all_profiles: dict[str, list[dict]]):
         """Processing loaded profiles of all browsers."""
         total_profiles = sum(len(profiles) for profiles in all_profiles.values())
         logger.info(
@@ -366,7 +366,7 @@ class AsyncBrowserProfileManager(QObject):
         self._stats["errors"] += 1
         self.loading_error.emit("all_profiles", error_message)
 
-    def _on_available_browsers_loaded(self, available_browsers: List[Dict]):
+    def _on_available_browsers_loaded(self, available_browsers: list[dict]):
         """Processing found available browsers."""
         logger.info("Found available browsers: %s", len(available_browsers))
         self.available_browsers_ready.emit(available_browsers)

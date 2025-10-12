@@ -1,6 +1,5 @@
 """Worker для экспорта структуры данных в фоновом потоке."""
 import logging
-from typing import Dict, List
 
 from .base_worker import DatabaseWorker
 
@@ -13,7 +12,7 @@ class ExportStructureWorker(DatabaseWorker):
     Экспортирует полную структуру данных из БД в формате словаря.
     """
     
-    def do_work(self, connection) -> Dict[str, List]:
+    def do_work(self, connection) -> dict[str, list]:
         """Выполняет экспорт структуры.
         
         Returns:

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from logging import Logger
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from app.controllers.business.structure_business import StructureBusinessLogic
+
     from .async_service import StructureAsyncService
     from .cache_service import StructureCacheService
 
@@ -239,7 +240,7 @@ class StructureEventService:
     def batch_mode(self) -> bool:
         return self._batch_mode
 
-    def add_batch_section(self, section_id: Optional[int]) -> None:
+    def add_batch_section(self, section_id: int | None) -> None:
         if not self._batch_mode:
             return
         if isinstance(section_id, int) and section_id > 0:

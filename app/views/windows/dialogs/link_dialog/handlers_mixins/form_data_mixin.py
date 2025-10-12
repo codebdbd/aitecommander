@@ -1,17 +1,17 @@
 """Mixin collecting form data for `LinkDialog`."""
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class FormDataMixin:
-    def _build_form_data(self) -> Dict[str, Any]:
+    def _build_form_data(self) -> dict[str, Any]:
         """Build form data from UI components."""
         return self._collect_form_data()
 
-    def _collect_form_data(self) -> Dict[str, Any]:
+    def _collect_form_data(self) -> dict[str, Any]:
         """Collect data from the form widgets."""
         collected_name = self.dialog._get_name_le().text().strip()
         collected_args = self.dialog._get_args_le().text().strip()

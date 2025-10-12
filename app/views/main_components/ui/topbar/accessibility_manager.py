@@ -7,10 +7,9 @@ metadata for top-bar panels.
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
 from weakref import WeakKeyDictionary
 
-from PyQt6.QtCore import QObject, QEvent, Qt
+from PyQt6.QtCore import QEvent, QObject, Qt
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import QToolButton, QWidget
 
@@ -24,19 +23,19 @@ class AccessibilityManager(QObject):
     screen-reader descriptions, and focus management.
     """
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the accessibility manager."""
 
         super().__init__(parent)
-        self._shortcuts: List[QShortcut] = []
-        self._button_shortcuts: "WeakKeyDictionary[QToolButton, QShortcut]" = WeakKeyDictionary()
-        self._focused_panel: Optional[QWidget] = None
+        self._shortcuts: list[QShortcut] = []
+        self._button_shortcuts: WeakKeyDictionary[QToolButton, QShortcut] = WeakKeyDictionary()
+        self._focused_panel: QWidget | None = None
         self._focused_button_index = 0
 
     def setup_panel_accessibility(
         self,
         panel: QWidget,
-        buttons: List[QToolButton],
+        buttons: list[QToolButton],
         panel_name: str,
         visible_count: int,
         start_shortcut_number: int = 1,
@@ -120,7 +119,7 @@ class AccessibilityManager(QObject):
         except (RuntimeError, AttributeError) as exc:
             logger.debug("Failed to create shortcut for button: %s", exc)
 
-    def _setup_tab_order(self, buttons: List[QToolButton]) -> None:
+    def _setup_tab_order(self, buttons: list[QToolButton]) -> None:
         """Ensure tab navigation matches the visible-button order.
 
         Note: translated from the original Russian comment about tab traversal.
@@ -138,7 +137,7 @@ class AccessibilityManager(QObject):
     def handle_arrow_navigation(
         self,
         event: QEvent,
-        buttons: List[QToolButton],
+        buttons: list[QToolButton],
         current_button: QToolButton,
     ) -> bool:
         """Handle arrow-key navigation within a panel.
@@ -180,7 +179,7 @@ class AccessibilityManager(QObject):
 
     def update_focus_after_visibility_change(
         self,
-        buttons: List[QToolButton],
+        buttons: list[QToolButton],
         visible_count: int,
     ) -> None:
         """Restore focus to the first visible button when needed."""

@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import logging
-import os
 import sys
 import time
 from functools import partial
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-from PyQt6.QtCore import QEvent, QObject, QSize, QTimer
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QEvent, QObject, QSize, QTimer
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QFrame,
@@ -23,15 +22,16 @@ from app.config_data import app_config
 from app.controllers.ui.state.task_scheduler import get_task_scheduler
 from app.controllers.ui.undo.stack import UndoManager
 from app.utils.ui.icon.icon_operations.creators import create_icon_from_path
+from app.views.main_components.ui.topbar.top_bar_layout_manager import (
+    TopBarLayoutManager,
+)
+from app.views.models.structure_tree_model import StructureTreeModel
 from app.views.widgets.custom_widgets import StructureTreeView
 from app.views.widgets.panels.favorites_panel_widget import FavoritesPanelWidget
-from app.views.main_components.ui.topbar.top_bar_layout_manager import TopBarLayoutManager
-from app.views.models.structure_tree_model import StructureTreeModel
 from app.views.widgets.panels.quick_add_panel_widget import QuickAddPanelWidget
 from app.views.widgets.panels.recent_panel_widget import RecentPanelWidget
 from app.views.widgets.status_bar import setup_status_bar as init_status_bar
 from i18n.language_service import LanguageService
-from PyQt6.QtCore import QT_TRANSLATE_NOOP
 
 logger = logging.getLogger(__name__)
 
@@ -321,7 +321,7 @@ class WindowUISetup:
     def _schedule_topbar_initialization(self, mgr: TopBarLayoutManager) -> None:
         if getattr(self.window, "_topbar_initialized", False):
             return
-        setattr(self.window, "_topbar_initialized", True)
+        self.window._topbar_initialized = True
         try:
             from app.utils.ui.updates import suspend_updates
         except (ImportError, ModuleNotFoundError):
@@ -453,7 +453,7 @@ class WindowUISetup:
         except Exception:
             pass
 
-    def _register_topbar_cleanup(self, manager: Optional[TopBarLayoutManager]) -> None:
+    def _register_topbar_cleanup(self, manager: TopBarLayoutManager | None) -> None:
         """Connect window destruction to top bar cleanup for deterministic teardown."""
         if manager is None or not hasattr(self.window, "destroyed"):
             return
@@ -461,7 +461,7 @@ class WindowUISetup:
             return
         try:
             self.window.destroyed.connect(manager.cleanup)
-            setattr(self.window, "_topbar_cleanup_connected", True)
+            self.window._topbar_cleanup_connected = True
         except Exception:
             logger.debug("WindowUISetup: failed to connect top bar cleanup", exc_info=True)
 
@@ -479,7 +479,7 @@ class WindowUISetup:
         top_bar: QHBoxLayout,
         mode: str,
         attr_name: str,
-        object_name: Optional[str],
+        object_name: str | None,
         log_label: str,
     ) -> None:
         t_start = time.perf_counter()

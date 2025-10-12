@@ -2,7 +2,6 @@
 # Provides bulk-update helpers
 
 import logging
-from typing import Dict, List
 
 from PyQt6.QtCore import Qt
 
@@ -15,7 +14,7 @@ class PopulationManagerMixin:
 
     """Mixin that populates and refreshes the links table."""
 
-    def populate(self, links: List[Dict], mode: str = "normal"):
+    def populate(self, links: list[dict], mode: str = "normal"):
         """Populate the table with link data using incremental updates."""
         if not isinstance(links, list):
             self.logger.warning(
@@ -81,7 +80,7 @@ class PopulationManagerMixin:
                     self.rebuild_cache_from_items()
 
                 # Without active sorting and ID order changed, fall back to full refresh
-                def _ids_from_table() -> List:
+                def _ids_from_table() -> list:
                     ids = []
                     model = self.model()
                     total = model.rowCount() if model is not None else 0
@@ -217,7 +216,7 @@ class PopulationManagerMixin:
                         exc_info=True,
                     )
 
-    def _full_populate(self, links: List[Dict], mode: str):
+    def _full_populate(self, links: list[dict], mode: str):
         """Perform a full table refresh via the model."""
         try:
             # Update mode
@@ -250,7 +249,7 @@ class PopulationManagerMixin:
 
     def _restore_ui_state(
         self,
-        selection: List[int],
+        selection: list[int],
         scroll_pos: int,
         sort_col: int,
         sort_order: Qt.SortOrder,

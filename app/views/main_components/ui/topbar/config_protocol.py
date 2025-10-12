@@ -6,7 +6,7 @@ testing and decoupling from ``app_config``.
 
 from __future__ import annotations
 
-from typing import Protocol, Any
+from typing import Any, Protocol
 
 
 class TopBarConfigProtocol(Protocol):

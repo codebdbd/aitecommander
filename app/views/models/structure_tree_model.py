@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from PyQt6.QtCore import QAbstractItemModel, QModelIndex, Qt
 from PyQt6.QtGui import QIcon
@@ -13,12 +13,12 @@ NodeType = str  # "section" | "category" | "root"
 @dataclass(eq=False)
 class TreeNode:
     type: NodeType
-    id: Optional[int]
+    id: int | None
     name: str = ""
-    parent: Optional["TreeNode"] = None
-    children: List["TreeNode"] = field(default_factory=list)
-    payload: Dict[str, Any] = field(default_factory=dict)
-    icon: Optional[QIcon] = None
+    parent: TreeNode | None = None
+    children: list[TreeNode] = field(default_factory=list)
+    payload: dict[str, Any] = field(default_factory=dict)
+    icon: QIcon | None = None
 
     def row(self) -> int:
         if not self.parent:
@@ -50,8 +50,8 @@ class StructureTreeModel(QAbstractItemModel):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._root = TreeNode(type="root", id=None, name="root")
-        self._section_by_id: Dict[int, TreeNode] = {}
-        self._category_by_id: Dict[int, TreeNode] = {}
+        self._section_by_id: dict[int, TreeNode] = {}
+        self._category_by_id: dict[int, TreeNode] = {}
 
     def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:  # noqa: N802 (Qt API)
         return 1
@@ -204,7 +204,7 @@ class StructureTreeModel(QAbstractItemModel):
         return False
 
     # --- High-level incremental operations (convenient APIs) ---
-    def insert_sections(self, row: int, sections: List[Dict[str, Any]]) -> None:
+    def insert_sections(self, row: int, sections: list[dict[str, Any]]) -> None:
         if row < 0:
             row = len(self._root.children)
         count = len(sections or [])
@@ -226,7 +226,7 @@ class StructureTreeModel(QAbstractItemModel):
         self.endInsertRows()
 
     def insert_categories(
-        self, section_id: int, row: int, categories: List[Dict[str, Any]]
+        self, section_id: int, row: int, categories: list[dict[str, Any]]
     ) -> None:
         sec_node = self._section_by_id.get(int(section_id))
         if not sec_node:
@@ -253,7 +253,7 @@ class StructureTreeModel(QAbstractItemModel):
         self.endInsertRows()
 
     def update_item(
-        self, item_type: NodeType, item_id: int, data: Dict[str, Any]
+        self, item_type: NodeType, item_id: int, data: dict[str, Any]
     ) -> None:
         idx = self.index_for(item_type, int(item_id))
         if not idx.isValid():
@@ -275,7 +275,7 @@ class StructureTreeModel(QAbstractItemModel):
             ],
         )
 
-    def remove_sections(self, section_ids: List[int]) -> None:
+    def remove_sections(self, section_ids: list[int]) -> None:
         for sec_id in list(section_ids or []):
             sec_node = self._section_by_id.get(int(sec_id))
             if not sec_node:
@@ -290,8 +290,8 @@ class StructureTreeModel(QAbstractItemModel):
                 del self._section_by_id[sec_id]
             self.endRemoveRows()
 
-    def remove_categories(self, category_ids: List[int]) -> None:
-        by_parent: Dict[TreeNode, List[TreeNode]] = {}
+    def remove_categories(self, category_ids: list[int]) -> None:
+        by_parent: dict[TreeNode, list[TreeNode]] = {}
         for cid in list(category_ids or []):
             cat_node = self._category_by_id.get(int(cid))
             if not cat_node or not cat_node.parent:
@@ -347,7 +347,7 @@ class StructureTreeModel(QAbstractItemModel):
         self.endMoveRows()
         return True
 
-    def set_snapshot(self, sections: List[Dict[str, Any]]) -> None:
+    def set_snapshot(self, sections: list[dict[str, Any]]) -> None:
         """
         Full tree reload. The format for sections is a list[dict]:
         {

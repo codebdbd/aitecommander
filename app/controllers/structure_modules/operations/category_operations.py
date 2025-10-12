@@ -3,19 +3,18 @@
 """Module providing category operations."""
 
 import logging
-from typing import Any, Callable, Dict, List, Optional
-
-from ..models.types import (
-    CategoryData,
-    CategoryCreateData,
-    CategoryUpdateData,
-    StructureItemType,
-)
-from ..models.category_types import SignalTypes, CategoryDeletionInfo
+from typing import Any, Callable, Optional
 
 from app.models import StructureModel
 from app.services.structure_service import StructureService
 
+from ..models.category_types import CategoryDeletionInfo, SignalTypes
+from ..models.types import (
+    CategoryCreateData,
+    CategoryData,
+    CategoryUpdateData,
+    StructureItemType,
+)
 from .base import BaseOperations, StructureItemType
 
 
@@ -113,7 +112,7 @@ class CategoryOperations(BaseOperations):
             self._cache_manager.invalidate_first_category_cache()
         return result
 
-    def get_category_data(self, category_id: int) -> Optional[Dict[str, Any]]:
+    def get_category_data(self, category_id: int) -> Optional[dict[str, Any]]:
         """Fetch category data with guaranteed normalization."""
 
         def _get_category_operation():
@@ -130,7 +129,7 @@ class CategoryOperations(BaseOperations):
             default_return=None,
         )
 
-    def get_categories(self, section_id: int) -> List[Dict[str, Any]]:
+    def get_categories(self, section_id: int) -> list[dict[str, Any]]:
         """Retrieve categories for the specified section."""
 
         def _get_categories_operation():
@@ -153,7 +152,7 @@ class CategoryOperations(BaseOperations):
             default_return=[],
         )
 
-    def get_categories_batch(self, section_ids: List[int]) -> List[Dict[str, Any]]:
+    def get_categories_batch(self, section_ids: list[int]) -> list[dict[str, Any]]:
         """Fetch categories for multiple sections with guaranteed normalization."""
         if not section_ids:
             return []
@@ -175,7 +174,7 @@ class CategoryOperations(BaseOperations):
 
     def _process_item(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         item_type: StructureItemType,
         item_id: Optional[int] = None,
         is_update: bool = False,
@@ -330,7 +329,7 @@ class CategoryOperations(BaseOperations):
             pass
         return result
 
-    def get_category_hierarchy(self, category_id: int) -> Optional[Dict[str, Any]]:
+    def get_category_hierarchy(self, category_id: int) -> Optional[dict[str, Any]]:
         """Fetch hierarchy (sphere_id, section_id) for a category with normalization."""
 
         def _get_hierarchy_operation():
@@ -369,7 +368,7 @@ class CategoryOperations(BaseOperations):
         return bool(result) if result is not None else False
 
     def create_category_for_import(
-        self, category_data: Dict[str, Any]
+        self, category_data: dict[str, Any]
     ) -> Optional[int]:
         """Create a new category for import."""
         if self._structure_service:
@@ -379,7 +378,7 @@ class CategoryOperations(BaseOperations):
 
     # Private helper methods
 
-    def _get_category_data_internal(self, category_id: int) -> Optional[Dict[str, Any]]:
+    def _get_category_data_internal(self, category_id: int) -> Optional[dict[str, Any]]:
         """Internal helper to load category data."""
         if self._structure_service:
             return self._structure_service.get_category_by_id(category_id)
@@ -402,7 +401,7 @@ class CategoryOperations(BaseOperations):
         signal_type: str,
         item_type: StructureItemType,
         item_id: int,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
     ):
         """Emit structure signals centrally for items."""
         try:
@@ -420,8 +419,8 @@ class CategoryOperations(BaseOperations):
             )
 
     def _validate_batch_categories(
-        self, categories: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, categories: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Validate category data after batch loading."""
         if not categories:
             return []
@@ -444,7 +443,7 @@ class CategoryOperations(BaseOperations):
         return categories
 
     def _create_item_for_import(
-        self, item_type: str, item_data: Dict[str, Any], create_func: Callable
+        self, item_type: str, item_data: dict[str, Any], create_func: Callable
     ) -> Optional[int]:
         """Generic helper for creating items during import."""
 
@@ -493,7 +492,7 @@ class CategoryOperations(BaseOperations):
             raise ValueError(f"Unsupported item type: {item_type}")
 
     def _get_parent_id_for_item_type(
-        self, item_type: str, item_data: Dict[str, Any]
+        self, item_type: str, item_data: dict[str, Any]
     ) -> Optional[int]:
         """Determine parent_id for an item depending on its type."""
         # Use section_id as parent_id for categories

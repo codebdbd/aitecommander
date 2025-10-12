@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, Optional
+from typing import Callable
 
 from PyQt6.QtCore import QEvent, QObject
 from PyQt6.QtWidgets import QApplication
@@ -20,7 +20,7 @@ class DiagnosticsInstaller:
     def __init__(
         self,
         window: QObject,
-        dump_top_levels_cb: Optional[Callable[[str], None]] = None,
+        dump_top_levels_cb: Callable[[str], None] | None = None,
     ) -> None:
         self._window = window
         self._dump_top_levels = dump_top_levels_cb
@@ -137,10 +137,8 @@ class DiagnosticsInstaller:
                                 and getattr(self._owner, "_diag_resize_logger", None)
                                 is self
                             ):
-                                setattr(self._owner, "_diag_resize_logger", None)  # type: ignore[attr-defined]
-                                setattr(
-                                    self._owner, "_diag_resize_logger_installed", False
-                                )  # type: ignore[attr-defined]
+                                self._owner._diag_resize_logger = None  # type: ignore[attr-defined]
+                                self._owner._diag_resize_logger_installed = False  # type: ignore[attr-defined]
                         except Exception:
                             logger.debug(
                                 "DiagnosticsInstaller: failed to reset _diag_resize_logger flags",

@@ -2,7 +2,7 @@
 
 """Base data type validator."""
 
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from .validation_types import ValidationIssue, ValidationSeverity
 
@@ -12,7 +12,7 @@ class TypeValidator:
 
     @staticmethod
     def validate_string(value: Any, field_name: str, required: bool = True,
-                       min_length: int = 0, max_length: Optional[int] = None) -> List[ValidationIssue]:
+                       min_length: int = 0, max_length: Optional[int] = None) -> list[ValidationIssue]:
         """Validate string field."""
         issues = []
 
@@ -57,7 +57,7 @@ class TypeValidator:
 
     @staticmethod
     def validate_integer(value: Any, field_name: str, required: bool = True,
-                        min_value: Optional[int] = None, max_value: Optional[int] = None) -> List[ValidationIssue]:
+                        min_value: Optional[int] = None, max_value: Optional[int] = None) -> list[ValidationIssue]:
         """Validate integer field."""
         issues = []
 
@@ -101,7 +101,7 @@ class TypeValidator:
         return issues
 
     @staticmethod
-    def validate_boolean(value: Any, field_name: str, required: bool = True) -> List[ValidationIssue]:
+    def validate_boolean(value: Any, field_name: str, required: bool = True) -> list[ValidationIssue]:
         """Validate boolean field."""
         issues = []
 

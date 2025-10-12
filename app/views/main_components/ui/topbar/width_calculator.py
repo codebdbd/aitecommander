@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 from collections import OrderedDict
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from collections.abc import Iterable
+from typing import Any
 
 from PyQt6.QtWidgets import QLayout, QLineEdit, QToolButton, QWidget
 
@@ -25,11 +26,11 @@ class WidthCalculator:
         self._button_size = button_size
         # Fix: LRU cache for ``panel_width`` — key: (panel_id, count), value: width
         # ``OrderedDict`` provides O(1) access and preserves insertion order for LRU
-        self._panel_width_cache: OrderedDict[Tuple[int, int], int] = OrderedDict()
+        self._panel_width_cache: OrderedDict[tuple[int, int], int] = OrderedDict()
         self._cache_hits = 0
         self._cache_misses = 0
     
-    def _safe_get(self, obj: Optional[Any], name: str) -> Optional[Any]:
+    def _safe_get(self, obj: Any | None, name: str) -> Any | None:
         """Safely read an attribute from ``obj``.
 
         Fix: use ``Any`` instead of ``object`` for better typing fidelity.
@@ -81,7 +82,7 @@ class WidthCalculator:
         
         return len(keys_to_remove)
     
-    def get_cache_stats(self) -> Dict[str, int]:
+    def get_cache_stats(self) -> dict[str, int]:
         """Return cache-usage statistics.
 
         Returns:
@@ -97,7 +98,7 @@ class WidthCalculator:
         }
 
     def panel_width(
-        self, panel: Optional[QWidget], buttons: List[QToolButton], count: int
+        self, panel: QWidget | None, buttons: list[QToolButton], count: int
     ) -> int:
         """Calculate panel width based on visible buttons.
 
@@ -150,7 +151,7 @@ class WidthCalculator:
 
         # Quick lookup set for target buttons (e.g. favorite buttons)
         btn_set = set(buttons or [])
-        included_widths: List[int] = []
+        included_widths: list[int] = []
         taken_target = 0
 
         count_items = layout.count()
@@ -238,13 +239,13 @@ class WidthCalculator:
     def total_width(
         self,
         top_bar: QLayout,
-        search: Optional[QLineEdit],
+        search: QLineEdit | None,
         panel_states: Iterable[PanelState],
-        counts: Dict[str, int],
+        counts: dict[str, int],
         min_search_width: int,
     ) -> int:
         panel_map = {state.widget: state for state in panel_states if state.widget}
-        items: List[int] = []
+        items: list[int] = []
         for index in range(top_bar.count()):
             item = top_bar.itemAt(index)
             widget = item.widget()

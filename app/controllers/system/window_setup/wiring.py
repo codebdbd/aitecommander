@@ -4,7 +4,7 @@ Signal connections and event handlers.
 
 import logging
 from functools import partial
-from typing import Any, Dict
+from typing import Any
 
 from PyQt6.QtCore import QTimer, pyqtSlot
 
@@ -151,7 +151,7 @@ def _setup_ui_adjustments(auto_hide_tree_filter: Any | None, topbar_manager: Any
 
 def setup_signal_connections(
     window: Any,
-    controllers: Dict[str, Any],
+    controllers: dict[str, Any],
     *,
     top_panels_controller: TopPanelsController,
 ) -> None:

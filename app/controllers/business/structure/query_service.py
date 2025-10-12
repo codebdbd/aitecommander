@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from logging import Logger
-from typing import Any, Optional, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from app.controllers.business.structure_business import StructureBusinessLogic
+
     from .cache_service import StructureCacheService
     from .validation_service import StructureValidationService
 
@@ -67,7 +68,7 @@ class StructureQueryService:
     def get_categories(self, section_id: int) -> list[dict[str, Any]]:
         return self._cache_service.get_categories(section_id)
 
-    def get_target_section_id(self) -> Optional[int]:
+    def get_target_section_id(self) -> int | None:
         return self._cache_service.get_target_section_id()
 
     # ------------------------------------------------------------------
@@ -76,32 +77,32 @@ class StructureQueryService:
     def get_links(self, category_id: int) -> list[dict[str, Any]]:
         return self._validation_facade.get_links(category_id)
 
-    def get_section_data(self, section_id: int) -> Optional[dict[str, Any]]:
+    def get_section_data(self, section_id: int) -> dict[str, Any] | None:
         return self._validation_facade.get_section_data(section_id)
 
-    def get_category_data(self, category_id: int) -> Optional[dict[str, Any]]:
+    def get_category_data(self, category_id: int) -> dict[str, Any] | None:
         return self._validation_facade.get_category_data(category_id)
 
     def get_item_for_editing(
-        self, item_id: int, item_type: Union[str, Any]
-    ) -> Optional[dict[str, Any]]:
+        self, item_id: int, item_type: str | Any
+    ) -> dict[str, Any] | None:
         return self._validation_facade.get_item_for_editing(item_id, item_type)
 
-    def get_sphere_by_id(self, sphere_id: int) -> Optional[dict[str, Any]]:
+    def get_sphere_by_id(self, sphere_id: int) -> dict[str, Any] | None:
         return self._validation_facade.get_sphere_by_id(sphere_id)
 
-    def get_next_sphere_id(self) -> Optional[int]:
+    def get_next_sphere_id(self) -> int | None:
         return self._validation_facade.get_next_sphere_id()
 
     def has_duplicate_category(
-        self, section_id: int, category_name: str, exclude_id: Optional[int] = None
+        self, section_id: int, category_name: str, exclude_id: int | None = None
     ) -> bool:
         return self._validation_facade.has_duplicate_category(
             section_id, category_name, exclude_id
         )
 
-    def get_section_for_editing(self, section_id: int) -> Optional[dict[str, Any]]:
+    def get_section_for_editing(self, section_id: int) -> dict[str, Any] | None:
         return self._validation_facade.get_section_for_editing(section_id)
 
-    def get_category_for_editing(self, category_id: int) -> Optional[dict[str, Any]]:
+    def get_category_for_editing(self, category_id: int) -> dict[str, Any] | None:
         return self._validation_facade.get_category_for_editing(category_id)

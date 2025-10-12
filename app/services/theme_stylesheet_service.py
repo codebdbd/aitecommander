@@ -4,7 +4,6 @@ import logging
 import re
 from collections import OrderedDict
 from threading import RLock
-from typing import Optional
 
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
@@ -19,10 +18,10 @@ class ThemeStylesheetService:
         self._app_config = app_config
         self._settings = settings  # User settings for dynamic font sizes
         self._qss_cache: OrderedDict[str, str] = OrderedDict()
-        self._common_qss: Optional[str] = None
+        self._common_qss: str | None = None
         self._cache_lock = RLock()
         # ✅ FIX: Cache for QSS overrides
-        self._overrides_cache: Optional[str] = None
+        self._overrides_cache: str | None = None
         try:
             initial_size = max_cache_size
             if initial_size is None:
@@ -61,7 +60,7 @@ class ThemeStylesheetService:
                 "common_qss_loaded": self._common_qss is not None,
             }
 
-    def load_stylesheet(self, theme_name: str, qss_filename: str) -> Optional[str]:
+    def load_stylesheet(self, theme_name: str, qss_filename: str) -> str | None:
         if not self._is_safe_filename(qss_filename):
             logger.error("ThemeStylesheetService: unsafe theme file name: %s", qss_filename)
             return None
@@ -139,14 +138,14 @@ class ThemeStylesheetService:
         return combined_qss
 
     # ---------------------- Internal methods ----------------------
-    def _get_from_cache(self, theme_name: str) -> Optional[str]:
+    def _get_from_cache(self, theme_name: str) -> str | None:
         with self._cache_lock:
             if theme_name in self._qss_cache:
                 self._qss_cache.move_to_end(theme_name, last=True)
                 return self._qss_cache[theme_name]
         return None
 
-    def _load_common_qss(self) -> Optional[str]:
+    def _load_common_qss(self) -> str | None:
         with self._cache_lock:
             if self._common_qss is not None:
                 return self._common_qss
@@ -283,7 +282,7 @@ class ThemeStylesheetService:
         if fonts_units not in ("px", "pt"):
             fonts_units = "px"
 
-        def sz(val: int | None) -> Optional[str]:
+        def sz(val: int | None) -> str | None:
             if val is None or int(val) <= 0:
                 return None
             return f"{int(val)}{fonts_units}"

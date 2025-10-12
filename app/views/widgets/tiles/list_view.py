@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from PyQt6.QtCore import QEvent, QObject, Qt, pyqtSignal
-from PyQt6.QtGui import QDrag, QKeyEvent, QMouseEvent, QPixmap
+from PyQt6.QtGui import QDrag, QKeyEvent, QMouseEvent
 from PyQt6.QtWidgets import QAbstractItemView, QApplication, QListView
 
 from app.config_data import app_config

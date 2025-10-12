@@ -4,14 +4,14 @@
 
 import logging
 import time
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from app.services.structure_service import StructureService
 
 from .base import BaseOperations
 
 # Type alias for batch updates: (table_name, list_of_ids)
-UpdateSpec = Tuple[str, List[int]]
+UpdateSpec = tuple[str, list[int]]
 
 # Lazy access to app configuration (without direct dependency on config_loader)
 try:
@@ -48,7 +48,7 @@ class PositioningOperations(BaseOperations):
             # In case of service initialization issues — maintain compatibility
             self._structure_service = None
 
-    def update_item_positions(self, table_name: str, ids_in_order: List[int]) -> bool:
+    def update_item_positions(self, table_name: str, ids_in_order: list[int]) -> bool:
         """Update element positions in the specified table.
 
         Args:
@@ -151,7 +151,7 @@ class PositioningOperations(BaseOperations):
         return result if result is not None else False
 
     def _validate_positioning_params(
-        self, table_name: str, ids_in_order: List[int]
+        self, table_name: str, ids_in_order: list[int]
     ) -> Optional[str]:
         """Validate parameters for positioning operations.
 
@@ -200,7 +200,7 @@ class PositioningOperations(BaseOperations):
 
         return None  # Валидация прошла успешно
 
-    def batch_update_positions(self, updates: List[UpdateSpec]) -> bool:
+    def batch_update_positions(self, updates: list[UpdateSpec]) -> bool:
         """Batch update positions for multiple tables.
 
         Args:

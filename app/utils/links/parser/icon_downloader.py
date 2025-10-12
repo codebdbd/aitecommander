@@ -12,22 +12,22 @@ Separated pure functions and `IconDownloader` class:
 
 from __future__ import annotations
 
-import hashlib
 import atexit
+import hashlib
 import json
-import os
 import threading
 import time
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from contextlib import contextmanager
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import requests
-from requests.exceptions import RequestException, Timeout, ConnectionError as RequestsConnectionError
 from PIL import Image, UnidentifiedImageError
+from requests.exceptions import ConnectionError as RequestsConnectionError
+from requests.exceptions import RequestException, Timeout
 
 from app.config_data import app_config
 from app.utils.ui.icon.path_service import icon_path_service
@@ -37,12 +37,12 @@ if TYPE_CHECKING:
     from bs4 import BeautifulSoup
 
 from .constants import MIN_GOOD_SIZE, TARGET_SIZE, logger
-from .http_client import http_request
 from .http_client import get_session as get_session  # backward-compat for tests
+from .http_client import http_request
 from .icon_candidates import find_favicon_candidates
 from .svg_convert import convert_svg
 
-_ICON_LOCKS: "OrderedDict[str, threading.Lock]" = OrderedDict()
+_ICON_LOCKS: OrderedDict[str, threading.Lock] = OrderedDict()
 _ICON_LOCKS_GUARD = threading.Lock()
 
 # Guard for thread-safe temporary changes to PIL global settings
@@ -159,7 +159,7 @@ def read_icon_meta(domain: str) -> dict:
     try:
         p = get_icon_meta_path(domain)
         if Path(p).exists():
-            with open(p, "r", encoding="utf-8") as f:
+            with open(p, encoding="utf-8") as f:
                 return json.load(f)
     except Exception as e:
         logger.debug("Icon meta read failed for %s: %s", domain, e, exc_info=True)
@@ -254,7 +254,7 @@ class IconDownloader:
     @staticmethod
     def maybe_convert_svg(
         icon_url: str, ct: str, ext: str, data: bytes
-    ) -> Optional[bytes]:
+    ) -> bytes | None:
         if "image/svg" in ct or ext == "svg" or b"<svg" in data[:200].lower():
             logger.debug("SVG detected %s", icon_url)
             try:
@@ -324,8 +324,8 @@ class IconDownloader:
         img: Image.Image,
         data: bytes,
         is_fallback: bool,
-        meta: Optional[dict] = None,
-    ) -> Optional[str]:
+        meta: dict | None = None,
+    ) -> str | None:
         path = str(
             icon_path_service.get_user_icons_dir() / f"web_{domain.replace('.', '_')}.png"
         )
@@ -362,7 +362,7 @@ class IconDownloader:
         domain: str,
         is_fallback: bool = False,
         force_refresh: bool = False,
-    ) -> Optional[str]:
+    ) -> str | None:
         meta = read_icon_meta(domain)
         cond_headers = build_conditional_headers(domain, meta, force_refresh)
 
@@ -568,7 +568,7 @@ def save_icon(
     config,
     is_fallback: bool = False,
     force_refresh: bool = False,
-) -> Optional[str]:
+) -> str | None:
     """Thin facade over IconDownloader.save_icon."""
     return IconDownloader(config).save_icon(
         icon_url, domain, is_fallback, force_refresh
@@ -576,12 +576,12 @@ def save_icon(
 
 
 def pick_icon_parallel(
-    soup: "BeautifulSoup",
+    soup: BeautifulSoup,
     page_url: str,
     domain: str,
     config,
     force_refresh: bool = False,
-) -> Optional[str]:
+) -> str | None:
     # First, only local and fallback candidates (without external services)
     candidates = find_favicon_candidates(soup, page_url, config, use_external=False)[
         :10
@@ -592,7 +592,7 @@ def pick_icon_parallel(
     # Respect specified timeout without forcing 1s minimum
     finish_by = time.monotonic() + max(0.05, max_elapsed)
 
-    def _try_candidates_parallel(icon_urls, is_fallback: bool) -> Optional[str]:
+    def _try_candidates_parallel(icon_urls, is_fallback: bool) -> str | None:
         if not icon_urls:
             return None
         remaining = max(0.0, finish_by - time.monotonic())

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from functools import wraps
-from typing import Callable, Iterable, List, Optional
+from typing import Callable
 
 from PyQt6.QtCore import QCoreApplication, QParallelAnimationGroup, QPropertyAnimation
 from PyQt6.QtWidgets import (
@@ -11,9 +12,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from .accessibility_manager import AccessibilityManager
 from .panel_state import PanelState
 from .width_calculator import WidthCalculator
-from .accessibility_manager import AccessibilityManager
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ def safe_widget_operation(func: Callable) -> Callable:
     avoid ``RuntimeError`` on dangling Qt objects.
     """
     @wraps(func)
-    def wrapper(self, widget: Optional[QWidget], *args, **kwargs):
+    def wrapper(self, widget: QWidget | None, *args, **kwargs):
         if widget is None or self._is_deleted(widget):
             logger.debug(f"{func.__name__}: widget is None or deleted")
             # Return a sensible default
@@ -54,7 +55,7 @@ class PanelVisibilityManager:
     - Constrain panel widths
     """
 
-    def __init__(self, width_calculator: WidthCalculator, parent: Optional[QWidget] = None):
+    def __init__(self, width_calculator: WidthCalculator, parent: QWidget | None = None):
         """Initialize panel-visibility manager.
 
         Fix: include ``AccessibilityManager`` for complete accessibility support.
@@ -65,13 +66,13 @@ class PanelVisibilityManager:
         """
         self._width_calculator = width_calculator
         # Fix: keep references to active animations to prevent GC collection
-        self._active_animations: List[QParallelAnimationGroup] = []
+        self._active_animations: list[QParallelAnimationGroup] = []
         # Fix: instantiate accessibility manager
         self._accessibility_manager = AccessibilityManager(parent)
 
     def iter_buttons(
-        self, panel_widget: Optional[QWidget], object_name: str
-    ) -> List[QToolButton]:
+        self, panel_widget: QWidget | None, object_name: str
+    ) -> list[QToolButton]:
         """Find all buttons with the given ``objectName`` inside a panel.
 
         Fix: add checks for deleted objects.
@@ -86,7 +87,7 @@ class PanelVisibilityManager:
         if not panel_widget or self._is_deleted(panel_widget):
             return []
         
-        buttons: List[QToolButton] = []
+        buttons: list[QToolButton] = []
         bg = getattr(panel_widget, "bg_frame", None)
         
         if bg and isinstance(bg, QWidget) and not self._is_deleted(bg):
@@ -116,7 +117,7 @@ class PanelVisibilityManager:
 
     @safe_widget_operation
     def set_visible_count(
-        self, panel_widget: Optional[QWidget], buttons: List[QToolButton], count: int
+        self, panel_widget: QWidget | None, buttons: list[QToolButton], count: int
     ) -> int:
         """Set the number of visible buttons within the panel.
 
@@ -239,7 +240,7 @@ class PanelVisibilityManager:
 
     @safe_widget_operation
     def _apply_panel_width_bounds(
-        self, panel: Optional[QWidget], buttons: List[QToolButton], visible: int
+        self, panel: QWidget | None, buttons: list[QToolButton], visible: int
     ) -> None:
         """Set panel width bounds based on visible buttons.
 
@@ -263,7 +264,7 @@ class PanelVisibilityManager:
                 try:
                     # Collect current visible buttons and their ``sizeHint`` values
                     visible_btns = []
-                    for i, b in enumerate(buttons):
+                    for _i, b in enumerate(buttons):
                         try:
                             if b.isVisible():
                                 visible_btns.append(int(b.sizeHint().width()))
@@ -286,7 +287,7 @@ class PanelVisibilityManager:
                 except Exception:
                     pass
                 try:
-                    setattr(panel, '_dbg_logged_once', True)
+                    panel._dbg_logged_once = True
                 except Exception:
                     pass
         except (RuntimeError, AttributeError):
@@ -294,8 +295,8 @@ class PanelVisibilityManager:
 
     def apply_with_animation(
         self,
-        panel: Optional[QWidget],
-        buttons: List[QToolButton],
+        panel: QWidget | None,
+        buttons: list[QToolButton],
         target_visible: int,
         duration_ms: int,
         easing,
@@ -430,7 +431,7 @@ class PanelVisibilityManager:
             return False
 
     @safe_widget_operation
-    def _ensure_panel_visible(self, panel_widget: Optional[QWidget]) -> None:
+    def _ensure_panel_visible(self, panel_widget: QWidget | None) -> None:
         """Ensure that the panel itself stays visible.
 
         Fix: guard the call with ``@safe_widget_operation`` to handle deleted widgets.

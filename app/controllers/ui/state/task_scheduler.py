@@ -8,7 +8,7 @@ backward compatibility of internal application calls.
 
 import logging
 from enum import Enum
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Optional
 
 from PyQt6.QtCore import (
     QCoreApplication,
@@ -57,8 +57,8 @@ class TaskScheduler(QObject):
         self.thread_pool = LimitedThreadPool(max_threads, self)
 
         # Initialize timers
-        self._active_timers: Dict[str, QTimer] = {}
-        self._pending_operations: Dict[TaskType, Dict[str, Callable]] = {
+        self._active_timers: dict[str, QTimer] = {}
+        self._pending_operations: dict[TaskType, dict[str, Callable]] = {
             task_type: {} for task_type in TaskType
         }
         self._default_delays = {
@@ -71,7 +71,7 @@ class TaskScheduler(QObject):
         }
 
         # Timers for batching operations
-        self._batch_timers: Dict[TaskType, QTimer] = {}
+        self._batch_timers: dict[TaskType, QTimer] = {}
         self._setup_batch_timers()
         self._about_to_quit_connected = self._register_about_to_quit_hook()
 
@@ -211,7 +211,7 @@ class TaskScheduler(QObject):
                 # Take last operation (most recent)
                 last_operation_id = list(operations.keys())[-1]
                 try:
-                    last_operation()
+                    operation()
                     logger.debug("Executed focus operation: %s", last_operation_id)
                 except Exception as e:
                     logger.error(
@@ -377,3 +377,4 @@ def schedule_operation(
 def submit_task(task: QRunnable) -> None:
     """Global function for submitting tasks to thread pool."""
     get_task_scheduler().submit_task(task)
+

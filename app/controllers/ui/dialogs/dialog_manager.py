@@ -221,7 +221,7 @@ class DialogMixin:
         3. None (диалог будет показан без родителя)
         """
         # Try self.parent
-        if hasattr(self, "parent") and isinstance(getattr(self, "parent"), QWidget):
+        if hasattr(self, "parent") and isinstance(self.parent, QWidget):
             return self.parent
 
         # Try self if it's QWidget
@@ -229,7 +229,7 @@ class DialogMixin:
             return self
 
         # Try self.main (for controllers)
-        if hasattr(self, "main") and isinstance(getattr(self, "main"), QWidget):
+        if hasattr(self, "main") and isinstance(self.main, QWidget):
             return self.main
 
         # No suitable parent

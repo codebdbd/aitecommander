@@ -2,10 +2,10 @@
 
 from .performance_monitor import (
     PerformanceMetrics,
-    measure_time,
     cache_metrics,
     get_metrics,
-    log_performance_summary
+    log_performance_summary,
+    measure_time,
 )
 
 __all__ = [

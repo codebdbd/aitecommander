@@ -3,11 +3,15 @@
 """Validation rules for structural data."""
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from ..models.types import StructureItemType
-from .validation_types import DetailedValidationResult, ValidationIssue, ValidationSeverity
 from .validation_core import TypeValidator
+from .validation_types import (
+    DetailedValidationResult,
+    ValidationIssue,
+    ValidationSeverity,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +22,7 @@ class StructureDataValidator:
     def __init__(self):
         self.type_validator = TypeValidator()
 
-    def validate_sphere_create_data(self, data: Dict[str, Any]) -> DetailedValidationResult:
+    def validate_sphere_create_data(self, data: dict[str, Any]) -> DetailedValidationResult:
         """Validate data for sphere creation."""
         issues = []
 
@@ -49,7 +53,7 @@ class StructureDataValidator:
             issues=issues
         )
 
-    def validate_section_create_data(self, data: Dict[str, Any]) -> DetailedValidationResult:
+    def validate_section_create_data(self, data: dict[str, Any]) -> DetailedValidationResult:
         """Validate data for section creation."""
         issues = []
 
@@ -80,7 +84,7 @@ class StructureDataValidator:
             issues=issues
         )
 
-    def validate_category_create_data(self, data: Dict[str, Any]) -> DetailedValidationResult:
+    def validate_category_create_data(self, data: dict[str, Any]) -> DetailedValidationResult:
         """Validate data for category creation."""
         issues = []
 
@@ -119,7 +123,7 @@ class StructureDataValidator:
             issues=issues
         )
 
-    def validate_update_data(self, data: Dict[str, Any], item_type: StructureItemType) -> DetailedValidationResult:
+    def validate_update_data(self, data: dict[str, Any], item_type: StructureItemType) -> DetailedValidationResult:
         """Validate data for update (all fields optional)."""
         issues = []
 
@@ -170,7 +174,7 @@ class StructureDataValidator:
             issues=issues
         )
 
-    def _validate_color(self, value: Any, field_name: str) -> List[ValidationIssue]:
+    def _validate_color(self, value: Any, field_name: str) -> list[ValidationIssue]:
         """Validate color field (hex code)."""
         issues = []
 

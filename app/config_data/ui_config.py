@@ -1,12 +1,11 @@
 """User interface configuration helpers."""
 
 import logging
-from typing import Dict
+
+from PyQt6.QtGui import QFont
 
 from .base_config import BaseConfig
 from .qt_adapters import to_qfont
-
-from PyQt6.QtGui import QFont
 
 logger = logging.getLogger(__name__)
 
@@ -456,14 +455,14 @@ class UIConfig(BaseConfig):
             "ui.links_table_headers", ["♥", "Name", "Last Used", "Notes"]
         )
 
-    def get_links_table_columns(self) -> Dict[str, int]:
+    def get_links_table_columns(self) -> dict[str, int]:
         """Return the column indexes for the links table."""
         return self.get(
             "ui.links_table_columns",
             {"favorite": 0, "name": 1, "last_used": 2, "notes": 3},
         )
 
-    def get_links_table_messages(self) -> Dict[str, str]:
+    def get_links_table_messages(self) -> dict[str, str]:
         """Return localized strings used by the links table UI."""
         return self.get(
             "ui.links_table_messages",

@@ -7,9 +7,8 @@ used in structure operations. Replaces Dict[str, Any] with
 concrete typed structures for better type safety.
 """
 
-from typing import TypedDict, Optional, List, Any
 from enum import Enum
-
+from typing import Any, Optional, TypedDict
 
 # ===== ENUMS =====
 
@@ -229,8 +228,8 @@ class OperationResult(TypedDict):
 class ValidationResult(TypedDict):
     """Validation result."""
     is_valid: bool
-    errors: List[str]
-    warnings: List[str]
+    errors: list[str]
+    warnings: list[str]
 
 
 # ===== COUNT TYPES =====

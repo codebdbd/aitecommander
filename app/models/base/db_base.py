@@ -2,7 +2,7 @@ import logging
 import sqlite3
 import threading
 from contextlib import contextmanager
-from typing import Any, Dict, List, Union
+from typing import Any, Union
 
 from app.utils.db.synchronization import db_lock
 
@@ -99,7 +99,7 @@ class DatabaseBase:
                     raise
 
     def _validate_required_fields(
-        self, data: Dict[str, Any], required_fields: List[str], entity_name: str = ""
+        self, data: dict[str, Any], required_fields: list[str], entity_name: str = ""
     ):
         """Validates required fields"""
         # Deferred import to prevent circular imports
@@ -136,7 +136,7 @@ class DatabaseBase:
 
     def _execute_with_error_handling(
         self, query: str, params: tuple = (), fetch_method: str = None
-    ) -> Union[sqlite3.Cursor, sqlite3.Row, List[sqlite3.Row], None]:
+    ) -> Union[sqlite3.Cursor, sqlite3.Row, list[sqlite3.Row], None]:
         """Executes SQL query with error handling and locking."""
         try:
             with db_lock:
@@ -151,7 +151,7 @@ class DatabaseBase:
             return cursor.fetchall()
         return cursor
 
-    def _execute_many_with_error_handling(self, query: str, seq_of_params: List[tuple]):
+    def _execute_many_with_error_handling(self, query: str, seq_of_params: list[tuple]):
         """
         Executes SQL executemany query with error handling and locking.
 
@@ -176,8 +176,8 @@ class DatabaseBase:
         self,
         table_name: str,
         entity_id: int,
-        data: Dict[str, Any],
-        valid_keys: List[str],
+        data: dict[str, Any],
+        valid_keys: list[str],
     ):
         """Universal entity update method."""
         fields = []

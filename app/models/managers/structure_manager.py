@@ -2,7 +2,6 @@
 import copy
 import logging
 import time
-from typing import Dict, List
 
 from ..base.db_base import DatabaseError, db_lock
 from ..types.link_type import LinkType
@@ -20,7 +19,7 @@ class StructureManager:
         """
         self.db = db
 
-    def get_full_structure(self) -> List[Dict]:
+    def get_full_structure(self) -> list[dict]:
         """Returns full data structure as nested dictionaries."""
         try:
             # Single bulk selections at all levels to avoid N+1
@@ -42,12 +41,12 @@ class StructureManager:
             t1 = time.perf_counter()
 
             # Indexes for hierarchy assembly
-            spheres_by_id: Dict[int, Dict] = {}
-            sections_by_id: Dict[int, Dict] = {}
-            categories_by_id: Dict[int, Dict] = {}
+            spheres_by_id: dict[int, dict] = {}
+            sections_by_id: dict[int, dict] = {}
+            categories_by_id: dict[int, dict] = {}
 
-            sections_by_sphere: Dict[int, List[Dict]] = {}
-            categories_by_section: Dict[int, List[Dict]] = {}
+            sections_by_sphere: dict[int, list[dict]] = {}
+            categories_by_section: dict[int, list[dict]] = {}
 
             # Convert rows to dict and prepare containers
             for s in spheres_rows:
@@ -80,7 +79,7 @@ class StructureManager:
                     cat_obj["links"].append(ld)
 
             # Assemble final structure, preserving order by position
-            spheres_data: List[Dict] = []
+            spheres_data: list[dict] = []
             for s in spheres_rows:
                 s_obj = spheres_by_id[int(s["id"])]
                 for sc in sections_by_sphere.get(int(s_obj["id"]), []):
@@ -107,7 +106,7 @@ class StructureManager:
             logger.error("Error getting full structure: %s", e, exc_info=True)
             raise DatabaseError(f"Failed to get full structure: {e}")
 
-    def import_full_structure(self, data: List[Dict]):
+    def import_full_structure(self, data: list[dict]):
         """Clears database and imports data from structure.
 
         Thread-safe operation that doesn't modify input data.
@@ -135,11 +134,11 @@ class StructureManager:
 
             # --- Preparation phase: normalize input and build relations ---
             self.db.operation_progress.emit(operation, 0, total_items or 1, "Preparing data...")
-            spheres_items: List[Dict] = []  # {ref, id?, name, icon_path, position}
-            sections_items: List[Dict] = []  # {ref, id?, name, sphere_ref, icon_path, position}
-            categories_items: List[Dict] = []  # {ref, id?, name, section_ref, icon_path, position}
-            links_with_id: List[Dict] = []  # ready for executemany
-            links_without_id: List[Dict] = []  # individual INSERT
+            spheres_items: list[dict] = []  # {ref, id?, name, icon_path, position}
+            sections_items: list[dict] = []  # {ref, id?, name, sphere_ref, icon_path, position}
+            categories_items: list[dict] = []  # {ref, id?, name, section_ref, icon_path, position}
+            links_with_id: list[dict] = []  # ready for executemany
+            links_without_id: list[dict] = []  # individual INSERT
             current = 0
 
             for s_idx, s in enumerate(root):
@@ -238,7 +237,7 @@ class StructureManager:
                             ],
                         )
 
-                    sphere_ref_to_id: Dict[int, int] = {}
+                    sphere_ref_to_id: dict[int, int] = {}
                     for x in spheres_with_id:
                         sphere_ref_to_id[x["ref"]] = int(x["id"])  # explicitly set
                     for x in spheres_no_id:
@@ -270,7 +269,7 @@ class StructureManager:
                             ],
                         )
 
-                    section_ref_to_id: Dict[int, int] = {}
+                    section_ref_to_id: dict[int, int] = {}
                     for x in sections_with_id:
                         section_ref_to_id[x["ref"]] = int(x["id"])  # задан явно
                     for x in sections_no_id:
@@ -307,7 +306,7 @@ class StructureManager:
                             ],
                         )
 
-                    category_ref_to_id: Dict[int, int] = {}
+                    category_ref_to_id: dict[int, int] = {}
                     for x in categories_with_id:
                         category_ref_to_id[x["ref"]] = int(x["id"])  # explicitly set
                     for x in categories_no_id:

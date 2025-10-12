@@ -101,7 +101,7 @@ class IconCache:
                 except Exception as e:  # noqa: BLE001
                     return e
 
-        icons = await asyncio.gather(*tasks, return_exceptions=False)
+        icons = await asyncio.gather(*icon_tasks, return_exceptions=False)
 
         result = {}
         for name, icon in zip(icon_names, icons):
@@ -117,3 +117,4 @@ class IconCache:
 
 # Single global instance
 icon_cache = IconCache()
+

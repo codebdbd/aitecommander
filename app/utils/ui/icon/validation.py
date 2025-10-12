@@ -13,7 +13,6 @@ Complies with PEP 8.
 from __future__ import annotations
 
 import logging
-import os
 import re
 from collections.abc import Iterable
 from enum import Enum

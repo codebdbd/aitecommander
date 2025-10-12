@@ -7,8 +7,6 @@ Provide render_html(url, config) -> Optional[str] that returns fully rendered HT
 
 from __future__ import annotations
 
-from typing import Optional
-
 from .constants import logger
 
 # Optional import
@@ -88,7 +86,7 @@ def _init_browser(config) -> bool:
     return False
 
 
-def render_html(url: str, config) -> Optional[str]:
+def render_html(url: str, config) -> str | None:
     """Render page with Playwright and return page.content() or None.
 
     Efficiency:

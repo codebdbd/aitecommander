@@ -6,7 +6,6 @@ import datetime
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtWidgets import QDialogButtonBox, QListWidget, QListWidgetItem, QVBoxLayout
@@ -33,19 +32,19 @@ def _arg(template: str, *args: str) -> str:
 @dataclass
 class BackupMeta:
     kind: str
-    path: Optional[Path] = None
-    timestamp: Optional[datetime.datetime] = None
+    path: Path | None = None
+    timestamp: datetime.datetime | None = None
     size_bytes: int = 0
-    message: Optional[str] = None
+    message: str | None = None
 
 
 class RestoreDbDialog(BaseDialog):
     """Dialog that allows restoring the database from backups."""
 
-    def __init__(self, backup_dir: Optional[Path] = None, parent=None):
+    def __init__(self, backup_dir: Path | None = None, parent=None):
         self.paths = app_config.paths
         self.backup_dir = backup_dir or self.paths.get_backups_dir()
-        self.selected_backup: Optional[Path] = None
+        self.selected_backup: Path | None = None
         self.list_widget: QListWidget | None = None
         self.buttons: QDialogButtonBox | None = None
 
@@ -170,7 +169,7 @@ class RestoreDbDialog(BaseDialog):
         self.list_widget.setEnabled(False)
         self._update_item_text(item)
 
-    def _parse_timestamp(self, filename: str) -> Optional[datetime.datetime]:
+    def _parse_timestamp(self, filename: str) -> datetime.datetime | None:
         base = filename.replace("links_", "").replace(".db", "")
         for pattern in ("%Y%m%d_%H%M%S_%f", "%Y%m%d_%H%M%S", "%Y-%m-%d_%H-%M-%S"):
             try:
@@ -232,7 +231,7 @@ class RestoreDbDialog(BaseDialog):
             self.list_widget.setAccessibleName(_tr("Backups list"))
             self._refresh_items()
 
-    def get_selected_backup(self) -> Optional[Path]:
+    def get_selected_backup(self) -> Path | None:
         if not self.list_widget.isEnabled():
             return None
         item = self.list_widget.currentItem()
@@ -280,5 +279,5 @@ class RestoreDbDialog(BaseDialog):
             self.selected_backup = selected_backup
             super().accept()
 
-    def get_result(self) -> Optional[Path]:
+    def get_result(self) -> Path | None:
         return self.selected_backup

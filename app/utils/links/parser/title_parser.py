@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import html as _html
 import json
-from requests.exceptions import RequestException
 import re
-from typing import Optional
 from urllib.parse import urlencode, urlparse
 
 from bs4 import BeautifulSoup
+from requests.exceptions import RequestException
 
 from .constants import BS_PARSER, logger
 from .domain import base_domain
@@ -181,7 +180,7 @@ def _try_playwright_title(url: str, config) -> str:
         return ""
 
 
-def _fetch_youtube_title(url: str, config) -> Optional[str]:
+def _fetch_youtube_title(url: str, config) -> str | None:
     api_url = "https://www.youtube.com/oembed?" + urlencode(
         {"url": url, "format": "json"}
     )
@@ -233,7 +232,7 @@ def _extract_jsonld_title(soup: BeautifulSoup, soup_index: dict | None = None) -
 
 def _extract_site_specific_title(
     soup: BeautifulSoup, domain: str, soup_index: dict | None = None
-) -> Optional[str]:
+) -> str | None:
     """Special handling for popular sites"""
     domain_lower = domain.lower()
 
@@ -566,7 +565,7 @@ def _extract_title(soup: BeautifulSoup, url: str) -> str:
     return domain
 
 
-def get_title(url: str, config, soup: Optional[BeautifulSoup] = None) -> str:
+def get_title(url: str, config, soup: BeautifulSoup | None = None) -> str:
     """Main function to extract page title with enhanced parsing capabilities"""
     host = base_domain(urlparse(url).netloc)
 

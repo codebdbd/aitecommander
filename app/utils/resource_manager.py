@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 from app.views.main_components.common.resource_manager import (
     ResourceManager as _ModernResourceManager,
@@ -15,7 +15,7 @@ class ResourceManager(_ModernResourceManager):
     def register(  # type: ignore[override]
         self,
         resource: Any,
-        cleanup_func: Optional[Callable[[], None]] = None,
+        cleanup_func: Callable[[], None] | None = None,
         name: str = "",
         use_finalize: bool = True,
     ) -> None:

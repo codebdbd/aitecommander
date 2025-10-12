@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from PyQt6.QtCore import (
     QCoreApplication,
@@ -39,14 +38,14 @@ class LanguageService(QObject):
 
     languageChanged = pyqtSignal(str)
 
-    _instance: Optional[LanguageService] = None
+    _instance: LanguageService | None = None
 
     def __init__(self) -> None:
         if LanguageService._instance is not None:
             raise RuntimeError("LanguageService is a singleton. Use instance() method.")
 
         super().__init__()
-        self._translators: Dict[str, QTranslator] = {}
+        self._translators: dict[str, QTranslator] = {}
         self._current_language: str = "en"
         self._settings = QSettings(
             QSettings.Format.IniFormat,
@@ -73,7 +72,7 @@ class LanguageService(QObject):
             cls._instance = cls()
         return cls._instance
 
-    def available_languages(self) -> List[LanguageDescriptor]:
+    def available_languages(self) -> list[LanguageDescriptor]:
         """Get list of available languages."""
         return list(self._languages.values())
 
@@ -91,7 +90,7 @@ class LanguageService(QObject):
             logger.debug("Language already set to: %s", language_code)
             return True
 
-        translator: Optional[QTranslator] = None
+        translator: QTranslator | None = None
         if language_code != "en":
             translator = self._translators.get(language_code)
             if translator is None:
@@ -135,7 +134,7 @@ class LanguageService(QObject):
         self._settings.setValue("language", language_code)
         logger.debug("Saved language to settings: %s", language_code)
 
-    def _load_translator(self, language_code: str) -> Optional[QTranslator]:
+    def _load_translator(self, language_code: str) -> QTranslator | None:
         """Load a translator for the specified language without installing it."""
         if language_code == "en":
             return None
@@ -166,7 +165,7 @@ class LanguageService(QObject):
             QCoreApplication.removeTranslator(translator)
         self._translators.clear()
 
-    def get_language_descriptor(self, code: str) -> Optional[LanguageDescriptor]:
+    def get_language_descriptor(self, code: str) -> LanguageDescriptor | None:
         """Get language descriptor by code."""
         return self._languages.get(code)
 

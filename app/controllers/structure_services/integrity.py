@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable
 
 # Module logger for diagnostic messages
 logger = logging.getLogger(__name__)
@@ -12,14 +12,14 @@ class IntegrityService:
 
     def get_statistics(
         self,
-        get_spheres: Callable[[], List[Dict[str, Any]]],
-        get_sections: Callable[[int], List[Dict[str, Any]]],
-        get_categories: Callable[[int], List[Dict[str, Any]]],
-        current_sphere_id: Optional[int],
+        get_spheres: Callable[[], list[dict[str, Any]]],
+        get_sections: Callable[[int], list[dict[str, Any]]],
+        get_categories: Callable[[int], list[dict[str, Any]]],
+        current_sphere_id: int | None,
         logger,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         try:
-            stats: Dict[str, Any] = {
+            stats: dict[str, Any] = {
                 "spheres_count": 0,
                 "sections_count": 0,
                 "categories_count": 0,
@@ -77,21 +77,21 @@ class IntegrityService:
                 "current_sphere_sections": 0,
                 "current_sphere_categories": 0,
             }
-        except Exception as e:
+        except Exception:
             if logger:
                 logger.exception("Critical error getting statistics")
             raise  # Re-raise critical errors
 
     def validate_structure_integrity(
         self,
-        get_spheres: Callable[[], List[Dict[str, Any]]],
-        get_sections: Callable[[int], List[Dict[str, Any]]],
-        get_categories: Callable[[int], List[Dict[str, Any]]],
-        get_statistics: Callable[[], Dict[str, Any]],
+        get_spheres: Callable[[], list[dict[str, Any]]],
+        get_sections: Callable[[int], list[dict[str, Any]]],
+        get_categories: Callable[[int], list[dict[str, Any]]],
+        get_statistics: Callable[[], dict[str, Any]],
         logger,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         try:
-            integrity_report: Dict[str, Any] = {
+            integrity_report: dict[str, Any] = {
                 "is_valid": True,
                 "errors": [],
                 "warnings": [],
@@ -161,6 +161,6 @@ class IntegrityService:
                 "warnings": [],
                 "statistics": {},
             }
-        except Exception as e:
+        except Exception:
             if logger:
                 logger.exception("Critical error checking structure integrity")

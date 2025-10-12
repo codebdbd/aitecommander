@@ -2,7 +2,7 @@
 
 """Module for sphere operations."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .base import BaseOperations
 
@@ -10,7 +10,7 @@ from .base import BaseOperations
 class SphereOperations(BaseOperations):
     """Class for sphere operations."""
 
-    def get_spheres(self) -> List[Dict[str, Any]]:
+    def get_spheres(self) -> list[dict[str, Any]]:
         """Get list of all spheres with guaranteed normalization."""
 
         def _load_spheres():
@@ -22,7 +22,7 @@ class SphereOperations(BaseOperations):
             _load_spheres, "load list of spheres", default_return=[]
         )
 
-    def get_sphere_by_id(self, sphere_id: int) -> Optional[Dict[str, Any]]:
+    def get_sphere_by_id(self, sphere_id: int) -> Optional[dict[str, Any]]:
         """Get sphere data by ID with guaranteed normalization."""
         # Input data validation
         if not isinstance(sphere_id, int) or sphere_id <= 0:

@@ -11,7 +11,7 @@ dependencies on QTableWidget/QTableWidgetItem have been removed.
 """
 
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from PyQt6.QtCore import Qt
 
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class DragDropHandlerMixin:
     """Mixin for handling Drag & Drop in link table (QTableView)."""
 
-    def _extract_item_ids_from_items(self, items) -> List[int]:
+    def _extract_item_ids_from_items(self, items) -> list[int]:
         """Extracts link IDs from selected indexes (QModelIndex).
 
         Expects ``items`` to be a sequence of ``QModelIndex``
@@ -103,7 +103,7 @@ class DragDropHandlerMixin:
             # Cache is rebuilt in any case to reflect actual model state
             self._rebuild_current_links()
 
-    def _get_current_order(self) -> List[int]:
+    def _get_current_order(self) -> list[int]:
         """Gets current order of link IDs by actual model row order."""
         try:
             model = getattr(self, "model", lambda: None)()
@@ -122,12 +122,12 @@ class DragDropHandlerMixin:
 # --- Reusable table helpers ---
 
 
-def get_selected_rows(view) -> List[int]:
+def get_selected_rows(view) -> list[int]:
     """Gets sorted list of unique selected rows via common utility."""
     return get_selected_rows_util(view)
 
 
-def extract_source_rows_from_mime(table, event, mime_type: str) -> List[int]:
+def extract_source_rows_from_mime(table, event, mime_type: str) -> list[int]:
     """Restores source row numbers from MIME data with IDs.
 
     Identifiers are extracted via ``MimeDataParser`` and matched with
@@ -141,7 +141,7 @@ def extract_source_rows_from_mime(table, event, mime_type: str) -> List[int]:
         if not item_ids:
             return []
 
-        source_rows: List[int] = []
+        source_rows: list[int] = []
         model = getattr(table, "model", lambda: None)()
         total = model.rowCount() if model is not None else 0
         for row in range(total):
@@ -184,7 +184,7 @@ def move_row_visually(table, source_row: int, target_row: int) -> None:
         # If table has cache rebuilding method, use it.
         # This is main scenario when using DragDropHandlerMixin.
         if hasattr(table, "_rebuild_current_links") and callable(
-            getattr(table, "_rebuild_current_links")
+            table._rebuild_current_links
         ):
             table._rebuild_current_links()
         else:
@@ -194,7 +194,7 @@ def move_row_visually(table, source_row: int, target_row: int) -> None:
             )
 
 
-def move_rows_visually(table, source_rows: List[int], target_row: int) -> None:
+def move_rows_visually(table, source_rows: list[int], target_row: int) -> None:
     """Moves set of rows via model, preserving relative order."""
     if not source_rows:
         return
@@ -204,10 +204,10 @@ def move_rows_visually(table, source_rows: List[int], target_row: int) -> None:
     model.move_rows(list(source_rows), target_row)
 
 
-def get_current_order(table) -> List[int]:
+def get_current_order(table) -> list[int]:
     """Returns IDs of all elements in current table row order."""
     try:
-        ids: List[int] = []
+        ids: list[int] = []
         model = getattr(table, "model", lambda: None)()
         total = model.rowCount() if model is not None else 0
         for row in range(total):

@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.parse import quote_plus
 
 from PyQt6.QtCore import QUrl
@@ -89,7 +89,7 @@ def share_via_pinterest(name: Optional[str], url: str) -> bool:
     return _open_url(pin)
 
 
-def open_default_apps_settings() -> Tuple[bool, Optional[str]]:
+def open_default_apps_settings() -> tuple[bool, Optional[str]]:
     """Open Windows settings for default apps (mailto association).
     
     ✅ FIX: Returns status and message instead of showing QMessageBox.
@@ -130,7 +130,7 @@ def share_via_whatsapp(name: Optional[str], url: str) -> bool:
     return _open_url(deep)
 
 
-def share_via_viber(name: Optional[str], url: str) -> Tuple[bool, Optional[str]]:
+def share_via_viber(name: Optional[str], url: str) -> tuple[bool, Optional[str]]:
     """Share via Viber.
     
     ✅ FIX: Returns status and message instead of showing QMessageBox.
@@ -185,7 +185,7 @@ def share_via_email_gmail(name: Optional[str], url: str) -> bool:
     return _open_url(gmail)
 
 
-def copy_email_template(name: Optional[str], url: str) -> Tuple[bool, Optional[str]]:
+def copy_email_template(name: Optional[str], url: str) -> tuple[bool, Optional[str]]:
     """Copy email template to clipboard (Subject + Body).
     
     ✅ FIX: Returns status and message instead of showing QMessageBox.

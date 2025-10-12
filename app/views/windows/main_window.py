@@ -1,17 +1,17 @@
+import logging
+from typing import TYPE_CHECKING, Optional
+
 from PyQt6.QtCore import QEvent, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QKeySequence, QUndoStack
 from PyQt6.QtWidgets import QMainWindow, QWidget
 
-import logging
-from typing import TYPE_CHECKING, Optional
-
-from app.views.widgets.protocols import SystemDialogsProtocol
 from app.views.common.retranslatable import ReTranslatable
 from app.views.widgets.link import LinksTableView
+from app.views.widgets.protocols import SystemDialogsProtocol
 
 if TYPE_CHECKING:
     # Narrowly scoped types for static analysis only
-    from typing import Any, Dict, Protocol
+    from typing import Any, Protocol
     class StructureItem(Protocol):
         """Structure (tree) item protocol used solely for static checks.
 
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
         ...
 
-    LinkDict = Dict[str, Any]
+    LinkDict = dict[str, Any]
     from app.controllers.ui.links.links_actions import LinksActions
     from app.controllers.ui.menu_controller import ActionController, MenuController
     from app.controllers.ui.state.ui_state_manager import UIStateManager
@@ -36,8 +36,8 @@ from app.controllers.ui.window_facade import WindowFacade
 from app.settings import AppSettings
 from app.utils.db.synchronization import signal_guard
 from app.utils.ui.updates import suspend_updates
-from app.views.widgets.status_bar import update_status_bar as _update_status_bar
 from app.views.main_components.ui.bottom_panel_setup import retranslate_bottom_panel
+from app.views.widgets.status_bar import update_status_bar as _update_status_bar
 
 logger = logging.getLogger(__name__)
 

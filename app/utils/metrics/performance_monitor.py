@@ -8,7 +8,7 @@ import functools
 import logging
 import time
 from collections import defaultdict, deque
-from typing import Any, Callable, Dict, Optional, TypeVar, cast
+from typing import Any, Callable, Optional, TypeVar, cast
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +33,10 @@ class PerformanceMetrics:
         ✅ ИСПРАВЛЕНИЕ: Использует deque вместо list для автоматического ограничения размера.
         """
         # ✅ deque с maxlen=100 автоматически удаляет старые элементы
-        self._timings: Dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=100))
-        self._cache_hits: Dict[str, int] = defaultdict(int)
-        self._cache_misses: Dict[str, int] = defaultdict(int)
-        self._call_counts: Dict[str, int] = defaultdict(int)
+        self._timings: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=100))
+        self._cache_hits: dict[str, int] = defaultdict(int)
+        self._cache_misses: dict[str, int] = defaultdict(int)
+        self._call_counts: dict[str, int] = defaultdict(int)
         self._enabled = True
     
     def record_timing(self, operation: str, duration: float) -> None:
@@ -67,7 +67,7 @@ class PerformanceMetrics:
             return
         self._call_counts[operation] += 1
     
-    def get_stats(self, operation: str) -> Dict[str, Any]:
+    def get_stats(self, operation: str) -> dict[str, Any]:
         """Get statistics for an operation.
         
         Returns:
@@ -91,7 +91,7 @@ class PerformanceMetrics:
             'total': sum(timings)
         }
     
-    def get_cache_stats(self, cache_name: str) -> Dict[str, Any]:
+    def get_cache_stats(self, cache_name: str) -> dict[str, Any]:
         """Get cache statistics.
         
         Returns:
@@ -109,7 +109,7 @@ class PerformanceMetrics:
             'hit_rate': hit_rate
         }
     
-    def get_all_stats(self) -> Dict[str, Any]:
+    def get_all_stats(self) -> dict[str, Any]:
         """Get all collected statistics."""
         return {
             'timings': {
@@ -213,7 +213,6 @@ def cache_metrics(cache_name: str) -> Callable[[F], F]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Track if cache was checked
-            cache_checked = False
             
             # Intercept cache.get calls to detect hits/misses
             result = func(*args, **kwargs)

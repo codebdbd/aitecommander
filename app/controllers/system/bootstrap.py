@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
-from typing import Any, Dict, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from app.controllers.business import StructureBusinessLogic
 from app.controllers.business.links_business import LinksBusinessLogic
@@ -53,7 +53,7 @@ def build_controllers(window: WindowWithRequiredAttributes) -> ControllersFacade
     )
 
     _validate_window_attributes(window)
-    controllers: Dict[str, Any] = {}
+    controllers: dict[str, Any] = {}
     setup_controllers(window, controllers, window.db)
 
     # Legacy path lacked WindowFacade wiring; replicate the modern setup so

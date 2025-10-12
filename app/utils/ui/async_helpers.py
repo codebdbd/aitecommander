@@ -3,10 +3,9 @@
 UI code is separated; functions return status and messages instead of showing dialogs directly.
 """
 import logging
-from typing import Callable, Optional, Tuple, Any
+from typing import Any, Callable, Optional
 
 from PyQt6.QtCore import QCoreApplication
-
 from PyQt6.QtWidgets import QWidget
 
 from app.views.windows.dialogs.async_operation_dialog import AsyncOperationDialog
@@ -26,7 +25,7 @@ def run_async_import(
     on_success: Optional[Callable] = None,
     title: str = "Import data",
     cancelable: bool = False
-) -> Tuple[bool, Optional[str], Optional[dict]]:
+) -> tuple[bool, Optional[str], Optional[dict]]:
     """Run asynchronous import with a progress dialog.
 
     Returns a tuple (success, message, stats) instead of showing QMessageBox.
@@ -65,7 +64,7 @@ def run_async_import(
         result_success = True
         result_message = (
             _tr("Imported:") + "\n"
-            f"• " + _tr("Spheres") + f": {stats.get('spheres', 0)}\n"
+            "• " + _tr("Spheres") + f": {stats.get('spheres', 0)}\n"
             f"• " + _tr("Sections") + f": {stats.get('sections', 0)}\n"
             f"• " + _tr("Categories") + f": {stats.get('categories', 0)}\n"
             f"• " + _tr("Links") + f": {stats.get('links', 0)}"
@@ -96,7 +95,7 @@ def run_async_export(
     parent: Optional[QWidget] = None,
     on_success: Optional[Callable] = None,
     title: str = "Export data"
-) -> Tuple[bool, Optional[str], Any]:
+) -> tuple[bool, Optional[str], Any]:
     """Run asynchronous export with a progress dialog.
 
     Returns (success, message, exported_data) instead of showing QMessageBox.
@@ -136,8 +135,7 @@ def run_async_export(
             )
             result_message = _tr("Exported %1 records").replace("%1", str(count))
         
-        if on_success:
-            on_success(result)
+        
     
     def on_error(e, tb):
         nonlocal result_success, result_message
@@ -160,7 +158,7 @@ def run_async_backup(
     db,
     parent: Optional[QWidget] = None,
     show_notification: bool = True
-) -> Tuple[bool, Optional[str]]:
+) -> tuple[bool, Optional[str]]:
     """Run asynchronous backup.
 
     Returns (success, message) instead of showing QMessageBox.
@@ -189,8 +187,7 @@ def run_async_backup(
         result_success = True
         result_message = _tr("Backup created:") + f"\n{backup_file}"
         
-        if on_success:
-            on_success(result)
+        
     
     def on_error(e, tb):
         nonlocal result_success, result_message
@@ -206,3 +203,5 @@ def run_async_backup(
     )
     
     return result_success, result_message
+
+

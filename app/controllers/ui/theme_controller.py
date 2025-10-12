@@ -1,16 +1,16 @@
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
-from PyQt6.QtCore import QCoreApplication, QT_TRANSLATE_NOOP
+from PyQt6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
 from app.config_data import app_config
-from app.utils.ui.icon.cache_manager import clear_icon_cache
 from app.services.theme_stylesheet_service import (
     ThemeStylesheetService,
     configure_qicon_theme,
 )
+from app.utils.ui.icon.cache_manager import clear_icon_cache
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class ThemeController:
         self.main_window = main_window
         # TopPanelsController can be injected later via set_top_panels_controller()
         self.top_panels_controller = top_panels_controller
-        self._themes: List[Dict[str, Any]] = []
+        self._themes: list[dict[str, Any]] = []
         self._stylesheet_service = stylesheet_service or ThemeStylesheetService(
             app_config, settings=settings
         )
@@ -130,7 +130,7 @@ class ThemeController:
             logger.error("Error determining dark theme: %s", exc, exc_info=True)
             return False
 
-    def _get_theme_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+    def _get_theme_by_name(self, name: str) -> Optional[dict[str, Any]]:
         """Get theme dictionary by name (case insensitive)."""
         if not name:
             return None
@@ -144,14 +144,14 @@ class ThemeController:
             None,
         )
 
-    def available(self) -> List[Tuple[str, str]]:
+    def available(self) -> list[tuple[str, str]]:
         """Get list of available themes."""
         try:
             if not self._themes:
                 logger.warning("Theme list is empty, returning default themes")
                 # Return theme identifiers that can be translated via QCoreApplication.translate
                 return [("light", "light"), ("dark", "dark")]
-            result: List[Tuple[str, str]] = []
+            result: list[tuple[str, str]] = []
             for theme in self._themes:
                 name = theme.get("name")
                 if not name:
@@ -587,7 +587,7 @@ class ThemeController:
         
         # Note: code below won't execute due to early return; preserved for future
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Return theme cache statistics."""
         with self._cache_lock:
             return {

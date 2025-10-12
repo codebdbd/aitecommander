@@ -7,14 +7,14 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from typing import Iterable, Optional
+from collections.abc import Iterable
 
 from PyQt6.QtWidgets import QApplication
 
 from app.models.entities.constants import CATEGORY_BULK_UUID_FIELD
 from app.services.links_service import LinksService
-from app.services.structure_service import StructureService
 from app.services.protocols import DatabaseProtocol
+from app.services.structure_service import StructureService
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class StructureContextService:
             logger.error("clipboard_has_text failed: %s: %s", type(e).__name__, e)
             return False
 
-    def _clipboard_get_json(self) -> Optional[dict | list]:
+    def _clipboard_get_json(self) -> dict | list | None:
         if not self.clipboard_has_text():
             return None
         try:

@@ -6,7 +6,7 @@ elements via the `widgets` dictionary.
 """
 
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from PyQt6.QtCore import QCoreApplication, QSize, Qt
 from PyQt6.QtWidgets import (
@@ -48,9 +48,9 @@ class LinkDialogUI:
         :param parent: Parent widget (typically the `LinkDialog` instance).
         """
         self.parent: QWidget = parent
-        self.widgets: Dict[str, QWidget] = {}
+        self.widgets: dict[str, QWidget] = {}
 
-    def build_ui(self, link_types: List[Tuple[str, str]]) -> None:
+    def build_ui(self, link_types: list[tuple[str, str]]) -> None:
         """Build the UI.
 
         :param link_types: List of `(code, title)` pairs for link types.
@@ -78,7 +78,7 @@ class LinkDialogUI:
         # Focus is handled by LinkDialog itself depending on link type
 
     def _build_type_section(
-        self, container: QVBoxLayout, link_types: List[Tuple[str, str]]
+        self, container: QVBoxLayout, link_types: list[tuple[str, str]]
     ) -> None:
         """Create link type section and add it to container."""
         self.lbl_link_type = QLabel(_tr("Link type:"))
@@ -270,7 +270,7 @@ class LinkDialogUI:
         except (AttributeError, RuntimeError) as e:
             logger.warning("Failed to update save button state: %s", e)
 
-    def set_form_data(self, data: Dict[str, Any]) -> None:
+    def set_form_data(self, data: dict[str, Any]) -> None:
         """Set form data from dictionary."""
         for key, value in data.items():
             self.set_widget_value(key, value)

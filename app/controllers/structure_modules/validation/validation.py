@@ -5,7 +5,7 @@
 Return unified ValidationResult.
 """
 
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Optional
 
 from app.controllers.structure_services.validation import ValidationService
 
@@ -15,7 +15,7 @@ _service = ValidationService()
 
 
 def validate_section_data(
-    data: Dict[str, Any],
+    data: dict[str, Any],
     *,
     section_id: Optional[int] = None,
     get_sections: Callable[[int], list],
@@ -36,7 +36,7 @@ def validate_section_data(
 
 
 def validate_category_data(
-    data: Dict[str, Any],
+    data: dict[str, Any],
     *,
     category_id: Optional[int] = None,
     has_duplicate_category: Callable[[int, str, Optional[int]], bool],
