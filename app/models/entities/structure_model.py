@@ -3,9 +3,10 @@
 """Model for working with structure (spheres, sections, categories)."""
 
 import logging
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
-from app.models.db import Database
+if TYPE_CHECKING:
+    from app.models.db import Database
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 class StructureModel:
     """Model for working with structure."""
 
-    def __init__(self, db: Database, logger: Optional[logging.Logger] = None):
+    def __init__(self, db: "Database", logger: Optional[logging.Logger] = None):
         self.db = db
         self.logger = logger or globals().get("logger") or logging.getLogger(__name__)
 
