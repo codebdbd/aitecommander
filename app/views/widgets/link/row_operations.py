@@ -1,11 +1,11 @@
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Collection, Mapping, cast
 
 # Module containing row operations for the links table
 # Provides methods for adding, updating, and removing rows
 
 if TYPE_CHECKING:
-    from app.views.widgets.protocols import LinkTableProtocol
+    from app.views.widgets.protocols import LinkTableWidgetProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +17,13 @@ class RowOperationsMixin:
     Provides methods for updating, adding, and removing individual rows.
     """
     
-    # Type hint for the host class
     if TYPE_CHECKING:
-        def __init__(self: "LinkTableProtocol") -> None: ...
+        _current_links: dict[int, dict[str, Any]]
+
+    def _link_table(self) -> "LinkTableWidgetProtocol":
+        """Return ``self`` typed as ``LinkTableWidgetProtocol`` for mypy."""
+
+        return cast("LinkTableWidgetProtocol", self)
 
     def _link_cache(self) -> dict[int, dict[str, Any]]:
         """Helper access to current links cache."""
@@ -53,8 +57,9 @@ class RowOperationsMixin:
                 return False
 
             # Use the model to locate the row by ID
+            table = self._link_table()
             try:
-                model = self.model()
+                model = table.model()
             except Exception:
                 model = None
             row = -1
@@ -66,12 +71,11 @@ class RowOperationsMixin:
             else:
                 # Fallback: linear search via ``get_link_at``
                 try:
-                    m = model if model is not None else None
-                    total = m.rowCount() if m is not None else 0
+                    total = model.rowCount() if model is not None else 0
                 except Exception:
                     total = 0
                 for r in range(total):
-                    row_data = self.get_link_at(r)
+                    row_data = table.get_link_at(r)
                     if (
                         isinstance(row_data, dict)
                         and isinstance(row_data.get("id"), int)
@@ -116,8 +120,9 @@ class RowOperationsMixin:
                 return False
 
             # Validate row index against the model
+            table = self._link_table()
             try:
-                model = self.model()
+                model = table.model()
                 total = model.rowCount() if model is not None else 0
             except Exception:
                 model = None
@@ -172,9 +177,8 @@ class RowOperationsMixin:
             return False
 
     def _add_row(self, row: int, link: dict[str, Any], mode: str) -> bool:
-        """Insert a new row via the model."""
+        """Insert a new row via the model for the given mode."""
         try:
-            # Validate input
             if not isinstance(link, dict):
                 logger.warning(
                     "[LinksTableView] Invalid link payload for insert: %s",
@@ -182,8 +186,9 @@ class RowOperationsMixin:
                 )
                 return False
 
+            table = self._link_table()
             try:
-                model = self.model()
+                model = table.model()
                 total = model.rowCount() if model is not None else 0
             except Exception:
                 model = None
@@ -211,9 +216,8 @@ class RowOperationsMixin:
             if not inserted:
                 return False
 
-            # Rebuild cache from actual data
             try:
-                self.rebuild_cache_from_items()
+                table.rebuild_cache_from_items()
             except Exception:
                 logger.debug(
                     "[LinksTableView] rebuild_cache_from_items failed after insert",
@@ -232,11 +236,11 @@ class RowOperationsMixin:
             return False
 
     def _remove_row(self, row: int) -> bool:
-        """Remove a row via the model and return ``True`` on success."""
+        """Remove a row via the model."""
         try:
-            # Validate input
+            table = self._link_table()
             try:
-                model = self.model()
+                model = table.model()
                 total = model.rowCount() if model is not None else 0
             except Exception:
                 model = None
@@ -264,9 +268,8 @@ class RowOperationsMixin:
             if not removed:
                 return False
 
-            # Rebuild cache from current data
             try:
-                self.rebuild_cache_from_items()
+                table.rebuild_cache_from_items()
             except Exception:
                 pass
 
@@ -274,6 +277,151 @@ class RowOperationsMixin:
 
         except Exception as e:
             logger.error(
-                "[LinksTableView] Row removal error %s: %s", row, e, exc_info=True
+                "[LinksTableView] Row removal error %s: %s",
+                row,
+                e,
+                exc_info=True,
             )
             return False
+
+    def _remove_links(self, ids_to_remove: Collection[int]) -> None:
+        """Remove multiple links by their IDs."""
+
+        if not ids_to_remove:
+            return
+
+        ids = {link_id for link_id in ids_to_remove if isinstance(link_id, int)}
+        if not ids:
+            return
+
+        table = self._link_table()
+        try:
+            model = table.model()
+            total = model.rowCount() if model is not None else 0
+        except Exception:
+            model = None
+            total = 0
+
+        if total <= 0:
+            return
+
+        removed: set[int] = set()
+        for row in range(total - 1, -1, -1):
+            link_data = table.get_link_at(row)
+            link_id = link_data.get("id") if isinstance(link_data, dict) else None
+            if not isinstance(link_id, int) or link_id not in ids:
+                continue
+
+            if self._remove_row(row):
+                removed.add(link_id)
+
+            if removed == ids:
+                break
+
+        missing = ids - removed
+        if missing:
+            logger.debug(
+                "[LinksTableView] Failed to remove IDs via incremental update: %s",
+                sorted(missing),
+            )
+
+    def _update_links(
+        self,
+        ids_to_check: Collection[int],
+        new_link_map: Mapping[int, dict[str, Any]],
+        mode: str,
+    ) -> None:
+        """Update existing rows for the given IDs."""
+
+        if not ids_to_check or not new_link_map:
+            return
+
+        ids = {link_id for link_id in ids_to_check if isinstance(link_id, int)}
+        if not ids:
+            return
+
+        compare_mode = mode or getattr(self, "_current_mode", "normal")
+
+        table = self._link_table()
+        try:
+            model = table.model()
+            total = model.rowCount() if model is not None else 0
+        except Exception:
+            model = None
+            total = 0
+
+        if total <= 0:
+            return
+
+        for row in range(total):
+            link_data = table.get_link_at(row)
+            if not isinstance(link_data, dict):
+                continue
+
+            link_id = link_data.get("id")
+            if not isinstance(link_id, int) or link_id not in ids:
+                continue
+
+            new_data = new_link_map.get(link_id)
+            if not isinstance(new_data, dict):
+                continue
+
+            try:
+                unchanged = self._links_equal(link_data, new_data, compare_mode)
+            except Exception:
+                unchanged = link_data == new_data
+
+            if unchanged:
+                continue
+
+            self._update_row(row, new_data, compare_mode)
+
+    def _add_links(
+        self,
+        links: Collection[dict[str, Any]],
+        ids_to_add: Collection[int],
+        sort_col: int,
+    ) -> None:
+        """Add new links for the given IDs."""
+
+        if not links or not ids_to_add:
+            return
+
+        ids = {link_id for link_id in ids_to_add if isinstance(link_id, int)}
+        if not ids:
+            return
+
+        table = self._link_table()
+        try:
+            model = table.model()
+            base_row = model.rowCount() if model is not None else 0
+        except Exception:
+            model = None
+            base_row = 0
+
+        mode = getattr(self, "_current_mode", "normal")
+        inserted = 0
+        processed: set[int] = set()
+
+        for link in links:
+            if not isinstance(link, dict):
+                continue
+
+            link_id = link.get("id")
+            if not isinstance(link_id, int) or link_id not in ids:
+                continue
+
+            if link_id in processed:
+                continue
+
+            target_row = base_row + inserted
+            if self._add_row(target_row, link, mode):
+                inserted += 1
+                processed.add(link_id)
+
+        missing = ids - processed
+        if missing:
+            logger.debug(
+                "[LinksTableView] Failed to add IDs via incremental update: %s",
+                sorted(missing),
+            )
