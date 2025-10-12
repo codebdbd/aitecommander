@@ -1283,11 +1283,9 @@ class TopBarLayoutManager(QObject):
                 and m.bottom() == bottom
             ):
                 return
-        except Exception:
-            logger.debug("TopBarLM: failed to read contentsMargins()", exc_info=True)
             top_bar.setContentsMargins(left, top, right, bottom)
         except Exception:
-            logger.debug("TopBarLM: setContentsMargins failed", exc_info=True)
+            logger.debug("TopBarLM: failed to update contentsMargins()", exc_info=True)
 
     def _enforce_stretches(self, top_bar: QLayout, search: QLineEdit | None) -> None:
         """Reset all stretches to 0 and set search field stretch to 1."""
