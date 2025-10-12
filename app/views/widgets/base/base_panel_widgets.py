@@ -2,15 +2,20 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtWidgets import QSizePolicy, QToolButton
 
 from app.utils.ui.icon.icon_resolver import get_default_icon_path
-from app.views.widgets.base.base_widgets import BasePanelWidget
 from app.views.widgets.link_button_mixin import LinkButtonMixin
 from app.views.widgets.protocols import AppConfigWidgetAdapter, WidgetConfigProtocol
+
+if TYPE_CHECKING:
+    from app.views.widgets.base.base_widgets import BasePanelWidget
+else:
+    # Runtime import to avoid circular dependency
+    from app.views.widgets.base.base_widgets import BasePanelWidget
 
 logger = logging.getLogger(__name__)
 
