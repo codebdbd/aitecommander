@@ -241,6 +241,60 @@ class ThemeController:
         """Clear QSS cache."""
         self._stylesheet_service.clear_cache()
 
+    def _clear_icon_cache_safe(self) -> None:
+        """Clear icon cache with error handling."""
+        try:
+            clear_icon_cache()
+        except Exception as exc:
+            logger.warning("Failed to clear icon cache: %s", exc, exc_info=True)
+    
+    def _get_suspend_updates_utility(self):
+        """Get suspend_updates utility with lazy import."""
+        try:
+            from app.utils.ui.updates import suspend_updates
+            return suspend_updates
+        except Exception as exc:
+            logger.debug("Failed to import suspend_updates: %s", exc, exc_info=True)
+            return None
+    
+    def _should_require_suspend(self) -> bool:
+        """Check if suspend_updates is required by config."""
+        try:
+            return bool(getattr(app_config, "REQUIRE_SUSPEND_UPDATES", False))
+        except Exception:
+            return False
+    
+    def _rebuild_menu(self, mw) -> None:
+        """Rebuild main menu after theme change."""
+        try:
+            menu_ctrl = getattr(mw, "menu_controller", None)
+            if menu_ctrl:
+                menu_ctrl.rebuild_after_theme_change()
+        except Exception as exc:
+            logger.warning("Menu rebuild error after theme change: %s", exc, exc_info=True)
+    
+    def _reload_structure_icons(self, mw) -> None:
+        """Reload structure tree icons."""
+        try:
+            structure = getattr(mw, "structure", None)
+            if structure and hasattr(structure, "reload_icons"):
+                structure.reload_icons()
+        except Exception as exc:
+            logger.warning("Structure icons reload error: %s", exc, exc_info=True)
+    
+    def _refresh_top_panels(self) -> None:
+        """Refresh top panels (Favorites/Recent)."""
+        try:
+            self.top_panels_controller.refresh_all()
+        except Exception as exc:
+            logger.warning("Top panels update error: %s", exc, exc_info=True)
+    
+    def _perform_ui_updates(self, mw) -> None:
+        """Perform all UI updates (menu, structure, panels)."""
+        self._rebuild_menu(mw)
+        self._reload_structure_icons(mw)
+        self._refresh_top_panels()
+    
     def apply_and_refresh_ui(self) -> None:
         """Centralized UI update after theme application.
 
@@ -256,91 +310,39 @@ class ThemeController:
         logger.info(
             "ThemeController: batch UI update after theme change: menu → structure icons → top panels"
         )
-        try:
-            clear_icon_cache()
-        except Exception as exc:
-            logger.warning("Failed to clear icon cache: %s", exc, exc_info=True)
-
+        
+        # Clear icon cache
+        self._clear_icon_cache_safe()
+        
+        # Check if main window exists
         mw = getattr(self, "main_window", None)
         if not mw:
             return
-
-        # Lazy import to avoid circular imports on startup
-        try:
-            from app.utils.ui.updates import suspend_updates
-        except Exception as exc:
-            suspend_updates = None  # fallback if module unavailable
-            logger.debug("Failed to import suspend_updates: %s", exc, exc_info=True)
-
-        # Policy: require suspend_updates for batch UI update
-        try:
-            require_suspend = bool(
-                getattr(app_config, "REQUIRE_SUSPEND_UPDATES", False)
-            )
-        except Exception:
-            require_suspend = False
-
+        
+        # Get suspend_updates utility
+        suspend_updates = self._get_suspend_updates_utility()
+        require_suspend = self._should_require_suspend()
+        
+        # Handle case when suspend_updates is unavailable
         if suspend_updates is None:
             if require_suspend:
                 logger.warning(
                     "ThemeController: require_suspend_updates=True, but suspend_updates utility unavailable — skipping batch UI update"
                 )
                 return
-            # Fallback: execute operations without suspended repaint
-            try:
-                menu_ctrl = getattr(mw, "menu_controller", None)
-                if menu_ctrl:
-                    menu_ctrl.rebuild_after_theme_change()
-            except Exception as exc:
-                logger.warning(
-                    "Menu rebuild error after theme change: %s", exc, exc_info=True
-                )
-            try:
-                structure = getattr(mw, "structure", None)
-                if structure and hasattr(structure, "reload_icons"):
-                    structure.reload_icons()
-            except Exception as exc:
-                logger.warning("Structure icons reload error: %s", exc, exc_info=True)
-            try:
-                self.top_panels_controller.refresh_all()
-            except Exception as exc:
-                logger.warning("Error updating top panels: %s", exc, exc_info=True)
+            # Fallback: execute without suspended repaint
+            self._perform_ui_updates(mw)
             return
-
-        # Main path: execute bulk updates with suspended window repaint
+        
+        # Main path: execute with suspended window repaint
         if require_suspend:
             logger.debug(
                 "ThemeController: executing batch UI update with suspend_updates (strict mode)"
             )
+        
         try:
             with suspend_updates(mw):
-                # Rebuild main menu
-                try:
-                    menu_ctrl = getattr(mw, "menu_controller", None)
-                    if menu_ctrl:
-                        menu_ctrl.rebuild_after_theme_change()
-                except Exception as exc:
-                    logger.warning(
-                        "Menu rebuild error after theme change: %s",
-                        exc,
-                        exc_info=True,
-                    )
-
-                # Reload icons in structure
-                try:
-                    structure = getattr(mw, "structure", None)
-                    if structure and hasattr(structure, "reload_icons"):
-                        structure.reload_icons()
-                except Exception as exc:
-                    logger.warning(
-                        "Structure icons reload error: %s", exc, exc_info=True
-                    )
-
-                # Update top panels — direct dependency from constructor
-                try:
-                    self.top_panels_controller.refresh_all()
-                except Exception as exc:
-                    logger.warning("Top panels update error: %s", exc, exc_info=True)
+                self._perform_ui_updates(mw)
         except Exception as exc:
             logger.warning(
                 "ThemeController: batch UI update failure: %s",
@@ -400,193 +402,10 @@ class ThemeController:
         """Build QSS block with config parameters to override theme values.
 
         Returns QSS string. Empty string if nothing to override.
+        
+        Delegates to ThemeStylesheetService for actual implementation.
         """
-        try:
-            menu_font_size = int(app_config.ui.get_menu_font_size())
-        except Exception:
-            menu_font_size = None
-        try:
-            menubar_font_size = int(app_config.ui.get_menubar_font_size())
-        except Exception:
-            menubar_font_size = None
-        try:
-            menubar_item_height = int(app_config.ui.get_menubar_item_height())
-        except Exception:
-            menubar_item_height = None
-        try:
-            menu_icon_size = int(app_config.ui.get_menu_icon_size())
-        except Exception:
-            menu_icon_size = None
-        try:
-            menu_indicator_size = int(app_config.ui.get_menu_indicator_size())
-        except Exception:
-            menu_indicator_size = None
-
-        # Unified font registry from config (ui.fonts.*)
-        def _get_font_px(key: str, default: int | None) -> int | None:
-            try:
-                # IMPORTANT: UIConfig keys must start with 'ui.'
-                val = app_config.ui.get(f"ui.fonts.{key}", default)
-                return int(val) if val is not None else None
-            except Exception:
-                return default
-
-        table_header_px = _get_font_px("table_header_px", 11)
-        table_row_px = _get_font_px("table_row_px", None)
-        notes_editor_px = _get_font_px("notes_editor_px", None)
-        button_text_px = _get_font_px("button_text_px", None)
-        menubar_px = _get_font_px("menubar_px", None)
-        menu_item_px = _get_font_px("menu_item_px", None)
-        context_menu_px = _get_font_px("context_menu_px", None)
-        bottom_bar_button_px = _get_font_px("bottom_bar_button_px", None)
-        tooltip_px = _get_font_px("tooltip_px", None)
-        tree_px = _get_font_px("tree_px", None)
-        tiles_px = _get_font_px("tiles_px", None)
-        form_label_px = _get_font_px("form_label_px", None)
-        form_field_px = _get_font_px("form_field_px", None)
-        link_type_button_px = _get_font_px("link_type_button_px", None)
-
-        # Global font unit: 'px' (default) or 'pt'
-        try:
-            fonts_units = str(app_config.ui.get("ui.fonts.units", "px")).strip().lower()
-        except Exception:
-            fonts_units = "px"
-        if fonts_units not in ("px", "pt"):
-            fonts_units = "px"
-
-        def sz(val: int | None) -> str | None:
-            if val is None or int(val) <= 0:
-                return None
-            return f"{int(val)}{fonts_units}"
-
-        lines = []
-
-        # Dialogs: force system (Qt default) app font size
-        # to avoid unwanted changes from themes/styles. Does not change font family.
-        try:
-            app = QApplication.instance()
-            dialog_font_size = app.font().pointSize() if app else None
-        except Exception:
-            dialog_font_size = None
-        if dialog_font_size and dialog_font_size > 0:
-            # Propagate to dialog content so nested widgets don't override accidentally
-            lines.append(f"QDialog {{ font-size: {dialog_font_size}pt; }}")
-            lines.append(f"QDialog * {{ font-size: {dialog_font_size}pt; }}")
-
-        # Menu (QMenu)
-        if menu_font_size:
-            # Use pt to match global app font and DPI
-            lines.append(f"QMenu {{ font-size: {menu_font_size}pt; }}")
-            # Apply font size to all menu item states to override theme states
-            lines.append(f"QMenu::item {{ font-size: {menu_font_size}pt; }}")
-            lines.append(f"QMenu::item:selected {{ font-size: {menu_font_size}pt; }}")
-            lines.append(f"QMenu::item:hover {{ font-size: {menu_font_size}pt; }}")
-            lines.append(f"QMenu::item:pressed {{ font-size: {menu_font_size}pt; }}")
-            lines.append(f"QMenu::item:disabled {{ font-size: {menu_font_size}pt; }}")
-
-        if menu_icon_size:
-            # set both width and height; padding-left already defined in common
-            lines.append(
-                f"QMenu::icon {{ width: {menu_icon_size}px; height: {menu_icon_size}px; }}"
-            )
-
-        if menu_indicator_size:
-            lines.append(
-                f"QMenu::indicator {{ width: {menu_indicator_size}px; height: {menu_indicator_size}px; }}"
-            )
-
-        # Menubar (QMenuBar)
-        menubar_rules = []
-        if menubar_font_size:
-            # Also use pt to match system scale
-            menubar_rules.append(f"font-size: {menubar_font_size}pt;")
-        if menubar_px:
-            menubar_rules.append(f"font-size: {sz(menubar_px)};")
-        if menubar_rules:
-            lines.append("QMenuBar { " + " ".join(menubar_rules) + " }")
-        item_rules = []
-        if menubar_font_size:
-            item_rules.append(f"font-size: {menubar_font_size}pt;")
-        if menubar_item_height:
-            item_rules.append(f"min-height: {menubar_item_height}px;")
-        if item_rules:
-            # Base rule for menubar item
-            lines.append("QMenuBar::item { " + " ".join(item_rules) + " }")
-            # Duplicate for states to avoid theme override
-            if menubar_font_size or menubar_item_height:
-                lines.append("QMenuBar::item:selected { " + " ".join(item_rules) + " }")
-                lines.append("QMenuBar::item:hover { " + " ".join(item_rules) + " }")
-                lines.append("QMenuBar::item:pressed { " + " ".join(item_rules) + " }")
-
-        # Table/tree headers (QHeaderView): final font size override
-        if table_header_px and table_header_px > 0:
-            fs = sz(table_header_px)
-            lines.append(f"QHeaderView {{ font-size: {fs}; font-weight: normal; }}")
-            lines.append(
-                f"QTableView QHeaderView, QTreeView QHeaderView {{ font-size: {fs}; font-weight: normal; }}"
-            )
-            # Don't force bold in interactive states
-            lines.append(
-                "QHeaderView::section:pressed, QHeaderView::section:hover, QHeaderView::section:checked { font-weight: normal; }"
-            )
-
-        # Table rows by default
-        if table_row_px and table_row_px > 0:
-            lines.append(f"QTableView {{ font-size: {sz(table_row_px)}; }}")
-
-        # Tree (QTreeView)
-        if tree_px and tree_px > 0:
-            lines.append(f"QTreeView {{ font-size: {sz(tree_px)}; }}")
-
-        # Notes editor text (QTextEdit)
-        if notes_editor_px and notes_editor_px > 0:
-            lines.append(f"QTextEdit {{ font-size: {sz(notes_editor_px)}; }}")
-
-        # Buttons (including bottom panel)
-        if button_text_px and button_text_px > 0:
-            lines.append(f"QPushButton {{ font-size: {sz(button_text_px)}; }}")
-        if bottom_bar_button_px and bottom_bar_button_px > 0:
-            # Increase specificity for bottom panel: support both container names
-            fsb = sz(bottom_bar_button_px)
-            lines.append(f"QWidget#BottomPanel QPushButton {{ font-size: {fsb}; }}")
-            lines.append(
-                f"QWidget#bottomBarContainer QPushButton {{ font-size: {fsb}; }}"
-            )
-
-        # Main menu and dropdown menus
-        if menu_item_px and menu_item_px > 0:
-            fs = sz(menu_item_px)
-            lines.append(f"QMenu {{ font-size: {fs}; }}")
-            lines.append(f"QMenu::item {{ font-size: {fs}; }}")
-        if context_menu_px and context_menu_px > 0:
-            # Context menus are also QMenu; separate key allows distinction if needed
-            lines.append(
-                f"QMenu[contextMenuPolicy] {{ font-size: {sz(context_menu_px)}; }}"
-            )
-
-        # Tooltips (ToolTip)
-        if tooltip_px and tooltip_px > 0:
-            lines.append(f"QToolTip {{ font-size: {sz(tooltip_px)}; }}")
-        # Category tiles (QListView#categoryTiles)
-        if tiles_px and tiles_px > 0:
-            lines.append(f"QListView#categoryTiles {{ font-size: {sz(tiles_px)}; }}")
-        # Form labels and fields (dialogs and forms)
-        if form_label_px and form_label_px > 0:
-            fs = sz(form_label_px)
-            lines.append(f"QLabel {{ font-size: {fs}; }}")
-        if form_field_px and form_field_px > 0:
-            fs = sz(form_field_px)
-            lines.append(f"QLineEdit {{ font-size: {fs}; }}")
-            lines.append(f"QTextEdit {{ font-size: {fs}; }}")
-            lines.append(f"QComboBox {{ font-size: {fs}; }}")
-            lines.append(f"QSpinBox {{ font-size: {fs}; }}")
-        # Link type selection buttons (QToolButton with property link_type)
-        if link_type_button_px and link_type_button_px > 0:
-            fs = sz(link_type_button_px)
-            lines.append(f'QToolButton[link_type="true"] {{ font-size: {fs}; }}')
-        return "\n".join(lines)
-
-        # Note: code below won't execute due to early return; preserved for future
+        return self._stylesheet_service._build_config_overrides_qss()
 
     def get_cache_stats(self) -> dict[str, Any]:
         """Return theme cache statistics."""
