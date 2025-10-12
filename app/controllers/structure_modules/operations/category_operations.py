@@ -15,7 +15,7 @@ from ..models.types import (
     CategoryUpdateData,
     StructureItemType,
 )
-from .base import BaseOperations, StructureItemType
+from .base import BaseOperations
 
 
 class CategoryOperations(BaseOperations):
@@ -488,8 +488,8 @@ class CategoryOperations(BaseOperations):
         }
         try:
             return mapping[item_type]
-        except KeyError:
-            raise ValueError(f"Unsupported item type: {item_type}")
+        except KeyError as e:
+            raise ValueError(f"Unsupported item type: {item_type}") from e
 
     def _get_parent_id_for_item_type(
         self, item_type: str, item_data: dict[str, Any]

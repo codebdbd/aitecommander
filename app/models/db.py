@@ -4,7 +4,7 @@ import threading
 import time
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 if TYPE_CHECKING:
     from PyQt6.QtCore import QObject
@@ -282,7 +282,7 @@ class Database(QObject):
         """Returns sphere_id for given section."""
         return self.sections.get_sphere_id_by_section(section_id)
 
-    def update_item_positions(self, table_name: str, ids_in_order: List[int]):
+    def update_item_positions(self, table_name: str, ids_in_order: list[int]):
         """Updates 'position' field for list of items in specified table."""
         from .types.constants import VALID_POSITION_TABLES
         
@@ -363,7 +363,7 @@ class Database(QObject):
             raise DatabaseError(f"Failed to update positions: {e}")
 
     # === Helpers for update_item_positions ===
-    def _validate_ids(self, ids_in_order: List[int]) -> List[int]:
+    def _validate_ids(self, ids_in_order: list[int]) -> list[int]:
         """Checks and normalizes input IDs: types, values, uniqueness.
 
         Returns list of int IDs. Throws ValidationError on mismatches.
@@ -381,7 +381,7 @@ class Database(QObject):
 
         return ids
 
-    def _ensure_ids_exist(self, table_name: str, ids: List[int]) -> None:
+    def _ensure_ids_exist(self, table_name: str, ids: list[int]) -> None:
         """Checks existence of all specified IDs in table. Throws ValidationError if missing."""
         with db_lock:
             existing_ids = set()
@@ -405,7 +405,7 @@ class Database(QObject):
             )
 
     # Import/export methods
-    def export_full_structure(self) -> Dict[str, List]:
+    def export_full_structure(self) -> dict[str, list]:
         """Exports entire data structure from DB as dictionary (synchronously).
         
         .. deprecated::
@@ -445,11 +445,11 @@ class Database(QObject):
         self._thread_pool.start(worker)
         logger.info("Started async structure export")
 
-    def get_full_structure(self) -> List[Dict]:
+    def get_full_structure(self) -> list[dict]:
         """Returns full data structure as nested dictionaries."""
         return self.structure_manager.get_full_structure()
 
-    def import_full_structure(self, data: List[Dict]):
+    def import_full_structure(self, data: list[dict]):
         """Clears database and imports data from structure (synchronously).
         
         .. deprecated::
@@ -464,7 +464,7 @@ class Database(QObject):
     
     def import_full_structure_async(
         self,
-        data: List[Dict],
+        data: list[dict],
         on_finished: Optional[Callable] = None,
         on_error: Optional[Callable] = None,
         on_progress: Optional[Callable] = None
@@ -508,6 +508,7 @@ class Database(QObject):
     def backup_async(
         self,
         on_finished: Optional[Callable] = None,
+        on_error: Optional[Callable] = None,
         on_progress: Optional[Callable] = None
     ):
         """Создаёт резервную копию в фоновом потоке.
@@ -548,7 +549,7 @@ class Database(QObject):
         """Restores category and all links from backup structure."""
         return self.import_export_manager.import_category_tree(tree)
 
-    def import_category_trees_bulk(self, trees: List[dict]) -> None:
+    def import_category_trees_bulk(self, trees: list[dict]) -> None:
         """Imports multiple category subtrees in ONE transaction."""
         return self.import_export_manager.import_category_trees_bulk(trees)
 

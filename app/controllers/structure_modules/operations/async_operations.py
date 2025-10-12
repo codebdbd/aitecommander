@@ -27,7 +27,6 @@ from ..models.types import (
     SectionData,
     SphereData,
 )
-from ..signals.handlers import AsyncSignalHandlers
 from ..signals.signals import StructureSignals
 
 try:

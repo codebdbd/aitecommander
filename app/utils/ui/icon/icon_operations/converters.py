@@ -83,8 +83,6 @@ def _remove_icon_hash_cache_entry(dest_dir: Path, hash_value: str) -> None:
         if hash_value in cache:
             cache.pop(hash_value, None)
             _save_icon_hash_cache(dest_dir, cache)
-        cache[hash_value] = icon_path
-        _save_icon_hash_cache(dest_dir, cache)
 
 
 def _resize_image(img: Image.Image, size: int) -> Image.Image:

@@ -1,5 +1,4 @@
 # app/controllers/structure_modules/base.py
-
 """Base classes, enums and constants for structure operations."""
 
 import logging
@@ -13,15 +12,9 @@ from ..models.types import (
     SignalType,
     StructureItemType,
 )
-from ..models.types import (
-    StructureItemType as ImportedStructureItemType,
-)
 from ..validation.validators import ValidationError, validate_and_raise
 
 logger = logging.getLogger(__name__)
-
-
-StructureItemType = ImportedStructureItemType
 
 
 class StructureOperationError(Exception):

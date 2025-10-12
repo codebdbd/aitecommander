@@ -15,6 +15,14 @@ from .validation_api import (
     validate_create_data,
     validate_update_data,
 )
+from .validation_core import TypeValidator
+from .validation_rules import StructureDataValidator
+from .validation_types import (
+    DetailedValidationResult,
+    ValidationError,
+    ValidationIssue,
+    ValidationSeverity,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,13 +40,3 @@ __all__ = [
     "TypeValidator",
     "StructureDataValidator"
 ]
-
-# Import classes for backward compatibility
-from .validation_core import TypeValidator
-from .validation_rules import StructureDataValidator
-from .validation_types import (
-    DetailedValidationResult,
-    ValidationError,
-    ValidationIssue,
-    ValidationSeverity,
-)

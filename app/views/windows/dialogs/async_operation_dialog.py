@@ -12,6 +12,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from app.views.common.retranslatable import ReTranslatable
+
 _TR_CONTEXT = "AsyncOperationDialog"
 
 
@@ -22,9 +24,6 @@ def _tr(text: str, disambiguation: str | None = None) -> str:
 _DEFAULT_TITLE = None
 _DEFAULT_MESSAGE = None
 logger = logging.getLogger(__name__)
-
-
-from app.views.common.retranslatable import ReTranslatable
 
 
 class AsyncOperationDialog(QDialog, ReTranslatable):

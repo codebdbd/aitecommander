@@ -210,8 +210,9 @@ class TaskScheduler(QObject):
             if operations:
                 # Take last operation (most recent)
                 last_operation_id = list(operations.keys())[-1]
+                last_operation = operations[last_operation_id]
                 try:
-                    operation()
+                    last_operation()
                     logger.debug("Executed focus operation: %s", last_operation_id)
                 except Exception as e:
                     logger.error(
