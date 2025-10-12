@@ -233,15 +233,8 @@ class TopPanelsController(QObject):
             if self._strict:
                 raise
 
-    def refresh_recent(self) -> None:
-        """Refresh recent links.
-
-        Default — async load via LinksBusinessLogic.load_recent_links(limit).
-        If method/signal is unavailable (mocks in tests), use synchronous fallback
-        to get_recent_links(limit) with the previous error handling and widget update.
-        """
-        widget = self.recent_links_widget
-        # Determine limit
+    def _get_recent_limit(self, widget):
+        """Get recent links limit from widget."""
         limit = 10
         try:
             if isinstance(widget, (RecentsPanelWithLimit, SupportsGetLimit)):
@@ -250,14 +243,16 @@ class TopPanelsController(QObject):
                     limit = val
         except (TypeError, ValueError):
             pass
+        return limit
 
-        # 1) Try async (only if it's a real LinksBusinessLogic with signals)
+    def _try_async_recent_load(self, limit):
+        """Try to load recent links asynchronously."""
         try:
             if self._async_supported and callable(
                 getattr(self.links_business, "load_recent_links", None)
             ):
                 self.links_business.load_recent_links(limit)
-                return
+                return True
         except (TypeError, ValueError) as exc:
             logger.error(
                 "TopPanelsController.refresh_recent: invalid args for async call: %s",
@@ -265,31 +260,33 @@ class TopPanelsController(QObject):
                 exc_info=True,
             )
         except Exception:
-            # Log async call error and proceed to sync path
             logger.exception(
                 "TopPanelsController.refresh_recent: failed to call load_recent_links"
             )
             if self._strict:
                 raise
+        return False
 
-        # 2) Synchronous fallback — previous logic
-        items: list = []
+    def _load_recent_sync(self, limit):
+        """Load recent links synchronously."""
         try:
-            items = self.links_business.get_recent_links(limit)
+            return self.links_business.get_recent_links(limit)
         except (TypeError, ValueError):
             logger.error(
                 "TopPanelsController.refresh_recent: invalid args/data during recent load",
                 exc_info=True,
             )
-            return
+            return None
         except Exception:
             logger.exception(
                 "TopPanelsController.refresh_recent failed: business layer error"
             )
             if self._strict:
                 raise
-            return
+            return None
 
+    def _update_recent_widget(self, widget, items):
+        """Update recent widget with items."""
         try:
             if callable(getattr(widget, "set_data", None)):
                 widget.set_data(items)  # type: ignore[call-arg]
@@ -308,6 +305,25 @@ class TopPanelsController(QObject):
             )
             if self._strict:
                 raise
+
+    def refresh_recent(self) -> None:
+        """Refresh recent links.
+
+        Default — async load via LinksBusinessLogic.load_recent_links(limit).
+        If method/signal is unavailable (mocks in tests), use synchronous fallback
+        to get_recent_links(limit) with the previous error handling and widget update.
+        """
+        widget = self.recent_links_widget
+        limit = self._get_recent_limit(widget)
+
+        if self._try_async_recent_load(limit):
+            return
+
+        items = self._load_recent_sync(limit)
+        if items is None:
+            return
+
+        self._update_recent_widget(widget, items)
 
     def clear_favorites(self) -> None:
         """Clear favorites: business data and widget.
