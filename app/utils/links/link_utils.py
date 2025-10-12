@@ -376,7 +376,7 @@ class FileLinkHandler(LinkHandler):
 class ScriptLinkHandler(LinkHandler):
     """Script handler"""
 
-    def __init__(self, logger: logging.Logger, powershell_path: str = None):
+    def __init__(self, logger: logging.Logger, powershell_path: Optional[str] = None):
         super().__init__(logger)
         self.powershell_path = powershell_path or self._get_powershell_path()
 
@@ -496,7 +496,7 @@ class LinkOpener:
     """Main class for opening various types of links"""
 
     def __init__(
-        self, powershell_path: str = None, logger_obj: Optional[logging.Logger] = None
+        self, powershell_path: Optional[str] = None, logger_obj: Optional[logging.Logger] = None
     ):
         # Use module logger by default with DI support
         self.logger = (
@@ -587,12 +587,12 @@ class LinkOpener:
 
 
 # Утилитарные функции для удобства использования (обратная совместимость)
-def create_link_opener(powershell_path: str = None) -> LinkOpener:
+def create_link_opener(powershell_path: Optional[str] = None) -> LinkOpener:
     """Creates LinkOpener instance with default settings."""
     return LinkOpener(powershell_path)
 
 
-def open_link_from_dict(link_dict: dict[str, Any], powershell_path: str = None) -> None:
+def open_link_from_dict(link_dict: dict[str, Any], powershell_path: Optional[str] = None) -> None:
     """
     Opens link from dictionary data.
 
