@@ -247,40 +247,40 @@ def _extract_site_specific_title(
 
     # Site-specific selectors mapping
     if "medium.com" in domain_lower:
-        return _try_selector(soup, "h1", class_=re.compile(r"graf.*title|pw-post-title"))
-    
-    if "dev.to" in domain_lower:
-        return _try_selector(soup, "h1", class_=re.compile(r"crayons-article__title|article-title"))
-    
-    if "hackernews" in domain_lower or "news.ycombinator.com" in domain_lower:
-        return (
-            _try_selector(soup, "a", class_="storylink")
-            or _try_selector(soup, "span", class_="titleline")
+        return _try_selector(
+            soup, "h1", class_=re.compile(r"graf.*title|pw-post-title")
         )
-    
+
+    if "dev.to" in domain_lower:
+        return _try_selector(
+            soup, "h1", class_=re.compile(r"crayons-article__title|article-title")
+        )
+
+    if "hackernews" in domain_lower or "news.ycombinator.com" in domain_lower:
+        return _try_selector(soup, "a", class_="storylink") or _try_selector(
+            soup, "span", class_="titleline"
+        )
+
     if "wikipedia.org" in domain_lower:
         return _try_selector(soup, "h1", id="firstHeading")
-    
+
     if "amazon.com" in domain_lower or "amazon." in domain_lower:
         return _try_selector(soup, "span", id="productTitle")
-    
+
     if "reddit.com" in domain_lower:
-        return (
-            _try_selector(soup, "h1", attrs={"data-testid": "post-content"})
-            or _try_selector(soup, "div", class_=re.compile(r".*title.*"))
-        )
-    
+        return _try_selector(
+            soup, "h1", attrs={"data-testid": "post-content"}
+        ) or _try_selector(soup, "div", class_=re.compile(r".*title.*"))
+
     if "stackoverflow.com" in domain_lower:
-        return (
-            _try_selector(soup, "h1", attrs={"itemprop": "name"})
-            or _try_selector(soup, "a", class_="question-hyperlink")
+        return _try_selector(soup, "h1", attrs={"itemprop": "name"}) or _try_selector(
+            soup, "a", class_="question-hyperlink"
         )
-    
+
     if "github.com" in domain_lower:
-        return (
-            _try_selector(soup, "h1", class_=re.compile(r".*header.*"))
-            or _try_selector(soup, "strong", attrs={"itemprop": "name"})
-        )
+        return _try_selector(
+            soup, "h1", class_=re.compile(r".*header.*")
+        ) or _try_selector(soup, "strong", attrs={"itemprop": "name"})
 
     return None
 
@@ -607,7 +607,7 @@ def _fetch_and_parse_html(
     )
     if not resp:
         return None, ""
-    
+
     try:
         txt = _decode_response_text(resp, config)
         s = _make_soup(txt)
@@ -617,22 +617,20 @@ def _fetch_and_parse_html(
         return None, ""
 
 
-def _try_playwright_render(
-    url: str, config, title: str, js_suspected: bool
-) -> str:
+def _try_playwright_render(url: str, config, title: str, js_suspected: bool) -> str:
     """Try Playwright rendering if needed."""
     try:
         use_playwright = _use_playwright_for_title(config)
     except Exception:
         use_playwright = True
-    
+
     if not use_playwright:
         return title
-    
+
     need_render = js_suspected or not title or len(title) < 3
     if not need_render:
         return title
-    
+
     try:
         logger.info("[title] try playwright render url=%s", url)
         title2 = _try_playwright_title(url, config)
@@ -654,7 +652,7 @@ def _try_playwright_render(
             re,
             exc_info=True,
         )
-    
+
     return title
 
 
@@ -664,10 +662,10 @@ def _try_selenium_fallback(url: str, config, host: str, ua: str | None) -> str:
         use_selenium = bool(getattr(config, "USE_SELENIUM_FOR_TITLE", False))
     except Exception:
         use_selenium = False
-    
+
     if not use_selenium:
         return host
-    
+
     try:
         logger.info("[title] selenium fallback enabled url=%s", url)
         try:
@@ -676,7 +674,7 @@ def _try_selenium_fallback(url: str, config, host: str, ua: str | None) -> str:
         except Exception as ie:
             logger.warning("[title] selenium import failed: %s", ie, exc_info=True)
             return host
-        
+
         options = Options()
         options.add_argument("--headless=new")
         options.add_argument("--disable-gpu")
@@ -687,7 +685,7 @@ def _try_selenium_fallback(url: str, config, host: str, ua: str | None) -> str:
             options.page_load_strategy = "eager"
         except Exception:
             pass
-        
+
         driver = webdriver.Chrome(options=options)
         try:
             pl_to = int(getattr(config, "SELENIUM_PAGELOAD_TIMEOUT", 12))
@@ -699,7 +697,7 @@ def _try_selenium_fallback(url: str, config, host: str, ua: str | None) -> str:
             logger.debug(
                 "[title] could not set selenium page load timeout", exc_info=True
             )
-        
+
         try:
             driver.get(url)
             page = driver.page_source or ""
@@ -708,14 +706,12 @@ def _try_selenium_fallback(url: str, config, host: str, ua: str | None) -> str:
                 driver.quit()
             except Exception:
                 pass
-        
+
         if page:
             try:
                 s2 = _make_soup(page)
                 title2 = _extract_title(s2, url)
-                logger.info(
-                    "[title] selenium extracted url=%s title='%s'", url, title2
-                )
+                logger.info("[title] selenium extracted url=%s title='%s'", url, title2)
                 return title2 or host
             except Exception as pe:
                 logger.error(
@@ -728,7 +724,7 @@ def _try_selenium_fallback(url: str, config, host: str, ua: str | None) -> str:
         logger.warning(
             "[title] selenium fallback failed url=%s err=%s", url, se, exc_info=True
         )
-    
+
     return host
 
 
@@ -754,10 +750,12 @@ def get_title(url: str, config, soup: BeautifulSoup | None = None) -> str:
         timeout_override,
         retries_override,
     )
-    
+
     _try_head_request(url, config, timeout_override)
-    
-    soup_obj, txt = _fetch_and_parse_html(url, config, timeout_override, retries_override)
+
+    soup_obj, txt = _fetch_and_parse_html(
+        url, config, timeout_override, retries_override
+    )
     if soup_obj:
         # Check if JS-heavy
         js_suspected = False
@@ -767,12 +765,12 @@ def get_title(url: str, config, soup: BeautifulSoup | None = None) -> str:
                 logger.warning("[title] js-heavy suspected url=%s", url)
         except Exception:
             js_suspected = False
-        
+
         title = _extract_title(soup_obj, url)
         title = _try_playwright_render(url, config, title, js_suspected)
         logger.info("[title] done url=%s extracted='%s'", url, title)
         return title
-    
+
     # Selenium fallback
     return _try_selenium_fallback(url, config, host, ua)
 

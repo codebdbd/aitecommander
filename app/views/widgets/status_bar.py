@@ -115,7 +115,7 @@ def _update_counter(window) -> None:
             except Exception:
                 current_index = None
             tiles_active = current_index == tiles_index
-        
+
         if tiles_active and hasattr(window, "tiles") and window.tiles:
             try:
                 cats = int(window.tiles.get_categories_count())
@@ -210,7 +210,7 @@ def _update_path(window) -> None:
     parts = _build_tree_path(window)
     _add_sphere_prefix(window, parts)
     _add_selected_link(window, parts)
-    
+
     if parts:
         _set_text_if_changed(
             window.path_label,

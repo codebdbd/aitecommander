@@ -366,10 +366,10 @@ def _fetch_all_manifests_async(
 ) -> None:
     """Fetch all manifests asynchronously and invoke callback."""
     all_urls: list[str] = []
-    
+
     if not manifest_urls:
         return
-    
+
     try:
         executor = _get_manifest_executor()
         futures = [
@@ -382,12 +382,10 @@ def _fetch_all_manifests_async(
                 if urls:
                     all_urls.extend(urls)
             except Exception:
-                logger.warning(
-                    "Manifest fetch task raised an exception", exc_info=True
-                )
+                logger.warning("Manifest fetch task raised an exception", exc_info=True)
     except Exception:
         logger.warning("Manifest executor failure", exc_info=True)
-    
+
     if all_urls:
         all_urls = _deduplicate_urls(all_urls)
         try:
@@ -411,9 +409,7 @@ def _create_icon_candidate(i_url: str, size_str: str | None, fmt: str) -> IconCa
     )
 
 
-def _process_manifest_sync(
-    m_url: str, config, candidates: list[IconCandidate]
-) -> None:
+def _process_manifest_sync(m_url: str, config, candidates: list[IconCandidate]) -> None:
     """Process single manifest synchronously and add to candidates."""
     try:
         m_resp = http_request(m_url, config, allow_non_2xx=True)
@@ -429,7 +425,7 @@ def _process_manifest_sync(
                     sizes = str(icon.get("sizes") or "").split()
                     type_attr = icon.get("type") or ""
                     fmt = _detect_format(i_url, type_attr)
-                    
+
                     if sizes:
                         for sz in sizes:
                             candidates.append(_create_icon_candidate(i_url, sz, fmt))
@@ -477,7 +473,7 @@ def _handle_manifests(
             daemon=True,
         ).start()
         return
-    
+
     # Sync path: enrich candidates directly
     for m_url in manifest_urls:
         _process_manifest_sync(m_url, config, candidates)

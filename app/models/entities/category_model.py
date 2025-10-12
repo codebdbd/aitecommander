@@ -124,12 +124,12 @@ class CategoryModel(DatabaseBase):
         self, items: list[dict[str, Any]]
     ) -> tuple[dict[int, tuple[int, str, str]], bool]:
         """Validate input items and prepare normalized metadata.
-        
+
         Returns: (prepared_info, has_uuid_tokens)
         """
         prepared_info: dict[int, tuple[int, str, str]] = {}
         has_uuid_tokens = False
-        
+
         for it in items:
             self._validate_required_fields(it or {}, ["name", "section_id"], "category")
             try:
@@ -142,16 +142,18 @@ class CategoryModel(DatabaseBase):
             name_canon = str(raw_name).strip() if raw_name is not None else ""
             name_norm = name_canon.lower()
             prepared_info[id(it)] = (sid, name_canon, name_norm)
-            
+
             if not has_uuid_tokens:
                 token_raw = it.get(CATEGORY_BULK_UUID_FIELD)
                 if token_raw is not None and str(token_raw).strip():
                     has_uuid_tokens = True
-        
+
         return prepared_info, has_uuid_tokens
 
     def _group_by_section(
-        self, items: list[dict[str, Any]], prepared_info: dict[int, tuple[int, str, str]]
+        self,
+        items: list[dict[str, Any]],
+        prepared_info: dict[int, tuple[int, str, str]],
     ) -> dict[int, list[dict[str, Any]]]:
         """Group items by section_id."""
         by_section: dict[int, list[dict[str, Any]]] = {}
@@ -168,7 +170,7 @@ class CategoryModel(DatabaseBase):
         max_pos_map: dict[int, Optional[int]] = {}
         if not section_ids:
             return max_pos_map
-            
+
         placeholders = ",".join(["?"] * len(section_ids))
         query = (
             f"SELECT section_id, MAX(position) AS max_pos "
@@ -187,7 +189,7 @@ class CategoryModel(DatabaseBase):
         existing_names_by_section: dict[int, set] = {}
         if not section_ids:
             return existing_names_by_section
-            
+
         placeholders = ",".join(["?"] * len(section_ids))
         query_names = (
             f"SELECT section_id, LOWER(name) AS lname FROM category "
@@ -197,11 +199,7 @@ class CategoryModel(DatabaseBase):
             query_names, tuple(section_ids), fetch_method="all"
         )
         for r in rows or []:
-            sid = (
-                int(r["section_id"])
-                if r["section_id"] is not None
-                else None
-            )
+            sid = int(r["section_id"]) if r["section_id"] is not None else None
             if sid is None:
                 continue
             nm = str(r["lname"]).strip().lower()
@@ -219,7 +217,7 @@ class CategoryModel(DatabaseBase):
     ) -> list[tuple]:
         """Build batch insert parameters, skipping duplicates."""
         batched_params: list[tuple] = []
-        
+
         for section_id, group in by_section.items():
             max_pos = max_pos_map.get(section_id)
             start_pos = (max_pos + 1) if (max_pos is not None) else 0
@@ -241,7 +239,7 @@ class CategoryModel(DatabaseBase):
                 icon_path = it.get("icon_path", "")
                 batched_params.append((name_canon, section_id, icon_path, pos))
                 pos += 1
-        
+
         return batched_params
 
     def _collect_category_pairs(
@@ -295,17 +293,13 @@ class CategoryModel(DatabaseBase):
         for r in rows:
             try:
                 section_id = (
-                    int(r["section_id"])
-                    if r["section_id"] is not None
-                    else None
+                    int(r["section_id"]) if r["section_id"] is not None else None
                 )
             except Exception:
                 section_id = None
             if section_id is None:
                 continue
-            name_value = (
-                str(r["name"]).strip().lower() if r["name"] is not None else ""
-            )
+            name_value = str(r["name"]).strip().lower() if r["name"] is not None else ""
             rows_by_key[(section_id, name_value)] = r
         return rows_by_key
 
@@ -380,7 +374,7 @@ class CategoryModel(DatabaseBase):
                 section_ids = list(by_section.keys())
                 max_pos_map = self._load_max_positions(section_ids)
                 existing_names_by_section = self._load_existing_names(section_ids)
-                
+
                 batched_params = self._build_insert_batch(
                     by_section, prepared_info, max_pos_map, existing_names_by_section
                 )

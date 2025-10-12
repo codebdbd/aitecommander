@@ -348,7 +348,7 @@ class MoveOperationsHandler(TreeHandlerBase):
         )
         if not (sec_idx and sec_idx.isValid()):
             return []
-        
+
         ids_in_order: list[int] = []
         rows = model.rowCount(sec_idx)
         for r in range(rows):
@@ -379,7 +379,7 @@ class MoveOperationsHandler(TreeHandlerBase):
                     section_id = self._get_section_id_from_current_index()
                 if not isinstance(section_id, int):
                     return {}
-                
+
                 ids_in_order = self._get_category_ids_in_order(model, section_id)
                 if not ids_in_order:
                     return {}
@@ -434,15 +434,15 @@ class MoveOperationsHandler(TreeHandlerBase):
         tw = self.tree_widget
         if not hasattr(tw, "currentIndex"):
             return None
-        
+
         index = tw.currentIndex()
         if not index or not index.isValid():
             return None
-        
+
         t = get_tree_tuple(index, 0)
         if not t:
             return None
-        
+
         typ, id_ = t
         if typ == "section" and isinstance(id_, int):
             return id_
@@ -487,9 +487,12 @@ class MoveOperationsHandler(TreeHandlerBase):
         """Emit section_selected signal with suppressed UI updates."""
         if not section_id:
             return
-        if not hasattr(main_win, "structure_business") or not main_win.structure_business:
+        if (
+            not hasattr(main_win, "structure_business")
+            or not main_win.structure_business
+        ):
             return
-        
+
         struct = getattr(main_win, "structure", None)
         selection, tree = self._suppress_signals(struct)
         try:
@@ -501,7 +504,7 @@ class MoveOperationsHandler(TreeHandlerBase):
         """Refresh UI after a move."""
         main_win = self.tree_widget.window()
         self._switch_sphere_if_needed(main_win)
-        
+
         try:
             section_id = self._get_section_id_from_tree()
             self._emit_section_selected(main_win, section_id)

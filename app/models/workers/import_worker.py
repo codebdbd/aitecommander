@@ -146,9 +146,9 @@ class ImportStructureWorker(DatabaseWorker):
                 return
             if not isinstance(ln, dict):
                 continue
-            
+
             link_data = self._normalize_link(ln, cat_ref, ln_idx)
-            
+
             if ln.get("id"):
                 links_with_id.append(link_data)
             else:
@@ -156,12 +156,12 @@ class ImportStructureWorker(DatabaseWorker):
 
     def _prepare_links(self, root: list[dict]) -> tuple[list[dict], list[dict]]:
         """Extract and normalize link data with category references.
-        
+
         Returns: (links_with_id, links_without_id)
         """
         links_with_id = []
         links_without_id = []
-        
+
         for s in root:
             if self.is_cancelled:
                 return links_with_id, links_without_id
@@ -178,7 +178,7 @@ class ImportStructureWorker(DatabaseWorker):
                     if not isinstance(cat, dict):
                         continue
                     self._process_category_links(cat, links_with_id, links_without_id)
-        
+
         return links_with_id, links_without_id
 
     def _clear_tables(self, connection, total_items: int) -> None:
@@ -193,17 +193,15 @@ class ImportStructureWorker(DatabaseWorker):
         self, connection, spheres_items: list[dict], total_items: int
     ) -> dict[int, int]:
         """Insert spheres and return ref->id mapping."""
-        self.emit_progress(
-            0, total_items, f"Импорт сфер ({len(spheres_items)})..."
-        )
-        
+        self.emit_progress(0, total_items, f"Импорт сфер ({len(spheres_items)})...")
+
         sphere_map = {}
         current = 0
         for sp in spheres_items:
             if self.is_cancelled:
                 connection.rollback()
                 return {}
-            
+
             cursor = connection.execute(
                 "INSERT INTO sphere (name, icon_path, position) VALUES (?, ?, ?)",
                 (sp["name"], sp["icon_path"], sp["position"]),
@@ -212,7 +210,7 @@ class ImportStructureWorker(DatabaseWorker):
             current += 1
             if current % 10 == 0:
                 self.emit_progress(current, total_items, "Импорт сфер...")
-        
+
         return sphere_map
 
     def _insert_sections(
@@ -227,17 +225,17 @@ class ImportStructureWorker(DatabaseWorker):
         self.emit_progress(
             current, total_items, f"Импорт разделов ({len(sections_items)})..."
         )
-        
+
         section_map = {}
         for sec in sections_items:
             if self.is_cancelled:
                 connection.rollback()
                 return {}
-            
+
             sphere_id = sphere_map.get(sec["sphere_ref"])
             if not sphere_id:
                 continue
-            
+
             cursor = connection.execute(
                 "INSERT INTO section (name, sphere_id, icon_path, position) VALUES (?, ?, ?, ?)",
                 (sec["name"], sphere_id, sec["icon_path"], sec["position"]),
@@ -246,7 +244,7 @@ class ImportStructureWorker(DatabaseWorker):
             current += 1
             if current % 10 == 0:
                 self.emit_progress(current, total_items, "Импорт разделов...")
-        
+
         return section_map
 
     def _insert_categories(
@@ -261,17 +259,17 @@ class ImportStructureWorker(DatabaseWorker):
         self.emit_progress(
             current, total_items, f"Импорт категорий ({len(categories_items)})..."
         )
-        
+
         category_map = {}
         for cat in categories_items:
             if self.is_cancelled:
                 connection.rollback()
                 return {}
-            
+
             section_id = section_map.get(cat["section_ref"])
             if not section_id:
                 continue
-            
+
             cursor = connection.execute(
                 "INSERT INTO category (name, section_id, icon_path, position) VALUES (?, ?, ?, ?)",
                 (cat["name"], section_id, cat["icon_path"], cat["position"]),
@@ -280,7 +278,7 @@ class ImportStructureWorker(DatabaseWorker):
             current += 1
             if current % 10 == 0:
                 self.emit_progress(current, total_items, "Импорт категорий...")
-        
+
         return category_map
 
     def _insert_links(
@@ -294,19 +292,17 @@ class ImportStructureWorker(DatabaseWorker):
     ) -> int:
         """Insert links and return count of inserted links."""
         total_links = len(links_with_id) + len(links_without_id)
-        self.emit_progress(
-            current, total_items, f"Импорт ссылок ({total_links})..."
-        )
-        
+        self.emit_progress(current, total_items, f"Импорт ссылок ({total_links})...")
+
         for ln in links_with_id + links_without_id:
             if self.is_cancelled:
                 connection.rollback()
                 return 0
-            
+
             category_id = category_map.get(ln["category_ref"])
             if not category_id:
                 continue
-            
+
             connection.execute(
                 """INSERT INTO link 
                    (category_id, name, url, args, type, browser_key, icon_path, position)
@@ -325,7 +321,7 @@ class ImportStructureWorker(DatabaseWorker):
             current += 1
             if current % 20 == 0:
                 self.emit_progress(current, total_items, "Импорт ссылок...")
-        
+
         return total_links
 
     def do_work(self, connection) -> dict[str, int]:
@@ -335,43 +331,43 @@ class ImportStructureWorker(DatabaseWorker):
             Статистика импорта: {spheres: N, sections: N, categories: N, links: N}
         """
         root = self.data
-        
+
         total_items = self._count_total_items(root)
         self.emit_progress(0, total_items, "Подготовка данных...")
-        
+
         spheres_items = self._prepare_spheres(root)
         if self.is_cancelled:
             return {}
-        
+
         sections_items = self._prepare_sections(root)
         if self.is_cancelled:
             return {}
-        
+
         categories_items = self._prepare_categories(root)
         if self.is_cancelled:
             return {}
-        
+
         links_with_id, links_without_id = self._prepare_links(root)
         if self.is_cancelled:
             return {}
 
         try:
             connection.execute("BEGIN")
-            
+
             self._clear_tables(connection, total_items)
-            
+
             sphere_map = self._insert_spheres(connection, spheres_items, total_items)
             if self.is_cancelled:
                 connection.rollback()
                 return {}
-            
+
             section_map = self._insert_sections(
                 connection, sections_items, sphere_map, total_items, len(spheres_items)
             )
             if self.is_cancelled:
                 connection.rollback()
                 return {}
-            
+
             category_map = self._insert_categories(
                 connection,
                 categories_items,
@@ -382,7 +378,7 @@ class ImportStructureWorker(DatabaseWorker):
             if self.is_cancelled:
                 connection.rollback()
                 return {}
-            
+
             total_links = self._insert_links(
                 connection,
                 links_with_id,
@@ -394,17 +390,17 @@ class ImportStructureWorker(DatabaseWorker):
             if self.is_cancelled:
                 connection.rollback()
                 return {}
-            
+
             connection.commit()
             self.emit_progress(total_items, total_items, "Импорт завершен")
-            
+
             return {
                 "spheres": len(sphere_map),
                 "sections": len(section_map),
                 "categories": len(category_map),
                 "links": total_links,
             }
-        
+
         except Exception as e:
             connection.rollback()
             logger.error(f"Ошибка при импорте: {e}")

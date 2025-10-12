@@ -247,23 +247,24 @@ class ThemeController:
             clear_icon_cache()
         except Exception as exc:
             logger.warning("Failed to clear icon cache: %s", exc, exc_info=True)
-    
+
     def _get_suspend_updates_utility(self):
         """Get suspend_updates utility with lazy import."""
         try:
             from app.utils.ui.updates import suspend_updates
+
             return suspend_updates
         except Exception as exc:
             logger.debug("Failed to import suspend_updates: %s", exc, exc_info=True)
             return None
-    
+
     def _should_require_suspend(self) -> bool:
         """Check if suspend_updates is required by config."""
         try:
             return bool(getattr(app_config, "REQUIRE_SUSPEND_UPDATES", False))
         except Exception:
             return False
-    
+
     def _rebuild_menu(self, mw) -> None:
         """Rebuild main menu after theme change."""
         try:
@@ -271,8 +272,10 @@ class ThemeController:
             if menu_ctrl:
                 menu_ctrl.rebuild_after_theme_change()
         except Exception as exc:
-            logger.warning("Menu rebuild error after theme change: %s", exc, exc_info=True)
-    
+            logger.warning(
+                "Menu rebuild error after theme change: %s", exc, exc_info=True
+            )
+
     def _reload_structure_icons(self, mw) -> None:
         """Reload structure tree icons."""
         try:
@@ -281,20 +284,20 @@ class ThemeController:
                 structure.reload_icons()
         except Exception as exc:
             logger.warning("Structure icons reload error: %s", exc, exc_info=True)
-    
+
     def _refresh_top_panels(self) -> None:
         """Refresh top panels (Favorites/Recent)."""
         try:
             self.top_panels_controller.refresh_all()
         except Exception as exc:
             logger.warning("Top panels update error: %s", exc, exc_info=True)
-    
+
     def _perform_ui_updates(self, mw) -> None:
         """Perform all UI updates (menu, structure, panels)."""
         self._rebuild_menu(mw)
         self._reload_structure_icons(mw)
         self._refresh_top_panels()
-    
+
     def apply_and_refresh_ui(self) -> None:
         """Centralized UI update after theme application.
 
@@ -310,19 +313,19 @@ class ThemeController:
         logger.info(
             "ThemeController: batch UI update after theme change: menu → structure icons → top panels"
         )
-        
+
         # Clear icon cache
         self._clear_icon_cache_safe()
-        
+
         # Check if main window exists
         mw = getattr(self, "main_window", None)
         if not mw:
             return
-        
+
         # Get suspend_updates utility
         suspend_updates = self._get_suspend_updates_utility()
         require_suspend = self._should_require_suspend()
-        
+
         # Handle case when suspend_updates is unavailable
         if suspend_updates is None:
             if require_suspend:
@@ -333,13 +336,13 @@ class ThemeController:
             # Fallback: execute without suspended repaint
             self._perform_ui_updates(mw)
             return
-        
+
         # Main path: execute with suspended window repaint
         if require_suspend:
             logger.debug(
                 "ThemeController: executing batch UI update with suspend_updates (strict mode)"
             )
-        
+
         try:
             with suspend_updates(mw):
                 self._perform_ui_updates(mw)
@@ -402,7 +405,7 @@ class ThemeController:
         """Build QSS block with config parameters to override theme values.
 
         Returns QSS string. Empty string if nothing to override.
-        
+
         Delegates to ThemeStylesheetService for actual implementation.
         """
         return self._stylesheet_service._build_config_overrides_qss()

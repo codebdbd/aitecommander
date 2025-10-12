@@ -32,12 +32,12 @@ class FileSearchWorker(QRunnable):
                 _tr(self._TR_CONTEXT, "Invalid search root path.")
             )
             return None
-        
+
         try:
             root_path = Path(root_cfg).resolve(strict=False)
         except Exception:
             root_path = Path(root_cfg)
-        
+
         if not root_path.exists() or not root_path.is_dir():
             self.signals.error_occurred.emit(
                 _tr(
@@ -59,7 +59,7 @@ class FileSearchWorker(QRunnable):
             flags = 0 if self.config["case_sensitive"] else re.IGNORECASE
             if self.config["content_regex"]:
                 content_regex = re.compile(self.config["content"], flags)
-        
+
         return name_regex, content_regex
 
     def _get_search_constraints(self):
@@ -98,7 +98,9 @@ class FileSearchWorker(QRunnable):
         except OSError:
             return False
 
-    def _process_files(self, root, files, name_regex, content_regex, allowed_exts, max_file_size_bytes):
+    def _process_files(
+        self, root, files, name_regex, content_regex, allowed_exts, max_file_size_bytes
+    ):
         """Process files in directory."""
         for filename in files:
             if self._stop_requested:
@@ -127,7 +129,9 @@ class FileSearchWorker(QRunnable):
                 return
 
             name_regex, content_regex = self._compile_regexes()
-            max_depth, allowed_exts, max_file_size_bytes = self._get_search_constraints()
+            max_depth, allowed_exts, max_file_size_bytes = (
+                self._get_search_constraints()
+            )
             base_depth = len(root_path.parts)
 
             for root, dirs, files in os.walk(str(root_path)):
@@ -135,7 +139,14 @@ class FileSearchWorker(QRunnable):
                     break
 
                 self._should_limit_depth(root, base_depth, max_depth, dirs)
-                self._process_files(root, files, name_regex, content_regex, allowed_exts, max_file_size_bytes)
+                self._process_files(
+                    root,
+                    files,
+                    name_regex,
+                    content_regex,
+                    allowed_exts,
+                    max_file_size_bytes,
+                )
 
         except Exception as e:
             _tr = QCoreApplication.translate

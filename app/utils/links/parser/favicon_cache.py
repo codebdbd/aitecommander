@@ -388,7 +388,7 @@ class FaviconCache(BaseCache):
         db = self._db
         if db is None:
             return None
-        
+
         item = db.get(key)
         if self._is_item_expired(item):
             self._delete_expired_item(db, key)
@@ -401,7 +401,7 @@ class FaviconCache(BaseCache):
             icon_path_service.ensure_user_icons_dir()
         except Exception:
             pass
-        
+
         with closing(shelve.open(current_path)) as db2:
             item = db2.get(key)
             if self._is_item_expired(item):
@@ -611,9 +611,7 @@ class FaviconCache(BaseCache):
     def _remove_key_from_index(self, db, key):
         """Remove key from timestamp index."""
         try:
-            idx: OrderedDict[str, float] = (
-                db.get("__ts_index__") or OrderedDict()
-            )
+            idx: OrderedDict[str, float] = db.get("__ts_index__") or OrderedDict()
             if key in idx:
                 idx.pop(key, None)
                 db["__ts_index__"] = idx
@@ -678,7 +676,7 @@ class FaviconCache(BaseCache):
                 if key is None:
                     self._clear_all_cache()
                     return
-                
+
                 if self._persistent_enabled:
                     self._invalidate_persistent_key(key)
                 else:
