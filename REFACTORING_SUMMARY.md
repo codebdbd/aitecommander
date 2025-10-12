@@ -12,9 +12,9 @@
 
 | Метрика | До | После | Изменение |
 |---------|-----|-------|-----------|
-| **Функций с C901 > 12** | 78 | 67 | **-11 (-14.1%)** |
-| **Общая сложность** | 2400+ | 2126 | **-274 единицы** |
-| **Методов извлечено** | 0 | 68 | **+68** |
+| **Функций с C901 > 12** | 78 | 66 | **-12 (-15.4%)** |
+| **Общая сложность** | 2400+ | 2099 | **-301 единица** |
+| **Методов извлечено** | 0 | 75 | **+75** |
 
 ### Отрефакторенные функции
 
@@ -29,8 +29,9 @@
 | 7 | `runtime.py` | `run` | **29** | **0** ✅ | 9 |
 | 8 | `title_parser.py` | `get_title` + `_extract_site_specific_title` | **28 + 17** | **0 + 0** ✅ | 6 |
 | 9 | `icon_candidates.py` | `_handle_manifests` | **29** | **0** ✅ | 5 |
+| 10 | `top_bar_layout_manager.py` | `_update_separators_visibility` | **27** | **0** ✅ | 7 |
 
-**Итого**: 274 единицы сложности → 0
+**Итого**: 301 единица сложности → 0
 
 ---
 
@@ -61,7 +62,7 @@ def insert_categories_bulk(items):
 ```
 
 ### 2. Независимые блоки UI
-**Файлы**: `status_bar.py`, `window_ui_setup.py`
+**Файлы**: `status_bar.py`, `window_ui_setup.py`, `top_bar_layout_manager.py`
 
 Извлечение независимых операций обновления:
 ```python
@@ -111,7 +112,7 @@ def _apply(self):
 Found 78 errors.
 
 # После
-Found 67 errors.
+Found 66 errors.
 ```
 
 ### Pytest
@@ -139,6 +140,7 @@ app/views/main_components/ui/window_ui_setup.py (+180 -116 lines)
 app/startup/runtime.py                         (+220 -150 lines)
 app/utils/links/parser/title_parser.py        (+230 -170 lines)
 app/utils/links/parser/icon_candidates.py     (+160 -160 lines)
+app/views/main_components/ui/topbar/top_bar_layout_manager.py (+190 -150 lines)
 docs/complexity_refactoring_strategy.md        (new file)
 docs/refactoring_progress.md                   (updated)
 REFACTORING_SUMMARY.md                         (new file)
@@ -148,12 +150,11 @@ REFACTORING_SUMMARY.md                         (new file)
 
 ## 🚀 Следующие шаги
 
-### Критичные функции (C901 > 25) — осталось 4
+### Критичные функции (C901 > 25) — осталось 3
 
-1. `top_bar_layout_manager.py::_update_separators_visibility` (27)
-2. `width_calculator.py::panel_width` (26)
-3. `dnd/commands.py::_apply_states` (26)
-4. `dnd/commands.py::redo` (29)
+1. `width_calculator.py::panel_width` (26)
+2. `dnd/commands.py::_apply_states` (26)
+3. `dnd/commands.py::redo` (29)
 
 ### Рекомендации
 
@@ -167,10 +168,11 @@ git add app/models/entities/category_model.py \
         app/startup/runtime.py \
         app/utils/links/parser/title_parser.py \
         app/utils/links/parser/icon_candidates.py \
+        app/views/main_components/ui/topbar/top_bar_layout_manager.py \
         docs/ \
         REFACTORING_SUMMARY.md
 
-git commit -m "refactor: reduce complexity in 9 functions (C901: 274→0)
+git commit -m "refactor: reduce complexity in 10 functions (C901: 301→0)
 
 - category_model.py::insert_categories_bulk (35→0): 9 methods
 - status_bar.py::update_status_bar (29→0): 6 functions
@@ -181,16 +183,16 @@ git commit -m "refactor: reduce complexity in 9 functions (C901: 274→0)
 - runtime.py::run (29→0): 9 functions
 - title_parser.py::get_title + _extract_site_specific_title (45→0): 6 functions
 - icon_candidates.py::_handle_manifests (29→0): 5 functions
+- top_bar_layout_manager.py::_update_separators_visibility (27→0): 7 methods
 
-Total: 68 helper methods/functions extracted, all tests passing.
-Reduced from 78 to 67 functions with C901 > 12 (-14.1%)."
+Total: 75 helper methods/functions extracted, all tests passing.
+Reduced from 78 to 66 functions with C901 > 12 (-15.4%)."
 ```
 
 **На следующей неделе** (2-3 функции в день):
-- Понедельник: `top_bar_layout_manager.py::_update_separators_visibility` (27)
-- Вторник: `width_calculator.py::panel_width` (26)
-- Среда-Четверг: `dnd/commands.py::_apply_states` + `redo` (26 + 29)
-- Пятница: Высокие функции (C901 20-25)
+- Понедельник: `width_calculator.py::panel_width` (26)
+- Вторник-Среда: `dnd/commands.py::_apply_states` + `redo` (26 + 29)
+- Четверг-Пятница: Высокие функции (C901 20-25)
 
 **Цель месяца**: Снизить до 50 функций (35% прогресс)
 

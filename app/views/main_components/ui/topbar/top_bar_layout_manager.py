@@ -1030,6 +1030,190 @@ class TopBarLayoutManager(QObject):
             except Exception:
                 logger.debug("TopBarLM: failed to clamp search width", exc_info=True)
 
+    def _build_panel_widgets_map(self) -> dict[int, tuple[str, QWidget]]:
+        """Build panel map for quick logical-visibility checks."""
+        panel_widgets = {}
+        for state_label, attr_name in (
+            (PanelLabel.RECENT.value, "recent_links_widget"),
+            (PanelLabel.FAVORITES.value, "fav_widget"),
+            (PanelLabel.QUICK.value, "quick_add_widget"),
+        ):
+            widget = self._safe_get(self.window, attr_name)
+            if widget:
+                panel_widgets[id(widget)] = (state_label, widget)
+        return panel_widgets
+
+    def _build_widgets_map(self, top_bar: QLayout) -> dict[int, QWidget]:
+        """Build widget map with indexes for O(1) lookup."""
+        count = top_bar.count()
+        widgets_map = {}
+        for index in range(count):
+            item = top_bar.itemAt(index)
+            widget = item.widget()
+            if widget is not None:
+                widgets_map[index] = widget
+        return widgets_map
+
+    def _find_neighbor_widget(
+        self, widgets_map: dict[int, QWidget], index: int, direction: int, count: int
+    ) -> QWidget | None:
+        """Find nearest neighbor widget in given direction."""
+        if direction < 0:  # left
+            for idx in range(index - 1, -1, -1):
+                if idx in widgets_map:
+                    return widgets_map[idx]
+        else:  # right
+            for idx in range(index + 1, count):
+                if idx in widgets_map:
+                    return widgets_map[idx]
+        return None
+
+    def _is_panel_visible(
+        self,
+        widget: QWidget | None,
+        panel_widgets: dict[int, tuple[str, QWidget]],
+        applied_counts: dict[str, int],
+    ) -> bool:
+        """Check if panel is logically visible."""
+        if not widget:
+            return False
+        panel_info = panel_widgets.get(id(widget))
+        if panel_info:
+            state_label, panel_widget = panel_info
+            return (
+                applied_counts.get(state_label, 0) > 0 and panel_widget.isVisible()
+            )
+        return False
+
+    def _find_next_visible_widget(
+        self,
+        widgets_map: dict[int, QWidget],
+        panel_widgets: dict[int, tuple[str, QWidget]],
+        applied_counts: dict[str, int],
+        start_index: int,
+        step: int,
+        count: int,
+    ) -> QWidget | None:
+        """Locate the next logically visible widget in the given direction."""
+        idx = start_index + step
+        while 0 <= idx < count:
+            widget = widgets_map.get(idx)
+            if widget is None:
+                idx += step
+                continue
+            if widget.objectName() == "vSeparator":
+                idx += step
+                continue
+
+            panel_info = panel_widgets.get(id(widget))
+            if panel_info:
+                state_label, panel_widget = panel_info
+                if (
+                    applied_counts.get(state_label, 0) > 0
+                    and panel_widget.isVisible()
+                ):
+                    return panel_widget
+                idx += step
+                continue
+
+            return widget
+        return None
+
+    def _should_show_separator(
+        self,
+        left_widget: QWidget | None,
+        right_widget: QWidget | None,
+        panel_widgets: dict[int, tuple[str, QWidget]],
+        applied_counts: dict[str, int],
+        has_search: bool,
+        widgets_map: dict[int, QWidget],
+        index: int,
+        count: int,
+    ) -> tuple[bool, QWidget | None]:
+        """Determine if separator should be shown.
+        
+        Returns: (show_separator, target_right_widget)
+        """
+        left_visible = self._is_panel_visible(left_widget, panel_widgets, applied_counts)
+        right_visible = self._is_panel_visible(right_widget, panel_widgets, applied_counts)
+        
+        show_sep = left_visible and (
+            right_visible or (has_search and isinstance(right_widget, QLineEdit))
+        )
+        
+        target_right_widget = right_widget
+        
+        # Check for bridged separator
+        if (
+            not show_sep
+            and left_visible
+            and not right_visible
+            and right_widget is not None
+            and panel_widgets.get(id(right_widget))
+        ):
+            bridged_right = self._find_next_visible_widget(
+                widgets_map, panel_widgets, applied_counts, index, +1, count
+            )
+            if bridged_right is not None and (
+                self._is_panel_visible(bridged_right, panel_widgets, applied_counts)
+                or (has_search and isinstance(bridged_right, QLineEdit))
+            ):
+                target_right_widget = bridged_right
+                show_sep = True
+        
+        return show_sep, target_right_widget
+
+    def _update_spacer_sizes(
+        self,
+        top_bar: QLayout,
+        index: int,
+        count: int,
+        show_sep: bool,
+        target_right_widget: QWidget | None,
+    ) -> None:
+        """Update spacer sizes around separator."""
+        left_sp = top_bar.itemAt(index - 1).spacerItem() if index - 1 >= 0 else None
+        right_sp = (
+            top_bar.itemAt(index + 1).spacerItem() if index + 1 < count else None
+        )
+        
+        if show_sep:
+            if left_sp:
+                left_sp.changeSize(
+                    self.SEPARATOR_SPACING_VISIBLE,
+                    0,
+                    QSizePolicy.Policy.Fixed,
+                    QSizePolicy.Policy.Fixed,
+                )
+            if right_sp:
+                right_sp.changeSize(
+                    self.SEPARATOR_SPACING_VISIBLE,
+                    0,
+                    QSizePolicy.Policy.Fixed,
+                    QSizePolicy.Policy.Fixed,
+                )
+        else:
+            is_search_right = isinstance(target_right_widget, QLineEdit)
+            spacing = (
+                self.SEPARATOR_SPACING_VISIBLE
+                if is_search_right
+                else self.SEPARATOR_SPACING_HIDDEN
+            )
+            if left_sp:
+                left_sp.changeSize(
+                    spacing,
+                    0,
+                    QSizePolicy.Policy.Fixed,
+                    QSizePolicy.Policy.Fixed,
+                )
+            if right_sp:
+                right_sp.changeSize(
+                    spacing,
+                    0,
+                    QSizePolicy.Policy.Fixed,
+                    QSizePolicy.Policy.Fixed,
+                )
+
     def _update_separators_visibility(
         self,
         top_bar: QLayout,
@@ -1041,63 +1225,9 @@ class TopBarLayoutManager(QObject):
         Fix: optimize to O(n) via a single layout traversal plus O(1) neighbor
         lookups.
         """
-        # Build a panel map for quick logical-visibility checks
-        panel_widgets = {}
-        for state_label, attr_name in (
-            (PanelLabel.RECENT.value, "recent_links_widget"),
-            (PanelLabel.FAVORITES.value, "fav_widget"),
-            (PanelLabel.QUICK.value, "quick_add_widget"),
-        ):
-            widget = self._safe_get(self.window, attr_name)
-            if widget:
-                panel_widgets[id(widget)] = (state_label, widget)
-
-        def logical_visible(widget: QWidget | None) -> bool:
-            """Return logical panel visibility in O(1)."""
-            if not widget:
-                return False
-            panel_info = panel_widgets.get(id(widget))
-            if panel_info:
-                state_label, panel_widget = panel_info
-                return (
-                    applied_counts.get(state_label, 0) > 0 and panel_widget.isVisible()
-                )
-            return False
-
-        # Fix: single pass to build widget map with indexes
+        panel_widgets = self._build_panel_widgets_map()
+        widgets_map = self._build_widgets_map(top_bar)
         count = top_bar.count()
-        widgets_map = {}  # index -> widget
-        for index in range(count):
-            item = top_bar.itemAt(index)
-            widget = item.widget()
-            if widget is not None:
-                widgets_map[index] = widget
-
-        def _next_visible_widget(start_index: int, step: int) -> QWidget | None:
-            """Locate the next logically visible widget in the given direction."""
-            idx = start_index + step
-            while 0 <= idx < count:
-                widget = widgets_map.get(idx)
-                if widget is None:
-                    idx += step
-                    continue
-                if widget.objectName() == "vSeparator":
-                    idx += step
-                    continue
-
-                panel_info = panel_widgets.get(id(widget))
-                if panel_info:
-                    state_label, panel_widget = panel_info
-                    if (
-                        applied_counts.get(state_label, 0) > 0
-                        and panel_widget.isVisible()
-                    ):
-                        return panel_widget
-                    idx += step
-                    continue
-
-                return widget
-            return None
 
         # Process separators
         for index in range(count):
@@ -1105,85 +1235,25 @@ class TopBarLayoutManager(QObject):
             widget = item.widget()
             if widget is None or widget.objectName() != "vSeparator":
                 continue
-
-            # O(1) neighbor lookup through the map
-            left_widget = None
-            for left_idx in range(index - 1, -1, -1):
-                if left_idx in widgets_map:
-                    left_widget = widgets_map[left_idx]
-                    break
-
-            right_widget = None
-            for right_idx in range(index + 1, count):
-                if right_idx in widgets_map:
-                    right_widget = widgets_map[right_idx]
-                    break
-
-            target_right_widget = right_widget
-            left_visible = logical_visible(left_widget)
-            right_visible = logical_visible(right_widget)
-
-            show_sep = left_visible and (
-                right_visible or (has_search and isinstance(right_widget, QLineEdit))
+            
+            left_widget = self._find_neighbor_widget(widgets_map, index, -1, count)
+            right_widget = self._find_neighbor_widget(widgets_map, index, +1, count)
+            
+            show_sep, target_right_widget = self._should_show_separator(
+                left_widget,
+                right_widget,
+                panel_widgets,
+                applied_counts,
+                has_search,
+                widgets_map,
+                index,
+                count,
             )
-
-            if (
-                not show_sep
-                and left_visible
-                and not right_visible
-                and right_widget is not None
-                and panel_widgets.get(id(right_widget))
-            ):
-                bridged_right = _next_visible_widget(index, +1)
-                if bridged_right is not None and (
-                    logical_visible(bridged_right)
-                    or (has_search and isinstance(bridged_right, QLineEdit))
-                ):
-                    target_right_widget = bridged_right
-                    show_sep = True
-
+            
             widget.setVisible(show_sep)
-
-            left_sp = top_bar.itemAt(index - 1).spacerItem() if index - 1 >= 0 else None
-            right_sp = (
-                top_bar.itemAt(index + 1).spacerItem() if index + 1 < count else None
+            self._update_spacer_sizes(
+                top_bar, index, count, show_sep, target_right_widget
             )
-
-            if show_sep:
-                if left_sp:
-                    left_sp.changeSize(
-                        self.SEPARATOR_SPACING_VISIBLE,
-                        0,
-                        QSizePolicy.Policy.Fixed,
-                        QSizePolicy.Policy.Fixed,
-                    )
-                if right_sp:
-                    right_sp.changeSize(
-                        self.SEPARATOR_SPACING_VISIBLE,
-                        0,
-                        QSizePolicy.Policy.Fixed,
-                        QSizePolicy.Policy.Fixed,
-                    )
-            else:
-                is_search_right = isinstance(target_right_widget, QLineEdit)
-                if left_sp:
-                    left_sp.changeSize(
-                        self.SEPARATOR_SPACING_VISIBLE
-                        if is_search_right
-                        else self.SEPARATOR_SPACING_HIDDEN,
-                        0,
-                        QSizePolicy.Policy.Fixed,
-                        QSizePolicy.Policy.Fixed,
-                    )
-                if right_sp:
-                    right_sp.changeSize(
-                        self.SEPARATOR_SPACING_VISIBLE
-                        if is_search_right
-                        else self.SEPARATOR_SPACING_HIDDEN,
-                        0,
-                        QSizePolicy.Policy.Fixed,
-                        QSizePolicy.Policy.Fixed,
-                    )
 
     def _apply_narrow_mode(self, top_bar: QLayout, search: QLineEdit | None) -> None:
         def _neighbor_widget(idx: int, step: int) -> QWidget | None:
