@@ -57,25 +57,29 @@ def _get_existing_icon_path(host: str) -> str | None:
     return cand if Path(cand).exists() else None
 
 
-def _check_cache(url: str, config, force_refresh: bool, existing_icon_path: str | None) -> dict[str, Any] | None:
+def _check_cache(
+    url: str, config, force_refresh: bool, existing_icon_path: str | None
+) -> dict[str, Any] | None:
     """Check cache for existing entry."""
     if force_refresh:
         return None
-    
+
     cached = read_cache(url, config)
     if not cached:
         return None
-    
+
     # If cache has default icon but folder contains saved one — reuse it
     try:
-        default_icon_path = resolve_icon_for_link({"type": "web", "icon_path": ""}) or ""
+        default_icon_path = (
+            resolve_icon_for_link({"type": "web", "icon_path": ""}) or ""
+        )
     except Exception:
         default_icon_path = ""
-    
+
     if (not cached.get("icon")) or (cached.get("icon") == default_icon_path):
         if existing_icon_path:
             cached = {**cached, "icon": existing_icon_path}
-    
+
     return cached
 
 
@@ -88,7 +92,7 @@ def _fetch_and_parse_html(url: str, config, html_timeout) -> BeautifulSoup | Non
         except Exception:
             pass
         return None
-    
+
     try:
         # Robust decode (avoid ISO-8859-1 defaults)
         enc = getattr(resp, "encoding", None)
@@ -115,7 +119,7 @@ def _fetch_and_parse_html(url: str, config, html_timeout) -> BeautifulSoup | Non
                 txt = resp.text
         else:
             txt = resp.text
-        
+
         # Create soup safely with fallback parser
         try:
             return BeautifulSoup(txt, BS_PARSER)
@@ -126,17 +130,26 @@ def _fetch_and_parse_html(url: str, config, html_timeout) -> BeautifulSoup | Non
         return None
 
 
-def _resolve_icon_sync(soup: BeautifulSoup | None, url: str, host: str, config, force_refresh: bool, existing_icon_path: str | None) -> str | None:
+def _resolve_icon_sync(
+    soup: BeautifulSoup | None,
+    url: str,
+    host: str,
+    config,
+    force_refresh: bool,
+    existing_icon_path: str | None,
+) -> str | None:
     """Resolve icon synchronously."""
     try:
         logger.debug("[fetch] picking icon sync for host=%s", host)
         soup_for_icon = soup or BeautifulSoup("", BS_PARSER)
-        
+
         # If a domain icon already exists — reuse it and skip download
         if existing_icon_path:
             return existing_icon_path
-        
-        return pick_icon_parallel(soup_for_icon, url, host, config, force_refresh=force_refresh)
+
+        return pick_icon_parallel(
+            soup_for_icon, url, host, config, force_refresh=force_refresh
+        )
     except Exception as e:
         logger.debug("pick_icon failed for %s: %s", url, e)
         return None
@@ -150,7 +163,7 @@ def _refetch_html_for_icon(url: str, config) -> BeautifulSoup | None:
     resp = http_request(url, config, timeout_override=icon_html_timeout)
     if not resp:
         return None
-    
+
     try:
         enc = getattr(resp, "encoding", None)
         if not enc or str(enc).lower() == "iso-8859-1":
@@ -183,7 +196,9 @@ def _update_cache_with_icon(url: str, title: str, icon_path: str, config) -> Non
         logger.debug("cache write (async) failed for %s: %s", url, ex)
 
 
-def _notify_icon_ready(icon_path: str, url: str, on_icon_ready: Callable[[str], None]) -> None:
+def _notify_icon_ready(
+    icon_path: str, url: str, on_icon_ready: Callable[[str], None]
+) -> None:
     """Notify UI that icon is ready via TaskScheduler."""
     try:
         sched = get_task_scheduler()
@@ -197,39 +212,48 @@ def _notify_icon_ready(icon_path: str, url: str, on_icon_ready: Callable[[str], 
         logger.debug("on_icon_ready scheduling failed for %s: %s", url, ex)
 
 
-def _create_icon_resolve_task(soup: BeautifulSoup | None, url: str, title: str, config, on_icon_ready: Callable[[str], None] | None):
+def _create_icon_resolve_task(
+    soup: BeautifulSoup | None,
+    url: str,
+    title: str,
+    config,
+    on_icon_ready: Callable[[str], None] | None,
+):
     """Create async icon resolve task."""
+
     def _resolve_icon_async(html_soup: BeautifulSoup | None) -> None:
         # Re-fetch HTML if soup is missing
         if html_soup is None:
             html_soup = _refetch_html_for_icon(url, config)
-        
+
         if html_soup is None:
             return
-        
+
         # Resolve icon
         resolved = None
         try:
             host = base_domain(urlparse(url).netloc)
-            resolved = pick_icon_parallel(html_soup, url, host, config, force_refresh=False)
+            resolved = pick_icon_parallel(
+                html_soup, url, host, config, force_refresh=False
+            )
         except Exception as ex:
             logger.debug("pick_icon (async) failed for %s: %s", url, ex)
-        
+
         if not resolved:
             return
-        
+
         # Update cache
         _update_cache_with_icon(url, title, resolved, config)
-        
+
         # Notify UI
         if on_icon_ready:
             _notify_icon_ready(resolved, url, on_icon_ready)
-    
+
     class IconResolveTask(QRunnable):
         def run(_self_nonlocal):  # type: ignore[no-redef]
             _resolve_icon_async(soup)
             return
-    
+
     return IconResolveTask()
 
 
@@ -248,48 +272,53 @@ def fetch_web_link_info(
         host = base_domain(urlparse(url).netloc)
     except Exception:
         host = ""
-    
+
     existing_icon_path = _get_existing_icon_path(host)
-    
+
     # 2) Check cache
     cached = _check_cache(url, config, force_refresh, existing_icon_path)
     if cached:
         return cached
-    
+
     # 3) Fetch and parse HTML
     html_timeout = getattr(config, "HTML_FETCH_TIMEOUT", None)
     try:
         logger.debug(
             "[fetch] start url=%s force=%s defer_icon=%s html_timeout=%s",
-            url, force_refresh, defer_icon, html_timeout,
+            url,
+            force_refresh,
+            defer_icon,
+            html_timeout,
         )
     except Exception:
         pass
-    
+
     soup = _fetch_and_parse_html(url, config, html_timeout)
-    
+
     # 4) Extract title
     title = get_title(url, config, soup)
     try:
         logger.debug("[fetch] title='%s' for %s", title, url)
     except Exception:
         pass
-    
+
     # 5) Resolve icon (sync or deferred)
     icon_path = None
     if not defer_icon:
-        icon_path = _resolve_icon_sync(soup, url, host, config, force_refresh, existing_icon_path)
-    
+        icon_path = _resolve_icon_sync(
+            soup, url, host, config, force_refresh, existing_icon_path
+        )
+
     # 6) Fallback to existing icon if resolution failed
     if icon_path is None and existing_icon_path:
         icon_path = existing_icon_path
-    
+
     # 7) Build result with default icon fallback
     try:
         default_icon = resolve_icon_for_link({"type": "web", "icon_path": ""}) or ""
     except Exception:
         default_icon = ""
-    
+
     result = {
         "url": url,
         "title": title,
@@ -297,7 +326,7 @@ def fetch_web_link_info(
         "timestamp": __import__("time").time(),
         "ttl": apply_jitter(CACHE_TTL, config),
     }
-    
+
     try:
         logger.debug(
             "[fetch] icon=%s for host=%s",
@@ -306,19 +335,19 @@ def fetch_web_link_info(
         )
     except Exception:
         pass
-    
+
     # 8) Write to cache
     try:
         write_cache(url, result, config)
     except Exception as e:
         logger.debug("cache write failed for %s: %s", url, e)
-    
+
     # 9) Schedule deferred icon resolution if needed
     if defer_icon and (icon_path is None):
         scheduler = get_task_scheduler()
         task = _create_icon_resolve_task(soup, url, title, config, on_icon_ready)
         scheduler.submit_task(task)
-    
+
     return result
 
 
